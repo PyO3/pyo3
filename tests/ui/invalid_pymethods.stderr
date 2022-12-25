@@ -64,73 +64,85 @@ error: `text_signature` not allowed with `classattr`
 78 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
-error: `signature` not allowed with `getter`
-  --> tests/ui/invalid_pymethods.rs:85:12
+error: expected a string literal or `None`
+  --> tests/ui/invalid_pymethods.rs:84:30
    |
-85 |     #[pyo3(signature = ())]
+84 |     #[pyo3(text_signature = 1)]
+   |                              ^
+
+error: `text_signature` may only be specified once
+  --> tests/ui/invalid_pymethods.rs:91:12
+   |
+91 |     #[pyo3(text_signature = None)]
+   |            ^^^^^^^^^^^^^^
+
+error: `signature` not allowed with `getter`
+  --> tests/ui/invalid_pymethods.rs:98:12
+   |
+98 |     #[pyo3(signature = ())]
    |            ^^^^^^^^^
 
 error: `signature` not allowed with `setter`
-  --> tests/ui/invalid_pymethods.rs:92:12
-   |
-92 |     #[pyo3(signature = ())]
-   |            ^^^^^^^^^
+   --> tests/ui/invalid_pymethods.rs:105:12
+    |
+105 |     #[pyo3(signature = ())]
+    |            ^^^^^^^^^
 
 error: `signature` not allowed with `classattr`
-  --> tests/ui/invalid_pymethods.rs:99:12
-   |
-99 |     #[pyo3(signature = ())]
-   |            ^^^^^^^^^
+   --> tests/ui/invalid_pymethods.rs:112:12
+    |
+112 |     #[pyo3(signature = ())]
+    |            ^^^^^^^^^
 
 error: cannot specify a second method type
-   --> tests/ui/invalid_pymethods.rs:106:7
+   --> tests/ui/invalid_pymethods.rs:119:7
     |
-106 |     #[staticmethod]
+119 |     #[staticmethod]
     |       ^^^^^^^^^^^^
 
 error: Python functions cannot have generic type parameters
-   --> tests/ui/invalid_pymethods.rs:112:23
+   --> tests/ui/invalid_pymethods.rs:125:23
     |
-112 |     fn generic_method<T>(value: T) {}
+125 |     fn generic_method<T>(value: T) {}
     |                       ^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:117:48
+   --> tests/ui/invalid_pymethods.rs:130:48
     |
-117 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
+130 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
     |                                                ^^^^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:122:56
+   --> tests/ui/invalid_pymethods.rs:135:56
     |
-122 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
+135 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
     |                                                        ^^^^
 
 error: `async fn` is not yet supported for Python functions.
 
        Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and Python. For more information, see https://github.com/PyO3/pyo3/issues/1632
-   --> tests/ui/invalid_pymethods.rs:127:5
+   --> tests/ui/invalid_pymethods.rs:140:5
     |
-127 |     async fn async_method(&self) {}
+140 |     async fn async_method(&self) {}
     |     ^^^^^
 
 error: `pass_module` cannot be used on Python methods
-   --> tests/ui/invalid_pymethods.rs:132:12
+   --> tests/ui/invalid_pymethods.rs:145:12
     |
-132 |     #[pyo3(pass_module)]
+145 |     #[pyo3(pass_module)]
     |            ^^^^^^^^^^^
 
 error: Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
        Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.
-   --> tests/ui/invalid_pymethods.rs:138:29
+   --> tests/ui/invalid_pymethods.rs:151:29
     |
-138 |     fn method_self_by_value(self) {}
+151 |     fn method_self_by_value(self) {}
     |                             ^^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___new____`
-   --> tests/ui/invalid_pymethods.rs:143:1
+   --> tests/ui/invalid_pymethods.rs:156:1
     |
-143 | #[pymethods]
+156 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | duplicate definitions for `__pymethod___new____`
@@ -139,9 +151,9 @@ error[E0592]: duplicate definitions with name `__pymethod___new____`
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod_func__`
-   --> tests/ui/invalid_pymethods.rs:158:1
+   --> tests/ui/invalid_pymethods.rs:171:1
     |
-158 | #[pymethods]
+171 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | duplicate definitions for `__pymethod_func__`

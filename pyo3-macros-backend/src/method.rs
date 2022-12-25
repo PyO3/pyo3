@@ -5,7 +5,9 @@ use std::borrow::Cow;
 use crate::attributes::TextSignatureAttribute;
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;
-use crate::pyfunction::{DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes};
+use crate::pyfunction::{
+    text_signature_or_auto, DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes,
+};
 use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
 use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
@@ -202,7 +204,7 @@ impl CallingConvention {
     pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
         if signature.python_signature.has_no_args() {
             Self::Noargs
-        } else if signature.python_signature.accepts_kwargs {
+        } else if signature.python_signature.kwargs.is_some() {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
         } else if cfg!(not(feature = "abi3")) {
@@ -288,13 +290,6 @@ impl<'a> FnSpec<'a> {
         let ty = get_return_info(&sig.output);
         let python_name = python_name.as_ref().unwrap_or(name).unraw();
 
-        let doc = utils::get_doc(
-            meth_attrs,
-            text_signature
-                .as_ref()
-                .map(|attr| (Cow::Borrowed(&python_name), attr)),
-        );
-
         let arguments: Vec<_> = if skip_first_arg {
             sig.inputs
                 .iter_mut()
@@ -319,6 +314,16 @@ impl<'a> FnSpec<'a> {
         } else {
             FunctionSignature::from_arguments(arguments)
         };
+
+        let text_signature_string = match &fn_type {
+            FnType::FnNew | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => None,
+            _ => text_signature_or_auto(text_signature.as_ref(), &signature, &fn_type),
+        };
+
+        let doc = utils::get_doc(
+            meth_attrs,
+            text_signature_string.map(|sig| (Cow::Borrowed(&python_name), sig)),
+        );
 
         let convention =
             fixed_convention.unwrap_or_else(|| CallingConvention::from_signature(&signature));

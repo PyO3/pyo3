@@ -188,3 +188,138 @@ impl MyClass {
     }
 }
 ```
+
+## Making the function signature available to Python
+
+The function signature is exposed to Python via the `__text_signature__` attribute. PyO3 automatically generates this for every `#[pyfunction]` and all `#[pymethods]` directly from the Rust function, taking into account any override done with the `#[pyo3(signature = (...))]` option.
+
+This automatic generation has some limitations, which may be improved in the future:
+- It will not include the value of default arguments, replacing them all with `...`. (`.pyi` type stub files commonly also use `...` for all default arguments in the same way.)
+- Nothing is generated for the `#[new]` method of a `#[pyclass]`.
+
+In cases where the automatically-generated signature needs adjusting, it can [be overridden](#overriding-the-generated-signature) using the `#[pyo3(text_signature)]` option.)
+
+The example below creates a function `add` which accepts two positional-only arguments `a` and `b`, where `b` has a default value of zero.
+
+```rust
+use pyo3::prelude::*;
+
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+#[pyo3(signature = (a, b=0, /))]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(add, py)?;
+#
+#         let doc: String = fun.getattr("__doc__")?.extract()?;
+#         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
+#
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let sig: String = inspect
+#             .call1((fun,))?
+#             .call_method0("__str__")?
+#             .extract()?;
+#
+#         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
+#         assert_eq!(sig, "(a, b=Ellipsis, /)");
+#
+#         Ok(())
+#     })
+# }
+```
+
+The following IPython output demonstrates how this generated signature will be seen from Python tooling:
+
+```text
+>>> pyo3_test.add.__text_signature__
+'(a, b=..., /)'
+>>> pyo3_test.add?
+Signature: pyo3_test.add(a, b=Ellipsis, /)
+Docstring: This function adds two unsigned 64-bit integers.
+Type:      builtin_function_or_method
+```
+
+### Overriding the generated signature
+
+The `#[pyo3(text_signature = "(<some signature>)")]` attribute can be used to override the default generated signature.
+
+In the snippet below, the text signature attribute is used to include the default value of `0` for the argument `b`, instead of the automatically-generated default value of `...`:
+
+```rust
+use pyo3::prelude::*;
+
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+#[pyo3(signature = (a, b=0, /), text_signature = "(a, b=0, /)")]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(add, py)?;
+#
+#         let doc: String = fun.getattr("__doc__")?.extract()?;
+#         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
+#
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let sig: String = inspect
+#             .call1((fun,))?
+#             .call_method0("__str__")?
+#             .extract()?;
+#         assert_eq!(sig, "(a, b=0, /)");
+#
+#         Ok(())
+#     })
+# }
+```
+
+PyO3 will include the contents of the annotation unmodified as the `__text_signature`. Below shows how IPython will now present this (see the default value of 0 for b):
+
+```text
+>>> pyo3_test.add.__text_signature__
+'(a, b=0, /)'
+>>> pyo3_test.add?
+Signature: pyo3_test.add(a, b=0, /)
+Docstring: This function adds two unsigned 64-bit integers.
+Type:      builtin_function_or_method
+```
+
+If no signature is wanted at all, `#[pyo3(text_signature = None)]` will disable the built-in signature. The snippet below demonstrates use of this:
+
+```rust
+use pyo3::prelude::*;
+
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+#[pyo3(signature = (a, b=0, /), text_signature = None)]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(add, py)?;
+#
+#         let doc: String = fun.getattr("__doc__")?.extract()?;
+#         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
+#         assert!(fun.getattr("__text_signature__")?.is_none());
+#
+#         Ok(())
+#     })
+# }
+```
+
+Now the function's `__text_signature__` will be set to `None`, and IPython will not display any signature in the help:
+
+```text
+>>> pyo3_test.add.__text_signature__ == None
+True
+>>> pyo3_test.add?
+Docstring: This function adds two unsigned 64-bit integers.
+Type:      builtin_function_or_method
+```

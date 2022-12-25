@@ -12,7 +12,7 @@ use syn::{
 
 use crate::{
     attributes::{kw, KeywordAttribute},
-    method::FnArg,
+    method::{FnArg, FnType},
     pyfunction::Argument,
 };
 
@@ -205,18 +205,18 @@ pub struct PythonSignature {
     pub positional_parameters: Vec<String>,
     pub positional_only_parameters: usize,
     pub required_positional_parameters: usize,
-    pub accepts_varargs: bool,
+    pub varargs: Option<String>,
     // Tuples of keyword name and whether it is required
     pub keyword_only_parameters: Vec<(String, bool)>,
-    pub accepts_kwargs: bool,
+    pub kwargs: Option<String>,
 }
 
 impl PythonSignature {
     pub fn has_no_args(&self) -> bool {
         self.positional_parameters.is_empty()
             && self.keyword_only_parameters.is_empty()
-            && !self.accepts_varargs
-            && !self.accepts_kwargs
+            && self.varargs.is_none()
+            && self.kwargs.is_none()
     }
 }
 
@@ -232,9 +232,9 @@ pub enum ParseState {
     /// Accepting positional parameters after '/'
     PositionalAfterPosargs,
     /// Accepting keyword-only parameters after '*' or '*args'
-    Keywords(Option<String>),
+    Keywords,
     /// After `**kwargs` nothing is allowed
-    Done(String),
+    Done,
 }
 
 impl ParseState {
@@ -257,12 +257,12 @@ impl ParseState {
                 }
                 Ok(())
             }
-            ParseState::Keywords(_) => {
+            ParseState::Keywords => {
                 signature.keyword_only_parameters.push((name, required));
                 Ok(())
             }
-            ParseState::Done(s) => {
-                bail_spanned!(span => format!("no more arguments are allowed after `**{}`", s))
+            ParseState::Done => {
+                bail_spanned!(span => format!("no more arguments are allowed after `**{}`", signature.kwargs.as_deref().unwrap_or("")))
             }
         }
     }
@@ -274,15 +274,15 @@ impl ParseState {
     ) -> syn::Result<()> {
         match self {
             ParseState::Positional | ParseState::PositionalAfterPosargs => {
-                signature.accepts_varargs = true;
-                *self = ParseState::Keywords(Some(varargs.ident.to_string()));
+                signature.varargs = Some(varargs.ident.to_string());
+                *self = ParseState::Keywords;
                 Ok(())
             }
-            ParseState::Keywords(s) => {
-                bail_spanned!(varargs.span() => format!("`*{}` not allowed after `*{}`", varargs.ident, s.as_deref().unwrap_or("")))
+            ParseState::Keywords => {
+                bail_spanned!(varargs.span() => format!("`*{}` not allowed after `*{}`", varargs.ident, signature.varargs.as_deref().unwrap_or("")))
             }
-            ParseState::Done(s) => {
-                bail_spanned!(varargs.span() => format!("`*{}` not allowed after `**{}`", varargs.ident, s))
+            ParseState::Done => {
+                bail_spanned!(varargs.span() => format!("`*{}` not allowed after `**{}`", varargs.ident, signature.kwargs.as_deref().unwrap_or("")))
             }
         }
     }
@@ -293,15 +293,13 @@ impl ParseState {
         kwargs: &SignatureItemKwargs,
     ) -> syn::Result<()> {
         match self {
-            ParseState::Positional
-            | ParseState::PositionalAfterPosargs
-            | ParseState::Keywords(_) => {
-                signature.accepts_kwargs = true;
-                *self = ParseState::Done(kwargs.ident.to_string());
+            ParseState::Positional | ParseState::PositionalAfterPosargs | ParseState::Keywords => {
+                signature.kwargs = Some(kwargs.ident.to_string());
+                *self = ParseState::Done;
                 Ok(())
             }
-            ParseState::Done(s) => {
-                bail_spanned!(kwargs.span() => format!("`**{}` not allowed after `**{}`", kwargs.ident, s))
+            ParseState::Done => {
+                bail_spanned!(kwargs.span() => format!("`**{}` not allowed after `**{}`", kwargs.ident, signature.kwargs.as_deref().unwrap_or("")))
             }
         }
     }
@@ -320,26 +318,26 @@ impl ParseState {
             ParseState::PositionalAfterPosargs => {
                 bail_spanned!(span => "`/` not allowed after `/`")
             }
-            ParseState::Keywords(s) => {
-                bail_spanned!(span => format!("`/` not allowed after `*{}`", s.as_deref().unwrap_or("")))
+            ParseState::Keywords => {
+                bail_spanned!(span => format!("`/` not allowed after `*{}`", signature.varargs.as_deref().unwrap_or("")))
             }
-            ParseState::Done(s) => {
-                bail_spanned!(span => format!("`/` not allowed after `**{}`", s))
+            ParseState::Done => {
+                bail_spanned!(span => format!("`/` not allowed after `**{}`", signature.kwargs.as_deref().unwrap_or("")))
             }
         }
     }
 
-    fn finish_pos_args(&mut self, span: Span) -> syn::Result<()> {
+    fn finish_pos_args(&mut self, signature: &PythonSignature, span: Span) -> syn::Result<()> {
         match self {
             ParseState::Positional | ParseState::PositionalAfterPosargs => {
-                *self = ParseState::Keywords(None);
+                *self = ParseState::Keywords;
                 Ok(())
             }
-            ParseState::Keywords(s) => {
-                bail_spanned!(span => format!("`*` not allowed after `*{}`", s.as_deref().unwrap_or("")))
+            ParseState::Keywords => {
+                bail_spanned!(span => format!("`*` not allowed after `*{}`", signature.varargs.as_deref().unwrap_or("")))
             }
-            ParseState::Done(s) => {
-                bail_spanned!(span => format!("`*` not allowed after `**{}`", s))
+            ParseState::Done => {
+                bail_spanned!(span => format!("`*` not allowed after `**{}`", signature.kwargs.as_deref().unwrap_or("")))
             }
         }
     }
@@ -386,7 +384,9 @@ impl<'a> FunctionSignature<'a> {
                         fn_arg.default = Some(default.clone());
                     }
                 }
-                SignatureItem::VarargsSep(sep) => parse_state.finish_pos_args(sep.span())?,
+                SignatureItem::VarargsSep(sep) => {
+                    parse_state.finish_pos_args(&python_signature, sep.span())?
+                }
                 SignatureItem::Varargs(varargs) => {
                     let fn_arg = next_argument_checked(&varargs.ident)?;
                     fn_arg.is_varargs = true;
@@ -423,8 +423,8 @@ impl<'a> FunctionSignature<'a> {
         mut arguments: Vec<FnArg<'a>>,
         deprecated_args: DeprecatedArgs,
     ) -> syn::Result<Self> {
-        let mut accepts_varargs = false;
-        let mut accepts_kwargs = false;
+        let mut varargs = None;
+        let mut kwargs = None;
         let mut keyword_only_parameters = Vec::new();
 
         fn first_n_argument_names(arguments: &[FnArg<'_>], count: usize) -> Vec<String> {
@@ -481,13 +481,21 @@ impl<'a> FunctionSignature<'a> {
                     }
                     Argument::PosOnlyArgsSeparator => {}
                     Argument::VarArgsSeparator => {}
-                    Argument::VarArgs(_) => {
+                    Argument::VarArgs(path) => {
                         fn_arg.is_varargs = true;
-                        accepts_varargs = true;
+                        if let Some(ident) = path.get_ident() {
+                            varargs = Some(ident.to_string());
+                        } else {
+                            bail_spanned!(path.span() => "expected ident for *args");
+                        };
                     }
-                    Argument::KeywordArgs(_) => {
+                    Argument::KeywordArgs(path) => {
                         fn_arg.is_kwargs = true;
-                        accepts_kwargs = true;
+                        if let Some(ident) = path.get_ident() {
+                            kwargs = Some(ident.to_string());
+                        } else {
+                            bail_spanned!(path.span() => "expected ident for **kwargs");
+                        };
                     }
                 }
             } else {
@@ -513,9 +521,9 @@ impl<'a> FunctionSignature<'a> {
                 positional_parameters,
                 positional_only_parameters,
                 required_positional_parameters,
-                accepts_varargs,
+                varargs,
                 keyword_only_parameters,
-                accepts_kwargs,
+                kwargs,
             },
             attribute: None,
         })
@@ -555,5 +563,81 @@ impl<'a> FunctionSignature<'a> {
             python_signature,
             attribute: None,
         }
+    }
+
+    pub fn text_signature(&self, fn_type: &FnType) -> String {
+        // automatic text signature generation
+        let self_argument = match fn_type {
+            FnType::FnNew | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => {
+                unreachable!()
+            }
+            FnType::Fn(_) => Some("self"),
+            FnType::FnModule => Some("module"),
+            FnType::FnClass => Some("cls"),
+            FnType::FnStatic => None,
+        };
+
+        let mut output = String::new();
+        output.push('(');
+
+        if let Some(arg) = self_argument {
+            output.push('$');
+            output.push_str(arg);
+        }
+
+        let mut maybe_push_comma = {
+            let mut first = self_argument.is_none();
+            move |output: &mut String| {
+                if !first {
+                    output.push_str(", ");
+                } else {
+                    first = false;
+                }
+            }
+        };
+
+        let py_sig = &self.python_signature;
+
+        for (i, parameter) in py_sig.positional_parameters.iter().enumerate() {
+            maybe_push_comma(&mut output);
+
+            output.push_str(parameter);
+
+            if i >= py_sig.required_positional_parameters {
+                // has a default, just use ... for now
+                output.push_str("=...");
+            }
+
+            if py_sig.positional_only_parameters > 0 && i + 1 == py_sig.positional_only_parameters {
+                output.push_str(", /")
+            }
+        }
+
+        if let Some(varargs) = &py_sig.varargs {
+            maybe_push_comma(&mut output);
+            output.push('*');
+            output.push_str(varargs);
+        } else if !py_sig.keyword_only_parameters.is_empty() {
+            maybe_push_comma(&mut output);
+            output.push('*');
+        }
+
+        for (parameter, required) in &py_sig.keyword_only_parameters {
+            maybe_push_comma(&mut output);
+            output.push_str(parameter);
+            if !required {
+                // has a default, just use ... for now
+                output.push_str("=...")
+            }
+        }
+
+        if let Some(kwargs) = &py_sig.kwargs {
+            maybe_push_comma(&mut output);
+            output.push_str("**");
+            output.push_str(kwargs);
+        }
+
+        output.push(')');
+        output
     }
 }

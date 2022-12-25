@@ -81,11 +81,46 @@ impl ToTokens for NameLitStr {
     }
 }
 
+/// Text signatue can be either a literal string or opt-in/out
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TextSignatureAttributeValue {
+    Str(LitStr),
+    // `None` ident to disable automatic text signature generation
+    Disabled(Ident),
+}
+
+impl Parse for TextSignatureAttributeValue {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        if let Ok(lit_str) = input.parse::<LitStr>() {
+            return Ok(TextSignatureAttributeValue::Str(lit_str));
+        }
+
+        let err_span = match input.parse::<Ident>() {
+            Ok(ident) if ident == "None" => {
+                return Ok(TextSignatureAttributeValue::Disabled(ident));
+            }
+            Ok(other_ident) => other_ident.span(),
+            Err(e) => e.span(),
+        };
+
+        Err(err_spanned!(err_span => "expected a string literal or `None`"))
+    }
+}
+
+impl ToTokens for TextSignatureAttributeValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            TextSignatureAttributeValue::Str(s) => s.to_tokens(tokens),
+            TextSignatureAttributeValue::Disabled(b) => b.to_tokens(tokens),
+        }
+    }
+}
+
 pub type ExtendsAttribute = KeywordAttribute<kw::extends, Path>;
 pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
 pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
 pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
-pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, LitStr>;
+pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

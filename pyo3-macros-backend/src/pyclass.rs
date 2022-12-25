@@ -9,6 +9,7 @@ use crate::attributes::{
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::FnSpec;
+use crate::pyfunction::text_signature_or_none;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -198,12 +199,10 @@ pub fn build_py_class(
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut class.attrs)?;
+    let text_signature_string = text_signature_or_none(args.options.text_signature.as_ref());
     let doc = utils::get_doc(
         &class.attrs,
-        args.options
-            .text_signature
-            .as_ref()
-            .map(|attr| (get_class_python_name(&class.ident, &args), attr)),
+        text_signature_string.map(|s| (get_class_python_name(&class.ident, &args), s)),
     );
     let krate = get_pyo3_crate(&args.options.krate);
 
@@ -461,12 +460,11 @@ pub fn build_py_enum(
         bail_spanned!(enum_.brace_token.span => "#[pyclass] can't be used on enums without any variants");
     }
 
+    let text_signature_string = text_signature_or_none(args.options.text_signature.as_ref());
+
     let doc = utils::get_doc(
         &enum_.attrs,
-        args.options
-            .text_signature
-            .as_ref()
-            .map(|attr| (get_class_python_name(&enum_.ident, &args), attr)),
+        text_signature_string.map(|s| (get_class_python_name(&enum_.ident, &args), s)),
     );
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type)

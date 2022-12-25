@@ -82,12 +82,12 @@ pub fn impl_arg_params(
         .map(|arg| impl_arg_param(arg, &mut option_pos, py, &args_array))
         .collect::<Result<_>>()?;
 
-    let args_handler = if spec.signature.python_signature.accepts_varargs {
+    let args_handler = if spec.signature.python_signature.varargs.is_some() {
         quote! { _pyo3::impl_::extract_argument::TupleVarargs }
     } else {
         quote! { _pyo3::impl_::extract_argument::NoVarargs }
     };
-    let kwargs_handler = if spec.signature.python_signature.accepts_kwargs {
+    let kwargs_handler = if spec.signature.python_signature.kwargs.is_some() {
         quote! { _pyo3::impl_::extract_argument::DictVarkeywords }
     } else {
         quote! { _pyo3::impl_::extract_argument::NoVarkeywords }
