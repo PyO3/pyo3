@@ -1,6 +1,13 @@
-use std::process::exit;
+use std::{ffi::CStr, process::exit};
 
 fn main() {
+    println!(
+        "comparing pyo3-ffi against headers generated for {}",
+        CStr::from_bytes_with_nul(bindings::PY_VERSION)
+            .unwrap()
+            .to_string_lossy()
+    );
+
     let mut failed = false;
 
     macro_rules! check_struct {

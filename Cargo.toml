@@ -158,6 +158,8 @@ harness = false
 [workspace]
 members = [
     "pyo3-ffi",
+    "pyo3-ffi-check",
+    "pyo3-ffi-check/macro",
     "pyo3-build-config",
     "pyo3-macros",
     "pyo3-macros-backend",

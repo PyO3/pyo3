@@ -1,7 +1,7 @@
 [package]
 name = "pyo3-ffi-check"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 publish = false
 
 [dependencies]
@@ -10,12 +10,7 @@ memoffset = "0.7.0"
 
 [dependencies.pyo3-ffi]
 path = "../pyo3-ffi"
-features = ["extension-module"]  # A lazy way of skipping linking in most cases (as we don't use any runtime symbols)
-
-[workspace]
-members = [
-    "macro"
-]
+features = ["extension-module"]  # A lazy way of skipping linking in most cases (as we don't use any runtime symbols)
 
 [build-dependencies]
 bindgen = "0.63.0"
