@@ -5,12 +5,19 @@ set -uex
 rustup default nightly
 
 PYO3_VERSION=$(cargo search pyo3 --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
-mkdir netlify_build
+
+## Start from the existing gh-pages content.
+## By servicng it over netlify, we can have better UX for users because
+## netlify can then redirect e.g. /v0.17.0 to /v0.17.0/
+## which leads to better loading of CSS assets.
+
+wget -qc https://github.com/PyO3/pyo3/archive/gh-pages.tar.gz -O - | tar -xz
+mv pyo3-gh-pages netlify_build
 
 ## Configure netlify _redirects file
 
-# TODO: have some better system to automatically generate this on build rather
-# than check this in to the repo
+# TODO: have some better system to automatically generate this on build rather
+# than check this in to the repo
 cp .netlify/_redirects netlify_build/
 
 # Add latest redirect (proxy)
