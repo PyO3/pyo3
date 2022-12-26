@@ -2,12 +2,22 @@
 use crate::{types::PyString, Py, Python};
 use std::cell::UnsafeCell;
 
-/// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/1.4.0/once_cell/).
+/// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/latest/once_cell/).
 ///
 /// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
-/// uses the Python GIL to mediate concurrent access. This helps in cases where `once_sync` or
+/// uses the Python GIL to mediate concurrent access. This helps in cases where `once_cell` or
 /// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
 /// GIL. For an example, see [the FAQ section](https://pyo3.rs/latest/faq.html) of the guide.
+///
+/// Note that:
+///  1) `get_or_init` and `get_or_try_init` do not protect against infinite recursion
+///     from reentrant initialization.
+///  2) If the initialization function `f` provided to `get_or_init` (or `get_or_try_init`)
+///     temporarily releases the GIL (e.g. by calling `Python::import`) then it is possible
+///     for a second thread to also begin initializing the `GITOnceCell`. Even when this
+///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs
+///     - this is treated as a race, other threads will discard the value they compute and
+///     return the result of the first complete computation.
 ///
 /// # Examples
 ///
@@ -51,17 +61,7 @@ impl<T> GILOnceCell<T> {
     /// Get a reference to the contained value, initializing it if needed using the provided
     /// closure.
     ///
-    /// Note that:
-    ///  1) reentrant initialization can cause a stack overflow.
-    ///  2) if f() temporarily releases the GIL (e.g. by calling `Python::import`) then it is
-    ///     possible (and well-defined) that a second thread may also call get_or_init and begin
-    ///     calling `f()`. Even when this happens `GILOnceCell` guarantees that only **one** write
-    ///     to the cell ever occurs - other threads will simply discard the value they compute and
-    ///     return the result of the first complete computation.
-    ///  3) if f() does not release the GIL and does not panic, it is guaranteed to be called
-    ///     exactly once, even if multiple threads attempt to call `get_or_init`
-    ///  4) if f() can panic but still does not release the GIL, it may be called multiple times,
-    ///     but it is guaranteed that f() will never be called concurrently
+    /// See the type-level documentation for detail on re-entrancy and concurrent initialization.
     #[inline]
     pub fn get_or_init<F>(&self, py: Python<'_>, f: F) -> &T
     where
@@ -71,21 +71,40 @@ impl<T> GILOnceCell<T> {
             return value;
         }
 
+        match self.init(py, || Ok::<T, std::convert::Infallible>(f())) {
+            Ok(value) => value,
+            Err(void) => match void {},
+        }
+    }
+
+    /// Like `get_or_init`, but accepts a fallible initialization function. If it fails, the cell
+    /// is left uninitialized.
+    ///
+    /// See the type-level documentation for detail on re-entrancy and concurrent initialization.
+    #[inline]
+    pub fn get_or_try_init<F, E>(&self, py: Python<'_>, f: F) -> Result<&T, E>
+    where
+        F: FnOnce() -> Result<T, E>,
+    {
+        if let Some(value) = self.get(py) {
+            return Ok(value);
+        }
+
         self.init(py, f)
     }
 
     #[cold]
-    fn init<F>(&self, py: Python<'_>, f: F) -> &T
+    fn init<F, E>(&self, py: Python<'_>, f: F) -> Result<&T, E>
     where
-        F: FnOnce() -> T,
+        F: FnOnce() -> Result<T, E>,
     {
         // Note that f() could temporarily release the GIL, so it's possible that another thread
         // writes to this GILOnceCell before f() finishes. That's fine; we'll just have to discard
         // the value computed here and accept a bit of wasted computation.
-        let value = f();
+        let value = f()?;
         let _ = self.set(py, value);
 
-        self.get(py).unwrap()
+        Ok(self.get(py).unwrap())
     }
 
     /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
@@ -193,5 +212,22 @@ mod tests {
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(dict.get_item(foo3).unwrap().extract::<usize>().unwrap(), 42);
         });
+    }
+
+    #[test]
+    fn test_once_cell() {
+        Python::with_gil(|py| {
+            let cell = GILOnceCell::new();
+
+            assert!(cell.get(py).is_none());
+
+            assert_eq!(cell.get_or_try_init(py, || Err(5)), Err(5));
+            assert!(cell.get(py).is_none());
+
+            assert_eq!(cell.get_or_try_init(py, || Ok::<_, ()>(2)), Ok(&2));
+            assert_eq!(cell.get(py), Some(&2));
+
+            assert_eq!(cell.get_or_try_init(py, || Err(5)), Ok(&2));
+        })
     }
 }
