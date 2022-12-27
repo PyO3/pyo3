@@ -33,12 +33,7 @@ pub fn run(opts: DocOpts) -> anyhow::Result<()> {
             .args(if opts.stable {
                 &[][..]
             } else {
-                &[
-                    "-Z",
-                    "unstable-options",
-                    "-Z",
-                    "rustdoc-scrape-examples=examples",
-                ][..]
+                &["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples"][..]
             })
             .args(if opts.open { Some("--open") } else { None }),
     )?;
