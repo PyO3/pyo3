@@ -58,19 +58,6 @@ impl PyType {
     {
         self.is_subclass(T::type_object(self.py()))
     }
-
-    #[deprecated(
-        since = "0.16.0",
-        note = "prefer obj.is_instance(type) to typ.is_instance(obj)"
-    )]
-    /// Equivalent to Python's `isinstance(obj, self)`.
-    ///
-    /// This function has been deprecated because it has inverted argument ordering compared to
-    /// other `is_instance` functions in PyO3 such as [`PyAny::is_instance`].
-    pub fn is_instance<T: AsPyPointer>(&self, obj: &T) -> PyResult<bool> {
-        let any: &PyAny = unsafe { self.py().from_borrowed_ptr(obj.as_ptr()) };
-        any.is_instance(self)
-    }
 }
 
 #[cfg(test)]
@@ -92,16 +79,5 @@ mod tests {
         Python::with_gil(|py| {
             assert!(py.get_type::<PyBool>().is_subclass_of::<PyLong>().unwrap());
         });
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn type_is_instance() {
-        Python::with_gil(|py| {
-            let bool_object = PyBool::new(py, false);
-            let bool_type = bool_object.get_type();
-            assert!(bool_type.is_instance(bool_object).unwrap());
-            assert!(bool_object.is_instance(bool_type).unwrap());
-        })
     }
 }

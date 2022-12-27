@@ -661,57 +661,6 @@ impl PyErr {
             }
         }
     }
-
-    /// Deprecated name for [`PyErr::get_type`].
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use err.get_type(py) instead of err.ptype(py)"
-    )]
-    pub fn ptype<'py>(&'py self, py: Python<'py>) -> &'py PyType {
-        self.get_type(py)
-    }
-
-    /// Deprecated name for [`PyErr::value`].
-    #[deprecated(since = "0.16.0", note = "Use err.value(py) instead of err.pvalue(py)")]
-    pub fn pvalue<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
-        self.value(py)
-    }
-
-    /// Deprecated name for [`PyErr::traceback`].
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use err.traceback(py) instead of err.ptraceback(py)"
-    )]
-    pub fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
-        self.traceback(py)
-    }
-
-    /// Deprecated name for [`PyErr::value`].
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use err.value(py) instead of err.instance(py)"
-    )]
-    pub fn instance<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
-        self.value(py)
-    }
-
-    /// Deprecated name for [`PyErr::from_value`].
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use err.from_value(py, obj) instead of err.from_instance(py, obj)"
-    )]
-    pub fn from_instance(value: &PyAny) -> PyErr {
-        PyErr::from_value(value)
-    }
-
-    /// Deprecated name for [`PyErr::into_value`].
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use err.into_value(py) instead of err.into_instance(py)"
-    )]
-    pub fn into_instance(self, py: Python<'_>) -> Py<PyBaseException> {
-        self.into_value(py)
-    }
 }
 
 impl std::fmt::Debug for PyErr {
@@ -831,7 +780,7 @@ fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> PyErr {
 mod tests {
     use super::PyErrState;
     use crate::exceptions;
-    use crate::{AsPyPointer, PyErr, Python};
+    use crate::{PyErr, Python};
 
     #[test]
     fn no_error() {
@@ -974,30 +923,6 @@ mod tests {
                 .cause(py)
                 .expect("set_cause should have given us a cause");
             assert_eq!(cause.to_string(), "ValueError: orange");
-        });
-    }
-
-    #[allow(deprecated)]
-    #[test]
-    fn deprecations() {
-        let err = exceptions::PyValueError::new_err("an error");
-        Python::with_gil(|py| {
-            assert_eq!(err.ptype(py).as_ptr(), err.get_type(py).as_ptr());
-            assert_eq!(err.pvalue(py).as_ptr(), err.value(py).as_ptr());
-            assert_eq!(err.instance(py).as_ptr(), err.value(py).as_ptr());
-            assert_eq!(
-                err.ptraceback(py).map(|t| t.as_ptr()),
-                err.traceback(py).map(|t| t.as_ptr())
-            );
-
-            assert_eq!(
-                err.clone_ref(py).into_instance(py).as_ref(py).as_ptr(),
-                err.value(py).as_ptr()
-            );
-            assert_eq!(
-                PyErr::from_instance(err.value(py)).value(py).as_ptr(),
-                err.value(py).as_ptr()
-            );
         });
     }
 

@@ -6,7 +6,7 @@ use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
     ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute,
 };
-use crate::deprecations::{Deprecation, Deprecations};
+use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::FnSpec;
 use crate::pyfunction::text_signature_or_none;
@@ -93,8 +93,6 @@ enum PyClassPyO3Option {
     TextSignature(TextSignatureAttribute),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
-
-    DeprecatedGC(kw::gc),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -130,8 +128,6 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Unsendable)
         } else if lookahead.peek(attributes::kw::weakref) {
             input.parse().map(PyClassPyO3Option::Weakref)
-        } else if lookahead.peek(attributes::kw::gc) {
-            input.parse().map(PyClassPyO3Option::DeprecatedGC)
         } else {
             Err(lookahead.error())
         }
@@ -184,10 +180,6 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::TextSignature(text_signature) => set_option!(text_signature),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
-
-            PyClassPyO3Option::DeprecatedGC(gc) => self
-                .deprecations
-                .push(Deprecation::PyClassGcOption, gc.span()),
         }
         Ok(())
     }

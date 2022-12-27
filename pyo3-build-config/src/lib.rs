@@ -21,11 +21,9 @@ use std::{env, process::Command, str::FromStr};
 #[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
 
-#[allow(deprecated)]
 pub use impl_::{
-    cross_compiling, cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata,
-    BuildFlag, BuildFlags, CrossCompileConfig, InterpreterConfig, PythonImplementation,
-    PythonVersion, Triple,
+    cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
+    CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion, Triple,
 };
 use target_lexicon::OperatingSystem;
 
