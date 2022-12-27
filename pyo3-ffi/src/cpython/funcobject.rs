@@ -53,12 +53,12 @@ pub struct PyFunctionObject {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg(not(PyPy))] // broken, see https://foss.heptapod.net/pypy/pypy/-/issues/3776
+    #[cfg(not(all(PyPy, not(Py_3_8))))]
     #[cfg_attr(PyPy, link_name = "PyPyFunction_Type")]
     pub static mut PyFunction_Type: crate::PyTypeObject;
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(all(PyPy, not(Py_3_8))))]
 #[inline]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
     (crate::Py_TYPE(op) == addr_of_mut_shim!(PyFunction_Type)) as c_int
