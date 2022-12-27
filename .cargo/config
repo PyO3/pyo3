@@ -1,6 +1,12 @@
 [alias]
 xtask = "run --package xtask --"
 
+# Faster linking in CI for doctests where lld is available
+[target.'cfg(any(target_os = "windows", target_os = "linux"))']
+rustflags = [
+    "-Clink-arg=-fuse-ld=lld"
+]
+
 [target.'cfg(feature = "cargo-clippy")']
 rustflags = [
     # TODO: remove these allows once msrv increased from 1.48
