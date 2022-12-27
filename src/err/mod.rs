@@ -594,11 +594,6 @@ impl PyErr {
         }
     }
 
-    pub(crate) fn write_unraisable(self, py: Python<'_>, context: PyObject) {
-        self.restore(py);
-        unsafe { ffi::PyErr_WriteUnraisable(context.as_ptr()) };
-    }
-
     #[inline]
     fn from_state(state: PyErrState) -> PyErr {
         PyErr {

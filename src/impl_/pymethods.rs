@@ -1,6 +1,7 @@
-use crate::internal_tricks::{extract_cstr_or_leak_cstring, NulByteInString};
+use crate::exceptions::PyValueError;
 use crate::{ffi, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, PyTraverseError, Python};
-use std::ffi::CStr;
+use std::borrow::Cow;
+use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_int;
 
@@ -95,6 +96,12 @@ pub struct PyClassAttributeDef {
     pub(crate) meth: PyClassAttributeFactory,
 }
 
+impl PyClassAttributeDef {
+    pub(crate) fn attribute_c_string(&self) -> PyResult<Cow<'static, CStr>> {
+        extract_c_string(self.name, "class attribute name cannot contain nul bytes")
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct PyGetterDef {
     pub(crate) name: &'static str,
@@ -161,7 +168,7 @@ impl PyMethodDef {
     }
 
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
-    pub(crate) fn as_method_def(&self) -> Result<ffi::PyMethodDef, NulByteInString> {
+    pub(crate) fn as_method_def(&self) -> PyResult<(ffi::PyMethodDef, PyMethodDefDestructor)> {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer {
                 PyCFunction: meth.0,
@@ -175,12 +182,16 @@ impl PyMethodDef {
             },
         };
 
-        Ok(ffi::PyMethodDef {
-            ml_name: get_name(self.ml_name)?.as_ptr(),
+        let name = get_name(self.ml_name)?;
+        let doc = get_doc(self.ml_doc)?;
+        let def = ffi::PyMethodDef {
+            ml_name: name.as_ptr(),
             ml_meth: meth,
             ml_flags: self.ml_flags,
-            ml_doc: get_doc(self.ml_doc)?.as_ptr(),
-        })
+            ml_doc: doc.as_ptr(),
+        };
+        let destructor = PyMethodDefDestructor { name, doc };
+        Ok((def, destructor))
     }
 }
 
@@ -214,10 +225,16 @@ impl PyGetterDef {
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = get_name(self.name).unwrap().as_ptr() as _;
+            let name = get_name(self.name).unwrap();
+            dst.name = name.as_ptr() as _;
+            // FIXME: stop leaking name
+            std::mem::forget(name);
         }
         if dst.doc.is_null() {
-            dst.doc = get_doc(self.doc).unwrap().as_ptr() as _;
+            let doc = get_doc(self.doc).unwrap();
+            dst.doc = doc.as_ptr() as _;
+            // FIXME: stop leaking doc
+            std::mem::forget(doc);
         }
         dst.get = Some(self.meth.0);
     }
@@ -236,21 +253,27 @@ impl PySetterDef {
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = get_name(self.name).unwrap().as_ptr() as _;
+            let name = get_name(self.name).unwrap();
+            dst.name = name.as_ptr() as _;
+            // FIXME: stop leaking name
+            std::mem::forget(name);
         }
         if dst.doc.is_null() {
-            dst.doc = get_doc(self.doc).unwrap().as_ptr() as _;
+            let doc = get_doc(self.doc).unwrap();
+            dst.doc = doc.as_ptr() as _;
+            // FIXME: stop leaking doc
+            std::mem::forget(doc);
         }
         dst.set = Some(self.meth.0);
     }
 }
 
-fn get_name(name: &'static str) -> Result<&'static CStr, NulByteInString> {
-    extract_cstr_or_leak_cstring(name, "Function name cannot contain NUL byte.")
+fn get_name(name: &'static str) -> PyResult<Cow<'static, CStr>> {
+    extract_c_string(name, "Function name cannot contain NUL byte.")
 }
 
-fn get_doc(doc: &'static str) -> Result<&'static CStr, NulByteInString> {
-    extract_cstr_or_leak_cstring(doc, "Document cannot contain NUL byte.")
+fn get_doc(doc: &'static str) -> PyResult<Cow<'static, CStr>> {
+    extract_c_string(doc, "Document cannot contain NUL byte.")
 }
 
 /// Unwraps the result of __traverse__ for tp_traverse
@@ -261,6 +284,14 @@ pub fn unwrap_traverse_result(result: Result<(), PyTraverseError>) -> c_int {
         Ok(()) => 0,
         Err(PyTraverseError(value)) => value,
     }
+}
+
+pub(crate) struct PyMethodDefDestructor {
+    // These members are just to avoid leaking CStrings when possible
+    #[allow(dead_code)]
+    name: Cow<'static, CStr>,
+    #[allow(dead_code)]
+    doc: Cow<'static, CStr>,
 }
 
 // The macros need to Ok-wrap the output of user defined functions; i.e. if they're not a result, make them into one.
@@ -287,4 +318,26 @@ where
     fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error> {
         self.map(|o| o.into_py(py))
     }
+}
+
+fn extract_c_string(src: &'static str, err_msg: &'static str) -> PyResult<Cow<'static, CStr>> {
+    let bytes = src.as_bytes();
+    let cow = match bytes {
+        [] => {
+            // Empty string, we can trivially refer to a static "\0" string
+            Cow::Borrowed(unsafe { CStr::from_bytes_with_nul_unchecked(b"\0") })
+        }
+        [.., 0] => {
+            // Last byte is a nul; try to create as a CStr
+            let c_str =
+                CStr::from_bytes_with_nul(bytes).map_err(|_| PyValueError::new_err(err_msg))?;
+            Cow::Borrowed(c_str)
+        }
+        _ => {
+            // Allocate a new CString for this
+            let c_string = CString::new(bytes).map_err(|_| PyValueError::new_err(err_msg))?;
+            Cow::Owned(c_string)
+        }
+    };
+    Ok(cow)
 }
