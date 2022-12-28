@@ -148,7 +148,7 @@ struct EmptyClassInModule {}
 
 // Ignored because heap types do not show up as being in builtins, instead they
 // raise AttributeError:
-// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L544-L573
+// https://github.com/python/cpython/blob/v3.11.1/Objects/typeobject.c#L541-L570
 #[test]
 #[ignore]
 fn empty_class_in_module() {
