@@ -56,7 +56,7 @@ assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
 
 Note that this requirement may go away in the future when a pyclass is able to inherit from the abstract base class directly (see [pyo3/pyo3#991](https://github.com/PyO3/pyo3/issues/991)).
 
-### The `multiple-pymethods` feature now requires Rust 1.62
+### The `multiple-pymethods` feature now requires Rust 1.62
 
 Due to limitations in the `inventory` crate which the `multiple-pymethods` feature depends on, this feature now
 requires Rust 1.62. For more information see [dtolnay/inventory#32](https://github.com/dtolnay/inventory/issues/32).
@@ -841,10 +841,7 @@ impl PySequenceProtocol for ByteSequence {
 ```
 
 After:
-```rust
-# #[allow(deprecated)]
-# #[cfg(feature = "pyproto")]
-# {
+```rust,compile_fail
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]
@@ -858,7 +855,6 @@ impl PySequenceProtocol for ByteSequence {
         elements.extend_from_slice(&other.elements);
         Ok(Self { elements })
     }
-}
 }
 ```
 

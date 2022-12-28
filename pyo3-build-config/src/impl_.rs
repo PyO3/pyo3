@@ -22,7 +22,7 @@ use std::{
 
 pub use target_lexicon::Triple;
 
-use target_lexicon::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor};
+use target_lexicon::{Environment, OperatingSystem};
 
 use crate::{
     bail, ensure,
@@ -905,57 +905,6 @@ impl CrossCompileEnvVars {
 
         Ok(lib_dir)
     }
-}
-
-/// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
-///
-/// This function relies on PyO3 cross-compiling environment variables:
-///
-///   * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
-///   * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
-///   the target's libpython DSO and the associated `_sysconfigdata*.py` file for
-///   Unix-like targets, or the Python DLL import libraries for the Windows target.
-///   * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
-///   installation. This variable is only needed if PyO3 cannnot determine the version to target
-///   from `abi3-py3*` features, or if there are multiple versions of Python present in
-///   `PYO3_CROSS_LIB_DIR`.
-///
-/// See the [PyO3 User Guide](https://pyo3.rs/) for more info on cross-compiling.
-#[deprecated(
-    since = "0.16.3",
-    note = "please use cross_compiling_from_to() instead"
-)]
-pub fn cross_compiling(
-    host: &str,
-    target_arch: &str,
-    target_vendor: &str,
-    target_os: &str,
-) -> Result<Option<CrossCompileConfig>> {
-    let host: Triple = host.parse().map_err(|_| "bad host triple")?;
-
-    let architecture: Architecture = target_arch.parse().map_err(|_| "bad target arch")?;
-    let vendor: Vendor = target_vendor.parse().map_err(|_| "bad target vendor")?;
-    let operating_system: OperatingSystem = target_os.parse().map_err(|_| "bad target os")?;
-
-    // FIXME: This is a very bad approximation that only works
-    // for the current `CrossCompileConfig` implementation.
-    let environment = match operating_system {
-        OperatingSystem::Windows => Environment::Msvc,
-        _ => Environment::Gnu,
-    };
-
-    // FIXME: This field is currently unused.
-    let binary_format = BinaryFormat::Elf;
-
-    let target = Triple {
-        architecture,
-        vendor,
-        operating_system,
-        environment,
-        binary_format,
-    };
-
-    cross_compiling_from_to(&host, &target)
 }
 
 /// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
@@ -2513,26 +2462,6 @@ mod tests {
         assert_eq!(
             conda_env_interpreter(base, false),
             PathBuf::from_iter(&["base", "bin", "python"])
-        );
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_not_cross_compiling() {
-        assert!(
-            cross_compiling("aarch64-apple-darwin", "x86_64", "apple", "darwin")
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            cross_compiling("x86_64-apple-darwin", "aarch64", "apple", "darwin")
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            cross_compiling("x86_64-unknown-linux-gnu", "x86_64", "unknown", "linux")
-                .unwrap()
-                .is_none()
         );
     }
 

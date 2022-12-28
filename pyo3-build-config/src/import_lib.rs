@@ -4,10 +4,10 @@ use std::env;
 use std::path::PathBuf;
 
 use python3_dll_a::ImportLibraryGenerator;
+use target_lexicon::{Architecture, OperatingSystem, Triple};
 
+use super::{PythonImplementation, PythonVersion};
 use crate::errors::{Context, Result};
-
-use super::{Architecture, OperatingSystem, PythonImplementation, PythonVersion, Triple};
 
 /// Generates the `python3.dll` or `pythonXY.dll` import library for Windows targets.
 ///

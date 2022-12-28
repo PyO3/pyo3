@@ -4,7 +4,6 @@ use quote::{quote_spanned, ToTokens};
 // Clippy complains all these variants have the same prefix "Py"...
 #[allow(clippy::enum_variant_names)]
 pub enum Deprecation {
-    PyClassGcOption,
     PyFunctionArguments,
     PyMethodArgsAttribute,
 }
@@ -12,7 +11,6 @@ pub enum Deprecation {
 impl Deprecation {
     fn ident(&self, span: Span) -> syn::Ident {
         let string = match self {
-            Deprecation::PyClassGcOption => "PYCLASS_GC_OPTION",
             Deprecation::PyFunctionArguments => "PYFUNCTION_ARGUMENTS",
             Deprecation::PyMethodArgsAttribute => "PYMETHODS_ARGS_ATTRIBUTE",
         };

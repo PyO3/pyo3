@@ -709,7 +709,7 @@ fn parse_method_attributes(
                         deprecated_args.is_none(),
                         nested.span() => "args may only be specified once"
                     );
-                    deprecations.push(Deprecation::PyMethodArgsAttribute, nested.span());
+                    deprecations.push(Deprecation::PyMethodArgsAttribute, path.span());
                     deprecated_args = Some(DeprecatedArgs::from_meta(&nested)?);
                 } else {
                     new_attrs.push(attr)
