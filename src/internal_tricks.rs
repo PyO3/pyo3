@@ -1,6 +1,4 @@
 use crate::ffi::{Py_ssize_t, PY_SSIZE_T_MAX};
-use std::ffi::{CStr, CString};
-
 pub struct PrivateMarker;
 
 macro_rules! private_decl {
@@ -30,20 +28,6 @@ macro_rules! pyo3_exception {
 
         $crate::create_exception_type_object!(pyo3_runtime, $name, $base, Some($doc));
     };
-}
-
-#[derive(Debug)]
-pub(crate) struct NulByteInString(pub(crate) &'static str);
-
-pub(crate) fn extract_cstr_or_leak_cstring(
-    src: &'static str,
-    err_msg: &'static str,
-) -> Result<&'static CStr, NulByteInString> {
-    CStr::from_bytes_with_nul(src.as_bytes())
-        .or_else(|_| {
-            CString::new(src.as_bytes()).map(|c_string| &*Box::leak(c_string.into_boxed_c_str()))
-        })
-        .map_err(|_| NulByteInString(err_msg))
 }
 
 /// Convert an usize index into a Py_ssize_t index, clamping overflow to

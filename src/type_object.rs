@@ -2,7 +2,6 @@
 //! Python type object information
 
 use crate::impl_::pyclass::PyClassItemsIter;
-use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::create_type_object;
 use crate::pyclass::PyClass;
@@ -10,6 +9,8 @@ use crate::types::{PyAny, PyType};
 use crate::{conversion::IntoPyPointer, PyMethodDefType};
 use crate::{ffi, AsPyPointer, PyNativeType, PyObject, PyResult, Python};
 use parking_lot::{const_mutex, Mutex};
+use std::borrow::Cow;
+use std::ffi::CStr;
 use std::thread::{self, ThreadId};
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
@@ -180,11 +181,7 @@ impl LazyStaticType {
         for class_items in items_iter {
             for def in class_items.methods {
                 if let PyMethodDefType::ClassAttribute(attr) = def {
-                    let key = extract_cstr_or_leak_cstring(
-                        attr.name,
-                        "class attribute name cannot contain nul bytes",
-                    )
-                    .unwrap();
+                    let key = attr.attribute_c_string().unwrap();
 
                     match (attr.meth.0)(py) {
                         Ok(val) => items.push((key, val)),
@@ -221,7 +218,7 @@ impl LazyStaticType {
 fn initialize_tp_dict(
     py: Python<'_>,
     type_object: *mut ffi::PyObject,
-    items: Vec<(&'static std::ffi::CStr, PyObject)>,
+    items: Vec<(Cow<'static, CStr>, PyObject)>,
 ) -> PyResult<()> {
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.
