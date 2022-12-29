@@ -519,7 +519,15 @@ pub fn impl_py_setter_def(
         }
     };
 
+    let mut cfg_attrs = TokenStream::new();
+    if let PropertyType::Descriptor { field, .. } = &property_type {
+        for attr in field.attrs.iter().filter(|attr| attr.path.is_ident("cfg")) {
+            attr.to_tokens(&mut cfg_attrs);
+        }
+    }
+
     let associated_method = quote! {
+        #cfg_attrs
         unsafe fn #wrapper_ident(
             _py: _pyo3::Python<'_>,
             _slf: *mut _pyo3::ffi::PyObject,
@@ -538,6 +546,7 @@ pub fn impl_py_setter_def(
     };
 
     let method_def = quote! {
+        #cfg_attrs
         _pyo3::class::PyMethodDefType::Setter({
             #deprecations
             _pyo3::class::PySetterDef::new(
@@ -653,7 +662,15 @@ pub fn impl_py_getter_def(
         }
     };
 
+    let mut cfg_attrs = TokenStream::new();
+    if let PropertyType::Descriptor { field, .. } = &property_type {
+        for attr in field.attrs.iter().filter(|attr| attr.path.is_ident("cfg")) {
+            attr.to_tokens(&mut cfg_attrs);
+        }
+    }
+
     let associated_method = quote! {
+        #cfg_attrs
         unsafe fn #wrapper_ident(
             _py: _pyo3::Python<'_>,
             _slf: *mut _pyo3::ffi::PyObject
@@ -665,6 +682,7 @@ pub fn impl_py_getter_def(
     };
 
     let method_def = quote! {
+        #cfg_attrs
         _pyo3::class::PyMethodDefType::Getter({
             #deprecations
             _pyo3::class::PyGetterDef::new(

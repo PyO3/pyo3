@@ -34,3 +34,28 @@ pub struct Bar {
 pub enum Enum {
     Var0,
 }
+
+#[crate::pyclass]
+#[pyo3(crate = "crate")]
+pub struct Foo3 {
+    #[pyo3(get, set)]
+    #[cfg(FALSE)]
+    field: i32,
+
+    #[pyo3(get, set)]
+    #[cfg(not(FALSE))]
+    field: u32,
+}
+
+#[crate::pyclass]
+#[pyo3(crate = "crate")]
+pub struct Foo4 {
+    #[pyo3(get, set)]
+    #[cfg(FALSE)]
+    #[cfg(not(FALSE))]
+    field: i32,
+
+    #[pyo3(get, set)]
+    #[cfg(any(not(FALSE)))]
+    field: u32,
+}
