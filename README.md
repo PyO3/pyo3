@@ -130,6 +130,9 @@ To install the Python shared library on Ubuntu:
 sudo apt install python3-dev
 ```
 
+To install the Python shared library on RPM based distributions (e.g. Fedora, Red Hat, SuSE), install the `python3-devel` package.
+
+
 Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
 
 ```toml
