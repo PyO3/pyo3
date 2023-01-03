@@ -57,9 +57,10 @@ possible to satisfy, read the documentation about [caching].
 
 ## The Python to Rust direction
 
-To have python logs be handled by Rust, one need only register a rust function to handle logs emitted from the core python logging module. 
+To have python logs be handled by Rust, one need only register a rust function to handle logs emitted from the core python logging module.
 
-This has been implemented within the [pyo3-pylogger] crate. 
+This has been implemented within the [pyo3-pylogger] crate.
+
 ```rust
 use log::{info, warn};
 use pyo3::prelude::*;
@@ -88,7 +89,7 @@ logging.error('Something bad happened')
         )
     })
 }
-
+```
 
 [logging]: https://docs.python.org/3/library/logging.html
 [pyo3-log]: https://crates.io/crates/pyo3-log
