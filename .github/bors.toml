@@ -5,3 +5,4 @@ status = [
     "conclusion",
 ]
 timeout_sec = 21600
+use_squash_merge = true
