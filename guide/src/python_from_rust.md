@@ -245,20 +245,42 @@ def leaky_relu(x, slope=0.01):
 # }
 ```
 
-### Want to embed Python in Rust with exposed modules?
+### Want to embed Python in Rust with additional modules?
 
-Internally Python maintains the `sys.modules` dict.
-An import in Python is simply a lookup into this dict.
+Python maintains the `sys.modules` dict as a cache of all imported modules.
+An import in Python will first attempt to lookup the module from this dict,
+and if not present will use various strategies to attempt to locate and load
+the module.
 
-It is necessary to insert the new module into the dict
-before it is exposed to Python. There are two ways of
-doing this.
+The [`append_to_inittab`]({{*PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html)
+macro can be used to add additional `#[pymodule]` modules to an embedded
+Python interpreter. The macro **must** be invoked _before_ initializing Python.
 
-   * manually inserting into `sys.modules`
-   * using [`append_to_inittab`]({{*PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) macro
+As an example, the below adds the module `foo` to the embedded interpreter:
 
+```rust
+use pyo3::prelude::*;
 
-Example using `sys.modules`
+#[pyfunction]
+fn add_one(x: i64) -> i64 {
+    x + 1
+}
+
+#[pymodule]
+fn foo(_py: Python<'_>, foo_module: &PyModule) -> PyResult<()> {
+    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+    Ok(())
+}
+
+fn main() -> PyResult<()> {
+    pyo3::append_to_inittab!(foo);
+    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
+}
+```
+
+If `append_to_inittab` cannot be used due to constraints in the program,
+an alternative is to create a module using [`PyModule::new`]
+and insert it manually into `sys.modules`:
 
 ```rust
 use pyo3::prelude::*;
@@ -288,32 +310,6 @@ fn main() -> PyResult<()> {
 }
 ```
 
-Example using [`append_to_inittab`](https://docs.rs/pyo3/latest/pyo3/macro.append_to_inittab.html):
-
-**WARNING** You must call `append_to_inittab` _before_ initializing Python.
-
-
-```rust
-use pyo3::prelude::*;
-
-#[pyfunction]
-fn add_one(x: i64) -> i64 {
-    x + 1
-}
-
-#[pymodule]
-fn foo(_py: Python, foo_module: &PyModule) -> PyResult<()> {
-    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
-    Ok(())
-}
-
-fn main() -> PyResult<()> {
-    pyo3::append_to_inittab!(foo);
-    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
-}
-```
-
-
 ### Include multiple Python files
 
 You can include a file at compile time by using
@@ -331,9 +327,9 @@ Example directory structure:
 ├── Cargo.lock
 ├── Cargo.toml
 ├── python_app
-│   ├── app.py
-│   └── utils
-│       └── foo.py
+│   ├── app.py
+│   └── utils
+│       └── foo.py
 └── src
     └── main.rs
 ```
@@ -464,3 +460,6 @@ class House(object):
     })
 }
 ```
+
+
+[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new
