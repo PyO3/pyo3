@@ -1164,10 +1164,7 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
     let mut sysconfig_paths = find_all_sysconfigdata(cross);
     if sysconfig_paths.is_empty() {
         if let Some(lib_dir) = cross.lib_dir.as_ref() {
-            bail!(
-                "Could not find either libpython.so or _sysconfigdata*.py in {}",
-                lib_dir.display()
-            );
+            bail!("Could not find _sysconfigdata*.py in {}", lib_dir.display());
         } else {
             // Continue with the default configuration when PYO3_CROSS_LIB_DIR is not set.
             return Ok(None);
