@@ -245,6 +245,71 @@ def leaky_relu(x, slope=0.01):
 # }
 ```
 
+### Want to embed Python in Rust with additional modules?
+
+Python maintains the `sys.modules` dict as a cache of all imported modules.
+An import in Python will first attempt to lookup the module from this dict,
+and if not present will use various strategies to attempt to locate and load
+the module.
+
+The [`append_to_inittab`]({{*PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html)
+macro can be used to add additional `#[pymodule]` modules to an embedded
+Python interpreter. The macro **must** be invoked _before_ initializing Python.
+
+As an example, the below adds the module `foo` to the embedded interpreter:
+
+```rust
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn add_one(x: i64) -> i64 {
+    x + 1
+}
+
+#[pymodule]
+fn foo(_py: Python<'_>, foo_module: &PyModule) -> PyResult<()> {
+    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+    Ok(())
+}
+
+fn main() -> PyResult<()> {
+    pyo3::append_to_inittab!(foo);
+    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
+}
+```
+
+If `append_to_inittab` cannot be used due to constraints in the program,
+an alternative is to create a module using [`PyModule::new`]
+and insert it manually into `sys.modules`:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+#[pyfunction]
+pub fn add_one(x: i64) -> i64 {
+    x + 1
+}
+
+fn main() -> PyResult<()> {
+    Python::with_gil(|py| {
+        // Create new module
+        let foo_module = PyModule::new(py, "foo")?;
+        foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+
+        // Import and get sys.modules
+        let sys = PyModule::import(py, "sys")?;
+        let py_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+
+        // Insert foo into sys.modules
+        py_modules.set_item("foo", foo_module)?;
+
+        // Now we can import + run our python code
+        Python::run(py, "import foo; foo.add_one(6)", None, None)
+    })
+}
+```
+
 ### Include multiple Python files
 
 You can include a file at compile time by using
@@ -262,9 +327,9 @@ Example directory structure:
 ├── Cargo.lock
 ├── Cargo.toml
 ├── python_app
-│   ├── app.py
-│   └── utils
-│       └── foo.py
+│   ├── app.py
+│   └── utils
+│       └── foo.py
 └── src
     └── main.rs
 ```
@@ -395,3 +460,6 @@ class House(object):
     })
 }
 ```
+
+
+[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new
