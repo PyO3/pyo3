@@ -68,6 +68,10 @@ bound to the `GILPool`, not the for loop.  The `GILPool` isn't dropped until
 the end of the `with_gil()` closure, at which point the 10 copies of `hello`
 are finally released to the Python garbage collector.
 
+This is often the case when writing extension as `#[pyfunction]` or `#[pymethod]` will lock 
+the `GILPool` at the beginning of the function call and only release it at 
+the returns. For more on this issue: [#1056](https://github.com/PyO3/pyo3/issues/1056)
+
 In general we don't want unbounded memory growth during loops!  One workaround
 is to acquire and release the GIL with each iteration of the loop.
 
