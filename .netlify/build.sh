@@ -20,8 +20,8 @@ mv pyo3-gh-pages netlify_build
 # than check this in to the repo
 cp .netlify/_redirects netlify_build/
 
-# Add latest redirect (proxy)
-echo "/latest/* https://pyo3.github.io/pyo3/v${PYO3_VERSION}/:splat 200" >> netlify_build/_redirects
+# Add latest redirect
+echo "/latest/* /v${PYO3_VERSION}/:splat" >> netlify_build/_redirects
 
 ## Add landing page redirect
 if [ "${CONTEXT}" == "deploy-preview" ]; then
