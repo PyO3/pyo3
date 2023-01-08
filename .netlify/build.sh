@@ -7,7 +7,7 @@ rustup default nightly
 PYO3_VERSION=$(cargo search pyo3 --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
 
 ## Start from the existing gh-pages content.
-## By servicng it over netlify, we can have better UX for users because
+## By serving it over netlify, we can have better UX for users because
 ## netlify can then redirect e.g. /v0.17.0 to /v0.17.0/
 ## which leads to better loading of CSS assets.
 
