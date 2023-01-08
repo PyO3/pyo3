@@ -14,8 +14,6 @@ def main() -> None:
         version_without_v = version.lstrip("v")
         # redirect doc requests to docs.rs
         print(f"/{version}/doc/* https://docs.rs/pyo3/{version_without_v}/:splat")
-    # fallback to github-pages for content not yet copied to netlify
-    print(f"/* https://pyo3.github.io/pyo3/:splat 200")
 
 
 if __name__ == "__main__":
