@@ -119,6 +119,14 @@ dropped you do not retain access to any owned references created after the
 [documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Python.html#method.new_pool)
 for more information on safety.
 
+This memory management can also be applicable when writing extension modules.
+`#[pyfunction]` and `#[pymethods]` will create a `GILPool` which lasts the entire
+function call, releasing objects when the function returns. Most functions only create
+a few objects, meaning this doesn't have a significant impact. Occasionally functions
+with long complex loops may need to use `Python::new_pool` as shown above.
+
+This behavior may change in future, see [issue #1056](https://github.com/PyO3/pyo3/issues/1056).
+
 ## GIL-independent memory
 
 Sometimes we need a reference to memory on Python's heap that can outlive the
