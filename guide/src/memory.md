@@ -68,10 +68,6 @@ bound to the `GILPool`, not the for loop.  The `GILPool` isn't dropped until
 the end of the `with_gil()` closure, at which point the 10 copies of `hello`
 are finally released to the Python garbage collector.
 
-This is often the case when writing extension as `#[pyfunction]` or `#[pymethod]` will lock 
-the `GILPool` at the beginning of the function call and only release it at 
-the returns. For more on this issue: [#1056](https://github.com/PyO3/pyo3/issues/1056)
-
 In general we don't want unbounded memory growth during loops!  One workaround
 is to acquire and release the GIL with each iteration of the loop.
 
@@ -122,6 +118,14 @@ dropped you do not retain access to any owned references created after the
 `GILPool` was created.  Read the
 [documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Python.html#method.new_pool)
 for more information on safety.
+
+This memory management can also be applicable when writing extension modules.
+`#[pyfunction]` and `#[pymethods]` will create a `GILPool` which lasts the entire
+function call, releasing objects when the function returns. Most functions only create
+a few objects, meaning this doesn't have a significant impact. Occasionally functions
+with long complex loops may need to use `Python::new_pool` as shown above.
+
+This behavior may change in future, see [issue #1056](https://github.com/PyO3/pyo3/issues/1056).
 
 ## GIL-independent memory
 
