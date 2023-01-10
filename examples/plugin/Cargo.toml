@@ -1,0 +1,12 @@
+[package]
+name = "plugin_example"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+pyo3={path="../../", features=["macros"]}
+plugin_api={path="plugin_api"}
+
+
+[workspace]
