@@ -16,18 +16,20 @@ mv pyo3-gh-pages netlify_build
 
 ## Configure netlify _redirects file
 
-# TODO: have some better system to automatically generate this on build rather
-# than check this in to the repo
-cp .netlify/_redirects netlify_build/
+# Add redirect for each documented version
+for d in netlify_build/v*; do
+    version="${d/netlify_build\/v/}"
+    echo "/v$version/doc/* https://docs.rs/pyo3/$version/:splat" >> netlify_build/_redirects
+done
 
 # Add latest redirect
 echo "/latest/* /v${PYO3_VERSION}/:splat" >> netlify_build/_redirects
 
 ## Add landing page redirect
 if [ "${CONTEXT}" == "deploy-preview" ]; then
-    echo "<meta http-equiv=refresh content=0;url=main/>" > netlify_build/index.html
+    echo "/ /main/" >> netlify_build/_redirects
 else
-    echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
+    echo "/ /v${PYO3_VERSION}/>" >> netlify_build/_redirects
 fi
 
 ## Generate towncrier release notes

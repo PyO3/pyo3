@@ -13,9 +13,7 @@ Follow the process below to update all required pieces to bump the version. All 
    - `pre-script.rhai` templates for the examples.
    - `[towncrier]` section in `pyproject.toml`.
 
-   Places where you need to be a bit careful:
-   - Add _new_ lines to the netlify `_redirects` file rather than replacing the existing ones.
-   - Make sure not to modify the CHANGELOG during this step!
+   Make sure not to modify the CHANGELOG during this step!
 
 2. Run `towncrier build` to generate the CHANGELOG. The version used by `towncrier` should automatically be correct because of the update to `pyproject.toml` in step 1.
 
