@@ -29,7 +29,7 @@ echo "/latest/* /v${PYO3_VERSION}/:splat" >> netlify_build/_redirects
 if [ "${CONTEXT}" == "deploy-preview" ]; then
     echo "/ /main/" >> netlify_build/_redirects
 else
-    echo "/ /v${PYO3_VERSION}/>" >> netlify_build/_redirects
+    echo "/ /v${PYO3_VERSION}/" >> netlify_build/_redirects
 fi
 
 ## Generate towncrier release notes
