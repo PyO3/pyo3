@@ -430,7 +430,7 @@ def set_minimal_package_versions(session: nox.Session):
             )
 
     _run_cargo_set_package_version(session, "indexmap", "1.6.2")
-    _run_cargo_set_package_version(session, "hashbrown:0.12.3", "0.9.1")
+    _run_cargo_set_package_version(session, "hashbrown:0.13.1", "0.9.1")
     _run_cargo_set_package_version(session, "plotters", "0.3.1")
     _run_cargo_set_package_version(session, "plotters-svg", "0.3.1")
     _run_cargo_set_package_version(session, "plotters-backend", "0.3.2")
