@@ -315,8 +315,13 @@ impl<'a> Container<'a> {
                 FieldGetter::GetAttr(None) => {
                     quote!(getattr(_pyo3::intern!(obj.py(), #field_name)))
                 }
+                FieldGetter::GetItem(Some(syn::Lit::Str(key))) => {
+                    quote!(get_item(_pyo3::intern!(obj.py(), #key)))
+                }
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
-                FieldGetter::GetItem(None) => quote!(get_item(#field_name)),
+                FieldGetter::GetItem(None) => {
+                    quote!(get_item(_pyo3::intern!(obj.py(), #field_name)))
+                }
             };
             let extractor = match &field.from_py_with {
                 None => {
