@@ -3,6 +3,70 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.17.* to 0.18
+
+### Required arguments after `Option<_>` arguments will no longer be automatically inferred
+
+In `#[pyfunction]` and `#[pymethods]`, if a "required" function input such as `i32` came after an `Option<_>` input, then the `Option<_>` would be implicitly treated as required. (All trailing `Option<_>` arguments were treated as optional with a default value of `None`).
+
+Starting with PyO3 0.18, this is deprecated and a future PyO3 version will require a [`#[pyo3(signature = (...))]` option](./function/signature.md) to explicitly declare the programmer's intention.
+
+Before, x in the below example would be required to be passed from Python code:
+
+```rust,compile_fail
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyfunction]
+fn required_argument_after_option(x: Option<i32>, y: i32) { }
+```
+
+After, specify the intended Python signature explicitly:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+// If x really was intended to be required
+#[pyfunction(signature = (x, y))]
+fn required_argument_after_option_a(x: Option<i32>, y: i32) { }
+
+// If x was intended to be optional, y needs a default too
+#[pyfunction(signature = (x=None, y=0))]
+fn required_argument_after_option_b(x: Option<i32>, y: i32) { }
+```
+
+### `__text_signature__` is now automatically generated for `#[pyfunction]` and `#[pymethods]`
+
+The [`#[pyo3(text_signature = "...")]` option](./function/signature.md#making-the-function-signature-available-to-python) was previously the only supported way to set the `__text_signature__` attribute on generated Python functions.
+
+PyO3 is now able to automatically populate `__text_signature__` for all functions automatically based on their Rust signature (or the [new `#[pyo3(signature = (...))]` option](./function/signature.md)). These automatically-generated `__text_signature__` values will currently only render `...` for all default values. Many `#[pyo3(text_signature = "...")]` options can be removed from functions when updating to PyO3 0.18, however in cases with default values a manual implementation may still be preferred for now.
+
+As examples:
+
+```rust
+# use pyo3::prelude::*;
+
+// The `text_signature` option here is no longer necessary, as PyO3 will automatically
+// generate exactly the same value.
+#[pyfunction(text_signature = "(a, b, c)")]
+fn simple_function(a: i32, b: i32, c: i32) {}
+
+// The `text_signature` still provides value here as of PyO3 0.18, because the automatically
+// generated signature would be "(a, b=..., c=...)".
+#[pyfunction(signature = (a, b = 1, c = 2), text_signature = "(a, b=1, c=2)")]
+fn function_with_defaults(a: i32, b: i32, c: i32) {}
+
+# fn main() {
+#     Python::with_gil(|py| {
+#         let simple = wrap_pyfunction!(simple_function, py).unwrap();
+#         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
+#         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
+#         assert_eq!(defaulted.getattr("__text_signature__").unwrap().to_string(), "(a, b=1, c=2)");
+#     })
+# }
+```
+
 ## from 0.16.* to 0.17
 
 ### Type checks have been changed for `PyMapping` and `PySequence` types
