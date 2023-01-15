@@ -113,8 +113,8 @@ fn is_subclass_and_is_instance() {
         assert!(sub_ty.is_subclass(base_ty).unwrap());
 
         let obj = PyCell::new(py, SubClass::new()).unwrap();
-        assert!(obj.is_instance_of::<SubClass>().unwrap());
-        assert!(obj.is_instance_of::<BaseClass>().unwrap());
+        assert!(obj.is_instance_of::<SubClass>());
+        assert!(obj.is_instance_of::<BaseClass>());
         assert!(obj.is_instance(sub_ty).unwrap());
         assert!(obj.is_instance(base_ty).unwrap());
     });

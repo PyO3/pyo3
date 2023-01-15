@@ -79,10 +79,10 @@ use pyo3::Python;
 use pyo3::types::{PyBool, PyList};
 
 Python::with_gil(|py| {
-    assert!(PyBool::new(py, true).is_instance_of::<PyBool>().unwrap());
+    assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
     let list = PyList::new(py, &[1, 2, 3, 4]);
-    assert!(!list.is_instance_of::<PyBool>().unwrap());
-    assert!(list.is_instance_of::<PyList>().unwrap());
+    assert!(!list.is_instance_of::<PyBool>());
+    assert!(list.is_instance_of::<PyList>());
 });
 ```
 

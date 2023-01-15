@@ -61,9 +61,9 @@ fn test_date_check() {
         assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
         assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_obj);
         assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_sub_obj);
-        assert!(obj.is_instance_of::<PyDate>().unwrap());
-        assert!(!obj.is_instance_of::<PyTime>().unwrap());
-        assert!(!obj.is_instance_of::<PyDateTime>().unwrap());
+        assert!(obj.is_instance_of::<PyDate>());
+        assert!(!obj.is_instance_of::<PyTime>());
+        assert!(!obj.is_instance_of::<PyDateTime>());
     });
 }
 
@@ -76,9 +76,9 @@ fn test_time_check() {
         assert_check_exact!(PyTime_Check, PyTime_CheckExact, obj);
         assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_obj);
         assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_sub_obj);
-        assert!(!obj.is_instance_of::<PyDate>().unwrap());
-        assert!(obj.is_instance_of::<PyTime>().unwrap());
-        assert!(!obj.is_instance_of::<PyDateTime>().unwrap());
+        assert!(!obj.is_instance_of::<PyDate>());
+        assert!(obj.is_instance_of::<PyTime>());
+        assert!(!obj.is_instance_of::<PyDateTime>());
     });
 }
 
@@ -94,9 +94,9 @@ fn test_datetime_check() {
         assert_check_exact!(PyDateTime_Check, PyDateTime_CheckExact, obj);
         assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_obj);
         assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_sub_obj);
-        assert!(obj.is_instance_of::<PyDate>().unwrap());
-        assert!(!obj.is_instance_of::<PyTime>().unwrap());
-        assert!(obj.is_instance_of::<PyDateTime>().unwrap());
+        assert!(obj.is_instance_of::<PyDate>());
+        assert!(!obj.is_instance_of::<PyTime>());
+        assert!(obj.is_instance_of::<PyDateTime>());
     });
 }
 

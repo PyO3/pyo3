@@ -297,7 +297,7 @@ where
     T: FromPyObject<'a>,
 {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        if let Ok(true) = obj.is_instance_of::<PyString>() {
+        if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
         extract_sequence(obj)

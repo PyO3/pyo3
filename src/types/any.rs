@@ -665,6 +665,7 @@ impl PyAny {
     /// Returns whether the object is considered to be None.
     ///
     /// This is equivalent to the Python expression `self is None`.
+    #[inline]
     pub fn is_none(&self) -> bool {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
@@ -778,7 +779,7 @@ impl PyAny {
     ///
     /// Python::with_gil(|py| {
     ///     let dict = PyDict::new(py);
-    ///     assert!(dict.is_instance_of::<PyAny>().unwrap());
+    ///     assert!(dict.is_instance_of::<PyAny>());
     ///     let any: &PyAny = dict.as_ref();
     ///
     ///     assert!(any.downcast::<PyDict>().is_ok());
@@ -904,6 +905,7 @@ impl PyAny {
     /// Checks whether this object is an instance of type `ty`.
     ///
     /// This is equivalent to the Python expression `isinstance(self, ty)`.
+    #[inline]
     pub fn is_instance(&self, ty: &PyAny) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), ty.as_ptr()) };
         err::error_on_minusone(self.py(), result)?;
@@ -914,8 +916,9 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `isinstance(self, T)`,
     /// if the type `T` is known at compile time.
-    pub fn is_instance_of<T: PyTypeInfo>(&self) -> PyResult<bool> {
-        self.is_instance(T::type_object(self.py()))
+    #[inline]
+    pub fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
+        T::is_type_of(self)
     }
 
     /// Determines if self contains `value`.
@@ -1043,10 +1046,10 @@ class SimpleClass:
     fn test_any_isinstance_of() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_ref(py);
-            assert!(x.is_instance_of::<PyLong>().unwrap());
+            assert!(x.is_instance_of::<PyLong>());
 
             let l = vec![x, x].to_object(py).into_ref(py);
-            assert!(l.is_instance_of::<PyList>().unwrap());
+            assert!(l.is_instance_of::<PyList>());
         });
     }
 
