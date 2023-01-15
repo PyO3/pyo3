@@ -445,6 +445,7 @@ mod macros;
 #[cfg(all(test, feature = "macros"))]
 mod test_hygiene;
 
+#[cfg(feature = "experimental-inspect")]
 pub mod inspect;
 
 /// Test readme and user guide

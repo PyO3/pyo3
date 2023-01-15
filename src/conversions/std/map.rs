@@ -1,7 +1,8 @@
 use std::{cmp, collections, hash};
 
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::types::TypeInfo;
 use crate::{
-    inspect::types::TypeInfo,
     types::{IntoPyDict, PyDict},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
@@ -40,6 +41,7 @@ where
         IntoPyDict::into_py_dict(iter, py).into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::dict_of(K::type_output(), V::type_output())
     }
@@ -57,6 +59,7 @@ where
         IntoPyDict::into_py_dict(iter, py).into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::dict_of(K::type_output(), V::type_output())
     }
@@ -77,6 +80,7 @@ where
         Ok(ret)
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::mapping_of(K::type_input(), V::type_input())
     }
@@ -96,6 +100,7 @@ where
         Ok(ret)
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::mapping_of(K::type_input(), V::type_input())
     }

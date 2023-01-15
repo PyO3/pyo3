@@ -2,6 +2,7 @@
 
 //! Defines conversions between Rust and Python types.
 use crate::err::{self, PyDowncastError, PyResult};
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
@@ -253,6 +254,7 @@ pub trait IntoPy<T>: Sized {
     ///
     /// For most types, the return value for this method will be identical to that of [`FromPyObject::type_input`].
     /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::Any
     }
@@ -309,6 +311,7 @@ pub trait FromPyObject<'source>: Sized {
     ///
     /// For most types, the return value for this method will be identical to that of [`IntoPy::type_output`].
     /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::Any
     }

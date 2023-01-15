@@ -3,6 +3,7 @@
 use std::convert::TryInto;
 
 use crate::ffi::{self, Py_ssize_t};
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
@@ -293,7 +294,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
 
-        fn type_output() -> TypeInfo {
+        #[cfg(feature = "experimental-inspect")]
+fn type_output() -> TypeInfo {
             TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
         }
     }
@@ -308,6 +310,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
 
+        #[cfg(feature = "experimental-inspect")]
         fn type_output() -> TypeInfo {
             TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
         }
@@ -328,7 +331,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
 
-        fn type_input() -> TypeInfo {
+        #[cfg(feature = "experimental-inspect")]
+fn type_input() -> TypeInfo {
             TypeInfo::Tuple(Some(vec![$( $T::type_input() ),+]))
         }
     }

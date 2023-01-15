@@ -61,6 +61,10 @@ pyo3-build-config = { path = "pyo3-build-config", version = "0.17.3", features =
 [features]
 default = ["macros"]
 
+# Enables pyo3::inspect module and additional type information on FromPyObject
+# and IntoPy traits
+experimental-inspect = []
+
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
 
@@ -105,6 +109,7 @@ full = [
     "indexmap",
     "eyre",
     "anyhow",
+    "experimental-inspect",
 ]
 
 [[bench]]
