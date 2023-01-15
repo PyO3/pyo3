@@ -115,6 +115,10 @@ full = [
 ]
 
 [[bench]]
+name = "bench_any"
+harness = false
+
+[[bench]]
 name = "bench_call"
 harness = false
 
