@@ -1,11 +1,10 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote_spanned, ToTokens};
 
-// Clippy complains all these variants have the same prefix "Py"...
-#[allow(clippy::enum_variant_names)]
 pub enum Deprecation {
     PyFunctionArguments,
     PyMethodArgsAttribute,
+    RequiredArgumentAfterOption,
 }
 
 impl Deprecation {
@@ -13,6 +12,7 @@ impl Deprecation {
         let string = match self {
             Deprecation::PyFunctionArguments => "PYFUNCTION_ARGUMENTS",
             Deprecation::PyMethodArgsAttribute => "PYMETHODS_ARGS_ATTRIBUTE",
+            Deprecation::RequiredArgumentAfterOption => "REQUIRED_ARGUMENT_AFTER_OPTION",
         };
         syn::Ident::new(string, span)
     }

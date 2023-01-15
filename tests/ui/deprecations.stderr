@@ -10,8 +10,21 @@ note: the lint level is defined here
 1 | #![deny(deprecated)]
   |         ^^^^^^^^^^
 
+error: use of deprecated constant `pyo3::impl_::deprecations::REQUIRED_ARGUMENT_AFTER_OPTION`: required arguments after an `Option<_>` argument are ambiguous and being phased out
+       = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters
+ --> tests/ui/deprecations.rs:9:59
+  |
+9 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
+  |                                                           ^^
+
 error: use of deprecated constant `pyo3::impl_::deprecations::PYMETHODS_ARGS_ATTRIBUTE`: the `#[args]` attribute for `#[methods]` is being replaced by `#[pyo3(signature)]`
-  --> tests/ui/deprecations.rs:13:7
+  --> tests/ui/deprecations.rs:16:7
    |
-13 |     #[args(_opt = "None", x = "5")]
+16 |     #[args(_opt = "None", x = "5")]
+   |       ^^^^
+
+error: use of deprecated constant `pyo3::impl_::deprecations::PYMETHODS_ARGS_ATTRIBUTE`: the `#[args]` attribute for `#[methods]` is being replaced by `#[pyo3(signature)]`
+  --> tests/ui/deprecations.rs:19:7
+   |
+19 |     #[args(_has_default = 1)]
    |       ^^^^

@@ -366,7 +366,7 @@ pub fn impl_wrap_pyfunction(
         deprecated_args,
         signature,
         text_signature,
-        deprecations,
+        mut deprecations,
         krate,
     } = options;
 
@@ -404,7 +404,7 @@ pub fn impl_wrap_pyfunction(
     } else if let Some(deprecated_args) = deprecated_args {
         FunctionSignature::from_arguments_and_deprecated_args(arguments, deprecated_args)?
     } else {
-        FunctionSignature::from_arguments(arguments)
+        FunctionSignature::from_arguments(arguments, &mut deprecations)
     };
 
     let ty = method::get_return_info(&func.sig.output);
