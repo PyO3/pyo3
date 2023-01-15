@@ -477,6 +477,7 @@ fn use_pyfunction() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn required_argument_after_option() {
     #[pyfunction]
     pub fn foo(x: Option<i32>, y: i32) -> i32 {

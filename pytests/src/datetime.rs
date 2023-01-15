@@ -37,6 +37,7 @@ fn make_time<'p>(
 }
 
 #[pyfunction]
+#[pyo3(signature = (hour, minute, second, microsecond, tzinfo, fold))]
 fn time_with_fold<'p>(
     py: Python<'p>,
     hour: u8,

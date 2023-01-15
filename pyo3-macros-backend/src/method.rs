@@ -312,7 +312,7 @@ impl<'a> FnSpec<'a> {
         } else if let Some(deprecated_args) = deprecated_args {
             FunctionSignature::from_arguments_and_deprecated_args(arguments, deprecated_args)?
         } else {
-            FunctionSignature::from_arguments(arguments)
+            FunctionSignature::from_arguments(arguments, &mut deprecations)
         };
 
         let text_signature_string = match &fn_type {

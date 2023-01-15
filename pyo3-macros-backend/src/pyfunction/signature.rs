@@ -12,6 +12,7 @@ use syn::{
 
 use crate::{
     attributes::{kw, KeywordAttribute},
+    deprecations::{Deprecation, Deprecations},
     method::{FnArg, FnType},
     pyfunction::Argument,
 };
@@ -530,7 +531,7 @@ impl<'a> FunctionSignature<'a> {
     }
 
     /// Without `#[pyo3(signature)]` or `#[args]` - just take the Rust function arguments as positional.
-    pub fn from_arguments(mut arguments: Vec<FnArg<'a>>) -> Self {
+    pub fn from_arguments(mut arguments: Vec<FnArg<'a>>, deprecations: &mut Deprecations) -> Self {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
@@ -540,6 +541,13 @@ impl<'a> FunctionSignature<'a> {
 
             if arg.optional.is_none() {
                 // This argument is required
+                if python_signature.required_positional_parameters
+                    != python_signature.positional_parameters.len()
+                {
+                    // A previous argument was not required
+                    deprecations.push(Deprecation::RequiredArgumentAfterOption, arg.name.span());
+                }
+
                 python_signature.required_positional_parameters =
                     python_signature.positional_parameters.len() + 1;
             }
