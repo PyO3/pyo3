@@ -35,7 +35,7 @@ Write release notes which match the style of previous releases. You can get the 
 
 Save as a draft and wait for now.
 
-## 3. Leave for a cooling off period
+## 3. Leave for a cooling off period
 
 Wait a couple of days in case anyone wants to hold up the release to add bugfixes etc.
 
@@ -50,6 +50,6 @@ To put live:
 
 If the release PR targeted a branch other than main, you will need to cherry-pick the version bumps, CHANGELOG modifications and removal of towncrier `newsfragments` and open another PR to land these on main.
 
-## 6. Delete the release branch (patch releases only)
+## 6. Delete the release branch (patch releases only)
 
 For 0.X.Y patch releases, the release branch is no longer needed, so it should be deleted.
