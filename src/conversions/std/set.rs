@@ -1,8 +1,10 @@
 use std::{cmp, collections, hash};
 
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::types::TypeInfo;
 use crate::{
-    inspect::types::TypeInfo, types::set::new_from_iter, types::PySet, FromPyObject, IntoPy, PyAny,
-    PyObject, PyResult, Python, ToPyObject,
+    types::set::new_from_iter, types::PySet, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
+    Python, ToPyObject,
 };
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
@@ -39,6 +41,7 @@ where
             .into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::set_of(K::type_output())
     }
@@ -54,6 +57,7 @@ where
         set.iter().map(K::extract).collect()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::set_of(K::type_input())
     }
@@ -69,6 +73,7 @@ where
             .into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::set_of(K::type_output())
     }
@@ -83,6 +88,7 @@ where
         set.iter().map(K::extract).collect()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::set_of(K::type_input())
     }

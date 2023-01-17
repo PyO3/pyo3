@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
@@ -46,6 +47,7 @@ impl IntoPy<PyObject> for f64 {
         PyFloat::new(py, self).into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("float")
     }
@@ -66,6 +68,7 @@ impl<'source> FromPyObject<'source> for f64 {
         Ok(v)
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
     }
@@ -82,6 +85,7 @@ impl IntoPy<PyObject> for f32 {
         PyFloat::new(py, f64::from(self)).into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("float")
     }
@@ -92,6 +96,7 @@ impl<'source> FromPyObject<'source> for f32 {
         Ok(obj.extract::<f64>()? as f32)
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
     }

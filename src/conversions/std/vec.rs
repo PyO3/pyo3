@@ -1,3 +1,4 @@
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::list::new_from_iter;
 use crate::{IntoPy, PyObject, Python, ToPyObject};
@@ -32,6 +33,7 @@ where
         list.into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::list_of(T::type_output())
     }

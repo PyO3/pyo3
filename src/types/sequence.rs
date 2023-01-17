@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::once_cell::GILOnceCell;
@@ -290,6 +291,7 @@ where
         extract_sequence(obj)
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::sequence_of(T::type_input())
     }

@@ -1,4 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
@@ -47,6 +48,7 @@ impl IntoPy<PyObject> for bool {
         PyBool::new(py, self).into()
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("bool")
     }
@@ -60,6 +62,7 @@ impl<'source> FromPyObject<'source> for bool {
         Ok(obj.downcast::<PyBool>()?.is_true())
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
     }

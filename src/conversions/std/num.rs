@@ -1,6 +1,8 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions, ffi, inspect::types::TypeInfo, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr,
-    PyObject, PyResult, Python, ToPyObject,
+    exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use std::convert::TryFrom;
 use std::num::{
@@ -22,6 +24,7 @@ macro_rules! int_fits_larger_int {
                 (self as $larger_type).into_py(py)
             }
 
+            #[cfg(feature = "experimental-inspect")]
             fn type_output() -> TypeInfo {
                 <$larger_type>::type_output()
             }
@@ -34,6 +37,7 @@ macro_rules! int_fits_larger_int {
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
             }
 
+            #[cfg(feature = "experimental-inspect")]
             fn type_input() -> TypeInfo {
                 <$larger_type>::type_input()
             }
@@ -55,6 +59,7 @@ macro_rules! int_convert_u64_or_i64 {
                 unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
             }
 
+            #[cfg(feature = "experimental-inspect")]
             fn type_output() -> TypeInfo {
                 TypeInfo::builtin("int")
             }
@@ -74,6 +79,7 @@ macro_rules! int_convert_u64_or_i64 {
                 }
             }
 
+            #[cfg(feature = "experimental-inspect")]
             fn type_input() -> TypeInfo {
                 Self::type_output()
             }
@@ -93,6 +99,7 @@ macro_rules! int_fits_c_long {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
             }
 
+            #[cfg(feature = "experimental-inspect")]
             fn type_output() -> TypeInfo {
                 TypeInfo::builtin("int")
             }
@@ -115,6 +122,7 @@ macro_rules! int_fits_c_long {
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
             }
 
+            #[cfg(feature = "experimental-inspect")]
             fn type_input() -> TypeInfo {
                 Self::type_output()
             }
@@ -183,6 +191,7 @@ mod fast_128bit_int_conversion {
                     }
                 }
 
+                #[cfg(feature = "experimental-inspect")]
                 fn type_output() -> TypeInfo {
                     TypeInfo::builtin("int")
                 }
@@ -209,6 +218,7 @@ mod fast_128bit_int_conversion {
                     }
                 }
 
+                #[cfg(feature = "experimental-inspect")]
                 fn type_input() -> TypeInfo {
                     Self::type_output()
                 }
@@ -255,6 +265,7 @@ mod slow_128bit_int_conversion {
                     }
                 }
 
+                #[cfg(feature = "experimental-inspect")]
                 fn type_output() -> TypeInfo {
                     TypeInfo::builtin("int")
                 }
@@ -278,6 +289,7 @@ mod slow_128bit_int_conversion {
                     }
                 }
 
+                #[cfg(feature = "experimental-inspect")]
                 fn type_input() -> TypeInfo {
                     Self::type_output()
                 }
@@ -324,6 +336,7 @@ macro_rules! nonzero_int_impl {
                     .map_err(|_| exceptions::PyValueError::new_err("invalid zero value"))
             }
 
+            #[cfg(feature = "experimental-inspect")]
             fn type_input() -> TypeInfo {
                 <$primitive_type>::type_input()
             }
