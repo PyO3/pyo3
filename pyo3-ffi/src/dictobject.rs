@@ -24,6 +24,8 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
     pub fn PyDict_GetItem(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     pub fn PyDict_GetItemWithError(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(Py_NOGIL, link_name = "PyDict_GetItemWithError2")]
+    pub fn _PyDict_FetchItemWithError(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_SetItem")]
     pub fn PyDict_SetItem(mp: *mut PyObject, key: *mut PyObject, item: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItem")]
@@ -65,6 +67,33 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItemString")]
     pub fn PyDict_DelItemString(dp: *mut PyObject, key: *const c_char) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
+}
+
+#[inline]
+#[cfg(not(Py_NOGIL))]
+pub unsafe fn PyDict_FetchItem(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject {
+    _Py_XNewRef(PyDict_GetItem(mp, key))
+}
+
+#[inline]
+#[cfg(Py_NOGIL)]
+pub unsafe fn PyDict_FetchItem(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject {
+    use crate::PyErr_Clear;
+    let obj = _PyDict_FetchItemWithError(mp, key);
+    PyErr_Clear();
+    obj
+}
+
+#[inline]
+#[cfg(not(Py_NOGIL))]
+pub unsafe fn PyDict_FetchItemWithError(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject {
+    _Py_XNewRef(PyDict_GetItemWithError(mp, key))
+}
+
+#[inline]
+#[cfg(Py_NOGIL)]
+pub unsafe fn PyDict_FetchItemWithError(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject {
+    _PyDict_FetchItemWithError(mp, key)
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

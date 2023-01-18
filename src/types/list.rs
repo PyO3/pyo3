@@ -130,9 +130,7 @@ impl PyList {
     /// ```
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {
-            let item = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
-            ffi::Py_XINCREF(item);
+            let item = ffi::PyList_FetchItem(self.as_ptr(), index as Py_ssize_t);
             self.py().from_owned_ptr_or_err(item)
         }
     }
@@ -141,7 +139,8 @@ impl PyList {
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the list.
+    /// Caller must verify that the index is within the bounds of the list and that no other
+    /// thread is concurrently modifying the list.
     #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
         let item = ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t);

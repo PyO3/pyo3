@@ -146,10 +146,10 @@ impl PyDict {
         K: ToPyObject,
     {
         unsafe {
-            let ptr = ffi::PyDict_GetItem(self.as_ptr(), key.to_object(self.py()).as_ptr());
+            let ptr = ffi::PyDict_FetchItem(self.as_ptr(), key.to_object(self.py()).as_ptr());
             NonNull::new(ptr).map(|p| {
                 // PyDict_GetItem return s borrowed ptr, must make it owned for safety (see #890).
-                self.py().from_owned_ptr(ffi::_Py_NewRef(p.as_ptr()))
+                self.py().from_owned_ptr(p.as_ptr())
             })
         }
     }
@@ -166,12 +166,12 @@ impl PyDict {
     {
         unsafe {
             let ptr =
-                ffi::PyDict_GetItemWithError(self.as_ptr(), key.to_object(self.py()).as_ptr());
+                ffi::PyDict_FetchItemWithError(self.as_ptr(), key.to_object(self.py()).as_ptr());
             if !ffi::PyErr_Occurred().is_null() {
                 return Err(PyErr::fetch(self.py()));
             }
 
-            Ok(NonNull::new(ptr).map(|p| self.py().from_owned_ptr(ffi::_Py_NewRef(p.as_ptr()))))
+            Ok(NonNull::new(ptr).map(|p| self.py().from_owned_ptr(p.as_ptr())))
         }
     }
 

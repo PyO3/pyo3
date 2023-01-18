@@ -27,6 +27,8 @@ extern "C" {
     pub fn PyList_Size(arg1: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyList_GetItem")]
     pub fn PyList_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(Py_NOGIL, link_name = "PyList_Item")]
+    pub fn _PyList_FetchItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyList_SetItem")]
     pub fn PyList_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyList_Insert")]
@@ -63,4 +65,16 @@ extern "C" {
     #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "PyPyList_SET_ITEM")]
     pub fn PyList_SET_ITEM(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject);
+}
+
+#[inline]
+#[cfg(not(Py_NOGIL))]
+pub unsafe fn PyList_FetchItem(list: *mut PyObject, index: Py_ssize_t) -> *mut PyObject {
+    _Py_XNewRef(PyList_GetItem(list, index))
+}
+
+#[inline]
+#[cfg(Py_NOGIL)]
+pub unsafe fn PyList_FetchItem(list: *mut PyObject, index: Py_ssize_t) -> *mut PyObject {
+    _PyList_FetchItem(list, index)
 }
