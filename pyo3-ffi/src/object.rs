@@ -85,9 +85,7 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
 #[inline]
 #[cfg(Py_NOGIL)]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
-    if ob.is_null() {
-        panic!();
-    }
+    assert!(!ob.is_null());
     Py_RefCnt(ob)
 }
 
