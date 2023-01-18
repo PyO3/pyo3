@@ -225,7 +225,7 @@ FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
 SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 
 implementation = platform.python_implementation()
-if get_config_var("SOABI").startswith("nogil"):
+if sys.implementation.name == "nogil":
     implementation = "NoGIL"
 
 print("implementation", implementation)
