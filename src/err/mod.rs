@@ -476,6 +476,40 @@ impl PyErr {
         unsafe { ffi::PyErr_Restore(ptype, pvalue, ptraceback) }
     }
 
+    /// Reports the error as unraisable.
+    ///
+    /// This calls `sys.unraisablehook()` using the current exception and obj argument.
+    ///
+    /// This method is useful to report errors in situations where there is no good mechanism
+    /// to report back to the Python land.  In Python this is used to indicate errors in
+    /// background threads or destructors which are protected.  In Rust code this is commonly
+    /// useful when you are calling into a Python callback which might fail, but there is no
+    /// obvious way to handle this error other than logging it.
+    ///
+    /// Calling this method has the benefit that the error goes back into a standardized callback
+    /// in Python which for instance allows unittests to ensure that no unraisable error
+    /// actually happend by hooking `sys.unraisablehook`.
+    ///
+    /// Example:
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::exceptions::PyRuntimeError;
+    /// # fn failing_function() -> PyResult<()> { Err(PyRuntimeError::new_err("foo")) }
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     match failing_function() {
+    ///         Err(pyerr) => pyerr.write_unraisable(py, None),
+    ///         Ok(..) => { /* do something here */ }
+    ///     }
+    ///     Ok(())
+    /// })
+    /// # }
+    #[inline]
+    pub fn write_unraisable(self, py: Python<'_>, obj: Option<&PyAny>) {
+        self.restore(py);
+        unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), |x| x.as_ptr())) }
+    }
+
     /// Issues a warning message.
     ///
     /// May return an `Err(PyErr)` if warnings-as-errors is enabled.

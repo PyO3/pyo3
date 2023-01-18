@@ -247,8 +247,7 @@ where
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
-        py_err.restore(py);
-        ffi::PyErr_WriteUnraisable(ctx);
+        py_err.write_unraisable(py, py.from_borrowed_ptr_or_opt(ctx));
     }
     trap.disarm();
 }
