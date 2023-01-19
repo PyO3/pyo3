@@ -122,7 +122,7 @@ pub fn process_functions_in_module(
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.add_function(#krate::impl_::pyfunction::wrap_pyfunction(&#name::DEF, #module_name)?)?;
+                    #module_name.add_function(#krate::impl_::pyfunction::wrap_pyfunction_impl(&#name::DEF, #module_name)?)?;
                 };
                 stmts.extend(statements);
             }
