@@ -931,13 +931,8 @@ pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) 
     /// A wrapper because PyCellLayout::tp_dealloc currently takes the py argument last
     /// (which is different to the rest of the trampolines which take py first)
     #[inline]
-    #[allow(clippy::unnecessary_wraps)]
-    unsafe fn trampoline_dealloc_wrapper<T: PyClass>(
-        py: Python<'_>,
-        slf: *mut ffi::PyObject,
-    ) -> PyResult<()> {
+    unsafe fn trampoline_dealloc_wrapper<T: PyClass>(py: Python<'_>, slf: *mut ffi::PyObject) {
         T::Layout::tp_dealloc(slf, py);
-        Ok(())
     }
     // TODO change argument order in PyCellLayout::tp_dealloc so this wrapper isn't needed.
     crate::impl_::trampoline::dealloc(obj, trampoline_dealloc_wrapper::<T>)
