@@ -6,7 +6,7 @@ an overview of their intended meaning, with examples when each type is best
 used.
 
 
-## Mutability and Rust types
+## The Python GIL, mutability, and Rust types
 
 Since Python has no concept of ownership, and works solely with boxed objects,
 any Python object can be referenced any number of times, and mutation is allowed
@@ -43,6 +43,9 @@ an object's ownership has been passed to the Python interpreter, ensuring
 references is done at runtime using `PyCell`, a scheme very similar to
 `std::cell::RefCell`.
 
+### Accessing the Python GIL
+
+To get hold of a `Python<'py>` token to prove the GIL is held, consult [PyO3's documentation][obtaining-py].
 
 ## Object types
 
@@ -299,3 +302,4 @@ This trait marks structs that mirror native Python types, such as `PyList`.
 [PyAny]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
 [PyList_append]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+[obtaining-py]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#obtaining-a-python-token
