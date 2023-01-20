@@ -1,4 +1,4 @@
-use crate::{ffi, AsPyPointer, FromPyObject, Py, PyAny, PyResult, Python};
+use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -140,9 +140,23 @@ impl<'source> FromPyObject<'source> for Cow<'source, [u8]> {
     }
 }
 
+impl ToPyObject for Cow<'_, [u8]> {
+    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+        PyBytes::new(py, self.as_ref()).into()
+    }
+}
+
+impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
+    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
+        self.to_object(py)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::types::IntoPyDict;
 
     #[test]
     fn test_bytes_index() {
@@ -205,6 +219,16 @@ mod tests {
             something_else_entirely
                 .extract::<Cow<'_, [u8]>>()
                 .unwrap_err();
+
+            let cow = Cow::<[u8]>::Borrowed(b"foobar").into_py(py);
+            let locals = [("cow", cow)].into_py_dict(py);
+            py.run("assert isinstance(cow, bytes)", Some(locals), None)
+                .unwrap();
+
+            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).into_py(py);
+            let locals = [("cow", cow)].into_py_dict(py);
+            py.run("assert isinstance(cow, bytes)", Some(locals), None)
+                .unwrap();
         });
     }
 }
