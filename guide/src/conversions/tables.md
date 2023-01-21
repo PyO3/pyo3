@@ -14,7 +14,7 @@ The table below contains the Python type and the corresponding function argument
 | ------------- |:-------------------------------:|:--------------------:|
 | `object`      | -                               | `&PyAny`             |
 | `str`         | `String`, `Cow<str>`, `&str`, `OsString`, `PathBuf` | `&PyUnicode` |
-| `bytes`       | `Vec<u8>`, `&[u8]`              | `&PyBytes`           |
+| `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `&PyBytes`           |
 | `bool`        | `bool`                          | `&PyBool`            |
 | `int`         | Any integer type (`i32`, `u32`, `usize`, etc) | `&PyLong` |
 | `float`       | `f32`, `f64`                    | `&PyFloat`           |
@@ -24,7 +24,7 @@ The table below contains the Python type and the corresponding function argument
 | `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `&PyTuple`           |
 | `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^2] | `&PySet` |
 | `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^2] | `&PyFrozenSet` |
-| `bytearray`   | `Vec<u8>`                       | `&PyByteArray`       |
+| `bytearray`   | `Vec<u8>`, `Cow<[u8]>`          | `&PyByteArray`       |
 | `slice`       | -                               | `&PySlice`           |
 | `type`        | -                               | `&PyType`            |
 | `module`      | -                               | `&PyModule`          |
@@ -84,6 +84,7 @@ Finally, the following Rust types are also able to convert to Python as return v
 | `Option<T>`   | `Optional[T]`                   |
 | `(T, U)`      | `Tuple[T, U]`                   |
 | `Vec<T>`      | `List[T]`                       |
+| `Cow<[u8]>`   | `bytes`                         |
 | `HashMap<K, V>` | `Dict[K, V]`                  |
 | `BTreeMap<K, V>` | `Dict[K, V]`                 |
 | `HashSet<T>`  | `Set[T]`                        |
