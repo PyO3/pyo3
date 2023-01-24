@@ -1,9 +1,9 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Write};
 
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{spanned::Spanned, Ident};
+use syn::{punctuated::Punctuated, spanned::Spanned, Ident, Token};
 
 use crate::attributes::CrateAttribute;
 
@@ -57,70 +57,85 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
     None
 }
 
-/// A syntax tree which evaluates to a null-terminated docstring for Python.
+/// A syntax tree which evaluates to a nul-terminated docstring for Python.
 ///
-/// It's built as a `concat!` evaluation, so it's hard to do anything with this
+/// Typically the tokens will just be that string, but if the original docs included macro
+/// expressions then the tokens will be a concat!("...", "\n", "\0") expression of the strings and
+/// macro parts.
 /// contents such as parse the string contents.
 #[derive(Clone)]
 pub struct PythonDoc(TokenStream);
 
-/// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string
-/// e.g. concat!("...", "\n", "\0")
+/// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string.
 pub fn get_doc(
     attrs: &[syn::Attribute],
     text_signature: Option<(Cow<'_, Ident>, String)>,
 ) -> PythonDoc {
-    let mut tokens = TokenStream::new();
-    let comma = syn::token::Comma(Span::call_site());
-    let newline = syn::LitStr::new("\n", Span::call_site());
+    let mut parts = Punctuated::<TokenStream, Token![,]>::new();
+    let mut current_part = String::new();
 
-    syn::Ident::new("concat", Span::call_site()).to_tokens(&mut tokens);
-    syn::token::Bang(Span::call_site()).to_tokens(&mut tokens);
-    syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
-        if let Some((python_name, text_signature)) = text_signature {
-            // create special doc string lines to set `__text_signature__`
-            let signature_lines = format!("{}{}\n--\n\n", python_name, text_signature);
-            signature_lines.to_tokens(tokens);
-            comma.to_tokens(tokens);
-        }
+    if let Some((python_name, text_signature)) = text_signature {
+        // create special doc string lines to set `__text_signature__`
+        write!(
+            &mut current_part,
+            "{}{}\n--\n\n",
+            python_name, text_signature
+        )
+        .expect("error occurred while trying to format text_signature to string")
+    }
 
-        let mut first = true;
+    let mut first = true;
 
-        for attr in attrs.iter() {
-            if attr.path.is_ident("doc") {
-                if let Ok(DocArgs {
-                    _eq_token,
-                    token_stream,
-                }) = syn::parse2(attr.tokens.clone())
-                {
-                    if !first {
-                        newline.to_tokens(tokens);
-                        comma.to_tokens(tokens);
-                    } else {
-                        first = false;
-                    }
-                    if let Ok(syn::Lit::Str(lit_str)) = syn::parse2(token_stream.clone()) {
-                        // Strip single left space from literal strings, if needed.
-                        // e.g. `/// Hello world` expands to #[doc = " Hello world"]
-                        let doc_line = lit_str.value();
-                        doc_line
-                            .strip_prefix(' ')
-                            .map(|stripped| syn::LitStr::new(stripped, lit_str.span()))
-                            .unwrap_or(lit_str)
-                            .to_tokens(tokens);
-                    } else {
-                        // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
-                        token_stream.to_tokens(tokens)
-                    }
-                    comma.to_tokens(tokens);
+    for attr in attrs.iter() {
+        if attr.path.is_ident("doc") {
+            if let Ok(DocArgs {
+                _eq_token,
+                token_stream,
+            }) = syn::parse2(attr.tokens.clone())
+            {
+                if !first {
+                    current_part.push('\n');
+                } else {
+                    first = false;
+                }
+                if let Ok(syn::Lit::Str(lit_str)) = syn::parse2(token_stream.clone()) {
+                    // Strip single left space from literal strings, if needed.
+                    // e.g. `/// Hello world` expands to #[doc = " Hello world"]
+                    let doc_line = lit_str.value();
+                    current_part.push_str(doc_line.strip_prefix(' ').unwrap_or(&doc_line));
+                } else {
+                    // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
+                    // Reset the string buffer, write that part, and then push this macro part too.
+                    parts.push(current_part.to_token_stream());
+                    current_part.clear();
+                    parts.push(token_stream);
                 }
             }
         }
+    }
 
-        syn::LitStr::new("\0", Span::call_site()).to_tokens(tokens);
-    });
+    if !parts.is_empty() {
+        // Doc contained macro pieces - return as `concat!` expression
+        if !current_part.is_empty() {
+            parts.push(current_part.to_token_stream());
+        }
 
-    PythonDoc(tokens)
+        let mut tokens = TokenStream::new();
+
+        syn::Ident::new("concat", Span::call_site()).to_tokens(&mut tokens);
+        syn::token::Bang(Span::call_site()).to_tokens(&mut tokens);
+        syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
+            parts.to_tokens(tokens);
+            syn::token::Comma(Span::call_site()).to_tokens(tokens);
+            syn::LitStr::new("\0", Span::call_site()).to_tokens(tokens);
+        });
+
+        PythonDoc(tokens)
+    } else {
+        // Just a string doc - return directly with nul terminator
+        current_part.push('\0');
+        PythonDoc(current_part.to_token_stream())
+    }
 }
 
 impl quote::ToTokens for PythonDoc {
