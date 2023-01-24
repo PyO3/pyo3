@@ -991,10 +991,52 @@ impl<T> std::fmt::Debug for Py<T> {
 pub type PyObject = Py<PyAny>;
 
 impl PyObject {
-    /// Casts the PyObject to a concrete Python object type.
+    /// Downcast this `PyObject` to a concrete Python type or pyclass.
     ///
-    /// This can cast only to native Python types, not types implemented in Rust. For a more
-    /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
+    /// Note that you can often avoid downcasting yourself by just specifying
+    /// the desired type in function or method signatures.
+    /// However, manual downcasting is sometimes necessary.
+    ///
+    /// For extracting a Rust-only type, see [`Py::extract`](struct.Py.html#method.extract).
+    ///
+    /// # Example: Downcasting to a specific Python object
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let any: PyObject = PyDict::new(py).into();
+    ///
+    ///     assert!(any.downcast::<PyDict>(py).is_ok());
+    ///     assert!(any.downcast::<PyList>(py).is_err());
+    /// });
+    /// ```
+    ///
+    /// # Example: Getting a reference to a pyclass
+    ///
+    /// This is useful if you want to mutate a `PyObject` that
+    /// might actually be a pyclass.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), pyo3::PyErr> {
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Class {
+    ///     i: i32,
+    /// }
+    ///
+    /// Python::with_gil(|py| {
+    ///     let class: PyObject = Py::new(py, Class { i: 0 }).unwrap().into_py(py);
+    ///
+    ///     let class_cell: &PyCell<Class> = class.downcast(py)?;
+    ///
+    ///     class_cell.borrow_mut().i += 1;
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[inline]
     pub fn downcast<'p, T>(&'p self, py: Python<'p>) -> Result<&T, PyDowncastError<'_>>
     where
@@ -1004,9 +1046,6 @@ impl PyObject {
     }
 
     /// Casts the PyObject to a concrete Python object type without checking validity.
-    ///
-    /// This can cast only to native Python types, not types implemented in Rust. For a more
-    /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
     ///
     /// # Safety
     ///
