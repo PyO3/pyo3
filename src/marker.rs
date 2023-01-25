@@ -619,6 +619,13 @@ impl<'py> Python<'py> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
     }
 
+    /// Gets the Python builtin value `Ellipsis`, or `...`.
+    #[allow(non_snake_case)] // the Python keyword starts with uppercase
+    #[inline]
+    pub fn Ellipsis(self) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_Ellipsis()) }
+    }
+
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -1031,5 +1038,16 @@ mod tests {
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
+    }
+
+    #[test]
+    fn test_ellipsis() {
+        Python::with_gil(|py| {
+            assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
+
+            let v = py.eval("...", None, None).map_err(|e| e.print(py)).unwrap();
+
+            assert!(v.eq(py.Ellipsis()).unwrap());
+        });
     }
 }

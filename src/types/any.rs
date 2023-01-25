@@ -669,6 +669,13 @@ impl PyAny {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
+    /// Returns whether the object is Ellipsis, e.g. `...`.
+    ///
+    /// This is equivalent to the Python expression `self is ...`.
+    pub fn is_ellipsis(&self) -> bool {
+        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
+    }
+
     /// Returns true if the sequence or mapping has a length of 0.
     ///
     /// This is equivalent to the Python expression `len(self) == 0`.
@@ -1134,5 +1141,17 @@ class SimpleClass:
     fn test_eq_methods_bools() {
         let bools = [true, false];
         test_eq_methods_generic(&bools);
+    }
+
+    #[test]
+    fn test_is_ellipsis() {
+        Python::with_gil(|py| {
+            let v = py.eval("...", None, None).map_err(|e| e.print(py)).unwrap();
+
+            assert!(v.is_ellipsis());
+
+            let not_ellipsis = 5.to_object(py).into_ref(py);
+            assert!(!not_ellipsis.is_ellipsis());
+        });
     }
 }

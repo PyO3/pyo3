@@ -2,6 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
+#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
