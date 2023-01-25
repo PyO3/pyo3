@@ -91,9 +91,12 @@ extern "C" {
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 }
 
-// Defined as this macro in Python limited API, but relies on
-// non-limited PyTypeObject. Don't expose this since it cannot be used.
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+// Before 3.8 PyIter_Check was defined in CPython as a macro,
+// which uses Py_TYPE so cannot work on the limited ABI.
+//
+// From 3.10 onwards CPython removed the macro completely,
+// so PyO3 only uses this on 3.7 unlimited API.
+#[cfg(not(any(Py_3_8, Py_LIMITED_API, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     (match (*crate::Py_TYPE(o)).tp_iternext {
@@ -105,7 +108,7 @@ pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
 }
 
 extern "C" {
-    #[cfg(any(all(Py_3_8, Py_LIMITED_API), PyPy))]
+    #[cfg(any(Py_3_8, PyPy))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
     pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
 

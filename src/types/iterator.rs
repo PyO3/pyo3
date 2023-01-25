@@ -248,4 +248,78 @@ def fibonacci(target):
             assert_eq!(iter_ref.get_refcnt(), 2);
         })
     }
+
+    #[test]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+    #[cfg(feature = "macros")]
+    fn python_class_not_iterator() {
+        use crate::PyErr;
+
+        #[crate::pyclass(crate = "crate")]
+        struct Downcaster {
+            failed: Option<PyErr>,
+        }
+
+        #[crate::pymethods(crate = "crate")]
+        impl Downcaster {
+            fn downcast_iterator(&mut self, obj: &PyAny) {
+                self.failed = Some(obj.downcast::<PyIterator>().unwrap_err().into());
+            }
+        }
+
+        // Regression test for 2913
+        Python::with_gil(|py| {
+            let downcaster = Py::new(py, Downcaster { failed: None }).unwrap();
+            crate::py_run!(
+                py,
+                downcaster,
+                r#"
+                    from collections.abc import Sequence
+
+                    class MySequence(Sequence):
+                        def __init__(self):
+                            self._data = [1, 2, 3]
+
+                        def __getitem__(self, index):
+                            return self._data[index]
+
+                        def __len__(self):
+                            return len(self._data)
+
+                    downcaster.downcast_iterator(MySequence())
+                "#
+            );
+
+            assert_eq!(
+                downcaster.borrow_mut(py).failed.take().unwrap().to_string(),
+                "TypeError: 'MySequence' object cannot be converted to 'Iterator'"
+            );
+        });
+    }
+
+    #[test]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+    #[cfg(feature = "macros")]
+    fn python_class_iterator() {
+        #[crate::pyfunction(crate = "crate")]
+        fn assert_iterator(obj: &PyAny) {
+            assert!(obj.downcast::<PyIterator>().is_ok())
+        }
+
+        // Regression test for 2913
+        Python::with_gil(|py| {
+            let assert_iterator = crate::wrap_pyfunction!(assert_iterator, py).unwrap();
+            crate::py_run!(
+                py,
+                assert_iterator,
+                r#"
+                    class MyIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                    assert_iterator(MyIter())
+                "#
+            );
+        });
+    }
 }
