@@ -48,7 +48,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Accept any iterator in `PySet::new` and `PyFrozenSet::new`. [#2795](https://github.com/PyO3/pyo3/pull/2795)
 - Mixing `#[cfg(...)]` and `#[pyo3(...)]` attributes on `#[pyclass]` struct fields will now work. [#2796](https://github.com/PyO3/pyo3/pull/2796)
 - Re-enable `PyFunction` on when building for abi3 or PyPy. [#2838](https://github.com/PyO3/pyo3/pull/2838)
-- Improve `derive(FromPyObject)` to use `intern!` when applicable for `#[pyo3(item)]`. [#2838](https://github.com/PyO3/pyo3/pull/2838)
+- Improve `derive(FromPyObject)` to use `intern!` when applicable for `#[pyo3(item)]`. [#2879](https://github.com/PyO3/pyo3/pull/2879)
 
 ### Removed
 
