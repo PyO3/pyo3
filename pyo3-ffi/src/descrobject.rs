@@ -8,8 +8,13 @@ pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void)
 pub type setter =
     unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject, closure: *mut c_void) -> c_int;
 
+/// Represents the [PyGetSetDef](https://docs.python.org/3/c-api/structures.html#c.PyGetSetDef)
+/// structure.
+///
+/// Note that CPython may leave fields uninitialized. You must ensure that
+/// `name` != NULL before dereferencing or reading other fields.
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone)]
 pub struct PyGetSetDef {
     pub name: *mut c_char,
     pub get: Option<getter>,

@@ -3,8 +3,13 @@ use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 
+/// Represents the [PyMemberDef](https://docs.python.org/3/c-api/structures.html#c.PyMemberDef)
+/// structure.
+///
+/// Note that CPython may leave fields uninitialized. You must always ensure that
+/// `name` != NULL before dereferencing or reading other fields.
 #[repr(C)]
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone)]
 pub struct PyMemberDef {
     pub name: *mut c_char,
     pub type_code: c_int,
