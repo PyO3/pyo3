@@ -519,6 +519,13 @@ impl<T> Py<T> {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
+    /// Returns whether the object is Ellipsis, e.g. `...`.
+    ///
+    /// This is equivalent to the Python expression `self is ...`.
+    pub fn is_ellipsis(&self) -> bool {
+        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
+    }
+
     /// Returns whether the object is considered to be true.
     ///
     /// This is equivalent to the Python expression `bool(self)`.
@@ -1145,6 +1152,22 @@ a = A()
             instance.setattr(py, "foo", "bar").unwrap_err();
             Ok(())
         })
+    }
+
+    #[test]
+    fn test_is_ellipsis() {
+        Python::with_gil(|py| {
+            let v = py
+                .eval("...", None, None)
+                .map_err(|e| e.print(py))
+                .unwrap()
+                .to_object(py);
+
+            assert!(v.is_ellipsis());
+
+            let not_ellipsis = 5.to_object(py);
+            assert!(!not_ellipsis.is_ellipsis());
+        });
     }
 
     #[cfg(feature = "macros")]
