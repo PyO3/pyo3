@@ -9,7 +9,7 @@ fn set_new(b: &mut Bencher<'_>) {
         const LEN: usize = 100_000;
         // Create Python objects up-front, so that the benchmark doesn't need to include
         // the cost of allocating LEN Python integers
-        let elements: Vec<PyObject> = (0..LEN).into_iter().map(|i| i.into_py(py)).collect();
+        let elements: Vec<PyObject> = (0..LEN).map(|i| i.into_py(py)).collect();
         b.iter(|| {
             let pool = unsafe { py.new_pool() };
             PySet::new(py, &elements).unwrap();

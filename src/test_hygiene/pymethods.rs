@@ -807,3 +807,11 @@ impl Dummy {
     // PyGcProtocol
     // Buffer protocol?
 }
+
+// Ensure that crate argument is also accepted inline
+
+#[crate::pyclass(crate = "crate")]
+struct Dummy2;
+
+#[crate::pymethods(crate = "crate")]
+impl Dummy2 {}
