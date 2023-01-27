@@ -23,11 +23,16 @@ impl<'p> PyVisit<'p> {
     where
         T: AsPyPointer,
     {
-        let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
-        if r == 0 {
-            Ok(())
+        let ptr = obj.as_ptr();
+        if !ptr.is_null() {
+            let r = unsafe { (self.visit)(ptr, self.arg) };
+            if r == 0 {
+                Ok(())
+            } else {
+                Err(PyTraverseError(r))
+            }
         } else {
-            Err(PyTraverseError(r))
+            Ok(())
         }
     }
 
