@@ -120,6 +120,44 @@ fn gc_integration() {
     });
 }
 
+#[pyclass]
+struct GcNullTraversal {
+    cycle: Option<Py<Self>>,
+    null: Option<Py<Self>>,
+}
+
+#[pymethods]
+impl GcNullTraversal {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.cycle)?;
+        visit.call(&self.null)?; // Should not segfault
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        self.cycle = None;
+        self.null = None;
+    }
+}
+
+#[test]
+fn gc_null_traversal() {
+    Python::with_gil(|py| {
+        let obj = Py::new(
+            py,
+            GcNullTraversal {
+                cycle: None,
+                null: None,
+            },
+        )
+        .unwrap();
+        obj.borrow_mut(py).cycle = Some(obj.clone_ref(py));
+
+        // the object doesn't have to be cleaned up, it just needs to be traversed.
+        py.run("import gc; gc.collect()", None, None).unwrap();
+    });
+}
+
 #[pyclass(subclass)]
 struct BaseClassWithDrop {
     data: Option<Arc<AtomicBool>>,
