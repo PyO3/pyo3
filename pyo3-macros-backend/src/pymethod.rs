@@ -1109,7 +1109,6 @@ impl SlotDef {
         let py = syn::Ident::new("_py", Span::call_site());
         let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type()).collect();
         let arg_idents: &Vec<_> = &(0..arguments.len())
-            .into_iter()
             .map(|i| format_ident!("arg{}", i))
             .collect();
         let wrapper_ident = format_ident!("__pymethod_{}__", method_name);
@@ -1220,7 +1219,6 @@ impl SlotFragmentDef {
         let py = syn::Ident::new("_py", Span::call_site());
         let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type()).collect();
         let arg_idents: &Vec<_> = &(0..arguments.len())
-            .into_iter()
             .map(|i| format_ident!("arg{}", i))
             .collect();
         let body = generate_method_body(cls, spec, &py, arguments, *extract_error_mode, None)?;
