@@ -1,0 +1,17 @@
+[package]
+name = "plugin_api"
+version = "0.1.0"
+description = "Plugin API example"
+edition = "2021"
+
+[lib]
+name = "plugin_api"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+#!!! Important - DO NOT ENABLE extension-module FEATURE HERE!!!
+pyo3 = "{{PYO3_VERSION}}"
+
+[features]
+# instead extension-module feature for pyo3 is enabled conditionally when we want to build a standalone extension module to test our plugins without "main" program
+extension-module = ["pyo3/extension-module"]
