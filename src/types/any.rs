@@ -762,11 +762,15 @@ impl PyAny {
         self.downcast()
     }
 
-    /// Converts this `PyAny` to a concrete Python type.
+    /// Downcast this `PyAny` to a concrete Python type or pyclass.
     ///
-    /// This can cast only to native Python types, not types implemented in Rust.
+    /// Note that you can often avoid downcasting yourself by just specifying
+    /// the desired type in function or method signatures.
+    /// However, manual downcasting is sometimes necessary.
     ///
-    /// # Examples
+    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
+    ///
+    /// # Example: Downcasting to a specific Python object
     ///
     /// ```rust
     /// use pyo3::prelude::*;
@@ -776,9 +780,39 @@ impl PyAny {
     ///     let dict = PyDict::new(py);
     ///     assert!(dict.is_instance_of::<PyAny>().unwrap());
     ///     let any: &PyAny = dict.as_ref();
+    ///
     ///     assert!(any.downcast::<PyDict>().is_ok());
     ///     assert!(any.downcast::<PyList>().is_err());
     /// });
+    /// ```
+    ///
+    /// # Example: Getting a reference to a pyclass
+    ///
+    /// This is useful if you want to mutate a `PyObject` that
+    /// might actually be a pyclass.
+    ///
+    /// ```rust
+    /// # fn main() -> Result<(), pyo3::PyErr> {
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Class {
+    ///     i: i32,
+    /// }
+    ///
+    /// Python::with_gil(|py| {
+    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///
+    ///     let class_cell: &PyCell<Class> = class.downcast()?;
+    ///
+    ///     class_cell.borrow_mut().i += 1;
+    ///
+    ///     // Alternatively you can get a `PyRefMut` directly
+    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
+    ///     assert_eq!(class_ref.i, 1);
+    ///     Ok(())
+    /// })
+    /// # }
     /// ```
     #[inline]
     pub fn downcast<'p, T>(&'p self) -> Result<&'p T, PyDowncastError<'_>>

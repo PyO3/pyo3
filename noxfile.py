@@ -436,6 +436,8 @@ def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
         # 1.15.0 depends on hermit-abi 0.2.6 which has edition 2021 and breaks 1.48.0
         "num_cpus": "1.14.0",
         "parking_lot": "0.11.0",
+        # 1.0.77 needs basic-toml which has edition 2021
+        "trybuild": "1.0.76",
     }
 
     # run cargo update first to ensure that everything is at highest
