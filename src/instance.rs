@@ -1018,7 +1018,7 @@ impl PyObject {
     /// This is useful if you want to mutate a `PyObject` that
     /// might actually be a pyclass.
     ///
-    /// ```
+    /// ```rust
     /// # fn main() -> Result<(), pyo3::PyErr> {
     /// use pyo3::prelude::*;
     ///
@@ -1033,6 +1033,10 @@ impl PyObject {
     ///     let class_cell: &PyCell<Class> = class.downcast(py)?;
     ///
     ///     class_cell.borrow_mut().i += 1;
+    ///
+    ///     // Alternatively you can get a `PyRefMut` directly
+    ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
+    ///     assert_eq!(class_ref.i, 1);
     ///     Ok(())
     /// })
     /// # }
