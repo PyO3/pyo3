@@ -77,6 +77,22 @@ impl MyClass {
     }
 }
 ```
+
+Arguments of type `Python` must not be part of the signature:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyfunction]
+#[pyo3(signature = (lambda))]
+pub fn simple_python_bound_function(
+    py: Python<'_>,
+    lambda: PyObject,
+) -> PyResult<()> {
+    Ok(())
+}
+```
+
 N.B. the position of the `/` and `*` arguments (if included) control the system of handling positional and keyword arguments. In Python:
 ```python
 import mymodule
