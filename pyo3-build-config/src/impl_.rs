@@ -433,7 +433,7 @@ print("mingw", get_platform().startswith("mingw"))
                 "extra_build_script_line" => {
                     extra_build_script_lines.push(value.to_string());
                 }
-                unknown => bail!("unknown config key `{}`", unknown),
+                unknown => warn!("unknown config key `{}`", unknown),
             }
         }
 
@@ -1849,6 +1849,28 @@ mod tests {
         // Only version is required
         assert_eq!(
             InterpreterConfig::from_reader("version=3.7".as_bytes()).unwrap(),
+            InterpreterConfig {
+                version: PythonVersion { major: 3, minor: 7 },
+                implementation: PythonImplementation::CPython,
+                shared: true,
+                abi3: false,
+                lib_name: None,
+                lib_dir: None,
+                executable: None,
+                pointer_width: None,
+                build_flags: BuildFlags::default(),
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        )
+    }
+
+    #[test]
+    fn test_config_file_unknown_keys() {
+        // ext_suffix is unknown to pyo3-build-config, but it shouldn't error
+        assert_eq!(
+            InterpreterConfig::from_reader("version=3.7\next_suffix=.python37.so".as_bytes())
+                .unwrap(),
             InterpreterConfig {
                 version: PythonVersion { major: 3, minor: 7 },
                 implementation: PythonImplementation::CPython,
