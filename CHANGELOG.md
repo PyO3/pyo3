@@ -124,6 +124,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Add `PyCode` and `PyFrame` high level objects. [#2408](https://github.com/PyO3/pyo3/pull/2408)
 - Add FFI definitions `Py_fstring_input`, `sendfunc`, and `_PyErr_StackItem`. [#2423](https://github.com/PyO3/pyo3/pull/2423)
 - Add `PyDateTime::new_with_fold`, `PyTime::new_with_fold`, `PyTime::get_fold`, and `PyDateTime::get_fold` for PyPy. [#2428](https://github.com/PyO3/pyo3/pull/2428)
+- Add `#[pyclass(frozen)]`. [#2448](https://github.com/PyO3/pyo3/pull/2448)
 - Accept `#[pyo3(name)]` on enum variants. [#2457](https://github.com/PyO3/pyo3/pull/2457)
 - Add `CompareOp::matches` to implement `__richcmp__` as the result of a Rust `std::cmp::Ordering` comparison. [#2460](https://github.com/PyO3/pyo3/pull/2460)
 - Add `PySuper` type. [#2486](https://github.com/PyO3/pyo3/pull/2486)
