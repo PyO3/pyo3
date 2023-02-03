@@ -10,6 +10,28 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.18.1] - 2023-02-07
+
+### Added
+
+- Add `PyErr::write_unraisable()`. [#2889](https://github.com/PyO3/pyo3/pull/2889)
+- Add `Python::Ellipsis()` and `PyAny::is_ellipsis()` methods. [#2911](https://github.com/PyO3/pyo3/pull/2911)
+- Add `PyDict::update()` and `PyDict::update_if_missing()` methods. [#2912](https://github.com/PyO3/pyo3/pull/2912)
+
+### Changed
+
+- FFI definition `PyIter_Check` on CPython 3.7 is now implemented as `hasattr(type(obj), "__next__")`, which works correctly on all platforms and adds support for `abi3`. [#2914](https://github.com/PyO3/pyo3/pull/2914)
+- Warn about unknown config keys in `PYO3_CONFIG_FILE` instead of denying. [#2926](https://github.com/PyO3/pyo3/pull/2926)
+
+### Fixed
+
+- Send errors returned by `__releasebuffer__` to `sys.unraisablehook` rather than causing `SystemError`. [#2886](https://github.com/PyO3/pyo3/pull/2886)
+- Fix downcast to `PyIterator` succeeding for Python classes which did not implement `__next__`. [#2914](https://github.com/PyO3/pyo3/pull/2914)
+- Fix segfault in `__traverse__` when visiting `None` fields of `Option<T: AsPyPointer>`. [#2921](https://github.com/PyO3/pyo3/pull/2921)
+- Fix `#[pymethods(crate = "...")]` option being ignored. [#2923](https://github.com/PyO3/pyo3/pull/2923)
+- Link against `pythonXY_d.dll` for debug Python builds on Windows. [#2937](https://github.com/PyO3/pyo3/pull/2937)
+
+
 ## [0.18.0] - 2023-01-17
 
 ### Packaging
@@ -1370,7 +1392,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/pyo3/pyo3/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/pyo3/pyo3/compare/v0.17.3...v0.18.0
 [0.17.3]: https://github.com/pyo3/pyo3/compare/v0.17.2...v0.17.3
 [0.17.2]: https://github.com/pyo3/pyo3/compare/v0.17.1...v0.17.2
