@@ -92,19 +92,17 @@ extern "C" {
 }
 
 // Before 3.8 PyIter_Check was defined in CPython as a macro,
-// which uses Py_TYPE so cannot work on the limited ABI.
+// but the implementation of that in PyO3 did not work, see
+// https://github.com/PyO3/pyo3/pull/2914
 //
-// From 3.10 onwards CPython removed the macro completely,
-// so PyO3 only uses this on 3.7 unlimited API.
-#[cfg(not(any(Py_3_8, Py_LIMITED_API, PyPy)))]
+// This is a slow implementation which should function equivalently.
+#[cfg(not(any(Py_3_8, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    (match (*crate::Py_TYPE(o)).tp_iternext {
-        Some(tp_iternext) => {
-            tp_iternext as *const std::os::raw::c_void != crate::_PyObject_NextNotImplemented as _
-        }
-        None => false,
-    }) as c_int
+    crate::PyObject_HasAttrString(
+        crate::Py_TYPE(o).cast(),
+        "__next__\0".as_ptr() as *const c_char,
+    )
 }
 
 extern "C" {

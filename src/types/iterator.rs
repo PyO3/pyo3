@@ -3,7 +3,6 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyAny, PyErr, PyNativeType, PyResult, Python};
-#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 use crate::{PyDowncastError, PyTryFrom};
 
 /// A Python iterator object.
@@ -29,7 +28,6 @@ use crate::{PyDowncastError, PyTryFrom};
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
 pyobject_native_type_named!(PyIterator);
-#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
@@ -64,7 +62,6 @@ impl<'p> Iterator for &'p PyIterator {
 }
 
 // PyIter_Check does not exist in the limited API until 3.8
-#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 impl<'v> PyTryFrom<'v> for PyIterator {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
         let value = value.into();
@@ -218,7 +215,7 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+
     fn iterator_try_from() {
         Python::with_gil(|py| {
             let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
@@ -250,7 +247,6 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     #[cfg(feature = "macros")]
     fn python_class_not_iterator() {
         use crate::PyErr;
@@ -298,7 +294,6 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     #[cfg(feature = "macros")]
     fn python_class_iterator() {
         #[crate::pyfunction(crate = "crate")]
