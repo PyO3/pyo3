@@ -2,7 +2,7 @@
 
 The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments. Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted. These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
 
-Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. There are two ways to modify this behaviour:
+Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. Most arguments are required by default, except for trailing `Option<_>` arguments, which are [implicitly given a default of `None`](#trailing-optional-arguments). There are two ways to modify this behaviour:
   - The `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
   - Extra arguments directly to `#[pyfunction]`. (See deprecated form)
 
@@ -105,6 +105,69 @@ num=-1
 >     /* ... */
 > }
 > ```
+
+## Trailing optional arguments
+
+As a convenience, functions without a `#[pyo3(signature = (...))]` option will treat trailing `Option<T>` arguments as having a default of `None`. In the example below, PyO3 will create `increment` with a signature of `increment(x, amount=None)`.
+
+```rust
+use pyo3::prelude::*;
+
+/// Returns a copy of `x` increased by `amount`.
+///
+/// If `amount` is unspecified or `None`, equivalent to `x + 1`.
+#[pyfunction]
+fn increment(x: u64, amount: Option<u64>) -> u64 {
+    x + amount.unwrap_or(1)
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
+#
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let sig: String = inspect
+#             .call1((fun,))?
+#             .call_method0("__str__")?
+#             .extract()?;
+#
+#         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
+#         assert_eq!(sig, "(x, amount=Ellipsis)");
+#
+#         Ok(())
+#     })
+# }
+```
+
+To make trailing `Option<T>` arguments required, but still accept `None`, add a `#[pyo3(signature = (...))]` annotation. For the example above, this would be `#[pyo3(signature = (x, amount))]`:
+
+```rust
+# use pyo3::prelude::*;
+#[pyfunction]
+#[pyo3(signature = (x, amount))]
+fn increment(x: u64, amount: Option<u64>) -> u64 {
+    x + amount.unwrap_or(1)
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
+#
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let sig: String = inspect
+#             .call1((fun,))?
+#             .call_method0("__str__")?
+#             .extract()?;
+#
+#         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
+#         assert_eq!(sig, "(x, amount)");
+#
+#         Ok(())
+#     })
+# }
+```
+
+To help avoid confusion, PyO3 requires `#[pyo3(signature = (...))]` when an `Option<T>` argument is surrounded by arguments which aren't `Option<T>`.
 
 ## Deprecated form
 
