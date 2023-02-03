@@ -352,10 +352,21 @@ impl<'a> FunctionSignature<'a> {
         let mut parse_state = ParseState::Positional;
         let mut python_signature = PythonSignature::default();
 
-        let mut args_iter = arguments.iter_mut().filter(|arg| !arg.py); // Python<'_> arguments don't show on the Python side.
+        let mut args_iter = arguments.iter_mut();
 
-        let mut next_argument_checked = |name: &syn::Ident| match args_iter.next() {
-            Some(fn_arg) => {
+        let mut next_non_py_argument_checked = |name: &syn::Ident| {
+            for fn_arg in args_iter.by_ref() {
+                if fn_arg.py {
+                    // If the user incorrectly tried to include py: Python in the
+                    // signature, give a useful error as a hint.
+                    ensure_spanned!(
+                        name != fn_arg.name,
+                        name.span() => "arguments of type `Python` must not be part of the signature"
+                    );
+                    // Otherwise try next argument.
+                    continue;
+                }
+
                 ensure_spanned!(
                     name == fn_arg.name,
                     name.span() => format!(
@@ -364,17 +375,17 @@ impl<'a> FunctionSignature<'a> {
                         name.unraw(),
                     )
                 );
-                Ok(fn_arg)
+                return Ok(fn_arg);
             }
-            None => bail_spanned!(
+            bail_spanned!(
                 name.span() => "signature entry does not have a corresponding function argument"
-            ),
+            )
         };
 
         for item in &attribute.value.items {
             match item {
                 SignatureItem::Argument(arg) => {
-                    let fn_arg = next_argument_checked(&arg.ident)?;
+                    let fn_arg = next_non_py_argument_checked(&arg.ident)?;
                     parse_state.add_argument(
                         &mut python_signature,
                         arg.ident.unraw().to_string(),
@@ -389,12 +400,12 @@ impl<'a> FunctionSignature<'a> {
                     parse_state.finish_pos_args(&python_signature, sep.span())?
                 }
                 SignatureItem::Varargs(varargs) => {
-                    let fn_arg = next_argument_checked(&varargs.ident)?;
+                    let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
                     fn_arg.is_varargs = true;
                     parse_state.add_varargs(&mut python_signature, &varargs)?;
                 }
                 SignatureItem::Kwargs(kwargs) => {
-                    let fn_arg = next_argument_checked(&kwargs.ident)?;
+                    let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
                     fn_arg.is_kwargs = true;
                     parse_state.add_kwargs(&mut python_signature, &kwargs)?;
                 }
@@ -404,7 +415,8 @@ impl<'a> FunctionSignature<'a> {
             };
         }
 
-        if let Some(arg) = args_iter.next() {
+        // Ensure no non-py arguments remain
+        if let Some(arg) = args_iter.find(|arg| !arg.py) {
             bail_spanned!(
                 attribute.kw.span() => format!("missing signature entry for argument `{}`", arg.name)
             );
