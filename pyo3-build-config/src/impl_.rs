@@ -230,6 +230,7 @@ print_if_set("base_prefix", base_prefix)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 print("mingw", get_platform().startswith("mingw"))
+print("ext_suffix", get_config_var("EXT_SUFFIX"))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
@@ -261,6 +262,10 @@ print("mingw", get_platform().startswith("mingw"))
                 implementation,
                 abi3,
                 map["mingw"].as_str() == "True",
+                // This is the best heuristic currently available to detect debug build
+                // on Windows from sysconfig - e.g. ext_suffix may be
+                // `_d.cp312-win_amd64.pyd` for 3.12 debug build
+                map["ext_suffix"].starts_with("_d."),
             )
         } else {
             default_lib_name_unix(
@@ -1418,6 +1423,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> InterpreterConf
             implementation,
             abi3,
             false,
+            false,
         ))
     } else {
         None
@@ -1493,6 +1499,7 @@ fn default_lib_name_for_target(
             implementation,
             abi3,
             false,
+            false,
         ))
     } else if is_linking_libpython_for_target(target) {
         Some(default_lib_name_unix(version, implementation, None))
@@ -1506,8 +1513,13 @@ fn default_lib_name_windows(
     implementation: PythonImplementation,
     abi3: bool,
     mingw: bool,
+    debug: bool,
 ) -> String {
-    if abi3 && !implementation.is_pypy() {
+    if debug {
+        // CPython bug: linking against python3_d.dll raises error
+        // https://github.com/python/cpython/issues/101614
+        format!("python{}{}_d", version.major, version.minor)
+    } else if abi3 && !implementation.is_pypy() {
         WINDOWS_ABI3_LIB_NAME.to_owned()
     } else if mingw {
         // https://packages.msys2.org/base/mingw-w64-python
@@ -2244,7 +2256,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 false,
-                false
+                false,
+                false,
             ),
             "python37",
         );
@@ -2253,7 +2266,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 true,
-                false
+                false,
+                false,
             ),
             "python3",
         );
@@ -2262,7 +2276,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 false,
-                true
+                true,
+                false,
             ),
             "python3.7",
         );
@@ -2271,7 +2286,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 true,
-                true
+                true,
+                false,
             ),
             "python3",
         );
@@ -2280,9 +2296,32 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 PyPy,
                 true,
-                false
+                false,
+                false,
             ),
             "python37",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 7 },
+                CPython,
+                false,
+                false,
+                true,
+            ),
+            "python37_d",
+        );
+        // abi3 debug builds on windows use version-specific lib
+        // to workaround https://github.com/python/cpython/issues/101614
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 7 },
+                CPython,
+                true,
+                false,
+                true,
+            ),
+            "python37_d",
         );
     }
 
