@@ -257,6 +257,28 @@ impl PyDict {
     pub fn as_mapping(&self) -> &PyMapping {
         unsafe { self.downcast_unchecked() }
     }
+
+    /// Update this dictionary with the key/value pairs from another.
+    ///
+    /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
+    /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
+    pub fn update(&self, other: &PyMapping) -> PyResult<()> {
+        let py = self.py();
+        unsafe { err::error_on_minusone(py, ffi::PyDict_Update(self.as_ptr(), other.as_ptr())) }
+    }
+
+    /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
+    ///
+    /// This is equivalent to the Python expression `self.update({k: v for k, v in other.items() if k not in self})`.
+    /// If `other` is a `PyDict`, you may want to use `self.update_if_missing(other.as_mapping())`,
+    /// note: `PyDict::as_mapping` is a zero-cost conversion.
+    ///
+    /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
+    /// so should have the same performance as `update`.
+    pub fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
+        let py = self.py();
+        unsafe { err::error_on_minusone(py, ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)) }
+    }
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
@@ -907,6 +929,44 @@ mod tests {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
             assert!(items.is_instance(py.get_type::<PyDictItems>()).unwrap());
+        })
+    }
+
+    #[test]
+    fn dict_update() {
+        Python::with_gil(|py| {
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            dict.update(other.as_mapping()).unwrap();
+            assert_eq!(dict.len(), 4);
+            assert_eq!(dict.get_item("a").unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(dict.get_item("b").unwrap().extract::<i32>().unwrap(), 4);
+            assert_eq!(dict.get_item("c").unwrap().extract::<i32>().unwrap(), 5);
+            assert_eq!(dict.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
+
+            assert_eq!(other.len(), 3);
+            assert_eq!(other.get_item("b").unwrap().extract::<i32>().unwrap(), 4);
+            assert_eq!(other.get_item("c").unwrap().extract::<i32>().unwrap(), 5);
+            assert_eq!(other.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
+        })
+    }
+
+    #[test]
+    fn dict_update_if_missing() {
+        Python::with_gil(|py| {
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            dict.update_if_missing(other.as_mapping()).unwrap();
+            assert_eq!(dict.len(), 4);
+            assert_eq!(dict.get_item("a").unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(dict.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(dict.get_item("c").unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(dict.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
+
+            assert_eq!(other.len(), 3);
+            assert_eq!(other.get_item("b").unwrap().extract::<i32>().unwrap(), 4);
+            assert_eq!(other.get_item("c").unwrap().extract::<i32>().unwrap(), 5);
+            assert_eq!(other.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
         })
     }
 }

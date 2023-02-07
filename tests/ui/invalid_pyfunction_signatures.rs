@@ -44,6 +44,11 @@ fn function_with_kwargs_after_kwargs(kwargs_a: Option<&PyDict>, kwargs_b: Option
     let _ = kwargs_b;
 }
 
+#[pyfunction(signature = (py))]
+fn signature_contains_py(py: Python<'_>) {
+    let _ = py;
+}
+
 #[pyclass]
 struct MyClass;
 

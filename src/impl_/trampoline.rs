@@ -140,15 +140,39 @@ trampolines!(
     ) -> *mut ffi::PyObject;
 
     pub fn unaryfunc(slf: *mut ffi::PyObject) -> *mut ffi::PyObject;
-
-    pub fn dealloc(slf: *mut ffi::PyObject) -> ();
 );
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
-trampolines! {
+trampoline! {
     pub fn getbufferproc(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, flags: c_int) -> c_int;
+}
 
-    pub fn releasebufferproc(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer) -> ();
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#[inline]
+pub unsafe fn releasebufferproc(
+    slf: *mut ffi::PyObject,
+    buf: *mut ffi::Py_buffer,
+    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>,
+) {
+    trampoline_inner_unraisable(|py| f(py, slf, buf), slf)
+}
+
+#[inline]
+pub(crate) unsafe fn dealloc(
+    slf: *mut ffi::PyObject,
+    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> (),
+) {
+    // After calling tp_dealloc the object is no longer valid,
+    // so pass null_mut() to the context.
+    //
+    // (Note that we don't allow the implementation `f` to fail.)
+    trampoline_inner_unraisable(
+        |py| {
+            f(py, slf);
+            Ok(())
+        },
+        std::ptr::null_mut(),
+    )
 }
 
 // Ipowfunc is a unique case where PyO3 has its own type
@@ -200,4 +224,30 @@ where
     };
     py_err.restore(py);
     R::ERR_VALUE
+}
+
+/// Implementation of trampoline for functions which can't return an error.
+///
+/// Panics during execution are trapped so that they don't propagate through any
+/// outer FFI boundary.
+///
+/// Exceptions produced are sent to `sys.unraisablehook`.
+///
+/// # Safety
+///
+/// ctx must be either a valid ffi::PyObject or NULL
+#[inline]
+unsafe fn trampoline_inner_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
+where
+    F: for<'py> FnOnce(Python<'py>) -> PyResult<()> + UnwindSafe,
+{
+    let trap = PanicTrap::new("uncaught panic at ffi boundary");
+    let pool = GILPool::new();
+    let py = pool.python();
+    if let Err(py_err) = panic::catch_unwind(move || body(py))
+        .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
+    {
+        py_err.write_unraisable(py, py.from_borrowed_ptr_or_opt(ctx));
+    }
+    trap.disarm();
 }

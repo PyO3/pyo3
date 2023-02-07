@@ -109,13 +109,13 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// [10]: https://pyo3.rs/latest/class.html#method-arguments
 /// [11]: https://pyo3.rs/latest/class.html#object-properties-using-pyo3get-set
 #[proc_macro_attribute]
-pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
+pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
     let methods_type = if cfg!(feature = "multiple-pymethods") {
         PyClassMethodsType::Inventory
     } else {
         PyClassMethodsType::Specialization
     };
-    pymethods_impl(input, methods_type)
+    pymethods_impl(attr, input, methods_type)
 }
 
 /// A proc macro used to expose Rust functions to Python.
@@ -191,8 +191,17 @@ fn pyclass_enum_impl(
     .into()
 }
 
-fn pymethods_impl(input: TokenStream, methods_type: PyClassMethodsType) -> TokenStream {
+fn pymethods_impl(
+    attr: TokenStream,
+    input: TokenStream,
+    methods_type: PyClassMethodsType,
+) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
+    // Apply all options as a #[pyo3] attribute on the ItemImpl
+    // e.g. #[pymethods(crate = "crate")] impl Foo { }
+    // -> #[pyo3(crate = "crate")] impl Foo { }
+    let attr: TokenStream2 = attr.into();
+    ast.attrs.push(syn::parse_quote!( #[pyo3(#attr)] ));
     let expanded = build_py_methods(&mut ast, methods_type).unwrap_or_compile_error();
 
     quote!(

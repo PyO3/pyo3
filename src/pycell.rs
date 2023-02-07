@@ -854,7 +854,7 @@ pub trait PyCellLayout<T>: PyLayout<T> {
     /// # Safety
     /// - slf must be a valid pointer to an instance of a T or a subclass.
     /// - slf must not be used after this call (as it will be freed).
-    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>);
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject);
 }
 
 impl<T, U> PyCellLayout<T> for PyCellBase<U>
@@ -863,7 +863,7 @@ where
     T: PyTypeInfo,
 {
     fn ensure_threadsafe(&self) {}
-    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>) {
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         if T::type_object_raw(py) == &mut PyBaseObject_Type {
             return get_tp_free(ffi::Py_TYPE(slf))(slf as _);
@@ -892,13 +892,13 @@ where
         self.contents.thread_checker.ensure();
         self.ob_base.ensure_threadsafe();
     }
-    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>) {
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
         let cell = &mut *(slf as *mut PyCell<T>);
         ManuallyDrop::drop(&mut cell.contents.value);
         cell.contents.dict.clear_dict(py);
         cell.contents.weakref.clear_weakrefs(slf, py);
-        <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(slf, py)
+        <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
     }
 }
 

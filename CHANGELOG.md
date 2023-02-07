@@ -10,6 +10,28 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.18.1] - 2023-02-07
+
+### Added
+
+- Add `PyErr::write_unraisable()`. [#2889](https://github.com/PyO3/pyo3/pull/2889)
+- Add `Python::Ellipsis()` and `PyAny::is_ellipsis()` methods. [#2911](https://github.com/PyO3/pyo3/pull/2911)
+- Add `PyDict::update()` and `PyDict::update_if_missing()` methods. [#2912](https://github.com/PyO3/pyo3/pull/2912)
+
+### Changed
+
+- FFI definition `PyIter_Check` on CPython 3.7 is now implemented as `hasattr(type(obj), "__next__")`, which works correctly on all platforms and adds support for `abi3`. [#2914](https://github.com/PyO3/pyo3/pull/2914)
+- Warn about unknown config keys in `PYO3_CONFIG_FILE` instead of denying. [#2926](https://github.com/PyO3/pyo3/pull/2926)
+
+### Fixed
+
+- Send errors returned by `__releasebuffer__` to `sys.unraisablehook` rather than causing `SystemError`. [#2886](https://github.com/PyO3/pyo3/pull/2886)
+- Fix downcast to `PyIterator` succeeding for Python classes which did not implement `__next__`. [#2914](https://github.com/PyO3/pyo3/pull/2914)
+- Fix segfault in `__traverse__` when visiting `None` fields of `Option<T: AsPyPointer>`. [#2921](https://github.com/PyO3/pyo3/pull/2921)
+- Fix `#[pymethods(crate = "...")]` option being ignored. [#2923](https://github.com/PyO3/pyo3/pull/2923)
+- Link against `pythonXY_d.dll` for debug Python builds on Windows. [#2937](https://github.com/PyO3/pyo3/pull/2937)
+
+
 ## [0.18.0] - 2023-01-17
 
 ### Packaging
@@ -48,7 +70,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Accept any iterator in `PySet::new` and `PyFrozenSet::new`. [#2795](https://github.com/PyO3/pyo3/pull/2795)
 - Mixing `#[cfg(...)]` and `#[pyo3(...)]` attributes on `#[pyclass]` struct fields will now work. [#2796](https://github.com/PyO3/pyo3/pull/2796)
 - Re-enable `PyFunction` on when building for abi3 or PyPy. [#2838](https://github.com/PyO3/pyo3/pull/2838)
-- Improve `derive(FromPyObject)` to use `intern!` when applicable for `#[pyo3(item)]`. [#2838](https://github.com/PyO3/pyo3/pull/2838)
+- Improve `derive(FromPyObject)` to use `intern!` when applicable for `#[pyo3(item)]`. [#2879](https://github.com/PyO3/pyo3/pull/2879)
 
 ### Removed
 
@@ -124,6 +146,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Add `PyCode` and `PyFrame` high level objects. [#2408](https://github.com/PyO3/pyo3/pull/2408)
 - Add FFI definitions `Py_fstring_input`, `sendfunc`, and `_PyErr_StackItem`. [#2423](https://github.com/PyO3/pyo3/pull/2423)
 - Add `PyDateTime::new_with_fold`, `PyTime::new_with_fold`, `PyTime::get_fold`, and `PyDateTime::get_fold` for PyPy. [#2428](https://github.com/PyO3/pyo3/pull/2428)
+- Add `#[pyclass(frozen)]`. [#2448](https://github.com/PyO3/pyo3/pull/2448)
 - Accept `#[pyo3(name)]` on enum variants. [#2457](https://github.com/PyO3/pyo3/pull/2457)
 - Add `CompareOp::matches` to implement `__richcmp__` as the result of a Rust `std::cmp::Ordering` comparison. [#2460](https://github.com/PyO3/pyo3/pull/2460)
 - Add `PySuper` type. [#2486](https://github.com/PyO3/pyo3/pull/2486)
@@ -1369,7 +1392,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/pyo3/pyo3/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/pyo3/pyo3/compare/v0.17.3...v0.18.0
 [0.17.3]: https://github.com/pyo3/pyo3/compare/v0.17.2...v0.17.3
 [0.17.2]: https://github.com/pyo3/pyo3/compare/v0.17.1...v0.17.2

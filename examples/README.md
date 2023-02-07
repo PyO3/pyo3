@@ -10,6 +10,7 @@ Below is a brief description of each of these:
 | `maturin-starter` | A template project which is configured to use [`maturin`](https://github.com/PyO3/maturin) for development. |
 | `setuptools-rust-starter` | A template project which is configured to use [`setuptools_rust`](https://github.com/PyO3/setuptools-rust/) for development. |
 | `word-count` | A quick performance comparison between word counter implementations written in each of Rust and Python. |
+| `plugin` | Illustrates how to use Python as a scripting language within a Rust application |
 
 ## Creating new projects from these examples
 

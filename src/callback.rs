@@ -28,10 +28,6 @@ impl PyCallbackOutput for ffi::Py_ssize_t {
     const ERR_VALUE: Self = -1;
 }
 
-impl PyCallbackOutput for () {
-    const ERR_VALUE: Self = ();
-}
-
 /// Convert the result of callback function into the appropriate return value.
 pub trait IntoPyCallbackOutput<Target> {
     fn convert(self, py: Python<'_>) -> PyResult<Target>;

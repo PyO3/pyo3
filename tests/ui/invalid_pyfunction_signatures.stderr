@@ -46,8 +46,14 @@ error: `**kwargs_b` not allowed after `**kwargs_a`
 41 | #[pyo3(signature = (**kwargs_a, **kwargs_b))]
    |                                 ^
 
-error: cannot define both function signature and legacy arguments
-  --> tests/ui/invalid_pyfunction_signatures.rs:53:12
+error: arguments of type `Python` must not be part of the signature
+  --> tests/ui/invalid_pyfunction_signatures.rs:47:27
    |
-53 |     #[pyo3(signature = (x))]
+47 | #[pyfunction(signature = (py))]
+   |                           ^^
+
+error: cannot define both function signature and legacy arguments
+  --> tests/ui/invalid_pyfunction_signatures.rs:58:12
+   |
+58 |     #[pyo3(signature = (x))]
    |            ^^^^^^^^^

@@ -362,7 +362,8 @@ Coercions:
 ### Buffer objects
 
   - `__getbuffer__(<self>, *mut ffi::Py_buffer, flags) -> ()`
-  - `__releasebuffer__(<self>, *mut ffi::Py_buffer)` (no return value, not even `PyResult`)
+  - `__releasebuffer__(<self>, *mut ffi::Py_buffer) -> ()`
+    Errors returned from `__releasebuffer__` will be sent to `sys.unraiseablehook`. It is strongly advised to never return an error from `__releasebuffer__`, and if it really is necessary, to make best effort to perform any required freeing operations before returning. `__releasebuffer__` will not be called a second time; anything not freed will be leaked.
 
 ### Garbage Collector Integration
 
