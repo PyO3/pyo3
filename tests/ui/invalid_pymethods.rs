@@ -47,13 +47,6 @@ impl MyClass {
 
 #[pymethods]
 impl MyClass {
-    #[new]
-    #[pyo3(text_signature = "()")]
-    fn text_signature_on_new() {}
-}
-
-#[pymethods]
-impl MyClass {
     #[pyo3(name = "__call__", text_signature = "()")]
     fn text_signature_on_call() {}
 }

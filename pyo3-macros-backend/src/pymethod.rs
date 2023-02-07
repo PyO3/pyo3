@@ -4,7 +4,6 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::pyfunction::text_signature_or_auto;
 use crate::utils::{ensure_not_async_fn, PythonDoc};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
@@ -219,19 +218,19 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &create_doc(meth_attrs, spec),
+            &spec.get_doc(meth_attrs),
             None,
         )?),
         (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &create_doc(meth_attrs, spec),
+            &spec.get_doc(meth_attrs),
             Some(quote!(_pyo3::ffi::METH_CLASS)),
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &create_doc(meth_attrs, spec),
+            &spec.get_doc(meth_attrs),
             Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
@@ -242,7 +241,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: create_doc(meth_attrs, spec),
+                doc: spec.get_doc(meth_attrs),
             },
         )?),
         (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
@@ -250,25 +249,13 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: create_doc(meth_attrs, spec),
+                doc: spec.get_doc(meth_attrs),
             },
         )?),
         (_, FnType::FnModule) => {
             unreachable!("methods cannot be FnModule")
         }
     })
-}
-
-fn create_doc(meth_attrs: &[syn::Attribute], spec: &FnSpec<'_>) -> PythonDoc {
-    let text_signature_string = match &spec.tp {
-        FnType::FnNew | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => None,
-        _ => text_signature_or_auto(spec.text_signature.as_ref(), &spec.signature, &spec.tp),
-    };
-
-    utils::get_doc(
-        meth_attrs,
-        text_signature_string.map(|sig| (Cow::Borrowed(&spec.python_name), sig)),
-    )
 }
 
 pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
@@ -335,6 +322,13 @@ pub fn impl_py_method_def(
 fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAndSlotDef> {
     let wrapper_ident = syn::Ident::new("__pymethod___new____", Span::call_site());
     let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
+    // Use just the text_signature_call_signature() because the class' Python name
+    // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
+    // trait implementation created by `#[pyclass]`.
+    let text_signature_body = spec.text_signature_call_signature().map_or_else(
+        || quote!(::std::option::Option::None),
+        |text_signature| quote!(::std::option::Option::Some(#text_signature)),
+    );
     let slot_def = quote! {
         _pyo3::ffi::PyType_Slot {
             slot: _pyo3::ffi::Py_tp_new,
@@ -345,6 +339,14 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAn
                     kwargs: *mut _pyo3::ffi::PyObject,
                 ) -> *mut _pyo3::ffi::PyObject
                 {
+                    use _pyo3::impl_::pyclass::*;
+                    impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {
+                        #[inline]
+                        fn new_text_signature(self) -> ::std::option::Option<&'static str> {
+                            #text_signature_body
+                        }
+                    }
+
                     _pyo3::impl_::trampoline::newfunc(
                         subtype,
                         args,

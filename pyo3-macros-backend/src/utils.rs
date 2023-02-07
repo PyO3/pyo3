@@ -1,9 +1,7 @@
-use std::{borrow::Cow, fmt::Write};
-
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{punctuated::Punctuated, spanned::Spanned, Ident, Token};
+use syn::{punctuated::Punctuated, spanned::Spanned, Token};
 
 use crate::attributes::CrateAttribute;
 
@@ -67,24 +65,20 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
 pub struct PythonDoc(TokenStream);
 
 /// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string.
-pub fn get_doc(
-    attrs: &[syn::Attribute],
-    text_signature: Option<(Cow<'_, Ident>, String)>,
-) -> PythonDoc {
-    let mut parts = Punctuated::<TokenStream, Token![,]>::new();
-    let mut current_part = String::new();
-
-    if let Some((python_name, text_signature)) = text_signature {
-        // create special doc string lines to set `__text_signature__`
-        write!(
-            &mut current_part,
-            "{}{}\n--\n\n",
-            python_name, text_signature
-        )
-        .expect("error occurred while trying to format text_signature to string")
+///
+/// If this doc is for a callable, the provided `text_signature` can be passed to prepend
+/// this to the documentation suitable for Python to extract this into the `__text_signature__`
+/// attribute.
+pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> PythonDoc {
+    // insert special divider between `__text_signature__` and doc
+    // (assume text_signature is itself well-formed)
+    if let Some(text_signature) = &mut text_signature {
+        text_signature.push_str("\n--\n\n");
     }
 
+    let mut parts = Punctuated::<TokenStream, Token![,]>::new();
     let mut first = true;
+    let mut current_part = text_signature.unwrap_or_default();
 
     for attr in attrs.iter() {
         if attr.path.is_ident("doc") {

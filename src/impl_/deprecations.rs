@@ -17,3 +17,9 @@ pub const PYMETHODS_ARGS_ATTRIBUTE: () = ();
     note = "required arguments after an `Option<_>` argument are ambiguous and being phased out\n= help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters"
 )]
 pub const REQUIRED_ARGUMENT_AFTER_OPTION: () = ();
+
+#[deprecated(
+    since = "0.19.0",
+    note = "put `text_signature` on `#[new]` instead of `#[pyclass]`"
+)]
+pub const PYCLASS_TEXT_SIGNATURE: () = ();

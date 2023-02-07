@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::attributes::TextSignatureAttribute;
+use crate::attributes::{TextSignatureAttribute, TextSignatureAttributeValue};
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;
 use crate::pyfunction::{DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes};
@@ -593,6 +593,33 @@ impl<'a> FnSpec<'a> {
             CallingConvention::TpNew => unreachable!("tp_new cannot get a methoddef"),
         }
     }
+
+    /// Forwards to [utils::get_doc] with the text signature of this spec.
+    pub fn get_doc(&self, attrs: &[syn::Attribute]) -> PythonDoc {
+        let text_signature = self
+            .text_signature_call_signature()
+            .map(|sig| format!("{}{}", self.python_name, sig));
+        utils::get_doc(attrs, text_signature)
+    }
+
+    /// Creates the parenthesised arguments list for `__text_signature__` snippet based on this spec's signature
+    /// and/or attributes. Prepend the callable name to make a complete `__text_signature__`.
+    pub fn text_signature_call_signature(&self) -> Option<String> {
+        let self_argument = match &self.tp {
+            // Getters / Setters / ClassAttribute are not callables on the Python side
+            FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => return None,
+            FnType::Fn(_) => Some("self"),
+            FnType::FnModule => Some("module"),
+            FnType::FnClass => Some("cls"),
+            FnType::FnStatic | FnType::FnNew => None,
+        };
+
+        match self.text_signature.as_ref().map(|attr| &attr.value) {
+            Some(TextSignatureAttributeValue::Str(s)) => Some(s.value()),
+            None => Some(self.signature.text_signature(self_argument)),
+            Some(TextSignatureAttributeValue::Disabled(_)) => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -755,11 +782,6 @@ fn ensure_signatures_on_valid_method(
     }
     if let Some(text_signature) = text_signature {
         match fn_type {
-            FnType::FnNew => bail_spanned!(
-                text_signature.kw.span() =>
-                "`text_signature` not allowed on `__new__`; if you want to add a signature on \
-                 `__new__`, put it on the struct definition instead"
-            ),
             FnType::Getter(_) => {
                 bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `getter`")
             }

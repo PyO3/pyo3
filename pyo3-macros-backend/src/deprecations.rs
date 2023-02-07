@@ -2,6 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote_spanned, ToTokens};
 
 pub enum Deprecation {
+    PyClassTextSignature,
     PyFunctionArguments,
     PyMethodArgsAttribute,
     RequiredArgumentAfterOption,
@@ -10,6 +11,7 @@ pub enum Deprecation {
 impl Deprecation {
     fn ident(&self, span: Span) -> syn::Ident {
         let string = match self {
+            Deprecation::PyClassTextSignature => "PYCLASS_TEXT_SIGNATURE",
             Deprecation::PyFunctionArguments => "PYFUNCTION_ARGUMENTS",
             Deprecation::PyMethodArgsAttribute => "PYMETHODS_ARGS_ATTRIBUTE",
             Deprecation::RequiredArgumentAfterOption => "REQUIRED_ARGUMENT_AFTER_OPTION",

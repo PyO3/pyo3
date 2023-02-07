@@ -13,7 +13,7 @@ use syn::{
 use crate::{
     attributes::{kw, KeywordAttribute},
     deprecations::{Deprecation, Deprecations},
-    method::{FnArg, FnType},
+    method::FnArg,
     pyfunction::Argument,
 };
 
@@ -623,18 +623,7 @@ impl<'a> FunctionSignature<'a> {
         default
     }
 
-    pub fn text_signature(&self, fn_type: &FnType) -> String {
-        // automatic text signature generation
-        let self_argument = match fn_type {
-            FnType::FnNew | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => {
-                unreachable!()
-            }
-            FnType::Fn(_) => Some("self"),
-            FnType::FnModule => Some("module"),
-            FnType::FnClass => Some("cls"),
-            FnType::FnStatic => None,
-        };
-
+    pub fn text_signature(&self, self_argument: Option<&str>) -> String {
         let mut output = String::new();
         output.push('(');
 
