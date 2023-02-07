@@ -211,6 +211,32 @@ fn pymethods_impl(
     .into()
 }
 
+#[proc_macro]
+#[allow(non_snake_case)]
+pub fn py_wrapper(ty: TokenStream) -> TokenStream {
+    let PyWrapperOptions { krate, ty, .. } = parse_macro_input!(ty as PyWrapperOptions);
+    quote!(
+        #krate::experimental::instance::PyDetached<<#ty as #krate::experimental::PyTypeInfo>::PyMarkerType>
+    )
+    .into()
+}
+
+struct PyWrapperOptions {
+    krate: syn::Path,
+    _comma: syn::Token![,],
+    ty: syn::Type,
+}
+
+impl syn::parse::Parse for PyWrapperOptions {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Self {
+            krate: input.parse()?,
+            _comma: input.parse()?,
+            ty: input.parse()?,
+        })
+    }
+}
+
 fn methods_type() -> PyClassMethodsType {
     if cfg!(feature = "multiple-pymethods") {
         PyClassMethodsType::Inventory

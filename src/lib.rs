@@ -401,6 +401,7 @@ mod conversions;
 pub mod derive_utils;
 mod err;
 pub mod exceptions;
+pub mod experimental;
 pub mod ffi;
 mod gil;
 #[doc(hidden)]
@@ -419,6 +420,9 @@ pub mod pyclass_init;
 pub mod type_object;
 pub mod types;
 mod version;
+
+#[doc(hidden)]
+pub use pyo3_macros;
 
 pub use crate::conversions::*;
 
