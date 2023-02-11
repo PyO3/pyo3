@@ -15,6 +15,9 @@ use std::{
     thread,
 };
 
+mod lazy_static_type;
+pub use lazy_static_type::LazyStaticType;
+
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {

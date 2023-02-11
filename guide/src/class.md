@@ -979,7 +979,7 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
-        use pyo3::type_object::LazyStaticType;
+        use pyo3::impl_::pyclass::LazyStaticType;
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
         TYPE_OBJECT.get_or_init::<Self>(py)
     }
