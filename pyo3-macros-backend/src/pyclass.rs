@@ -756,7 +756,7 @@ fn impl_pytypeinfo(
             fn type_object_raw(py: _pyo3::Python<'_>) -> *mut _pyo3::ffi::PyTypeObject {
                 #deprecations
 
-                use _pyo3::type_object::LazyStaticType;
+                use _pyo3::impl_::pyclass::LazyStaticType;
                 static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
                 TYPE_OBJECT.get_or_init::<Self>(py)
             }
