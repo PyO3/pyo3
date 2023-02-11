@@ -1,22 +1,25 @@
 use std::{
     borrow::Cow,
     ffi::CStr,
+    marker::PhantomData,
     thread::{self, ThreadId},
 };
 
 use parking_lot::{const_mutex, Mutex};
 
 use crate::{
-    ffi, once_cell::GILOnceCell, pyclass::create_type_object, IntoPyPointer, PyClass,
-    PyMethodDefType, PyObject, PyResult, Python,
+    exceptions::PyRuntimeError, ffi, once_cell::GILOnceCell, pyclass::create_type_object,
+    IntoPyPointer, PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
 };
 
 use super::PyClassItemsIter;
 
 /// Lazy type object for PyClass.
 #[doc(hidden)]
-pub struct LazyStaticType {
-    // Boxed because Python expects the type object to have a stable address.
+pub struct LazyTypeObject<T>(LazyTypeObjectInner, PhantomData<T>);
+
+// Non-generic inner of LazyTypeObject to keep code size down
+struct LazyTypeObjectInner {
     value: GILOnceCell<*mut ffi::PyTypeObject>,
     // Threads which have begun initialization of the `tp_dict`. Used for
     // reentrant initialization detection.
@@ -24,31 +27,64 @@ pub struct LazyStaticType {
     tp_dict_filled: GILOnceCell<PyResult<()>>,
 }
 
-impl LazyStaticType {
-    /// Creates an uninitialized `LazyStaticType`.
+impl<T> LazyTypeObject<T> {
+    /// Creates an uninitialized `LazyTypeObject`.
     pub const fn new() -> Self {
-        LazyStaticType {
-            value: GILOnceCell::new(),
-            initializing_threads: const_mutex(Vec::new()),
-            tp_dict_filled: GILOnceCell::new(),
-        }
+        LazyTypeObject(
+            LazyTypeObjectInner {
+                value: GILOnceCell::new(),
+                initializing_threads: const_mutex(Vec::new()),
+                tp_dict_filled: GILOnceCell::new(),
+            },
+            PhantomData,
+        )
+    }
+}
+
+impl<T: PyClass> LazyTypeObject<T> {
+    /// Gets the type object contained by this `LazyTypeObject`, initializing it if needed.
+    pub fn get_or_init(&self, py: Python<'_>) -> *mut ffi::PyTypeObject {
+        self.get_or_try_init(py).unwrap_or_else(|err| {
+            err.print(py);
+            panic!("failed to create type object for {}", T::NAME)
+        })
     }
 
-    /// Gets the type object contained by this `LazyStaticType`, initializing it if needed.
-    pub fn get_or_init<T: PyClass>(&self, py: Python<'_>) -> *mut ffi::PyTypeObject {
-        fn inner<T: PyClass>() -> *mut ffi::PyTypeObject {
+    /// Fallible version of the above.
+    pub(crate) fn get_or_try_init(&self, py: Python<'_>) -> PyResult<*mut ffi::PyTypeObject> {
+        fn inner<T: PyClass>() -> PyResult<*mut ffi::PyTypeObject> {
             // Safety: `py` is held by the caller of `get_or_init`.
             let py = unsafe { Python::assume_gil_acquired() };
             create_type_object::<T>(py)
         }
 
-        // Uses explicit GILOnceCell::get_or_init::<fn() -> *mut ffi::PyTypeObject> monomorphization
-        // so that only this one monomorphization is instantiated (instead of one closure monormization for each T).
-        let type_object = *self
-            .value
-            .get_or_init::<fn() -> *mut ffi::PyTypeObject>(py, inner::<T>);
-        self.ensure_init(py, type_object, T::NAME, T::items_iter());
-        type_object
+        self.0
+            .get_or_try_init(py, inner::<T>, T::NAME, T::items_iter())
+    }
+}
+
+impl LazyTypeObjectInner {
+    fn get_or_try_init(
+        &self,
+        py: Python<'_>,
+        init: fn() -> PyResult<*mut ffi::PyTypeObject>,
+        name: &str,
+        items_iter: PyClassItemsIter,
+    ) -> PyResult<*mut ffi::PyTypeObject> {
+        (|| -> PyResult<_> {
+            // Uses explicit GILOnceCell::get_or_init::<fn() -> *mut ffi::PyTypeObject> monomorphization
+            // so that this code is only monomorphized once, instead of for every T.
+            let type_object = *self.value.get_or_try_init(py, init)?;
+            self.ensure_init(py, type_object, name, items_iter)?;
+            Ok(type_object)
+        })()
+        .map_err(|err| {
+            wrap_in_runtime_error(
+                py,
+                err,
+                format!("An error occurred while initializing class {}", name),
+            )
+        })
     }
 
     fn ensure_init(
@@ -57,7 +93,7 @@ impl LazyStaticType {
         type_object: *mut ffi::PyTypeObject,
         name: &str,
         items_iter: PyClassItemsIter,
-    ) {
+    ) -> PyResult<()> {
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
         // with an empty `tp_dict`: now we can create instances of `T`.
@@ -71,7 +107,7 @@ impl LazyStaticType {
 
         if self.tp_dict_filled.get(py).is_some() {
             // `tp_dict` is already filled: ok.
-            return;
+            return Ok(());
         }
 
         let thread_id = thread::current().id();
@@ -80,7 +116,7 @@ impl LazyStaticType {
             if threads.contains(&thread_id) {
                 // Reentrant call: just return the type object, even if the
                 // `tp_dict` is not filled yet.
-                return;
+                return Ok(());
             }
             threads.push(thread_id);
         }
@@ -113,12 +149,17 @@ impl LazyStaticType {
 
                     match (attr.meth.0)(py) {
                         Ok(val) => items.push((key, val)),
-                        Err(e) => panic!(
-                            "An error occurred while initializing `{}.{}`: {}",
-                            name,
-                            attr.name.trim_end_matches('\0'),
-                            e
-                        ),
+                        Err(err) => {
+                            return Err(wrap_in_runtime_error(
+                                py,
+                                err,
+                                format!(
+                                    "An error occurred while initializing `{}.{}`",
+                                    name,
+                                    attr.name.trim_end_matches('\0')
+                                ),
+                            ))
+                        }
                     }
                 }
             }
@@ -137,9 +178,14 @@ impl LazyStaticType {
         });
 
         if let Err(err) = result {
-            err.clone_ref(py).print(py);
-            panic!("An error occurred while initializing `{}.__dict__`", name);
+            return Err(wrap_in_runtime_error(
+                py,
+                err.clone_ref(py),
+                format!("An error occurred while initializing `{}.__dict__`", name),
+            ));
         }
+
+        Ok(())
     }
 }
 
@@ -157,5 +203,12 @@ fn initialize_tp_dict(
     Ok(())
 }
 
-// This is necessary for making static `LazyStaticType`s
-unsafe impl Sync for LazyStaticType {}
+// This is necessary for making static `LazyTypeObject`s
+unsafe impl<T> Sync for LazyTypeObject<T> {}
+
+#[cold]
+fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: String) -> PyErr {
+    let runtime_err = PyRuntimeError::new_err(message);
+    runtime_err.set_cause(py, Some(err));
+    runtime_err
+}
