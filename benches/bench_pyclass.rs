@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use pyo3::{prelude::*, type_object::LazyStaticType};
+use pyo3::{impl_::pyclass::LazyStaticType, prelude::*};
 
 /// This is a feature-rich class instance used to benchmark various parts of the pyclass lifecycle.
 #[pyclass]
