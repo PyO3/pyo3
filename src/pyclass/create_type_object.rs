@@ -15,11 +15,11 @@ use std::{
     ptr,
 };
 
-pub(crate) fn create_type_object<T>(py: Python<'_>) -> *mut ffi::PyTypeObject
+pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<*mut ffi::PyTypeObject>
 where
     T: PyClass,
 {
-    match unsafe {
+    unsafe {
         PyTypeBuilder::default()
             .type_doc(T::DOC)
             .offsets(T::dict_offset(), T::weaklist_offset())
@@ -30,9 +30,6 @@ where
             .set_is_sequence(T::IS_SEQUENCE)
             .class_items(T::items_iter())
             .build(py, T::NAME, T::MODULE, std::mem::size_of::<T::Layout>())
-    } {
-        Ok(type_object) => type_object,
-        Err(e) => type_object_creation_failed(py, e, T::NAME),
     }
 }
 
@@ -384,12 +381,6 @@ impl PyTypeBuilder {
             Ok(type_object as _)
         }
     }
-}
-
-#[cold]
-fn type_object_creation_failed(py: Python<'_>, e: PyErr, name: &str) -> ! {
-    e.print(py);
-    panic!("An error occurred while initializing class {}", name)
 }
 
 fn py_class_doc(class_doc: &str) -> Option<*mut c_char> {

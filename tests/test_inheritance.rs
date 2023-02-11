@@ -339,3 +339,26 @@ fn test_subclass_ref_counts() {
         );
     })
 }
+
+#[test]
+#[cfg(not(Py_LIMITED_API))]
+fn module_add_class_inherit_bool_fails() {
+    use pyo3::types::PyBool;
+
+    #[pyclass(extends = PyBool)]
+    struct ExtendsBool;
+
+    Python::with_gil(|py| {
+        let m = PyModule::new(py, "test_module").unwrap();
+
+        let err = m.add_class::<ExtendsBool>().unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "RuntimeError: An error occurred while initializing class ExtendsBool"
+        );
+        assert_eq!(
+            err.cause(py).unwrap().to_string(),
+            "TypeError: type 'bool' is not an acceptable base type"
+        );
+    })
+}
