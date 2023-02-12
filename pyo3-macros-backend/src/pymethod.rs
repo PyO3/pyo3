@@ -4,6 +4,7 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::method::{CallingConvention, ExtractErrorMode};
+use crate::pyfunction::text_signature_or_auto;
 use crate::utils::{ensure_not_async_fn, PythonDoc};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
@@ -186,7 +187,7 @@ pub fn gen_py_method(
     check_generic(sig)?;
     ensure_not_async_fn(sig)?;
     ensure_function_options_valid(&options)?;
-    let method = PyMethod::parse(sig, &mut *meth_attrs, options)?;
+    let method = PyMethod::parse(sig, meth_attrs, options)?;
     let spec = &method.spec;
 
     Ok(match (method.kind, &spec.tp) {
@@ -215,15 +216,22 @@ pub fn gen_py_method(
             }
         }
         // ordinary functions (with some specialties)
-        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(cls, spec, None)?),
+        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
+            cls,
+            spec,
+            &create_doc(meth_attrs, &spec),
+            None,
+        )?),
         (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
+            &create_doc(meth_attrs, &spec),
             Some(quote!(_pyo3::ffi::METH_CLASS)),
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
+            &create_doc(meth_attrs, &spec),
             Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
@@ -231,16 +239,36 @@ pub fn gen_py_method(
 
         (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
-            PropertyType::Function { self_type, spec },
+            PropertyType::Function {
+                self_type,
+                spec,
+                doc: create_doc(meth_attrs, &spec),
+            },
         )?),
         (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
-            PropertyType::Function { self_type, spec },
+            PropertyType::Function {
+                self_type,
+                spec,
+                doc: create_doc(meth_attrs, &spec),
+            },
         )?),
         (_, FnType::FnModule) => {
             unreachable!("methods cannot be FnModule")
         }
     })
+}
+
+fn create_doc(meth_attrs: &[syn::Attribute], spec: &FnSpec<'_>) -> PythonDoc {
+    let text_signature_string = match &spec.tp {
+        FnType::FnNew | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => None,
+        _ => text_signature_or_auto(spec.text_signature.as_ref(), &spec.signature, &spec.tp),
+    };
+
+    utils::get_doc(
+        meth_attrs,
+        text_signature_string.map(|sig| (Cow::Borrowed(&spec.python_name), sig)),
+    )
 }
 
 pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
@@ -283,6 +311,7 @@ fn ensure_no_forbidden_protocol_attributes(
 pub fn impl_py_method_def(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
+    doc: &PythonDoc,
     flags: Option<TokenStream>,
 ) -> Result<MethodAndMethodDef> {
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
@@ -293,7 +322,7 @@ pub fn impl_py_method_def(
         FnType::FnClass => quote!(Class),
         _ => quote!(Method),
     };
-    let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident });
+    let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc);
     let method_def = quote! {
         _pyo3::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
     };
@@ -729,6 +758,7 @@ pub enum PropertyType<'a> {
     Function {
         self_type: &'a SelfType,
         spec: &'a FnSpec<'a>,
+        doc: PythonDoc,
     },
 }
 
@@ -763,7 +793,7 @@ impl PropertyType<'_> {
             PropertyType::Descriptor { field, .. } => {
                 Cow::Owned(utils::get_doc(&field.attrs, None))
             }
-            PropertyType::Function { spec, .. } => Cow::Borrowed(&spec.doc),
+            PropertyType::Function { doc, .. } => Cow::Borrowed(&doc),
         }
     }
 }
