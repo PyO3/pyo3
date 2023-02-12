@@ -1,13 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::borrow::Cow;
-
 use crate::attributes::TextSignatureAttribute;
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;
-use crate::pyfunction::{
-    text_signature_or_auto, DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes,
-};
+use crate::pyfunction::{DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes};
 use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
 use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
@@ -225,7 +221,6 @@ pub struct FnSpec<'a> {
     pub python_name: syn::Ident,
     pub signature: FunctionSignature<'a>,
     pub output: syn::Type,
-    pub doc: PythonDoc,
     pub deprecations: Deprecations,
     pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
@@ -315,16 +310,6 @@ impl<'a> FnSpec<'a> {
             FunctionSignature::from_arguments(arguments, &mut deprecations)
         };
 
-        let text_signature_string = match &fn_type {
-            FnType::FnNew | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => None,
-            _ => text_signature_or_auto(text_signature.as_ref(), &signature, &fn_type),
-        };
-
-        let doc = utils::get_doc(
-            meth_attrs,
-            text_signature_string.map(|sig| (Cow::Borrowed(&python_name), sig)),
-        );
-
         let convention =
             fixed_convention.unwrap_or_else(|| CallingConvention::from_signature(&signature));
 
@@ -335,7 +320,6 @@ impl<'a> FnSpec<'a> {
             python_name,
             signature,
             output: ty,
-            doc,
             deprecations,
             text_signature,
             unsafety: sig.unsafety,
@@ -519,9 +503,8 @@ impl<'a> FnSpec<'a> {
 
     /// Return a `PyMethodDef` constructor for this function, matching the selected
     /// calling convention.
-    pub fn get_methoddef(&self, wrapper: impl ToTokens) -> TokenStream {
+    pub fn get_methoddef(&self, wrapper: impl ToTokens, doc: &PythonDoc) -> TokenStream {
         let python_name = self.null_terminated_python_name();
-        let doc = &self.doc;
         match self.convention {
             CallingConvention::Noargs => quote! {
                 _pyo3::impl_::pymethods::PyMethodDef::noargs(
