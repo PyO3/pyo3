@@ -422,6 +422,7 @@ def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
         "examples/word-count",
     )
     min_pkg_versions = {
+        "csv": "1.1.6",
         "indexmap": "1.6.2",
         "hashbrown": "0.9.1",
         "plotters": "0.3.1",
