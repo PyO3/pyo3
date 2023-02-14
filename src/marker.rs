@@ -478,6 +478,8 @@ impl<'py> Python<'py> {
                 gil::GIL_COUNT.with(|c| c.set(self.count));
                 unsafe {
                     ffi::PyEval_RestoreThread(self.tstate);
+                    // Update counts of PyObjects / Py that were cloned or dropped during `f`.
+                    gil::POOL.update_counts(Python::assume_gil_acquired());
                 }
             }
         }
