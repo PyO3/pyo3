@@ -1,6 +1,6 @@
 #![cfg(feature = "macros")]
 
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
+use pyo3::{prelude::*, types::PyString};
 
 mod common;
 
@@ -98,6 +98,8 @@ fn recursive_class_attributes() {
 #[test]
 #[cfg(panic = "unwind")]
 fn test_fallible_class_attribute() {
+    use pyo3::exceptions::PyValueError;
+
     #[pyclass]
     struct BrokenClass;
 
