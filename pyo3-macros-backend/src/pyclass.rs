@@ -758,6 +758,7 @@ fn impl_pytypeinfo(
 
                 <#cls as _pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
                     .get_or_init(py)
+                    .as_type_ptr()
             }
         }
     }

@@ -5,7 +5,8 @@ use crate::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
         PyClassItemsIter,
     },
-    PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
+    types::PyType,
+    Py, PyClass, PyMethodDefType, PyResult, PyTypeInfo, Python,
 };
 use std::{
     collections::HashMap,
@@ -15,7 +16,7 @@ use std::{
     ptr,
 };
 
-pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<*mut ffi::PyTypeObject>
+pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<Py<PyType>>
 where
     T: PyClass,
 {
@@ -322,7 +323,7 @@ impl PyTypeBuilder {
         name: &'static str,
         module_name: Option<&'static str>,
         basicsize: usize,
-    ) -> PyResult<*mut ffi::PyTypeObject> {
+    ) -> PyResult<Py<PyType>> {
         // `c_ulong` and `c_uint` have the same size
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
@@ -370,16 +371,14 @@ impl PyTypeBuilder {
         };
 
         // Safety: We've correctly setup the PyType_Spec at this point
-        let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
-        if type_object.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            for cleanup in std::mem::take(&mut self.cleanup) {
-                cleanup(&self, type_object as _);
-            }
+        let type_object: Py<PyType> =
+            unsafe { Py::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
 
-            Ok(type_object as _)
+        for cleanup in std::mem::take(&mut self.cleanup) {
+            cleanup(&self, type_object.as_ref(py).as_type_ptr());
         }
+
+        Ok(type_object)
     }
 }
 

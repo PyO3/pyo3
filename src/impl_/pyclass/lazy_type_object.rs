@@ -9,7 +9,8 @@ use parking_lot::{const_mutex, Mutex};
 
 use crate::{
     exceptions::PyRuntimeError, ffi, once_cell::GILOnceCell, pyclass::create_type_object,
-    IntoPyPointer, PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
+    types::PyType, AsPyPointer, IntoPyPointer, Py, PyClass, PyErr, PyMethodDefType, PyObject,
+    PyResult, Python,
 };
 
 use super::PyClassItemsIter;
@@ -20,11 +21,11 @@ pub struct LazyTypeObject<T>(LazyTypeObjectInner, PhantomData<T>);
 
 // Non-generic inner of LazyTypeObject to keep code size down
 struct LazyTypeObjectInner {
-    value: GILOnceCell<*mut ffi::PyTypeObject>,
+    value: GILOnceCell<Py<PyType>>,
     // Threads which have begun initialization of the `tp_dict`. Used for
     // reentrant initialization detection.
     initializing_threads: Mutex<Vec<ThreadId>>,
-    tp_dict_filled: GILOnceCell<PyResult<()>>,
+    tp_dict_filled: GILOnceCell<()>,
 }
 
 impl<T> LazyTypeObject<T> {
@@ -43,7 +44,7 @@ impl<T> LazyTypeObject<T> {
 
 impl<T: PyClass> LazyTypeObject<T> {
     /// Gets the type object contained by this `LazyTypeObject`, initializing it if needed.
-    pub fn get_or_init(&self, py: Python<'_>) -> *mut ffi::PyTypeObject {
+    pub fn get_or_init<'py>(&'py self, py: Python<'py>) -> &'py PyType {
         self.get_or_try_init(py).unwrap_or_else(|err| {
             err.print(py);
             panic!("failed to create type object for {}", T::NAME)
@@ -51,31 +52,26 @@ impl<T: PyClass> LazyTypeObject<T> {
     }
 
     /// Fallible version of the above.
-    pub(crate) fn get_or_try_init(&self, py: Python<'_>) -> PyResult<*mut ffi::PyTypeObject> {
-        fn inner<T: PyClass>() -> PyResult<*mut ffi::PyTypeObject> {
-            // Safety: `py` is held by the caller of `get_or_init`.
-            let py = unsafe { Python::assume_gil_acquired() };
-            create_type_object::<T>(py)
-        }
-
+    pub(crate) fn get_or_try_init<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyType> {
         self.0
-            .get_or_try_init(py, inner::<T>, T::NAME, T::items_iter())
+            .get_or_try_init(py, create_type_object::<T>, T::NAME, T::items_iter())
     }
 }
 
 impl LazyTypeObjectInner {
-    fn get_or_try_init(
-        &self,
-        py: Python<'_>,
-        init: fn() -> PyResult<*mut ffi::PyTypeObject>,
+    // Uses dynamically dispatched fn(Python<'py>) -> PyResult<Py<PyType>
+    // so that this code is only instantiated once, instead of for every T
+    // like the generic LazyTypeObject<T> methods above.
+    fn get_or_try_init<'py>(
+        &'py self,
+        py: Python<'py>,
+        init: fn(Python<'py>) -> PyResult<Py<PyType>>,
         name: &str,
         items_iter: PyClassItemsIter,
-    ) -> PyResult<*mut ffi::PyTypeObject> {
+    ) -> PyResult<&'py PyType> {
         (|| -> PyResult<_> {
-            // Uses explicit GILOnceCell::get_or_init::<fn() -> *mut ffi::PyTypeObject> monomorphization
-            // so that this code is only monomorphized once, instead of for every T.
-            let type_object = *self.value.get_or_try_init(py, init)?;
-            self.ensure_init(py, type_object, name, items_iter)?;
+            let type_object = self.value.get_or_try_init(py, || init(py))?.as_ref(py);
+            self.ensure_init(type_object, name, items_iter)?;
             Ok(type_object)
         })()
         .map_err(|err| {
@@ -89,11 +85,12 @@ impl LazyTypeObjectInner {
 
     fn ensure_init(
         &self,
-        py: Python<'_>,
-        type_object: *mut ffi::PyTypeObject,
+        type_object: &PyType,
         name: &str,
         items_iter: PyClassItemsIter,
     ) -> PyResult<()> {
+        let py = type_object.py();
+
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
         // with an empty `tp_dict`: now we can create instances of `T`.
@@ -167,8 +164,8 @@ impl LazyTypeObjectInner {
 
         // Now we hold the GIL and we can assume it won't be released until we
         // return from the function.
-        let result = self.tp_dict_filled.get_or_init(py, move || {
-            let result = initialize_tp_dict(py, type_object as *mut ffi::PyObject, items);
+        let result = self.tp_dict_filled.get_or_try_init(py, move || {
+            let result = initialize_tp_dict(py, type_object.as_ptr(), items);
 
             // Initialization successfully complete, can clear the thread list.
             // (No further calls to get_or_init() will try to init, on any thread.)
