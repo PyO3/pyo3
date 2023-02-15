@@ -244,7 +244,7 @@ macro_rules! pyobject_native_type_sized {
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::pycell::PyCellBase<$layout>;
             type BaseNativeType = $name;
-            type ThreadChecker = $crate::impl_::pyclass::ThreadCheckerStub<$crate::PyObject>;
+            type ThreadChecker = $crate::impl_::pyclass::NativeTypeThreadCheckerStub;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }

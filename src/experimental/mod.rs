@@ -1,6 +1,5 @@
 pub mod conversion;
 pub mod types;
 
+pub use conversion::{FromPyObject, PyTryFrom, PyTryInto, PyUncheckedDowncast};
 pub use types::PyAny;
-
-pub use self::conversion::{FromPyObject, PyTryFrom, PyTryInto};

@@ -1087,6 +1087,17 @@ impl PyObject {
     {
         self.downcast(py)
     }
+
+    #[inline]
+    pub(crate) fn downcast2<'a, 'py: 'a, T>(
+        &'a self,
+        _py: Python<'py>,
+    ) -> Result<&'a T, PyDowncastError<'_>>
+    where
+        T: crate::experimental::PyTryFrom<'py>,
+    {
+        <T as crate::experimental::PyTryFrom<'py>>::try_from(unsafe { std::mem::transmute(self) })
+    }
 }
 
 #[cfg(test)]

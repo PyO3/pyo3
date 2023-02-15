@@ -1,11 +1,21 @@
 pub use self::any::PyAny;
+pub use self::dict::{IntoPyDict, PyDict};
+pub use self::list::PyList;
 
 // Implementations core to all native types
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_base_experimental {
     (impl<$py:lifetime $(,$generics:ident)* $(,)?> $name:ty) => {
-        unsafe impl<$py $(,$generics)*> $crate::PyNativeType for $name {}
+        unsafe impl<$py $(,$generics)*> $crate::experimental::PyUncheckedDowncast<$py> for $name {
+            unsafe fn unchecked_downcast<'a>(obj: &'a $crate::experimental::PyAny<$py>) -> &'a Self {
+                use $crate::AsPyPointer;
+                let out: &'a Self = std::mem::transmute(obj);
+                debug_assert_eq!(obj.as_ptr(), out.as_ptr());
+                debug_assert_eq!(std::mem::size_of::<$crate::experimental::PyAny<'_>>(), std::mem::size_of::<Self>());
+                out
+            }
+        }
 
         impl<$py $(,$generics)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
@@ -42,20 +52,20 @@ macro_rules! pyobject_native_type_base_experimental {
 #[macro_export]
 macro_rules! pyobject_native_type_named_experimental {
     (impl<$py:lifetime $(,$generics:ident)* $(,)?> $name:ty) => {
-        $crate::pyobject_native_type_base!($name $(;$generics)*);
+        $crate::pyobject_native_type_base_experimental!(impl<$py $(,$generics)*> $name);
 
-        impl<$py $(,$generics)*> ::std::convert::AsRef<$crate::PyAny> for $name {
+        impl<$py $(,$generics)*> ::std::convert::AsRef<$crate::experimental::PyAny<$py>> for $name {
             #[inline]
-            fn as_ref(&self) -> &$crate::PyAny {
+            fn as_ref(&self) -> &$crate::experimental::PyAny<$py> {
                 &self.0
             }
         }
 
         impl<$py $(,$generics)*> ::std::ops::Deref for $name {
-            type Target = $crate::PyAny;
+            type Target = $crate::experimental::PyAny<$py>;
 
             #[inline]
-            fn deref(&self) -> &$crate::PyAny {
+            fn deref(&self) -> &$crate::experimental::PyAny<$py> {
                 &self.0
             }
         }
@@ -80,7 +90,6 @@ macro_rules! pyobject_native_type_named_experimental {
             #[inline]
             fn from(other: &$name) -> Self {
                 use $crate::AsPyPointer;
-                use $crate::PyNativeType;
                 unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
             }
         }
@@ -98,8 +107,6 @@ macro_rules! pyobject_native_type_named_experimental {
 macro_rules! pyobject_native_type_info_experimental {
     (impl<$py:lifetime $(,$generics:ident)* $(,)?> $name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)?) => {
         unsafe impl<$py $(,$generics)*> $crate::type_object::PyTypeInfo for $name {
-            type AsRefTarget = Self;
-
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
 
@@ -132,9 +139,10 @@ macro_rules! pyobject_native_type_info_experimental {
 #[macro_export]
 macro_rules! pyobject_native_type_extract_experimental {
     (impl<$py:lifetime $(,$generics:ident)* $(,)?> $name:ty) => {
-        impl<$py $(,$generics)*> $crate::FromPyObject<$py> for &$py $name {
+        impl<$py $(,$generics)*> $crate::FromPyObject<$py> for $name {
             fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
-                obj.downcast().map_err(::std::convert::Into::into)
+                let reference: &Self = $crate::experimental::PyAny::from_gil_ref(&obj).downcast()?;
+                Ok(reference.clone())
             }
         }
     }
@@ -145,12 +153,12 @@ macro_rules! pyobject_native_type_extract_experimental {
 #[macro_export]
 macro_rules! pyobject_native_type_core_experimental {
     (impl<$py:lifetime $(,$generics:ident)* $(,)?> $name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)?) => {
-        $crate::pyobject_native_type_named!(impl<$py $(,$generics)*> $name $(;$generics)*);
-        $crate::pyobject_native_type_info!(impl<$py $(,$generics)*> $name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
-        $crate::pyobject_native_type_extract!(impl<$py $(,$generics)*> $name $(;$generics)*);
+        $crate::pyobject_native_type_named_experimental!(impl<$py $(,$generics)*> $name);
+        $crate::pyobject_native_type_info_experimental!(impl<$py $(,$generics)*> $name, $typeobject, $module $(, #checkfunction=$checkfunction)?);
+        $crate::pyobject_native_type_extract_experimental!(impl<$py $(,$generics)*> $name);
     };
     (impl<$py:lifetime $(,$generics:ident)* $(,)?> $name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)?) => {
-        $crate::pyobject_native_type_core!(impl<$py $(,$generics)*> $name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_core_experimental!(impl<$py $(,$generics)*> $name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)?);
     };
 }
 
@@ -163,7 +171,7 @@ macro_rules! pyobject_native_type_sized_experimental {
         impl<$py $(,$generics)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::pycell::PyCellBase<$layout>;
             type BaseNativeType = $name;
-            type ThreadChecker = $crate::impl_::pyclass::ThreadCheckerStub<$crate::PyObject>;
+            type ThreadChecker = $crate::impl_::pyclass::NativeTypeThreadCheckerStub;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }
@@ -175,13 +183,15 @@ macro_rules! pyobject_native_type_sized_experimental {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_experimental {
-    ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    (impl<$py:lifetime $(,$generics:ident)* $(,)?> $name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)?) => {
+        $crate::pyobject_native_type_core_experimental!(impl<$py $(,$generics)*> $name, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)?);
         // To prevent inheriting native types with ABI3
         #[cfg(not(Py_LIMITED_API))]
-        $crate::pyobject_native_type_sized!($name, $layout $(;$generics)*);
+        $crate::pyobject_native_type_sized_experimental!(impl<$py $(,$generics)*> $name, $layout);
     };
 }
 
 mod any;
 pub mod detached;
+mod dict;
+mod list;

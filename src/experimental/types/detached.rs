@@ -19,6 +19,6 @@ impl<'py> PyAttachedType<'py> for attached::PyAny<'py> {
 
 impl From<attached::PyAny<'_>> for PyAny {
     fn from(other: attached::PyAny<'_>) -> Self {
-        Self(other.into_non_null())
+        Self(other.into_owned_non_null())
     }
 }

@@ -114,6 +114,22 @@ impl<'py> PyAny<'py> {
         }
     }
 
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be an owned non-null pointer to a Python object.
+    #[inline]
+    pub(crate) unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<Self> {
+        NonNull::new(ptr).map(|non_null| {
+            ffi::Py_INCREF(ptr);
+            Self(non_null, py)
+        })
+    }
+
     /// Returns whether `self` and `other` point to the same object. To compare
     /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
     ///
@@ -1031,10 +1047,60 @@ impl<'py> PyAny<'py> {
         unsafe { std::mem::transmute(any) }
     }
 
-    pub(crate) fn into_non_null(self) -> NonNull<ffi::PyObject> {
+    pub(crate) fn into_owned_non_null(self) -> NonNull<ffi::PyObject> {
         let inner = self.0;
         std::mem::forget(self);
         inner
+    }
+
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be an owned pointer to a Python object or NULL.
+    #[inline]
+    pub(crate) unsafe fn from_owned_ptr_or_panic(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_owned_ptr_or_err(py, ptr).expect("Python API call failed")
+    }
+
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be an borrowed pointer to a Python object or NULL.
+    #[inline]
+    pub(crate) unsafe fn from_borrowed_ptr_or_panic(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Self {
+        Self::from_borrowed_ptr_or_err(py, ptr).expect("Python API call failed")
+    }
+
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be a owned non-null pointer to a Python object.
+    #[inline]
+    pub(crate) unsafe fn from_owned_ptr_unchecked(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Self {
+        Self(NonNull::new_unchecked(ptr), py)
+    }
+
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be a borrowed non-null pointer to a Python object.
+    #[inline]
+    pub(crate) unsafe fn from_borrowed_ptr_unchecked(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Self {
+        ffi::Py_INCREF(ptr);
+        Self(NonNull::new_unchecked(ptr), py)
     }
 }
 

@@ -860,11 +860,15 @@ impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
     private_impl! {}
 }
 
-impl<T: PyNativeType> PyClassThreadChecker<T> for ThreadCheckerStub<crate::PyObject> {
+/// Stub checker for `Send` types.
+#[doc(hidden)]
+pub struct NativeTypeThreadCheckerStub;
+
+impl<T> PyClassThreadChecker<T> for NativeTypeThreadCheckerStub {
     fn ensure(&self) {}
     #[inline]
     fn new() -> Self {
-        ThreadCheckerStub(PhantomData)
+        NativeTypeThreadCheckerStub
     }
     private_impl! {}
 }
