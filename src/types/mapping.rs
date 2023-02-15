@@ -3,12 +3,8 @@
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::once_cell::GILOnceCell;
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyAny, PySequence, PyType};
-use crate::{
-    ffi, AsPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject,
-};
-
-static MAPPING_ABC: GILOnceCell<PyResult<Py<PyType>>> = GILOnceCell::new();
+use crate::types::{PyAny, PyDict, PySequence, PyType};
+use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -119,17 +115,14 @@ impl PyMapping {
     }
 }
 
-fn get_mapping_abc(py: Python<'_>) -> Result<&PyType, PyErr> {
+static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+fn get_mapping_abc(py: Python<'_>) -> PyResult<&PyType> {
     MAPPING_ABC
-        .get_or_init(py, || {
-            Ok(py
-                .import("collections.abc")?
-                .getattr("Mapping")?
-                .downcast::<PyType>()?
-                .into_py(py))
+        .get_or_try_init(py, || {
+            py.import("collections.abc")?.getattr("Mapping")?.extract()
         })
-        .as_ref()
-        .map_or_else(|e| Err(e.clone_ref(py)), |t| Ok(t.as_ref(py)))
+        .map(|ty| ty.as_ref(py))
 }
 
 impl<'v> PyTryFrom<'v> for PyMapping {
@@ -139,11 +132,15 @@ impl<'v> PyTryFrom<'v> for PyMapping {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
 
-        // TODO: surface specific errors in this chain to the user
-        if let Ok(abc) = get_mapping_abc(value.py()) {
-            if value.is_instance(abc).unwrap_or(false) {
-                unsafe { return Ok(value.downcast_unchecked()) }
-            }
+        // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
+        // optimized case dict as a well-known mapping
+        if PyDict::is_type_of(value)
+            || get_mapping_abc(value.py())
+                .and_then(|abc| value.is_instance(abc))
+                // TODO: surface errors in this chain to the user
+                .unwrap_or(false)
+        {
+            unsafe { return Ok(value.downcast_unchecked()) }
         }
 
         Err(PyDowncastError::new(value, "Mapping"))
