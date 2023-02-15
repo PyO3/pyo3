@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::types::{PyList, PySequence};
 
 fn iter_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -53,12 +53,23 @@ fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     });
 }
 
+fn sequence_from_list(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        let list = PyList::new(py, 0..LEN).to_object(py);
+        b.iter(|| {
+            let _: &PySequence = list.extract(py).unwrap();
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_list", iter_list);
     c.bench_function("list_new", list_new);
     c.bench_function("list_get_item", list_get_item);
     #[cfg(not(Py_LIMITED_API))]
     c.bench_function("list_get_item_unchecked", list_get_item_unchecked);
+    c.bench_function("sequence_from_list", sequence_from_list);
 }
 
 criterion_group!(benches, criterion_benchmark);
