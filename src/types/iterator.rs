@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyAny, PyErr, PyNativeType, PyResult, Python};
+use crate::{ffi, AsPyPointer, PyAny, PyErr, PyResult, Python};
 use crate::{PyDowncastError, PyTryFrom};
 
 /// A Python iterator object.
@@ -82,22 +82,6 @@ impl<'v> PyTryFrom<'v> for PyIterator {
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyIterator {
         let ptr = value.into() as *const _ as *const PyIterator;
         &*ptr
-    }
-}
-
-impl Py<PyIterator> {
-    /// Borrows a GIL-bound reference to the PyIterator. By binding to the GIL lifetime, this
-    /// allows the GIL-bound reference to not require `Python` for any of its methods.
-    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py PyIterator {
-        let any = self.as_ptr() as *const PyAny;
-        unsafe { PyNativeType::unchecked_downcast(&*any) }
-    }
-
-    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
-    /// Python object reference in PyO3's object storage. The reference count for the Python
-    /// object will not be decreased until the GIL lifetime ends.
-    pub fn into_ref(self, py: Python<'_>) -> &PyIterator {
-        unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
 }
 

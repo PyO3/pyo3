@@ -86,6 +86,10 @@ macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {}
 
+        unsafe impl $crate::HasPyGilBoundRef for $name {
+            type AsRefTarget = Self;
+        }
+
         impl<$($generics,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
@@ -177,8 +181,6 @@ macro_rules! pyobject_native_type_named (
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
-            type AsRefTarget = Self;
-
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
 

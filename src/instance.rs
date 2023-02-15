@@ -7,7 +7,7 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    PyRef, PyRefMut, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -37,6 +37,16 @@ pub unsafe trait PyNativeType: Sized {
     unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
         &*(obj.as_ptr() as *const Self)
     }
+}
+
+/// Trait to denote types which have a GIL-bound reference, e.g. PyAny has &'a PyAny.
+///
+/// # Safety
+/// `Py<T>` will hand out references to `Self::AsRefTarget`. This _must_ have the
+/// same layout as `*mut ffi::PyObject`.
+pub unsafe trait HasPyGilBoundRef {
+    /// Type resulting from Py::as_ref or Py::into_ref
+    type AsRefTarget: PyNativeType;
 }
 
 /// A GIL-independent reference to an object allocated on the Python heap.
@@ -262,7 +272,7 @@ where
 
 impl<T> Py<T>
 where
-    T: PyTypeInfo,
+    T: HasPyGilBoundRef,
 {
     /// Borrows a GIL-bound reference to the contained `T`.
     ///
@@ -949,7 +959,7 @@ impl<T> Drop for Py<T> {
 
 impl<'a, T> FromPyObject<'a> for Py<T>
 where
-    T: PyTypeInfo,
+    T: HasPyGilBoundRef,
     &'a T::AsRefTarget: FromPyObject<'a>,
     T::AsRefTarget: 'a + AsPyPointer,
 {
@@ -968,14 +978,14 @@ where
 /// Use .as_ref() to get the GIL-scoped error if you need to inspect the cause.
 impl<T> std::error::Error for Py<T>
 where
-    T: std::error::Error + PyTypeInfo,
+    T: std::error::Error + HasPyGilBoundRef,
     T::AsRefTarget: std::fmt::Display,
 {
 }
 
 impl<T> std::fmt::Display for Py<T>
 where
-    T: PyTypeInfo,
+    T: HasPyGilBoundRef,
     T::AsRefTarget: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

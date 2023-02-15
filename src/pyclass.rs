@@ -1,7 +1,7 @@
 //! `PyClass` and related traits.
 use crate::{
-    callback::IntoPyCallbackOutput, ffi, impl_::pyclass::PyClassImpl, IntoPy, IntoPyPointer,
-    PyCell, PyObject, PyResult, PyTypeInfo, Python,
+    callback::IntoPyCallbackOutput, ffi, impl_::pyclass::PyClassImpl, HasPyGilBoundRef, IntoPy,
+    IntoPyPointer, PyCell, PyObject, PyResult, PyTypeInfo, Python,
 };
 use std::{cmp::Ordering, os::raw::c_int};
 
@@ -16,7 +16,7 @@ pub use self::gc::{PyTraverseError, PyVisit};
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
 pub trait PyClass:
-    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
+    PyTypeInfo + PyClassImpl<Layout = PyCell<Self>> + HasPyGilBoundRef<AsRefTarget = PyCell<Self>>
 {
     /// Whether the pyclass is frozen.
     ///

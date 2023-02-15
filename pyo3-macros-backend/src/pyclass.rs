@@ -747,8 +747,6 @@ fn impl_pytypeinfo(
 
     quote! {
         unsafe impl _pyo3::type_object::PyTypeInfo for #cls {
-            type AsRefTarget = _pyo3::PyCell<Self>;
-
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
 
@@ -760,6 +758,9 @@ fn impl_pytypeinfo(
                 static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
                 TYPE_OBJECT.get_or_init::<Self>(py)
             }
+        }
+        unsafe impl _pyo3::HasPyGilBoundRef for #cls {
+            type AsRefTarget = _pyo3::PyCell<Self>;
         }
     }
 }

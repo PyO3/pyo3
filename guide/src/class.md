@@ -974,7 +974,6 @@ struct MyClass {
     num: i32,
 }
 unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
-    type AsRefTarget = pyo3::PyCell<Self>;
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
@@ -983,6 +982,10 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
         TYPE_OBJECT.get_or_init::<Self>(py)
     }
+}
+
+unsafe impl pyo3::HasPyGilBoundRef for MyClass {
+    type AsRefTarget = pyo3::PyCell<Self>;
 }
 
 impl pyo3::PyClass for MyClass {

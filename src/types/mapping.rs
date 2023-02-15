@@ -4,9 +4,7 @@ use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::once_cell::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PySequence, PyType};
-use crate::{
-    ffi, AsPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject,
-};
+use crate::{ffi, AsPyPointer, IntoPy, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
 
 static MAPPING_ABC: GILOnceCell<PyResult<Py<PyType>>> = GILOnceCell::new();
 
@@ -158,22 +156,6 @@ impl<'v> PyTryFrom<'v> for PyMapping {
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyMapping {
         let ptr = value.into() as *const _ as *const PyMapping;
         &*ptr
-    }
-}
-
-impl Py<PyMapping> {
-    /// Borrows a GIL-bound reference to the PyMapping. By binding to the GIL lifetime, this
-    /// allows the GIL-bound reference to not require `Python` for any of its methods.
-    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py PyMapping {
-        let any = self.as_ptr() as *const PyAny;
-        unsafe { PyNativeType::unchecked_downcast(&*any) }
-    }
-
-    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
-    /// Python object reference in PyO3's object storage. The reference count for the Python
-    /// object will not be decreased until the GIL lifetime ends.
-    pub fn into_ref(self, py: Python<'_>) -> &PyMapping {
-        unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
 }
 
