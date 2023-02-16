@@ -422,6 +422,10 @@ def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
         "examples/word-count",
     )
     min_pkg_versions = {
+        # newer versions of rust_decimal want newer arrayvec
+        "rust_decimal": "1.18.0",
+        # newer versions of arrayvec use const generics (Rust 1.51+)
+        "arrayvec": "0.5.2",
         "csv": "1.1.6",
         "indexmap": "1.6.2",
         "inventory": "0.3.4",
