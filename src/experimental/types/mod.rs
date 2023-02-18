@@ -1,6 +1,7 @@
 pub use self::any::PyAny;
 pub use self::dict::{IntoPyDict, PyDict};
 pub use self::list::PyList;
+pub use self::tuple::PyTuple;
 
 // Implementations core to all native types
 #[doc(hidden)]
@@ -195,3 +196,4 @@ mod any;
 pub mod detached;
 mod dict;
 mod list;
+mod tuple;
