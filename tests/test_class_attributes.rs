@@ -1,6 +1,6 @@
 #![cfg(feature = "macros")]
 
-use pyo3::{prelude::*, types::PyString};
+use pyo3::prelude::*;
 
 mod common;
 
@@ -98,7 +98,39 @@ fn recursive_class_attributes() {
 #[test]
 #[cfg(panic = "unwind")]
 fn test_fallible_class_attribute() {
-    use pyo3::exceptions::PyValueError;
+    use pyo3::{exceptions::PyValueError, types::PyString};
+
+    struct CaptureStdErr<'py> {
+        oldstderr: &'py PyAny,
+        string_io: &'py PyAny,
+    }
+
+    impl<'py> CaptureStdErr<'py> {
+        fn new(py: Python<'py>) -> PyResult<Self> {
+            let sys = py.import("sys")?;
+            let oldstderr = sys.getattr("stderr")?;
+            let string_io = py.import("io")?.getattr("StringIO")?.call0()?;
+            sys.setattr("stderr", string_io)?;
+            Ok(Self {
+                oldstderr,
+                string_io,
+            })
+        }
+
+        fn reset(self) -> PyResult<String> {
+            let py = self.string_io.py();
+            let payload = self
+                .string_io
+                .getattr("getvalue")?
+                .call0()?
+                .downcast::<PyString>()?
+                .to_str()?
+                .to_owned();
+            let sys = py.import("sys")?;
+            sys.setattr("stderr", self.oldstderr)?;
+            Ok(payload)
+        }
+    }
 
     #[pyclass]
     struct BrokenClass;
@@ -127,37 +159,5 @@ The above exception was the direct cause of the following exception:
 
 RuntimeError: An error occurred while initializing class BrokenClass"
         )
-    })
-}
-
-struct CaptureStdErr<'py> {
-    oldstderr: &'py PyAny,
-    string_io: &'py PyAny,
-}
-
-impl<'py> CaptureStdErr<'py> {
-    fn new(py: Python<'py>) -> PyResult<Self> {
-        let sys = py.import("sys")?;
-        let oldstderr = sys.getattr("stderr")?;
-        let string_io = py.import("io")?.getattr("StringIO")?.call0()?;
-        sys.setattr("stderr", string_io)?;
-        Ok(Self {
-            oldstderr,
-            string_io,
-        })
-    }
-
-    fn reset(self) -> PyResult<String> {
-        let py = self.string_io.py();
-        let payload = self
-            .string_io
-            .getattr("getvalue")?
-            .call0()?
-            .downcast::<PyString>()?
-            .to_str()?
-            .to_owned();
-        let sys = py.import("sys")?;
-        sys.setattr("stderr", self.oldstderr)?;
-        Ok(payload)
-    }
+    });
 }
