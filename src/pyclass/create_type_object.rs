@@ -5,7 +5,8 @@ use crate::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
         PyClassItemsIter,
     },
-    PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
+    types::PyType,
+    Py, PyClass, PyMethodDefType, PyResult, PyTypeInfo, Python,
 };
 use std::{
     collections::HashMap,
@@ -15,11 +16,11 @@ use std::{
     ptr,
 };
 
-pub(crate) fn create_type_object<T>(py: Python<'_>) -> *mut ffi::PyTypeObject
+pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<Py<PyType>>
 where
     T: PyClass,
 {
-    match unsafe {
+    unsafe {
         PyTypeBuilder::default()
             .type_doc(T::DOC)
             .offsets(T::dict_offset(), T::weaklist_offset())
@@ -30,9 +31,6 @@ where
             .set_is_sequence(T::IS_SEQUENCE)
             .class_items(T::items_iter())
             .build(py, T::NAME, T::MODULE, std::mem::size_of::<T::Layout>())
-    } {
-        Ok(type_object) => type_object,
-        Err(e) => type_object_creation_failed(py, e, T::NAME),
     }
 }
 
@@ -325,7 +323,7 @@ impl PyTypeBuilder {
         name: &'static str,
         module_name: Option<&'static str>,
         basicsize: usize,
-    ) -> PyResult<*mut ffi::PyTypeObject> {
+    ) -> PyResult<Py<PyType>> {
         // `c_ulong` and `c_uint` have the same size
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
@@ -373,23 +371,15 @@ impl PyTypeBuilder {
         };
 
         // Safety: We've correctly setup the PyType_Spec at this point
-        let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
-        if type_object.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            for cleanup in std::mem::take(&mut self.cleanup) {
-                cleanup(&self, type_object as _);
-            }
+        let type_object: Py<PyType> =
+            unsafe { Py::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
 
-            Ok(type_object as _)
+        for cleanup in std::mem::take(&mut self.cleanup) {
+            cleanup(&self, type_object.as_ref(py).as_type_ptr());
         }
-    }
-}
 
-#[cold]
-fn type_object_creation_failed(py: Python<'_>, e: PyErr, name: &str) -> ! {
-    e.print(py);
-    panic!("An error occurred while initializing class {}", name)
+        Ok(type_object)
+    }
 }
 
 fn py_class_doc(class_doc: &str) -> Option<*mut c_char> {

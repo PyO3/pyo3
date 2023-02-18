@@ -979,9 +979,9 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
-        use pyo3::impl_::pyclass::LazyStaticType;
-        static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
-        TYPE_OBJECT.get_or_init::<Self>(py)
+        <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
+            .get_or_init(py)
+            .as_type_ptr()
     }
 }
 
@@ -1032,6 +1032,12 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         let collector = PyClassImplCollector::<MyClass>::new();
         static INTRINSIC_ITEMS: PyClassItems = PyClassItems { slots: &[], methods: &[] };
         PyClassItemsIter::new(&INTRINSIC_ITEMS, collector.py_methods())
+    }
+
+    fn lazy_type_object() -> &'static pyo3::impl_::pyclass::LazyTypeObject<MyClass> {
+        use pyo3::impl_::pyclass::LazyTypeObject;
+        static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
+        &TYPE_OBJECT
     }
 }
 
