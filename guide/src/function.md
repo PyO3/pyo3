@@ -148,7 +148,7 @@ The ways to convert a Rust function into a Python object vary depending on the f
 - Named functions, e.g. `fn foo()`: add `#[pyfunction]` and then use [`wrap_pyfunction!`] to get the corresponding [`PyCFunction`].
 - Anonymous functions (or closures), e.g. `foo: fn()` either:
   - use a `#[pyclass]` struct which stores the function as a field and implement `__call__` to call the stored function.
-  - use `PyFunction::new_closure` to create an object directly from the function.
+  - use `PyCFunction::new_closure` to create an object directly from the function.
 
 [`PyAny::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.is_callable
 [`PyAny::call`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call
