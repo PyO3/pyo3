@@ -179,6 +179,9 @@ about this topic.
 
 ## Examples
 
+- [DataFusion in Python](https://github.com/apache/arrow-datafusion-python) _A very fast, extensible query engine for building high-quality data-centric systems in Rust, using the Apache Arrow in-memory format with bindings into Python_.
+- [Ballista in Python](https://github.com/apache/arrow-ballista-python) _Python bindings to Apache Arrow Ballista Distributed Query Engine_.
+- [delta-rs](https://github.com/delta-io/delta-rs) _A native Rust library for Delta Lake, with bindings into Python_
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json_
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [point-process](https://github.com/ManifoldFR/point-process-rust/tree/master/pylib) _High level API for pointprocesses as a Python library_
