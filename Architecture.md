@@ -181,21 +181,21 @@ Some of the functionality of `pyo3-build-config`:
   - If the `PYO3_CONFIG_FILE` environment variable is set then that file's contents will be used
     instead of any detected configuration.
   - If the `PYO3_NO_PYTHON` environment variable is set then the interpreter detection is bypassed
-    entirely and only abi3 extensions can be built.
-- Check if we are building a Python extension.
-  - If we are building an extension (e.g., Python library installable by `pip`),
+    entirely and only abi3 native modules can be built.
+- Check if we are building a native module.
+  - If we are building a native module (e.g., Python library installable by `pip`),
     we don't link `libpython`.
-    Currently we use the `extension-module` feature for this purpose. This may change in the future.
+    Currently, we use the `native-module` feature for this purpose. This may change in the future.
     See [#1123](https://github.com/PyO3/pyo3/pull/1123).
 - Cross-compiling configuration
   - If `TARGET` architecture and `HOST` architecture differ, we can find cross compile information
     from environment variables (`PYO3_CROSS_LIB_DIR`, `PYO3_CROSS_PYTHON_VERSION` and
     `PYO3_CROSS_PYTHON_IMPLEMENTATION`) or system files.
-    When cross compiling extension modules it is often possible to make it work without any
+    When cross compiling native modules it is often possible to make it work without any
     additional user input.
   - When an experimental feature `generate-import-lib` is enabled, the `pyo3-ffi` build script can
     generate `python3.dll` import libraries for Windows targets automatically via an external
-    [`python3-dll-a`] crate. This enables the users to cross compile Python extensions for Windows without
+    [`python3-dll-a`] crate. This enables the users to cross compile Python modules for Windows without
     having to install any Windows Python libraries.
 
 <!-- External Links -->

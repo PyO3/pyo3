@@ -8,7 +8,7 @@ name = "maturin_starter"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { path = "../../", features = ["extension-module"] }
+pyo3 = { path = "../../", features = ["native-module"] }
 
 [features]
 abi3 = ["pyo3/abi3-py37", "generate-import-lib"]

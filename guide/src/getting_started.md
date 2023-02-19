@@ -114,7 +114,7 @@ name = "pyo3_example"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["extension-module"] }
+pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["native-module"] }
 ```
 
 ## pyproject.toml

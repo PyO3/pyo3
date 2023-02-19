@@ -64,7 +64,7 @@ print(my_extension.__doc__)
 
 ## Python submodules
 
-You can create a module hierarchy within a single extension module by using
+You can create a module hierarchy within a single native module by using
 [`PyModule.add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyModule.html#method.add_submodule).
 For example, you could define the modules `parent_module` and `parent_module.child_module`.
 

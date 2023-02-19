@@ -179,7 +179,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
   - `PyCapsule::name` now returns `PyResult<Option<&CStr>>` instead of `&CStr`.
 - `FromPyObject::extract` for `Vec<T>` no longer accepts Python `str` inputs. [#2500](https://github.com/PyO3/pyo3/pull/2500)
 - Ensure each `#[pymodule]` is only initialized once. [#2523](https://github.com/PyO3/pyo3/pull/2523)
-- `pyo3_build_config::add_extension_module_link_args` now also emits linker arguments for `wasm32-unknown-emscripten`. [#2538](https://github.com/PyO3/pyo3/pull/2538)
+- `pyo3_build_config::add_native_module_link_args` now also emits linker arguments for `wasm32-unknown-emscripten`. [#2538](https://github.com/PyO3/pyo3/pull/2538)
 - Type checks for `PySequence` and `PyMapping` now require inputs to inherit from (or register with) `collections.abc.Sequence` and `collections.abc.Mapping` respectively. [#2477](https://github.com/PyO3/pyo3/pull/2477)
 - Disable `PyFunction` on when building for abi3 or PyPy. [#2542](https://github.com/PyO3/pyo3/pull/2542)
 - Deprecate `Python::acquire_gil`. [#2549](https://github.com/PyO3/pyo3/pull/2549)
@@ -523,7 +523,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 ### Added
 
 - Add `indexmap` feature to add `ToPyObject`, `IntoPy` and `FromPyObject` implementations for `indexmap::IndexMap`. [#1728](https://github.com/PyO3/pyo3/pull/1728)
-- Add `pyo3_build_config::add_extension_module_link_args` to use in build scripts to set linker arguments (for macOS). [#1755](https://github.com/PyO3/pyo3/pull/1755)
+- Add `pyo3_build_config::add_native_module_link_args` to use in build scripts to set linker arguments (for macOS). [#1755](https://github.com/PyO3/pyo3/pull/1755)
 - Add `Python::with_gil_unchecked` unsafe variation of `Python::with_gil` to allow obtaining a `Python` in scenarios where `Python::with_gil` would fail. [#1769](https://github.com/PyO3/pyo3/pull/1769)
 
 ### Changed

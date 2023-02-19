@@ -8,7 +8,7 @@ name = "word_count"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { path = "../..", features = ["extension-module"] }
+pyo3 = { path = "../..", features = ["native-module"] }
 rayon = "1.0.2"
 
 [workspace]

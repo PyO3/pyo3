@@ -33,9 +33,9 @@
 //!
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed by
 //! [PEP 384] to be forward-compatible with future Python versions.
-//! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
+//! - `native-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
-//! building an extension module.
+//! building an native module.
 //!
 //! ## `rustc` environment flags
 //!
@@ -78,7 +78,7 @@
 // workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
 #![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
 #![cfg_attr(not(docsrs), doc = "version = \"*\"")]
-//! features = ["extension-module"]
+//! features = ["native-module"]
 //! ```
 //!
 //! **`src/lib.rs`**

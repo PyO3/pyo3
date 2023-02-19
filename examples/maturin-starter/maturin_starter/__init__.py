@@ -1,4 +1,4 @@
-# import the contents of the Rust library into the Python extension
+# import the contents of the Rust library into the native module
 # optional: include the documentation from the Rust module
 from .maturin_starter import *
 from .maturin_starter import __all__, __doc__

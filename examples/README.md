@@ -1,6 +1,6 @@
 # PyO3 Examples
 
-These example crates are a collection of toy extension modules built with PyO3. They are all tested using `nox` in PyO3's CI.
+These example crates are a collection of toy native modules built with PyO3. They are all tested using `nox` in PyO3's CI.
 
 Below is a brief description of each of these:
 

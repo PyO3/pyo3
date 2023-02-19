@@ -4,11 +4,11 @@ PyO3 provides a number of Cargo features to customize functionality. This chapte
 
 By default, only the `macros` feature is enabled.
 
-## Features for extension module authors
+## Features for native module authors
 
-### `extension-module`
+### `native-module`
 
-This feature is required when building a Python extension module using PyO3.
+This feature is required when building a Python native module using PyO3.
 
 It tells PyO3's build script to skip linking against `libpython.so` on Unix platforms, where this must not be done.
 
@@ -16,7 +16,7 @@ See the [building and distribution](building_and_distribution.md#linking) sectio
 
 ### `abi3`
 
-This feature is used when building Python extension modules to create wheels which are compatible with multiple Python versions.
+This feature is used when building Python native modules to create wheels which are compatible with multiple Python versions.
 
 It restricts PyO3's API to a subset of the full Python API which is guaranteed by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forwards-compatible with future Python versions.
 
@@ -35,10 +35,10 @@ See the [building and distribution](building_and_distribution.md#minimum-python-
 This experimental feature is used to generate import libraries for Python DLL
 for MinGW-w64 and MSVC (cross-)compile targets.
 
-Enabling it allows to (cross-)compile extension modules to any Windows targets
+Enabling it allows to (cross-)compile native modules to any Windows targets
 without having to install the Windows Python distribution files for the target.
 
-See the [building and distribution](building_and_distribution.md#building-abi3-extensions-without-a-python-interpreter)
+See the [building and distribution](building_and_distribution.md#building-abi3-native-modules-without-a-python-interpreter)
 section for further detail.
 
 ## Features for embedding Python in Rust

@@ -39,7 +39,7 @@ crate-type = ["cdylib"]
 
 [dependencies.pyo3-ffi]
 version = "*"
-features = ["extension-module"]
+features = ["native-module"]
 ```
 
 **`src/lib.rs`**

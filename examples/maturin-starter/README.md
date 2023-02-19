@@ -1,6 +1,6 @@
 # maturin-starter
 
-An example of a basic Python extension module built using PyO3 and [`maturin`](https://github.com/PyO3/maturin).
+An example of a basic Python native module built using PyO3 and [`maturin`](https://github.com/PyO3/maturin).
 
 ## Building and Testing
 

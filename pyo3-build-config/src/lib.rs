@@ -55,11 +55,11 @@ pub fn use_pyo3_cfgs() {
 ///
 /// All other platforms currently are no-ops, however this may change as necessary
 /// in future.
-pub fn add_extension_module_link_args() {
-    _add_extension_module_link_args(&impl_::target_triple_from_env(), std::io::stdout())
+pub fn add_native_module_link_args() {
+    _add_native_module_link_args(&impl_::target_triple_from_env(), std::io::stdout())
 }
 
-fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
+fn _add_native_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
     if triple.operating_system == OperatingSystem::Darwin {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
@@ -223,16 +223,13 @@ mod tests {
         let mut buf = Vec::new();
 
         // Does nothing on non-mac
-        _add_extension_module_link_args(
+        _add_native_module_link_args(
             &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
             &mut buf,
         );
         assert_eq!(buf, Vec::new());
 
-        _add_extension_module_link_args(
-            &Triple::from_str("x86_64-apple-darwin").unwrap(),
-            &mut buf,
-        );
+        _add_native_module_link_args(&Triple::from_str("x86_64-apple-darwin").unwrap(), &mut buf);
         assert_eq!(
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-cdylib-link-arg=-undefined\n\
@@ -240,7 +237,7 @@ mod tests {
         );
 
         buf.clear();
-        _add_extension_module_link_args(
+        _add_native_module_link_args(
             &Triple::from_str("wasm32-unknown-emscripten").unwrap(),
             &mut buf,
         );

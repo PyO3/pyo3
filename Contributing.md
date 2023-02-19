@@ -111,7 +111,7 @@ To include your changes in the release notes, you should create one (or more) ne
 
 ## Python and Rust version support policy
 
-PyO3 aims to keep sufficient compatibility to make packaging Python extensions built with PyO3 feasible on most common package managers.
+PyO3 aims to keep sufficient compatibility to make packaging Python modules built with PyO3 feasible on most common package managers.
 
 To keep package maintainers' lives simpler, PyO3 will commit, wherever possible, to only adjust minimum supported Rust and Python versions at the same time. This bump will only come in an `0.x` release, roughly once per year, after the oldest supported Python version reaches its end-of-life. (Check https://endoflife.date/python for a clear timetable on these.)
 

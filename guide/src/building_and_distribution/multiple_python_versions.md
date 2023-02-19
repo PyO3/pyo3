@@ -69,7 +69,7 @@ This `#[cfg]` marks code that will only be present on Python versions before (bu
 #[cfg(not(Py_LIMITED_API))]
 ```
 
-This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` feature is not enabled). This might be useful if you want to ship your extension module as an `abi3` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
+This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` feature is not enabled). This might be useful if you want to ship your native module as an `abi3` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
 
 ```text
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
@@ -85,9 +85,9 @@ This `#[cfg]` marks code which is running on PyPy.
 
 ## Checking the Python version at runtime
 
-When building with PyO3's `abi3` feature, your extension module will be compiled against a specific [minimum version](../building_and_distribution.html#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
+When building with PyO3's `abi3` feature, your native module will be compiled against a specific [minimum version](../building_and_distribution.html#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
 
-For example with PyO3's `abi3-py38` feature, your extension will be compiled as if it were for Python 3.8. If you were using `pyo3-build-config`, `#[cfg(Py_3_8)]` would be present. Your user could freely install and run your abi3 extension on Python 3.9.
+For example with PyO3's `abi3-py38` feature, your native module will be compiled as if it were for Python 3.8. If you were using `pyo3-build-config`, `#[cfg(Py_3_8)]` would be present. Your user could freely install and run your abi3 native module on Python 3.9.
 
 There's no way to detect your user doing that at compile time, so instead you need to fall back to runtime checks.
 

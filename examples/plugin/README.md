@@ -1,6 +1,6 @@
 # plugin
 
-An example of a Rust app that uses Python for a plugin. A Python extension module built using PyO3 and [`maturin`](https://github.com/PyO3/maturin) is used to provide
+An example of a Rust app that uses Python for a plugin. A Python native module built using PyO3 and [`maturin`](https://github.com/PyO3/maturin) is used to provide
 interface types that can be used to exchange data between Rust and Python. This also deals with how to separately test and load python modules.
 
 # Building and Testing
@@ -22,12 +22,12 @@ To build the API only package, first install `maturin`:
 pip install maturin
 ```
 
-When building the plugin, simply using `maturin develop` will fail to produce a viable extension module due to the features arrangement of PyO3. 
+When building the plugin, simply using `maturin develop` will fail to produce a viable native module due to the features arrangement of PyO3. 
 Instead, one needs to enable the optional feature as follows:
 
 ```shell
 cd plugin_api
-maturin build --features "extension-module"
+maturin build --features native
 ```
 
 Alternatively, install nox and run the tests inside an isolated environment:

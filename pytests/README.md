@@ -1,6 +1,6 @@
 # pyo3-pytests
 
-An extension module built using PyO3, used to test and benchmark PyO3 from Python.
+An native module built using PyO3, used to test and benchmark PyO3 from Python.
 
 ## Testing
 

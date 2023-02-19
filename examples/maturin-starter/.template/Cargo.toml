@@ -9,4 +9,4 @@ name = "maturin_starter"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "{{PYO3_VERSION}}", features = ["extension-module"] }
+pyo3 = { version = "{{PYO3_VERSION}}", features = ["native-module"] }

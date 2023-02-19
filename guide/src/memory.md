@@ -119,7 +119,7 @@ dropped you do not retain access to any owned references created after the
 [documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Python.html#method.new_pool)
 for more information on safety.
 
-This memory management can also be applicable when writing extension modules.
+This memory management can also be applicable when writing native modules.
 `#[pyfunction]` and `#[pymethods]` will create a `GILPool` which lasts the entire
 function call, releasing objects when the function returns. Most functions only create
 a few objects, meaning this doesn't have a significant impact. Occasionally functions

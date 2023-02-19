@@ -1,6 +1,6 @@
 # setuptools-rust-starter
 
-An example of a basic Python extension module built using PyO3 and [`setuptools_rust`](https://github.com/PyO3/setuptools-rust).
+An example of a basic Python native module built using PyO3 and [`setuptools_rust`](https://github.com/PyO3/setuptools-rust).
 
 ## Building and Testing
 

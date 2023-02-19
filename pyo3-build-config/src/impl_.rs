@@ -711,8 +711,9 @@ pub fn get_abi3_version() -> Option<PythonVersion> {
 /// Checks if the `extension-module` feature is enabled for the PyO3 crate.
 ///
 /// Must be called from a PyO3 crate build script.
-pub fn is_extension_module() -> bool {
-    cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some()
+pub fn is_native_module() -> bool {
+    cargo_env_var("CARGO_FEATURE_NATIVE_MODULE").is_some()
+        || cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some()
 }
 
 /// Checks if we need to link to `libpython` for the current build target.
@@ -729,11 +730,11 @@ fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
-        || !is_extension_module()
+        || !is_native_module()
 }
 
 /// Checks if we need to discover the Python library directory
-/// to link the extension module binary.
+/// to link the native module binary.
 ///
 /// Must be called from a PyO3 crate build script.
 fn require_libdir_for_target(target: &Triple) -> bool {
@@ -1351,7 +1352,7 @@ fn cross_compile_from_sysconfigdata(
 
 /// Generates "default" cross compilation information for the target.
 ///
-/// This should work for most CPython extension modules when targeting
+/// This should work for most CPython native modules when targeting
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
@@ -1408,7 +1409,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 ///
 /// `version` specifies the minimum supported Stable ABI CPython version.
 ///
-/// This should work for most CPython extension modules when compiling on
+/// This should work for most CPython native modules when compiling on
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
@@ -1703,7 +1704,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let abi3_version = get_abi3_version();
 
     // See if we can safely skip the Python interpreter configuration detection.
-    // Unix "abi3" extension modules can usually be built without any interpreter.
+    // Unix "abi3" native modules can usually be built without any interpreter.
     let need_interpreter = abi3_version.is_none() || require_libdir_for_target(&host);
 
     if have_python_interpreter() {

@@ -91,13 +91,13 @@ name = "my_async_module"
 crate-type = ["cdylib"]
 ```
 
-Make your project depend on `pyo3` with the `extension-module` feature enabled and select your
+Make your project depend on `pyo3` with the `native-module` feature enabled and select your
 `pyo3-asyncio` runtime:
 
 For `async-std`:
 ```toml
 [dependencies]
-pyo3 = { version = "0.14", features = ["extension-module"] }
+pyo3 = { version = "0.14", features = ["native-module"] }
 pyo3-asyncio = { version = "0.14", features = ["async-std-runtime"] }
 async-std = "1.9"
 ```
@@ -105,7 +105,7 @@ async-std = "1.9"
 For `tokio`:
 ```toml
 [dependencies]
-pyo3 = { version = "0.14", features = ["extension-module"] }
+pyo3 = { version = "0.14", features = ["native-module"] }
 pyo3-asyncio = { version = "0.14", features = ["tokio-runtime"] }
 tokio = "1.4"
 ```
@@ -443,7 +443,7 @@ Python allows you to use alternatives to the default `asyncio` event loop. One
 popular alternative is `uvloop`. In `v0.13` using non-standard event loops was
 a bit of an ordeal, but in `v0.14` it's trivial.
 
-#### Using `uvloop` in a PyO3 Asyncio Native Extensions
+#### Using `uvloop` in a PyO3 Asyncio Native Modules
 
 ```toml
 # Cargo.toml
@@ -453,7 +453,7 @@ name = "my_async_module"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.14", features = ["extension-module"] }
+pyo3 = { version = "0.14", features = ["native-module"] }
 pyo3-asyncio = { version = "0.14", features = ["tokio-runtime"] }
 async-std = "1.9"
 tokio = "1.4"

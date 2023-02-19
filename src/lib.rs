@@ -81,9 +81,9 @@
 //! [PEP 384] to be forward-compatible with future Python versions.
 //! - `auto-initialize`: Changes [`Python::with_gil`] and [`Python::acquire_gil`] to automatically
 //! initialize the Python interpreter if needed.
-//! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
+//! - `native-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
-//! building an extension module.
+//! building an native module.
 //! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
 //! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
 //! crate, which is not supported on all platforms.
@@ -152,7 +152,7 @@
 // workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
 #![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
 #![cfg_attr(not(docsrs), doc = "version = \"*\"")]
-//! features = ["extension-module"]
+//! features = ["native-module"]
 //! ```
 //!
 //! **`src/lib.rs`**

@@ -8,7 +8,7 @@
 [![dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
-[Rust](https://www.rust-lang.org/) bindings for [Python](https://www.python.org/), including tools for creating native Python extension modules. Running and interacting with Python code from a Rust binary is also supported.
+[Rust](https://www.rust-lang.org/) bindings for [Python](https://www.python.org/), including tools for creating native Python native modules. Running and interacting with Python code from a Rust binary is also supported.
 
 - User Guide: [stable](https://pyo3.rs) | [main](https://pyo3.rs/main)
 
@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.18.1", features = ["extension-module"] }
+pyo3 = { version = "0.18.1", features = ["native-module"] }
 ```
 
 **`src/lib.rs`**

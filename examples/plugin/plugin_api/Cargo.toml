@@ -13,5 +13,5 @@ crate-type = ["cdylib", "rlib"]
 pyo3 = { path = "../../../" }
 
 [features]
-# instead extension-module feature for pyo3 is enabled conditionally when we want to build a standalone extension module to test our plugins without "main" program
+# instead extension-module feature for pyo3 is enabled conditionally when we want to build a standalone native module to test our plugins without "main" program
 extension-module = ["pyo3/extension-module"]

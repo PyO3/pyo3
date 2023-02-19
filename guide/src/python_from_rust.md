@@ -169,7 +169,7 @@ access to manipulated objects via the `locals` dict.
 
 You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
 Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
-quickly testing your Python extensions.
+quickly testing your native modules.
 
 ```rust
 use pyo3::prelude::*;

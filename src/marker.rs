@@ -12,7 +12,7 @@
 //! that you can never use Python objects after dropping the lock - if you mess this up it will be
 //! caught at compile time and your program will fail to compile.
 //!
-//! It also supports this pattern that many extension modules employ:
+//! It also supports this pattern that many native modules employ:
 //! - Drop the GIL, so that other Python threads can acquire it and make progress themselves
 //! - Do something independently of the Python interpreter, like IO, a long running calculation or
 //! awaiting a future

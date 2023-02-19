@@ -34,7 +34,7 @@ Python::with_gil(|py| {
 });
 ```
 
-When using PyO3 to create an extension module, you can add the new exception to
+When using PyO3 to create an native module, you can add the new exception to
 the module like this, so that it is importable from Python:
 
 ```rust

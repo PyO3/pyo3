@@ -18,10 +18,12 @@ libc = "0.2.62"
 
 default = []
 
-# Use this feature when building an extension module.
+# Use this feature when building an native module.
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
-extension-module = ["pyo3-build-config/extension-module"]
+native-module = ["pyo3-build-config/native-module"]
+# Deprecated alias for native-module
+extension-module = ["native-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = ["pyo3-build-config/abi3"]

@@ -53,22 +53,22 @@ If you save the above output config from `PYO3_PRINT_CONFIG` to a file, it is po
 
 If your build environment is unusual enough that PyO3's regular configuration detection doesn't work, using a config file like this will give you the flexibility to make PyO3 work for you. To see the full set of options supported, see the documentation for the [`InterpreterConfig` struct](https://docs.rs/pyo3-build-config/{{#PYO3_DOCS_VERSION}}/pyo3_build_config/struct.InterpreterConfig.html).
 
-## Building Python extension modules
+## Building Python native modules
 
-Python extension modules need to be compiled differently depending on the OS (and architecture) that they are being compiled for. As well as multiple OSes (and architectures), there are also many different Python versions which are actively supported. Packages uploaded to [PyPI](https://pypi.org/) usually want to upload prebuilt "wheels" covering many OS/arch/version combinations so that users on all these different platforms don't have to compile the package themselves. Package vendors can opt-in to the "abi3" limited Python API which allows their wheels to be used on multiple Python versions, reducing the number of wheels they need to compile, but restricts the functionality they can use.
+Python native modules need to be compiled differently depending on the OS (and architecture) that they are being compiled for. As well as multiple OSes (and architectures), there are also many different Python versions which are actively supported. Packages uploaded to [PyPI](https://pypi.org/) usually want to upload prebuilt "wheels" covering many OS/arch/version combinations so that users on all these different platforms don't have to compile the package themselves. Package vendors can opt-in to the "abi3" limited Python API which allows their wheels to be used on multiple Python versions, reducing the number of wheels they need to compile, but restricts the functionality they can use.
 
-There are many ways to go about this: it is possible to use `cargo` to build the extension module (along with some manual work, which varies with OS). The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`], which abstract over the OS difference and also support building wheels for PyPI upload.
+There are many ways to go about this: it is possible to use `cargo` to build the native module (along with some manual work, which varies with OS). The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`], which abstract over the OS difference and also support building wheels for PyPI upload.
 
-PyO3 has some Cargo features to configure projects for building Python extension modules:
- - The `extension-module` feature, which must be enabled when building Python extension modules.
+PyO3 has some Cargo features to configure projects for building Python native modules:
+ - The `native-module` feature, which must be enabled when building Python native modules.
  - The `abi3` feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
 
-This section describes each of these packaging tools before describing how to build manually without them. It then proceeds with an explanation of the `extension-module` feature. Finally, there is a section describing PyO3's `abi3` features.
+This section describes each of these packaging tools before describing how to build manually without them. It then proceeds with an explanation of the `native-module` feature. Finally, there is a section describing PyO3's `abi3` features.
 
 ### Packaging tools
 
-The PyO3 ecosystem has two main choices to abstract the process of developing Python extension modules:
-- [`maturin`] is a command-line tool to build, package and upload Python modules. It makes opinionated choices about project layout meaning it needs very little configuration. This makes it a great choice for users who are building a Python extension from scratch and don't need flexibility.
+The PyO3 ecosystem has two main choices to abstract the process of developing Python native modules:
+- [`maturin`] is a command-line tool to build, package and upload Python modules. It makes opinionated choices about project layout meaning it needs very little configuration. This makes it a great choice for users who are building a native module from scratch and don't need flexibility.
 - [`setuptools-rust`] is an add-on for `setuptools` which adds extra keyword arguments to the `setup.py` configuration file. It requires more configuration than `maturin`, however this gives additional flexibility for users adding Rust to an existing Python package that can't satisfy `maturin`'s constraints.
 
 Consult each project's documentation for full details on how to get started using them and how to upload wheels to PyPI.
@@ -77,7 +77,7 @@ There are also [`maturin-starter`] and [`setuptools-rust-starter`] examples in t
 
 ### Manual builds
 
-To build a PyO3-based Python extension manually, start by running `cargo build` as normal in a library project which uses PyO3's `extension-module` feature and has the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field).
+To build a PyO3-based native module manually, start by running `cargo build` as normal in a library project which uses PyO3's `native-module` feature and has the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field).
 
 Once built, symlink (or copy) and rename the shared library from Cargo's `target/` directory to your desired output directory:
 - on macOS, rename `libyour_module.dylib` to `your_module.so`.
@@ -109,13 +109,13 @@ See [PEP 3149](https://peps.python.org/pep-3149/) for more background on platfor
 
 #### macOS
 
-On macOS, because the `extension-module` feature disables linking to `libpython` ([see the next section](#the-extension-module-feature)), some additional linker arguments need to be set. `maturin` and `setuptools-rust` both pass these arguments for PyO3 automatically, but projects using manual builds will need to set these directly in order to support macOS.
+On macOS, because the `native-module` feature disables linking to `libpython` ([see the next section](#the-native-module-feature)), some additional linker arguments need to be set. `maturin` and `setuptools-rust` both pass these arguments for PyO3 automatically, but projects using manual builds will need to set these directly in order to support macOS.
 
 The easiest way to set the correct linker arguments is to add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) with the following content:
 
 ```rust,ignore
 fn main() {
-    pyo3_build_config::add_extension_module_link_args();
+    pyo3_build_config::add_native_module_link_args();
 }
 ```
 
@@ -158,21 +158,21 @@ fn main() {
 
 For more discussion on and workarounds for MacOS linking problems [see this issue](https://github.com/PyO3/pyo3/issues/1800#issuecomment-906786649).
 
-Finally, don't forget that on MacOS the `extension-module` feature will cause `cargo test` to fail without the `--no-default-features` flag (see [the FAQ](https://pyo3.rs/main/faq.html#i-cant-run-cargo-test-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror)).
+Finally, don't forget that on MacOS the `native-module` feature will cause `cargo test` to fail without the `--no-default-features` flag (see [the FAQ](https://pyo3.rs/main/faq.html#i-cant-run-cargo-test-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror)).
 
-### The `extension-module` feature
+### The `native-module` feature
 
-PyO3's `extension-module` feature is used to disable [linking](https://en.wikipedia.org/wiki/Linker_(computing)) to `libpython` on Unix targets.
+PyO3's `native-module` feature is used to disable [linking](https://en.wikipedia.org/wiki/Linker_(computing)) to `libpython` on Unix targets.
 
-This is necessary because by default PyO3 links to `libpython`. This makes binaries, tests, and examples "just work". However, Python extensions on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
+This is necessary because by default PyO3 links to `libpython`. This makes binaries, tests, and examples "just work". However, native modules on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
 
-The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build. If you have an extension module as well as other outputs in a single project, you need to use optional Cargo features to disable the `extension-module` when you're not building the extension module. See [the FAQ](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) for an example workaround.
+The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build. If you have an native module as well as other outputs in a single project, you need to use optional Cargo features to disable the `native-module` when you're not building the native module. See [the FAQ](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) for an example workaround.
 
 ### `Py_LIMITED_API`/`abi3`
 
-By default, Python extension modules can only be used with the same Python version they were compiled against. For example, an extension module built for Python 3.5 can't be imported in Python 3.8. [PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions. This is also known as `abi3`.
+By default, Python native modules can only be used with the same Python version they were compiled against. For example, an native module built for Python 3.5 can't be imported in Python 3.8. [PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling native modules built with it to be used against multiple Python versions. This is also known as `abi3`.
 
-The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up. The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version. It's up to you to decide whether this matters for your extension module. It's also possible to design your extension module such that you can distribute `abi3` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building_and_distribution/multiple_python_versions.html) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
+The advantage of building native modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up. The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version. It's up to you to decide whether this matters for your native module. It's also possible to design your native module such that you can distribute `abi3` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building_and_distribution/multiple_python_versions.html) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
 
 There are three steps involved in making use of `abi3` when building Python packages as wheels:
 
@@ -191,19 +191,19 @@ See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://
 #### Minimum Python version for `abi3`
 
 Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py37`, `abi3-py38`, `abi3-py39` etc. to set the minimum required Python version for your `abi3` wheel.
-For example, if you set the `abi3-py37` feature, your extension wheel can be used on all Python 3 versions from Python 3.7 and up. `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp37-abi3-manylinux2020_x86_64.whl`.
+For example, if you set the `abi3-py37` feature, your native module wheel can be used on all Python 3 versions from Python 3.7 and up. `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp37-abi3-manylinux2020_x86_64.whl`.
 
-As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior. See [the relevant section of this guide](./building_and_distribution/multiple_python_versions.html#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
+As your native module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior. See [the relevant section of this guide](./building_and_distribution/multiple_python_versions.html#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
 
-PyO3 is only able to link your extension module to abi3 version up to and including your host Python version. E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.7, the build will fail.
+PyO3 is only able to link your native module to abi3 version up to and including your host Python version. E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.7, the build will fail.
 
 > Note: If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py37` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.7 and up.
 
-#### Building `abi3` extensions without a Python interpreter
+#### Building `abi3` native modules without a Python interpreter
 
 As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
 Also, if the build host Python interpreter is not found or is too old or otherwise unusable,
-PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
+PyO3 will still attempt to compile `abi3` native modules after displaying a warning message.
 On Unix-like systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` environment variable
 to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
 
@@ -252,7 +252,7 @@ Static linking has a lot of complications, listed below. For these reasons PyO3 
 The [`auto-initialize`](features.md#auto-initialize) feature is deliberately disabled when embedding the interpreter statically because this is often unintentionally done by new users to PyO3 running test programs. Trying out PyO3 is much easier using dynamic embedding.
 
 The known complications are:
-  - To import compiled extension modules (such as other Rust extension modules, or those written in C), your binary must have the correct linker flags set during compilation to export the original contents of `libpython.a` so that extensions can use them (e.g. `-Wl,--export-dynamic`).
+  - To import compiled native modules (such as other Rust native modules, or those written in C), your binary must have the correct linker flags set during compilation to export the original contents of `libpython.a` so that native modules can use them (e.g. `-Wl,--export-dynamic`).
   - The C compiler and flags which were used to create `libpython.a` must be compatible with your Rust compiler and flags, else you will experience compilation failures.
 
     Significantly different compiler versions may see errors like this:
@@ -279,8 +279,8 @@ Thanks to Rust's great cross-compilation support, cross-compiling using PyO3 is 
 
 * A toolchain for your target.
 * The appropriate options in your Cargo `.config` for the platform you're targeting and the toolchain you are using.
-* A Python interpreter that's already been compiled for your target (optional when building "abi3" extension modules).
-* A Python interpreter that is built for your host and available through the `PATH` or setting the [`PYO3_PYTHON`](#python-version) variable (optional when building "abi3" extension modules).
+* A Python interpreter that's already been compiled for your target (optional when building "abi3" native modules).
+* A Python interpreter that is built for your host and available through the `PATH` or setting the [`PYO3_PYTHON`](#python-version) variable (optional when building "abi3" native modules).
 
 After you've obtained the above, you can build a cross-compiled PyO3 module by using Cargo's `--target` flag. PyO3's build script will detect that you are attempting a cross-compile based on your host machine and the desired target.
 
@@ -292,7 +292,7 @@ When cross-compiling, PyO3's build script cannot execute the target Python inter
 * `PYO3_CROSS_PYTHON_IMPLEMENTATION`: Python implementation name ("CPython" or "PyPy") of the target Python installation. CPython is assumed by default when this variable is not set, unless `PYO3_CROSS_LIB_DIR` is set for a Unix-like target and PyO3 can get the interpreter configuration from `_sysconfigdata*.py`.
 
 An experimental `pyo3` crate feature `generate-import-lib` enables the user to cross-compile
-extension modules for Windows targets without setting the `PYO3_CROSS_LIB_DIR` environment
+native modules for Windows targets without setting the `PYO3_CROSS_LIB_DIR` environment
 variable or providing any Windows Python library files. It uses an external [`python3-dll-a`] crate
 to generate import libraries for the Python DLL for MinGW-w64 and MSVC compile targets.
 `python3-dll-a` uses the binutils `dlltool` program to generate DLL import libraries for MinGW-w64 targets.
@@ -329,8 +329,8 @@ cargo build --target x86_64-pc-windows-gnu
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
-`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix and macOS targets,
-or when cross compiling extension modules for Windows and the experimental `generate-import-lib`
+`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling native modules for Unix and macOS targets,
+or when cross compiling native modules for Windows and the experimental `generate-import-lib`
 crate feature is enabled.
 
 The following resources may also be useful for cross-compiling:

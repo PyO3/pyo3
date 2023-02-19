@@ -8,6 +8,6 @@ name = "setuptools_rust_starter"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { path = "../../", features = ["extension-module"] }
+pyo3 = { path = "../../", features = ["native-module"] }
 
 [workspace]
