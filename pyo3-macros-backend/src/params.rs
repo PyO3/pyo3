@@ -45,8 +45,8 @@ pub fn impl_arg_params(
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
-                let _args = #py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
-                let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+                let _args: &_pyo3::experimental::types::PyTuple = std::mem::transmute(&_args);
+                let _kwargs: &::std::option::Option<_pyo3::experimental::types::PyDict> = std::mem::transmute(&_kwargs);
             },
             arg_convert,
         ));
@@ -114,12 +114,14 @@ pub fn impl_arg_params(
         quote! {
             DESCRIPTION.extract_arguments_tuple_dict::<#args_handler, #kwargs_handler>(
                 #py,
-                _args,
-                _kwargs,
+                &_args,
+                &_kwargs,
                 &mut #args_array
             )?
         }
     };
+
+    let args_array_init = (0..num_params).map(|_| quote!(::std::option::Option::None));
 
     // create array of arguments, and then parse
     Ok((
@@ -133,7 +135,7 @@ pub fn impl_arg_params(
                     keyword_only_parameters: &[#(#keyword_only_parameters),*],
                 };
 
-                let mut #args_array = [::std::option::Option::None; #num_params];
+                let mut #args_array = [#(#args_array_init),*];
                 let (_args, _kwargs) = #extract_expression;
         },
         param_conversion,
@@ -168,7 +170,7 @@ fn impl_arg_param(
         );
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_argument(
-                _args,
+                &_args,
                 &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
                 #name_str
             )?
@@ -180,7 +182,7 @@ fn impl_arg_param(
         );
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_optional_argument(
-                _kwargs.map(::std::convert::AsRef::as_ref),
+                _kwargs.as_deref(),
                 &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
                 #name_str,
                 || ::std::option::Option::None
@@ -188,7 +190,7 @@ fn impl_arg_param(
         });
     }
 
-    let arg_value = quote_arg_span!(#args_array[#option_pos]);
+    let arg_value = quote_arg_span!(#args_array[#option_pos].as_ref());
     *option_pos += 1;
 
     let mut default = arg.default.as_ref().map(|expr| quote!(#expr));
