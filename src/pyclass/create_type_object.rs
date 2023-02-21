@@ -335,9 +335,10 @@ impl PyTypeBuilder {
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
         }
 
-        if !self.has_dealloc {
-            panic!("PyTypeBuilder requires you to specify slot ffi::Py_tp_dealloc");
-        }
+        assert!(
+            self.has_dealloc,
+            "PyTypeBuilder requires you to specify slot ffi::Py_tp_dealloc"
+        );
 
         if self.has_clear && !self.has_traverse {
             return Err(PyTypeError::new_err(format!(
