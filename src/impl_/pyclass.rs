@@ -802,7 +802,7 @@ unsafe fn bpo_35810_workaround(_py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
         // than the build config suggests.
-        use crate::once_cell::GILOnceCell;
+        use crate::sync::GILOnceCell;
         static IS_PYTHON_3_8: GILOnceCell<bool> = GILOnceCell::new();
 
         if *IS_PYTHON_3_8.get_or_init(_py, || _py.version_info() >= (3, 8)) {
