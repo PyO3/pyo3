@@ -277,7 +277,7 @@ impl Drop for GILGuard {
 type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
 /// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
-struct ReferencePool {
+pub(crate) struct ReferencePool {
     dirty: atomic::AtomicBool,
     // .0 is INCREFs, .1 is DECREFs
     pointer_ops: Mutex<(PyObjVec, PyObjVec)>,
@@ -301,7 +301,7 @@ impl ReferencePool {
         self.dirty.store(true, atomic::Ordering::Release);
     }
 
-    fn update_counts(&self, _py: Python<'_>) {
+    pub(crate) fn update_counts(&self, _py: Python<'_>) {
         let prev = self.dirty.swap(false, atomic::Ordering::Acquire);
         if !prev {
             return;
@@ -325,7 +325,7 @@ impl ReferencePool {
 
 unsafe impl Sync for ReferencePool {}
 
-static POOL: ReferencePool = ReferencePool::new();
+pub(crate) static POOL: ReferencePool = ReferencePool::new();
 
 /// A RAII pool which PyO3 uses to store owned Python references.
 ///
@@ -632,7 +632,9 @@ mod tests {
         // Next time the GIL is acquired, the reference is released
         Python::with_gil(|py| {
             assert_eq!(obj.get_refcnt(py), 1);
-            assert!(pool_not_dirty());
+            let non_null = unsafe { NonNull::new_unchecked(obj.as_ptr()) };
+            assert!(!POOL.pointer_ops.lock().0.contains(&non_null));
+            assert!(!POOL.pointer_ops.lock().1.contains(&non_null));
         });
     }
 
@@ -691,6 +693,22 @@ mod tests {
         });
 
         assert!(gil_is_acquired());
+    }
+
+    #[test]
+    fn test_allow_threads_updates_refcounts() {
+        Python::with_gil(|py| {
+            // Make a simple object with 1 reference
+            let obj = get_object(py);
+            assert!(obj.get_refcnt(py) == 1);
+            // Clone the object without the GIL to use internal tracking
+            let escaped_ref = py.allow_threads(|| obj.clone());
+            // But after the block the refcounts are updated
+            assert!(obj.get_refcnt(py) == 2);
+            drop(escaped_ref);
+            assert!(obj.get_refcnt(py) == 1);
+            drop(obj);
+        });
     }
 
     #[test]
@@ -799,12 +817,6 @@ mod tests {
             });
 
             REFCNT_CHECKED.wait();
-
-            // Returning from allow_threads doesn't clear the pool
-            py.allow_threads(|| {
-                // Acquiring GIL will clear the pending change
-                Python::with_gil(|_| {});
-            });
 
             println!("6. The main thread has acquired the GIL again and processed the pool.");
 
