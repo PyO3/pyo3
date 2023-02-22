@@ -180,3 +180,15 @@ done with the `crate` attribute:
 #[pyo3(crate = "reexported::pyo3")]
 struct MyClass;
 ```
+
+## I'm trying to call Python from Rust but I get `STATUS_DLL_NOT_FOUND` or `STATUS_ENTRYPOINT_NOT_FOUND`!
+
+This happens on Windows when linking to the python DLL fails or the wrong one is linked. Your `PATH` variable should contain something like...
+
+```text
+C:\Users\<You>\AppData\Local\Programs\Python\Python310
+```
+
+This directory should have, for Python 3.10, the files `python3.dll` and `python310.dll`. If you have made any changes to your `PATH` or installed things recently, try restarting your shell - any changes will not affect already open shells.
+
+Failing that, you can use [Dependency Walker](https://www.dependencywalker.com/) to diagnose linking errors.
