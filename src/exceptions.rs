@@ -201,7 +201,7 @@ macro_rules! import_exception {
 ///
 #[macro_export]
 macro_rules! create_exception {
-    ($module: ident, $name: ident, $base: ty) => {
+    ($module: expr, $name: ident, $base: ty) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name($crate::PyAny);
@@ -210,7 +210,7 @@ macro_rules! create_exception {
 
         $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
     };
-    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
+    ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         #[doc = $doc]
@@ -232,7 +232,7 @@ macro_rules! create_exception {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_object {
-    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
+    ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
@@ -873,6 +873,24 @@ mod tests {
             .unwrap();
             py.run("assert CustomError.__doc__ is None", None, Some(ctx))
                 .unwrap();
+        });
+    }
+
+    #[test]
+    fn custom_exception_dotted_module() {
+        create_exception!(mymodule.exceptions, CustomError, PyException);
+        Python::with_gil(|py| {
+            let error_type = py.get_type::<CustomError>();
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let type_description: String = py
+                .eval("str(CustomError)", None, Some(ctx))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(
+                type_description,
+                "<class 'mymodule.exceptions.CustomError'>"
+            );
         });
     }
 
