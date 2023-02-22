@@ -198,12 +198,6 @@ impl PyCapsule {
         Ok(ctx)
     }
 
-    /// Deprecated form of `.context()`.
-    #[deprecated(since = "0.17.0", note = "replaced with .context()")]
-    pub fn get_context(&self, _: Python<'_>) -> PyResult<*mut c_void> {
-        self.context()
-    }
-
     /// Obtains a reference to the value of this capsule.
     ///
     /// # Safety

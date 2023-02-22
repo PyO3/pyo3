@@ -62,20 +62,6 @@ pub unsafe trait PyTypeInfo: Sized {
     }
 }
 
-/// Legacy trait which previously held the `type_object` method now found on `PyTypeInfo`.
-///
-/// # Safety
-///
-/// This trait used to have stringent safety requirements, but they are now irrelevant as it is deprecated.
-#[deprecated(
-    since = "0.17.0",
-    note = "PyTypeObject::type_object was moved to PyTypeInfo::type_object"
-)]
-pub unsafe trait PyTypeObject: PyTypeInfo {}
-
-#[allow(deprecated)]
-unsafe impl<T: PyTypeInfo> PyTypeObject for T {}
-
 #[inline]
 pub(crate) unsafe fn get_tp_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
     #[cfg(not(Py_LIMITED_API))]
@@ -102,25 +88,5 @@ pub(crate) unsafe fn get_tp_free(tp: *mut ffi::PyTypeObject) -> ffi::freefunc {
         let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_free);
         debug_assert_ne!(ptr, std::ptr::null_mut());
         std::mem::transmute(ptr)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[allow(deprecated)]
-    fn test_deprecated_type_object() {
-        // Even though PyTypeObject is deprecated, simple usages of it as a trait bound should continue to work.
-        use super::PyTypeObject;
-        use crate::types::{PyList, PyType};
-        use crate::Python;
-
-        fn get_type_object<T: PyTypeObject>(py: Python<'_>) -> &PyType {
-            T::type_object(py)
-        }
-
-        Python::with_gil(|py| {
-            assert!(get_type_object::<PyList>(py).is(<PyList as crate::PyTypeInfo>::type_object(py)))
-        });
     }
 }
