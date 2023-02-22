@@ -79,8 +79,8 @@
 //!
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed by
 //! [PEP 384] to be forward-compatible with future Python versions.
-//! - `auto-initialize`: Changes [`Python::with_gil`] and [`Python::acquire_gil`] to automatically
-//! initialize the Python interpreter if needed.
+//! - `auto-initialize`: Changes [`Python::with_gil`] to automatically initialize the Python
+//! interpreter if needed.
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
 //! building an extension module.
@@ -307,9 +307,9 @@ pub use crate::conversion::{
     ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
+pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};

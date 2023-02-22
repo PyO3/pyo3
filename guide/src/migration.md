@@ -44,7 +44,7 @@ However, if the `anyhow::Error` or `eyre::Report` has a source, then the origina
 
 While the API provided by [`Python::acquire_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.acquire_gil) seems convenient, it is somewhat brittle as the design of the GIL token [`Python`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html) relies on proper nesting and panics if not used correctly, e.g.
 
-```rust,should_panic
+```rust,ignore
 # #![allow(dead_code, deprecated)]
 # use pyo3::prelude::*;
 

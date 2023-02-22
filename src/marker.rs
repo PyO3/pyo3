@@ -120,7 +120,7 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::gil::{self, GILGuard, GILPool, SuspendGIL};
+use crate::gil::{self, EnsureGIL, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
 use crate::version::PythonVersionInfo;
@@ -273,11 +273,15 @@ mod negative_impls {
 /// [`Py::clone_ref`]: crate::Py::clone_ref
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[derive(Copy, Clone)]
-pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
+pub struct Python<'py>(PhantomData<(&'py EnsureGIL, NotSend)>);
 
 impl Python<'_> {
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
     /// provided closure `F` will be executed with the acquired `Python` marker token.
+    ///
+    /// If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),
+    /// declare `py: Python` as an argument. PyO3 will pass in the token to grant access to the GIL
+    /// context in which the function is running, avoiding the need to call `with_gil`.
     ///
     /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
     /// initialized, this function will initialize it. See
@@ -353,52 +357,6 @@ impl Python<'_> {
 }
 
 impl<'py> Python<'py> {
-    /// Acquires the global interpreter lock, allowing access to the Python interpreter.
-    ///
-    /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
-    /// initialized, this function will initialize it. See
-    #[cfg_attr(
-        not(PyPy),
-        doc = "[`prepare_freethreaded_python`](crate::prepare_freethreaded_python)"
-    )]
-    #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
-    /// for details.
-    ///
-    /// Most users should not need to use this API directly, and should prefer one of two options:
-    /// 1. If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),  declare `py: Python` as an argument.
-    /// PyO3 will pass in the token to grant access to the GIL context in which the function is running.
-    /// 2. Use [`Python::with_gil`] to run a closure with the GIL, acquiring only if needed.
-    ///
-    /// # Panics
-    ///
-    /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
-    /// initialized.
-    /// - If multiple [`GILGuard`]s are not dropped in in the reverse order of acquisition, PyO3
-    /// may panic. It is recommended to use [`Python::with_gil`] instead to avoid this.
-    ///
-    /// # Notes
-    ///
-    /// The return type from this function, [`GILGuard`], is implemented as a RAII guard
-    /// around [`PyGILState_Ensure`]. This means that multiple `acquire_gil()` calls are
-    /// allowed, and will not deadlock. However, [`GILGuard`]s must be dropped in the reverse order
-    /// to acquisition. If PyO3 detects this order is not maintained, it will panic when the out-of-order drop occurs.
-    ///
-    /// # Deprecation
-    ///
-    /// This API has been deprecated for several reasons:
-    /// - GIL drop order tracking has turned out to be [error prone](https://github.com/PyO3/pyo3/issues/1683).
-    /// With a scoped API like `Python::with_gil`, these are always dropped in the correct order.
-    /// - It promotes passing and keeping the GILGuard around, which is almost always not what you actually want.
-    ///
-    /// [`PyGILState_Ensure`]: crate::ffi::PyGILState_Ensure
-    /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
-    #[inline]
-    // Once removed, we can remove GILGuard's drop tracking.
-    #[deprecated(since = "0.17.0", note = "prefer Python::with_gil")]
-    pub fn acquire_gil() -> GILGuard {
-        GILGuard::acquire()
-    }
-
     /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
     /// reacquired when `F`'s scope ends.
     ///
@@ -820,8 +778,8 @@ impl<'py> Python<'py> {
     /// all have their Python reference counts decremented, potentially allowing Python to drop
     /// the corresponding Python objects.
     ///
-    /// Typical usage of PyO3 will not need this API, as [`Python::with_gil`] and
-    /// [`Python::acquire_gil`] automatically create a `GILPool` where appropriate.
+    /// Typical usage of PyO3 will not need this API, as [`Python::with_gil`] automatically creates
+    /// a `GILPool` where appropriate.
     ///
     /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
     /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
