@@ -156,8 +156,6 @@ impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
 mod tests {
     use super::*;
 
-    use crate::types::IntoPyDict;
-
     #[test]
     fn test_bytes_index() {
         Python::with_gil(|py| {
@@ -220,15 +218,11 @@ mod tests {
                 .extract::<Cow<'_, [u8]>>()
                 .unwrap_err();
 
-            let cow = Cow::<[u8]>::Borrowed(b"foobar").into_py(py);
-            let locals = [("cow", cow)].into_py_dict(py);
-            py.run("assert isinstance(cow, bytes)", Some(locals), None)
-                .unwrap();
+            let cow = Cow::<[u8]>::Borrowed(b"foobar").to_object(py);
+            assert!(cow.as_ref(py).is_instance_of::<PyBytes>().unwrap());
 
-            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).into_py(py);
-            let locals = [("cow", cow)].into_py_dict(py);
-            py.run("assert isinstance(cow, bytes)", Some(locals), None)
-                .unwrap();
+            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
+            assert!(cow.as_ref(py).is_instance_of::<PyBytes>().unwrap());
         });
     }
 }
