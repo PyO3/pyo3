@@ -34,6 +34,19 @@ jobs:
       - name: Check rust formatting (rustfmt)
         run: nox -s fmt-rust
 
+  semver-checks:
+    if: github.ref != 'refs/heads/main'
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-semver-checks
+      - run: cargo semver-checks check-release
+
   clippy:
     needs: [fmt]
     runs-on: ${{ matrix.platform.os }}
