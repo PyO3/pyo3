@@ -207,7 +207,13 @@ fn impl_arg_param(
     let tokens = if let Some(expr_path) = arg.attrs.from_py_with.as_ref().map(|attr| &attr.value) {
         if let Some(default) = default {
             quote_arg_span! {
-                _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || #default)?
+                #[allow(clippy::redundant_closure)]
+                _pyo3::impl_::extract_argument::from_py_with_with_default(
+                    #arg_value,
+                    #name_str,
+                    #expr_path,
+                    || #default
+                )?
             }
         } else {
             quote_arg_span! {
@@ -220,6 +226,7 @@ fn impl_arg_param(
         }
     } else if arg.optional.is_some() {
         quote_arg_span! {
+            #[allow(clippy::redundant_closure)]
             _pyo3::impl_::extract_argument::extract_optional_argument(
                 #arg_value,
                 &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
@@ -229,6 +236,7 @@ fn impl_arg_param(
         }
     } else if let Some(default) = default {
         quote_arg_span! {
+            #[allow(clippy::redundant_closure)]
             _pyo3::impl_::extract_argument::extract_argument_with_default(
                 #arg_value,
                 &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
