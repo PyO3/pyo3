@@ -127,8 +127,7 @@ jobs:
       matrix:
         extra-features: ["multiple-pymethods"]
         rust: [stable]
-        # FIXME - pinned to 3.11.0 because 3.11.1 breaks CI on windows, see PyO3 issue 2817
-        python-version: ["3.11.0"]
+        python-version: ["3.11"]
         platform:
           [
             {
@@ -177,8 +176,7 @@ jobs:
           "3.8",
           "3.9",
           "3.10",
-          # FIXME - pinned to 3.11.0 because 3.11.1 breaks CI on windows, see PyO3 issue 2817
-          "3.11.0",
+          "3.11",
           "pypy-3.7",
           "pypy-3.8",
           "pypy-3.9"
@@ -227,8 +225,7 @@ jobs:
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
-            # FIXME - pinned to 3.11.0 because 3.11.1 breaks CI on windows, see PyO3 issue 2817
-            python-version: "3.11.0"
+            python-version: "3.11"
             platform:
               {
                 os: "windows-latest",
