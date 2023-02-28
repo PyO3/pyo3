@@ -1545,7 +1545,6 @@ fn test_option_pyclass_arg() {
 }
 
 #[test]
-#[allow(non_snake_case)] // FIXME __pyfunction__foo expanded symbol is not snake case
 fn test_issue_2988() {
     #[pyfunction]
     #[pyo3(signature = (

@@ -457,6 +457,7 @@ pub fn impl_wrap_pyfunction(
                 const DEF: #krate::impl_::pyfunction::PyMethodDef = #methoddef;
             }
 
+            #[allow(non_snake_case)]
             #wrapper
         };
     };
