@@ -8,9 +8,10 @@
 //! want error handling to be easy. If you are writing a library or you need more control over your
 //! errors you might want to design your own error type instead.
 //!
-//! This implementation always creates a Python [`RuntimeError`]. You might find that you need to
-//! map the error from your Rust code into another Python exception. See [`PyErr::new`] for more
-//! information about that.
+//! When the inner error is a [`PyErr`] without source, it will be extracted out.
+//! Otherwise a Python [`RuntimeError`] will be created.
+//! You might find that you need to map the error from your Rust code into another Python exception.
+//! See [`PyErr::new`] for more information about that.
 //!
 //! For information about error handling in general, see the [Error handling] chapter of the Rust
 //! book.
@@ -113,17 +114,25 @@ use eyre::Report;
 /// If you want to raise a different Python exception you will have to do so manually. See
 /// [`PyErr::new`] for more information about that.
 impl From<eyre::Report> for PyErr {
-    fn from(error: Report) -> Self {
+    fn from(mut error: Report) -> Self {
+        // Errors containing a PyErr without chain or context are returned as the underlying error
+        if error.source().is_none() {
+            error = match error.downcast::<Self>() {
+                Ok(py_err) => return py_err,
+                Err(error) => error,
+            };
+        }
         PyRuntimeError::new_err(format!("{:?}", error))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::exceptions::{PyRuntimeError, PyValueError};
     use crate::prelude::*;
     use crate::types::IntoPyDict;
 
-    use eyre::{bail, Result, WrapErr};
+    use eyre::{bail, eyre, Report, Result, WrapErr};
 
     fn f() -> Result<()> {
         use std::io;
@@ -149,5 +158,42 @@ mod tests {
             let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
             assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
+    }
+
+    fn k() -> Result<()> {
+        Err(eyre!("Some sort of error"))
+    }
+
+    #[test]
+    fn test_pyo3_exception_contents2() {
+        let err = k().unwrap_err();
+        let expected_contents = format!("{:?}", err);
+        let pyerr = PyErr::from(err);
+
+        Python::with_gil(|py| {
+            let locals = [("err", pyerr)].into_py_dict(py);
+            let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
+        })
+    }
+
+    #[test]
+    fn test_pyo3_unwrap_simple_err() {
+        let origin_exc = PyValueError::new_err("Value Error");
+        let report: Report = origin_exc.into();
+        let converted: PyErr = report.into();
+        assert!(Python::with_gil(
+            |py| converted.is_instance_of::<PyValueError>(py)
+        ))
+    }
+    #[test]
+    fn test_pyo3_unwrap_complex_err() {
+        let origin_exc = PyValueError::new_err("Value Error");
+        let mut report: Report = origin_exc.into();
+        report = report.wrap_err("Wrapped");
+        let converted: PyErr = report.into();
+        assert!(Python::with_gil(
+            |py| converted.is_instance_of::<PyRuntimeError>(py)
+        ))
     }
 }
