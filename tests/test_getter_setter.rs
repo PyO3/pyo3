@@ -1,5 +1,7 @@
 #![cfg(feature = "macros")]
 
+use std::cell::Cell;
+
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyList};
@@ -187,5 +189,30 @@ fn get_all_and_set() {
 
         py_run!(py, inst, "assert inst.num == 10");
         py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+    });
+}
+
+#[pyclass]
+struct CellGetterSetter {
+    #[pyo3(get, set)]
+    cell_inner: Cell<i32>,
+}
+
+#[test]
+fn cell_getter_setter() {
+    let c = CellGetterSetter {
+        cell_inner: Cell::new(10),
+    };
+    Python::with_gil(|py| {
+        let inst = Py::new(py, c).unwrap().to_object(py);
+        let cell = Cell::new(20).to_object(py);
+
+        py_run!(py, cell, "assert cell == 20");
+        py_run!(py, inst, "assert inst.cell_inner == 10");
+        py_run!(
+            py,
+            inst,
+            "inst.cell_inner = 20; assert inst.cell_inner == 20"
+        );
     });
 }
