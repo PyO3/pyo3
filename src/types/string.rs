@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+#[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;
 use crate::{ffi, AsPyPointer, PyAny, PyResult, Python};
@@ -12,7 +12,7 @@ use std::str;
 ///
 /// Python internally stores strings in various representations. This enumeration
 /// represents those variations.
-#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+#[cfg(not(Py_LIMITED_API))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PyStringData<'a> {
     /// UCS1 representation.
@@ -25,7 +25,7 @@ pub enum PyStringData<'a> {
     Ucs4(&'a [u32]),
 }
 
-#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+#[cfg(not(Py_LIMITED_API))]
 impl<'a> PyStringData<'a> {
     /// Obtain the raw bytes backing this instance as a [u8] slice.
     pub fn as_bytes(&self) -> &[u8] {
@@ -238,9 +238,7 @@ impl PyString {
     ///
     /// By using this API, you accept responsibility for testing that PyStringData behaves as
     /// expected on the targets where you plan to distribute your software.
-    ///
-    /// For example, it is known not to work on big-endian platforms.
-    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+    #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         let ptr = self.as_ptr();
 
@@ -284,7 +282,7 @@ mod tests {
     use super::*;
     use crate::Python;
     use crate::{PyObject, ToPyObject};
-    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+    #[cfg(not(Py_LIMITED_API))]
     use std::borrow::Cow;
 
     #[test]
@@ -347,7 +345,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_string_data_ucs1() {
         Python::with_gil(|py| {
             let s = PyString::new(py, "hello, world");
@@ -360,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_string_data_ucs1_invalid() {
         Python::with_gil(|py| {
             // 0xfe is not allowed in UTF-8.
@@ -386,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_string_data_ucs2() {
         Python::with_gil(|py| {
             let s = py.eval("'foo\\ud800'", None, None).unwrap();
@@ -428,7 +426,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_string_data_ucs4() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
