@@ -409,19 +409,20 @@ impl<'a> FnSpec<'a> {
         let self_arg = self.tp.self_arg();
         let py = syn::Ident::new("_py", Span::call_site());
         let func_name = &self.name;
-        let rust_name = if let Some(cls) = cls {
-            quote!(#cls::#func_name)
-        } else {
-            quote!(#func_name)
-        };
 
         let rust_call = |args: Vec<TokenStream>| {
             quote! {
-                let mut ret = #rust_name(#self_arg #(#args),*);
+                let mut ret = function(#self_arg #(#args),*);
                 let owned = _pyo3::impl_::pymethods::OkWrap::wrap(ret, #py);
                 owned.map(|obj| _pyo3::conversion::IntoPyPointer::into_ptr(obj))
                     .map_err(::core::convert::Into::into)
             }
+        };
+
+        let rust_name = if let Some(cls) = cls {
+            quote!(#cls::#func_name)
+        } else {
+            quote!(#func_name)
         };
 
         Ok(match self.convention {
@@ -437,6 +438,7 @@ impl<'a> FnSpec<'a> {
                         #py: _pyo3::Python<'py>,
                         _slf: *mut _pyo3::ffi::PyObject,
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
+                        let function = #rust_name; // Shadow the function name to avoid #3017
                         #deprecations
                         #self_conversion
                         #call
@@ -454,6 +456,7 @@ impl<'a> FnSpec<'a> {
                         _nargs: _pyo3::ffi::Py_ssize_t,
                         _kwnames: *mut _pyo3::ffi::PyObject
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
+                        let function = #rust_name; // Shadow the function name to avoid #3017
                         #deprecations
                         #self_conversion
                         #arg_convert
@@ -471,6 +474,7 @@ impl<'a> FnSpec<'a> {
                         _args: *mut _pyo3::ffi::PyObject,
                         _kwargs: *mut _pyo3::ffi::PyObject
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
+                        let function = #rust_name; // Shadow the function name to avoid #3017
                         #deprecations
                         #self_conversion
                         #arg_convert
@@ -489,6 +493,7 @@ impl<'a> FnSpec<'a> {
                         _kwargs: *mut _pyo3::ffi::PyObject
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         use _pyo3::callback::IntoPyCallbackOutput;
+                        let function = #rust_name; // Shadow the function name to avoid #3017
                         #deprecations
                         #arg_convert
                         let result = #call;
