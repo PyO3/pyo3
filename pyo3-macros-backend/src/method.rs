@@ -40,14 +40,14 @@ impl<'a> FnArg<'a> {
                 }
 
                 let arg_attrs = PyFunctionArgPyO3Attributes::from_attrs(&mut cap.attrs)?;
-                let (ident, by_ref, mutability) = match *cap.pat {
+                let (ident, by_ref, mutability) = match &*cap.pat {
                     syn::Pat::Ident(syn::PatIdent {
-                        ref ident,
-                        ref by_ref,
-                        ref mutability,
+                        ident,
+                        by_ref,
+                        mutability,
                         ..
                     }) => (ident, by_ref, mutability),
-                    _ => bail_spanned!(cap.pat.span() => "unsupported argument"),
+                    other => return Err(handle_argument_error(other)),
                 };
 
                 Ok(FnArg {
@@ -65,6 +65,19 @@ impl<'a> FnArg<'a> {
             }
         }
     }
+}
+
+fn handle_argument_error(pat: &syn::Pat) -> syn::Error {
+    let span = pat.span();
+    let msg = match pat {
+        syn::Pat::Wild(_) => "wildcard argument names are not supported",
+        syn::Pat::Struct(_)
+        | syn::Pat::Tuple(_)
+        | syn::Pat::TupleStruct(_)
+        | syn::Pat::Slice(_) => "destructuring in arguments is not supported",
+        _ => "unsupported argument",
+    };
+    syn::Error::new(span, msg)
 }
 
 #[derive(Clone, PartialEq, Debug, Copy, Eq)]
