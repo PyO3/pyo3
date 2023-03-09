@@ -814,9 +814,8 @@ mod tests {
 
         impl Clone for Bad {
             fn clone(&self) -> Self {
-                if self.0 == 42 {
-                    panic!()
-                };
+                // This panic should not lead to a memory leak
+                assert_ne!(self.0, 42);
                 NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
 
                 Bad(self.0)
@@ -855,10 +854,11 @@ mod tests {
         }
 
         Python::with_gil(|py| {
-            let _ = std::panic::catch_unwind(|| {
+            std::panic::catch_unwind(|| {
                 let iter = FaultyIter(0..50, 50);
                 let _tuple = PyTuple::new(py, iter);
-            });
+            })
+            .unwrap_err();
         });
 
         assert_eq!(
@@ -882,10 +882,8 @@ mod tests {
 
         impl Clone for Bad {
             fn clone(&self) -> Self {
-                if self.0 == 3 {
-                    // This panic should not lead to a memory leak
-                    panic!()
-                };
+                // This panic should not lead to a memory leak
+                assert_ne!(self.0, 3);
                 NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
 
                 Bad(self.0)
@@ -907,9 +905,10 @@ mod tests {
         let s = (Bad(1), Bad(2), Bad(3), Bad(4));
         NEEDS_DESTRUCTING_COUNT.store(4, SeqCst);
         Python::with_gil(|py| {
-            let _ = std::panic::catch_unwind(|| {
+            std::panic::catch_unwind(|| {
                 let _tuple: Py<PyAny> = s.to_object(py);
-            });
+            })
+            .unwrap_err();
         });
         drop(s);
 
