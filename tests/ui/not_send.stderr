@@ -7,11 +7,11 @@ error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safe
   |        required by a bound introduced by this call
   |
   = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
-  = note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
-  = note: required because it appears within the type `impl_::not_send::NotSend`
-  = note: required because it appears within the type `(&GILGuard, impl_::not_send::NotSend)`
-  = note: required because it appears within the type `PhantomData<(&GILGuard, impl_::not_send::NotSend)>`
-  = note: required because it appears within the type `pyo3::Python<'_>`
+  = note: required because it appears within the type `PhantomData<*mut Python<'static>>`
+  = note: required because it appears within the type `NotSend`
+  = note: required because it appears within the type `(&GILGuard, NotSend)`
+  = note: required because it appears within the type `PhantomData<(&GILGuard, NotSend)>`
+  = note: required because it appears within the type `Python<'_>`
   = note: required for `&pyo3::Python<'_>` to implement `Send`
 note: required because it's used within this closure
  --> tests/ui/not_send.rs:4:22
@@ -23,4 +23,4 @@ note: required by a bound in `pyo3::Python::<'py>::allow_threads`
  --> src/marker.rs
   |
   |         F: Ungil + FnOnce() -> T,
-  |            ^^^^^ required by this bound in `pyo3::Python::<'py>::allow_threads`
+  |            ^^^^^ required by this bound in `Python::<'py>::allow_threads`

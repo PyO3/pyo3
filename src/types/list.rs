@@ -817,10 +817,8 @@ mod tests {
 
         impl Clone for Bad {
             fn clone(&self) -> Self {
-                if self.0 == 42 {
-                    // This panic should not lead to a memory leak
-                    panic!()
-                };
+                // This panic should not lead to a memory leak
+                assert_ne!(self.0, 42);
                 NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
 
                 Bad(self.0)
@@ -859,10 +857,11 @@ mod tests {
         }
 
         Python::with_gil(|py| {
-            let _ = std::panic::catch_unwind(|| {
+            std::panic::catch_unwind(|| {
                 let iter = FaultyIter(0..50, 50);
                 let _list = PyList::new(py, iter);
-            });
+            })
+            .unwrap_err();
         });
 
         assert_eq!(

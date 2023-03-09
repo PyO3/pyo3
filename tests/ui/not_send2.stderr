@@ -24,4 +24,4 @@ note: required by a bound in `pyo3::Python::<'py>::allow_threads`
   --> src/marker.rs
    |
    |         F: Ungil + FnOnce() -> T,
-   |            ^^^^^ required by this bound in `pyo3::Python::<'py>::allow_threads`
+   |            ^^^^^ required by this bound in `Python::<'py>::allow_threads`
