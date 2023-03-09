@@ -245,6 +245,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyExc_ResourceWarning")]
     pub static mut PyExc_ResourceWarning: *mut PyObject;
     #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyExc_EncodingWarning")]
     pub static mut PyExc_EncodingWarning: *mut PyObject;
 }
 
@@ -305,9 +306,13 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterrupt")]
     pub fn PyErr_SetInterrupt();
     #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterruptEx")]
     pub fn PyErr_SetInterruptEx(signum: c_int);
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SyntaxLocation")]
     pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int);
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SyntaxLocationEx")]
     pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int);
+    #[cfg_attr(PyPy, link_name = "PyPyErr_ProgramText")]
     pub fn PyErr_ProgramText(filename: *const c_char, lineno: c_int) -> *mut PyObject;
     #[cfg(not(PyPy))]
     pub fn PyUnicodeDecodeError_Create(

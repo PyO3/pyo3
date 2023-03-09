@@ -54,6 +54,7 @@ extern "C" {
     // skipped non-limited _PyArg_Fini
 
     #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_AddObjectRef")]
     pub fn PyModule_AddObjectRef(
         module: *mut PyObject,
         name: *const c_char,
