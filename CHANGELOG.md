@@ -10,6 +10,33 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.18.2] - 2023-03-24
+
+### Packaging
+
+- Disable default features of `chrono` to avoid depending on `time` v0.1.x. [#2939](https://github.com/PyO3/pyo3/pull/2939)
+
+### Added
+
+- Implement `IntoPy<PyObject>`, `ToPyObject` and `FromPyObject` for `Cow<[u8]>` to efficiently handle both `bytes` and `bytearray` objects. [#2899](https://github.com/PyO3/pyo3/pull/2899)
+- Implement `IntoPy<PyObject>`, `ToPyObject` and `FromPyObject` for `Cell<T>`. [#3014](https://github.com/PyO3/pyo3/pull/3014)
+- Add `PyList::to_tuple()`, as a convenient and efficient conversion from lists to tuples. [#3042](https://github.com/PyO3/pyo3/pull/3042)
+- Add `PyTuple::to_list()`, as a convenient and efficient conversion from tuples to lists. [#3044](https://github.com/PyO3/pyo3/pull/3044)
+
+### Changed
+
+- Optimize `PySequence` conversion for `list` and `tuple` inputs. [#2944](https://github.com/PyO3/pyo3/pull/2944)
+- Improve exception raised when creating `#[pyclass]` type object fails during module import. [#2947](https://github.com/PyO3/pyo3/pull/2947)
+- Optimize `PyMapping` conversion for `dict` inputs. [#2954](https://github.com/PyO3/pyo3/pull/2954)
+- Allow `create_exception!` to take a `dotted.module` to place the exception in a submodule. [#2979](https://github.com/PyO3/pyo3/pull/2979)
+
+### Fixed
+
+- Fix a reference counting race condition affecting `PyObject`s cloned in `allow_threads` blocks. [#2952](https://github.com/PyO3/pyo3/pull/2952)
+- Fix `clippy::redundant_closure` lint on default arguments in `#[pyo3(signature = (...))]` annotations. [#2990](https://github.com/PyO3/pyo3/pull/2990)
+- Fix `non_snake_case` lint on generated code in `#[pyfunction]` macro. [#2993](https://github.com/PyO3/pyo3/pull/2993)
+- Fix some FFI definitions for the upcoming PyPy 3.10 release. [#3031](https://github.com/PyO3/pyo3/pull/3031)
+
 ## [0.18.1] - 2023-02-07
 
 ### Added
@@ -1392,7 +1419,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.2...HEAD
+[0.18.2]: https://github.com/pyo3/pyo3/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/pyo3/pyo3/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/pyo3/pyo3/compare/v0.17.3...v0.18.0
 [0.17.3]: https://github.com/pyo3/pyo3/compare/v0.17.2...v0.17.3
