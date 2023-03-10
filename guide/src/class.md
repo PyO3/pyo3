@@ -437,6 +437,8 @@ To use these annotations, your field type must implement some conversion traits:
 - For `get` the field type must implement both `IntoPy<PyObject>` and `Clone`.
 - For `set` the field type must implement `FromPyObject`.
 
+For example, implementations of those traits are provided for the `Cell` type, if the inner type also implements the trait. This means you can use `#[pyo3(get, set)]` on fields wrapped in a `Cell`.
+
 ### Object properties using `#[getter]` and `#[setter]`
 
 For cases which don't satisfy the `#[pyo3(get, set)]` trait requirements, or need side effects, descriptor methods can be defined in a `#[pymethods]` `impl` block.
