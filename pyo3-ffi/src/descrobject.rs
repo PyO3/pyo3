@@ -11,7 +11,7 @@ pub type setter =
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PyGetSetDef {
-    pub name: *mut c_char,
+    pub name: *const c_char,
     pub get: Option<getter>,
     pub set: Option<setter>,
     pub doc: *const c_char,
@@ -21,7 +21,7 @@ pub struct PyGetSetDef {
 impl Default for PyGetSetDef {
     fn default() -> PyGetSetDef {
         PyGetSetDef {
-            name: ptr::null_mut(),
+            name: ptr::null(),
             get: None,
             set: None,
             doc: ptr::null(),

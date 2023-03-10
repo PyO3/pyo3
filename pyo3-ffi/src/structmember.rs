@@ -6,11 +6,11 @@ use std::ptr;
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct PyMemberDef {
-    pub name: *mut c_char,
+    pub name: *const c_char,
     pub type_code: c_int,
     pub offset: Py_ssize_t,
     pub flags: c_int,
-    pub doc: *mut c_char,
+    pub doc: *const c_char,
 }
 
 impl Default for PyMemberDef {
