@@ -407,6 +407,8 @@ impl ClassWithGCSupport {
 }
 ```
 
+> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3899).
+
 [`IterNextOutput`]: {{#PYO3_DOCS_URL}}/pyo3/class/iter/enum.IterNextOutput.html
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html
 [`CompareOp::matches`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/enum.CompareOp.html#method.matches
