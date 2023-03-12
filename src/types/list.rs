@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
-use crate::types::PySequence;
+use crate::types::{PySequence, PyTuple};
 use crate::{AsPyPointer, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
 
 /// Represents a Python `list`.
@@ -290,6 +290,18 @@ impl PyList {
     pub fn reverse(&self) -> PyResult<()> {
         unsafe { err::error_on_minusone(self.py(), ffi::PyList_Reverse(self.as_ptr())) }
     }
+
+    /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
+    ///
+    /// This method uses `PyList_AsTuple` and so is significantly faster than `PyTuple::new(py, this_list)`.
+    pub fn as_tuple(&self) -> &PyTuple {
+        let py_tuple: Py<PyTuple> = unsafe {
+            let ptr = self.as_ptr();
+            let tuple_ptr = ffi::PyList_AsTuple(ptr);
+            Py::from_owned_ptr(self.py(), tuple_ptr)
+        };
+        py_tuple.into_ref(self.py())
+    }
 }
 
 index_impls!(PyList, "list", PyList::len, PyList::get_slice);
@@ -341,7 +353,7 @@ impl<'a> std::iter::IntoIterator for &'a PyList {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::PyList;
+    use crate::types::{PyList, PyTuple};
     use crate::Python;
     use crate::{IntoPy, PyObject, ToPyObject};
 
@@ -869,5 +881,15 @@ mod tests {
             0,
             "Some destructors did not run"
         );
+    }
+
+    #[test]
+    fn test_list_as_tuple() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, vec![1, 2, 3]);
+            let tuple = list.as_tuple();
+            let tuple_expected = PyTuple::new(py, vec![1, 2, 3]);
+            assert!(tuple.eq(tuple_expected).unwrap());
+        })
     }
 }
