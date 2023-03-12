@@ -293,14 +293,9 @@ impl PyList {
 
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
     ///
-    /// This method uses `PyList_AsTuple` and so is significantly faster than `PyTuple::new(py, this_list)`.
-    pub fn as_tuple(&self) -> &PyTuple {
-        let py_tuple: Py<PyTuple> = unsafe {
-            let ptr = self.as_ptr();
-            let tuple_ptr = ffi::PyList_AsTuple(ptr);
-            Py::from_owned_ptr(self.py(), tuple_ptr)
-        };
-        py_tuple.into_ref(self.py())
+    /// This method is equivalent to `self.as_sequence().tuple()` and faster than `PyTuple::new(py, this_list)`.
+    pub fn to_tuple(&self) -> &PyTuple {
+        unsafe { self.py().from_owned_ptr(ffi::PyList_AsTuple(self.as_ptr())) }
     }
 }
 
@@ -884,10 +879,10 @@ mod tests {
     }
 
     #[test]
-    fn test_list_as_tuple() {
+    fn test_list_to_tuple() {
         Python::with_gil(|py| {
             let list = PyList::new(py, vec![1, 2, 3]);
-            let tuple = list.as_tuple();
+            let tuple = list.to_tuple();
             let tuple_expected = PyTuple::new(py, vec![1, 2, 3]);
             assert!(tuple.eq(tuple_expected).unwrap());
         })
