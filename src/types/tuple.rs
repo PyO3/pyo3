@@ -6,6 +6,7 @@ use crate::ffi::{self, Py_ssize_t};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
+use crate::types::PyList;
 use crate::types::PySequence;
 use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
@@ -212,6 +213,15 @@ impl PyTuple {
             index: 0,
             length: self.len(),
         }
+    }
+
+    /// Return a new list containing the contents of this tuple; equivalent to the Python expression `list(tuple)`.
+    ///
+    /// This method is equivalent to `self.as_sequence().list()` and faster than `PyList::new(py, self)`.
+    pub fn to_list(&self) -> &PyList {
+        self.as_sequence()
+            .list()
+            .expect("failed to convert tuple to list")
     }
 }
 
@@ -444,7 +454,7 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAny, PyTuple};
+    use crate::types::{PyAny, PyList, PyTuple};
     use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
@@ -917,5 +927,15 @@ mod tests {
             0,
             "Some destructors did not run"
         );
+    }
+
+    #[test]
+    fn test_tuple_to_list() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3]);
+            let list = tuple.to_list();
+            let list_expected = PyList::new(py, vec![1, 2, 3]);
+            assert!(list.eq(list_expected).unwrap());
+        })
     }
 }
