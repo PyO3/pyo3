@@ -42,6 +42,7 @@ pub(super) fn generate_import_lib(
     let implementation = match py_impl {
         PythonImplementation::CPython => python3_dll_a::PythonImplementation::CPython,
         PythonImplementation::PyPy => python3_dll_a::PythonImplementation::PyPy,
+        PythonImplementation::GraalPy => python3_dll_a::PythonImplementation::GraalPy,
     };
 
     ImportLibraryGenerator::new(&arch, &env)
