@@ -63,6 +63,11 @@ fn args_kwargs<'a>(
     (args, kwargs)
 }
 
+#[pyfunction(signature = ())]
+fn panic() {
+    panic!("Dodge this");
+}
+
 #[pymodule]
 pub fn pyfunctions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(none, m)?)?;
@@ -71,5 +76,6 @@ pub fn pyfunctions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(simple_kwargs, m)?)?;
     m.add_function(wrap_pyfunction!(simple_args_kwargs, m)?)?;
     m.add_function(wrap_pyfunction!(args_kwargs, m)?)?;
+    m.add_function(wrap_pyfunction!(panic, m)?)?;
     Ok(())
 }

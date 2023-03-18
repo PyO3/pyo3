@@ -1,3 +1,4 @@
+import pytest
 from pyo3_pytests import pyfunctions
 
 
@@ -83,3 +84,10 @@ def test_args_kwargs_rs(benchmark):
     rust = benchmark(pyfunctions.args_kwargs, 1, "foo", {1: 2}, bar=4, foo=10)
     py = args_kwargs_py(1, "foo", {1: 2}, bar=4, foo=10)
     assert rust == py
+
+def test_panic():
+    with pytest.raises(BaseException) as exc_info:
+        pyfunctions.panic()
+    assert exc_info.type.__name__ == "PanicException"
+    assert exc_info.type.__bases__ == (Exception, )
+    assert str(exc_info.value) == "Dodge this"

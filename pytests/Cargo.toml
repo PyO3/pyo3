@@ -7,7 +7,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-pyo3 = { path = "../", features = ["extension-module"] }
+pyo3 = { path = "../", features = ["extension-module", "panicexception-inherits-exception"] }
 
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config" }
