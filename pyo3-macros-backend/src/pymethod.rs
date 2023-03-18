@@ -1195,9 +1195,10 @@ fn generate_method_body(
     return_mode: Option<&ReturnMode>,
 ) -> Result<TokenStream> {
     let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
+    let self_arg = spec.tp.self_arg();
     let rust_name = spec.name;
     let args = extract_proto_arguments(py, spec, arguments, extract_error_mode)?;
-    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#args),*)) };
+    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(#self_arg #(#args),*)) };
     let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(py, call)
     } else {
