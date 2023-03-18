@@ -87,6 +87,9 @@
 //! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
 //! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
 //! crate, which is not supported on all platforms.
+//! - `panicexception-inherits-exception`: This will make [`PanicException`] inherits
+//! [`Exception`](https://docs.python.org/3/library/exceptions.html#Exception) (instead
+//! of [`BaseException`](https://docs.python.org/3/library/exceptions.html#BaseException))
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].

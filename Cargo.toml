@@ -61,6 +61,10 @@ pyo3-build-config = { path = "pyo3-build-config", version = "0.18.1", features =
 [features]
 default = ["macros"]
 
+# By default `PanicException` inherits `BaseException`, use this feature to
+# make it inherits `Exception` instead
+panicexception-inherits-exception = []
+
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
 experimental-inspect = []
@@ -110,6 +114,7 @@ full = [
     "eyre",
     "anyhow",
     "experimental-inspect",
+    "panicexception-inherits-exception",
 ]
 
 [[bench]]

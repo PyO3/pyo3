@@ -1,19 +1,32 @@
 //! Helper to convert Rust panics to Python exceptions.
+#[cfg(not(feature = "panicexception-inherits-exception"))]
 use crate::exceptions::PyBaseException;
+#[cfg(feature = "panicexception-inherits-exception")]
+use crate::exceptions::PyException;
 use crate::PyErr;
 use std::any::Any;
 
-pyo3_exception!(
-    "
+/// Helper macro to factorize PanicException's documentation
+#[macro_export]
+macro_rules! panic_exception_doc {
+    () => {
+        "
 The exception raised when Rust code called from Python panics.
 
-Like SystemExit, this exception is derived from BaseException so that
+By default, like SystemExit, this exception is derived from BaseException so that
 it will typically propagate all the way through the stack and cause the
 Python interpreter to exit.
-",
-    PanicException,
-    PyBaseException
-);
+
+However this behavior can be changed by enabling the `panicexception-inherits-exception`
+feature: this exception will then derived from Exception.
+"
+    };
+}
+
+#[cfg(not(feature = "panicexception-inherits-exception"))]
+pyo3_exception!(panic_exception_doc!(), PanicException, PyBaseException);
+#[cfg(feature = "panicexception-inherits-exception")]
+pyo3_exception!(panic_exception_doc!(), PanicException, PyException);
 
 impl PanicException {
     /// Creates a new PanicException from a panic payload.
