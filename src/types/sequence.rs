@@ -4,7 +4,7 @@ use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
-use crate::once_cell::GILOnceCell;
+use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{ffi, PyNativeType, ToPyObject};

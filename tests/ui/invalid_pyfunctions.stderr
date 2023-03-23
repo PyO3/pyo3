@@ -17,3 +17,15 @@ error: `async fn` is not yet supported for Python functions.
    |
 10 | async fn async_function() {}
    | ^^^^^
+
+error: wildcard argument names are not supported
+  --> tests/ui/invalid_pyfunctions.rs:13:22
+   |
+13 | fn wildcard_argument(_: i32) {}
+   |                      ^
+
+error: destructuring in arguments is not supported
+  --> tests/ui/invalid_pyfunctions.rs:16:26
+   |
+16 | fn destructured_argument((a, b): (i32, i32)) {}
+   |                          ^^^^^^

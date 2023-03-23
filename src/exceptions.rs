@@ -102,7 +102,7 @@ macro_rules! import_exception {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::once_cell::GILOnceCell;
+                use $crate::sync::GILOnceCell;
                 use $crate::AsPyPointer;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
@@ -241,7 +241,7 @@ macro_rules! create_exception_type_object {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::once_cell::GILOnceCell;
+                use $crate::sync::GILOnceCell;
                 use $crate::AsPyPointer;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
