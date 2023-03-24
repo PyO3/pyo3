@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
-use crate::types::PySequence;
+use crate::types::{PySequence, PyTuple};
 use crate::{AsPyPointer, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
 
 /// Represents a Python `list`.
@@ -290,6 +290,13 @@ impl PyList {
     pub fn reverse(&self) -> PyResult<()> {
         unsafe { err::error_on_minusone(self.py(), ffi::PyList_Reverse(self.as_ptr())) }
     }
+
+    /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
+    ///
+    /// This method is equivalent to `self.as_sequence().tuple()` and faster than `PyTuple::new(py, this_list)`.
+    pub fn to_tuple(&self) -> &PyTuple {
+        unsafe { self.py().from_owned_ptr(ffi::PyList_AsTuple(self.as_ptr())) }
+    }
 }
 
 index_impls!(PyList, "list", PyList::len, PyList::get_slice);
@@ -341,7 +348,7 @@ impl<'a> std::iter::IntoIterator for &'a PyList {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::PyList;
+    use crate::types::{PyList, PyTuple};
     use crate::Python;
     use crate::{IntoPy, PyObject, ToPyObject};
 
@@ -817,10 +824,8 @@ mod tests {
 
         impl Clone for Bad {
             fn clone(&self) -> Self {
-                if self.0 == 42 {
-                    // This panic should not lead to a memory leak
-                    panic!()
-                };
+                // This panic should not lead to a memory leak
+                assert_ne!(self.0, 42);
                 NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
 
                 Bad(self.0)
@@ -859,10 +864,11 @@ mod tests {
         }
 
         Python::with_gil(|py| {
-            let _ = std::panic::catch_unwind(|| {
+            std::panic::catch_unwind(|| {
                 let iter = FaultyIter(0..50, 50);
                 let _list = PyList::new(py, iter);
-            });
+            })
+            .unwrap_err();
         });
 
         assert_eq!(
@@ -870,5 +876,15 @@ mod tests {
             0,
             "Some destructors did not run"
         );
+    }
+
+    #[test]
+    fn test_list_to_tuple() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, vec![1, 2, 3]);
+            let tuple = list.to_tuple();
+            let tuple_expected = PyTuple::new(py, vec![1, 2, 3]);
+            assert!(tuple.eq(tuple_expected).unwrap());
+        })
     }
 }

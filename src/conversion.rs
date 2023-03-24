@@ -10,6 +10,7 @@ use crate::types::PyTuple;
 use crate::{
     ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
 };
+use std::cell::Cell;
 use std::ptr::NonNull;
 
 /// Returns a borrowed pointer to a Python object.
@@ -367,6 +368,24 @@ where
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<T: Copy + ToPyObject> ToPyObject for Cell<T> {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        self.get().to_object(py)
+    }
+}
+
+impl<T: Copy + IntoPy<PyObject>> IntoPy<PyObject> for Cell<T> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.get().into_py(py)
+    }
+}
+
+impl<'a, T: FromPyObject<'a>> FromPyObject<'a> for Cell<T> {
+    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+        T::extract(ob).map(Cell::new)
     }
 }
 

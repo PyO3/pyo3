@@ -422,6 +422,7 @@ def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
         "examples/word-count",
     )
     min_pkg_versions = {
+        "csv": "1.1.6",
         "indexmap": "1.6.2",
         "hashbrown": "0.9.1",
         "plotters": "0.3.1",
@@ -438,6 +439,14 @@ def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
         "parking_lot": "0.11.0",
         # 1.0.77 needs basic-toml which has edition 2021
         "trybuild": "1.0.76",
+        # pins to avoid syn 2.0 (which requires Rust 1.56)
+        "ghost": "0.1.8",
+        "serde": "1.0.156",
+        "serde_derive": "1.0.156",
+        "cxx": "1.0.92",
+        "cxxbridge-macro": "1.0.92",
+        "cxx-build": "1.0.92",
+        "syn": "1.0.109",
     }
 
     # run cargo update first to ensure that everything is at highest
@@ -469,7 +478,7 @@ def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
             return pkg_versions
 
         pkg_versions = load_pkg_versions()
-        for (pkg_name, min_version) in min_pkg_versions.items():
+        for pkg_name, min_version in min_pkg_versions.items():
             versions = pkg_versions.get(pkg_name, [])
             for version in versions:
                 if version != min_version:

@@ -1543,3 +1543,19 @@ fn test_option_pyclass_arg() {
             .is_ok());
     })
 }
+
+#[test]
+fn test_issue_2988() {
+    #[pyfunction]
+    #[pyo3(signature = (
+        _data = vec![],
+        _data2 = vec![],
+    ))]
+    pub fn _foo(
+        _data: Vec<i32>,
+        // The from_py_with here looks a little odd, we just need some way
+        // to encourage the macro to expand the from_py_with default path too
+        #[pyo3(from_py_with = "PyAny::extract")] _data2: Vec<i32>,
+    ) {
+    }
+}

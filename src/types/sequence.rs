@@ -8,10 +8,8 @@ use crate::once_cell::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{ffi, PyNativeType, ToPyObject};
-use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, Python};
+use crate::{AsPyPointer, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
-
-static SEQUENCE_ABC: GILOnceCell<PyResult<Py<PyType>>> = GILOnceCell::new();
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -318,17 +316,14 @@ where
     Ok(v)
 }
 
-fn get_sequence_abc(py: Python<'_>) -> Result<&PyType, PyErr> {
+static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+fn get_sequence_abc(py: Python<'_>) -> PyResult<&PyType> {
     SEQUENCE_ABC
-        .get_or_init(py, || {
-            Ok(py
-                .import("collections.abc")?
-                .getattr("Sequence")?
-                .downcast::<PyType>()?
-                .into_py(py))
+        .get_or_try_init(py, || {
+            py.import("collections.abc")?.getattr("Sequence")?.extract()
         })
-        .as_ref()
-        .map_or_else(|e| Err(e.clone_ref(py)), |t| Ok(t.as_ref(py)))
+        .map(|ty| ty.as_ref(py))
 }
 
 impl<'v> PyTryFrom<'v> for PySequence {
@@ -338,11 +333,16 @@ impl<'v> PyTryFrom<'v> for PySequence {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
         let value = value.into();
 
-        // TODO: surface specific errors in this chain to the user
-        if let Ok(abc) = get_sequence_abc(value.py()) {
-            if value.is_instance(abc).unwrap_or(false) {
-                unsafe { return Ok(value.downcast_unchecked::<PySequence>()) }
-            }
+        // Using `is_instance` for `collections.abc.Sequence` is slow, so provide
+        // optimized cases for list and tuples as common well-known sequences
+        if PyList::is_type_of(value)
+            || PyTuple::is_type_of(value)
+            || get_sequence_abc(value.py())
+                .and_then(|abc| value.is_instance(abc))
+                // TODO: surface errors in this chain to the user
+                .unwrap_or(false)
+        {
+            unsafe { return Ok(value.downcast_unchecked::<PySequence>()) }
         }
 
         Err(PyDowncastError::new(value, "Sequence"))

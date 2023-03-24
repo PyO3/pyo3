@@ -21,9 +21,7 @@ thread_local! {
     /// they are dropped.
     ///
     /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
-    ///
-    /// pub(crate) because it is manipulated temporarily by `Python::allow_threads`.
-    pub(crate) static GIL_COUNT: Cell<usize> = Cell::new(0);
+    static GIL_COUNT: Cell<usize> = Cell::new(0);
 
     /// Temporarily hold objects that will be released when the GILPool drops.
     static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
@@ -35,7 +33,7 @@ thread_local! {
 ///  1) for performance
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
 ///     which could lead to incorrect conclusions that the GIL is held.
-pub(crate) fn gil_is_acquired() -> bool {
+fn gil_is_acquired() -> bool {
     GIL_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
 }
 
@@ -156,7 +154,6 @@ where
 ///     let py = gil_guard.python();
 /// } // GIL is released when gil_guard is dropped
 /// ```
-
 #[must_use]
 pub struct GILGuard {
     gstate: ffi::PyGILState_STATE,
@@ -219,7 +216,7 @@ impl GILGuard {
     /// This can be called in "unsafe" contexts where the normal interpreter state
     /// checking performed by `GILGuard::acquire` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
-    pub(crate) fn acquire_unchecked() -> GILGuard {
+    fn acquire_unchecked() -> GILGuard {
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
 
         // If there's already a GILPool, we should not create another or this could lead to
@@ -273,7 +270,7 @@ impl Drop for GILGuard {
     }
 }
 
-// Vector of PyObject(
+// Vector of PyObject
 type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
 /// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
@@ -326,6 +323,33 @@ impl ReferencePool {
 unsafe impl Sync for ReferencePool {}
 
 static POOL: ReferencePool = ReferencePool::new();
+
+/// A guard which can be used to temporarily release the GIL and restore on `Drop`.
+pub(crate) struct SuspendGIL {
+    count: usize,
+    tstate: *mut ffi::PyThreadState,
+}
+
+impl SuspendGIL {
+    pub(crate) unsafe fn new() -> Self {
+        let count = GIL_COUNT.with(|c| c.replace(0));
+        let tstate = ffi::PyEval_SaveThread();
+
+        Self { count, tstate }
+    }
+}
+
+impl Drop for SuspendGIL {
+    fn drop(&mut self) {
+        GIL_COUNT.with(|c| c.set(self.count));
+        unsafe {
+            ffi::PyEval_RestoreThread(self.tstate);
+
+            // Update counts of PyObjects / Py that were cloned or dropped while the GIL was released.
+            POOL.update_counts(Python::assume_gil_acquired());
+        }
+    }
+}
 
 /// A RAII pool which PyO3 uses to store owned Python references.
 ///
@@ -486,7 +510,7 @@ impl EnsureGIL {
     /// Thus this method could be used to get access to a GIL token while the GIL is not held.
     /// Care should be taken to only use the returned Python in contexts where it is certain the
     /// GIL continues to be held.
-    pub unsafe fn python(&self) -> Python<'_> {
+    pub(crate) unsafe fn python(&self) -> Python<'_> {
         match &self.0 {
             Some(gil) => gil.python(),
             None => Python::assume_gil_acquired(),
@@ -632,7 +656,9 @@ mod tests {
         // Next time the GIL is acquired, the reference is released
         Python::with_gil(|py| {
             assert_eq!(obj.get_refcnt(py), 1);
-            assert!(pool_not_dirty());
+            let non_null = unsafe { NonNull::new_unchecked(obj.as_ptr()) };
+            assert!(!POOL.pointer_ops.lock().0.contains(&non_null));
+            assert!(!POOL.pointer_ops.lock().1.contains(&non_null));
         });
     }
 
@@ -691,6 +717,22 @@ mod tests {
         });
 
         assert!(gil_is_acquired());
+    }
+
+    #[test]
+    fn test_allow_threads_updates_refcounts() {
+        Python::with_gil(|py| {
+            // Make a simple object with 1 reference
+            let obj = get_object(py);
+            assert!(obj.get_refcnt(py) == 1);
+            // Clone the object without the GIL to use internal tracking
+            let escaped_ref = py.allow_threads(|| obj.clone());
+            // But after the block the refcounts are updated
+            assert!(obj.get_refcnt(py) == 2);
+            drop(escaped_ref);
+            assert!(obj.get_refcnt(py) == 1);
+            drop(obj);
+        });
     }
 
     #[test]
@@ -799,12 +841,6 @@ mod tests {
             });
 
             REFCNT_CHECKED.wait();
-
-            // Returning from allow_threads doesn't clear the pool
-            py.allow_threads(|| {
-                // Acquiring GIL will clear the pending change
-                Python::with_gil(|_| {});
-            });
 
             println!("6. The main thread has acquired the GIL again and processed the pool.");
 

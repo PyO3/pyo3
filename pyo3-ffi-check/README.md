@@ -4,4 +4,4 @@ This is a simple program which compares ffi definitions from `pyo3-ffi` against 
 
 If any differ in size, these are printed to stdout and a the process will exit nonzero.
 
-The main purpose of this program is to run a scheduled weekly job in Github actions to catch possible errors in PyO3's ffi definitions.
+The main purpose of this program is to be run as part of PyO3's continuous integration pipeline to catch possible errors in PyO3's ffi definitions.

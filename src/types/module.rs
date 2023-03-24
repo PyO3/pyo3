@@ -294,7 +294,8 @@ impl PyModule {
     where
         T: PyClass,
     {
-        self.add(T::NAME, T::type_object(self.py()))
+        let py = self.py();
+        self.add(T::NAME, T::lazy_type_object().get_or_try_init(py)?)
     }
 
     /// Adds a function or a (sub)module to a module, using the functions name as name.

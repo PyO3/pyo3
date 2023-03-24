@@ -429,7 +429,7 @@ where
     ///  ```
     ///
     /// # Panics
-    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
     where

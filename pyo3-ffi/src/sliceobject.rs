@@ -82,6 +82,7 @@ extern "C" {
         step: *mut Py_ssize_t,
     ) -> c_int;
 
+    #[cfg_attr(all(PyPy, Py_3_10), link_name = "PyPySlice_AdjustIndices")]
     pub fn PySlice_AdjustIndices(
         length: Py_ssize_t,
         start: *mut Py_ssize_t,

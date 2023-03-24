@@ -30,12 +30,15 @@ extern "C" {
     pub fn PyGC_Collect() -> Py_ssize_t;
 
     #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyGC_Enable")]
     pub fn PyGC_Enable() -> c_int;
 
     #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyGC_Disable")]
     pub fn PyGC_Disable() -> c_int;
 
     #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyGC_IsEnabled")]
     pub fn PyGC_IsEnabled() -> c_int;
 }
 

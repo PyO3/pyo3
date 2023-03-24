@@ -437,6 +437,8 @@ To use these annotations, your field type must implement some conversion traits:
 - For `get` the field type must implement both `IntoPy<PyObject>` and `Clone`.
 - For `set` the field type must implement `FromPyObject`.
 
+For example, implementations of those traits are provided for the `Cell` type, if the inner type also implements the trait. This means you can use `#[pyo3(get, set)]` on fields wrapped in a `Cell`.
+
 ### Object properties using `#[getter]` and `#[setter]`
 
 For cases which don't satisfy the `#[pyo3(get, set)]` trait requirements, or need side effects, descriptor methods can be defined in a `#[pymethods]` `impl` block.
@@ -979,9 +981,9 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
-        use pyo3::type_object::LazyStaticType;
-        static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
-        TYPE_OBJECT.get_or_init::<Self>(py)
+        <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
+            .get_or_init(py)
+            .as_type_ptr()
     }
 }
 
@@ -1032,6 +1034,12 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         let collector = PyClassImplCollector::<MyClass>::new();
         static INTRINSIC_ITEMS: PyClassItems = PyClassItems { slots: &[], methods: &[] };
         PyClassItemsIter::new(&INTRINSIC_ITEMS, collector.py_methods())
+    }
+
+    fn lazy_type_object() -> &'static pyo3::impl_::pyclass::LazyTypeObject<MyClass> {
+        use pyo3::impl_::pyclass::LazyTypeObject;
+        static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
+        &TYPE_OBJECT
     }
 }
 

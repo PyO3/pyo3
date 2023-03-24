@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyList, PySequence, PyTuple};
 
 fn iter_tuple(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -53,12 +53,45 @@ fn tuple_get_item_unchecked(b: &mut Bencher<'_>) {
     });
 }
 
+fn sequence_from_tuple(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        let tuple = PyTuple::new(py, 0..LEN).to_object(py);
+        b.iter(|| tuple.extract::<&PySequence>(py).unwrap());
+    });
+}
+
+fn tuple_new_list(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        let tuple = PyTuple::new(py, 0..LEN);
+        b.iter(|| {
+            let _pool = unsafe { py.new_pool() };
+            let _ = PyList::new(py, tuple);
+        });
+    });
+}
+
+fn tuple_to_list(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        let tuple = PyTuple::new(py, 0..LEN);
+        b.iter(|| {
+            let _pool = unsafe { py.new_pool() };
+            let _ = tuple.to_list();
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_tuple", iter_tuple);
     c.bench_function("tuple_new", tuple_new);
     c.bench_function("tuple_get_item", tuple_get_item);
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     c.bench_function("tuple_get_item_unchecked", tuple_get_item_unchecked);
+    c.bench_function("sequence_from_tuple", sequence_from_tuple);
+    c.bench_function("tuple_new_list", tuple_new_list);
+    c.bench_function("tuple_to_list", tuple_to_list);
 }
 
 criterion_group!(benches, criterion_benchmark);

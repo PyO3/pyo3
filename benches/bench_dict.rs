@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use pyo3::{prelude::*, types::PyMapping};
 use std::collections::{BTreeMap, HashMap};
 
 fn iter_dict(b: &mut Bencher<'_>) {
@@ -63,6 +63,19 @@ fn extract_hashbrown_map(b: &mut Bencher<'_>) {
     });
 }
 
+fn mapping_from_dict(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        const LEN: usize = 100_000;
+        let dict = (0..LEN as u64)
+            .map(|i| (i, i * 2))
+            .into_py_dict(py)
+            .to_object(py);
+        b.iter(|| {
+            let _: &PyMapping = dict.extract(py).unwrap();
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_dict", iter_dict);
     c.bench_function("dict_new", dict_new);
@@ -72,6 +85,8 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     #[cfg(feature = "hashbrown")]
     c.bench_function("extract_hashbrown_map", extract_hashbrown_map);
+
+    c.bench_function("mapping_from_dict", mapping_from_dict);
 }
 
 criterion_group!(benches, criterion_benchmark);

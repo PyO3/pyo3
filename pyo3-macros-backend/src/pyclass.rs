@@ -756,9 +756,9 @@ fn impl_pytypeinfo(
             fn type_object_raw(py: _pyo3::Python<'_>) -> *mut _pyo3::ffi::PyTypeObject {
                 #deprecations
 
-                use _pyo3::type_object::LazyStaticType;
-                static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
-                TYPE_OBJECT.get_or_init::<Self>(py)
+                <#cls as _pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
+                    .get_or_init(py)
+                    .as_type_ptr()
             }
         }
     }
@@ -1038,6 +1038,12 @@ impl<'a> PyClassImplsBuilder<'a> {
                 #dict_offset
 
                 #weaklist_offset
+
+                fn lazy_type_object() -> &'static _pyo3::impl_::pyclass::LazyTypeObject<Self> {
+                    use _pyo3::impl_::pyclass::LazyTypeObject;
+                    static TYPE_OBJECT: LazyTypeObject<#cls> = LazyTypeObject::new();
+                    &TYPE_OBJECT
+                }
             }
 
             #[doc(hidden)]

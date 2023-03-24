@@ -15,6 +15,9 @@ use std::{
     thread,
 };
 
+mod lazy_type_object;
+pub use lazy_type_object::LazyTypeObject;
+
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
@@ -134,7 +137,7 @@ unsafe impl Sync for PyClassItems {}
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
-pub trait PyClassImpl: Sized {
+pub trait PyClassImpl: Sized + 'static {
     /// Class doc string
     const DOC: &'static str = "\0";
 
@@ -191,6 +194,8 @@ pub trait PyClassImpl: Sized {
     fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
         None
     }
+
+    fn lazy_type_object() -> &'static LazyTypeObject<Self>;
 }
 
 /// Iterator used to process all class items during type instantiation.
