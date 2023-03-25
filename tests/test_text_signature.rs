@@ -147,6 +147,11 @@ fn test_auto_test_signature_function() {
         let _ = (a, b, args, c, d, kwargs);
     }
 
+    #[pyfunction(signature = (a = 1, /, b = None, c = 1.5, d=5, e = "pyo3", f = 'f', h = true))]
+    fn my_function_5(a: i32, b: Option<i32>, c: f32, d: i32, e: &str, f: char, h: bool) {
+        let _ = (a, b, c, d, e, f, h);
+    }
+
     Python::with_gil(|py| {
         let f = wrap_pyfunction!(my_function)(py).unwrap();
         py_assert!(py, f, "f.__text_signature__ == '(a, b, c)'");
@@ -155,13 +160,20 @@ fn test_auto_test_signature_function() {
         py_assert!(py, f, "f.__text_signature__ == '($module, a, b, c)'");
 
         let f = wrap_pyfunction!(my_function_3)(py).unwrap();
-        py_assert!(py, f, "f.__text_signature__ == '(a, /, b=..., *, c=...)'");
+        py_assert!(py, f, "f.__text_signature__ == '(a, /, b=..., *, c=5)'");
 
         let f = wrap_pyfunction!(my_function_4)(py).unwrap();
         py_assert!(
             py,
             f,
-            "f.__text_signature__ == '(a, /, b=..., *args, c, d=..., **kwargs)'"
+            "f.__text_signature__ == '(a, /, b=..., *args, c, d=5, **kwargs)'"
+        );
+
+        let f = wrap_pyfunction!(my_function_5)(py).unwrap();
+        py_assert!(
+            py,
+            f,
+            "f.__text_signature__ == '(a=1, /, b=..., c=1.5, d=5, e=\"pyo3\", f=\\'f\\', h=True)', f.__text_signature__"
         );
     });
 }
@@ -216,12 +228,12 @@ fn test_auto_test_signature_method() {
         py_assert!(
             py,
             cls,
-            "cls.method_2.__text_signature__ == '($self, a, /, b=..., *, c=...)'"
+            "cls.method_2.__text_signature__ == '($self, a, /, b=..., *, c=5)'"
         );
         py_assert!(
             py,
             cls,
-            "cls.method_3.__text_signature__ == '($self, a, /, b=..., *args, c, d=..., **kwargs)'"
+            "cls.method_3.__text_signature__ == '($self, a, /, b=..., *args, c, d=5, **kwargs)'"
         );
         py_assert!(
             py,

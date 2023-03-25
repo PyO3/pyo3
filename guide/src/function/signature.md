@@ -304,7 +304,7 @@ fn add(a: u64, b: u64) -> u64 {
 #             .extract()?;
 #
 #         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
-#         assert_eq!(sig, "(a, b=Ellipsis, /)");
+#         assert_eq!(sig, "(a, b=0, /)");
 #
 #         Ok(())
 #     })
@@ -317,7 +317,7 @@ The following IPython output demonstrates how this generated signature will be s
 >>> pyo3_test.add.__text_signature__
 '(a, b=..., /)'
 >>> pyo3_test.add?
-Signature: pyo3_test.add(a, b=Ellipsis, /)
+Signature: pyo3_test.add(a, b=0, /)
 Docstring: This function adds two unsigned 64-bit integers.
 Type:      builtin_function_or_method
 ```

@@ -585,6 +585,29 @@ impl<'a> FunctionSignature<'a> {
         }
     }
 
+    fn default_value_for_parameter(&self, parameter: &str) -> String {
+        let mut default = "...".to_string();
+        if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name == parameter) {
+            if let Some(syn::Expr::Lit(syn::ExprLit { lit, .. })) = fn_arg.default.as_ref() {
+                match lit {
+                    syn::Lit::Str(s) => default = s.token().to_string(),
+                    syn::Lit::Char(c) => default = c.token().to_string(),
+                    syn::Lit::Int(i) => default = i.base10_digits().to_string(),
+                    syn::Lit::Float(f) => default = f.base10_digits().to_string(),
+                    syn::Lit::Bool(b) => {
+                        default = if b.value() {
+                            "True".to_string()
+                        } else {
+                            "False".to_string()
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        default
+    }
+
     pub fn text_signature(&self, fn_type: &FnType) -> String {
         // automatic text signature generation
         let self_argument = match fn_type {
@@ -624,8 +647,8 @@ impl<'a> FunctionSignature<'a> {
             output.push_str(parameter);
 
             if i >= py_sig.required_positional_parameters {
-                // has a default, just use ... for now
-                output.push_str("=...");
+                output.push('=');
+                output.push_str(&self.default_value_for_parameter(parameter));
             }
 
             if py_sig.positional_only_parameters > 0 && i + 1 == py_sig.positional_only_parameters {
@@ -646,8 +669,8 @@ impl<'a> FunctionSignature<'a> {
             maybe_push_comma(&mut output);
             output.push_str(parameter);
             if !required {
-                // has a default, just use ... for now
-                output.push_str("=...")
+                output.push('=');
+                output.push_str(&self.default_value_for_parameter(parameter));
             }
         }
 
