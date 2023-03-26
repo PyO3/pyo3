@@ -61,11 +61,35 @@ impl Number {
         //                       👇 Tuple field access in Rust uses a dot
         format!("Number({})", self.0)
     }
-
     // `__str__` is generally used to create an "informal" representation, so we
     // just forward to `i32`'s `ToString` trait implementation to print a bare number.
     fn __str__(&self) -> String {
         self.0.to_string()
+    }
+}
+```
+
+#### Accessing the class name
+
+In the `__repr__`, we used a hard-coded class name. This is sometimes not ideal,
+because if the class is subclassed in Python, we would like the repr to reflect
+the subclass name. This is typically done in Python code by accessing 
+`self.__class__.__name__`. In order to be able to access the Python type information
+*and* the Rust struct, we need to use a `PyCell` as the `self` argument.
+
+```rust
+# use pyo3::prelude::*;
+#
+# #[pyclass]
+# struct Number(i32);
+#
+#[pymethods]
+impl Number {
+    fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
+        // This is the equivalent of `self.__class__.__name__` in Python.
+        let class_name: &str = slf.get_type().name()?;
+        // To access fields of the Rust struct, we need to borrow the `PyCell`.
+        Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 }
 ```
@@ -235,8 +259,9 @@ impl Number {
         Self(value)
     }
 
-    fn __repr__(&self) -> String {
-        format!("Number({})", self.0)
+    fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
+        let class_name: &str = slf.get_type().name()?;
+        Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 
     fn __str__(&self) -> String {
