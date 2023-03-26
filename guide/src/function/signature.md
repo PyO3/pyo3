@@ -148,7 +148,7 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 #             .extract()?;
 #
 #         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
-#         assert_eq!(sig, "(x, amount=Ellipsis)");
+#         assert_eq!(sig, "(x, amount=None)");
 #
 #         Ok(())
 #     })

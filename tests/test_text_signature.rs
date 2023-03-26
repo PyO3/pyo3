@@ -152,28 +152,52 @@ fn test_auto_test_signature_function() {
         let _ = (a, b, c, d, e, f, h);
     }
 
+    #[pyfunction]
+    fn my_function_6(a: i32, b: Option<i32>, c: Option<i32>) {
+        let _ = (a, b, c);
+    }
+
     Python::with_gil(|py| {
         let f = wrap_pyfunction!(my_function)(py).unwrap();
-        py_assert!(py, f, "f.__text_signature__ == '(a, b, c)'");
+        py_assert!(
+            py,
+            f,
+            "f.__text_signature__ == '(a, b, c)', f.__text_signature__"
+        );
 
         let f = wrap_pyfunction!(my_function_2)(py).unwrap();
-        py_assert!(py, f, "f.__text_signature__ == '($module, a, b, c)'");
+        py_assert!(
+            py,
+            f,
+            "f.__text_signature__ == '($module, a, b, c)', f.__text_signature__"
+        );
 
         let f = wrap_pyfunction!(my_function_3)(py).unwrap();
-        py_assert!(py, f, "f.__text_signature__ == '(a, /, b=..., *, c=5)'");
+        py_assert!(
+            py,
+            f,
+            "f.__text_signature__ == '(a, /, b=None, *, c=5)', f.__text_signature__"
+        );
 
         let f = wrap_pyfunction!(my_function_4)(py).unwrap();
         py_assert!(
             py,
             f,
-            "f.__text_signature__ == '(a, /, b=..., *args, c, d=5, **kwargs)'"
+            "f.__text_signature__ == '(a, /, b=None, *args, c, d=5, **kwargs)', f.__text_signature__"
         );
 
         let f = wrap_pyfunction!(my_function_5)(py).unwrap();
         py_assert!(
             py,
             f,
-            "f.__text_signature__ == '(a=1, /, b=..., c=1.5, d=5, e=\"pyo3\", f=\\'f\\', h=True)', f.__text_signature__"
+            "f.__text_signature__ == '(a=1, /, b=None, c=1.5, d=5, e=\"pyo3\", f=\\'f\\', h=True)', f.__text_signature__"
+        );
+
+        let f = wrap_pyfunction!(my_function_6)(py).unwrap();
+        py_assert!(
+            py,
+            f,
+            "f.__text_signature__ == '(a, b=None, c=None)', f.__text_signature__"
         );
     });
 }
@@ -228,12 +252,12 @@ fn test_auto_test_signature_method() {
         py_assert!(
             py,
             cls,
-            "cls.method_2.__text_signature__ == '($self, a, /, b=..., *, c=5)'"
+            "cls.method_2.__text_signature__ == '($self, a, /, b=None, *, c=5)'"
         );
         py_assert!(
             py,
             cls,
-            "cls.method_3.__text_signature__ == '($self, a, /, b=..., *args, c, d=5, **kwargs)'"
+            "cls.method_3.__text_signature__ == '($self, a, /, b=None, *args, c, d=5, **kwargs)'"
         );
         py_assert!(
             py,

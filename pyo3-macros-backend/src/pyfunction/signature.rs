@@ -588,21 +588,36 @@ impl<'a> FunctionSignature<'a> {
     fn default_value_for_parameter(&self, parameter: &str) -> String {
         let mut default = "...".to_string();
         if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name == parameter) {
-            if let Some(syn::Expr::Lit(syn::ExprLit { lit, .. })) = fn_arg.default.as_ref() {
-                match lit {
-                    syn::Lit::Str(s) => default = s.token().to_string(),
-                    syn::Lit::Char(c) => default = c.token().to_string(),
-                    syn::Lit::Int(i) => default = i.base10_digits().to_string(),
-                    syn::Lit::Float(f) => default = f.base10_digits().to_string(),
-                    syn::Lit::Bool(b) => {
-                        default = if b.value() {
-                            "True".to_string()
-                        } else {
-                            "False".to_string()
+            if let Some(arg_default) = fn_arg.default.as_ref() {
+                match arg_default {
+                    // literal values
+                    syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
+                        syn::Lit::Str(s) => default = s.token().to_string(),
+                        syn::Lit::Char(c) => default = c.token().to_string(),
+                        syn::Lit::Int(i) => default = i.base10_digits().to_string(),
+                        syn::Lit::Float(f) => default = f.base10_digits().to_string(),
+                        syn::Lit::Bool(b) => {
+                            default = if b.value() {
+                                "True".to_string()
+                            } else {
+                                "False".to_string()
+                            }
                         }
+                        _ => {}
+                    },
+                    // None
+                    syn::Expr::Path(syn::ExprPath {
+                        qself: None, path, ..
+                    }) if path.is_ident("None") => {
+                        default = "None".to_string();
                     }
+                    // others, unsupported yet so defaults to `...`
                     _ => {}
                 }
+            } else if fn_arg.optional.is_some() {
+                // functions without a `#[pyo3(signature = (...))]` option
+                // will treat trailing `Option<T>` arguments as having a default of `None`
+                default = "None".to_string();
             }
         }
         default
