@@ -1,9 +1,7 @@
 use crate::ffi::*;
 use crate::{types::PyDict, AsPyPointer, IntoPy, Py, PyAny, Python};
 
-#[cfg(target_endian = "little")]
 use crate::types::PyString;
-#[cfg(target_endian = "little")]
 use libc::wchar_t;
 
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
@@ -108,7 +106,6 @@ fn test_timezone_from_offset_and_name() {
     })
 }
 
-#[cfg(target_endian = "little")]
 #[test]
 fn ascii_object_bitfield() {
     let ob_base: PyObject = unsafe { std::mem::zeroed() };
@@ -118,7 +115,7 @@ fn ascii_object_bitfield() {
         length: 0,
         #[cfg(not(PyPy))]
         hash: 0,
-        state: 0,
+        state: 0u32,
         wstr: std::ptr::null_mut() as *mut wchar_t,
     };
 
@@ -130,27 +127,26 @@ fn ascii_object_bitfield() {
         assert_eq!(o.ready(), 0);
 
         for i in 0..4 {
-            o.state = i;
+            o.set_interned(i);
             assert_eq!(o.interned(), i);
         }
 
         for i in 0..8 {
-            o.state = i << 2;
+            o.set_kind(i);
             assert_eq!(o.kind(), i);
         }
 
-        o.state = 1 << 5;
+        o.set_compact(1);
         assert_eq!(o.compact(), 1);
 
-        o.state = 1 << 6;
+        o.set_ascii(1);
         assert_eq!(o.ascii(), 1);
 
-        o.state = 1 << 7;
+        o.set_ready(1);
         assert_eq!(o.ready(), 1);
     }
 }
 
-#[cfg(target_endian = "little")]
 #[test]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ascii() {
@@ -191,7 +187,6 @@ fn ascii() {
     })
 }
 
-#[cfg(target_endian = "little")]
 #[test]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ucs4() {
