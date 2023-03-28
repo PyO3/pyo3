@@ -1,7 +1,12 @@
 //! Helper to convert Rust panics to Python exceptions.
+use crate::conversion::{FromPyPointer, IntoPyPointer};
 use crate::exceptions::PyBaseException;
-use crate::PyErr;
+use crate::ffi;
+use crate::global_api::ensure_global_api;
+use crate::{PyAny, Python};
 use std::any::Any;
+use std::slice;
+use std::str;
 
 pyo3_exception!(
     "
@@ -20,13 +25,37 @@ impl PanicException {
     ///
     /// Attempts to format the error in the same way panic does.
     #[cold]
-    pub(crate) fn from_panic_payload(payload: Box<dyn Any + Send + 'static>) -> PyErr {
-        if let Some(string) = payload.downcast_ref::<String>() {
-            Self::new_err((string.clone(),))
+    pub(crate) fn from_panic_payload<'py>(
+        py: Python<'py>,
+        payload: Box<dyn Any + Send + 'static>,
+    ) -> &'py PyAny {
+        let msg = if let Some(string) = payload.downcast_ref::<String>() {
+            string.clone()
         } else if let Some(s) = payload.downcast_ref::<&str>() {
-            Self::new_err((s.to_string(),))
+            s.to_string()
         } else {
-            Self::new_err(("panic from Rust code",))
-        }
+            "panic from Rust code".to_owned()
+        };
+
+        let api = match ensure_global_api(py) {
+            Ok(api) => api,
+            // The global API is unavailable, hence we fall back to our own `PanicException`.
+            Err(err) => return PanicException::new_err((msg,)).into_value(py).into_ref(py),
+        };
+
+        let err = (api.create_panic_exception)(msg.as_ptr(), msg.len());
+
+        PyAny::from_owned_ptr(py, err)
     }
+}
+
+pub(crate) unsafe extern "C" fn create_panic_exception(
+    msg_ptr: *const u8,
+    msg_len: usize,
+) -> *mut ffi::PyObject {
+    let msg = str::from_utf8_unchecked(slice::from_raw_parts(msg_ptr, msg_len));
+
+    let err = PanicException::new_err((msg,));
+
+    err.into_value(Python::assume_gil_acquired()).into_ptr()
 }

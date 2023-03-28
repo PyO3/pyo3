@@ -410,6 +410,7 @@ pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
+mod global_api;
 pub mod panic;
 pub mod prelude;
 pub mod pycell;

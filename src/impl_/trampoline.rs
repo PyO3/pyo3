@@ -220,7 +220,7 @@ where
     let py_err = match panic_result {
         Ok(Ok(value)) => return value,
         Ok(Err(py_err)) => py_err,
-        Err(payload) => PanicException::from_panic_payload(payload),
+        Err(payload) => PanicException::from_panic_payload(py, payload),
     };
     py_err.restore(py);
     R::ERR_VALUE
@@ -245,7 +245,7 @@ where
     let pool = GILPool::new();
     let py = pool.python();
     if let Err(py_err) = panic::catch_unwind(move || body(py))
-        .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
+        .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(py, payload)))
     {
         py_err.write_unraisable(py, py.from_borrowed_ptr_or_opt(ctx));
     }
