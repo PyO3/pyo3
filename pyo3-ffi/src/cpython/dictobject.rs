@@ -42,7 +42,6 @@ extern "C" {
         hash: *mut crate::Py_hash_t,
     ) -> c_int;
     // skipped PyDict_GET_SIZE
-    // skipped _PyDict_Contains_KnownHash
     // skipped _PyDict_ContainsId
     pub fn _PyDict_NewPresized(minused: Py_ssize_t) -> *mut PyObject;
     // skipped _PyDict_MaybeUntrack
@@ -63,6 +62,14 @@ extern "C" {
     // skipped _PyDictViewObject
     // skipped _PyDictView_New
     // skipped _PyDictView_Intersect
+
+    #[cfg(Py_3_10)]
+    pub fn _PyDict_Contains_KnownHash(
+        op: *mut PyObject,
+        key: *mut PyObject,
+        hash: crate::Py_hash_t,
+    ) -> c_int;
+
     #[cfg(not(Py_3_10))]
     pub fn _PyDict_Contains(mp: *mut PyObject, key: *mut PyObject, hash: Py_ssize_t) -> c_int;
 }
