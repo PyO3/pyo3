@@ -20,7 +20,7 @@
 /// You can use this macro to test pyfunctions or pyclasses quickly.
 ///
 /// ```
-/// use pyo3::{prelude::*, py_run, PyCell};
+/// use pyo3::{prelude::*, py_run};
 ///
 /// #[pyclass]
 /// #[derive(Debug)]
