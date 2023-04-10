@@ -774,7 +774,7 @@ impl PyAny {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyAny, PyDict, PyList};
+    /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
     ///     let dict = PyDict::new(py);

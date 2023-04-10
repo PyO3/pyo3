@@ -65,7 +65,6 @@ The following wrapper will call the Python model from Rust, using a struct to ho
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -125,7 +124,6 @@ Let's add the PyO3 annotations and add a constructor:
 #   fn get_results(&self) -> Vec<f64>;
 # }
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 
 #[pyclass]
 struct UserModel {
@@ -165,7 +163,6 @@ This wrapper will also perform the type conversions between Python and Rust.
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -334,7 +331,6 @@ We used in our `get_results` method the following call that performs the type co
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -387,7 +383,6 @@ Let's break it down in order to perform better error handling:
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -466,7 +461,6 @@ It is also required to make the struct public.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 
 pub trait Model {
     fn set_variables(&mut self, var: &Vec<f64>);
