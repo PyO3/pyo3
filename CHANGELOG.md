@@ -10,6 +10,22 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.18.3] - 2023-04-13
+
+### Added
+
+- Add `GILProtected<T>` to mediate concurrent access to a value using Python's global interpreter lock (GIL). [#2975](https://github.com/PyO3/pyo3/pull/2975)
+- Support `PyASCIIObject` / `PyUnicode` and associated methods on big-endian architectures. [#3015](https://github.com/PyO3/pyo3/pull/3015)
+- Add FFI definition `_PyDict_Contains_KnownHash()` for CPython 3.10 and up. [#3088](https://github.com/PyO3/pyo3/pull/3088)
+
+### Fixed
+
+- Fix compile error for `#[pymethods]` and `#[pyfunction]` called "output". [#3022](https://github.com/PyO3/pyo3/pull/3022)
+- Fix compile error in generated code for magic methods implemented as a `#[staticmethod]`. [#3055](https://github.com/PyO3/pyo3/pull/3055)
+- Fix `is_instance` for `PyDateTime` (would incorrectly check for a `PyDate`). [#3071](https://github.com/PyO3/pyo3/pull/3071)
+- Fix upstream deprecation of `PyUnicode_InternImmortal` since Python 3.10. [#3071](https://github.com/PyO3/pyo3/pull/3087)
+
+
 ## [0.18.2] - 2023-03-24
 
 ### Packaging
@@ -36,6 +52,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Fix `clippy::redundant_closure` lint on default arguments in `#[pyo3(signature = (...))]` annotations. [#2990](https://github.com/PyO3/pyo3/pull/2990)
 - Fix `non_snake_case` lint on generated code in `#[pyfunction]` macro. [#2993](https://github.com/PyO3/pyo3/pull/2993)
 - Fix some FFI definitions for the upcoming PyPy 3.10 release. [#3031](https://github.com/PyO3/pyo3/pull/3031)
+
 
 ## [0.18.1] - 2023-02-07
 
@@ -1419,7 +1436,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.18.3...HEAD
+[0.18.3]: https://github.com/pyo3/pyo3/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/pyo3/pyo3/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/pyo3/pyo3/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/pyo3/pyo3/compare/v0.17.3...v0.18.0
