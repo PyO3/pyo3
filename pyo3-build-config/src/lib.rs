@@ -11,10 +11,7 @@ mod errors;
 mod impl_;
 
 #[cfg(feature = "resolve-config")]
-use std::{
-    io::Cursor,
-    path::{Path, PathBuf},
-};
+use std::{io::Cursor, path::PathBuf};
 
 use std::{env, process::Command, str::FromStr};
 
@@ -115,11 +112,13 @@ const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-con
 #[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 fn resolve_cross_compile_config_path() -> Option<PathBuf> {
-    env::var_os("TARGET").map(|target| {
-        let mut path = PathBuf::from(env!("OUT_DIR"));
-        path.push(Path::new(&target));
-        path.push("pyo3-build-config.txt");
-        path
+    env::var_os("TARGET").and_then(|target| {
+        std::env::var_os("OUT_DIR").map(|out_dir| {
+            let mut path = PathBuf::from(out_dir);
+            path.push(&target);
+            path.push("pyo3-build-config.txt");
+            path
+        })
     })
 }
 
