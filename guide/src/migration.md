@@ -214,14 +214,14 @@ Before:
 
 ```rust,compile_fail
 use pyo3::prelude::*;
-use pyo3::class::{PyBasicProtocol, PyIterProtocol};
+use pyo3::class::{PyObjectProtocol, PyIterProtocol};
 use pyo3::types::PyString;
 
 #[pyclass]
 struct MyClass {}
 
 #[pyproto]
-impl PyBasicProtocol for MyClass {
+impl PyObjectProtocol for MyClass {
     fn __str__(&self) -> &'static [u8] {
         b"hello, world"
     }
@@ -393,7 +393,7 @@ The limitation of the new default implementation is that it cannot support multi
 
 ### Deprecated `#[pyproto]` methods
 
-Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyBasicProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`. This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
+Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyObjectProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`. This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
 
 In the interest of having only one way to do things, the `#[pyproto]` forms of these methods have been deprecated.
 
@@ -403,13 +403,13 @@ Before:
 
 ```rust,compile_fail
 use pyo3::prelude::*;
-use pyo3::class::basic::PyBasicProtocol;
+use pyo3::class::basic::PyObjectProtocol;
 
 #[pyclass]
 struct MyClass {}
 
 #[pyproto]
-impl PyBasicProtocol for MyClass {
+impl PyObjectProtocol for MyClass {
     fn __bytes__(&self) -> &'static [u8] {
         b"hello, world"
     }
