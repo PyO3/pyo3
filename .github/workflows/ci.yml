@@ -312,7 +312,7 @@ jobs:
       - uses: codecov/codecov-action@v3
         if: steps.should-skip.outputs.skip != 'true'
         with:
-          file: coverage.lcov
+          file: coverage.json
           name: ${{ matrix.os }}
 
   emscripten:

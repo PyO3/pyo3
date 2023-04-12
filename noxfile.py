@@ -62,9 +62,9 @@ def coverage(session: nox.Session) -> None:
         "--package=pyo3-macros",
         "--package=pyo3-ffi",
         "report",
-        "--lcov",
+        "--codecov",
         "--output-path",
-        "coverage.lcov",
+        "coverage.json",
         external=True,
     )
 
