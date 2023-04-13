@@ -540,8 +540,9 @@ def _get_rust_target() -> str:
 def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
     """Returns feature sets to use for clippy job"""
     rust_version = _get_rust_version()
-    if rust_version[:2] >= (1, 62):
-        # multiple-pymethods feature not supported before 1.62
+    cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
+    if rust_version[:2] >= (1, 62) and "wasm32-wasi" not in cargo_target:
+        # multiple-pymethods feature not supported before 1.62 or on WASI
         return (
             ("--no-default-features",),
             (
