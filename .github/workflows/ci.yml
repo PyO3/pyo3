@@ -96,7 +96,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.rust-target }}
+          targets: ${{ matrix.platform.rust-target }}
           components: clippy
       - uses: actions/setup-python@v4
         with:
@@ -106,6 +106,8 @@ jobs:
         name: Prepare minimal package versions (MSRV only)
         run: nox -s set-minimal-package-versions
       - run: nox -s clippy-all
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
 
   build-pr:
     if: github.event_name == 'pull_request'
