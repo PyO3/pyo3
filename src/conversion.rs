@@ -75,7 +75,6 @@ pub trait AsPyPointer {
 ///
 /// ```rust
 /// use pyo3::prelude::*;
-/// use pyo3::IntoPyPointer;
 /// use pyo3::types::PyString;
 /// use pyo3::ffi;
 ///

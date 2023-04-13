@@ -441,9 +441,9 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
 
     let name = &spec.name;
     let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(py))
+        quote!(function(py))
     } else {
-        quote!(#cls::#name())
+        quote!(function())
     };
 
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
@@ -452,6 +452,7 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
 
     let associated_method = quote! {
         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
+            let function = #cls::#name; // Shadow the method name to avoid #3017
             #deprecations
             let mut ret = #fncall;
             let owned = _pyo3::impl_::pymethods::OkWrap::wrap(ret, py);
@@ -1151,12 +1152,14 @@ impl SlotDef {
             *extract_error_mode,
             return_mode.as_ref(),
         )?;
+        let name = spec.name;
         let associated_method = quote! {
             unsafe fn #wrapper_ident(
                 #py: _pyo3::Python<'_>,
                 _raw_slf: *mut _pyo3::ffi::PyObject,
                 #(#arg_idents: #arg_types),*
             ) -> _pyo3::PyResult<#ret_ty> {
+                let function = #cls::#name; // Shadow the method name to avoid #3017
                 let _slf = _raw_slf;
                 #body
             }
@@ -1195,9 +1198,10 @@ fn generate_method_body(
     return_mode: Option<&ReturnMode>,
 ) -> Result<TokenStream> {
     let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
+    let self_arg = spec.tp.self_arg();
     let rust_name = spec.name;
     let args = extract_proto_arguments(py, spec, arguments, extract_error_mode)?;
-    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#args),*)) };
+    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(#self_arg #(#args),*)) };
     let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(py, call)
     } else {

@@ -228,7 +228,7 @@ pub struct PyDateTime(PyAny);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
-    *ensure_datetime_api(Python::assume_gil_acquired()).DateType,
+    *ensure_datetime_api(Python::assume_gil_acquired()).DateTimeType,
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );

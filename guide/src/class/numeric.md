@@ -233,8 +233,10 @@ impl Number {
         Self(value)
     }
 
-    fn __repr__(&self) -> String {
-        format!("Number({})", self.0)
+    fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
+       // Get the class name dynamically in case `Number` is subclassed
+       let class_name: &str = slf.get_type().name()?;
+        Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 
     fn __str__(&self) -> String {

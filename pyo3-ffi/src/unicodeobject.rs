@@ -83,6 +83,8 @@ extern "C" {
     pub fn PyUnicode_FromFormat(format: *const c_char, ...) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_InternInPlace")]
     pub fn PyUnicode_InternInPlace(arg1: *mut *mut PyObject);
+    #[cfg(not(Py_3_12))]
+    #[cfg_attr(Py_3_10, deprecated(note = "Python 3.10"))]
     pub fn PyUnicode_InternImmortal(arg1: *mut *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_InternFromString")]
     pub fn PyUnicode_InternFromString(u: *const c_char) -> *mut PyObject;

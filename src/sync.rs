@@ -1,6 +1,45 @@
-//! A write-once cell mediated by the Python GIL.
+//! Synchronization mechanisms based on the Python GIL.
 use crate::{types::PyString, Py, Python};
 use std::cell::UnsafeCell;
+
+/// Value with concurrent access protected by the GIL.
+///
+/// This is a synchronization primitive based on Python's global interpreter lock (GIL).
+/// It ensures that only one thread at a time can access the inner value via shared references.
+/// It can be combined with interior mutability to obtain mutable references.
+///
+/// # Example
+///
+/// Combining `GILProtected` with `RefCell` enables mutable access to static data:
+///
+/// ```
+/// # use pyo3::prelude::*;
+/// use pyo3::sync::GILProtected;
+/// use std::cell::RefCell;
+///
+/// static NUMBERS: GILProtected<RefCell<Vec<i32>>> = GILProtected::new(RefCell::new(Vec::new()));
+///
+/// Python::with_gil(|py| {
+///     NUMBERS.get(py).borrow_mut().push(42);
+/// });
+/// ```
+pub struct GILProtected<T> {
+    value: T,
+}
+
+impl<T> GILProtected<T> {
+    /// Place the given value under the protection of the GIL.
+    pub const fn new(value: T) -> Self {
+        Self { value }
+    }
+
+    /// Gain access to the inner value by giving proof of having acquired the GIL.
+    pub fn get<'py>(&'py self, _py: Python<'py>) -> &'py T {
+        &self.value
+    }
+}
+
+unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 
 /// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/latest/once_cell/).
 ///
@@ -25,7 +64,7 @@ use std::cell::UnsafeCell;
 /// between threads:
 ///
 /// ```
-/// use pyo3::once_cell::GILOnceCell;
+/// use pyo3::sync::GILOnceCell;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;
 ///
@@ -170,7 +209,7 @@ impl<T> GILOnceCell<T> {
 #[macro_export]
 macro_rules! intern {
     ($py: expr, $text: expr) => {{
-        static INTERNED: $crate::once_cell::Interned = $crate::once_cell::Interned::new($text);
+        static INTERNED: $crate::sync::Interned = $crate::sync::Interned::new($text);
         INTERNED.get($py)
     }};
 }

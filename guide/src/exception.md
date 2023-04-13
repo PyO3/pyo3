@@ -39,7 +39,6 @@ the module like this, so that it is importable from Python:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyModule;
 use pyo3::exceptions::PyException;
 
 pyo3::create_exception!(mymodule, CustomError, PyException);

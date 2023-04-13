@@ -89,7 +89,6 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::{Py, Python, PyAny, PyResult};
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);

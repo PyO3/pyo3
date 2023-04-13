@@ -36,7 +36,7 @@ pub use self::pysuper::PySuper;
 pub use self::sequence::PySequence;
 pub use self::set::PySet;
 pub use self::slice::{PySlice, PySliceIndices};
-#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+#[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
 pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::traceback::PyTraceback;
