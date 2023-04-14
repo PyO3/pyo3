@@ -522,6 +522,7 @@ impl EnsureGIL {
 mod tests {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
+    #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::{const_mutex, Condvar, Mutex};
     use std::{ptr::NonNull, sync::atomic::Ordering};
 
@@ -543,6 +544,7 @@ mod tests {
         !POOL.dirty.load(Ordering::SeqCst)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn pool_dirty_with(
         inc_refs: Vec<NonNull<ffi::PyObject>>,
         dec_refs: Vec<NonNull<ffi::PyObject>>,
@@ -766,11 +768,13 @@ mod tests {
         assert_eq!(count + 1, c.get_refcnt(py));
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     struct Event {
         set: Mutex<bool>,
         wait: Condvar,
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     impl Event {
         const fn new() -> Self {
             Self {

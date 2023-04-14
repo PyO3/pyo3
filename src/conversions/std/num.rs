@@ -360,6 +360,7 @@ nonzero_int_impl!(NonZeroUsize, usize);
 #[cfg(test)]
 mod test_128bit_integers {
     use super::*;
+    #[cfg(not(target_arch = "wasm32"))]
     use crate::types::PyDict;
 
     #[cfg(not(target_arch = "wasm32"))]
