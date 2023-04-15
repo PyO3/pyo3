@@ -7,4 +7,6 @@ type: software
 authors:
   - name: PyO3 Project and Contributors
     website: https://github.com/PyO3
-license: Apache-2.0
+license:
+  - Apache-2.0
+  - MIT
