@@ -402,12 +402,12 @@ impl<'a> FunctionSignature<'a> {
                 SignatureItem::Varargs(varargs) => {
                     let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
                     fn_arg.is_varargs = true;
-                    parse_state.add_varargs(&mut python_signature, &varargs)?;
+                    parse_state.add_varargs(&mut python_signature, varargs)?;
                 }
                 SignatureItem::Kwargs(kwargs) => {
                     let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
                     fn_arg.is_kwargs = true;
-                    parse_state.add_kwargs(&mut python_signature, &kwargs)?;
+                    parse_state.add_kwargs(&mut python_signature, kwargs)?;
                 }
                 SignatureItem::PosargsSep(sep) => {
                     parse_state.finish_pos_only_args(&mut python_signature, sep.span())?

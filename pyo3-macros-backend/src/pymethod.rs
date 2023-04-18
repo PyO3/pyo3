@@ -207,7 +207,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, &spec.name))
+                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, spec.name))
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
@@ -219,19 +219,19 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &create_doc(meth_attrs, &spec),
+            &create_doc(meth_attrs, spec),
             None,
         )?),
         (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &create_doc(meth_attrs, &spec),
+            &create_doc(meth_attrs, spec),
             Some(quote!(_pyo3::ffi::METH_CLASS)),
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &create_doc(meth_attrs, &spec),
+            &create_doc(meth_attrs, spec),
             Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
@@ -242,7 +242,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: create_doc(meth_attrs, &spec),
+                doc: create_doc(meth_attrs, spec),
             },
         )?),
         (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
@@ -250,7 +250,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: create_doc(meth_attrs, &spec),
+                doc: create_doc(meth_attrs, spec),
             },
         )?),
         (_, FnType::FnModule) => {
@@ -794,7 +794,7 @@ impl PropertyType<'_> {
             PropertyType::Descriptor { field, .. } => {
                 Cow::Owned(utils::get_doc(&field.attrs, None))
             }
-            PropertyType::Function { doc, .. } => Cow::Borrowed(&doc),
+            PropertyType::Function { doc, .. } => Cow::Borrowed(doc),
         }
     }
 }

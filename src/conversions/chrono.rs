@@ -847,14 +847,12 @@ mod tests {
         check_time("non fold", 3, 5, 7, 999_999, 999_999, false);
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, not(target_arch = "wasm32")))]
     mod proptests {
         use super::*;
 
-        #[cfg(not(target_arch = "wasm32"))]
         use proptest::prelude::*;
 
-        #[cfg(not(target_arch = "wasm32"))]
         proptest! {
             #[test]
             fn test_duration_roundtrip(days in -999999999i64..=999999999i64) {
