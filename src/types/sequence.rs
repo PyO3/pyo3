@@ -239,20 +239,34 @@ impl PySequence {
 
     /// Returns a fresh list based on the Sequence.
     #[inline]
-    pub fn list(&self) -> PyResult<&PyList> {
+    pub fn to_list(&self) -> PyResult<&PyList> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
         }
     }
 
+    /// Returns a fresh list based on the Sequence.
+    #[inline]
+    #[deprecated(since = "0.19.0", note = "renamed to .to_list()")]
+    pub fn list(&self) -> PyResult<&PyList> {
+        self.to_list()
+    }
+
     /// Returns a fresh tuple based on the Sequence.
     #[inline]
-    pub fn tuple(&self) -> PyResult<&PyTuple> {
+    pub fn to_tuple(&self) -> PyResult<&PyTuple> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
         }
+    }
+
+    /// Returns a fresh tuple based on the Sequence.
+    #[inline]
+    #[deprecated(since = "0.19.0", note = "renamed to .to_tuple()")]
+    pub fn tuple(&self) -> PyResult<&PyTuple> {
+        self.to_tuple()
     }
 
     /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
@@ -387,7 +401,7 @@ impl Py<PySequence> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyList, PySequence};
+    use crate::types::{PyList, PySequence, PyTuple};
     use crate::{AsPyPointer, Py, PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
@@ -802,7 +816,11 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = v.to_object(py);
             let seq = ob.downcast::<PySequence>(py).unwrap();
-            assert!(seq.list().is_ok());
+            assert!(seq.to_list().unwrap().eq(PyList::new(py, &v)).unwrap());
+            #[allow(deprecated)]
+            {
+                assert!(seq.list().is_ok());
+            }
         });
     }
 
@@ -812,7 +830,15 @@ mod tests {
             let v = "foo";
             let ob = v.to_object(py);
             let seq: &PySequence = ob.downcast(py).unwrap();
-            assert!(seq.list().is_ok());
+            assert!(seq
+                .to_list()
+                .unwrap()
+                .eq(PyList::new(py, &["f", "o", "o"]))
+                .unwrap());
+            #[allow(deprecated)]
+            {
+                assert!(seq.list().is_ok());
+            }
         });
     }
 
@@ -822,7 +848,15 @@ mod tests {
             let v = ("foo", "bar");
             let ob = v.to_object(py);
             let seq = ob.downcast::<PySequence>(py).unwrap();
-            assert!(seq.tuple().is_ok());
+            assert!(seq
+                .to_tuple()
+                .unwrap()
+                .eq(PyTuple::new(py, &["foo", "bar"]))
+                .unwrap());
+            #[allow(deprecated)]
+            {
+                assert!(seq.tuple().is_ok());
+            }
         });
     }
 
@@ -832,7 +866,11 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = v.to_object(py);
             let seq = ob.downcast::<PySequence>(py).unwrap();
-            assert!(seq.tuple().is_ok());
+            assert!(seq.to_tuple().unwrap().eq(PyTuple::new(py, &v)).unwrap());
+            #[allow(deprecated)]
+            {
+                assert!(seq.tuple().is_ok());
+            }
         });
     }
 
@@ -876,7 +914,7 @@ mod tests {
             let seq = ob.downcast::<PySequence>(py).unwrap();
             let type_ptr = seq.as_ref();
             let seq_from = unsafe { type_ptr.downcast_unchecked::<PySequence>() };
-            assert!(seq_from.list().is_ok());
+            assert!(seq_from.to_list().is_ok());
         });
     }
 
