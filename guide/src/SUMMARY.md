@@ -14,6 +14,7 @@
     - [Basic object customization](class/object.md)
     - [Emulating numeric types](class/numeric.md)
     - [Emulating callable objects](class/call.md)
+    - [Optional bindings](class/optional_bindings.md)
 - [Type conversions](conversions.md)
   - [Mapping of Rust types to Python types](conversions/tables.md)]
   - [Conversion traits](conversions/traits.md)]

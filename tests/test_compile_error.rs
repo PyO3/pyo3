@@ -32,6 +32,7 @@ fn test_compile_errors() {
 fn _test_compile_errors() {
     let t = trybuild::TestCases::new();
 
+    t.compile_fail("tests/ui/invalid_cfg_attr_pyo3.rs");
     t.compile_fail("tests/ui/invalid_macro_args.rs");
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
     t.compile_fail("tests/ui/invalid_property_args.rs");

@@ -503,3 +503,32 @@ pub(crate) fn text_signature_or_auto(
         Some(TextSignatureAttributeValue::Disabled(_)) => None,
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::PyFunctionOptions;
+    use syn::{parse_quote, ImplItemMethod};
+
+    /// Ensure it leaves the other attr be
+    #[test]
+    fn test_py_function_options() {
+        let mut meth: ImplItemMethod = parse_quote! {
+            #[cfg_attr(feature = "pyo3", classattr)] #[pyo3(name = "bar")] fn foo() -> i32 { 5 }
+        };
+        let expected_attrs = vec![meth.attrs[0].clone()];
+        let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
+        assert_eq!(options.name.unwrap().value.0.to_string(), "bar");
+        assert_eq!(meth.attrs, expected_attrs);
+    }
+
+    /// Ensure the nested parsing works
+    #[test]
+    fn test_py_function_options_pyo3_in_cfg_attr() {
+        let mut meth: ImplItemMethod = parse_quote! {
+            #[cfg_attr(feature = "pyo3", pyo3(name = "bar"))] fn foo() -> i32 { 5 }
+        };
+        let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
+        assert_eq!(options.name.unwrap().value.0.to_string(), "bar");
+        assert_eq!(meth.attrs, Vec::new());
+    }
+}

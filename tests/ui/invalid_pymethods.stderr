@@ -5,10 +5,10 @@ error: #[classattr] can only have one argument (of type pyo3::Python)
   |                                  ^^^
 
 error: `#[classattr]` does not take any arguments
-  --> tests/ui/invalid_pymethods.rs:14:5
+  --> tests/ui/invalid_pymethods.rs:14:17
    |
 14 |     #[classattr(foobar)]
-   |     ^
+   |                 ^^^^^^
 
 error: static method needs #[staticmethod] attribute
   --> tests/ui/invalid_pymethods.rs:20:5
