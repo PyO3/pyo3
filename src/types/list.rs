@@ -293,7 +293,7 @@ impl PyList {
 
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
     ///
-    /// This method is equivalent to `self.as_sequence().tuple()` and faster than `PyTuple::new(py, this_list)`.
+    /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
     pub fn to_tuple(&self) -> &PyTuple {
         unsafe { self.py().from_owned_ptr(ffi::PyList_AsTuple(self.as_ptr())) }
     }
