@@ -43,7 +43,7 @@ pip install maturin
 
 poetry:
 ```bash
-poetry add -D maturin
+poetry add -G dev maturin
 ```
 
 After installation, you can run `maturin --version` to check that you have correctly installed it.
