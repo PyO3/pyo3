@@ -433,6 +433,7 @@ def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
         "once_cell": "1.14.0",
         "rayon": "1.5.3",
         "rayon-core": "1.9.3",
+        "regex": "1.7.3",
         # string_cache 0.8.4 depends on parking_lot 0.12
         "string_cache": "0.8.3",
         # 1.15.0 depends on hermit-abi 0.2.6 which has edition 2021 and breaks 1.48.0
