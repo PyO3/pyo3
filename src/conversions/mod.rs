@@ -7,5 +7,6 @@ pub mod hashbrown;
 pub mod indexmap;
 pub mod num_bigint;
 pub mod num_complex;
+pub mod rust_decimal;
 pub mod serde;
 mod std;

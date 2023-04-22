@@ -99,6 +99,8 @@
 //! [`BigUint`] types.
 //! - [`num-complex`]: Enables conversions between Python objects and [num-complex]'s [`Complex`]
 //!  type.
+//! - [`rust_decimal`]: Enables conversions between Python's decimal.Decimal and [rust_decimal]'s
+//! [`Decimal`] type.
 //! - [`serde`]: Allows implementing [serde]'s [`Serialize`] and [`Deserialize`] traits for
 //! [`Py`]`<T>` for all `T` that implement [`Serialize`] and [`Deserialize`].
 //!
@@ -275,6 +277,9 @@
 //! [`num-bigint`]: ./num_bigint/index.html "Documentation about the `num-bigint` feature."
 //! [`num-complex`]: ./num_complex/index.html "Documentation about the `num-complex` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
+//! [rust_decimal]: https://docs.rs/rust_decimal
+//! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
+//! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
 //! [calling_rust]: https://pyo3.rs/latest/python_from_rust.html "Calling Python from Rust - PyO3 user guide"
 //! [examples subdirectory]: https://github.com/PyO3/pyo3/tree/main/examples
