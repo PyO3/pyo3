@@ -191,7 +191,7 @@ The `#[pyfunction]` macro can take the argument specification directly, but this
 
 The `#[pymethods]` macro has an `#[args]` attribute which accepts the deprecated form.
 
-Below are the same examples as above which using the deprecated syntax:
+Below are the same examples as above, but using the deprecated syntax:
 
 ```rust
 # #![allow(deprecated)]
