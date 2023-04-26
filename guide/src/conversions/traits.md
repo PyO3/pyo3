@@ -137,7 +137,7 @@ from a mapping with the key `"key"`. The arguments for `attribute` are restricte
 non-empty string literals while `item` can take any valid literal that implements
 `ToBorrowedObject`.
 
-You can use `#[pyo3(item_all)]` on a struct to extract every field with `get_item` method.
+You can use `#[pyo3(from_item_all)]` on a struct to extract every field with `get_item` method.
 In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field.
 However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
 
@@ -145,7 +145,7 @@ However, using `#[pyo3(item("key"))]` to specify the key for a field is still al
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
-#[pyo3(item_all)]
+#[pyo3(from_item_all)]
 struct RustyStruct {
     foo: String,
     bar: String,

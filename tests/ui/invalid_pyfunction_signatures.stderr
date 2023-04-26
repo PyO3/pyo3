@@ -26,7 +26,7 @@ error: `*args` not allowed after `*`
   --> tests/ui/invalid_pyfunction_signatures.rs:25:24
    |
 25 | #[pyo3(signature = (*, *args))]
-   |                        ^^^^^
+   |                        ^
 
 error: `*` not allowed after `*`
   --> tests/ui/invalid_pyfunction_signatures.rs:31:24
@@ -38,13 +38,13 @@ error: `*args` not allowed after `**kwargs`
   --> tests/ui/invalid_pyfunction_signatures.rs:35:31
    |
 35 | #[pyo3(signature = (**kwargs, *args))]
-   |                               ^^^^^
+   |                               ^
 
 error: `**kwargs_b` not allowed after `**kwargs_a`
   --> tests/ui/invalid_pyfunction_signatures.rs:41:33
    |
 41 | #[pyo3(signature = (**kwargs_a, **kwargs_b))]
-   |                                 ^^^^^^^^^^
+   |                                 ^
 
 error: arguments of type `Python` must not be part of the signature
   --> tests/ui/invalid_pyfunction_signatures.rs:47:27
