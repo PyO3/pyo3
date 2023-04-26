@@ -8,31 +8,31 @@ error: `#[classattr]` does not take any arguments
   --> tests/ui/invalid_pymethods.rs:14:5
    |
 14 |     #[classattr(foobar)]
-   |     ^
+   |     ^^^^^^^^^^^^^^^^^^^^
 
 error: static method needs #[staticmethod] attribute
   --> tests/ui/invalid_pymethods.rs:20:5
    |
 20 |     fn staticmethod_without_attribute() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: unexpected receiver
   --> tests/ui/invalid_pymethods.rs:26:35
    |
 26 |     fn staticmethod_with_receiver(&self) {}
-   |                                   ^
+   |                                   ^^^^^
 
 error: expected receiver for #[getter]
   --> tests/ui/invalid_pymethods.rs:39:5
    |
 39 |     fn getter_without_receiver() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: expected receiver for #[setter]
   --> tests/ui/invalid_pymethods.rs:45:5
    |
 45 |     fn setter_without_receiver() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `text_signature` not allowed on `__new__`; if you want to add a signature on `__new__`, put it on the struct definition instead
   --> tests/ui/invalid_pymethods.rs:51:12
@@ -44,7 +44,7 @@ error: static method needs #[staticmethod] attribute
   --> tests/ui/invalid_pymethods.rs:58:5
    |
 58 |     fn text_signature_on_call() {}
-   |     ^^
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `text_signature` not allowed with `getter`
   --> tests/ui/invalid_pymethods.rs:64:12
@@ -74,7 +74,7 @@ error: `text_signature` may only be specified once
   --> tests/ui/invalid_pymethods.rs:91:12
    |
 91 |     #[pyo3(text_signature = None)]
-   |            ^^^^^^^^^^^^^^
+   |            ^^^^^^^^^^^^^^^^^^^^^
 
 error: `signature` not allowed with `getter`
   --> tests/ui/invalid_pymethods.rs:98:12
@@ -110,13 +110,13 @@ error: Python functions cannot have `impl Trait` arguments
    --> tests/ui/invalid_pymethods.rs:130:48
     |
 130 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
-    |                                                ^^^^
+    |                                                ^^^^^^^^^^^^^^^^^
 
 error: Python functions cannot have `impl Trait` arguments
    --> tests/ui/invalid_pymethods.rs:135:56
     |
 135 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
-    |                                                        ^^^^
+    |                                                        ^^^^^^^^^^^^^^^^^
 
 error: `async fn` is not yet supported for Python functions.
 

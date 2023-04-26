@@ -8,7 +8,7 @@ error: enums can't extend from other classes
  --> tests/ui/invalid_pyclass_enum.rs:9:11
   |
 9 | #[pyclass(extends = PyList)]
-  |           ^^^^^^^
+  |           ^^^^^^^^^^^^^^^^
 
 error: #[pyclass] can't be used on enums without any variants
   --> tests/ui/invalid_pyclass_enum.rs:16:18
