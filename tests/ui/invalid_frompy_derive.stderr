@@ -130,9 +130,9 @@ error: only one of `attribute` or `item` can be provided
    --> tests/ui/invalid_frompy_derive.rs:118:5
     |
 118 |     #[pyo3(item, attribute)]
-    |     ^
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: expected one of: `transparent`, `annotation`, `crate`
+error: expected one of: `transparent`, `item_all`, `annotation`, `crate`
    --> tests/ui/invalid_frompy_derive.rs:123:8
     |
 123 | #[pyo3(unknown = "should not work")]
@@ -154,13 +154,15 @@ error: FromPyObject can be derived with at most one lifetime parameter
    --> tests/ui/invalid_frompy_derive.rs:141:22
     |
 141 | enum TooManyLifetimes<'a, 'b> {
-    |                      ^
+    |                      ^^^^^^^^
 
 error: #[derive(FromPyObject)] is not supported for unions
    --> tests/ui/invalid_frompy_derive.rs:147:1
     |
-147 | union Union {
-    | ^^^^^
+147 | / union Union {
+148 | |     a: usize,
+149 | | }
+    | |_^
 
 error: cannot derive FromPyObject for empty structs and variants
    --> tests/ui/invalid_frompy_derive.rs:151:10
@@ -186,10 +188,34 @@ error: `getter` is not permitted on tuple struct elements.
    --> tests/ui/invalid_frompy_derive.rs:169:27
     |
 169 | struct InvalidTupleGetter(#[pyo3(item("foo"))] String);
-    |                           ^
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `transparent` structs may not have a `getter` for the inner field
    --> tests/ui/invalid_frompy_derive.rs:175:5
     |
 175 |     field: String,
     |     ^^^^^
+
+error: `transparent` structs may not have a `getter` for the inner field
+   --> tests/ui/invalid_frompy_derive.rs:186:5
+    |
+186 |     field: String,
+    |     ^^^^^
+
+error: Useless `item` - the struct is already annotated with `item_all`
+   --> tests/ui/invalid_frompy_derive.rs:190:8
+    |
+190 | #[pyo3(item_all)]
+    |        ^^^^^^^^
+
+error: expected one of: `attribute`, `item`, `from_py_with`
+   --> tests/ui/invalid_frompy_derive.rs:199:12
+    |
+199 |     #[pyo3(attr)]
+    |            ^^^^
+
+error: expected one of: `attribute`, `item`, `from_py_with`
+   --> tests/ui/invalid_frompy_derive.rs:206:12
+    |
+206 |     #[pyo3(attr("f"))]
+    |            ^^^^
