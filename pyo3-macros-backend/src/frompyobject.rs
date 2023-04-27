@@ -181,7 +181,9 @@ impl<'a> Container<'a> {
                                         attrs.getter = Some(FieldGetter::GetItem(Some(item_name)));
                                     }
                                     FieldGetter::GetItem(None) => bail_spanned!(from_item_all.span() => "Useless `item` - the struct is already annotated with `from_item_all`"),
-                                    FieldGetter::GetAttr(_) => bail_spanned!(from_item_all.span() => "The struct is already annotated with `from_item_all`, `attr` is not allowed"),
+                                    FieldGetter::GetAttr(_) => bail_spanned!(
+                                        from_item_all.span() => "The struct is already annotated with `from_item_all`, `attribute` is not allowed"
+                                    ),
                                 }
                             }
                         }
