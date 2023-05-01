@@ -405,8 +405,8 @@ def check_changelog(session: nox.Session):
         print(fragment.name)
 
 
-@nox.session(name="set-minimal-package-versions")
-def set_minimal_package_versions(session: nox.Session, venv_backend="none"):
+@nox.session(name="set-minimal-package-versions", venv_backend="none")
+def set_minimal_package_versions(session: nox.Session):
     from collections import defaultdict
 
     try:
