@@ -39,7 +39,7 @@ jobs:
       # This builds the book in target/guide.
       - name: Build the guide
         run: |
-          pip install nox
+          python -m pip install --upgrade pip && pip install nox
           nox -s build-guide
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
@@ -125,7 +125,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          pip install nox
+          python -m pip install --upgrade pip && pip install nox
           nox -f pytests/noxfile.py -s bench -- --benchmark-json $(pwd)/output.json
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1

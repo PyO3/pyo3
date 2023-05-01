@@ -36,7 +36,7 @@ jobs:
           architecture: ${{ inputs.python-architecture }}
 
       - name: Install nox
-        run: python -m pip install -U pip nox
+        run: python -m pip install --upgrade pip && pip install nox
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
@@ -172,7 +172,7 @@ jobs:
           set -ex
           sudo apt-get install -y mingw-w64 llvm
           rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
-          python -m pip install cargo-xwin
+          pip install cargo-xwin
           # abi3
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
