@@ -11,5 +11,5 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-      - run: pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s check-changelog
