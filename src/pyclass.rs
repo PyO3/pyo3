@@ -90,7 +90,42 @@ impl CompareOp {
 /// Output of `__next__` which can either `yield` the next value in the iteration, or
 /// `return` a value to raise `StopIteration` in Python.
 ///
-/// See [this test](https://github.com/PyO3/pyo3/blob/main/pytests/src/pyclasses.rs#L15-L36) for an example.
+/// Usage example:
+///
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::iter::IterNextOutput;
+///
+/// #[pyclass]
+/// struct PyClassIter {
+///     count: usize,
+/// }
+/// 
+/// #[pymethods]
+/// impl PyClassIter {
+///     #[new]
+///     pub fn new() -> Self {
+///         PyClassIter { count: 0 }
+///     }
+/// 
+///     fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {
+///         if self.count < 5 {
+///             self.count += 1;
+///             // Given an instance `counter`, First five `next(counter)` calls yield 1, 2, 3, 4, 5.
+///             IterNextOutput::Yield(self.count)
+///         } else {
+///             // At the sixth time, we get a `StopIteration` with `'Ended'`.
+///             //     try:
+///             //         next(couter)
+///             //     except StopIteration as e:
+///             //         assert e.value == 'Ended'
+///             IterNextOutput::Return("Ended")
+///         }
+///     }
+/// }
+/// ```
+///
+/// The example above is copied from [this test](https://github.com/PyO3/pyo3/blob/main/pytests/src/pyclasses.rs#L15-L36).
 pub enum IterNextOutput<T, U> {
     /// The value yielded by the iterator.
     Yield(T),
