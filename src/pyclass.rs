@@ -90,7 +90,7 @@ impl CompareOp {
 /// Output of `__next__` which can either `yield` the next value in the iteration, or
 /// `return` a value to raise `StopIteration` in Python.
 ///
-/// See [`PyIterProtocol`](trait.PyIterProtocol.html) for an example.
+/// See [this test](https://github.com/PyO3/pyo3/blob/main/pytests/src/pyclasses.rs#L15-L36) for an example.
 pub enum IterNextOutput<T, U> {
     /// The value yielded by the iterator.
     Yield(T),
