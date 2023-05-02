@@ -100,14 +100,14 @@ impl CompareOp {
 /// struct PyClassIter {
 ///     count: usize,
 /// }
-/// 
+///
 /// #[pymethods]
 /// impl PyClassIter {
 ///     #[new]
 ///     pub fn new() -> Self {
 ///         PyClassIter { count: 0 }
 ///     }
-/// 
+///
 ///     fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {
 ///         if self.count < 5 {
 ///             self.count += 1;
@@ -116,7 +116,7 @@ impl CompareOp {
 ///         } else {
 ///             // At the sixth time, we get a `StopIteration` with `'Ended'`.
 ///             //     try:
-///             //         next(couter)
+///             //         next(counter)
 ///             //     except StopIteration as e:
 ///             //         assert e.value == 'Ended'
 ///             IterNextOutput::Return("Ended")
@@ -124,8 +124,6 @@ impl CompareOp {
 ///     }
 /// }
 /// ```
-///
-/// The example above is copied from [this test](https://github.com/PyO3/pyo3/blob/main/pytests/src/pyclasses.rs#L15-L36).
 pub enum IterNextOutput<T, U> {
     /// The value yielded by the iterator.
     Yield(T),
