@@ -90,7 +90,40 @@ impl CompareOp {
 /// Output of `__next__` which can either `yield` the next value in the iteration, or
 /// `return` a value to raise `StopIteration` in Python.
 ///
-/// See [`PyIterProtocol`](trait.PyIterProtocol.html) for an example.
+/// Usage example:
+///
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::iter::IterNextOutput;
+///
+/// #[pyclass]
+/// struct PyClassIter {
+///     count: usize,
+/// }
+///
+/// #[pymethods]
+/// impl PyClassIter {
+///     #[new]
+///     pub fn new() -> Self {
+///         PyClassIter { count: 0 }
+///     }
+///
+///     fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {
+///         if self.count < 5 {
+///             self.count += 1;
+///             // Given an instance `counter`, First five `next(counter)` calls yield 1, 2, 3, 4, 5.
+///             IterNextOutput::Yield(self.count)
+///         } else {
+///             // At the sixth time, we get a `StopIteration` with `'Ended'`.
+///             //     try:
+///             //         next(counter)
+///             //     except StopIteration as e:
+///             //         assert e.value == 'Ended'
+///             IterNextOutput::Return("Ended")
+///         }
+///     }
+/// }
+/// ```
 pub enum IterNextOutput<T, U> {
     /// The value yielded by the iterator.
     Yield(T),
