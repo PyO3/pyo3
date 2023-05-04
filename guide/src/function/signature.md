@@ -272,9 +272,7 @@ impl MyClass {
 
 The function signature is exposed to Python via the `__text_signature__` attribute. PyO3 automatically generates this for every `#[pyfunction]` and all `#[pymethods]` directly from the Rust function, taking into account any override done with the `#[pyo3(signature = (...))]` option.
 
-This automatic generation has some limitations, which may be improved in the future:
-- It will not include the value of default arguments, replacing them all with `...`. (`.pyi` type stub files commonly also use `...` for all default arguments in the same way.)
-- Nothing is generated for the `#[new]` method of a `#[pyclass]`.
+This automatic generation can only display the value of default arguments for strings, integers, boolean types, and `None`. Any other default arguments will be displayed as `...`. (`.pyi` type stub files commonly also use `...` for default arguments in the same way.)
 
 In cases where the automatically-generated signature needs adjusting, it can [be overridden](#overriding-the-generated-signature) using the `#[pyo3(text_signature)]` option.)
 

@@ -1,14 +1,17 @@
 use crate::{
-    exceptions::{PyAttributeError, PyNotImplementedError},
+    exceptions::{PyAttributeError, PyNotImplementedError, PyValueError},
     ffi,
     impl_::freelist::FreeList,
     impl_::pycell::{GetBorrowChecker, PyClassMutability},
+    internal_tricks::extract_c_string,
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     type_object::PyLayout,
     Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
 use std::{
+    borrow::Cow,
+    ffi::{CStr, CString},
     marker::PhantomData,
     os::raw::{c_int, c_void},
     ptr::NonNull,
@@ -138,9 +141,6 @@ unsafe impl Sync for PyClassItems {}
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
 pub trait PyClassImpl: Sized + 'static {
-    /// Class doc string
-    const DOC: &'static str = "\0";
-
     /// #[pyclass(subclass)]
     const IS_BASETYPE: bool = false;
 
@@ -184,18 +184,45 @@ pub trait PyClassImpl: Sized + 'static {
     #[cfg(feature = "multiple-pymethods")]
     type Inventory: PyClassInventory;
 
+    /// Rendered class doc
+    fn doc(py: Python<'_>) -> PyResult<&'static CStr>;
+
     fn items_iter() -> PyClassItemsIter;
 
     #[inline]
     fn dict_offset() -> Option<ffi::Py_ssize_t> {
         None
     }
+
     #[inline]
     fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
         None
     }
 
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
+}
+
+/// Runtime helper to build a class docstring from the `doc` and `text_signature`.
+///
+/// This is done at runtime because the class text signature is collected via dtolnay
+/// specialization in to the `#[pyclass]` macro from the `#[pymethods]` macro.
+pub fn build_pyclass_doc(
+    class_name: &'static str,
+    doc: &'static str,
+    text_signature: Option<&'static str>,
+) -> PyResult<Cow<'static, CStr>> {
+    if let Some(text_signature) = text_signature {
+        let doc = CString::new(format!(
+            "{}{}\n--\n\n{}",
+            class_name,
+            text_signature,
+            doc.trim_end_matches('\0')
+        ))
+        .map_err(|_| PyValueError::new_err("class doc cannot contain nul bytes"))?;
+        Ok(Cow::Owned(doc))
+    } else {
+        extract_c_string(doc, "class doc cannot contain nul bytes")
+    }
 }
 
 /// Iterator used to process all class items during type instantiation.
@@ -837,6 +864,18 @@ impl<T> PyMethods<T> for &'_ PyClassImplCollector<T> {
             methods: &[],
             slots: &[],
         }
+    }
+}
+
+// Text signature for __new__
+pub trait PyClassNewTextSignature<T> {
+    fn new_text_signature(self) -> Option<&'static str>;
+}
+
+impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
+    #[inline]
+    fn new_text_signature(self) -> Option<&'static str> {
+        None
     }
 }
 

@@ -5,11 +5,11 @@ use std::borrow::Cow;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
     ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute,
+    TextSignatureAttributeValue,
 };
-use crate::deprecations::Deprecations;
+use crate::deprecations::{Deprecation, Deprecations};
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::FnSpec;
-use crate::pyfunction::text_signature_or_none;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -177,7 +177,11 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
-            PyClassPyO3Option::TextSignature(text_signature) => set_option!(text_signature),
+            PyClassPyO3Option::TextSignature(text_signature) => {
+                self.deprecations
+                    .push(Deprecation::PyClassTextSignature, text_signature.span());
+                set_option!(text_signature)
+            }
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
         }
@@ -191,11 +195,7 @@ pub fn build_py_class(
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut class.attrs)?;
-    let text_signature_string = text_signature_or_none(args.options.text_signature.as_ref());
-    let doc = utils::get_doc(
-        &class.attrs,
-        text_signature_string.map(|s| (get_class_python_name(&class.ident, &args), s)),
-    );
+    let doc = utils::get_doc(&class.attrs, None);
     let krate = get_pyo3_crate(&args.options.krate);
 
     if let Some(lt) = class.generics.lifetimes().next() {
@@ -452,12 +452,7 @@ pub fn build_py_enum(
         bail_spanned!(enum_.brace_token.span => "#[pyclass] can't be used on enums without any variants");
     }
 
-    let text_signature_string = text_signature_or_none(args.options.text_signature.as_ref());
-
-    let doc = utils::get_doc(
-        &enum_.attrs,
-        text_signature_string.map(|s| (get_class_python_name(&enum_.ident, &args), s)),
-    );
+    let doc = utils::get_doc(&enum_.attrs, None);
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type)
 }
@@ -509,16 +504,6 @@ fn impl_enum(
     methods_type: PyClassMethodsType,
 ) -> Result<TokenStream> {
     let krate = get_pyo3_crate(&args.options.krate);
-    impl_enum_class(enum_, args, doc, methods_type, krate)
-}
-
-fn impl_enum_class(
-    enum_: PyClassEnum<'_>,
-    args: &PyClassArgs,
-    doc: PythonDoc,
-    methods_type: PyClassMethodsType,
-    krate: syn::Path,
-) -> Result<TokenStream> {
     let cls = enum_.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = enum_.variants;
@@ -889,6 +874,18 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclassimpl(&self) -> Result<TokenStream> {
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
+        let deprecated_text_signature = match self
+            .attr
+            .options
+            .text_signature
+            .as_ref()
+            .map(|attr| &attr.value)
+        {
+            Some(TextSignatureAttributeValue::Str(s)) => quote!(::std::option::Option::Some(#s)),
+            Some(TextSignatureAttributeValue::Disabled(_)) | None => {
+                quote!(::std::option::Option::None)
+            }
+        };
         let is_basetype = self.attr.options.subclass.is_some();
         let base = self
             .attr
@@ -1009,7 +1006,6 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         Ok(quote! {
             impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
-                const DOC: &'static str = #doc;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
                 const IS_MAPPING: bool = #is_mapping;
@@ -1033,6 +1029,15 @@ impl<'a> PyClassImplsBuilder<'a> {
                         slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
                     };
                     PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
+                }
+
+                fn doc(py: _pyo3::Python<'_>) -> _pyo3::PyResult<&'static ::std::ffi::CStr>  {
+                    use _pyo3::impl_::pyclass::*;
+                    static DOC: _pyo3::once_cell::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = _pyo3::once_cell::GILOnceCell::new();
+                    DOC.get_or_try_init(py, || {
+                        let collector = PyClassImplCollector::<Self>::new();
+                        build_pyclass_doc(<#cls as _pyo3::PyTypeInfo>::NAME, #doc, #deprecated_text_signature.or_else(|| collector.new_text_signature()))
+                    }).map(::std::ops::Deref::deref)
                 }
 
                 #dict_offset

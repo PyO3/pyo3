@@ -1,7 +1,7 @@
-use crate::exceptions::PyValueError;
+use crate::internal_tricks::extract_c_string;
 use crate::{ffi, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, PyTraverseError, Python};
 use std::borrow::Cow;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::c_int;
 
@@ -318,26 +318,4 @@ where
     fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error> {
         self.map(|o| o.into_py(py))
     }
-}
-
-fn extract_c_string(src: &'static str, err_msg: &'static str) -> PyResult<Cow<'static, CStr>> {
-    let bytes = src.as_bytes();
-    let cow = match bytes {
-        [] => {
-            // Empty string, we can trivially refer to a static "\0" string
-            Cow::Borrowed(unsafe { CStr::from_bytes_with_nul_unchecked(b"\0") })
-        }
-        [.., 0] => {
-            // Last byte is a nul; try to create as a CStr
-            let c_str =
-                CStr::from_bytes_with_nul(bytes).map_err(|_| PyValueError::new_err(err_msg))?;
-            Cow::Borrowed(c_str)
-        }
-        _ => {
-            // Allocate a new CString for this
-            let c_string = CString::new(bytes).map_err(|_| PyValueError::new_err(err_msg))?;
-            Cow::Owned(c_string)
-        }
-    };
-    Ok(cow)
 }

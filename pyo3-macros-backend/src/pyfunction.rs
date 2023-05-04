@@ -1,16 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::borrow::Cow;
-
 use crate::{
     attributes::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
-        FromPyWithAttribute, NameAttribute, TextSignatureAttribute, TextSignatureAttributeValue,
+        FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
     deprecations::{Deprecation, Deprecations},
-    method::{self, CallingConvention, FnArg, FnType},
+    method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
-    utils::{self, ensure_not_async_fn, get_pyo3_crate},
+    utils::{ensure_not_async_fn, get_pyo3_crate},
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -409,15 +407,6 @@ pub fn impl_wrap_pyfunction(
 
     let ty = method::get_return_info(&func.sig.output);
 
-    let text_signature_string = text_signature_or_auto(text_signature.as_ref(), &signature, &tp);
-
-    let doc = utils::get_doc(
-        &func.attrs,
-        text_signature_string.map(|s| (Cow::Borrowed(&python_name), s)),
-    );
-
-    let krate = get_pyo3_crate(&krate);
-
     let spec = method::FnSpec {
         tp,
         name: &func.sig.ident,
@@ -430,12 +419,14 @@ pub fn impl_wrap_pyfunction(
         unsafety: func.sig.unsafety,
     };
 
+    let krate = get_pyo3_crate(&krate);
+
     let vis = &func.vis;
     let name = &func.sig.ident;
 
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &doc);
+    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs));
 
     let wrapped_pyfunction = quote! {
 
@@ -479,27 +470,4 @@ fn type_is_pymodule(ty: &syn::Type) -> bool {
         }
     }
     false
-}
-
-/// Helper to get a text signature string, or None if unset or disabled
-pub(crate) fn text_signature_or_none(
-    text_signature: Option<&TextSignatureAttribute>,
-) -> Option<String> {
-    match text_signature.map(|attr| &attr.value) {
-        Some(TextSignatureAttributeValue::Str(s)) => Some(s.value()),
-        Some(TextSignatureAttributeValue::Disabled(_)) | None => None,
-    }
-}
-
-/// Helper to get a text signature string, using automatic generation if unset, or None if disabled
-pub(crate) fn text_signature_or_auto(
-    text_signature: Option<&TextSignatureAttribute>,
-    signature: &FunctionSignature<'_>,
-    fn_type: &FnType,
-) -> Option<String> {
-    match text_signature.map(|attr| &attr.value) {
-        Some(TextSignatureAttributeValue::Str(s)) => Some(s.value()),
-        None => Some(signature.text_signature(fn_type)),
-        Some(TextSignatureAttributeValue::Disabled(_)) => None,
-    }
 }

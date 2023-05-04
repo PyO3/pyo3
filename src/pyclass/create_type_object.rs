@@ -22,7 +22,7 @@ where
 {
     unsafe {
         PyTypeBuilder::default()
-            .type_doc(T::DOC)
+            .type_doc(T::doc(py)?)
             .offsets(T::dict_offset(), T::weaklist_offset())
             .slot(ffi::Py_tp_base, T::BaseType::type_object_raw(py))
             .slot(ffi::Py_tp_dealloc, tp_dealloc::<T> as *mut c_void)
@@ -233,25 +233,26 @@ impl PyTypeBuilder {
         self
     }
 
-    fn type_doc(mut self, type_doc: &'static str) -> Self {
-        if let Some(doc) = py_class_doc(type_doc) {
-            unsafe { self.push_slot(ffi::Py_tp_doc, doc) }
-        }
+    fn type_doc(mut self, type_doc: &'static CStr) -> Self {
+        let slice = type_doc.to_bytes();
+        if !slice.is_empty() {
+            unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_char) }
 
-        // Running this causes PyPy to segfault.
-        #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(Py_3_10)))]
-        if type_doc != "\0" {
-            // Until CPython 3.10, tp_doc was treated specially for
-            // heap-types, and it removed the text_signature value from it.
-            // We go in after the fact and replace tp_doc with something
-            // that _does_ include the text_signature value!
-            self.cleanup
-                .push(Box::new(move |_self, type_object| unsafe {
-                    ffi::PyObject_Free((*type_object).tp_doc as _);
-                    let data = ffi::PyObject_Malloc(type_doc.len());
-                    data.copy_from(type_doc.as_ptr() as _, type_doc.len());
-                    (*type_object).tp_doc = data as _;
-                }))
+            // Running this causes PyPy to segfault.
+            #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(Py_3_10)))]
+            {
+                // Until CPython 3.10, tp_doc was treated specially for
+                // heap-types, and it removed the text_signature value from it.
+                // We go in after the fact and replace tp_doc with something
+                // that _does_ include the text_signature value!
+                self.cleanup
+                    .push(Box::new(move |_self, type_object| unsafe {
+                        ffi::PyObject_Free((*type_object).tp_doc as _);
+                        let data = ffi::PyMem_Malloc(slice.len());
+                        data.copy_from(slice.as_ptr() as _, slice.len());
+                        (*type_object).tp_doc = data as _;
+                    }))
+            }
         }
         self
     }
@@ -380,24 +381,6 @@ impl PyTypeBuilder {
         }
 
         Ok(type_object)
-    }
-}
-
-fn py_class_doc(class_doc: &str) -> Option<*mut c_char> {
-    match class_doc {
-        "\0" => None,
-        s => {
-            // To pass *mut pointer to python safely, leak a CString in whichever case
-            let cstring = if s.as_bytes().last() == Some(&0) {
-                CStr::from_bytes_with_nul(s.as_bytes())
-                    .unwrap_or_else(|e| panic!("doc contains interior nul byte: {:?} in {}", e, s))
-                    .to_owned()
-            } else {
-                CString::new(s)
-                    .unwrap_or_else(|e| panic!("doc contains interior nul byte: {:?} in {}", e, s))
-            };
-            Some(cstring.into_raw())
-        }
     }
 }
 

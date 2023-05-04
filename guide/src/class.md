@@ -722,22 +722,20 @@ py_args=(), py_kwargs=None, name=World, num=-1, num_before=44
 
 ## Making class method signatures available to Python
 
-The [`text_signature = "..."`](./function.md#text_signature) option for `#[pyfunction]` also works for classes and methods:
+The [`text_signature = "..."`](./function.md#text_signature) option for `#[pyfunction]` also works for `#[pymethods]`:
 
 ```rust
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
-// it works even if the item is not documented:
-#[pyclass(text_signature = "(c, d, /)")]
+#[pyclass]
 struct MyClass {}
 
 #[pymethods]
 impl MyClass {
-    // the signature for the constructor is attached
-    // to the struct definition instead.
     #[new]
+    #[pyo3(text_signature = "(c, d)")]
     fn new(c: i32, d: &str) -> Self {
         Self {}
     }
@@ -746,8 +744,9 @@ impl MyClass {
     fn my_method(&self, e: i32, f: i32) -> i32 {
         e + f
     }
+    // similarly for classmethod arguments, use $cls
     #[classmethod]
-    #[pyo3(text_signature = "(cls, e, f)")]
+    #[pyo3(text_signature = "($cls, e, f)")]
     fn my_class_method(cls: &PyType, e: i32, f: i32) -> i32 {
         e + f
     }
@@ -773,7 +772,7 @@ impl MyClass {
 #                 .call1((class,))?
 #                 .call_method0("__str__")?
 #                 .extract()?;
-#             assert_eq!(sig, "(c, d, /)");
+#             assert_eq!(sig, "(c, d)");
 #         } else {
 #             let doc: String = class.getattr("__doc__")?.extract()?;
 #             assert_eq!(doc, "");
@@ -802,7 +801,7 @@ impl MyClass {
 #                 .call1((method,))?
 #                 .call_method0("__str__")?
 #                 .extract()?;
-#             assert_eq!(sig, "(cls, e, f)");
+#             assert_eq!(sig, "(e, f)");  // inspect.signature skips the $cls arg
 #         }
 #
 #         {
@@ -822,7 +821,7 @@ impl MyClass {
 # }
 ```
 
-Note that `text_signature` on classes is not compatible with compilation in
+Note that `text_signature` on `#[new]` is not compatible with compilation in
 `abi3` mode until Python 3.10 or greater.
 
 ## #[pyclass] enums
@@ -1018,7 +1017,6 @@ impl pyo3::IntoPy<PyObject> for MyClass {
 }
 
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
-    const DOC: &'static str = "Class for demonstration\u{0}";
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
     type Layout = PyCell<MyClass>;
@@ -1040,6 +1038,15 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         use pyo3::impl_::pyclass::LazyTypeObject;
         static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
         &TYPE_OBJECT
+    }
+
+    fn doc(py: Python<'_>) -> pyo3::PyResult<&'static ::std::ffi::CStr> {
+        use pyo3::impl_::pyclass::*;
+        static DOC: pyo3::once_cell::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = pyo3::once_cell::GILOnceCell::new();
+        DOC.get_or_try_init(py, || {
+            let collector = PyClassImplCollector::<Self>::new();
+            build_pyclass_doc(<MyClass as pyo3::PyTypeInfo>::NAME, "", None.or_else(|| collector.new_text_signature()))
+        }).map(::std::ops::Deref::deref)
     }
 }
 
