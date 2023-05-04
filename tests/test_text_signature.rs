@@ -238,6 +238,7 @@ fn test_auto_test_signature_method() {
 
     Python::with_gil(|py| {
         let cls = py.get_type::<MyClass>();
+        #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
         py_assert!(py, cls, "cls.__text_signature__ == '(a, b, c)'");
         py_assert!(
             py,
