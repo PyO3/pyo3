@@ -583,8 +583,8 @@ pub struct PyRef<'p, T: PyClass> {
 
 impl<'p, T: PyClass> PyRef<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRef`.
-    pub fn py(&self) -> Python<'_> {
-        unsafe { Python::assume_gil_acquired() }
+    pub fn py(&self) -> Python<'p> {
+        self.inner.py()
     }
 }
 
@@ -706,8 +706,8 @@ pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
 
 impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRefMut`.
-    pub fn py(&self) -> Python<'_> {
-        unsafe { Python::assume_gil_acquired() }
+    pub fn py(&self) -> Python<'p> {
+        self.inner.py()
     }
 }
 
