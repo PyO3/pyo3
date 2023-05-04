@@ -175,4 +175,42 @@ struct InvalidTransparentWithGetter {
     field: String,
 }
 
+#[derive(FromPyObject)]
+#[pyo3(from_item_all)]
+struct FromItemAllOnTuple(String);
+
+#[derive(FromPyObject)]
+#[pyo3(from_item_all)]
+#[pyo3(transparent)]
+struct FromItemAllWithTransparent {
+    field: String,
+}
+
+#[derive(FromPyObject)]
+#[pyo3(from_item_all, from_item_all)]
+struct MultipleFromItemAll {
+    field: String,
+}
+
+#[derive(FromPyObject)]
+#[pyo3(from_item_all)]
+struct UselessItemAttr {
+    #[pyo3(item)]
+    field: String,
+}
+
+#[derive(FromPyObject)]
+#[pyo3(from_item_all)]
+struct FromItemAllConflictAttr {
+    #[pyo3(attribute)]
+    field: String,
+}
+
+#[derive(FromPyObject)]
+#[pyo3(from_item_all)]
+struct FromItemAllConflictAttrWithArgs {
+    #[pyo3(attribute("f"))]
+    field: String,
+}
+
 fn main() {}

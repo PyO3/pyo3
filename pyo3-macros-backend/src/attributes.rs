@@ -21,6 +21,7 @@ pub mod kw {
     syn::custom_keyword!(get);
     syn::custom_keyword!(get_all);
     syn::custom_keyword!(item);
+    syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
     syn::custom_keyword!(name);

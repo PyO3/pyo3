@@ -137,6 +137,35 @@ from a mapping with the key `"key"`. The arguments for `attribute` are restricte
 non-empty string literals while `item` can take any valid literal that implements
 `ToBorrowedObject`.
 
+You can use `#[pyo3(from_item_all)]` on a struct to extract every field with `get_item` method.
+In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field.
+However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
+
+```rust
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+#[pyo3(from_item_all)]
+struct RustyStruct {
+    foo: String,
+    bar: String,
+    #[pyo3(item("foobar"))]
+    baz: String,
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| -> PyResult<()> {
+#         let py_dict = py.eval("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
+#         let rustystruct: RustyStruct = py_dict.extract()?;
+# 		  assert_eq!(rustystruct.foo, "foo");
+#         assert_eq!(rustystruct.bar, "bar");
+#         assert_eq!(rustystruct.baz, "foobar");
+#
+#         Ok(())
+#     })
+# }
+```
+
 #### Deriving [`FromPyObject`] for tuple structs
 
 Tuple structs are also supported but do not allow customizing the extraction. The input is
