@@ -425,9 +425,8 @@ impl<'a> FnSpec<'a> {
 
         let rust_call = |args: Vec<TokenStream>| {
             quote! {
-                let mut ret = function(#self_arg #(#args),*);
-                let owned = _pyo3::impl_::pymethods::OkWrap::wrap(ret, #py);
-                owned.map(|obj| _pyo3::conversion::IntoPyPointer::into_ptr(obj))
+                _pyo3::impl_::pymethods::OkWrap::wrap(function(#self_arg #(#args),*), #py)
+                    .map(|obj| _pyo3::conversion::IntoPyPointer::into_ptr(obj))
                     .map_err(::core::convert::Into::into)
             }
         };
