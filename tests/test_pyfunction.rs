@@ -1,5 +1,7 @@
 #![cfg(feature = "macros")]
 
+use std::collections::HashMap;
+
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
@@ -511,4 +513,35 @@ fn required_argument_after_option() {
         // ok to call with keyword arguments
         py_assert!(py, f, "f(x=None, y=5) == 5");
     })
+}
+
+#[pyclass]
+struct Key(String);
+
+#[pyclass]
+struct Value(i32);
+
+#[pyfunction]
+fn return_value_borrows_from_arguments<'py>(
+    py: Python<'py>,
+    key: &'py Key,
+    value: &'py Value,
+) -> HashMap<&'py str, i32> {
+    py.allow_threads(move || {
+        let mut map = HashMap::new();
+        map.insert(key.0.as_str(), value.0);
+        map
+    })
+}
+
+#[test]
+fn test_return_value_borrows_from_arguments() {
+    Python::with_gil(|py| {
+        let function = wrap_pyfunction!(return_value_borrows_from_arguments, py).unwrap();
+
+        let key = Py::new(py, Key("key".to_owned())).unwrap();
+        let value = Py::new(py, Value(42)).unwrap();
+
+        py_assert!(py, function key value, "function(key, value) == { \"key\": 42 }");
+    });
 }
