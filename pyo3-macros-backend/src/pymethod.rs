@@ -941,11 +941,13 @@ impl Ty {
         ident: &syn::Ident,
         arg: &FnArg<'_>,
         extract_error_mode: ExtractErrorMode,
+        holders: &mut Vec<TokenStream>,
     ) -> TokenStream {
         let name_str = arg.name.unraw().to_string();
         match self {
             Ty::Object => extract_object(
                 extract_error_mode,
+                holders,
                 py,
                 &name_str,
                 quote! {
@@ -954,6 +956,7 @@ impl Ty {
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
+                holders,
                 py,
                 &name_str,
                 quote! {
@@ -968,6 +971,7 @@ impl Ty {
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
+                holders,
                 py,
                 &name_str,
                 quote! {
@@ -976,6 +980,7 @@ impl Ty {
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
+                holders,
                 py,
                 &name_str,
                 quote! {
@@ -1024,17 +1029,23 @@ fn handle_error(
 
 fn extract_object(
     extract_error_mode: ExtractErrorMode,
+    holders: &mut Vec<TokenStream>,
     py: &syn::Ident,
     name: &str,
     source: TokenStream,
 ) -> TokenStream {
+    let holder = syn::Ident::new(&format!("holder_{}", holders.len()), Span::call_site());
+    holders.push(quote! {
+        #[allow(clippy::let_unit_value)]
+        let mut #holder = _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
+    });
     handle_error(
         extract_error_mode,
         py,
         quote! {
             _pyo3::impl_::extract_argument::extract_argument(
                 #source,
-                &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
+                &mut #holder,
                 #name
             )
         },
@@ -1202,7 +1213,8 @@ fn generate_method_body(
     let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
     let self_arg = spec.tp.self_arg();
     let rust_name = spec.name;
-    let args = extract_proto_arguments(py, spec, arguments, extract_error_mode)?;
+    let mut holders = Vec::new();
+    let args = extract_proto_arguments(py, spec, arguments, extract_error_mode, &mut holders)?;
     let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(#self_arg #(#args),*)) };
     let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(py, call)
@@ -1211,6 +1223,7 @@ fn generate_method_body(
     };
     Ok(quote! {
         #self_conversion
+        #( #holders )*
         #body
     })
 }
@@ -1346,6 +1359,7 @@ fn extract_proto_arguments(
     spec: &FnSpec<'_>,
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
+    holders: &mut Vec<TokenStream>,
 ) -> Result<Vec<TokenStream>> {
     let mut args = Vec::with_capacity(spec.signature.arguments.len());
     let mut non_python_args = 0;
@@ -1357,7 +1371,7 @@ fn extract_proto_arguments(
             let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
             let conversions = proto_args.get(non_python_args)
                 .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
-                .extract(py, &ident, arg, extract_error_mode);
+                .extract(py, &ident, arg, extract_error_mode, holders);
             non_python_args += 1;
             args.push(conversions);
         }
