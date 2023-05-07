@@ -493,7 +493,7 @@ impl_native_exception!(
     PyExc_UnicodeError,
     native_doc!("UnicodeError")
 );
-// these three errors need arguments, so they're too annoying to write tests for using macros...
+// these four errors need arguments, so they're too annoying to write tests for using macros...
 impl_native_exception!(
     PyUnicodeDecodeError,
     PyExc_UnicodeDecodeError,
@@ -508,6 +508,12 @@ impl_native_exception!(
     PyUnicodeTranslateError,
     PyExc_UnicodeTranslateError,
     native_doc!("UnicodeTranslateError", "")
+);
+#[cfg(Py_3_11)]
+impl_native_exception!(
+    PyBaseExceptionGroup,
+    PyExc_BaseExceptionGroup,
+    native_doc!("BaseExceptionGroup", "")
 );
 impl_native_exception!(PyValueError, PyExc_ValueError, native_doc!("ValueError"));
 impl_native_exception!(
@@ -1028,7 +1034,10 @@ mod tests {
             );
         });
     }
-
+    #[cfg(Py_3_11)]
+    test_exception!(PyBaseExceptionGroup, |_| {
+        PyBaseExceptionGroup::new_err(("msg", vec![PyValueError::new_err("err")]))
+    });
     test_exception!(PyBaseException);
     test_exception!(PyException);
     test_exception!(PyStopAsyncIteration);
