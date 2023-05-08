@@ -103,6 +103,8 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyExc_BaseException")]
     pub static mut PyExc_BaseException: *mut PyObject;
+    #[cfg(Py_3_11)]
+    pub static mut PyExc_BaseExceptionGroup: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_Exception")]
     pub static mut PyExc_Exception: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_StopAsyncIteration")]
