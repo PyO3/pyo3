@@ -40,6 +40,78 @@ After, the same code will print `ValueError: original error message`, which is m
 
 However, if the `anyhow::Error` or `eyre::Report` has a source, then the original exception will still be wrapped in a `PyRuntimeError`.
 
+### The deprecated `Python::acquire_gil` was removed and `Python::with_gil` must be used instead
+
+While the API provided by [`Python::acquire_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.acquire_gil) seems convenient, it is somewhat brittle as the design of the GIL token [`Python`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html) relies on proper nesting and panics if not used correctly, e.g.
+
+```rust,should_panic
+# #![allow(dead_code, deprecated)]
+# use pyo3::prelude::*;
+
+#[pyclass]
+struct SomeClass {}
+
+struct ObjectAndGuard {
+    object: Py<SomeClass>,
+    guard: GILGuard,
+}
+
+impl ObjectAndGuard {
+    fn new() -> Self {
+        let guard = Python::acquire_gil();
+        let object = Py::new(guard.python(), SomeClass {}).unwrap();
+
+        Self { object, guard }
+    }
+}
+
+let first = ObjectAndGuard::new();
+let second = ObjectAndGuard::new();
+// Panics because the guard within `second` is still alive.
+drop(first);
+drop(second);
+```
+
+The replacement is [`Python::with_gil`]() which is more cumbersome but enforces the proper nesting by design, e.g.
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyclass]
+struct SomeClass {}
+
+struct Object {
+    object: Py<SomeClass>,
+}
+
+impl Object {
+    fn new(py: Python<'_>) -> Self {
+        let object = Py::new(py, SomeClass {}).unwrap();
+
+        Self { object }
+    }
+}
+
+// It either forces us to release the GIL before aquiring it again.
+let first = Python::with_gil(|py| Object::new(py));
+let second = Python::with_gil(|py| Object::new(py));
+drop(first);
+drop(second);
+
+// Or it ensure releasing the inner lock before the outer one.
+Python::with_gil(|py| {
+    let first = Object::new(py);
+    let second = Python::with_gil(|py| {
+        Object::new(py)
+    });
+    drop(first);
+    drop(second);
+});
+```
+
+Furthermore, `Python::acquire_gil` provides ownership of a `GILGuard` which can be freely stored and passed around. This is usually not helpful as it may keep the lock held for a long time thereby blocking progress in other parts of the program. Due to the generative lifetime attached to the GIL token supplied by `Python::with_gil`, the problem is avoided as the GIL token can only be passed down the call chain. Often, this issue can also be avoided entirely as any GIL-bound reference `&'py PyAny` implies access to a GIL token `Python<'py>` via the [`PyAny::py`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html#method.py) method.
+
 ## from 0.17.* to 0.18
 
 ### Required arguments after `Option<_>` arguments will no longer be automatically inferred
