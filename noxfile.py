@@ -452,6 +452,9 @@ def set_minimal_package_versions(session: nox.Session):
         "cxx": "1.0.92",
         "cxxbridge-macro": "1.0.92",
         "cxx-build": "1.0.92",
+        "web-sys": "0.3.61",
+        "js-sys": "0.3.61",
+        "wasm-bindgen": "0.2.84",
         "syn": "1.0.109",
     }
 
