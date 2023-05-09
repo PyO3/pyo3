@@ -456,9 +456,8 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
             #deprecations
-            let mut ret = #fncall;
-            let owned = _pyo3::impl_::pymethods::OkWrap::wrap(ret, py);
-            owned.map_err(::core::convert::Into::into)
+            _pyo3::impl_::pymethods::OkWrap::wrap(#fncall, py)
+                .map_err(::core::convert::Into::into)
         }
     };
 
