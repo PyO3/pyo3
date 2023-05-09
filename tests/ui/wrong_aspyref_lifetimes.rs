@@ -1,11 +1,10 @@
 use pyo3::{types::PyDict, Py, Python};
 
 fn main() {
-    #[allow(deprecated)]
-    let gil = Python::acquire_gil();
-    let dict: Py<PyDict> = PyDict::new(gil.python()).into();
-    let dict: &PyDict = dict.as_ref(gil.python());
-    drop(gil);
+    let dict: Py<PyDict> = Python::with_gil(|py| PyDict::new(py).into());
+
+    // Should not be able to get access to Py contents outside of with_gil.
+    let dict: &PyDict = Python::with_gil(|py| dict.as_ref(py));
 
     let _py: Python = dict.py(); // Obtain a Python<'p> without GIL.
 }

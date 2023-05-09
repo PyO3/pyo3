@@ -97,7 +97,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.platform.rust-target }}
-          components: clippy
+          components: clippy,rust-src
       - uses: actions/setup-python@v4
         with:
           architecture: ${{ matrix.platform.python-architecture }}

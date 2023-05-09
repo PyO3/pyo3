@@ -79,8 +79,8 @@
 //!
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed by
 //! [PEP 384] to be forward-compatible with future Python versions.
-//! - `auto-initialize`: Changes [`Python::with_gil`] and [`Python::acquire_gil`] to automatically
-//! initialize the Python interpreter if needed.
+//! - `auto-initialize`: Changes [`Python::with_gil`] to automatically initialize the Python
+//! interpreter if needed.
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
 //! building an extension module.
@@ -300,16 +300,14 @@
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-#[allow(deprecated)]
-pub use crate::conversion::ToBorrowedObject;
 pub use crate::conversion::{
     AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
     ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
+pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};

@@ -35,10 +35,9 @@ Python::with_gil(|py| -> PyResult<()> {
 # }
 ```
 
-Internally, calling `Python::with_gil()` or `Python::acquire_gil()` creates a
-`GILPool` which owns the memory pointed to by the reference.  In the example
-above, the lifetime of the reference `hello` is bound to the `GILPool`.  When
-the `with_gil()` closure ends or the `GILGuard` from `acquire_gil()` is dropped,
+Internally, calling `Python::with_gil()` creates a `GILPool` which owns the
+memory pointed to by the reference.  In the example above, the lifetime of the
+reference `hello` is bound to the `GILPool`.  When the `with_gil()` closure ends
 the `GILPool` is also dropped and the Python reference counts of the variables
 it owns are decreased, releasing them to the Python garbage collector.  Most
 of the time we don't have to think about this, but consider the following:
