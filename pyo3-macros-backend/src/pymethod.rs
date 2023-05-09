@@ -582,22 +582,7 @@ pub fn impl_py_setter_def(
             #deprecations
             _pyo3::class::PySetterDef::new(
                 #python_name,
-                _pyo3::impl_::pymethods::PySetter({
-                    unsafe extern "C" fn trampoline(
-                        slf: *mut _pyo3::ffi::PyObject,
-                        value: *mut _pyo3::ffi::PyObject,
-                        closure: *mut ::std::os::raw::c_void,
-                    ) -> ::std::os::raw::c_int
-                    {
-                        _pyo3::impl_::trampoline::setter(
-                            slf,
-                            value,
-                            closure,
-                            #cls::#wrapper_ident
-                        )
-                    }
-                    trampoline
-                }),
+                _pyo3::impl_::pymethods::PySetter(#cls::#wrapper_ident),
                 #doc
             )
         })
@@ -718,20 +703,7 @@ pub fn impl_py_getter_def(
             #deprecations
             _pyo3::class::PyGetterDef::new(
                 #python_name,
-                _pyo3::impl_::pymethods::PyGetter({
-                    unsafe extern "C" fn trampoline(
-                        slf: *mut _pyo3::ffi::PyObject,
-                        closure: *mut ::std::os::raw::c_void,
-                    ) -> *mut _pyo3::ffi::PyObject
-                    {
-                        _pyo3::impl_::trampoline::getter(
-                            slf,
-                            closure,
-                            #cls::#wrapper_ident
-                        )
-                    }
-                    trampoline
-                }),
+                _pyo3::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
                 #doc
             )
         })

@@ -5,7 +5,7 @@
 
 use std::{
     any::Any,
-    os::raw::{c_int, c_void},
+    os::raw::c_int,
     panic::{self, UnwindSafe},
 };
 
@@ -63,29 +63,6 @@ trampolines!(
         kwargs: *mut ffi::PyObject,
     ) -> *mut ffi::PyObject;
 );
-
-#[inline]
-pub unsafe fn getter(
-    slf: *mut ffi::PyObject,
-    closure: *mut c_void,
-    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
-) -> *mut ffi::PyObject {
-    // PyO3 doesn't use the closure argument at present.
-    debug_assert!(closure.is_null());
-    trampoline_inner(|py| f(py, slf))
-}
-
-#[inline]
-pub unsafe fn setter(
-    slf: *mut ffi::PyObject,
-    value: *mut ffi::PyObject,
-    closure: *mut c_void,
-    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::PyObject) -> PyResult<c_int>,
-) -> c_int {
-    // PyO3 doesn't use the closure argument at present.
-    debug_assert!(closure.is_null());
-    trampoline_inner(|py| f(py, slf, value))
-}
 
 // Trampolines used by slot methods
 trampolines!(
