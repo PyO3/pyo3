@@ -71,7 +71,7 @@ The PyO3 ecosystem has two main choices to abstract the process of developing Py
 - [`maturin`] is a command-line tool to build, package and upload Python modules. It makes opinionated choices about project layout meaning it needs very little configuration. This makes it a great choice for users who are building a Python extension from scratch and don't need flexibility.
 - [`setuptools-rust`] is an add-on for `setuptools` which adds extra keyword arguments to the `setup.py` configuration file. It requires more configuration than `maturin`, however this gives additional flexibility for users adding Rust to an existing Python package that can't satisfy `maturin`'s constraints.
 
-Consult each project's documentation for full details on how to get started using them and how to upload wheels to PyPI.
+Consult each project's documentation for full details on how to get started using them and how to upload wheels to PyPI. It should be noted that while `maturin` is able to build [manylinux](https://github.com/pypa/manylinux)-compliant wheels out-of-the-box, `setuptools-rust` requires a bit more effort, [relying on Docker](https://setuptools-rust.readthedocs.io/en/latest/building_wheels.html) for this purpose.
 
 There are also [`maturin-starter`] and [`setuptools-rust-starter`] examples in the PyO3 repository.
 

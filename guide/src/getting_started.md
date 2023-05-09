@@ -23,7 +23,7 @@ PYTHON_CONFIGURE_OPTS="--enable-shared"
 
 ### Building
 
-There are a number of build and Python package management systems such as [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds). We recommend the use of `maturin`, which you can install [here](https://maturin.rs/installation.html). It is developed to work with PyO3 and provides the most "batteries included" experience. `maturin` is just a Python package, so you can add it in the same you already install Python packages.
+There are a number of build and Python package management systems such as [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds). We recommend the use of `maturin`, which you can install [here](https://maturin.rs/installation.html). It is developed to work with PyO3 and provides the most "batteries included" experience, especially if you are aiming to publish to PyPI. `maturin` is just a Python package, so you can add it in the same you already install Python packages.
 
 System Python:
 ```bash
