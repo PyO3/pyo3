@@ -9,9 +9,10 @@
 //! want error handling to be easy. If you are writing a library or you need more control over your
 //! errors you might want to design your own error type instead.
 //!
-//! This implementation always creates a Python [`RuntimeError`]. You might find that you need to
-//! map the error from your Rust code into another Python exception. See [`PyErr::new`] for more
-//! information about that.
+//! When the inner error is a [`PyErr`] without source, it will be extracted out.
+//! Otherwise a Python [`RuntimeError`] will be created.
+//! You might find that you need to map the error from your Rust code into another Python exception.
+//! See [`PyErr::new`] for more information about that.
 //!
 //! For information about error handling in general, see the [Error handling] chapter of the Rust
 //! book.
@@ -111,13 +112,21 @@ use crate::exceptions::PyRuntimeError;
 use crate::PyErr;
 
 impl From<anyhow::Error> for PyErr {
-    fn from(err: anyhow::Error) -> Self {
-        PyRuntimeError::new_err(format!("{:?}", err))
+    fn from(mut error: anyhow::Error) -> Self {
+        // Errors containing a PyErr without chain or context are returned as the underlying error
+        if error.source().is_none() {
+            error = match error.downcast::<Self>() {
+                Ok(py_err) => return py_err,
+                Err(error) => error,
+            };
+        }
+        PyRuntimeError::new_err(format!("{:?}", error))
     }
 }
 
 #[cfg(test)]
 mod test_anyhow {
+    use crate::exceptions::{PyRuntimeError, PyValueError};
     use crate::prelude::*;
     use crate::types::IntoPyDict;
 
@@ -164,5 +173,25 @@ mod test_anyhow {
             let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
             assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
+    }
+
+    #[test]
+    fn test_pyo3_unwrap_simple_err() {
+        let origin_exc = PyValueError::new_err("Value Error");
+        let err: anyhow::Error = origin_exc.into();
+        let converted: PyErr = err.into();
+        assert!(Python::with_gil(
+            |py| converted.is_instance_of::<PyValueError>(py)
+        ))
+    }
+    #[test]
+    fn test_pyo3_unwrap_complex_err() {
+        let origin_exc = PyValueError::new_err("Value Error");
+        let mut err: anyhow::Error = origin_exc.into();
+        err = err.context("Context");
+        let converted: PyErr = err.into();
+        assert!(Python::with_gil(
+            |py| converted.is_instance_of::<PyRuntimeError>(py)
+        ))
     }
 }

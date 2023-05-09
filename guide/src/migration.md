@@ -3,6 +3,43 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.18.* to 0.19
+
+### Smarter `anyhow::Error` / `eyre::Report` conversion when inner error is "simple" `PyErr`
+
+When converting from `anyhow::Error` or `eyre::Report` to `PyErr`, if the inner error is a "simple" `PyErr` (with no source error), then the inner error will be used directly as the `PyErr` instead of wrapping it in a new `PyRuntimeError` with the original information converted into a string.
+
+```rust
+# #[cfg(feature = "anyhow")]
+# #[allow(dead_code)]
+# mod anyhow_only {
+# use pyo3::prelude::*;
+# use pyo3::exceptions::PyValueError;
+#[pyfunction]
+fn raise_err() -> anyhow::Result<()> {
+    Err(PyValueError::new_err("original error message").into())
+}
+
+fn main() {
+    Python::with_gil(|py| {
+        let rs_func = wrap_pyfunction!(raise_err, py).unwrap();
+        pyo3::py_run!(py, rs_func, r"
+        try:
+            rs_func()
+        except Exception as e:
+            print(repr(e))
+        ");
+    })
+}
+# }
+```
+
+Before, the above code would have printed `RuntimeError('ValueError: original error message')`, which might be confusing.
+
+After, the same code will print `ValueError: original error message`, which is more straightforward.
+
+However, if the `anyhow::Error` or `eyre::Report` has a source, then the original exception will still be wrapped in a `PyRuntimeError`.
+
 ## from 0.17.* to 0.18
 
 ### Required arguments after `Option<_>` arguments will no longer be automatically inferred
