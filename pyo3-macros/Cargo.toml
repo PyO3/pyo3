@@ -21,5 +21,5 @@ abi3 = ["pyo3-macros-backend/abi3"]
 [dependencies]
 proc-macro2 = { version = "1", default-features = false }
 quote = "1"
-syn = { version = "1.0.56", features = ["full", "extra-traits"] }
+syn = { version = "1.0.85", features = ["full", "extra-traits"] }
 pyo3-macros-backend = { path = "../pyo3-macros-backend", version = "=0.18.3" }
