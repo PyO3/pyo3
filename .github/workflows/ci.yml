@@ -103,7 +103,7 @@ jobs:
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: clippy-${{ matrix.platform.rust-target }}-${{ matrix.os }}-${{ matrix.rust }}
+          key: clippy-${{ matrix.platform.rust-target }}-${{ matrix.platform.os }}-${{ matrix.rust }}
         continue-on-error: true
       - run: python -m pip install --upgrade pip && pip install nox
       - if: matrix.msrv == 'MSRV'
