@@ -99,8 +99,15 @@ macro_rules! pyobject_native_type_base(
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.str().or(::std::result::Result::Err(::std::fmt::Error))?;
-                f.write_str(&s.to_string_lossy())
+                match self.str() {
+                    ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
+                    ::std::result::Result::Err(err) => err.write_unraisable(self.py(), ::std::option::Option::Some(self)),
+                }
+
+                match self.get_type().name() {
+                    ::std::result::Result::Ok(name) => ::std::write!(f, "<unprintable {} object>", name),
+                    ::std::result::Result::Err(_err) => f.write_str("<unprintable object>"),
+                }
             }
         }
 
