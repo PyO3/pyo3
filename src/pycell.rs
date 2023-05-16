@@ -195,7 +195,10 @@ use crate::exceptions::PyRuntimeError;
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
 };
-use crate::pyclass::{boolean_struct::False, PyClass};
+use crate::pyclass::{
+    boolean_struct::{False, True},
+    PyClass,
+};
 use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyAny;
@@ -290,6 +293,8 @@ impl<T: PyClass> PyCell<T> {
 
     /// Immutably borrows the value `T`. This borrow lasts as long as the returned `PyRef` exists.
     ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
+    ///
     /// # Panics
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
@@ -315,6 +320,8 @@ impl<T: PyClass> PyCell<T> {
     /// mutably borrowed. This borrow lasts as long as the returned `PyRef` exists.
     ///
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
+    ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
     ///
     /// # Examples
     ///
@@ -410,6 +417,41 @@ impl<T: PyClass> PyCell<T> {
             .map(|_: ()| &*self.contents.value.get())
     }
 
+    /// Provide an immutable borrow of the value `T` without acquiring the GIL.
+    ///
+    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    ///
+    /// While the GIL is usually required to get access to `&PyCell<T>`,
+    /// compared to [`borrow`][Self::borrow] or [`try_borrow`][Self::try_borrow]
+    /// this avoids any thread or borrow checking overhead at runtime.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// # use pyo3::prelude::*;
+    ///
+    /// #[pyclass(frozen)]
+    /// struct FrozenCounter {
+    ///     value: AtomicUsize,
+    /// }
+    ///
+    /// Python::with_gil(|py| {
+    ///     let counter = FrozenCounter { value: AtomicUsize::new(0) };
+    ///
+    ///     let cell = PyCell::new(py, counter).unwrap();
+    ///
+    ///     cell.get().value.fetch_add(1, Ordering::Relaxed);
+    /// });
+    /// ```
+    pub fn get(&self) -> &T
+    where
+        T: PyClass<Frozen = True> + Sync,
+    {
+        // SAFETY: The class itself is frozen and `Sync` and we do not access anything but `self.contents.value`.
+        unsafe { &*self.get_ptr() }
+    }
+
     /// Replaces the wrapped value with a new one, returning the old value.
     ///
     /// # Panics
@@ -450,7 +492,7 @@ impl<T: PyClass> PyCell<T> {
         std::mem::swap(&mut *self.borrow_mut(), &mut *other.borrow_mut())
     }
 
-    fn get_ptr(&self) -> *mut T {
+    pub(crate) fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
     }
 
