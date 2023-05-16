@@ -25,3 +25,14 @@ def test_iter():
     with pytest.raises(StopIteration) as excinfo:
         next(i)
     assert excinfo.value.value == "Ended"
+
+
+class AssertingSubClass(pyclasses.AssertingBaseClass):
+    pass
+
+
+def test_new_classmethod():
+    # The `AssertingBaseClass` constructor errors if it is not passed the relevant subclass.
+    _ = AssertingSubClass(expected_type=AssertingSubClass)
+    with pytest.raises(ValueError):
+        _ = AssertingSubClass(expected_type=str)

@@ -84,6 +84,8 @@ fn handle_argument_error(pat: &syn::Pat) -> syn::Error {
 pub enum MethodTypeAttribute {
     /// `#[new]`
     New,
+    /// `#[new]` && `#[classmethod]`
+    NewClassMethod,
     /// `#[classmethod]`
     ClassMethod,
     /// `#[classattr]`
@@ -102,6 +104,7 @@ pub enum FnType {
     Setter(SelfType),
     Fn(SelfType),
     FnNew,
+    FnNewClass,
     FnClass,
     FnStatic,
     FnModule,
@@ -122,7 +125,7 @@ impl FnType {
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
                 quote!()
             }
-            FnType::FnClass => {
+            FnType::FnClass | FnType::FnNewClass => {
                 quote! {
                     let _slf = _pyo3::types::PyType::from_type_ptr(_py, _slf as *mut _pyo3::ffi::PyTypeObject);
                 }
@@ -368,12 +371,16 @@ impl<'a> FnSpec<'a> {
         let (fn_type, skip_first_arg, fixed_convention) = match fn_type_attr {
             Some(MethodTypeAttribute::StaticMethod) => (FnType::FnStatic, false, None),
             Some(MethodTypeAttribute::ClassAttribute) => (FnType::ClassAttribute, false, None),
-            Some(MethodTypeAttribute::New) => {
+            Some(MethodTypeAttribute::New) | Some(MethodTypeAttribute::NewClassMethod) => {
                 if let Some(name) = &python_name {
                     bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
                 }
                 *python_name = Some(syn::Ident::new("__new__", Span::call_site()));
-                (FnType::FnNew, false, Some(CallingConvention::TpNew))
+                if matches!(fn_type_attr, Some(MethodTypeAttribute::New)) {
+                    (FnType::FnNew, false, Some(CallingConvention::TpNew))
+                } else {
+                    (FnType::FnNewClass, true, Some(CallingConvention::TpNew))
+                }
             }
             Some(MethodTypeAttribute::ClassMethod) => (FnType::FnClass, true, None),
             Some(MethodTypeAttribute::Getter) => {
@@ -496,7 +503,11 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::TpNew => {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
-                let call = quote! { #rust_name(#(#args),*) };
+                let call = match &self.tp {
+                    FnType::FnNew => quote! { #rust_name(#(#args),*) },
+                    FnType::FnNewClass => quote! { #rust_name(PyType::from_type_ptr(#py, subtype), #(#args),*) },
+                    x => panic!("Only `FnNew` or `FnNewClass` may use the `TpNew` calling convention. Got: {:?}", x),
+                };
                 quote! {
                     unsafe fn #ident(
                         #py: _pyo3::Python<'_>,
@@ -609,7 +620,7 @@ impl<'a> FnSpec<'a> {
             FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => return None,
             FnType::Fn(_) => Some("self"),
             FnType::FnModule => Some("module"),
-            FnType::FnClass => Some("cls"),
+            FnType::FnClass | FnType::FnNewClass => Some("cls"),
             FnType::FnStatic | FnType::FnNew => None,
         };
 
@@ -637,11 +648,22 @@ fn parse_method_attributes(
     let mut deprecated_args = None;
     let mut ty: Option<MethodTypeAttribute> = None;
 
+    macro_rules! set_compound_ty {
+        ($new_ty:expr, $ident:expr) => {
+            ty = match (ty, $new_ty) {
+                (None, new_ty) => Some(new_ty),
+                (Some(MethodTypeAttribute::ClassMethod), MethodTypeAttribute::New) => Some(MethodTypeAttribute::NewClassMethod),
+                (Some(MethodTypeAttribute::New), MethodTypeAttribute::ClassMethod) => Some(MethodTypeAttribute::NewClassMethod),
+                (Some(_), _) => bail_spanned!($ident.span() => "can only combine `new` and `classmethod`"),
+            };
+        };
+    }
+
     macro_rules! set_ty {
         ($new_ty:expr, $ident:expr) => {
             ensure_spanned!(
                ty.replace($new_ty).is_none(),
-               $ident.span() => "cannot specify a second method type"
+               $ident.span() => "cannot combine these method types"
             );
         };
     }
@@ -650,13 +672,13 @@ fn parse_method_attributes(
         match attr.parse_meta() {
             Ok(syn::Meta::Path(name)) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
-                    set_ty!(MethodTypeAttribute::New, name);
+                    set_compound_ty!(MethodTypeAttribute::New, name);
                 } else if name.is_ident("init") || name.is_ident("__init__") {
                     bail_spanned!(name.span() => "#[init] is disabled since PyO3 0.9.0");
                 } else if name.is_ident("call") || name.is_ident("__call__") {
                     bail_spanned!(name.span() => "use `fn __call__` instead of `#[call]` attribute since PyO3 0.15.0");
                 } else if name.is_ident("classmethod") {
-                    set_ty!(MethodTypeAttribute::ClassMethod, name);
+                    set_compound_ty!(MethodTypeAttribute::ClassMethod, name);
                 } else if name.is_ident("staticmethod") {
                     set_ty!(MethodTypeAttribute::StaticMethod, name);
                 } else if name.is_ident("classattr") {

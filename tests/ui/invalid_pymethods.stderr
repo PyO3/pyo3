@@ -88,7 +88,7 @@ error: `signature` not allowed with `classattr`
 105 |     #[pyo3(signature = ())]
     |            ^^^^^^^^^
 
-error: cannot specify a second method type
+error: cannot combine these method types
    --> tests/ui/invalid_pymethods.rs:112:7
     |
 112 |     #[staticmethod]
