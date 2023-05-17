@@ -234,7 +234,9 @@ pub fn gen_py_method(
             Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
-        (_, FnType::FnNew) => GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?),
+        (_, FnType::FnNew) | (_, FnType::FnNewClass) => {
+            GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?)
+        }
 
         (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,

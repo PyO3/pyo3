@@ -607,6 +607,27 @@ Declares a class method callable from Python.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
 * The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
 
+### Constructors which accept a class argument
+
+To create a constructor which takes a positional class argument, you can combine the `#[classmethod]` and `#[new]` modifiers:
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyType;
+# #[pyclass]
+# struct BaseClass(PyObject);
+#
+#[pymethods]
+impl BaseClass {
+    #[new]
+    #[classmethod]
+    fn py_new<'p>(cls: &'p PyType, py: Python<'p>) -> PyResult<Self> {
+      // Get an abstract attribute (presumably) declared on a subclass of this class.
+      let subclass_attr = cls.getattr("a_class_attr")?;
+      Ok(Self(subclass_attr.to_object(py)))
+    }
+}
+```
+
 ## Static methods
 
 To create a static method for a custom class, the method needs to be annotated with the
