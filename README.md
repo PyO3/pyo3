@@ -197,6 +197,7 @@ about this topic.
 - [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
 - [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python) _Fast JSON Schema validation library._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
+- [opendal](https://github.com/apache/incubator-opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library._
 - [point-process](https://github.com/ManifoldFR/point-process-rust/tree/master/pylib) _High level API for pointprocesses as a Python library._
