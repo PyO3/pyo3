@@ -1,9 +1,9 @@
-use crate::pyclass::boolean_struct::False;
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::conversion::PyTryFrom;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
+use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
@@ -366,6 +366,8 @@ where
     /// This borrow lasts while the returned [`PyRef`] exists.
     /// Multiple immutable borrows can be taken out at the same time.
     ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
+    ///
     /// Equivalent to `self.as_ref(py).borrow()` -
     /// see [`PyCell::borrow`](crate::pycell::PyCell::borrow).
     ///
@@ -444,6 +446,8 @@ where
     ///
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
     ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
+    ///
     /// Equivalent to `self.as_ref(py).borrow_mut()` -
     /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
@@ -466,6 +470,41 @@ where
         T: PyClass<Frozen = False>,
     {
         self.as_ref(py).try_borrow_mut()
+    }
+
+    /// Provide an immutable borrow of the value `T` without acquiring the GIL.
+    ///
+    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// # use pyo3::prelude::*;
+    ///
+    /// #[pyclass(frozen)]
+    /// struct FrozenCounter {
+    ///     value: AtomicUsize,
+    /// }
+    ///
+    /// let cell  = Python::with_gil(|py| {
+    ///     let counter = FrozenCounter { value: AtomicUsize::new(0) };
+    ///
+    ///     Py::new(py, counter).unwrap()
+    /// });
+    ///
+    /// cell.get().value.fetch_add(1, Ordering::Relaxed);
+    /// ```
+    pub fn get(&self) -> &T
+    where
+        T: PyClass<Frozen = True> + Sync,
+    {
+        let any = self.as_ptr() as *const PyAny;
+        // SAFETY: The class itself is frozen and `Sync` and we do not access anything but `cell.contents.value`.
+        unsafe {
+            let cell: &PyCell<T> = PyNativeType::unchecked_downcast(&*any);
+            &*cell.get_ptr()
+        }
     }
 }
 

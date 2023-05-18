@@ -502,3 +502,27 @@ fn inherited_weakref() {
         );
     });
 }
+
+#[test]
+fn access_frozen_class_without_gil() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[pyclass(frozen)]
+    struct FrozenCounter {
+        value: AtomicUsize,
+    }
+
+    let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+        let counter = FrozenCounter {
+            value: AtomicUsize::new(0),
+        };
+
+        let cell = PyCell::new(py, counter).unwrap();
+
+        cell.get().value.fetch_add(1, Ordering::Relaxed);
+
+        cell.into()
+    });
+
+    assert_eq!(py_counter.get().value.load(Ordering::Relaxed), 1);
+}
