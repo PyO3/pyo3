@@ -202,6 +202,7 @@ macro_rules! pyobject_native_type_info(
             }
 
             $(
+                #[inline]
                 fn is_type_of(ptr: &$crate::PyAny) -> bool {
                     use $crate::AsPyPointer;
                     #[allow(unused_unsafe)]

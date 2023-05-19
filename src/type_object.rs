@@ -47,16 +47,19 @@ pub unsafe trait PyTypeInfo: Sized {
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
     /// Returns the safe abstraction over the type object.
+    #[inline]
     fn type_object(py: Python<'_>) -> &PyType {
         unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
     }
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
+    #[inline]
     fn is_type_of(object: &PyAny) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
     /// Checks if `object` is an instance of this type.
+    #[inline]
     fn is_exact_type_of(object: &PyAny) -> bool {
         unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
     }
