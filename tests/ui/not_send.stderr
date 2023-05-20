@@ -9,8 +9,8 @@ error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safe
   = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
   = note: required because it appears within the type `PhantomData<*mut Python<'static>>`
   = note: required because it appears within the type `NotSend`
-  = note: required because it appears within the type `(&EnsureGIL, NotSend)`
-  = note: required because it appears within the type `PhantomData<(&EnsureGIL, NotSend)>`
+  = note: required because it appears within the type `(&GILGuard, NotSend)`
+  = note: required because it appears within the type `PhantomData<(&GILGuard, NotSend)>`
   = note: required because it appears within the type `Python<'_>`
   = note: required for `&pyo3::Python<'_>` to implement `Send`
 note: required because it's used within this closure
