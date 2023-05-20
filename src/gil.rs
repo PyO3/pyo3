@@ -29,11 +29,16 @@ thread_local_const_init! {
     /// they are dropped.
     ///
     /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
-    static GIL_COUNT: Cell<usize> = const { Cell::new(0) };
+    ///
+    /// Additionally, we sometimes need to prevent safe access to the GIL,
+    /// e.g. when implementing `__traverse__`, which is represented by a negative value.
+    static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
 
     /// Temporarily hold objects that will be released when the GILPool drops.
     static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = const { RefCell::new(Vec::new()) };
 }
+
+const GIL_LOCKED_DURING_TRAVERSE: isize = -1;
 
 /// Checks whether the GIL is acquired.
 ///
@@ -286,7 +291,7 @@ static POOL: ReferencePool = ReferencePool::new();
 
 /// A guard which can be used to temporarily release the GIL and restore on `Drop`.
 pub(crate) struct SuspendGIL {
-    count: usize,
+    count: isize,
     tstate: *mut ffi::PyThreadState,
 }
 
@@ -308,6 +313,30 @@ impl Drop for SuspendGIL {
             // Update counts of PyObjects / Py that were cloned or dropped while the GIL was released.
             POOL.update_counts(Python::assume_gil_acquired());
         }
+    }
+}
+
+/// Used to lock safe access to the GIL
+pub struct LockGIL {
+    count: isize,
+}
+
+impl LockGIL {
+    /// Lock access to the GIL while an implementation of `__traverse__` is running
+    pub fn during_traverse() -> Self {
+        Self::new(GIL_LOCKED_DURING_TRAVERSE)
+    }
+
+    fn new(reason: isize) -> Self {
+        let count = GIL_COUNT.with(|c| c.replace(reason));
+
+        Self { count }
+    }
+}
+
+impl Drop for LockGIL {
+    fn drop(&mut self) {
+        GIL_COUNT.with(|c| c.set(self.count));
     }
 }
 
@@ -421,7 +450,17 @@ pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
 #[inline(always)]
 fn increment_gil_count() {
     // Ignores the error in case this function called from `atexit`.
-    let _ = GIL_COUNT.try_with(|c| c.set(c.get() + 1));
+    let _ = GIL_COUNT.try_with(|c| {
+        let current = c.get();
+        match current {
+            GIL_LOCKED_DURING_TRAVERSE => panic!(
+                "Access to the GIL is prohibited while a __traverse__ implmentation is running."
+            ),
+            current if current < 0 => panic!("Access to the GIL is currently prohibited."),
+            _ => (),
+        }
+        c.set(current + 1);
+    });
 }
 
 /// Decrements pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.

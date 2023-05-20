@@ -332,3 +332,35 @@ fn traverse_error() {
         );
     })
 }
+
+#[pyclass]
+struct TriesGILInTraverse {}
+
+#[pymethods]
+impl TriesGILInTraverse {
+    fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        Python::with_gil(|_py| {});
+        Ok(())
+    }
+}
+
+#[test]
+fn tries_gil_in_traverse() {
+    Python::with_gil(|py| unsafe {
+        // declare a visitor function which errors (returns nonzero code)
+        extern "C" fn novisit(
+            _object: *mut pyo3::ffi::PyObject,
+            _arg: *mut core::ffi::c_void,
+        ) -> std::os::raw::c_int {
+            0
+        }
+
+        // get the traverse function
+        let ty = py.get_type::<TriesGILInTraverse>().as_type_ptr();
+        let traverse = get_type_traverse(ty).unwrap();
+
+        // confirm that traversing panicks
+        let obj = Py::new(py, TriesGILInTraverse {}).unwrap();
+        assert_eq!(traverse(obj.as_ptr(), novisit, std::ptr::null_mut()), -1);
+    })
+}

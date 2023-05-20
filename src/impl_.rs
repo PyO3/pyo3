@@ -19,3 +19,5 @@ pub mod pymethods;
 pub mod pymodule;
 #[doc(hidden)]
 pub mod trampoline;
+
+pub use crate::gil::LockGIL;
