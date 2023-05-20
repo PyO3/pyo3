@@ -494,11 +494,10 @@ mod tests {
     fn get_object(py: Python<'_>) -> PyObject {
         // Convenience function for getting a single unique object, using `new_pool` so as to leave
         // the original pool state unchanged.
-        let pool = unsafe { py.new_pool() };
-        let py = pool.python();
-
-        let obj = py.eval("object()", None, None).unwrap();
-        obj.to_object(py)
+        py.with_pool(|py| {
+            let obj = py.eval("object()", None, None).unwrap();
+            obj.to_object(py)
+        })
     }
 
     fn owned_object_count() -> usize {
@@ -521,24 +520,22 @@ mod tests {
     fn test_owned() {
         Python::with_gil(|py| {
             let obj = get_object(py);
-            let obj_ptr = obj.as_ptr();
             // Ensure that obj does not get freed
             let _ref = obj.clone_ref(py);
 
-            unsafe {
-                {
-                    let pool = py.new_pool();
-                    gil::register_owned(pool.python(), NonNull::new_unchecked(obj.into_ptr()));
+            py.with_pool(|py| {
+                unsafe {
+                    gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
+                }
 
-                    assert_eq!(owned_object_count(), 1);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
-                }
-                {
-                    let _pool = py.new_pool();
-                    assert_eq!(owned_object_count(), 0);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-                }
-            }
+                assert_eq!(owned_object_count(), 1);
+                assert_eq!(_ref.get_refcnt(py), 2);
+            });
+
+            py.with_pool(|py| {
+                assert_eq!(owned_object_count(), 0);
+                assert_eq!(_ref.get_refcnt(py), 1);
+            });
         })
     }
 
@@ -548,30 +545,32 @@ mod tests {
             let obj = get_object(py);
             // Ensure that obj does not get freed
             let _ref = obj.clone_ref(py);
-            let obj_ptr = obj.as_ptr();
 
-            unsafe {
-                {
-                    let _pool = py.new_pool();
-                    assert_eq!(owned_object_count(), 0);
+            py.with_pool(|py| {
+                assert_eq!(owned_object_count(), 0);
 
+                unsafe {
                     gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
+                }
 
-                    assert_eq!(owned_object_count(), 1);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
-                    {
-                        let _pool = py.new_pool();
-                        let obj = get_object(py);
+                assert_eq!(owned_object_count(), 1);
+                assert_eq!(_ref.get_refcnt(py), 2);
+
+                py.with_pool(|py| {
+                    let obj = get_object(py);
+
+                    unsafe {
                         gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
-                        assert_eq!(owned_object_count(), 2);
                     }
-                    assert_eq!(owned_object_count(), 1);
-                }
-                {
-                    assert_eq!(owned_object_count(), 0);
-                    assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-                }
-            }
+
+                    assert_eq!(owned_object_count(), 2);
+                });
+
+                assert_eq!(owned_object_count(), 1);
+            });
+
+            assert_eq!(owned_object_count(), 0);
+            assert_eq!(_ref.get_refcnt(py), 1);
         });
     }
 

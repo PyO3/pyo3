@@ -466,6 +466,45 @@ impl Python<'_> {
         // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
         f(Python::assume_gil_acquired())
     }
+
+    /// Create a new pool for managing PyO3's owned references.
+    ///
+    /// When the given closure returns, all PyO3 owned references created by it will
+    /// all have their Python reference counts decremented, potentially allowing Python to drop
+    /// the corresponding Python objects.
+    ///
+    /// Typical usage of PyO3 will not need this API, as [`Python::with_gil`] automatically creates
+    /// a `GILPool` where appropriate.
+    ///
+    /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
+    /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
+    /// released.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// Python::with_gil(|py| {
+    ///     // Some long-running process like a webserver, which never releases the GIL.
+    ///     loop {
+    ///         // Create a new pool, so that PyO3 can clear memory at the end of the loop.
+    ///         py.with_pool(|py| {
+    ///             // do stuff...
+    ///         });
+    /// #       break;  // Exit the loop so that doctest terminates!
+    ///     }
+    /// });
+    /// ```
+    #[inline]
+    pub fn with_pool<F, R>(self, f: F) -> R
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R + Ungil,
+        R: Ungil,
+    {
+        let pool = unsafe { GILPool::new() };
+
+        f(pool.python())
+    }
 }
 
 impl<'py> Python<'py> {
@@ -897,9 +936,13 @@ impl<'py> Python<'py> {
     /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
     /// released.
     ///
+    /// [`Python::with_pool`] provides a safe alternative albeit adding the requirement that all
+    /// types interacting with the new pool are marked with the `Ungil` trait.
+    ///
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// # use pyo3::prelude::*;
     /// Python::with_gil(|py| {
     ///     // Some long-running process like a webserver, which never releases the GIL.
@@ -939,6 +982,7 @@ impl<'py> Python<'py> {
     ///
     /// [`.python()`]: crate::GILPool::python
     #[inline]
+    #[deprecated(since = "0.19.0", note = "Please use `with_pool` instead.")]
     pub unsafe fn new_pool(self) -> GILPool {
         GILPool::new()
     }

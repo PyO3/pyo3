@@ -95,10 +95,11 @@ this is unsafe.
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
-        let pool = unsafe { py.new_pool() };
-        let py = pool.python();
-        let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
-        println!("Python says: {}", hello);
+        py.with_pool(|py| {
+            let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
+            println!("Python says: {}", hello);
+            Ok::<_, PyErr>(())
+        })?;
     }
     Ok(())
 })?;

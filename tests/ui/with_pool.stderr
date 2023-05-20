@@ -1,0 +1,26 @@
+error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
+ --> tests/ui/with_pool.rs:4:22
+  |
+4 |     old_py.with_pool(|new_py| { drop(old_py); });
+  |            --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
+  |            |
+  |            required by a bound introduced by this call
+  |
+  = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
+  = note: required because it appears within the type `PhantomData<*mut Python<'static>>`
+  = note: required because it appears within the type `NotSend`
+  = note: required because it appears within the type `(&EnsureGIL, NotSend)`
+  = note: required because it appears within the type `PhantomData<(&EnsureGIL, NotSend)>`
+  = note: required because it appears within the type `Python<'_>`
+  = note: required for `&pyo3::Python<'_>` to implement `Send`
+note: required because it's used within this closure
+ --> tests/ui/with_pool.rs:4:22
+  |
+4 |     old_py.with_pool(|new_py| { drop(old_py); });
+  |                      ^^^^^^^^
+  = note: required for `[closure@$DIR/tests/ui/with_pool.rs:4:22: 4:30]` to implement `Ungil`
+note: required by a bound in `pyo3::Python::<'_>::with_pool`
+ --> src/marker.rs
+  |
+  |         F: for<'py> FnOnce(Python<'py>) -> R + Ungil,
+  |                                                ^^^^^ required by this bound in `Python::<'_>::with_pool`
