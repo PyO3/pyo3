@@ -211,11 +211,11 @@ Python::with_gil(|py| {
 });
 ```
 
-### frozen classes: Opting out of interior mutability
+### Frozen classes: Opting out of interior mutability
 
 As detailed above, runtime borrow checking is currently enabled by default. But a class can opt of out it by declaring itself `frozen`. It can still use interior mutability via standard Rust types like `RefCell` or `Mutex`, but it is not bound to the implementation provided by PyO3 and can choose the most appropriate strategy on field-by-field basis.
 
-Classes which are `frozen` and also `Sync`, e.g. they do use `Mutex` but not `RefCell`, can be accessed without needing the Python GIL via the `PyCell::get` and `Py::get` methods:
+Classes which are `frozen` and also `Send` and `Sync`, e.g. they do use `Mutex` but not `RefCell`, can be accessed without needing the Python GIL via the `PyCell::get` and `Py::get` methods:
 
 ```rust
 use std::sync::atomic::{AtomicUsize, Ordering};

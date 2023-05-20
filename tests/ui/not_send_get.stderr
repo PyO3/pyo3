@@ -1,0 +1,35 @@
+error[E0277]: `*mut ()` cannot be sent between threads safely
+  --> tests/ui/not_send_get.rs:16:26
+   |
+16 |         let _ptr = class.get().ptr;
+   |                          ^^^ `*mut ()` cannot be sent between threads safely
+   |
+   = help: within `ClassThatIsSyncButNotSend`, the trait `Send` is not implemented for `*mut ()`
+note: required because it appears within the type `ClassThatIsSyncButNotSend`
+  --> tests/ui/not_send_get.rs:4:8
+   |
+4  | struct ClassThatIsSyncButNotSend {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required by a bound in `pyo3::Py::<T>::get`
+  --> src/instance.rs
+   |
+   |         T: PyClass<Frozen = True> + Send + Sync,
+   |                                     ^^^^ required by this bound in `Py::<T>::get`
+
+error[E0277]: `*mut ()` cannot be sent between threads safely
+  --> tests/ui/not_send_get.rs:28:41
+   |
+28 |             let _ptr = class.as_ref(py).get().ptr;
+   |                                         ^^^ `*mut ()` cannot be sent between threads safely
+   |
+   = help: within `ClassThatIsSyncButNotSend`, the trait `Send` is not implemented for `*mut ()`
+note: required because it appears within the type `ClassThatIsSyncButNotSend`
+  --> tests/ui/not_send_get.rs:4:8
+   |
+4  | struct ClassThatIsSyncButNotSend {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required by a bound in `PyCell::<T>::get`
+  --> src/pycell.rs
+   |
+   |         T: PyClass<Frozen = True> + Send + Sync,
+   |                                     ^^^^ required by this bound in `PyCell::<T>::get`

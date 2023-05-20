@@ -474,7 +474,7 @@ where
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
     ///
-    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    /// This is available if the class is [`frozen`][macro@crate::pyclass], [`Send`] and [`Sync`].
     ///
     /// # Examples
     ///
@@ -497,10 +497,10 @@ where
     /// ```
     pub fn get(&self) -> &T
     where
-        T: PyClass<Frozen = True> + Sync,
+        T: PyClass<Frozen = True> + Send + Sync,
     {
         let any = self.as_ptr() as *const PyAny;
-        // SAFETY: The class itself is frozen and `Sync` and we do not access anything but `cell.contents.value`.
+        // SAFETY: The class itself is frozen, `Send` and `Sync` and we do not access anything but `cell.contents.value`.
         unsafe {
             let cell: &PyCell<T> = PyNativeType::unchecked_downcast(&*any);
             &*cell.get_ptr()

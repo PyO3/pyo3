@@ -31,7 +31,7 @@ error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
 note: required by a bound in `pyo3::Py::<T>::get`
   --> src/instance.rs
    |
-   |         T: PyClass<Frozen = True> + Sync,
+   |         T: PyClass<Frozen = True> + Send + Sync,
    |                    ^^^^^^^^^^^^^ required by this bound in `Py::<T>::get`
 
 error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
@@ -43,5 +43,5 @@ error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
 note: required by a bound in `pyo3::PyCell::<T>::get`
   --> src/pycell.rs
    |
-   |         T: PyClass<Frozen = True> + Sync,
+   |         T: PyClass<Frozen = True> + Send + Sync,
    |                    ^^^^^^^^^^^^^ required by this bound in `PyCell::<T>::get`

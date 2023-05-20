@@ -117,6 +117,7 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/not_send.rs");
         t.compile_fail("tests/ui/not_send2.rs");
         t.compile_fail("tests/ui/not_send3.rs");
+        t.compile_fail("tests/ui/not_send_get.rs");
         t.compile_fail("tests/ui/get_set_all.rs");
     }
 

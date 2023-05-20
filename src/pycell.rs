@@ -419,7 +419,7 @@ impl<T: PyClass> PyCell<T> {
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
     ///
-    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    /// This is available if the class is [`frozen`][macro@crate::pyclass], [`Send`] and [`Sync`].
     ///
     /// While the GIL is usually required to get access to `&PyCell<T>`,
     /// compared to [`borrow`][Self::borrow] or [`try_borrow`][Self::try_borrow]
@@ -446,9 +446,9 @@ impl<T: PyClass> PyCell<T> {
     /// ```
     pub fn get(&self) -> &T
     where
-        T: PyClass<Frozen = True> + Sync,
+        T: PyClass<Frozen = True> + Send + Sync,
     {
-        // SAFETY: The class itself is frozen and `Sync` and we do not access anything but `self.contents.value`.
+        // SAFETY: The class itself is frozen, `Send` and `Sync` and we do not access anything but `self.contents.value`.
         unsafe { &*self.get_ptr() }
     }
 
