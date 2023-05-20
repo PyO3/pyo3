@@ -401,35 +401,13 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>) -> Result<MethodAndSlot
 }
 
 fn impl_traverse_slot(cls: &syn::Type, rust_fn_ident: &syn::Ident) -> MethodAndSlotDef {
-    // It is important the implementation of `__traverse__` cannot safely access the GIL,
-    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
-    // token to the user code and lock safe methods for acquiring the GIL.
-    // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
-    // token does not produce any owned objects thereby calling into `register_owned`.
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod_traverse__(
             slf: *mut _pyo3::ffi::PyObject,
             visit: _pyo3::ffi::visitproc,
             arg: *mut ::std::os::raw::c_void,
-        ) -> ::std::os::raw::c_int
-        {
-            let trap = _pyo3::impl_::panic::PanicTrap::new("uncaught panic inside __traverse__ handler");
-            let py = _pyo3::Python::assume_gil_acquired();
-            let slf = py.from_borrowed_ptr::<_pyo3::PyCell<#cls>>(slf);
-            let borrow = slf.try_borrow();
-            let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
-
-            let retval = if let ::std::result::Result::Ok(borrow) = borrow {
-                let _lock = _pyo3::impl_::LockGIL::new();
-                match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(move || borrow.#rust_fn_ident(visit))) {
-                    ::std::result::Result::Ok(res) => _pyo3::impl_::pymethods::unwrap_traverse_result(res),
-                    ::std::result::Result::Err(_err) => -1,
-                }
-            } else {
-                0
-            };
-            trap.disarm();
-            retval
+        ) -> ::std::os::raw::c_int {
+            _pyo3::impl_::pymethods::call_traverse_impl::<#cls>(slf, #cls::#rust_fn_ident, visit, arg)
         }
     };
     let slot_def = quote! {

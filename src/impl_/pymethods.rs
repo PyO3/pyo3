@@ -1,9 +1,15 @@
+use crate::gil::LockGIL;
+use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
-use crate::{ffi, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, PyTraverseError, Python};
+use crate::{
+    ffi, IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit,
+    Python,
+};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::fmt;
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_void};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
 #[cfg(Py_3_8)]
@@ -239,14 +245,46 @@ impl PySetterDef {
     }
 }
 
-/// Unwraps the result of __traverse__ for tp_traverse
+/// Calls an implementation of __traverse__ for tp_traverse
 #[doc(hidden)]
-#[inline]
-pub fn unwrap_traverse_result(result: Result<(), PyTraverseError>) -> c_int {
-    match result {
-        Ok(()) => 0,
-        Err(PyTraverseError(value)) => value,
-    }
+pub unsafe fn call_traverse_impl<T>(
+    slf: *mut ffi::PyObject,
+    impl_: fn(&T, PyVisit<'_>) -> Result<(), PyTraverseError>,
+    visit: ffi::visitproc,
+    arg: *mut c_void,
+) -> c_int
+where
+    T: PyClass,
+{
+    // It is important the implementation of `__traverse__` cannot safely access the GIL,
+    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
+    // token to the user code and lock safe methods for acquiring the GIL.
+    // (This includes enforcing the `&self` method receiver as e.g. `PyRef<Self>` could
+    // reconstruct a GIL token via `PyRef::py`.)
+    // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
+    // token does not produce any owned objects thereby calling into `register_owned`.
+    let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
+
+    let py = Python::assume_gil_acquired();
+    let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
+    let borrow = slf.try_borrow();
+    let visit = PyVisit::from_raw(visit, arg, py);
+
+    let retval = if let Ok(borrow) = borrow {
+        let _lock = LockGIL::new();
+
+        match catch_unwind(AssertUnwindSafe(move || impl_(&*borrow, visit))) {
+            Ok(res) => match res {
+                Ok(()) => 0,
+                Err(PyTraverseError(value)) => value,
+            },
+            Err(_err) => -1,
+        }
+    } else {
+        0
+    };
+    trap.disarm();
+    retval
 }
 
 pub(crate) struct PyMethodDefDestructor {

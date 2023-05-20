@@ -339,8 +339,7 @@ struct TriesGILInTraverse {}
 #[pymethods]
 impl TriesGILInTraverse {
     fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        Python::with_gil(|_py| {});
-        Ok(())
+        Python::with_gil(|_py| Ok(()))
     }
 }
 
