@@ -45,6 +45,7 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
+    t.compile_fail("tests/ui/traverse_bare_self.rs");
 
     tests_rust_1_49(&t);
     tests_rust_1_56(&t);

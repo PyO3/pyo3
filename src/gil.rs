@@ -317,7 +317,7 @@ impl Drop for SuspendGIL {
 }
 
 /// Used to lock safe access to the GIL
-pub struct LockGIL {
+pub(crate) struct LockGIL {
     count: isize,
 }
 
