@@ -17,7 +17,10 @@ thread_local! {
     /// they are dropped.
     ///
     /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
-    static GIL_COUNT: Cell<usize> = Cell::new(0);
+    ///
+    /// Additionally, we sometimes need to prevent safe access to the GIL,
+    /// e.g. when implementing `__traverse__`, which is represented by a negative value.
+    static GIL_COUNT: Cell<isize> = Cell::new(0);
 
     /// Temporarily hold objects that will be released when the GILPool drops.
     static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
@@ -290,7 +293,7 @@ static POOL: ReferencePool = ReferencePool::new();
 
 /// A guard which can be used to temporarily release the GIL and restore on `Drop`.
 pub(crate) struct SuspendGIL {
-    count: usize,
+    count: isize,
     tstate: *mut ffi::PyThreadState,
 }
 
@@ -312,6 +315,27 @@ impl Drop for SuspendGIL {
             // Update counts of PyObjects / Py that were cloned or dropped while the GIL was released.
             POOL.update_counts(Python::assume_gil_acquired());
         }
+    }
+}
+
+/// Used to lock safe access to the GIL, used to implement `__traverse__`
+pub struct LockGIL {
+    count: isize,
+}
+
+impl LockGIL {
+    /// TODO
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        let count = GIL_COUNT.with(|c| c.replace(-1));
+
+        Self { count }
+    }
+}
+
+impl Drop for LockGIL {
+    fn drop(&mut self) {
+        GIL_COUNT.with(|c| c.set(self.count));
     }
 }
 
@@ -425,7 +449,14 @@ pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
 #[inline(always)]
 fn increment_gil_count() {
     // Ignores the error in case this function called from `atexit`.
-    let _ = GIL_COUNT.try_with(|c| c.set(c.get() + 1));
+    let _ = GIL_COUNT.try_with(|c| {
+        let current = c.get();
+        assert!(
+            current >= 0,
+            "Access to the GIL is currently prohibited, for example because a `__traverse__` implementation is currently running."
+        );
+        c.set(current + 1);
+    });
 }
 
 /// Decrements pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
