@@ -59,6 +59,10 @@ jobs:
         name: Prepare minimal package versions (MSRV only)
         run: nox -s set-minimal-package-versions
 
+      - if: inputs.rust == 'nightly'
+        name: Ignore changed error messages when using trybuild
+        run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
+
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "full ${{ inputs.extra-features }}"
 

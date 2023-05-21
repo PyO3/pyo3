@@ -1,35 +1,8 @@
 #![cfg(feature = "macros")]
 
-#[rustversion::not(nightly)]
 #[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
 #[test]
 fn test_compile_errors() {
-    // stable - require all tests to pass
-    _test_compile_errors()
-}
-
-#[cfg(not(feature = "nightly"))]
-#[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-#[rustversion::nightly]
-#[test]
-fn test_compile_errors() {
-    // nightly - don't care if test output is potentially wrong, to avoid churn in PyO3's CI thanks
-    // to diagnostics changing on nightly.
-    let _ = std::panic::catch_unwind(_test_compile_errors);
-}
-
-#[cfg(feature = "nightly")]
-#[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
-#[rustversion::nightly]
-#[test]
-fn test_compile_errors() {
-    // nightly - don't care if test output is potentially wrong, to avoid churn in PyO3's CI thanks
-    // to diagnostics changing on nightly.
-    _test_compile_errors()
-}
-
-#[cfg(not(feature = "nightly"))]
-fn _test_compile_errors() {
     let t = trybuild::TestCases::new();
 
     t.compile_fail("tests/ui/invalid_macro_args.rs");
@@ -46,90 +19,45 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
 
-    tests_rust_1_49(&t);
-    tests_rust_1_56(&t);
-    tests_rust_1_57(&t);
-    tests_rust_1_58(&t);
-    tests_rust_1_60(&t);
-    tests_rust_1_62(&t);
-    tests_rust_1_63(&t);
+    tests_not_msrv(&t);
+    tests_nightly(&t);
 
     #[rustversion::since(1.49)]
-    fn tests_rust_1_49(t: &trybuild::TestCases) {
+    fn tests_not_msrv(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/deprecations.rs");
-    }
-    #[rustversion::before(1.49)]
-    fn tests_rust_1_49(_t: &trybuild::TestCases) {}
-
-    #[rustversion::since(1.56)]
-    fn tests_rust_1_56(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_closure.rs");
-
         t.compile_fail("tests/ui/pyclass_send.rs");
-    }
-
-    #[rustversion::before(1.56)]
-    fn tests_rust_1_56(_t: &trybuild::TestCases) {}
-
-    #[rustversion::since(1.57)]
-    fn tests_rust_1_57(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_argument_attributes.rs");
         t.compile_fail("tests/ui/invalid_frompy_derive.rs");
         t.compile_fail("tests/ui/static_ref.rs");
         t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
-    }
-
-    #[rustversion::before(1.57)]
-    fn tests_rust_1_57(_t: &trybuild::TestCases) {}
-
-    #[rustversion::since(1.58)]
-    fn tests_rust_1_58(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pyfunctions.rs");
         t.compile_fail("tests/ui/invalid_pymethods.rs");
         #[cfg(Py_LIMITED_API)]
         t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
-    }
-
-    #[rustversion::before(1.58)]
-    fn tests_rust_1_58(_t: &trybuild::TestCases) {}
-
-    #[rustversion::since(1.60)]
-    fn tests_rust_1_60(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_intern_arg.rs");
         t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
-    }
-
-    #[rustversion::before(1.60)]
-    fn tests_rust_1_60(_t: &trybuild::TestCases) {}
-
-    #[rustversion::since(1.62)]
-    fn tests_rust_1_62(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
         t.compile_fail("tests/ui/missing_intopy.rs");
-    }
-
-    #[rustversion::before(1.62)]
-    fn tests_rust_1_62(_t: &trybuild::TestCases) {}
-
-    #[rustversion::since(1.63)]
-    fn tests_rust_1_63(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_result_conversion.rs");
         t.compile_fail("tests/ui/not_send.rs");
         t.compile_fail("tests/ui/not_send2.rs");
+        #[cfg(not(feature = "nightly"))]
         t.compile_fail("tests/ui/not_send3.rs");
         t.compile_fail("tests/ui/get_set_all.rs");
         t.compile_fail("tests/ui/traverse_bare_self.rs");
     }
 
-    #[rustversion::before(1.63)]
-    fn tests_rust_1_63(_t: &trybuild::TestCases) {}
-}
+    #[rustversion::before(1.49)]
+    fn tests_not_msrv(_t: &trybuild::TestCases) {}
 
-#[cfg(feature = "nightly")]
-fn _test_compile_errors() {
-    let t = trybuild::TestCases::new();
+    #[cfg(feature = "nightly")]
+    fn tests_nightly(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/not_send_auto_trait.rs");
+        t.compile_fail("tests/ui/not_send_auto_trait2.rs");
+        t.compile_fail("tests/ui/send_wrapper.rs");
+    }
 
-    t.compile_fail("tests/ui/not_send_auto_trait.rs");
-    t.compile_fail("tests/ui/not_send_auto_trait2.rs");
-    t.compile_fail("tests/ui/send_wrapper.rs");
+    #[cfg(not(feature = "nightly"))]
+    fn tests_nightly(_t: &trybuild::TestCases) {}
 }
