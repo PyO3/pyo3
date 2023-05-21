@@ -912,6 +912,14 @@ impl PyAny {
         Ok(result == 1)
     }
 
+    /// Checks whether this object is an instance of exactly type `ty` (not a subclass).
+    ///
+    /// This is equivalent to the Python expression `type(self) is ty`.
+    #[inline]
+    pub fn is_exact_instance(&self, ty: &PyAny) -> bool {
+        self.get_type().is(ty)
+    }
+
     /// Checks whether this object is an instance of type `T`.
     ///
     /// This is equivalent to the Python expression `isinstance(self, T)`,
@@ -919,6 +927,15 @@ impl PyAny {
     #[inline]
     pub fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
         T::is_type_of(self)
+    }
+
+    /// Checks whether this object is an instance of exactly type `T`.
+    ///
+    /// This is equivalent to the Python expression `type(self) is T`,
+    /// if the type `T` is known at compile time.
+    #[inline]
+    pub fn is_exact_instance_of<T: PyTypeInfo>(&self) -> bool {
+        T::is_exact_type_of(self)
     }
 
     /// Determines if self contains `value`.
@@ -957,7 +974,7 @@ impl PyAny {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{IntoPyDict, PyList, PyLong, PyModule},
+        types::{IntoPyDict, PyBool, PyList, PyLong, PyModule},
         Python, ToPyObject,
     };
     #[test]
@@ -1043,7 +1060,7 @@ class SimpleClass:
     }
 
     #[test]
-    fn test_any_isinstance_of() {
+    fn test_any_is_instance_of() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_ref(py);
             assert!(x.is_instance_of::<PyLong>());
@@ -1054,10 +1071,36 @@ class SimpleClass:
     }
 
     #[test]
-    fn test_any_isinstance() {
+    fn test_any_is_instance() {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_ref(py);
             assert!(l.is_instance(py.get_type::<PyList>()).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_any_is_exact_instance_of() {
+        Python::with_gil(|py| {
+            let x = 5.to_object(py).into_ref(py);
+            assert!(x.is_exact_instance_of::<PyLong>());
+
+            let t = PyBool::new(py, true);
+            assert!(t.is_instance_of::<PyLong>());
+            assert!(!t.is_exact_instance_of::<PyLong>());
+            assert!(t.is_exact_instance_of::<PyBool>());
+
+            let l = vec![x, x].to_object(py).into_ref(py);
+            assert!(l.is_exact_instance_of::<PyList>());
+        });
+    }
+
+    #[test]
+    fn test_any_is_exact_instance() {
+        Python::with_gil(|py| {
+            let t = PyBool::new(py, true);
+            assert!(t.is_instance(py.get_type::<PyLong>()).unwrap());
+            assert!(!t.is_exact_instance(py.get_type::<PyLong>()));
+            assert!(t.is_exact_instance(py.get_type::<PyBool>()));
         });
     }
 
