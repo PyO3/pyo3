@@ -18,46 +18,32 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
-
-    tests_not_msrv(&t);
-    tests_nightly(&t);
-
-    #[rustversion::since(1.49)]
-    fn tests_not_msrv(t: &trybuild::TestCases) {
-        t.compile_fail("tests/ui/deprecations.rs");
-        t.compile_fail("tests/ui/invalid_closure.rs");
-        t.compile_fail("tests/ui/pyclass_send.rs");
-        t.compile_fail("tests/ui/invalid_argument_attributes.rs");
-        t.compile_fail("tests/ui/invalid_frompy_derive.rs");
-        t.compile_fail("tests/ui/static_ref.rs");
-        t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
-        t.compile_fail("tests/ui/invalid_pyfunctions.rs");
-        t.compile_fail("tests/ui/invalid_pymethods.rs");
-        #[cfg(Py_LIMITED_API)]
-        t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
-        t.compile_fail("tests/ui/invalid_intern_arg.rs");
-        t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
-        t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
-        t.compile_fail("tests/ui/missing_intopy.rs");
-        t.compile_fail("tests/ui/invalid_result_conversion.rs");
-        t.compile_fail("tests/ui/not_send.rs");
-        t.compile_fail("tests/ui/not_send2.rs");
-        #[cfg(not(feature = "nightly"))]
-        t.compile_fail("tests/ui/not_send3.rs");
-        t.compile_fail("tests/ui/get_set_all.rs");
-        t.compile_fail("tests/ui/traverse_bare_self.rs");
-    }
-
-    #[rustversion::before(1.49)]
-    fn tests_not_msrv(_t: &trybuild::TestCases) {}
-
-    #[cfg(feature = "nightly")]
-    fn tests_nightly(t: &trybuild::TestCases) {
-        t.compile_fail("tests/ui/not_send_auto_trait.rs");
-        t.compile_fail("tests/ui/not_send_auto_trait2.rs");
-        t.compile_fail("tests/ui/send_wrapper.rs");
-    }
-
+    t.compile_fail("tests/ui/deprecations.rs");
+    t.compile_fail("tests/ui/invalid_closure.rs");
+    t.compile_fail("tests/ui/pyclass_send.rs");
+    t.compile_fail("tests/ui/invalid_argument_attributes.rs");
+    t.compile_fail("tests/ui/invalid_frompy_derive.rs");
+    t.compile_fail("tests/ui/static_ref.rs");
+    t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
+    t.compile_fail("tests/ui/invalid_pyfunctions.rs");
+    t.compile_fail("tests/ui/invalid_pymethods.rs");
+    #[cfg(Py_LIMITED_API)]
+    t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
+    t.compile_fail("tests/ui/invalid_intern_arg.rs");
+    t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
+    t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+    t.compile_fail("tests/ui/missing_intopy.rs");
+    t.compile_fail("tests/ui/invalid_result_conversion.rs");
+    t.compile_fail("tests/ui/not_send.rs");
+    t.compile_fail("tests/ui/not_send2.rs");
+    t.compile_fail("tests/ui/get_set_all.rs");
+    t.compile_fail("tests/ui/traverse_bare_self.rs");
     #[cfg(not(feature = "nightly"))]
-    fn tests_nightly(_t: &trybuild::TestCases) {}
+    t.compile_fail("tests/ui/not_send3.rs");
+    #[cfg(feature = "nightly")]
+    t.compile_fail("tests/ui/not_send_auto_trait.rs");
+    #[cfg(feature = "nightly")]
+    t.compile_fail("tests/ui/not_send_auto_trait2.rs");
+    #[cfg(feature = "nightly")]
+    t.compile_fail("tests/ui/send_wrapper.rs");
 }
