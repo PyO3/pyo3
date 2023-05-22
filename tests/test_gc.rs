@@ -248,22 +248,10 @@ impl TraversableClass {
     }
 }
 
-unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
-    std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse))
-}
-
 #[test]
 fn gc_during_borrow() {
     Python::with_gil(|py| {
         unsafe {
-            // declare a dummy visitor function
-            extern "C" fn novisit(
-                _object: *mut pyo3::ffi::PyObject,
-                _arg: *mut core::ffi::c_void,
-            ) -> std::os::raw::c_int {
-                0
-            }
-
             // get the traverse function
             let ty = py.get_type::<TraversableClass>().as_type_ptr();
             let traverse = get_type_traverse(ty).unwrap();
@@ -290,6 +278,42 @@ fn gc_during_borrow() {
 }
 
 #[pyclass]
+struct PartialTraverse {
+    member: PyObject,
+}
+
+impl PartialTraverse {
+    fn new(py: Python<'_>) -> Self {
+        Self { member: py.None() }
+    }
+}
+
+#[pymethods]
+impl PartialTraverse {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.member)?;
+        // In the test, we expect this to never be hit
+        unreachable!()
+    }
+}
+
+#[test]
+fn traverse_partial() {
+    Python::with_gil(|py| unsafe {
+        // get the traverse function
+        let ty = py.get_type::<PartialTraverse>().as_type_ptr();
+        let traverse = get_type_traverse(ty).unwrap();
+
+        // confirm that traversing errors
+        let obj = Py::new(py, PartialTraverse::new(py)).unwrap();
+        assert_eq!(
+            traverse(obj.as_ptr(), visit_error, std::ptr::null_mut()),
+            -1
+        );
+    })
+}
+
+#[pyclass]
 struct PanickyTraverse {
     member: PyObject,
 }
@@ -304,32 +328,20 @@ impl PanickyTraverse {
 impl PanickyTraverse {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         visit.call(&self.member)?;
-        // In the test, we expect this to never be hit
-        unreachable!()
+        panic!("at the disco");
     }
 }
 
 #[test]
-fn traverse_error() {
+fn traverse_panic() {
     Python::with_gil(|py| unsafe {
-        // declare a visitor function which errors (returns nonzero code)
-        extern "C" fn visit_error(
-            _object: *mut pyo3::ffi::PyObject,
-            _arg: *mut core::ffi::c_void,
-        ) -> std::os::raw::c_int {
-            -1
-        }
-
         // get the traverse function
         let ty = py.get_type::<PanickyTraverse>().as_type_ptr();
         let traverse = get_type_traverse(ty).unwrap();
 
         // confirm that traversing errors
         let obj = Py::new(py, PanickyTraverse::new(py)).unwrap();
-        assert_eq!(
-            traverse(obj.as_ptr(), visit_error, std::ptr::null_mut()),
-            -1
-        );
+        assert_eq!(traverse(obj.as_ptr(), novisit, std::ptr::null_mut()), -1);
     })
 }
 
@@ -346,14 +358,6 @@ impl TriesGILInTraverse {
 #[test]
 fn tries_gil_in_traverse() {
     Python::with_gil(|py| unsafe {
-        // declare a visitor function which errors (returns nonzero code)
-        extern "C" fn novisit(
-            _object: *mut pyo3::ffi::PyObject,
-            _arg: *mut core::ffi::c_void,
-        ) -> std::os::raw::c_int {
-            0
-        }
-
         // get the traverse function
         let ty = py.get_type::<TriesGILInTraverse>().as_type_ptr();
         let traverse = get_type_traverse(ty).unwrap();
@@ -363,3 +367,26 @@ fn tries_gil_in_traverse() {
         assert_eq!(traverse(obj.as_ptr(), novisit, std::ptr::null_mut()), -1);
     })
 }
+
+// Manual traversal utilities
+
+unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
+    std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse))
+}
+
+// a dummy visitor function
+extern "C" fn novisit(
+    _object: *mut pyo3::ffi::PyObject,
+    _arg: *mut core::ffi::c_void,
+) -> std::os::raw::c_int {
+    0
+}
+
+// a visitor function which errors (returns nonzero code)
+extern "C" fn visit_error(
+    _object: *mut pyo3::ffi::PyObject,
+    _arg: *mut core::ffi::c_void,
+) -> std::os::raw::c_int {
+    -1
+}
+
