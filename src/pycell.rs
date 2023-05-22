@@ -937,7 +937,9 @@ where
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
         let cell = &mut *(slf as *mut PyCell<T>);
-        ManuallyDrop::drop(&mut cell.contents.value);
+        if cell.contents.thread_checker.can_drop(py) {
+            ManuallyDrop::drop(&mut cell.contents.value);
+        }
         cell.contents.dict.clear_dict(py);
         cell.contents.weakref.clear_weakrefs(slf, py);
         <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)

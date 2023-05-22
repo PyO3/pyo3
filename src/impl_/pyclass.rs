@@ -1,5 +1,5 @@
 use crate::{
-    exceptions::{PyAttributeError, PyNotImplementedError, PyValueError},
+    exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::freelist::FreeList,
     impl_::pycell::{GetBorrowChecker, PyClassMutability},
@@ -884,6 +884,7 @@ impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
 #[doc(hidden)]
 pub trait PyClassThreadChecker<T>: Sized {
     fn ensure(&self);
+    fn can_drop(&self, py: Python<'_>) -> bool;
     fn new() -> Self;
     private_decl! {}
 }
@@ -894,6 +895,9 @@ pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
 
 impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
     fn ensure(&self) {}
+    fn can_drop(&self, _py: Python<'_>) -> bool {
+        true
+    }
     #[inline]
     fn new() -> Self {
         ThreadCheckerStub(PhantomData)
@@ -903,6 +907,9 @@ impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
 
 impl<T: PyNativeType> PyClassThreadChecker<T> for ThreadCheckerStub<crate::PyObject> {
     fn ensure(&self) {}
+    fn can_drop(&self, _py: Python<'_>) -> bool {
+        true
+    }
     #[inline]
     fn new() -> Self {
         ThreadCheckerStub(PhantomData)
@@ -924,6 +931,18 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
             std::any::type_name::<T>()
         );
     }
+    fn can_drop(&self, py: Python<'_>) -> bool {
+        if thread::current().id() != self.0 {
+            PyRuntimeError::new_err(format!(
+                "{} is unsendbale, but is dropped on another thread!",
+                std::any::type_name::<T>()
+            ))
+            .write_unraisable(py, None);
+            return false;
+        }
+
+        true
+    }
     fn new() -> Self {
         ThreadCheckerImpl(thread::current().id(), PhantomData)
     }
@@ -943,6 +962,9 @@ impl<T: PyClass + Send, U: PyClassBaseType> PyClassThreadChecker<T>
 {
     fn ensure(&self) {
         self.1.ensure();
+    }
+    fn can_drop(&self, py: Python<'_>) -> bool {
+        self.1.can_drop(py)
     }
     fn new() -> Self {
         ThreadCheckerInherited(PhantomData, U::ThreadChecker::new())

@@ -526,3 +526,41 @@ fn access_frozen_class_without_gil() {
 
     assert_eq!(py_counter.get().value.load(Ordering::Relaxed), 1);
 }
+
+#[test]
+fn drop_unsendable_elsewhere() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread::spawn;
+
+    #[pyclass(unsendable)]
+    struct Unsendable {
+        dropped: Arc<AtomicBool>,
+    }
+
+    impl Drop for Unsendable {
+        fn drop(&mut self) {
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    let dropped = Arc::new(AtomicBool::new(false));
+
+    let unsendable = Python::with_gil(|py| {
+        let dropped = dropped.clone();
+
+        Py::new(py, Unsendable { dropped }).unwrap()
+    });
+
+    spawn(move || {
+        Python::with_gil(move |_py| {
+            drop(unsendable);
+        });
+    })
+    .join()
+    .unwrap();
+
+    assert!(!dropped.load(Ordering::SeqCst));
+}
