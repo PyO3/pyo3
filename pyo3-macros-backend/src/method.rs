@@ -189,10 +189,11 @@ impl SelfType {
                 }
             }
             SelfType::TryFromPyCell(span) => {
+                let _slf = quote! { _slf };
                 quote_spanned! { *span =>
                     let _cell = #cell;
                     #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
-                    let _slf = ::std::convert::TryFrom::try_from(_cell)?;
+                    let #_slf = ::std::convert::TryFrom::try_from(_cell)?;
                 }
             }
         }
