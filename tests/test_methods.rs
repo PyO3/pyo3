@@ -1470,6 +1470,33 @@ issue_1506!(
         ) {
         }
 
+        fn issue_1506_mut(
+            &mut self,
+            _py: Python<'_>,
+            _arg: &PyAny,
+            _args: &PyTuple,
+            _kwargs: Option<&PyDict>,
+        ) {
+        }
+
+        fn issue_1506_custom_receiver(
+            _slf: Py<Self>,
+            _py: Python<'_>,
+            _arg: &PyAny,
+            _args: &PyTuple,
+            _kwargs: Option<&PyDict>,
+        ) {
+        }
+
+        fn issue_1506_custom_receiver_explicit(
+            _slf: Py<Issue1506>,
+            _py: Python<'_>,
+            _arg: &PyAny,
+            _args: &PyTuple,
+            _kwargs: Option<&PyDict>,
+        ) {
+        }
+
         #[new]
         fn issue_1506_new(
             _py: Python<'_>,
