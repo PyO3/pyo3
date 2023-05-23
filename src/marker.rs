@@ -120,7 +120,7 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::gil::{self, EnsureGIL, GILPool, SuspendGIL};
+use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
 use crate::version::PythonVersionInfo;
@@ -273,7 +273,7 @@ mod negative_impls {
 /// [`Py::clone_ref`]: crate::Py::clone_ref
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[derive(Copy, Clone)]
-pub struct Python<'py>(PhantomData<(&'py EnsureGIL, NotSend)>);
+pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
 impl Python<'_> {
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
@@ -321,7 +321,10 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        f(unsafe { gil::ensure_gil().python() })
+        let _guard = GILGuard::acquire();
+
+        // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
+        f(unsafe { Python::assume_gil_acquired() })
     }
 
     /// Like [`Python::with_gil`] except Python interpreter state checking is skipped.
@@ -352,7 +355,10 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        f(gil::ensure_gil_unchecked().python())
+        let _guard = GILGuard::acquire_unchecked();
+
+        // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
+        f(Python::assume_gil_acquired())
     }
 }
 

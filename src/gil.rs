@@ -29,6 +29,7 @@ thread_local! {
 ///  1) for performance
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
 ///     which could lead to incorrect conclusions that the GIL is held.
+#[inline(always)]
 fn gil_is_acquired() -> bool {
     GIL_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
 }
@@ -135,24 +136,21 @@ where
 }
 
 /// RAII type that represents the Global Interpreter Lock acquisition.
-struct GILGuard {
+pub(crate) struct GILGuard {
     gstate: ffi::PyGILState_STATE,
-    pool: Option<GILPool>,
-    _not_send: NotSend,
+    pool: mem::ManuallyDrop<GILPool>,
 }
 
 impl GILGuard {
-    /// Retrieves the marker type that proves that the GIL was acquired.
-    #[inline]
-    pub fn python(&self) -> Python<'_> {
-        unsafe { Python::assume_gil_acquired() }
-    }
-
     /// PyO3 internal API for acquiring the GIL. The public API is Python::with_gil.
     ///
-    /// If PyO3 does not yet have a `GILPool` for tracking owned PyObject references, then this new
-    /// `GILGuard` will also contain a `GILPool`.
-    fn acquire() -> GILGuard {
+    /// If the GIL was already acquired via PyO3, this returns `None`. Otherwise,
+    /// the GIL will be acquired and a new `GILPool` created.
+    pub(crate) fn acquire() -> Option<Self> {
+        if gil_is_acquired() {
+            return None;
+        }
+
         // Maybe auto-initialize the GIL:
         //  - If auto-initialize feature set and supported, try to initialize the interpreter.
         //  - If the auto-initialize feature is set but unsupported, emit hard errors only when the
@@ -196,39 +194,25 @@ impl GILGuard {
     /// This can be called in "unsafe" contexts where the normal interpreter state
     /// checking performed by `GILGuard::acquire` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
-    fn acquire_unchecked() -> GILGuard {
-        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
-
-        // If there's already a GILPool, we should not create another or this could lead to
-        // incorrect dangling references in safe code (see #864).
-        let pool = if !gil_is_acquired() {
-            Some(unsafe { GILPool::new() })
-        } else {
-            // As no GILPool was created, need to update the gil count manually.
-            increment_gil_count();
-            None
-        };
-
-        GILGuard {
-            gstate,
-            pool,
-            _not_send: NOT_SEND,
+    pub(crate) fn acquire_unchecked() -> Option<Self> {
+        if gil_is_acquired() {
+            return None;
         }
+
+        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
+
+        Some(GILGuard { gstate, pool })
     }
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
-        // Drop the objects in the pool before attempting to release the thread state
-        if let Some(pool) = self.pool.take() {
-            drop(pool)
-        } else {
-            // This GILGuard didn't own a pool, need to decrease the count manually.
-            decrement_gil_count()
-        }
-
         unsafe {
+            // Drop the objects in the pool before attempting to release the thread state
+            mem::ManuallyDrop::drop(&mut self.pool);
+
             ffi::PyGILState_Release(self.gstate);
         }
     }
@@ -440,46 +424,6 @@ fn decrement_gil_count() {
         );
         c.set(current - 1);
     });
-}
-
-/// Ensures the GIL is held, used in the implementation of `Python::with_gil`.
-pub(crate) fn ensure_gil() -> EnsureGIL {
-    if gil_is_acquired() {
-        EnsureGIL(None)
-    } else {
-        EnsureGIL(Some(GILGuard::acquire()))
-    }
-}
-
-/// Ensures the GIL is held, without interpreter state checking.
-///
-/// This bypasses interpreter state checking that would normally be performed
-/// before acquiring the GIL.
-pub(crate) fn ensure_gil_unchecked() -> EnsureGIL {
-    if gil_is_acquired() {
-        EnsureGIL(None)
-    } else {
-        EnsureGIL(Some(GILGuard::acquire_unchecked()))
-    }
-}
-
-/// Struct used internally which avoids acquiring the GIL where it's not necessary.
-pub(crate) struct EnsureGIL(Option<GILGuard>);
-
-impl EnsureGIL {
-    /// Get the GIL token.
-    ///
-    /// # Safety
-    /// If `self.0` is `None`, then this calls [Python::assume_gil_acquired].
-    /// Thus this method could be used to get access to a GIL token while the GIL is not held.
-    /// Care should be taken to only use the returned Python in contexts where it is certain the
-    /// GIL continues to be held.
-    pub(crate) unsafe fn python(&self) -> Python<'_> {
-        match &self.0 {
-            Some(gil) => gil.python(),
-            None => Python::assume_gil_acquired(),
-        }
-    }
 }
 
 #[cfg(test)]
