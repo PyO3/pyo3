@@ -157,7 +157,7 @@ use std::os::raw::c_int;
 /// });
 /// ```
 ///
-/// This also implies that one can circumvent this protection using e.g. the [`send_wrapper`] crate:
+/// This also implies that one can circumvent this protection using e.g. the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
 ///
 /// ```no_run
 /// # use pyo3::prelude::*;
@@ -221,7 +221,7 @@ unsafe impl<T: Send> Ungil for T {}
 /// ```
 ///
 /// On nightly Rust, this is not based on the [`Send`] auto trait and hence we are able
-/// to prevent incorrectly circumventing it using e.g. the [`send_wrapper`] crate:
+/// to prevent incorrectly circumventing it using e.g. the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
 ///
 /// ```compile_fail
 /// # use pyo3::prelude::*;
