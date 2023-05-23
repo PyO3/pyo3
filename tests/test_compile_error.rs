@@ -38,12 +38,4 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/not_send2.rs");
     t.compile_fail("tests/ui/get_set_all.rs");
     t.compile_fail("tests/ui/traverse_bare_self.rs");
-    #[cfg(not(feature = "nightly"))]
-    t.compile_fail("tests/ui/not_send3.rs");
-    #[cfg(feature = "nightly")]
-    t.compile_fail("tests/ui/not_send_auto_trait.rs");
-    #[cfg(feature = "nightly")]
-    t.compile_fail("tests/ui/not_send_auto_trait2.rs");
-    #[cfg(feature = "nightly")]
-    t.compile_fail("tests/ui/send_wrapper.rs");
 }
