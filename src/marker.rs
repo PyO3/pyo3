@@ -148,6 +148,8 @@ use std::os::raw::c_int;
 ///
 /// ```compile_fail
 /// # use pyo3::prelude::*;
+/// use std::rc::Rc;
+///
 /// Python::with_gil(|py| {
 ///     let rc = Rc::new(42);
 ///
@@ -157,7 +159,8 @@ use std::os::raw::c_int;
 /// });
 /// ```
 ///
-/// This also implies that one can circumvent this protection using e.g. the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
+/// This also implies that the interplay between `with_gil` and `allow_threads` is unsound, for example
+/// one can circumvent this protection using the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
 ///
 /// ```no_run
 /// # use pyo3::prelude::*;
@@ -176,6 +179,9 @@ use std::os::raw::c_int;
 ///     });
 /// });
 /// ```
+///
+/// Fixing this loophole on stable Rust has significant ergonomic issues, but it is fixed when using
+/// nightly Rust and the `nightly` feature, c.f. [#2141](https://github.com/PyO3/pyo3/issues/2141).
 #[cfg_attr(docsrs, doc(cfg(all())))] // Hide the cfg flag
 #[cfg(not(feature = "nightly"))]
 pub unsafe trait Ungil {}
@@ -237,6 +243,22 @@ unsafe impl<T: Send> Ungil for T {}
 ///         let sneaky: &PyString = *wrapped;
 ///
 ///         println!("{:?}", sneaky);
+///     });
+/// });
+/// ```
+///
+/// This also enables using non-[`Send`] types in `allow_threads`,
+/// at least if they are not also bound to the GIL:
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+/// use std::rc::Rc;
+///
+/// Python::with_gil(|py| {
+///     let rc = Rc::new(42);
+///
+///     py.allow_threads(|| {
+///         println!("{:?}", rc);
 ///     });
 /// });
 /// ```
