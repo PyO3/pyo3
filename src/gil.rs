@@ -15,8 +15,8 @@ cfg_if::cfg_if! {
         use std::thread_local as thread_local_const_init;
     } else {
         macro_rules! thread_local_const_init {
-            ($(#[$attr:meta])* static $name:ident: $ty:ty = const { $init:expr };) => (
-                thread_local! { $(#[$attr])* static $name: $ty = $init; }
+            ($($(#[$attr:meta])* static $name:ident: $ty:ty = const { $init:expr };)*) => (
+                thread_local! { $($(#[$attr])* static $name: $ty = $init;)* }
             )
         }
     }
@@ -30,11 +30,9 @@ thread_local_const_init! {
     ///
     /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
     static GIL_COUNT: Cell<usize> = const { Cell::new(0) };
-}
 
-thread_local! {
     /// Temporarily hold objects that will be released when the GILPool drops.
-    static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
+    static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Checks whether the GIL is acquired.
