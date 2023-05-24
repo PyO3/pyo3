@@ -332,6 +332,16 @@ impl LockGIL {
 
         Self { count }
     }
+
+    #[cold]
+    fn bail(current: isize) {
+        match current {
+            GIL_LOCKED_DURING_TRAVERSE => panic!(
+                "Access to the GIL is prohibited while a __traverse__ implmentation is running."
+            ),
+            _ => panic!("Access to the GIL is currently prohibited."),
+        }
+    }
 }
 
 impl Drop for LockGIL {
@@ -452,12 +462,8 @@ fn increment_gil_count() {
     // Ignores the error in case this function called from `atexit`.
     let _ = GIL_COUNT.try_with(|c| {
         let current = c.get();
-        match current {
-            GIL_LOCKED_DURING_TRAVERSE => panic!(
-                "Access to the GIL is prohibited while a __traverse__ implmentation is running."
-            ),
-            current if current < 0 => panic!("Access to the GIL is currently prohibited."),
-            _ => (),
+        if current < 0 {
+            LockGIL::bail(current);
         }
         c.set(current + 1);
     });
