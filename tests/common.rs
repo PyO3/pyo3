@@ -1,5 +1,8 @@
 //! Some common macros for tests
 
+#[cfg(all(feature = "macros", Py_3_8))]
+use pyo3::prelude::*;
+
 #[macro_export]
 macro_rules! py_assert {
     ($py:expr, $($val:ident)+, $assertion:literal) => {
@@ -40,4 +43,51 @@ macro_rules! py_expect_exception {
         assert_eq!(format!("Py{}", err), concat!(stringify!($err), ": ", $err_msg));
         err
     }};
+}
+
+// sys.unraisablehook not available until Python 3.8
+#[cfg(all(feature = "macros", Py_3_8))]
+#[pyclass]
+pub struct UnraisableCapture {
+    pub capture: Option<(PyErr, PyObject)>,
+    old_hook: Option<PyObject>,
+}
+
+#[cfg(all(feature = "macros", Py_3_8))]
+#[pymethods]
+impl UnraisableCapture {
+    pub fn hook(&mut self, unraisable: &PyAny) {
+        let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
+        let instance = unraisable.getattr("object").unwrap();
+        self.capture = Some((err, instance.into()));
+    }
+}
+
+#[cfg(all(feature = "macros", Py_3_8))]
+impl UnraisableCapture {
+    pub fn install(py: Python<'_>) -> Py<Self> {
+        let sys = py.import("sys").unwrap();
+        let old_hook = sys.getattr("unraisablehook").unwrap().into();
+
+        let capture = Py::new(
+            py,
+            UnraisableCapture {
+                capture: None,
+                old_hook: Some(old_hook),
+            },
+        )
+        .unwrap();
+
+        sys.setattr("unraisablehook", capture.getattr(py, "hook").unwrap())
+            .unwrap();
+
+        capture
+    }
+
+    pub fn uninstall(&mut self, py: Python<'_>) {
+        let old_hook = self.old_hook.take().unwrap();
+
+        let sys = py.import("sys").unwrap();
+        sys.setattr("unraisablehook", old_hook).unwrap();
+    }
 }

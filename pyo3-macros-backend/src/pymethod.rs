@@ -406,22 +406,8 @@ fn impl_traverse_slot(cls: &syn::Type, rust_fn_ident: &syn::Ident) -> MethodAndS
             slf: *mut _pyo3::ffi::PyObject,
             visit: _pyo3::ffi::visitproc,
             arg: *mut ::std::os::raw::c_void,
-        ) -> ::std::os::raw::c_int
-        {
-            let trap = _pyo3::impl_::panic::PanicTrap::new("uncaught panic inside __traverse__ handler");
-            let pool = _pyo3::GILPool::new();
-            let py = pool.python();
-            let slf = py.from_borrowed_ptr::<_pyo3::PyCell<#cls>>(slf);
-
-            let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
-            let borrow = slf.try_borrow();
-            let retval = if let ::std::result::Result::Ok(borrow) = borrow {
-                _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#rust_fn_ident(visit))
-            } else {
-                0
-            };
-            trap.disarm();
-            retval
+        ) -> ::std::os::raw::c_int {
+            _pyo3::impl_::pymethods::call_traverse_impl::<#cls>(slf, #cls::#rust_fn_ident, visit, arg)
         }
     };
     let slot_def = quote! {

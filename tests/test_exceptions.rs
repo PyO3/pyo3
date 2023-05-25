@@ -100,29 +100,11 @@ fn test_exception_nosegfault() {
 #[test]
 #[cfg(Py_3_8)]
 fn test_write_unraisable() {
+    use common::UnraisableCapture;
     use pyo3::{exceptions::PyRuntimeError, ffi, AsPyPointer};
 
-    #[pyclass]
-    struct UnraisableCapture {
-        capture: Option<(PyErr, PyObject)>,
-    }
-
-    #[pymethods]
-    impl UnraisableCapture {
-        fn hook(&mut self, unraisable: &PyAny) {
-            let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
-            let instance = unraisable.getattr("object").unwrap();
-            self.capture = Some((err, instance.into()));
-        }
-    }
-
     Python::with_gil(|py| {
-        let sys = py.import("sys").unwrap();
-        let old_hook = sys.getattr("unraisablehook").unwrap();
-        let capture = Py::new(py, UnraisableCapture { capture: None }).unwrap();
-
-        sys.setattr("unraisablehook", capture.getattr(py, "hook").unwrap())
-            .unwrap();
+        let capture = UnraisableCapture::install(py);
 
         assert!(capture.borrow(py).capture.is_none());
 
@@ -140,6 +122,6 @@ fn test_write_unraisable() {
         assert_eq!(err.to_string(), "RuntimeError: bar");
         assert!(object.as_ptr() == unsafe { ffi::Py_NotImplemented() });
 
-        sys.setattr("unraisablehook", old_hook).unwrap();
+        capture.borrow_mut(py).uninstall(py);
     });
 }
