@@ -169,6 +169,10 @@ harness = false
 name = "bench_intern"
 harness = false
 
+[[bench]]
+name = "bench_extract"
+harness = false
+
 [workspace]
 members = [
     "pyo3-ffi",
