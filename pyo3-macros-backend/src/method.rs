@@ -506,7 +506,9 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
                 let call = match &self.tp {
                     FnType::FnNew => quote! { #rust_name(#(#args),*) },
-                    FnType::FnNewClass => quote! { #rust_name(PyType::from_type_ptr(#py, subtype), #(#args),*) },
+                    FnType::FnNewClass => {
+                        quote! { #rust_name(_pyo3::types::PyType::from_type_ptr(#py, subtype), #(#args),*) }
+                    }
                     x => panic!("Only `FnNew` or `FnNewClass` may use the `TpNew` calling convention. Got: {:?}", x),
                 };
                 quote! {
