@@ -121,3 +121,26 @@ fn test_basic() {
         pyo3::py_run!(py, *d, "b += a; assert (b.v, b.s) == (19, 'foobar!')");
     });
 }
+
+#[pyo3::pyclass]
+struct NewClassMethod {
+    #[pyo3(get)]
+    cls: pyo3::PyObject,
+}
+
+#[pyo3::pymethods]
+impl NewClassMethod {
+    #[new]
+    #[classmethod]
+    fn new(cls: &pyo3::types::PyType) -> Self {
+        Self { cls: cls.into() }
+    }
+}
+
+#[test]
+fn test_new_class_method() {
+    pyo3::Python::with_gil(|py| {
+        let cls = py.get_type::<NewClassMethod>();
+        pyo3::py_run!(py, cls, "assert cls().cls is cls");
+    });
+}
