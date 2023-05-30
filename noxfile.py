@@ -427,6 +427,8 @@ def set_minimal_package_versions(session: nox.Session):
         # newer versions of arrayvec use const generics (Rust 1.51+)
         "arrayvec": "0.5.2",
         "csv": "1.1.6",
+        # newer versions of chrono use i32::rem_euclid as a const fn
+        "chrono": "0.4.24",
         "indexmap": "1.6.2",
         "inventory": "0.3.4",
         "hashbrown": "0.9.1",
