@@ -1,3 +1,5 @@
+use pyo3_ffi::Py_tp_richcompare;
+
 use crate::{
     exceptions::PyTypeError,
     ffi,
@@ -40,6 +42,7 @@ where
             .set_is_basetype(T::IS_BASETYPE)
             .set_is_mapping(T::IS_MAPPING)
             .set_is_sequence(T::IS_SEQUENCE)
+            .tp_richcompare(T::default_tp_richcompare())
             .class_items(T::items_iter())
             .build(py, T::NAME, T::MODULE, std::mem::size_of::<T::Layout>())
     }
@@ -65,6 +68,7 @@ struct PyTypeBuilder {
     has_traverse: bool,
     has_clear: bool,
     has_dict: bool,
+    tp_richcompare: Option<ffi::richcmpfunc>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -95,6 +99,8 @@ impl PyTypeBuilder {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_releasebuffer = Some(std::mem::transmute(pfunc));
             }
+            // Don't use the default tp_richcompare if one specified
+            ffi::Py_tp_richcompare => self.tp_richcompare = None,
             _ => {}
         }
 
@@ -118,6 +124,11 @@ impl PyTypeBuilder {
     /// The given pointer must be of the correct type for the given slot
     unsafe fn slot<T>(mut self, slot: c_int, pfunc: *mut T) -> Self {
         self.push_slot(slot, pfunc);
+        self
+    }
+
+    fn tp_richcompare(mut self, tp_richcompare: Option<ffi::richcmpfunc>) -> Self {
+        self.tp_richcompare = tp_richcompare;
         self
     }
 
@@ -366,6 +377,10 @@ impl PyTypeBuilder {
                     slot.slot = ffi::Py_sq_length;
                 }
             }
+        }
+
+        if let Some(richcmpfunc) = self.tp_richcompare {
+            unsafe { self.push_slot(Py_tp_richcompare, richcmpfunc as *mut c_void) }
         }
 
         // Add empty sentinel at the end

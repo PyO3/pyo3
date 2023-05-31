@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::types::PyType;
+use pyo3::types::{IntoPyDict, PyType};
 use pyo3::{py_run, PyClass};
 
 mod common;
@@ -589,4 +589,94 @@ fn drop_unsendable_elsewhere() {
 
         capture.borrow_mut(py).uninstall(py);
     });
+}
+
+#[pyclass]
+struct NoDefaultEq(i32);
+
+#[test]
+fn test_no_default_eq() {
+    Python::with_gil(|py| {
+        let a = Py::new(py, NoDefaultEq(0)).unwrap();
+        let b = Py::new(py, NoDefaultEq(0)).unwrap();
+        let c = Py::new(py, NoDefaultEq(1)).unwrap();
+
+        let env = [("a", a), ("b", b), ("c", c)].into_py_dict(py);
+
+        // Defaults to object equality
+        py_assert!(py, *env, "a == a");
+        py_assert!(py, *env, "b == b");
+        py_assert!(py, *env, "c == c");
+
+        py_assert!(py, *env, "a != b");
+        py_assert!(py, *env, "b != a");
+        py_assert!(py, *env, "a != c");
+        py_assert!(py, *env, "b != c");
+        py_assert!(py, *env, "c != a");
+        py_assert!(py, *env, "c != b");
+
+        py_expect_exception!(py, *env, "a < b", PyTypeError);
+        py_expect_exception!(py, *env, "a <= b", PyTypeError);
+        py_expect_exception!(py, *env, "a > b", PyTypeError);
+        py_expect_exception!(py, *env, "a >= b", PyTypeError);
+    })
+}
+
+#[derive(PartialEq, Eq)]
+#[pyclass]
+struct DefaultEq(i32);
+
+#[test]
+fn test_default_eq() {
+    Python::with_gil(|py| {
+        let a = Py::new(py, DefaultEq(0)).unwrap();
+        let b = Py::new(py, DefaultEq(0)).unwrap();
+        let c = Py::new(py, DefaultEq(1)).unwrap();
+
+        let env = [("a", a), ("b", b), ("c", c)].into_py_dict(py);
+
+        py_assert!(py, *env, "a == b");
+        py_assert!(py, *env, "b == a");
+        py_assert!(py, *env, "a != c");
+        py_assert!(py, *env, "b != c");
+        py_assert!(py, *env, "c != a");
+        py_assert!(py, *env, "c != b");
+
+        py_expect_exception!(py, *env, "a < b", PyTypeError);
+        py_expect_exception!(py, *env, "a <= b", PyTypeError);
+        py_expect_exception!(py, *env, "a > b", PyTypeError);
+        py_expect_exception!(py, *env, "a >= b", PyTypeError);
+    })
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[pyclass]
+struct DefaultEqOrd(i32);
+
+#[test]
+fn test_default_eq_ord() {
+    Python::with_gil(|py| {
+        let a = Py::new(py, DefaultEqOrd(0)).unwrap();
+        let b = Py::new(py, DefaultEqOrd(0)).unwrap();
+        let c = Py::new(py, DefaultEqOrd(1)).unwrap();
+
+        let env = [("a", a), ("b", b), ("c", c)].into_py_dict(py);
+
+        py_assert!(py, *env, "a == b");
+        py_assert!(py, *env, "b == a");
+        py_assert!(py, *env, "a != c");
+        py_assert!(py, *env, "b != c");
+        py_assert!(py, *env, "c != a");
+        py_assert!(py, *env, "c != b");
+
+        py_assert!(py, *env, "a <= b");
+        py_assert!(py, *env, "a < c");
+        py_assert!(py, *env, "b <= a");
+        py_assert!(py, *env, "b < c");
+
+        py_assert!(py, *env, "a >= b");
+        py_assert!(py, *env, "c > a");
+        py_assert!(py, *env, "b >= a");
+        py_assert!(py, *env, "c > b");
+    })
 }

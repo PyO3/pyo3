@@ -1,4 +1,5 @@
 use crate::{
+    basic::CompareOp,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::freelist::FreeList,
@@ -7,12 +8,15 @@ use crate::{
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     type_object::PyLayout,
-    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    types::PyBool,
+    IntoPyPointer, Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyRef,
+    PyResult, PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
     ffi::{CStr, CString},
     marker::PhantomData,
+    ops::Deref,
     os::raw::{c_int, c_void},
     ptr::NonNull,
     thread,
@@ -109,6 +113,7 @@ impl PyClassWeakRef for PyClassWeakRefSlot {
 pub struct PyClassImplCollector<T>(PhantomData<T>);
 
 impl<T> PyClassImplCollector<T> {
+    #[inline]
     pub fn new() -> Self {
         Self(PhantomData)
     }
@@ -200,6 +205,8 @@ pub trait PyClassImpl: Sized + 'static {
     }
 
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
+
+    fn default_tp_richcompare() -> Option<ffi::richcmpfunc>;
 }
 
 /// Runtime helper to build a class docstring from the `doc` and `text_signature`.
@@ -879,6 +886,64 @@ impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
     }
 }
 
+// Default implementation of __richcmp__
+
+pub trait DefaultTpRichcmp {
+    fn default_tp_richcompare(&self) -> Option<ffi::richcmpfunc>;
+}
+
+impl<T> DefaultTpRichcmp for PyClassImplCollector<T> {
+    fn default_tp_richcompare(&self) -> Option<ffi::richcmpfunc> {
+        None
+    }
+}
+
+/// Newtype which adds a default implementation of richcmp for T: Eq
+pub struct EqCollector<T>(PyClassImplCollector<T>);
+
+impl<T> EqCollector<T> {
+    #[inline]
+    pub fn new() -> Self {
+        Self(PyClassImplCollector::new())
+    }
+}
+
+impl<T: PyClass + Eq> DefaultTpRichcmp for EqCollector<T> {
+    fn default_tp_richcompare(&self) -> Option<ffi::richcmpfunc> {
+        Some(tp_richcompare_eq::<T>)
+    }
+}
+
+impl<T> Deref for EqCollector<T> {
+    type Target = PyClassImplCollector<T>;
+    fn deref(&self) -> &PyClassImplCollector<T> {
+        &self.0
+    }
+}
+
+/// Newtype which adds a default implementation of richcmp for T: Eq + Ord
+pub struct EqOrdCollector<T>(EqCollector<T>);
+
+impl<T> EqOrdCollector<T> {
+    #[inline]
+    pub fn new() -> Self {
+        Self(EqCollector::new())
+    }
+}
+
+impl<T: PyClass + Eq + Ord> DefaultTpRichcmp for EqOrdCollector<T> {
+    fn default_tp_richcompare(&self) -> Option<ffi::richcmpfunc> {
+        Some(tp_richcompare_eq_ord::<T>)
+    }
+}
+
+impl<T> Deref for EqOrdCollector<T> {
+    type Target = EqCollector<T>;
+    fn deref(&self) -> &EqCollector<T> {
+        &self.0
+    }
+}
+
 // Thread checkers
 
 #[doc(hidden)]
@@ -1026,4 +1091,58 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     };
     ffi::Py_DECREF(index);
     result
+}
+
+unsafe extern "C" fn tp_richcompare_eq<T: PyClass + Eq>(
+    slf: *mut ffi::PyObject,
+    other: *mut ffi::PyObject,
+    op: std::os::raw::c_int,
+) -> *mut ffi::PyObject {
+    crate::impl_::trampoline::richcmpfunc(slf, other, op, tp_richcompare_eq_impl::<T>)
+}
+
+unsafe fn tp_richcompare_eq_impl<T: PyClass + Eq>(
+    py: Python<'_>,
+    slf: *mut ffi::PyObject,
+    other: *mut ffi::PyObject,
+    op: std::os::raw::c_int,
+) -> PyResult<*mut ffi::PyObject> {
+    let slf: &PyCell<T> = unsafe { py.from_borrowed_ptr(slf) };
+    let slf: PyRef<'_, T> = slf.try_borrow()?;
+    // FIXME: what to do about subtypes?
+    let other: &PyAny = unsafe { py.from_borrowed_ptr(other) };
+    let other: PyRef<'_, T> = other.extract()?;
+
+    match CompareOp::from_raw(op) {
+        Some(CompareOp::Eq) => Ok(PyBool::new(py, slf.eq(&other)).into_ptr()),
+        Some(CompareOp::Ne) => Ok(PyBool::new(py, slf.ne(&other)).into_ptr()),
+        Some(_) => Ok(py.NotImplemented().into_ptr()),
+        None => unreachable!("invalid compareop"),
+    }
+}
+
+unsafe extern "C" fn tp_richcompare_eq_ord<T: PyClass + Eq + Ord>(
+    slf: *mut ffi::PyObject,
+    other: *mut ffi::PyObject,
+    op: std::os::raw::c_int,
+) -> *mut ffi::PyObject {
+    crate::impl_::trampoline::richcmpfunc(slf, other, op, tp_richcompare_eq_ord_impl::<T>)
+}
+
+unsafe fn tp_richcompare_eq_ord_impl<T: PyClass + Eq + Ord>(
+    py: Python<'_>,
+    slf: *mut ffi::PyObject,
+    other: *mut ffi::PyObject,
+    op: std::os::raw::c_int,
+) -> PyResult<*mut ffi::PyObject> {
+    let slf: &PyCell<T> = unsafe { py.from_borrowed_ptr(slf) };
+    let slf: PyRef<'_, T> = slf.try_borrow()?;
+    // FIXME: what to do about subtypes?
+    let other: &PyAny = unsafe { py.from_borrowed_ptr(other) };
+    let other: PyRef<'_, T> = other.extract()?;
+
+    match CompareOp::from_raw(op) {
+        Some(op) => Ok(PyBool::new(py, op.matches(slf.cmp(&other))).into_ptr()),
+        None => unreachable!("invalid compareop"),
+    }
 }

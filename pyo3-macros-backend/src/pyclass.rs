@@ -1049,6 +1049,12 @@ impl<'a> PyClassImplsBuilder<'a> {
                     static TYPE_OBJECT: LazyTypeObject<#cls> = LazyTypeObject::new();
                     &TYPE_OBJECT
                 }
+
+                fn default_tp_richcompare() -> ::std::option::Option<_pyo3::ffi::richcmpfunc> {
+                    use _pyo3::impl_::pyclass::*;
+                    let collector = EqOrdCollector::<Self>::new();
+                    collector.default_tp_richcompare()
+                }
             }
 
             #[doc(hidden)]
