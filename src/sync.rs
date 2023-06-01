@@ -1,5 +1,5 @@
 //! Synchronization mechanisms based on the Python GIL.
-use crate::{types::PyString, Py, Python};
+use crate::{types::PyString, types::PyType, Py, PyErr, Python};
 use std::cell::UnsafeCell;
 
 /// Value with concurrent access protected by the GIL.
@@ -166,6 +166,21 @@ impl<T> GILOnceCell<T> {
 
         *inner = Some(value);
         Ok(())
+    }
+}
+
+impl GILOnceCell<Py<PyType>> {
+    /// Get a reference to the contained Python type, initializing it if needed.
+    ///
+    /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
+    pub(crate) fn get_or_try_init_type_ref<'py>(
+        &'py self,
+        py: Python<'py>,
+        module_name: &str,
+        attr_name: &str,
+    ) -> Result<&'py PyType, PyErr> {
+        self.get_or_try_init(py, || py.import(module_name)?.getattr(attr_name)?.extract())
+            .map(|ty| ty.as_ref(py))
     }
 }
 
