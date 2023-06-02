@@ -774,12 +774,12 @@ const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
     .arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
 const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_conversion(
-    TokenGenerator(|| quote! { _pyo3::class::iter::IterNextOutput::<_, _> }),
+    TokenGenerator(|| quote! { _pyo3::class::iter::IterNextOutput::<_, _, _> }),
 );
 const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
 const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
 const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_conversion(
-    TokenGenerator(|| quote! { _pyo3::class::pyasync::IterANextOutput::<_, _> }),
+    TokenGenerator(|| quote! { _pyo3::class::pyasync::IterANextOutput::<_, _, _> }),
 );
 const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")

@@ -108,7 +108,7 @@ impl CompareOp {
 ///         PyClassIter { count: 0 }
 ///     }
 ///
-///     fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {
+///     fn __next__(&mut self) -> IterNextOutput<usize, &'static str, &'static str> {
 ///         if self.count < 5 {
 ///             self.count += 1;
 ///             // Given an instance `counter`, First five `next(counter)` calls yield 1, 2, 3, 4, 5.
@@ -124,34 +124,70 @@ impl CompareOp {
 ///     }
 /// }
 /// ```
-pub enum IterNextOutput<T, U> {
+///
+/// With runtime error handling:
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::iter::IterNextOutput;
+///
+/// #[pyclass]
+/// struct PyClassIter {
+///     count: usize,
+/// }
+///
+/// #[pymethods]
+/// impl PyClassIter {
+///     #[new]
+///     pub fn new() -> Self {
+///         PyClassIter { count: 0 }
+///     }
+///
+///     fn __next__(&mut self) -> IterNextOutput<usize, &'static str, &'static str> {
+///         if self.count < 5 {
+///             self.count += 1;
+///             // Given an instance `counter`, First five `next(counter)` calls yield 1, 2, 3, 4, 5.
+///             return IterNextOutput::Yield(self.count)
+///         } else if self.count > 6 {
+///             // Runtime error
+///             return IterNextOutput::Err("exceeded depth")
+///         };
+///         IterNextOutput::Return("value")
+///     }
+/// }
+/// ```
+pub enum IterNextOutput<T, U, E> {
     /// The value yielded by the iterator.
     Yield(T),
     /// The `StopIteration` object.
     Return(U),
+    /// An object to cast into `PyRuntimeError`.
+    Err(E),
 }
 
 /// Alias of `IterNextOutput` with `PyObject` yield & return values.
-pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
+pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
     fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         match self {
             IterNextOutput::Yield(o) => Ok(o.into_ptr()),
             IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
+            IterNextOutput::Err(opt) => Err(crate::exceptions::PyRuntimeError::new_err((opt, ))),
         }
     }
 }
 
-impl<T, U> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U>
+impl<T, U, E> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U, E>
 where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
+    E: IntoPy<PyObject>,
 {
     fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
             IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
             IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
+            IterNextOutput::Err(o) => Ok(IterNextOutput::Return(o.into_py(py))),
         }
     }
 }
@@ -171,15 +207,17 @@ where
 /// Output of `__anext__`.
 ///
 /// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
-pub enum IterANextOutput<T, U> {
+pub enum IterANextOutput<T, U, E> {
     /// An expression which the generator yielded.
     Yield(T),
     /// A `StopAsyncIteration` object.
     Return(U),
+    /// A runtime error
+    Err(E),
 }
 
 /// An [IterANextOutput] of Python objects.
-pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
+pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
     fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
@@ -188,19 +226,22 @@ impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
             IterANextOutput::Return(opt) => {
                 Err(crate::exceptions::PyStopAsyncIteration::new_err((opt,)))
             }
+            IterANextOutput::Err(opt) => Err(crate::exceptions::PyRuntimeError::new_err((opt,))),
         }
     }
 }
 
-impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
+impl<T, U, E> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U, E>
 where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
+    E: IntoPy<PyObject>,
 {
     fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
             IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
             IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
+            IterANextOutput::Err(o) => Ok(IterANextOutput::Err(o.into_py(py))),
         }
     }
 }
