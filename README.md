@@ -244,7 +244,8 @@ If you don't have time to contribute yourself but still wish to support the proj
 
 ## License
 
-PyO3 is licensed under the [Apache-2.0 license](https://opensource.org/licenses/APACHE-2.0).
+PyO3 is licensed under the [Apache-2.0 license](https://opensource.org/licenses/APACHE-2.0). (The PyO3 project is in the process of collecting permission from past contributors to additionally license under the [MIT license](https://opensource.org/license/mit/), see [#3108](https://github.com/PyO3/pyo3/pull/3108). Once complete, PyO3 will additionally be licensed under the MIT license, the same as the Rust language itself is both Apache and MIT licensed.)
+
 Python is licensed under the [Python License](https://docs.python.org/3/license.html).
 
 <a href="https://www.netlify.com"> <img src="https://www.netlify.com/v3/img/components/netlify-color-accent.svg" alt="Deploys by Netlify" /> </a>
