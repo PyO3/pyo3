@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::attributes::{TextSignatureAttribute, TextSignatureAttributeValue};
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;

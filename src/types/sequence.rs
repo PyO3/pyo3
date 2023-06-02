@@ -1,4 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]

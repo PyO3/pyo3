@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Utilities for a Python callable object that invokes a Rust function.
 
 use crate::err::{PyErr, PyResult};

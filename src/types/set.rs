@@ -1,6 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-//
-
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
 use crate::{

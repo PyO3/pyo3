@@ -1,4 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 //! This crate declares only the proc macro attributes, as a crate defining proc macro attributes
 //! must not contain any other public items.
 

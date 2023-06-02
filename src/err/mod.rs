@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyTraceback, PyType};
