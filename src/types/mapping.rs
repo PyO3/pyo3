@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;

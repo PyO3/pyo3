@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! PyO3's prelude.
 //!
 //! The purpose of this module is to alleviate imports of many commonly used items of the PyO3 crate

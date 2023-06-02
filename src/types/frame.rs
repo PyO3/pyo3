@@ -1,5 +1,3 @@
-// Copyright (c) 2022-present PyO3 Project and Contributors
-
 use crate::ffi;
 use crate::PyAny;
 

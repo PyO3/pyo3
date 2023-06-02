@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Interaction with Python's global interpreter lock
 
 use crate::impl_::not_send::{NotSend, NOT_SEND};
