@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::err::{error_on_minusone, PyResult};
 use crate::ffi;
 use crate::types::PyString;

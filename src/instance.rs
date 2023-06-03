@@ -1,4 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::conversion::PyTryFrom;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;

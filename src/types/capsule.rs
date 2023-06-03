@@ -1,4 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::Python;
 use crate::{ffi, AsPyPointer, PyAny};
 use crate::{pyobject_native_type_core, PyErr, PyResult};

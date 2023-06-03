@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use std::convert::TryInto;
 
 use crate::ffi::{self, Py_ssize_t};
