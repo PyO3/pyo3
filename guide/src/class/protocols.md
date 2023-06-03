@@ -58,10 +58,27 @@ given signatures should be interpreted as follows:
     ```
     </details>
 
+  - `__lt__(<self>, object) -> object`
+  - `__le__(<self>, object) -> object`
+  - `__eq__(<self>, object) -> object`
+  - `__ne__(<self>, object) -> object`
+  - `__gt__(<self>, object) -> object`
+  - `__ge__(<self>, object) -> object`
+
+    The implementations of Python's "rich comparison" operators `<`, `<=`, `==`, `!=`, `>` and `>=` respectively.
+
+    _Note that implementing any of these methods will cause Python not to generate a default `__hash__` implementation, so consider also implementing `__hash__`._
+    <details>
+    <summary>Return type</summary>
+    The return type will normally be `bool` or `PyResult<bool>`, however any Python object can be returned.
+    </details>
+
   - `__richcmp__(<self>, object, pyo3::basic::CompareOp) -> object`
 
-    Overloads Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`).
+    Implements Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`) in a single method.
     The `CompareOp` argument indicates the comparison operation being performed.
+
+    _This method cannot be implemented in combination with any of `__lt__`, `__le__`, `__eq__`, `__ne__`, `__gt__`, or `__ge__`._
 
     _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
     <details>

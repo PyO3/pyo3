@@ -3,6 +3,7 @@ use pyo3::types::PyDict;
 use pyo3::wrap_pymodule;
 
 pub mod buf_and_str;
+pub mod comparisons;
 pub mod datetime;
 pub mod deprecated_pyfunctions;
 pub mod dict_iter;
@@ -19,6 +20,7 @@ pub mod subclassing;
 fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
+    m.add_wrapped(wrap_pymodule!(comparisons::comparisons))?;
     #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
     m.add_wrapped(wrap_pymodule!(
@@ -40,6 +42,7 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     let sys = PyModule::import(py, "sys")?;
     let sys_modules: &PyDict = sys.getattr("modules")?.downcast()?;
     sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
+    sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
     sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
     sys_modules.set_item(
         "pyo3_pytests.deprecated_pyfunctions",
