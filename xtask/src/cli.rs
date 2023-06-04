@@ -5,7 +5,7 @@ use std::process::{Command, Output};
 use std::time::Instant;
 use structopt::StructOpt;
 
-pub const MSRV: &str = "1.48";
+pub const MSRV: &str = "1.56";
 
 #[derive(StructOpt)]
 pub enum Subcommand {

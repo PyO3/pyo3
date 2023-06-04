@@ -12,6 +12,7 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py", "/.github", "/tests/test_compile_error.rs", "/tests/ui"]
 edition = "2018"
+rust-version = "1.56"
 
 [dependencies]
 cfg-if = "1.0"

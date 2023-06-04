@@ -3,6 +3,12 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.19.* to 0.20
+
+### Drop support for older technologies
+
+PyO3 0.20 has increased minimum Rust version to 1.56. This enables use of newer language features and simplifies maintenance of the project.
+
 ## from 0.18.* to 0.19
 
 ### Access to `Python` inside `__traverse__` implementations are now forbidden

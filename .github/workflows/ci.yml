@@ -81,7 +81,7 @@ jobs:
           },
         ]
         include:
-          - rust: 1.48.0
+          - rust: 1.56.0
             python-version: "3.11"
             platform:
               {
@@ -207,7 +207,7 @@ jobs:
           ]
         include:
           # Test minimal supported Rust version
-          - rust: 1.48.0
+          - rust: 1.56.0
             python-version: "3.11"
             platform:
               {
