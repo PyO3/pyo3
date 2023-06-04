@@ -9,6 +9,8 @@ on:
       # for bors try
       - trying
   pull_request:
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 concurrency:
