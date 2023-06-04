@@ -10,7 +10,7 @@ If you can run `rustc --version` and the version is new enough you're good to go
 
 ## Python
 
-To use PyO3, you need at least Python 3.7. While you can simply use the default Python interpreter on your system, it is recommended to use a virtual environment.
+To use PyO3, you need at least Python 3.8. While you can simply use the default Python interpreter on your system, it is recommended to use a virtual environment.
 
 ## Virtualenvs
 
@@ -128,7 +128,7 @@ build-backend = "maturin"
 
 [project]
 name = "pyo3_example"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",

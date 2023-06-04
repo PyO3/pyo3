@@ -16,8 +16,8 @@ nox.options.sessions = ["test", "clippy", "fmt"]
 
 
 PYO3_DIR = Path(__file__).parent
-PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11")
-PYPY_VERSIONS = ("3.7", "3.8", "3.9")
+PY_VERSIONS = ("3.8", "3.9", "3.10", "3.11")
+PYPY_VERSIONS = ("3.8", "3.9")
 
 
 @nox.session(venv_backend="none")

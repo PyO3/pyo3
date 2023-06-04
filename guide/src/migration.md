@@ -7,7 +7,7 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ### Drop support for older technologies
 
-PyO3 0.20 has increased minimum Rust version to 1.56. This enables use of newer language features and simplifies maintenance of the project.
+PyO3 0.20 has increased minimum Rust version to 1.56 and minimum Python version to 3.8. This enables use of newer language features and simplifies maintenance of the project.
 
 ## from 0.18.* to 0.19
 
