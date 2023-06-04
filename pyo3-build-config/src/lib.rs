@@ -161,6 +161,11 @@ pub fn print_feature_cfgs() {
     if rustc_minor_version >= 59 {
         println!("cargo:rustc-cfg=thread_local_const_init");
     }
+
+    // Enable use of `#[cfg(panic = "...")]` on Rust 1.60 and greater
+    if rustc_minor_version >= 60 {
+        println!("cargo:rustc-cfg=panic_unwind");
+    }
 }
 
 /// Private exports used in PyO3's build.rs
