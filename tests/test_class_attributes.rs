@@ -96,7 +96,7 @@ fn recursive_class_attributes() {
 }
 
 #[test]
-#[cfg(panic = "unwind")]
+#[cfg_attr(cfg_panic, cfg(panic = "unwind"))]
 fn test_fallible_class_attribute() {
     use pyo3::{exceptions::PyValueError, types::PyString};
 

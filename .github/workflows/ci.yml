@@ -34,6 +34,32 @@ jobs:
       - name: Check rust formatting (rustfmt)
         run: nox -s fmt-rust
 
+  check-msrv:
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.48.0
+          targets: x86_64-unknown-linux-gnu
+          components: clippy,rust-src
+      - uses: actions/setup-python@v4
+        with:
+          architecture: "x64"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: check-msrv-1.48.0
+        continue-on-error: true
+      - run: python -m pip install --upgrade pip && pip install nox
+      - name: Prepare minimal package versions
+        run: nox -s set-minimal-package-versions
+      - run: nox -s check-all
+
+    env:
+      CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
+
   clippy:
     needs: [fmt]
     runs-on: ${{ matrix.platform.os }}
@@ -80,16 +106,6 @@ jobs:
             rust-target: "i686-pc-windows-msvc",
           },
         ]
-        include:
-          - rust: 1.48.0
-            python-version: "3.11"
-            platform:
-              {
-                os: "ubuntu-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
-            msrv: "MSRV"
     name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
     steps:
       - uses: actions/checkout@v3
@@ -106,9 +122,6 @@ jobs:
           key: clippy-${{ matrix.platform.rust-target }}-${{ matrix.platform.os }}-${{ matrix.rust }}
         continue-on-error: true
       - run: python -m pip install --upgrade pip && pip install nox
-      - if: matrix.msrv == 'MSRV'
-        name: Prepare minimal package versions (MSRV only)
-        run: nox -s set-minimal-package-versions
       - run: nox -s clippy-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
@@ -353,6 +366,7 @@ jobs:
   conclusion:
     needs:
       - fmt
+      - check-msrv
       - clippy
       - build-pr
       - build-full
