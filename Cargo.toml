@@ -186,7 +186,6 @@ members = [
     "pyo3-macros-backend",
     "pytests",
     "examples",
-    "xtask"
 ]
 
 [package.metadata.docs.rs]

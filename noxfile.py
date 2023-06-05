@@ -4,7 +4,6 @@ import re
 import subprocess
 import sys
 import tempfile
-import time
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -12,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import nox
 
-nox.options.sessions = ["test", "clippy", "fmt"]
+nox.options.sessions = ["test", "clippy", "fmt", "docs"]
 
 
 PYO3_DIR = Path(__file__).parent
@@ -165,13 +164,9 @@ def check_all(session: nox.Session) -> None:
 @nox.session(venv_backend="none")
 def publish(session: nox.Session) -> None:
     _run_cargo_publish(session, package="pyo3-build-config")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-macros-backend")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-macros")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-ffi")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3")
 
 
@@ -290,6 +285,45 @@ def test_emscripten(session: nox.Session):
         "bash",
         "-c",
         f"source {info.builddir/'emsdk/emsdk_env.sh'} && cargo test",
+    )
+
+
+@nox.session(venv_backend="none")
+def docs(session: nox.Session) -> None:
+    rustdoc_flags = ["-Dwarnings"]
+    toolchain_flags = []
+    cargo_flags = []
+
+    if "open" in session.posargs:
+        cargo_flags.append("--open")
+
+    if "nightly" in session.posargs:
+        rustdoc_flags.append("--cfg docsrs")
+        toolchain_flags.append("+nightly")
+        cargo_flags.extend(["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples"])
+
+    if "nightly" in session.posargs and "internal" in session.posargs:
+        rustdoc_flags.append("--Z unstable-options")
+        rustdoc_flags.append("--document-hidden-items")
+        cargo_flags.append("--document-private-items")
+    else:
+        cargo_flags.extend(["--exclude=pyo3-macros", "--exclude=pyo3-macros-backend"])
+
+    rustdoc_flags.append(session.env.get("RUSTDOCFLAGS", ""))
+    session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
+
+    _run(
+        session,
+        "cargo",
+        *toolchain_flags,
+        "doc",
+        "--lib",
+        "--no-default-features",
+        "--features=full",
+        "--no-deps",
+        "--workspace",
+        *cargo_flags,
+        external=True,
     )
 
 

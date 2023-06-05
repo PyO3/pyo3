@@ -51,7 +51,7 @@ There are some specific areas of focus where help is currently needed for the do
 You can build the docs (including all features) with
 
 ```shell
-cargo xtask doc --open
+nox -s docs -- open
 ```
 
 #### Doctests
@@ -95,8 +95,10 @@ Tests run with all supported Python versions with the latest stable Rust compile
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
 You can run these tests yourself with
-```cargo xtask ci```
-See [its documentation](https://github.com/PyO3/pyo3/tree/main/xtask#readme) for more commands you can run.
+```nox```
+and
+```nox -l```
+lists further commands you can run.
 
 ### Documenting changes
 
@@ -145,7 +147,7 @@ You can view what code is and isn't covered by PyO3's tests. We aim to have 100%
 
 - First, generate a `lcov.info` file with
 ```shell
-cargo xtask coverage
+nox -s coverage
 ```
 You can install an IDE plugin to view the coverage. For example, if you use VSCode:
 - Add the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) plugin.

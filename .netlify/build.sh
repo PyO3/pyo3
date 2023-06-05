@@ -53,7 +53,7 @@ mv target/guide netlify_build/main/
 
 ## Build public docs
 
-cargo xtask doc
+nox -s docs
 mv target/doc netlify_build/main/doc/
 
 echo "<meta http-equiv=refresh content=0;url=pyo3/>" > netlify_build/main/doc/index.html
@@ -61,7 +61,7 @@ echo "<meta http-equiv=refresh content=0;url=pyo3/>" > netlify_build/main/doc/in
 ## Build internal docs
 
 echo "<div class='internal-banner' style='position:fixed; z-index: 99999; color:red;border:3px solid red;margin-left: auto; margin-right: auto; width: 430px;left:0;right: 0;'><div style='display: flex; align-items: center; justify-content: center;'> ⚠️ Internal Docs ⚠️ Not Public API 👉 <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>Official Docs Here</a></div></div>" > netlify_build/banner.html
-RUSTDOCFLAGS="--html-before-content netlify_build/banner.html" cargo xtask doc --internal
+RUSTDOCFLAGS="--html-before-content netlify_build/banner.html" nox -s docs -- nightly internal
 rm netlify_build/banner.html
 
 mkdir -p netlify_build/internal
