@@ -1,4 +1,6 @@
 use std::os::raw::c_int;
+#[cfg(not(all(PyPy, not(Py_3_8))))]
+use std::ptr::addr_of_mut;
 
 use crate::PyObject;
 
@@ -61,7 +63,7 @@ extern "C" {
 #[cfg(not(all(PyPy, not(Py_3_8))))]
 #[inline]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
-    (crate::Py_TYPE(op) == addr_of_mut_shim!(PyFunction_Type)) as c_int
+    (crate::Py_TYPE(op) == addr_of_mut!(PyFunction_Type)) as c_int
 }
 
 extern "C" {

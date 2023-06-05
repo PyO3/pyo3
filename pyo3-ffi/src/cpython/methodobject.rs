@@ -1,6 +1,7 @@
 use crate::object::*;
 use crate::{PyCFunctionObject, PyMethodDefPointer, METH_METHOD, METH_STATIC};
 use std::os::raw::c_int;
+use std::ptr::addr_of_mut;
 
 pub struct PyCMethodObject {
     pub func: PyCFunctionObject,
@@ -14,12 +15,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyCMethod_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyCMethod_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyCMethod_Type)) as c_int
 }
 
 #[inline]
 pub unsafe fn PyCMethod_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut_shim!(PyCMethod_Type))
+    PyObject_TypeCheck(op, addr_of_mut!(PyCMethod_Type))
 }
 
 #[inline]

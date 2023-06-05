@@ -2,6 +2,7 @@ use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_void};
+use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -11,12 +12,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut_shim!(PyModule_Type))
+    PyObject_TypeCheck(op, addr_of_mut!(PyModule_Type))
 }
 
 #[inline]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyModule_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyModule_Type)) as c_int
 }
 
 extern "C" {

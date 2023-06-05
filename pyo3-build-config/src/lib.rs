@@ -142,11 +142,6 @@ pub fn print_feature_cfgs() {
 
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
 
-    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
-    if rustc_minor_version >= 51 {
-        println!("cargo:rustc-cfg=addr_of");
-    }
-
     // Enable use of const initializer for thread_local! on Rust 1.59 and greater
     if rustc_minor_version >= 59 {
         println!("cargo:rustc-cfg=thread_local_const_init");
