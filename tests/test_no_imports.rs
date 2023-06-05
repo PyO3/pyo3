@@ -91,7 +91,7 @@ fn test_basic() {
         let module = pyo3::wrap_pymodule!(basic_module)(py);
         let cls = py.get_type::<BasicClass>();
         let d = pyo3::types::IntoPyDict::into_py_dict(
-            &[
+            [
                 ("mod", module.as_ref(py).as_ref()),
                 ("cls", cls.as_ref()),
                 ("a", cls.call1((8,)).unwrap()),

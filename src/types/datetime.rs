@@ -196,7 +196,7 @@ impl PyDate {
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
     pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
-        let time_tuple = PyTuple::new(py, &[timestamp]);
+        let time_tuple = PyTuple::new(py, [timestamp]);
 
         // safety ensure that the API is loaded
         let _api = ensure_datetime_api(py);

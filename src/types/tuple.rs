@@ -459,7 +459,7 @@ mod tests {
     #[test]
     fn test_new() {
         Python::with_gil(|py| {
-            let ob = PyTuple::new(py, &[1, 2, 3]);
+            let ob = PyTuple::new(py, [1, 2, 3]);
             assert_eq!(3, ob.len());
             let ob: &PyAny = ob.into();
             assert_eq!((1, 2, 3), ob.extract().unwrap());
@@ -467,7 +467,7 @@ mod tests {
             let mut map = HashSet::new();
             map.insert(1);
             map.insert(2);
-            PyTuple::new(py, &map);
+            PyTuple::new(py, map);
         });
     }
 
@@ -485,7 +485,7 @@ mod tests {
     #[test]
     fn test_slice() {
         Python::with_gil(|py| {
-            let tup = PyTuple::new(py, &[2, 3, 5, 7]);
+            let tup = PyTuple::new(py, [2, 3, 5, 7]);
             let slice = tup.get_slice(1, 3);
             assert_eq!(2, slice.len());
             let slice = tup.get_slice(1, 7);

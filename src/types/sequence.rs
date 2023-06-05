@@ -832,7 +832,7 @@ mod tests {
             assert!(seq
                 .to_list()
                 .unwrap()
-                .eq(PyList::new(py, &["f", "o", "o"]))
+                .eq(PyList::new(py, ["f", "o", "o"]))
                 .unwrap());
             #[allow(deprecated)]
             {
@@ -850,7 +850,7 @@ mod tests {
             assert!(seq
                 .to_tuple()
                 .unwrap()
-                .eq(PyTuple::new(py, &["foo", "bar"]))
+                .eq(PyTuple::new(py, ["foo", "bar"]))
                 .unwrap());
             #[allow(deprecated)]
             {
