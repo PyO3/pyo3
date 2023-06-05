@@ -27,10 +27,11 @@ pub struct Signature {
 impl Parse for Signature {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
-        Ok(Signature {
-            paren_token: syn::parenthesized!(content in input),
-            items: content.parse_terminated(SignatureItem::parse)?,
-        })
+        let paren_token = syn::parenthesized!(content in input);
+
+        let items = content.parse_terminated(SignatureItem::parse)?;
+
+        Ok(Signature { paren_token, items })
     }
 }
 

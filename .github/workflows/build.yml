@@ -201,7 +201,3 @@ jobs:
       # TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
       # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
       PYO3_CI: 1
-      # This is a hack to make CARGO_PRIMARY_PACKAGE always set even for the
-      # msrv job. MSRV is currently 1.48, but CARGO_PRIMARY_PACKAGE only came in
-      # 1.49.
-      CARGO_PRIMARY_PACKAGE: 1

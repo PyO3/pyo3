@@ -4,7 +4,7 @@ To get started using PyO3 you will need three things: a Rust toolchain, a Python
 
 ## Rust
 
-First, make sure you have Rust installed on your system. If you haven't already done so, try following the instructions [here](https://www.rust-lang.org/tools/install). PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best. The minimum required Rust version is 1.48.
+First, make sure you have Rust installed on your system. If you haven't already done so, try following the instructions [here](https://www.rust-lang.org/tools/install). PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best. The minimum required Rust version is 1.56.
 
 If you can run `rustc --version` and the version is new enough you're good to go!
 

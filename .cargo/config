@@ -3,10 +3,6 @@ xtask = "run --package xtask --"
 
 [target.'cfg(feature = "cargo-clippy")']
 rustflags = [
-    # TODO: remove these allows once msrv increased from 1.48
-    "-Aclippy::iter_kv_map",
-    "-Aclippy::needless_borrow",
-    "-Aclippy::uninlined_format_args",
     # Lints to enforce in CI
     "-Dclippy::checked_conversions",
     "-Dclippy::dbg_macro",
@@ -15,7 +11,6 @@ rustflags = [
     "-Dclippy::filter_map_next",
     "-Dclippy::flat_map_option",
     "-Dclippy::let_unit_value",
-    "-Dclippy::manual_assert",
     "-Dclippy::manual_ok_or",
     "-Dclippy::todo",
     "-Dclippy::unnecessary_wraps",

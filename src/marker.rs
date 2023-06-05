@@ -1049,7 +1049,7 @@ mod tests {
 
             // If allow_threads is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
-            let list = PyList::new(py, &[1, 2, 3, 4]);
+            let list = PyList::new(py, [1, 2, 3, 4]);
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
         });
     }

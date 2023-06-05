@@ -4,7 +4,7 @@
 [![benchmark](https://github.com/PyO3/pyo3/actions/workflows/bench.yml/badge.svg)](https://pyo3.rs/dev/bench/)
 [![codecov](https://codecov.io/gh/PyO3/pyo3/branch/main/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.48](https://img.shields.io/badge/rustc-1.48+-blue.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.56](https://img.shields.io/badge/rustc-1.56+-blue.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
@@ -18,7 +18,7 @@
 
 PyO3 supports the following software versions:
   - Python 3.7 and up (CPython and PyPy)
-  - Rust 1.48 and up
+  - Rust 1.56 and up
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 

@@ -42,7 +42,7 @@ impl ClassWithProperties {
 
     #[getter]
     fn get_data_list<'py>(&self, py: Python<'py>) -> &'py PyList {
-        PyList::new(py, &[self.num])
+        PyList::new(py, [self.num])
     }
 }
 
