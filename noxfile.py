@@ -4,7 +4,6 @@ import re
 import subprocess
 import sys
 import tempfile
-import time
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -165,13 +164,9 @@ def check_all(session: nox.Session) -> None:
 @nox.session(venv_backend="none")
 def publish(session: nox.Session) -> None:
     _run_cargo_publish(session, package="pyo3-build-config")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-macros-backend")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-macros")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-ffi")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3")
 
 
