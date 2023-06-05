@@ -44,7 +44,7 @@ jobs:
         with:
           toolchain: 1.56.0
           targets: x86_64-unknown-linux-gnu
-          components: clippy,rust-src
+          components: rust-src
       - uses: actions/setup-python@v4
         with:
           architecture: "x64"
