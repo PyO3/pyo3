@@ -188,6 +188,7 @@ members = [
     "examples",
     "xtask"
 ]
+resolver = "2"
 
 [package.metadata.docs.rs]
 no-default-features = true

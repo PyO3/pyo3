@@ -198,6 +198,3 @@ jobs:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTDOCFLAGS: "-D warnings"
-      # TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
-      # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
-      PYO3_CI: 1
