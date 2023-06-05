@@ -662,7 +662,6 @@ def _for_all_version_configs(
     with tempfile.NamedTemporaryFile("r+") as config:
         env = os.environ.copy()
         env["PYO3_CONFIG_FILE"] = config.name
-        env["PYO3_CI"] = "1"
 
         def _job_with_config(implementation, version) -> bool:
             config.seek(0)
