@@ -4,6 +4,7 @@
 //! so that the function names can describe the edge case to be rejected.
 
 use pyo3::prelude::*;
+use pyo3::pyclass::CompareOp;
 
 #[pyclass]
 struct MyClass {}
@@ -44,6 +45,20 @@ impl MyClass {
 impl MyClass {
     #[pyo3(name = "__bool__", text_signature = "")]
     fn text_signature_is_forbidden(&self) -> bool {
+        true
+    }
+}
+
+#[pyclass]
+struct EqAndRichcmp;
+
+#[pymethods]
+impl EqAndRichcmp {
+    fn __eq__(&self, other: &Self) -> bool {
+        true
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp) -> bool {
         true
     }
 }

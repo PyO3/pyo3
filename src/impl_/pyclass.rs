@@ -757,6 +757,130 @@ macro_rules! generate_pyclass_pow_slot {
 }
 pub use generate_pyclass_pow_slot;
 
+slot_fragment_trait! {
+    PyClass__lt__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __lt__(
+        self,
+        _py: Python<'_>,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__le__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __le__(
+        self,
+        _py: Python<'_>,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__eq__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __eq__(
+        self,
+        _py: Python<'_>,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__ne__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __ne__(
+        self,
+        _py: Python<'_>,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__gt__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __gt__(
+        self,
+        _py: Python<'_>,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__ge__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __ge__(
+        self,
+        _py: Python<'_>,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_pyclass_richcompare_slot {
+    ($cls:ty) => {{
+        impl $cls {
+            #[allow(non_snake_case)]
+            unsafe extern "C" fn __pymethod___richcmp____(
+                slf: *mut $crate::ffi::PyObject,
+                other: *mut $crate::ffi::PyObject,
+                op: ::std::os::raw::c_int,
+            ) -> *mut $crate::ffi::PyObject {
+                $crate::impl_::trampoline::richcmpfunc(slf, other, op, |py, slf, other, op| {
+                    use $crate::class::basic::CompareOp;
+                    use $crate::impl_::pyclass::*;
+                    let collector = PyClassImplCollector::<$cls>::new();
+                    match CompareOp::from_raw(op).expect("invalid compareop") {
+                        CompareOp::Lt => collector.__lt__(py, slf, other),
+                        CompareOp::Le => collector.__le__(py, slf, other),
+                        CompareOp::Eq => collector.__eq__(py, slf, other),
+                        CompareOp::Ne => collector.__ne__(py, slf, other),
+                        CompareOp::Gt => collector.__gt__(py, slf, other),
+                        CompareOp::Ge => collector.__ge__(py, slf, other),
+                    }
+                })
+            }
+        }
+        $crate::ffi::PyType_Slot {
+            slot: $crate::ffi::Py_tp_richcompare,
+            pfunc: <$cls>::__pymethod___richcmp____ as $crate::ffi::richcmpfunc as _,
+        }
+    }};
+}
+pub use generate_pyclass_richcompare_slot;
+
 /// Implements a freelist.
 ///
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`

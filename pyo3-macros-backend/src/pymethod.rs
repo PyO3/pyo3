@@ -133,6 +133,12 @@ impl PyMethodKind {
             "__ror__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__ROR__)),
             "__pow__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__POW__)),
             "__rpow__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RPOW__)),
+            "__lt__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__LT__)),
+            "__le__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__LE__)),
+            "__eq__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__EQ__)),
+            "__ne__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__NE__)),
+            "__gt__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GT__)),
+            "__ge__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GE__)),
             // Some tricky protocols which don't fit the pattern of the rest
             "__call__" => PyMethodKind::Proto(PyMethodProtoKind::Call),
             "__traverse__" => PyMethodKind::Proto(PyMethodProtoKind::Traverse),
@@ -1295,6 +1301,25 @@ const __POW__: SlotFragmentDef = SlotFragmentDef::new("__pow__", &[Ty::Object, T
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object);
 const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object, Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object);
+
+const __LT__: SlotFragmentDef = SlotFragmentDef::new("__lt__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object);
+const __LE__: SlotFragmentDef = SlotFragmentDef::new("__le__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object);
+const __EQ__: SlotFragmentDef = SlotFragmentDef::new("__eq__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object);
+const __NE__: SlotFragmentDef = SlotFragmentDef::new("__ne__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object);
+const __GT__: SlotFragmentDef = SlotFragmentDef::new("__gt__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object);
+const __GE__: SlotFragmentDef = SlotFragmentDef::new("__ge__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object);
 

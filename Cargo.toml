@@ -124,6 +124,10 @@ name = "bench_call"
 harness = false
 
 [[bench]]
+name = "bench_comparisons"
+harness = false
+
+[[bench]]
 name = "bench_err"
 harness = false
 

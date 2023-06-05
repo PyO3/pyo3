@@ -233,41 +233,50 @@ fn add_shared_proto_slots(
     mut implemented_proto_fragments: HashSet<String>,
 ) {
     macro_rules! try_add_shared_slot {
-        ($first:literal, $second:literal, $slot:ident) => {{
-            let first_implemented = implemented_proto_fragments.remove($first);
-            let second_implemented = implemented_proto_fragments.remove($second);
-            if first_implemented || second_implemented {
+        ($slot:ident, $($fragments:literal),*) => {{
+            let mut implemented = false;
+            $(implemented |= implemented_proto_fragments.remove($fragments));*;
+            if implemented {
                 proto_impls.push(quote! { _pyo3::impl_::pyclass::$slot!(#ty) })
             }
         }};
     }
 
     try_add_shared_slot!(
+        generate_pyclass_getattro_slot,
         "__getattribute__",
-        "__getattr__",
-        generate_pyclass_getattro_slot
+        "__getattr__"
     );
-    try_add_shared_slot!("__setattr__", "__delattr__", generate_pyclass_setattr_slot);
-    try_add_shared_slot!("__set__", "__delete__", generate_pyclass_setdescr_slot);
-    try_add_shared_slot!("__setitem__", "__delitem__", generate_pyclass_setitem_slot);
-    try_add_shared_slot!("__add__", "__radd__", generate_pyclass_add_slot);
-    try_add_shared_slot!("__sub__", "__rsub__", generate_pyclass_sub_slot);
-    try_add_shared_slot!("__mul__", "__rmul__", generate_pyclass_mul_slot);
-    try_add_shared_slot!("__mod__", "__rmod__", generate_pyclass_mod_slot);
-    try_add_shared_slot!("__divmod__", "__rdivmod__", generate_pyclass_divmod_slot);
-    try_add_shared_slot!("__lshift__", "__rlshift__", generate_pyclass_lshift_slot);
-    try_add_shared_slot!("__rshift__", "__rrshift__", generate_pyclass_rshift_slot);
-    try_add_shared_slot!("__and__", "__rand__", generate_pyclass_and_slot);
-    try_add_shared_slot!("__or__", "__ror__", generate_pyclass_or_slot);
-    try_add_shared_slot!("__xor__", "__rxor__", generate_pyclass_xor_slot);
-    try_add_shared_slot!("__matmul__", "__rmatmul__", generate_pyclass_matmul_slot);
-    try_add_shared_slot!("__truediv__", "__rtruediv__", generate_pyclass_truediv_slot);
+    try_add_shared_slot!(generate_pyclass_setattr_slot, "__setattr__", "__delattr__");
+    try_add_shared_slot!(generate_pyclass_setdescr_slot, "__set__", "__delete__");
+    try_add_shared_slot!(generate_pyclass_setitem_slot, "__setitem__", "__delitem__");
+    try_add_shared_slot!(generate_pyclass_add_slot, "__add__", "__radd__");
+    try_add_shared_slot!(generate_pyclass_sub_slot, "__sub__", "__rsub__");
+    try_add_shared_slot!(generate_pyclass_mul_slot, "__mul__", "__rmul__");
+    try_add_shared_slot!(generate_pyclass_mod_slot, "__mod__", "__rmod__");
+    try_add_shared_slot!(generate_pyclass_divmod_slot, "__divmod__", "__rdivmod__");
+    try_add_shared_slot!(generate_pyclass_lshift_slot, "__lshift__", "__rlshift__");
+    try_add_shared_slot!(generate_pyclass_rshift_slot, "__rshift__", "__rrshift__");
+    try_add_shared_slot!(generate_pyclass_and_slot, "__and__", "__rand__");
+    try_add_shared_slot!(generate_pyclass_or_slot, "__or__", "__ror__");
+    try_add_shared_slot!(generate_pyclass_xor_slot, "__xor__", "__rxor__");
+    try_add_shared_slot!(generate_pyclass_matmul_slot, "__matmul__", "__rmatmul__");
+    try_add_shared_slot!(generate_pyclass_truediv_slot, "__truediv__", "__rtruediv__");
     try_add_shared_slot!(
+        generate_pyclass_floordiv_slot,
         "__floordiv__",
-        "__rfloordiv__",
-        generate_pyclass_floordiv_slot
+        "__rfloordiv__"
     );
-    try_add_shared_slot!("__pow__", "__rpow__", generate_pyclass_pow_slot);
+    try_add_shared_slot!(generate_pyclass_pow_slot, "__pow__", "__rpow__");
+    try_add_shared_slot!(
+        generate_pyclass_richcompare_slot,
+        "__lt__",
+        "__le__",
+        "__eq__",
+        "__ne__",
+        "__gt__",
+        "__ge__"
+    );
 
     // if this assertion trips, a slot fragment has been implemented which has not been added in the
     // list above

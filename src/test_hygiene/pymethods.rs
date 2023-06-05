@@ -398,13 +398,6 @@ impl Dummy {
 
     // Dunder methods invented for protocols
 
-    fn __richcmp__(
-        &self,
-        other: &Self,
-        op: crate::class::basic::CompareOp,
-    ) -> crate::PyResult<bool> {
-        ::std::result::Result::Ok(false)
-    }
     // PyGcProtocol
     // Buffer protocol?
 }
@@ -797,13 +790,6 @@ impl Dummy {
 
     // Dunder methods invented for protocols
 
-    fn __richcmp__(
-        &self,
-        other: &Self,
-        op: crate::class::basic::CompareOp,
-    ) -> crate::PyResult<bool> {
-        ::std::result::Result::Ok(false)
-    }
     // PyGcProtocol
     // Buffer protocol?
 }
