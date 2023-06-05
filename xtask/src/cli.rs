@@ -107,7 +107,7 @@ impl Subcommand {
 
 /// Run a command as a child process, inheriting stdin, stdout and stderr.
 pub fn run(command: &mut Command) -> Result<()> {
-    let command_str = format_command(command);
+    let command_str = format!("{:?}", command);
     let github_actions = std::env::var_os("GITHUB_ACTIONS").is_some();
     if github_actions {
         println!("::group::Running: {}", command_str);
@@ -135,7 +135,7 @@ pub fn run(command: &mut Command) -> Result<()> {
 
 /// Like `run`, but does not inherit stdin, stdout and stderr.
 pub fn run_with_output(command: &mut Command) -> Result<Output> {
-    let command_str = format_command(command);
+    let command_str = format!("{:?}", command);
 
     println!("Running: {}", command_str);
 

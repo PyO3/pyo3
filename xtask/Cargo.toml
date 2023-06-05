@@ -11,6 +11,5 @@ name = "xtask"
 anyhow = "1.0.51"
 
 # Clap 3 requires MSRV 1.54
-rustversion = "1.0"
 structopt = { version = "0.3", default-features = false }
 clap = { version = "2" }
