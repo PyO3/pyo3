@@ -100,7 +100,7 @@ fn configure_pyo3() -> Result<()> {
         println!("{}", line);
     }
 
-    // Emit cfgs like `addr_of` and `min_const_generics`
+    // Emit cfgs like `thread_local_const_init`
     print_feature_cfgs();
 
     Ok(())
