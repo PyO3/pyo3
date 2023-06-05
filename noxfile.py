@@ -288,6 +288,45 @@ def test_emscripten(session: nox.Session):
     )
 
 
+@nox.session(venv_backend="none")
+def docs(session: nox.Session) -> None:
+    rustdoc_flags = ["-Dwarnings"]
+    toolchain_flags = []
+    cargo_flags = []
+
+    if "open" in session.posargs:
+        cargo_flags.append("--open")
+
+    if "nightly" in session.posargs:
+        rustdoc_flags.append("--cfg docsrs")
+        toolchain_flags.append("+nightly")
+        cargo_flags.extend(["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples"])
+
+    if "nightly" in session.posargs and "internal" in session.posargs:
+        rustdoc_flags.append("--Z unstable-options")
+        rustdoc_flags.append("--document-hidden-items")
+        cargo_flags.append("--document-private-items")
+    else:
+        cargo_flags.extend(["--exclude=pyo3-macros", "--exclude=pyo3-macros-backend"])
+
+    rustdoc_flags.append(session.env.get("RUSTDOCFLAGS", ""))
+    session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
+
+    _run(
+        session,
+        "cargo",
+        *toolchain_flags,
+        "doc",
+        "--lib",
+        "--no-default-features",
+        "--features=full",
+        "--no-deps",
+        "--workspace",
+        *cargo_flags,
+        external=True,
+    )
+
+
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
     _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
