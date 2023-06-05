@@ -48,7 +48,6 @@ chrono = { version = "0.4" }
 criterion = "0.3.5"
 # Required for "and $N others" normalization
 trybuild = ">=1.0.70"
-rustversion = "1.0"
 # 1.0.0 requires Rust 1.50
 proptest = { version = "0.10.1", default-features = false, features = ["std"] }
 send_wrapper = "0.6"

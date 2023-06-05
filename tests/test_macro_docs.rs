@@ -1,8 +1,10 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
 #[macro_use]
-#[path = "../common.rs"]
+#[path = "common.rs"]
 mod common;
 
 #[pyclass]
