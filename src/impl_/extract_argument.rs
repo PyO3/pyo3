@@ -50,13 +50,6 @@ pub fn extract_pyclass_ref<'a, 'py: 'a, T: PyClass>(
     obj: &'py PyAny,
     holder: &'a mut Option<PyRef<'py, T>>,
 ) -> PyResult<&'a T> {
-    #[cfg(not(option_insert))]
-    {
-        *holder = Some(obj.extract()?);
-        return Ok(holder.as_deref().unwrap());
-    }
-
-    #[cfg(option_insert)]
     Ok(&*holder.insert(obj.extract()?))
 }
 
@@ -65,13 +58,6 @@ pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
     obj: &'py PyAny,
     holder: &'a mut Option<PyRefMut<'py, T>>,
 ) -> PyResult<&'a mut T> {
-    #[cfg(not(option_insert))]
-    {
-        *holder = Some(obj.extract()?);
-        return Ok(holder.as_deref_mut().unwrap());
-    }
-
-    #[cfg(option_insert)]
     Ok(&mut *holder.insert(obj.extract()?))
 }
 
