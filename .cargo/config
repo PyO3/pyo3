@@ -1,6 +1,3 @@
-[alias]
-xtask = "run --package xtask --"
-
 [target.'cfg(feature = "cargo-clippy")']
 rustflags = [
     # Lints to enforce in CI
@@ -11,6 +8,7 @@ rustflags = [
     "-Dclippy::filter_map_next",
     "-Dclippy::flat_map_option",
     "-Dclippy::let_unit_value",
+    "-Dclippy::manual_assert",
     "-Dclippy::manual_ok_or",
     "-Dclippy::todo",
     "-Dclippy::unnecessary_wraps",
