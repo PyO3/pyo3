@@ -142,29 +142,9 @@ pub fn print_feature_cfgs() {
 
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
 
-    // Enable use of const generics on Rust 1.51 and greater
-    if rustc_minor_version >= 51 {
-        println!("cargo:rustc-cfg=min_const_generics");
-    }
-
-    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
-    if rustc_minor_version >= 51 {
-        println!("cargo:rustc-cfg=addr_of");
-    }
-
-    // Enable use of Option::insert on Rust 1.53 and greater
-    if rustc_minor_version >= 53 {
-        println!("cargo:rustc-cfg=option_insert");
-    }
-
     // Enable use of const initializer for thread_local! on Rust 1.59 and greater
     if rustc_minor_version >= 59 {
         println!("cargo:rustc-cfg=thread_local_const_init");
-    }
-
-    // Enable use of `#[cfg(panic = "...")]` on Rust 1.60 and greater
-    if rustc_minor_version >= 60 {
-        println!("cargo:rustc-cfg=panic_unwind");
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::object::*;
 use std::os::raw::{c_double, c_int};
+use std::ptr::addr_of_mut;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -40,12 +41,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyComplex_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut_shim!(PyComplex_Type))
+    PyObject_TypeCheck(op, addr_of_mut!(PyComplex_Type))
 }
 
 #[inline]
 pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyComplex_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyComplex_Type)) as c_int
 }
 
 extern "C" {

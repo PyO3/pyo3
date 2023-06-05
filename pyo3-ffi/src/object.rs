@@ -488,7 +488,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_None() -> *mut PyObject {
-    addr_of_mut_shim!(_Py_NoneStruct)
+    ptr::addr_of_mut!(_Py_NoneStruct)
 }
 
 #[inline]
@@ -506,7 +506,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
-    addr_of_mut_shim!(_Py_NotImplementedStruct)
+    ptr::addr_of_mut!(_Py_NotImplementedStruct)
 }
 
 // skipped Py_RETURN_NOTIMPLEMENTED
@@ -554,5 +554,5 @@ pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyType_Type)) as c_int
+    (Py_TYPE(op) == ptr::addr_of_mut!(PyType_Type)) as c_int
 }

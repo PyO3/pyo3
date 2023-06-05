@@ -3,6 +3,8 @@ use crate::pyport::Py_ssize_t;
 
 #[allow(unused_imports)]
 use std::os::raw::{c_char, c_int, c_uchar, c_void};
+#[cfg(not(PyPy))]
+use std::ptr::addr_of_mut;
 
 // skipped _Py_CODEUNIT
 // skipped _Py_OPCODE
@@ -159,7 +161,7 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyCode_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
 }
 
 #[inline]

@@ -1,6 +1,7 @@
 use crate::longobject::PyLongObject;
 use crate::object::*;
 use std::os::raw::{c_int, c_long};
+use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -10,7 +11,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyBool_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyBool_Type)) as c_int
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -23,12 +24,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
-    addr_of_mut_shim!(_Py_FalseStruct) as *mut PyLongObject as *mut PyObject
+    addr_of_mut!(_Py_FalseStruct) as *mut PyLongObject as *mut PyObject
 }
 
 #[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
-    addr_of_mut_shim!(_Py_TrueStruct) as *mut PyLongObject as *mut PyObject
+    addr_of_mut!(_Py_TrueStruct) as *mut PyLongObject as *mut PyObject
 }
 
 #[inline]

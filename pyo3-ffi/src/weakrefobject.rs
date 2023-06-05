@@ -1,5 +1,7 @@
 use crate::object::*;
 use std::os::raw::c_int;
+#[cfg(not(PyPy))]
+use std::ptr::addr_of_mut;
 
 #[cfg(all(not(PyPy), Py_LIMITED_API))]
 opaque_struct!(PyWeakReference);
@@ -29,20 +31,20 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut_shim!(_PyWeakref_RefType))
+    PyObject_TypeCheck(op, addr_of_mut!(_PyWeakref_RefType))
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(_PyWeakref_RefType)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(_PyWeakref_RefType)) as c_int
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
-    ((Py_TYPE(op) == addr_of_mut_shim!(_PyWeakref_ProxyType))
-        || (Py_TYPE(op) == addr_of_mut_shim!(_PyWeakref_CallableProxyType))) as c_int
+    ((Py_TYPE(op) == addr_of_mut!(_PyWeakref_ProxyType))
+        || (Py_TYPE(op) == addr_of_mut!(_PyWeakref_CallableProxyType))) as c_int
 }
 
 #[inline]
