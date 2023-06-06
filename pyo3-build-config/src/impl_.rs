@@ -158,6 +158,9 @@ impl InterpreterConfig {
         // This should have been checked during pyo3-build-config build time.
         assert!(self.version >= MINIMUM_SUPPORTED_VERSION);
 
+        // This is a test to see what happens if a required check fails for 3.7 in the merge queue
+        assert!(self.version != PythonVersion { major: 3, minor: 7 });
+
         // pyo3-build-config was released when Python 3.6 was supported, so minimum flag to emit is
         // Py_3_6 (to avoid silently breaking users who depend on this cfg).
         for i in 6..=self.version.minor {
