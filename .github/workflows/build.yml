@@ -125,6 +125,8 @@ jobs:
         if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
         id: ffi-changes
         with:
+          base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
           filters: |
             changed:
               - 'pyo3-ffi/**'
