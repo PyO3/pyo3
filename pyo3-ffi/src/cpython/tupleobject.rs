@@ -22,14 +22,14 @@ pub unsafe fn PyTuple_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyTuple_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     *(*(op as *mut PyTupleObject)).ob_item.as_ptr().offset(i)
 }
 
 /// Macro, *only* to be used to fill in brand new tuples
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyTuple_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObject) {
     *(*(op as *mut PyTupleObject)).ob_item.as_mut_ptr().offset(i) = v;
 }
