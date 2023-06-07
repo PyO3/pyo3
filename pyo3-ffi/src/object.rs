@@ -79,6 +79,7 @@ pub struct PyObject {
 #[derive(Debug, Copy, Clone)]
 pub struct PyVarObject {
     pub ob_base: PyObject,
+    #[cfg(not(GraalPy))]
     pub ob_size: Py_ssize_t,
 }
 
@@ -124,7 +125,7 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
         (*ob.cast::<PyVarObject>()).ob_size
     }
     #[cfg(GraalPy)]
-    _Py_SIZE(ob as *mut PyVarObject)
+    _Py_SIZE(ob)
 }
 
 #[inline]
@@ -495,7 +496,7 @@ extern "C" {
     pub fn _Py_TYPE(arg1: *const PyObject) -> *mut PyTypeObject;
 
     #[cfg(GraalPy)]
-    pub fn _Py_SIZE(arg1: *const PyVarObject) -> Py_ssize_t;
+    pub fn _Py_SIZE(arg1: *const PyObject) -> Py_ssize_t;
 }
 
 #[inline(always)]
