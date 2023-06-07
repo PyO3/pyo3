@@ -139,7 +139,7 @@
 //! [package]
 //! name = "string-sum"
 //! version = "0.1.0"
-//! edition = "2018"
+//! edition = "2021"
 //!
 //! [lib]
 //! name = "string_sum"

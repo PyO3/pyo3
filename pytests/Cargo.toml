@@ -3,7 +3,7 @@ authors = ["PyO3 Authors"]
 name = "pyo3-pytests"
 version = "0.1.0"
 description = "Python-based tests for PyO3"
-edition = "2018"
+edition = "2021"
 publish = false
 
 [dependencies]

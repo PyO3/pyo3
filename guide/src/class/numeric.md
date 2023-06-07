@@ -71,7 +71,6 @@ impl Number {
 
 With that out of the way, let's implement some operators:
 ```rust
-use std::convert::TryInto;
 use pyo3::exceptions::{PyZeroDivisionError, PyValueError};
 
 # use pyo3::prelude::*;
