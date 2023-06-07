@@ -129,7 +129,7 @@ jobs:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
 
   build-pr:
-    if: github.event_name == 'pull_request'
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt]
     uses: ./.github/workflows/build.yml
@@ -173,7 +173,7 @@ jobs:
             }
           ]
   build-full:
-    if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt]
     uses: ./.github/workflows/build.yml
