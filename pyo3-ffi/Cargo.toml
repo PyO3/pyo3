@@ -8,7 +8,7 @@ homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
-edition = "2018"
+edition = "2021"
 links = "python"
 
 [dependencies]

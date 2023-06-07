@@ -416,7 +416,7 @@ impl ContainerOptions {
                         }
                         ContainerPyO3Attribute::ItemAll(kw) => {
                             ensure_spanned!(
-                                matches!(options.from_item_all, None),
+                                options.from_item_all.is_none(),
                                 kw.span() => "`from_item_all` may only be provided once"
                             );
                             options.from_item_all = Some(kw);
@@ -608,7 +608,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
             use #krate as _pyo3;
 
             #[automatically_derived]
-            impl#trait_generics _pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
+            impl #trait_generics _pyo3::FromPyObject<#lt_param> for #ident #generics #where_clause {
                 fn extract(obj: &#lt_param _pyo3::PyAny) -> _pyo3::PyResult<Self>  {
                     #derives
                 }

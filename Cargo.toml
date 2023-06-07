@@ -11,7 +11,7 @@ documentation = "https://docs.rs/crate/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py", "/.github", "/tests/test_compile_error.rs", "/tests/ui"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.56"
 
 [dependencies]
@@ -187,7 +187,6 @@ members = [
     "pytests",
     "examples",
 ]
-resolver = "2"
 
 [package.metadata.docs.rs]
 no-default-features = true

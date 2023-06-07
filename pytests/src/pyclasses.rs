@@ -16,6 +16,7 @@ impl EmptyClass {
 
 /// This is for demonstrating how to return a value from __next__
 #[pyclass]
+#[derive(Default)]
 struct PyClassIter {
     count: usize,
 }
@@ -24,7 +25,7 @@ struct PyClassIter {
 impl PyClassIter {
     #[new]
     pub fn new() -> Self {
-        PyClassIter { count: 0 }
+        Default::default()
     }
 
     fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {

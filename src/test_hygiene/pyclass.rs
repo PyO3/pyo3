@@ -56,6 +56,6 @@ pub struct Foo4 {
     field: i32,
 
     #[pyo3(get, set)]
-    #[cfg(any(not(FALSE)))]
+    #[cfg(not(FALSE))]
     field: u32,
 }
