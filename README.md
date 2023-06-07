@@ -216,7 +216,9 @@ about this topic.
 
 ## Articles and other media
 
-- [Making Python 100x faster with less than 100 lines of Rust](https://ohadravid.github.io/posts/2023-03-rusty-python/) - March 28, 2023
+- [A Week of PyO3 + rust-numpy (How to Speed Up Your Data Pipeline X Times)](https://terencezl.github.io/blog/2023/06/06/a-week-of-pyo3-rust-numpy/) - Jun 6, 2023
+- [(Podcast) PyO3 with David Hewitt](https://rustacean-station.org/episode/david-hewitt/) - May 19, 2023
+- [Making Python 100x faster with less than 100 lines of Rust](https://ohadravid.github.io/posts/2023-03-rusty-python/) - Mar 28, 2023
 - [How Pydantic V2 leverages Rust's Superpowers](https://fosdem.org/2023/schedule/event/rust_how_pydantic_v2_leverages_rusts_superpowers/) - Feb 4, 2023
 - [How we extended the River stats module with Rust using PyO3](https://boring-guy.sh/posts/river-rust/) - Dec 23, 2022
 - [Nine Rules for Writing Python Extensions in Rust](https://towardsdatascience.com/nine-rules-for-writing-python-extensions-in-rust-d35ea3a4ec29?sk=f8d808d5f414154fdb811e4137011437) - Dec 31, 2021
