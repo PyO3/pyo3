@@ -305,6 +305,7 @@ def docs(session: nox.Session) -> None:
     if "nightly" in session.posargs and "internal" in session.posargs:
         rustdoc_flags.append("--Z unstable-options")
         rustdoc_flags.append("--document-hidden-items")
+        rustdoc_flags.extend(("--html-after-content", ".netlify/internal_banner.html"))
         cargo_flags.append("--document-private-items")
     else:
         cargo_flags.extend(["--exclude=pyo3-macros", "--exclude=pyo3-macros-backend"])
