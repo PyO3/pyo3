@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-      # for bors r+
-      - staging
-      # for bors try
-      - trying
   pull_request:
   merge_group:
     types: [checks_requested]
