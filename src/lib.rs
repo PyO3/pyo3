@@ -151,9 +151,7 @@
 //! crate-type = ["cdylib"]
 //!
 //! [dependencies.pyo3]
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
-#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
+#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! features = ["extension-module"]
 //! ```
 //!
@@ -214,9 +212,7 @@
 //! Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
 //! ```toml
 //! [dependencies.pyo3]
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
-#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
+#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! # this is necessary to automatically initialize the Python interpreter
 //! features = ["auto-initialize"]
 //! ```
@@ -439,7 +435,7 @@ pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
-#[cfg_attr(docsrs, cfg_attr(docsrs, doc = include_str!("../guide/pyclass_parameters.md")))]
+#[doc = include_str!("../guide/pyclass_parameters.md")]
 ///
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].

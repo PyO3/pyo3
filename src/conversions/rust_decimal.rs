@@ -9,13 +9,8 @@
 //!
 //! ```toml
 //! [dependencies]
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"rust_decimal\"] }")]
 //! rust_decimal = "1.0"
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"rust_decimal\"] }")))]
-#![cfg_attr(
-    not(docsrs),
-    doc = "pyo3 = { version = ..., features = [\"rust_decimal\"] }"
-)]
 //! ```
 //!
 //! Note that you must use a compatible version of rust_decimal and PyO3.
