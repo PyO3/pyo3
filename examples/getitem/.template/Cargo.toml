@@ -1,0 +1,12 @@
+[package]
+authors = ["{{authors}}"]
+name = "{{project-name}}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "getitem"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "{{PYO3_VERSION}}", features = ["extension-module"] }
