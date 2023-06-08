@@ -78,7 +78,7 @@ fn gil_is_acquired() -> bool {
 /// Python::with_gil(|py| py.run_bound("print('Hello World')", None, None))
 /// # }
 /// ```
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
@@ -125,7 +125,7 @@ pub fn prepare_freethreaded_python() {
 ///     });
 /// }
 /// ```
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where
     F: for<'p> FnOnce(Python<'p>) -> R,
@@ -182,14 +182,14 @@ impl GILGuard {
         //    auto-initialize so this avoids breaking existing builds.
         //  - Otherwise, just check the GIL is initialized.
         cfg_if::cfg_if! {
-            if #[cfg(all(feature = "auto-initialize", not(PyPy)))] {
+            if #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))] {
                 prepare_freethreaded_python();
             } else {
                 // This is a "hack" to make running `cargo test` for PyO3 convenient (i.e. no need
                 // to specify `--features auto-initialize` manually. Tests within the crate itself
                 // all depend on the auto-initialize feature for conciseness but Cargo does not
                 // provide a mechanism to specify required features for tests.
-                #[cfg(not(PyPy))]
+                #[cfg(not(any(PyPy, GraalPy)))]
                 if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
                     prepare_freethreaded_python();
                 }

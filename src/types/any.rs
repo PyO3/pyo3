@@ -6,7 +6,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{HasPyGilRef, PyTypeCheck, PyTypeInfo};
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{err, ffi, Py, PyNativeType, Python};
@@ -929,7 +929,7 @@ impl PyAny {
     /// Return a proxy object that delegates method calls to a parent or sibling class of type.
     ///
     /// This is equivalent to the Python expression `super()`
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     pub fn py_super(&self) -> PyResult<&PySuper> {
         self.as_borrowed().py_super().map(Bound::into_gil_ref)
     }
@@ -1708,7 +1708,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Return a proxy object that delegates method calls to a parent or sibling class of type.
     ///
     /// This is equivalent to the Python expression `super()`
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>>;
 }
 
@@ -1975,6 +1975,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         cfg_if::cfg_if! {
             if #[cfg(all(
                 not(PyPy),
+                not(GraalPy),
                 any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // PyObject_CallNoArgs was added to python in 3.9 but to limited API in 3.10
             ))] {
                 // Optimized path on python 3.9+
@@ -2010,7 +2011,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         N: IntoPy<Py<PyString>>,
     {
         cfg_if::cfg_if! {
-            if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy))))] {
+            if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy, GraalPy))))] {
                 let py = self.py();
 
                 // Optimized path on python 3.9+
@@ -2265,7 +2266,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         inner(self, value.to_object(py).into_bound(py))
     }
 
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
         PySuper::new_bound(&self.get_type(), self)
     }

@@ -293,7 +293,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Like [`get_item_unchecked`][PyTupleMethods::get_item_unchecked], but returns a borrowed object,
@@ -302,7 +302,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
     /// Returns `self` as a slice of objects.
@@ -339,9 +339,9 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     fn len(&self) -> usize {
         unsafe {
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
             let size = ffi::PyTuple_GET_SIZE(self.as_ptr());
-            #[cfg(any(Py_LIMITED_API, PyPy))]
+            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
             let size = ffi::PyTuple_Size(self.as_ptr());
             // non-negative Py_ssize_t should always fit into Rust uint
             size as usize
@@ -376,12 +376,12 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
         self.as_borrowed().get_borrowed_item(index)
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         self.get_borrowed_item_unchecked(index).to_owned()
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         self.as_borrowed().get_borrowed_item_unchecked(index)
     }

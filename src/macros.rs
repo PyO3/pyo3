@@ -201,7 +201,7 @@ macro_rules! wrap_pymodule {
 ///
 /// Use it before [`prepare_freethreaded_python`](crate::prepare_freethreaded_python) and
 /// leave feature `auto-initialize` off
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[macro_export]
 macro_rules! append_to_inittab {
     ($module:ident) => {

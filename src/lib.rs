@@ -321,7 +321,7 @@ pub use crate::err::{
 };
 #[allow(deprecated)]
 pub use crate::gil::GILPool;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::instance::{Borrowed, Bound, Py, PyNativeType, PyObject};
 pub use crate::marker::Python;

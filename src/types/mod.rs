@@ -5,7 +5,7 @@ pub use self::boolobject::{PyBool, PyBoolMethods};
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
 pub use self::bytes::{PyBytes, PyBytesMethods};
 pub use self::capsule::{PyCapsule, PyCapsuleMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
@@ -17,15 +17,15 @@ pub use self::datetime::{
     PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::ellipsis::PyEllipsis;
 pub use self::float::{PyFloat, PyFloatMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
@@ -36,7 +36,7 @@ pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::{PySequence, PySequenceMethods};
 pub use self::set::{PySet, PySetMethods};
@@ -328,7 +328,7 @@ pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
 pub(crate) mod capsule;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod code;
 pub(crate) mod complex;
 #[cfg(not(Py_LIMITED_API))]
@@ -336,7 +336,7 @@ pub(crate) mod datetime;
 pub(crate) mod dict;
 mod ellipsis;
 pub(crate) mod float;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
 pub(crate) mod frozenset;
 mod function;
@@ -348,7 +348,7 @@ pub(crate) mod module;
 mod none;
 mod notimplemented;
 mod num;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
 pub(crate) mod sequence;
 pub(crate) mod set;
