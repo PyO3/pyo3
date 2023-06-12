@@ -1,5 +1,5 @@
 [package]
-name = "examples"
+name = "pyo3-examples"
 version = "0.0.0"
 publish = false
 edition = "2018"
