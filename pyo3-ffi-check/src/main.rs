@@ -40,9 +40,9 @@ fn main() {
                     pyo3_ffi_align,
                     bindgen_align
                 );
-            } else {
-                pyo3_ffi_check_macro::for_all_fields!($name, check_field);
             }
+
+            pyo3_ffi_check_macro::for_all_fields!($name, check_field);
         }};
     }
 

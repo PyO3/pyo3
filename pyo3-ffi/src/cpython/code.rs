@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[allow(unused_imports)]
-use std::os::raw::{c_char, c_int, c_uchar, c_void};
+use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 
@@ -12,6 +12,16 @@ use std::ptr::addr_of_mut;
 
 #[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _PyCoCached {
+    pub _co_code: *mut PyObject,
+    pub _co_varnames: *mut PyObject,
+    pub _co_cellvars: *mut PyObject,
+    pub _co_freevars: *mut PyObject,
+}
 
 #[cfg(all(not(PyPy), not(Py_3_7)))]
 opaque_struct!(PyCodeObject);
@@ -85,17 +95,24 @@ pub struct PyCodeObject {
     pub co_names: *mut PyObject,
     pub co_exceptiontable: *mut PyObject,
     pub co_flags: c_int,
+    #[cfg(not(Py_3_12))]
     pub co_warmup: c_int,
+    #[cfg(Py_3_12)]
+    pub _co_linearray_entry_size: c_short,
     pub co_argcount: c_int,
     pub co_posonlyargcount: c_int,
     pub co_kwonlyargcount: c_int,
     pub co_stacksize: c_int,
     pub co_firstlineno: c_int,
+
     pub co_nlocalsplus: c_int,
+    #[cfg(Py_3_12)]
+    pub co_framesize: c_int,
     pub co_nlocals: c_int,
     pub co_nplaincellvars: c_int,
     pub co_ncellvars: c_int,
     pub co_nfreevars: c_int,
+
     pub co_localsplusnames: *mut PyObject,
     pub co_localspluskinds: *mut PyObject,
     pub co_filename: *mut PyObject,
@@ -103,9 +120,15 @@ pub struct PyCodeObject {
     pub co_qualname: *mut PyObject,
     pub co_linetable: *mut PyObject,
     pub co_weakreflist: *mut PyObject,
+    #[cfg(not(Py_3_12))]
     pub _co_code: *mut PyObject,
+    #[cfg(Py_3_12)]
+    pub _co_cached: *mut _PyCoCached,
+    #[cfg(not(Py_3_12))]
     pub _co_linearray: *mut c_char,
     pub _co_firsttraceable: c_int,
+    #[cfg(Py_3_12)]
+    pub _co_linearray: *mut c_char,
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],
 }

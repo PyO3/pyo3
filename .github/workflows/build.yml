@@ -25,6 +25,7 @@ on:
 
 jobs:
   build:
+    continue-on-error: ${{ inputs.python-version == '3.12-dev' }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v3

@@ -276,6 +276,8 @@ pub struct PyTypeObject {
     pub tp_finalize: Option<object::destructor>,
     #[cfg(Py_3_8)]
     pub tp_vectorcall: Option<super::vectorcallfunc>,
+    #[cfg(Py_3_12)]
+    pub tp_watched: c_char,
     #[cfg(any(all(PyPy, Py_3_8, not(Py_3_10)), all(not(PyPy), Py_3_8, not(Py_3_9))))]
     pub tp_print: Option<printfunc>,
     #[cfg(all(PyPy, not(Py_3_10)))]
