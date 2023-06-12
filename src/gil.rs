@@ -487,7 +487,7 @@ mod tests {
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::{const_mutex, Condvar, Mutex};
-    use std::{ptr::NonNull, sync::atomic::Ordering};
+    use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
         // Convenience function for getting a single unique object, using `new_pool` so as to leave
@@ -503,8 +503,20 @@ mod tests {
         OWNED_OBJECTS.with(|holder| holder.borrow().len())
     }
 
-    fn pool_not_dirty() -> bool {
-        !POOL.dirty.load(Ordering::SeqCst)
+    fn pool_inc_refs_does_not_contain(obj: &PyObject) -> bool {
+        !POOL
+            .pointer_ops
+            .lock()
+            .0
+            .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
+    }
+
+    fn pool_dec_refs_does_not_contain(obj: &PyObject) -> bool {
+        !POOL
+            .pointer_ops
+            .lock()
+            .1
+            .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -582,13 +594,13 @@ mod tests {
             let reference = obj.clone_ref(py);
 
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_not_dirty());
+            assert!(pool_inc_refs_does_not_contain(&obj));
 
             // With the GIL held, reference cound will be decreased immediately.
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
-            assert!(pool_not_dirty());
+            assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
 
@@ -601,7 +613,7 @@ mod tests {
             let reference = obj.clone_ref(py);
 
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_not_dirty());
+            assert!(pool_inc_refs_does_not_contain(&obj));
 
             // Drop reference in a separate thread which doesn't have the GIL.
             std::thread::spawn(move || drop(reference)).join().unwrap();
