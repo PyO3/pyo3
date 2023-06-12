@@ -11,12 +11,7 @@
 //! [dependencies]
 //! # change * to the latest versions
 //! hashbrown = "*"
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"hashbrown\"] }")))]
-#![cfg_attr(
-    not(docsrs),
-    doc = "pyo3 = { version = \"*\", features = [\"hashbrown\"] }"
-)]
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"hashbrown\"] }")]
 //! ```
 //!
 //! Note that you must use compatible versions of hashbrown and PyO3.

@@ -1,0 +1,47 @@
+<div id='pyo3-internal-banner'>
+    <div style="white-space: nowrap;">
+        ⚠️ Internal Docs ⚠️ Not Public API 👉
+        <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>
+            Official Docs Here
+        </a>
+    </div>
+    <style id="pyo3-noscript-style">
+        body {
+            padding-top: 2em;
+        }
+    </style>
+    <style>
+        #pyo3-internal-banner {
+            position: fixed;
+            display: flex;
+            align-items: center;
+            justify-content:
+                center;
+            z-index: 99999;
+            color: red;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 2em;
+            border: 3px solid red;
+            width: 100%;
+            overflow-x: hidden;
+            background-color: var(--target-background-color);
+        }
+
+        @media (max-width: 700px) {
+            #pyo3-internal-banner {
+                top: 50px;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</div>
+<script>
+    // when javascript is active, splice the banner into a "sticky" location
+    // inside the doc body for best appearance
+    banner = document.getElementById("pyo3-internal-banner")
+    banner.style.position = "sticky"
+    document.getElementsByTagName("main")[0].prepend(banner)
+    document.getElementById("pyo3-noscript-style").remove()
+</script>
