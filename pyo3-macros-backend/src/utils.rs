@@ -80,18 +80,18 @@ pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> 
     let mut current_part = text_signature.unwrap_or_default();
 
     for attr in attrs.iter() {
-        if attr.path.is_ident("doc") {
-            if let Ok(DocArgs {
-                _eq_token,
-                token_stream,
-            }) = syn::parse2(attr.tokens.clone())
-            {
+        if attr.path().is_ident("doc") {
+            if let Ok(nv) = attr.meta.require_name_value() {
                 if !first {
                     current_part.push('\n');
                 } else {
                     first = false;
                 }
-                if let Ok(syn::Lit::Str(lit_str)) = syn::parse2(token_stream.clone()) {
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(lit_str),
+                    ..
+                }) = &nv.value
+                {
                     // Strip single left space from literal strings, if needed.
                     // e.g. `/// Hello world` expands to #[doc = " Hello world"]
                     let doc_line = lit_str.value();
@@ -101,7 +101,7 @@ pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> 
                     // Reset the string buffer, write that part, and then push this macro part too.
                     parts.push(current_part.to_token_stream());
                     current_part.clear();
-                    parts.push(token_stream);
+                    parts.push(nv.value.to_token_stream());
                 }
             }
         }
@@ -116,7 +116,7 @@ pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> 
         let mut tokens = TokenStream::new();
 
         syn::Ident::new("concat", Span::call_site()).to_tokens(&mut tokens);
-        syn::token::Bang(Span::call_site()).to_tokens(&mut tokens);
+        syn::token::Not(Span::call_site()).to_tokens(&mut tokens);
         syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
             parts.to_tokens(tokens);
             syn::token::Comma(Span::call_site()).to_tokens(tokens);
@@ -134,22 +134,6 @@ pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> 
 impl quote::ToTokens for PythonDoc {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens)
-    }
-}
-
-struct DocArgs {
-    _eq_token: syn::Token![=],
-    token_stream: TokenStream,
-}
-
-impl syn::parse::Parse for DocArgs {
-    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
-        let this = Self {
-            _eq_token: input.parse()?,
-            token_stream: input.parse()?,
-        };
-        ensure_spanned!(input.is_empty(), input.span() => "expected end of doc attribute");
-        Ok(this)
     }
 }
 

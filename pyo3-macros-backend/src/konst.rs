@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    attributes::{self, get_pyo3_options, is_attribute_ident, take_attributes, NameAttribute},
+    attributes::{self, get_pyo3_options, take_attributes, NameAttribute},
     deprecations::Deprecations,
 };
 use proc_macro2::{Ident, TokenStream};
@@ -64,9 +64,9 @@ impl ConstAttributes {
         };
 
         take_attributes(attrs, |attr| {
-            if is_attribute_ident(attr, "classattr") {
+            if attr.path().is_ident("classattr") {
                 ensure_spanned!(
-                    attr.tokens.is_empty(),
+                    matches!(attr.meta, syn::Meta::Path(..)),
                     attr.span() => "`#[classattr]` does not take any arguments"
                 );
                 attributes.is_class_attr = true;

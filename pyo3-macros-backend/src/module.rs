@@ -1,9 +1,7 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 use crate::{
-    attributes::{
-        self, is_attribute_ident, take_attributes, take_pyo3_options, CrateAttribute, NameAttribute,
-    },
+    attributes::{self, take_attributes, take_pyo3_options, CrateAttribute, NameAttribute},
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
     utils::{get_pyo3_crate, PythonDoc},
 };
@@ -165,7 +163,7 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
     let mut pyfn_args: Option<PyFnArgs> = None;
 
     take_attributes(attrs, |attr| {
-        if is_attribute_ident(attr, "pyfn") {
+        if attr.path().is_ident("pyfn") {
             ensure_spanned!(
                 pyfn_args.is_none(),
                 attr.span() => "`#[pyfn] may only be specified once"

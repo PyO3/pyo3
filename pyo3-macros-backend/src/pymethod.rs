@@ -541,7 +541,11 @@ pub fn impl_py_setter_def(
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
-        for attr in field.attrs.iter().filter(|attr| attr.path.is_ident("cfg")) {
+        for attr in field
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("cfg"))
+        {
             attr.to_tokens(&mut cfg_attrs);
         }
     }
@@ -667,7 +671,11 @@ pub fn impl_py_getter_def(
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
-        for attr in field.attrs.iter().filter(|attr| attr.path.is_ident("cfg")) {
+        for attr in field
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("cfg"))
+        {
             attr.to_tokens(&mut cfg_attrs);
         }
     }

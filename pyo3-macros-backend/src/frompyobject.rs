@@ -544,7 +544,7 @@ impl FieldPyO3Attributes {
     }
 }
 
-fn verify_and_get_lifetime(generics: &syn::Generics) -> Result<Option<&syn::LifetimeDef>> {
+fn verify_and_get_lifetime(generics: &syn::Generics) -> Result<Option<&syn::LifetimeParam>> {
     let mut lifetimes = generics.lifetimes();
     let lifetime = lifetimes.next();
     ensure_spanned!(
