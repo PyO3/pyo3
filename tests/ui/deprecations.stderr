@@ -1,30 +1,11 @@
-error: use of deprecated constant `pyo3::impl_::deprecations::PYFUNCTION_ARGUMENTS`: passing arbitrary arguments to `#[pyfunction()]` to specify the signature is being replaced by `#[pyo3(signature)]`
- --> tests/ui/deprecations.rs:5:14
+error: use of deprecated constant `pyo3::impl_::deprecations::PYCLASS_TEXT_SIGNATURE`: put `text_signature` on `#[new]` instead of `#[pyclass]`
+ --> tests/ui/deprecations.rs:6:8
   |
-5 | #[pyfunction(_opt = "None", x = "5")]
-  |              ^^^^
+6 | #[pyo3(text_signature = "()")]
+  |        ^^^^^^^^^^^^^^
   |
 note: the lint level is defined here
  --> tests/ui/deprecations.rs:1:9
   |
 1 | #![deny(deprecated)]
   |         ^^^^^^^^^^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::REQUIRED_ARGUMENT_AFTER_OPTION`: required arguments after an `Option<_>` argument are ambiguous and being phased out
-       = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters
- --> tests/ui/deprecations.rs:9:59
-  |
-9 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
-  |                                                           ^^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::PYMETHODS_ARGS_ATTRIBUTE`: the `#[args]` attribute for `#[methods]` is being replaced by `#[pyo3(signature)]`
-  --> tests/ui/deprecations.rs:16:7
-   |
-16 |     #[args(_opt = "None", x = "5")]
-   |       ^^^^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::PYMETHODS_ARGS_ATTRIBUTE`: the `#[args]` attribute for `#[methods]` is being replaced by `#[pyo3(signature)]`
-  --> tests/ui/deprecations.rs:19:7
-   |
-19 |     #[args(_has_default = 1)]
-   |       ^^^^

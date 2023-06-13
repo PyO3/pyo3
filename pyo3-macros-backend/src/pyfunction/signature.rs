@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{
@@ -12,12 +10,8 @@ use syn::{
 
 use crate::{
     attributes::{kw, KeywordAttribute},
-    deprecations::{Deprecation, Deprecations},
     method::FnArg,
-    pyfunction::Argument,
 };
-
-use super::DeprecatedArgs;
 
 pub struct Signature {
     paren_token: syn::token::Paren,
@@ -430,121 +424,8 @@ impl<'a> FunctionSignature<'a> {
         })
     }
 
-    /// The difference to `from_arguments_and_signature` is that deprecated args allowed entries to be:
-    ///  - missing
-    ///  - out of order
-    pub fn from_arguments_and_deprecated_args(
-        mut arguments: Vec<FnArg<'a>>,
-        deprecated_args: DeprecatedArgs,
-    ) -> syn::Result<Self> {
-        let mut varargs = None;
-        let mut kwargs = None;
-        let mut keyword_only_parameters = Vec::new();
-
-        fn first_n_argument_names(arguments: &[FnArg<'_>], count: usize) -> Vec<String> {
-            arguments
-                .iter()
-                .filter_map(|fn_arg| {
-                    if fn_arg.py {
-                        None
-                    } else {
-                        Some(fn_arg.name.unraw().to_string())
-                    }
-                })
-                .take(count)
-                .collect()
-        }
-
-        // Record highest counts observed based off argument positions
-        let mut positional_only_arguments_count = None;
-        let mut positional_arguments_count = None;
-        let mut required_positional_parameters = 0;
-
-        let args_iter = arguments.iter_mut().filter(|arg| !arg.py); // Python<'_> arguments don't show on the Python side.
-
-        for (i, fn_arg) in args_iter.enumerate() {
-            if let Some(argument) = deprecated_args
-                .arguments
-                .iter()
-                .find(|argument| match argument {
-                    Argument::PosOnlyArg(path, _)
-                    | Argument::Arg(path, _)
-                    | Argument::Kwarg(path, _)
-                    | Argument::VarArgs(path)
-                    | Argument::KeywordArgs(path) => path.get_ident() == Some(fn_arg.name),
-                    _ => false,
-                })
-            {
-                match argument {
-                    Argument::PosOnlyArg(_, default) | Argument::Arg(_, default) => {
-                        if let Some(default) = default {
-                            fn_arg.default = Some(syn::parse_str(default)?);
-                        } else if fn_arg.optional.is_none() {
-                            // Option<_> arguments always have an implicit None default with the old
-                            // `#[args]`
-                            required_positional_parameters = i + 1;
-                        }
-                        if matches!(argument, Argument::PosOnlyArg(_, _)) {
-                            positional_only_arguments_count = Some(i + 1);
-                        }
-                        positional_arguments_count = Some(i + 1);
-                    }
-                    Argument::Kwarg(_, default) => {
-                        fn_arg.default = default.as_deref().map(syn::parse_str).transpose()?;
-                        keyword_only_parameters.push((fn_arg.name.to_string(), default.is_none()));
-                    }
-                    Argument::PosOnlyArgsSeparator => {}
-                    Argument::VarArgsSeparator => {}
-                    Argument::VarArgs(path) => {
-                        fn_arg.is_varargs = true;
-                        if let Some(ident) = path.get_ident() {
-                            varargs = Some(ident.to_string());
-                        } else {
-                            bail_spanned!(path.span() => "expected ident for *args");
-                        };
-                    }
-                    Argument::KeywordArgs(path) => {
-                        fn_arg.is_kwargs = true;
-                        if let Some(ident) = path.get_ident() {
-                            kwargs = Some(ident.to_string());
-                        } else {
-                            bail_spanned!(path.span() => "expected ident for **kwargs");
-                        };
-                    }
-                }
-            } else {
-                // Assume this is a required positional parameter
-                required_positional_parameters = i + 1;
-                positional_arguments_count = Some(i + 1);
-            }
-        }
-
-        // fix up state based on observations above
-        let positional_only_parameters = positional_only_arguments_count.unwrap_or(0);
-        let positional_parameters = first_n_argument_names(
-            &arguments,
-            max(
-                positional_arguments_count.unwrap_or(0),
-                positional_only_arguments_count.unwrap_or(0),
-            ),
-        );
-
-        Ok(FunctionSignature {
-            arguments,
-            python_signature: PythonSignature {
-                positional_parameters,
-                positional_only_parameters,
-                required_positional_parameters,
-                varargs,
-                keyword_only_parameters,
-                kwargs,
-            },
-            attribute: None,
-        })
-    }
-
     /// Without `#[pyo3(signature)]` or `#[args]` - just take the Rust function arguments as positional.
-    pub fn from_arguments(mut arguments: Vec<FnArg<'a>>, deprecations: &mut Deprecations) -> Self {
+    pub fn from_arguments(arguments: Vec<FnArg<'a>>) -> syn::Result<Self> {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
@@ -553,13 +434,12 @@ impl<'a> FunctionSignature<'a> {
             }
 
             if arg.optional.is_none() {
-                // This argument is required
-                if python_signature.required_positional_parameters
-                    != python_signature.positional_parameters.len()
-                {
-                    // A previous argument was not required
-                    deprecations.push(Deprecation::RequiredArgumentAfterOption, arg.name.span());
-                }
+                // This argument is required, all previous arguments must also have been required
+                ensure_spanned!(
+                    python_signature.required_positional_parameters == python_signature.positional_parameters.len(),
+                    arg.ty.span() => "required arguments after an `Option<_>` argument are ambiguous\n\
+                    = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters"
+                );
 
                 python_signature.required_positional_parameters =
                     python_signature.positional_parameters.len() + 1;
@@ -570,20 +450,11 @@ impl<'a> FunctionSignature<'a> {
                 .push(arg.name.unraw().to_string());
         }
 
-        // Fixup any `Option<_>` arguments that were made implicitly made required by the deprecated
-        // branch above
-        for arg in arguments
-            .iter_mut()
-            .take(python_signature.required_positional_parameters)
-        {
-            arg.optional = None;
-        }
-
-        Self {
+        Ok(Self {
             arguments,
             python_signature,
             attribute: None,
-        }
+        })
     }
 
     fn default_value_for_parameter(&self, parameter: &str) -> String {

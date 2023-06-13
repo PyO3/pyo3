@@ -5,7 +5,6 @@ use pyo3::wrap_pymodule;
 pub mod buf_and_str;
 pub mod comparisons;
 pub mod datetime;
-pub mod deprecated_pyfunctions;
 pub mod dict_iter;
 pub mod misc;
 pub mod objstore;
@@ -23,9 +22,6 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(comparisons::comparisons))?;
     #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
-    m.add_wrapped(wrap_pymodule!(
-        deprecated_pyfunctions::deprecated_pyfunctions
-    ))?;
     m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
     m.add_wrapped(wrap_pymodule!(misc::misc))?;
     m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
@@ -44,10 +40,6 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
     sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
     sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
-    sys_modules.set_item(
-        "pyo3_pytests.deprecated_pyfunctions",
-        m.getattr("deprecated_pyfunctions")?,
-    )?;
     sys_modules.set_item("pyo3_pytests.dict_iter", m.getattr("dict_iter")?)?;
     sys_modules.set_item("pyo3_pytests.misc", m.getattr("misc")?)?;
     sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;

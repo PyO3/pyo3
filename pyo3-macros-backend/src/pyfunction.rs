@@ -3,19 +3,17 @@ use crate::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
         FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
-    deprecations::{Deprecation, Deprecations},
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
     utils::{ensure_not_async_fn, get_pyo3_crate},
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{ext::IdentExt, spanned::Spanned, NestedMeta, Result};
+use syn::{ext::IdentExt, spanned::Spanned, Result};
 use syn::{
-    parse::{Parse, ParseBuffer, ParseStream},
+    parse::{Parse, ParseStream},
     token::Comma,
 };
-use syn::{punctuated::Punctuated, Path};
 
 mod signature;
 
@@ -67,181 +65,12 @@ impl PyFunctionArgPyO3Attributes {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Argument {
-    PosOnlyArgsSeparator,
-    VarArgsSeparator,
-    VarArgs(syn::Path),
-    KeywordArgs(syn::Path),
-    PosOnlyArg(syn::Path, Option<String>),
-    Arg(syn::Path, Option<String>),
-    Kwarg(syn::Path, Option<String>),
-}
-
-#[derive(Debug, Default)]
-pub struct DeprecatedArgs {
-    pub arguments: Vec<Argument>,
-    has_kw: bool,
-    has_posonly_args: bool,
-    has_varargs: bool,
-    has_kwargs: bool,
-}
-
-// Deprecated parsing mode for the signature
-impl syn::parse::Parse for DeprecatedArgs {
-    fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
-        let attr = Punctuated::<NestedMeta, syn::Token![,]>::parse_terminated(input)?;
-        Self::from_meta(&attr)
-    }
-}
-
-impl DeprecatedArgs {
-    pub fn from_meta<'a>(iter: impl IntoIterator<Item = &'a NestedMeta>) -> syn::Result<Self> {
-        let mut slf = DeprecatedArgs::default();
-
-        for item in iter {
-            slf.add_item(item)?
-        }
-        Ok(slf)
-    }
-
-    pub fn add_item(&mut self, item: &NestedMeta) -> syn::Result<()> {
-        match item {
-            NestedMeta::Meta(syn::Meta::Path(ident)) => self.add_work(item, ident)?,
-            NestedMeta::Meta(syn::Meta::NameValue(nv)) => {
-                self.add_name_value(item, nv)?;
-            }
-            NestedMeta::Lit(lit) => {
-                self.add_literal(item, lit)?;
-            }
-            NestedMeta::Meta(syn::Meta::List(list)) => bail_spanned!(
-                list.span() => "list is not supported as argument"
-            ),
-        }
-        Ok(())
-    }
-
-    fn add_literal(&mut self, item: &NestedMeta, lit: &syn::Lit) -> syn::Result<()> {
-        match lit {
-            syn::Lit::Str(lits) if lits.value() == "*" => {
-                // "*"
-                self.vararg_is_ok(item)?;
-                self.has_varargs = true;
-                self.arguments.push(Argument::VarArgsSeparator);
-                Ok(())
-            }
-            syn::Lit::Str(lits) if lits.value() == "/" => {
-                // "/"
-                self.posonly_arg_is_ok(item)?;
-                self.has_posonly_args = true;
-                // any arguments _before_ this become positional-only
-                self.arguments.iter_mut().for_each(|a| {
-                    if let Argument::Arg(path, name) = a {
-                        *a = Argument::PosOnlyArg(path.clone(), name.clone());
-                    } else {
-                        unreachable!();
-                    }
-                });
-                self.arguments.push(Argument::PosOnlyArgsSeparator);
-                Ok(())
-            }
-            _ => bail_spanned!(item.span() => "expected \"/\" or \"*\""),
-        }
-    }
-
-    fn add_work(&mut self, item: &NestedMeta, path: &Path) -> syn::Result<()> {
-        ensure_spanned!(
-            !(self.has_kw || self.has_kwargs),
-            item.span() => "positional argument or varargs(*) not allowed after keyword arguments"
-        );
-        if self.has_varargs {
-            self.arguments.push(Argument::Kwarg(path.clone(), None));
-        } else {
-            self.arguments.push(Argument::Arg(path.clone(), None));
-        }
-        Ok(())
-    }
-
-    fn posonly_arg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
-        ensure_spanned!(
-            !(self.has_posonly_args || self.has_kwargs || self.has_varargs),
-            item.span() => "/ is not allowed after /, varargs(*), or kwargs(**)"
-        );
-        Ok(())
-    }
-
-    fn vararg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
-        ensure_spanned!(
-            !(self.has_kwargs || self.has_varargs),
-            item.span() => "* is not allowed after varargs(*) or kwargs(**)"
-        );
-        Ok(())
-    }
-
-    fn kw_arg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
-        ensure_spanned!(
-            !self.has_kwargs,
-            item.span() => "keyword argument or kwargs(**) is not allowed after kwargs(**)"
-        );
-        Ok(())
-    }
-
-    fn add_nv_common(
-        &mut self,
-        item: &NestedMeta,
-        name: &syn::Path,
-        value: String,
-    ) -> syn::Result<()> {
-        self.kw_arg_is_ok(item)?;
-        if self.has_varargs {
-            // kw only
-            self.arguments
-                .push(Argument::Kwarg(name.clone(), Some(value)));
-        } else {
-            self.has_kw = true;
-            self.arguments
-                .push(Argument::Arg(name.clone(), Some(value)));
-        }
-        Ok(())
-    }
-
-    fn add_name_value(&mut self, item: &NestedMeta, nv: &syn::MetaNameValue) -> syn::Result<()> {
-        match &nv.lit {
-            syn::Lit::Str(litstr) => {
-                if litstr.value() == "*" {
-                    // args="*"
-                    self.vararg_is_ok(item)?;
-                    self.has_varargs = true;
-                    self.arguments.push(Argument::VarArgs(nv.path.clone()));
-                } else if litstr.value() == "**" {
-                    // kwargs="**"
-                    self.kw_arg_is_ok(item)?;
-                    self.has_kwargs = true;
-                    self.arguments.push(Argument::KeywordArgs(nv.path.clone()));
-                } else {
-                    self.add_nv_common(item, &nv.path, litstr.value())?;
-                }
-            }
-            syn::Lit::Int(litint) => {
-                self.add_nv_common(item, &nv.path, format!("{}", litint))?;
-            }
-            syn::Lit::Bool(litb) => {
-                self.add_nv_common(item, &nv.path, format!("{}", litb.value))?;
-            }
-            _ => bail_spanned!(nv.lit.span() => "expected a string literal"),
-        };
-        Ok(())
-    }
-}
-
 #[derive(Default)]
 pub struct PyFunctionOptions {
     pub pass_module: Option<attributes::kw::pass_module>,
     pub name: Option<NameAttribute>,
-    pub deprecated_args: Option<DeprecatedArgs>,
     pub signature: Option<SignatureAttribute>,
     pub text_signature: Option<TextSignatureAttribute>,
-    pub deprecations: Deprecations,
     pub krate: Option<CrateAttribute>,
 }
 
@@ -264,12 +93,7 @@ impl Parse for PyFunctionOptions {
                 // TODO needs duplicate check?
                 options.krate = Some(input.parse()?);
             } else {
-                // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
-                options
-                    .deprecations
-                    .push(Deprecation::PyFunctionArguments, input.span());
-                options.deprecated_args = Some(input.parse()?);
-                break;
+                return Err(lookahead.error());
             }
         }
 
@@ -359,10 +183,8 @@ pub fn impl_wrap_pyfunction(
     let PyFunctionOptions {
         pass_module,
         name,
-        deprecated_args,
         signature,
         text_signature,
-        mut deprecations,
         krate,
     } = options;
 
@@ -392,15 +214,9 @@ pub fn impl_wrap_pyfunction(
     };
 
     let signature = if let Some(signature) = signature {
-        ensure_spanned!(
-            deprecated_args.is_none(),
-            signature.kw.span() => "cannot define both function signature and legacy arguments"
-        );
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
-    } else if let Some(deprecated_args) = deprecated_args {
-        FunctionSignature::from_arguments_and_deprecated_args(arguments, deprecated_args)?
     } else {
-        FunctionSignature::from_arguments(arguments, &mut deprecations)
+        FunctionSignature::from_arguments(arguments)?
     };
 
     let ty = method::get_return_info(&func.sig.output);
@@ -412,7 +228,6 @@ pub fn impl_wrap_pyfunction(
         python_name,
         signature,
         output: ty,
-        deprecations,
         text_signature,
         unsafety: func.sig.unsafety,
     };

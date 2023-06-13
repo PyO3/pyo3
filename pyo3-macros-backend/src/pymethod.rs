@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::method::{CallingConvention, ExtractErrorMode};
+use crate::utils;
 use crate::utils::{ensure_not_async_fn, PythonDoc};
-use crate::{deprecations::Deprecations, utils};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -441,13 +441,11 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
     };
 
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
-    let deprecations = &spec.deprecations;
     let python_name = spec.null_terminated_python_name();
 
     let associated_method = quote! {
         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
-            #deprecations
             _pyo3::impl_::pymethods::OkWrap::wrap(#fncall, py)
                 .map_err(::core::convert::Into::into)
         }
@@ -496,7 +494,6 @@ pub fn impl_py_setter_def(
     property_type: PropertyType<'_>,
 ) -> Result<MethodAndMethodDef> {
     let python_name = property_type.null_terminated_python_name()?;
-    let deprecations = property_type.deprecations();
     let doc = property_type.doc();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -570,14 +567,13 @@ pub fn impl_py_setter_def(
 
     let method_def = quote! {
         #cfg_attrs
-        _pyo3::class::PyMethodDefType::Setter({
-            #deprecations
+        _pyo3::class::PyMethodDefType::Setter(
             _pyo3::class::PySetterDef::new(
                 #python_name,
                 _pyo3::impl_::pymethods::PySetter(#cls::#wrapper_ident),
                 #doc
             )
-        })
+        )
     };
 
     Ok(MethodAndMethodDef {
@@ -609,7 +605,6 @@ pub fn impl_py_getter_def(
     property_type: PropertyType<'_>,
 ) -> Result<MethodAndMethodDef> {
     let python_name = property_type.null_terminated_python_name()?;
-    let deprecations = property_type.deprecations();
     let doc = property_type.doc();
     let getter_impl = match property_type {
         PropertyType::Descriptor {
@@ -691,14 +686,13 @@ pub fn impl_py_getter_def(
 
     let method_def = quote! {
         #cfg_attrs
-        _pyo3::class::PyMethodDefType::Getter({
-            #deprecations
+        _pyo3::class::PyMethodDefType::Getter(
             _pyo3::class::PyGetterDef::new(
                 #python_name,
                 _pyo3::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
                 #doc
             )
-        })
+        )
     };
 
     Ok(MethodAndMethodDef {
@@ -744,13 +738,6 @@ impl PropertyType<'_> {
                 Ok(syn::LitStr::new(&name, field.span()))
             }
             PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name()),
-        }
-    }
-
-    fn deprecations(&self) -> Option<&Deprecations> {
-        match self {
-            PropertyType::Descriptor { .. } => None,
-            PropertyType::Function { spec, .. } => Some(&spec.deprecations),
         }
     }
 

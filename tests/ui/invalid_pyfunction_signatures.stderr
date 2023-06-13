@@ -16,11 +16,11 @@ error: expected argument from function definition `y` but got argument `x`
 13 | #[pyo3(signature = (x))]
    |                     ^
 
-error: cannot define both function signature and legacy arguments
-  --> tests/ui/invalid_pyfunction_signatures.rs:19:8
+error: expected one of: `name`, `pass_module`, `signature`, `text_signature`, `crate`
+  --> tests/ui/invalid_pyfunction_signatures.rs:18:14
    |
-19 | #[pyo3(signature = (x))]
-   |        ^^^^^^^^^
+18 | #[pyfunction(x)]
+   |              ^
 
 error: `*args` not allowed after `*`
   --> tests/ui/invalid_pyfunction_signatures.rs:25:24
@@ -52,8 +52,8 @@ error: arguments of type `Python` must not be part of the signature
 47 | #[pyfunction(signature = (py))]
    |                           ^^
 
-error: cannot define both function signature and legacy arguments
-  --> tests/ui/invalid_pyfunction_signatures.rs:58:12
+error: cannot find attribute `args` in this scope
+  --> tests/ui/invalid_pyfunction_signatures.rs:57:7
    |
-58 |     #[pyo3(signature = (x))]
-   |            ^^^^^^^^^
+57 |     #[args(x)]
+   |       ^^^^
