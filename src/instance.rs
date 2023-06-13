@@ -1106,15 +1106,6 @@ impl PyObject {
     {
         <T as PyTryFrom<'_>>::try_from_unchecked(self.as_ref(py))
     }
-
-    /// Casts the PyObject to a concrete Python object type.
-    #[deprecated(since = "0.18.0", note = "use downcast() instead")]
-    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError<'_>>
-    where
-        D: PyTryFrom<'p>,
-    {
-        self.downcast(py)
-    }
 }
 
 #[cfg(test)]

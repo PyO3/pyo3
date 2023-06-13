@@ -9,6 +9,59 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 PyO3 0.20 has increased minimum Rust version to 1.56. This enables use of newer language features and simplifies maintenance of the project.
 
+### Required arguments are no longer accepted after optional arguments
+
+[Trailing `Option<T>` arguments](./function/signature.md#trailing-optional-arguments) have an automatic default of `None`. To avoid unwanted changes when modifying function signatures, in PyO3 0.18 it was deprecated to have a required argument after an `Option<T>` argument without using `#[pyo3(signature = (...))]` to specify the intended defaults. In PyO3 0.20, this becomes a hard error.
+
+Before:
+
+```rust,ignore
+#[pyfunction]
+fn x_or_y(x: Option<u64>, y: u64) -> u64 {
+    x.unwrap_or(y)
+}
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyfunction]
+#[pyo3(signature = (x, y))]  // both x and y have no defaults and are required
+fn x_or_y(x: Option<u64>, y: u64) -> u64 {
+    x.unwrap_or(y)
+}
+```
+
+### Remove deprecated function forms
+
+In PyO3 0.18 the `#[args]` attribute for `#[pymethods]`, and directly specifying the function signature in `#[pyfunction]`, was deprecated. This functionality has been removed in PyO3 0.20.
+
+Before:
+
+```rust,ignore
+#[pyfunction]
+#[pyo3(a, b = "0", "/")]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyfunction]
+#[pyo3(signature = (a, b=0, /))]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+```
+
 ## from 0.18.* to 0.19
 
 ### Access to `Python` inside `__traverse__` implementations are now forbidden

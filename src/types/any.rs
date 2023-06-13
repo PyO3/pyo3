@@ -799,15 +799,6 @@ impl PyAny {
         unsafe { ffi::Py_TYPE(self.as_ptr()) }
     }
 
-    /// Converts this `PyAny` to a concrete Python type.
-    #[deprecated(since = "0.18.0", note = "use the equivalent .downcast()")]
-    pub fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'_>>
-    where
-        D: PyTryFrom<'a>,
-    {
-        self.downcast()
-    }
-
     /// Downcast this `PyAny` to a concrete Python type or pyclass.
     ///
     /// Note that you can often avoid downcasting yourself by just specifying
