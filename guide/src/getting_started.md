@@ -123,7 +123,7 @@ You should also create a `pyproject.toml` with the following contents:
 
 ```toml
 [build-system]
-requires = ["maturin>=0.14,<0.15"]
+requires = ["maturin>=1,<2"]
 build-backend = "maturin"
 
 [project]
