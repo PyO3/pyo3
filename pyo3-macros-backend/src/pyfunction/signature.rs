@@ -23,7 +23,7 @@ impl Parse for Signature {
         let content;
         let paren_token = syn::parenthesized!(content in input);
 
-        let items = content.parse_terminated(SignatureItem::parse)?;
+        let items = content.parse_terminated(SignatureItem::parse, Token![,])?;
 
         Ok(Signature { paren_token, items })
     }

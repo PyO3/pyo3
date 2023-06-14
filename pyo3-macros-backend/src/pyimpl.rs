@@ -99,7 +99,7 @@ pub fn impl_methods(
 
     for iimpl in impls.iter_mut() {
         match iimpl {
-            syn::ImplItem::Method(meth) => {
+            syn::ImplItem::Fn(meth) => {
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
                 match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)? {
@@ -299,6 +299,6 @@ fn submit_methods_inventory(
 fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
     attrs
         .iter()
-        .filter(|attr| attr.path.is_ident("cfg"))
+        .filter(|attr| attr.path().is_ident("cfg"))
         .collect()
 }

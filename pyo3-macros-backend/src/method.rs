@@ -651,8 +651,8 @@ fn parse_method_attributes(
     }
 
     for attr in attrs.drain(..) {
-        match attr.parse_meta() {
-            Ok(syn::Meta::Path(name)) => {
+        match attr.meta {
+            syn::Meta::Path(ref name) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
                     set_compound_ty!(MethodTypeAttribute::New, name);
                 } else if name.is_ident("init") || name.is_ident("__init__") {
@@ -680,9 +680,7 @@ fn parse_method_attributes(
                     new_attrs.push(attr)
                 }
             }
-            Ok(syn::Meta::List(syn::MetaList {
-                path, mut nested, ..
-            })) => {
+            syn::Meta::List(ref ml @ syn::MetaList { ref path, .. }) => {
                 if path.is_ident("new") {
                     set_ty!(MethodTypeAttribute::New, path);
                 } else if path.is_ident("init") {
@@ -699,10 +697,6 @@ fn parse_method_attributes(
                             attr.span() => "inner attribute is not supported for setter and getter"
                         );
                     }
-                    ensure_spanned!(
-                        nested.len() == 1,
-                        attr.span() => "setter/getter requires one value"
-                    );
 
                     if path.is_ident("setter") {
                         set_ty!(MethodTypeAttribute::Setter, path);
@@ -715,31 +709,21 @@ fn parse_method_attributes(
                         python_name.span() => "`name` may only be specified once"
                     );
 
-                    python_name = match nested.pop().unwrap().into_value() {
-                        syn::NestedMeta::Meta(syn::Meta::Path(w)) if w.segments.len() == 1 => {
-                            Some(w.segments[0].ident.clone())
-                        }
-                        syn::NestedMeta::Lit(lit) => match lit {
-                            syn::Lit::Str(s) => Some(s.parse()?),
-                            _ => {
-                                return Err(syn::Error::new_spanned(
-                                    lit,
-                                    "setter/getter attribute requires str value",
-                                ))
-                            }
-                        },
-                        _ => {
-                            return Err(syn::Error::new_spanned(
-                                nested.first().unwrap(),
-                                "expected ident or string literal for property name",
-                            ))
-                        }
-                    };
+                    if let Ok(ident) = ml.parse_args::<syn::Ident>() {
+                        python_name = Some(ident);
+                    } else if let Ok(syn::Lit::Str(s)) = ml.parse_args::<syn::Lit>() {
+                        python_name = Some(s.parse()?);
+                    } else {
+                        return Err(syn::Error::new_spanned(
+                            ml,
+                            "expected ident or string literal for property name",
+                        ));
+                    }
                 } else {
                     new_attrs.push(attr)
                 }
             }
-            Ok(syn::Meta::NameValue(_)) | Err(_) => new_attrs.push(attr),
+            syn::Meta::NameValue(_) => new_attrs.push(attr),
         }
     }
 
