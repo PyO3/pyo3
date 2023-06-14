@@ -8,6 +8,38 @@ use crate::{ffi, AsPyPointer, PyAny, Python, ToPyObject};
 
 use std::ptr;
 
+/// Allows building a Python `frozenset` one item at a time
+pub struct PyFrozenSetBuilder<'py> {
+    py_frozen_set: &'py PyFrozenSet,
+}
+
+impl<'py> PyFrozenSetBuilder<'py> {
+    /// Create a new `FrozenSetBuilder`.
+    /// Since this allocates a `PyFrozenSet` internally it may
+    /// panic when running out of memory.
+    pub fn new(py: Python<'py>) -> PyResult<PyFrozenSetBuilder<'py>> {
+        Ok(PyFrozenSetBuilder {
+            py_frozen_set: PyFrozenSet::empty(py)?,
+        })
+    }
+
+    /// Adds an element to the set.
+    pub fn add<K>(&mut self, key: K) -> PyResult<()>
+    where
+        K: ToPyObject,
+    {
+        let py = self.py_frozen_set.py();
+        err::error_on_minusone(py, unsafe {
+            ffi::PySet_Add(self.py_frozen_set.as_ptr(), key.to_object(py).as_ptr())
+        })
+    }
+
+    /// Finish building the set and take ownership of its current value
+    pub fn finalize(self) -> &'py PyFrozenSet {
+        self.py_frozen_set
+    }
+}
+
 /// Represents a  Python `frozenset`
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
@@ -233,6 +265,27 @@ mod tests {
             for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
             }
+        });
+    }
+
+    #[test]
+    fn test_frozenset_builder() {
+        use super::PyFrozenSetBuilder;
+
+        Python::with_gil(|py| {
+            let mut builder = PyFrozenSetBuilder::new(py).unwrap();
+
+            // add an item
+            builder.add(1).unwrap();
+            builder.add(2).unwrap();
+            builder.add(2).unwrap();
+
+            // finalize it
+            let set = builder.finalize();
+
+            assert!(set.contains(1).unwrap());
+            assert!(set.contains(2).unwrap());
+            assert!(!set.contains(3).unwrap());
         });
     }
 }

@@ -19,7 +19,7 @@ pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
-pub use self::frozenset::PyFrozenSet;
+pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder};
 pub use self::function::PyCFunction;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::function::PyFunction;
