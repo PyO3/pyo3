@@ -226,8 +226,10 @@ struct FrozenCounter {
     value: AtomicUsize,
 }
 
-let py_counter: Py<FrozenCounter>  = Python::with_gil(|py| {
-    let counter = FrozenCounter { value: AtomicUsize::new(0) };
+let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+    let counter = FrozenCounter {
+        value: AtomicUsize::new(0),
+    };
 
     Py::new(py, counter).unwrap()
 });
@@ -647,9 +649,9 @@ impl BaseClass {
     #[new]
     #[classmethod]
     fn py_new<'p>(cls: &'p PyType, py: Python<'p>) -> PyResult<Self> {
-      // Get an abstract attribute (presumably) declared on a subclass of this class.
-      let subclass_attr = cls.getattr("a_class_attr")?;
-      Ok(Self(subclass_attr.to_object(py)))
+        // Get an abstract attribute (presumably) declared on a subclass of this class.
+        let subclass_attr = cls.getattr("a_class_attr")?;
+        Ok(Self(subclass_attr.to_object(py)))
     }
 }
 ```
@@ -715,6 +717,67 @@ impl MyClass {
     const MY_CONST_ATTRIBUTE: &'static str = "foobar";
 }
 ```
+
+## Free functions
+
+Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-indepedent references:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+    my_field: i32,
+}
+
+// Take a GIL-bound reference when the underlying `PyCell` is irrelevant.
+#[pyfunction]
+fn increment_field(my_class: &mut MyClass) {
+    my_class.my_field += 1;
+}
+
+// Take a GIL-bound reference wrapper when borrowing should be automatic,
+// but interaction with the underlying `PyCell` is desired.
+#[pyfunction]
+fn print_field(my_class: PyRef<'_, MyClass>) {
+    println!("{}", my_class.my_field);
+}
+
+// Take a GIL-bound reference to the underyling cell
+// when borrowing needs to be managed manaually.
+#[pyfunction]
+fn increment_then_print_field(my_class: &PyCell<MyClass>) {
+    my_class.borrow_mut().my_field += 1;
+
+    println!("{}", my_class.borrow().my_field);
+}
+
+// Take a GIL-indepedent reference when you want to store the reference elsewhere.
+#[pyfunction]
+fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
+    println!("{}", my_class.get_refcnt(py));
+}
+```
+
+Classes can also be passed by value if they can be be cloned, i.e. they automatically implement `FromPyObject` if they implement `Clone`, e.g. via `#[derive(Clone)]`:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyclass]
+#[derive(Clone)]
+struct MyClass {
+    my_field: Box<i32>,
+}
+
+#[pyfunction]
+fn dissamble_clone(my_class: MyClass) {
+    let MyClass { mut my_field } = my_class;
+    *my_field += 1;
+}
+```
+
+Note that `#[derive(FromPyObject)]` on a class is usually not useful as it tries to construct a new Rust value by filling in the fields by looking up attributes of any given Python value.
 
 ## Method arguments
 
