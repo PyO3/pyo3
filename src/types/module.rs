@@ -98,7 +98,7 @@ impl PyModule {
     /// let code = include_str!("../../assets/script.py");
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, code, "example", "example")?;
+    ///     PyModule::from_code(py, code, "example.py", "example")?;
     ///     Ok(())
     /// })?;
     /// # Ok(())
@@ -117,7 +117,7 @@ impl PyModule {
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, &code, "example", "example")?;
+    ///     PyModule::from_code(py, &code, "example.py", "example")?;
     ///     Ok(())
     /// })?;
     /// Ok(())
