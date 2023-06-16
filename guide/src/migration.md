@@ -29,7 +29,7 @@ After:
 # use pyo3::prelude::*;
 
 #[pyfunction]
-#[pyo3(signature = (x, y))]  // both x and y have no defaults and are required
+#[pyo3(signature = (x, y))] // both x and y have no defaults and are required
 fn x_or_y(x: Option<u64>, y: u64) -> u64 {
     x.unwrap_or(y)
 }
@@ -103,12 +103,16 @@ fn raise_err() -> anyhow::Result<()> {
 fn main() {
     Python::with_gil(|py| {
         let rs_func = wrap_pyfunction!(raise_err, py).unwrap();
-        pyo3::py_run!(py, rs_func, r"
+        pyo3::py_run!(
+            py,
+            rs_func,
+            r"
         try:
             rs_func()
         except Exception as e:
             print(repr(e))
-        ");
+        "
+        );
     })
 }
 # }
@@ -182,9 +186,7 @@ drop(second);
 // Or it ensure releasing the inner lock before the outer one.
 Python::with_gil(|py| {
     let first = Object::new(py);
-    let second = Python::with_gil(|py| {
-        Object::new(py)
-    });
+    let second = Python::with_gil(|py| Object::new(py));
     drop(first);
     drop(second);
 });
@@ -207,7 +209,7 @@ Before, x in the below example would be required to be passed from Python code:
 # use pyo3::prelude::*;
 
 #[pyfunction]
-fn required_argument_after_option(x: Option<i32>, y: i32) { }
+fn required_argument_after_option(x: Option<i32>, y: i32) {}
 ```
 
 After, specify the intended Python signature explicitly:
@@ -218,11 +220,11 @@ After, specify the intended Python signature explicitly:
 
 // If x really was intended to be required
 #[pyfunction(signature = (x, y))]
-fn required_argument_after_option_a(x: Option<i32>, y: i32) { }
+fn required_argument_after_option_a(x: Option<i32>, y: i32) {}
 
 // If x was intended to be optional, y needs a default too
 #[pyfunction(signature = (x=None, y=0))]
-fn required_argument_after_option_b(x: Option<i32>, y: i32) { }
+fn required_argument_after_option_b(x: Option<i32>, y: i32) {}
 ```
 
 ### `__text_signature__` is now automatically generated for `#[pyfunction]` and `#[pymethods]`

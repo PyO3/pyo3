@@ -17,6 +17,7 @@ This chapter will discuss the functionality and configuration these attributes o
   - [`#[classattr]`](#class-attributes)
   - [`#[args]`](#method-arguments)
 - [Magic methods and slots](class/protocols.html)
+- [Classes as function arguments](#classes-as-function-arguments)
 
 ## Defining a new class
 
@@ -718,7 +719,7 @@ impl MyClass {
 }
 ```
 
-## Free functions
+## Classes as function arguments
 
 Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-indepedent references:
 
@@ -743,7 +744,7 @@ fn print_field(my_class: PyRef<'_, MyClass>) {
     println!("{}", my_class.my_field);
 }
 
-// Take a GIL-bound reference to the underyling cell
+// Take a GIL-bound reference to the underlying cell
 // when borrowing needs to be managed manaually.
 #[pyfunction]
 fn increment_then_print_field(my_class: &PyCell<MyClass>) {

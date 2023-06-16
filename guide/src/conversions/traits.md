@@ -266,16 +266,18 @@ use pyo3::prelude::*;
 #[derive(FromPyObject)]
 # #[derive(Debug)]
 enum RustyEnum<'a> {
-    Int(usize), // input is a positive int
-    String(String), // input is a string
-    IntTuple(usize, usize), // input is a 2-tuple with positive ints
+    Int(usize),                    // input is a positive int
+    String(String),                // input is a string
+    IntTuple(usize, usize),        // input is a 2-tuple with positive ints
     StringIntTuple(String, usize), // input is a 2-tuple with String and int
-    Coordinates3d { // needs to be in front of 2d
+    Coordinates3d {
+        // needs to be in front of 2d
         x: usize,
         y: usize,
         z: usize,
     },
-    Coordinates2d { // only gets checked if the input did not have `z`
+    Coordinates2d {
+        // only gets checked if the input did not have `z`
         #[pyo3(attribute("x"))]
         a: usize,
         #[pyo3(attribute("y"))]

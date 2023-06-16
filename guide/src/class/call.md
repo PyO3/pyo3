@@ -72,7 +72,12 @@ A [previous implementation] used a normal `u64`, which meant it required a `&mut
 
 ```rust,ignore
 #[pyo3(signature = (*args, **kwargs))]
-fn __call__(&mut self, py: Python<'_>, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Py<PyAny>> {
+fn __call__(
+    &mut self,
+    py: Python<'_>,
+    args: &PyTuple,
+    kwargs: Option<&PyDict>,
+) -> PyResult<Py<PyAny>> {
     self.count += 1;
     let name = self.wraps.getattr(py, "__name__")?;
 
