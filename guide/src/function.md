@@ -115,9 +115,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     }
 
     #[pyfunction]
-    fn object_length(
-        #[pyo3(from_py_with = "get_length")] argument: usize
-    ) -> usize {
+    fn object_length(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
         argument
     }
 

@@ -196,9 +196,8 @@ We can avoid the delay in releasing memory if we are careful to drop the
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract()
-})?;
+let hello: Py<PyString> =
+    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {
@@ -219,9 +218,8 @@ until the GIL is dropped.
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract()
-})?;
+let hello: Py<PyString> =
+    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {

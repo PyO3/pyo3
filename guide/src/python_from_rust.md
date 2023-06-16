@@ -218,18 +218,26 @@ can be used to generate a Python module which can then be used just as if it was
 to this function!
 
 ```rust
-use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyModule},
+};
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let activators = PyModule::from_code(py, r#"
+    let activators = PyModule::from_code(
+        py,
+        r#"
 def relu(x):
     """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
-    "#, "activators.py", "activators")?;
+    "#,
+        "activators.py",
+        "activators",
+    )?;
 
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
@@ -359,7 +367,10 @@ The example below shows:
 use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
-    let py_foo = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/utils/foo.py"));
+    let py_foo = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/python_app/utils/foo.py"
+    ));
     let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
@@ -422,7 +433,9 @@ use pyo3::types::PyModule;
 
 fn main() {
     Python::with_gil(|py| {
-        let custom_manager = PyModule::from_code(py, r#"
+        let custom_manager = PyModule::from_code(
+            py,
+            r#"
 class House(object):
     def __init__(self, address):
         self.address = address
@@ -434,7 +447,11 @@ class House(object):
         else:
             print(f"Thank you for visiting {self.address}, come again soon!")
 
-        "#, "house.py", "house").unwrap();
+        "#,
+            "house.py",
+            "house",
+        )
+        .unwrap();
 
         let house_class = custom_manager.getattr("House").unwrap();
         let house = house_class.call1(("123 Main Street",)).unwrap();
@@ -448,13 +465,14 @@ class House(object):
         match result {
             Ok(_) => {
                 let none = py.None();
-                house.call_method1("__exit__", (&none, &none, &none)).unwrap();
-            },
+                house
+                    .call_method1("__exit__", (&none, &none, &none))
+                    .unwrap();
+            }
             Err(e) => {
-                house.call_method1(
-                    "__exit__",
-                    (e.get_type(py), e.value(py), e.traceback(py))
-                ).unwrap();
+                house
+                    .call_method1("__exit__", (e.get_type(py), e.value(py), e.traceback(py)))
+                    .unwrap();
             }
         }
     })
