@@ -189,13 +189,6 @@ macro_rules! pyobject_native_type_info(
 
             #[inline]
             fn type_object_raw(_py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                // Create a very short lived mutable reference and directly
-                // cast it to a pointer: no mutable references can be aliasing
-                // because we hold the GIL.
-                #[cfg(not(addr_of))]
-                unsafe { &mut $typeobject }
-
-                #[cfg(addr_of)]
                 unsafe { ::std::ptr::addr_of_mut!($typeobject) }
             }
 

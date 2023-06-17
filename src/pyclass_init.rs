@@ -46,10 +46,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             subtype: *mut PyTypeObject,
         ) -> PyResult<*mut ffi::PyObject> {
             // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
-            #[cfg(addr_of)]
             let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-            #[cfg(not(addr_of))]
-            let is_base_object = type_object == &mut ffi::PyBaseObject_Type as _;
             if is_base_object {
                 let alloc = get_tp_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
                 let obj = alloc(subtype, 0);
