@@ -4,7 +4,7 @@ use crate::impl_::not_send::{NotSend, NOT_SEND};
 use crate::{ffi, Python};
 use parking_lot::{const_mutex, Mutex, Once};
 use std::cell::{Cell, RefCell};
-use std::{mem, ptr::NonNull, sync::atomic};
+use std::{mem, ptr::NonNull};
 
 static START: Once = Once::new();
 
@@ -238,7 +238,6 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
 /// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
 struct ReferencePool {
-    dirty: atomic::AtomicBool,
     // .0 is INCREFs, .1 is DECREFs
     pointer_ops: Mutex<(PyObjVec, PyObjVec)>,
 }
@@ -246,30 +245,27 @@ struct ReferencePool {
 impl ReferencePool {
     const fn new() -> Self {
         Self {
-            dirty: atomic::AtomicBool::new(false),
             pointer_ops: const_mutex((Vec::new(), Vec::new())),
         }
     }
 
     fn register_incref(&self, obj: NonNull<ffi::PyObject>) {
         self.pointer_ops.lock().0.push(obj);
-        self.dirty.store(true, atomic::Ordering::Release);
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
         self.pointer_ops.lock().1.push(obj);
-        self.dirty.store(true, atomic::Ordering::Release);
     }
 
     fn update_counts(&self, _py: Python<'_>) {
-        let prev = self.dirty.swap(false, atomic::Ordering::Acquire);
-        if !prev {
+        let mut ops = self.pointer_ops.lock();
+        if ops.0.is_empty() && ops.1.is_empty() {
             return;
         }
 
-        let mut ops = self.pointer_ops.lock();
         let (increfs, decrefs) = mem::take(&mut *ops);
         drop(ops);
+
         // Always increase reference counts first - as otherwise objects which have a
         // nonzero total reference count might be incorrectly dropped by Python during
         // this update.
