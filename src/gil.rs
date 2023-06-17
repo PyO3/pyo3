@@ -3,7 +3,7 @@
 use crate::impl_::not_send::{NotSend, NOT_SEND};
 use crate::{ffi, Python};
 use parking_lot::{const_mutex, Mutex, Once};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, UnsafeCell};
 use std::{mem, ptr::NonNull};
 
 static START: Once = Once::new();
@@ -33,7 +33,7 @@ thread_local_const_init! {
     static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
 
     /// Temporarily hold objects that will be released when the GILPool drops.
-    static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = const { RefCell::new(Vec::new()) };
+    static OWNED_OBJECTS: UnsafeCell<PyObjVec> = const { UnsafeCell::new(Vec::new()) };
 }
 
 const GIL_LOCKED_DURING_TRAVERSE: isize = -1;
@@ -373,7 +373,12 @@ impl GILPool {
         // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
         POOL.update_counts(Python::assume_gil_acquired());
         GILPool {
-            start: OWNED_OBJECTS.try_with(|o| o.borrow().len()).ok(),
+            start: OWNED_OBJECTS
+                .try_with(|owned_objects| {
+                    // SAFETY: This is not re-entrant.
+                    unsafe { (*owned_objects.get()).len() }
+                })
+                .ok(),
             _not_send: NOT_SEND,
         }
     }
@@ -387,18 +392,18 @@ impl GILPool {
 
 impl Drop for GILPool {
     fn drop(&mut self) {
-        if let Some(obj_len_start) = self.start {
-            let dropping_obj = OWNED_OBJECTS.with(|holder| {
-                // `holder` must be dropped before calling Py_DECREF, or Py_DECREF may call
-                // `GILPool::drop` recursively, resulting in invalid borrowing.
-                let mut holder = holder.borrow_mut();
-                if obj_len_start < holder.len() {
-                    holder.split_off(obj_len_start)
+        if let Some(start) = self.start {
+            let owned_objects = OWNED_OBJECTS.with(|owned_objects| {
+                // SAFETY: `OWNED_OBJECTS` is released before calling Py_DECREF,
+                // or Py_DECREF may call `GILPool::drop` recursively, resulting in invalid borrowing.
+                let owned_objects = unsafe { &mut *owned_objects.get() };
+                if start < owned_objects.len() {
+                    owned_objects.split_off(start)
                 } else {
                     Vec::new()
                 }
             });
-            for obj in dropping_obj {
+            for obj in owned_objects {
                 unsafe {
                     ffi::Py_DECREF(obj.as_ptr());
                 }
@@ -447,7 +452,12 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
     // Ignores the error in case this function called from `atexit`.
-    let _ = OWNED_OBJECTS.try_with(|holder| holder.borrow_mut().push(obj));
+    let _ = OWNED_OBJECTS.try_with(|owned_objects| {
+        // SAFETY: This is not re-entrant.
+        unsafe {
+            (*owned_objects.get()).push(obj);
+        }
+    });
 }
 
 /// Increments pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
@@ -496,7 +506,7 @@ mod tests {
     }
 
     fn owned_object_count() -> usize {
-        OWNED_OBJECTS.with(|holder| holder.borrow().len())
+        OWNED_OBJECTS.with(|owned_objects| unsafe { (*owned_objects.get()).len() })
     }
 
     fn pool_inc_refs_does_not_contain(obj: &PyObject) -> bool {
