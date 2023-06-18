@@ -3,7 +3,11 @@
 use crate::impl_::not_send::{NotSend, NOT_SEND};
 use crate::{ffi, Python};
 use parking_lot::{const_mutex, Mutex, Once};
-use std::cell::{Cell, UnsafeCell};
+use std::cell::Cell;
+#[cfg(debug_assertions)]
+use std::cell::RefCell;
+#[cfg(not(debug_assertions))]
+use std::cell::UnsafeCell;
 use std::{mem, ptr::NonNull};
 
 static START: Once = Once::new();
@@ -33,6 +37,9 @@ thread_local_const_init! {
     static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
 
     /// Temporarily hold objects that will be released when the GILPool drops.
+    #[cfg(debug_assertions)]
+    static OWNED_OBJECTS: RefCell<PyObjVec> = const { RefCell::new(Vec::new()) };
+    #[cfg(not(debug_assertions))]
     static OWNED_OBJECTS: UnsafeCell<PyObjVec> = const { UnsafeCell::new(Vec::new()) };
 }
 
@@ -375,8 +382,12 @@ impl GILPool {
         GILPool {
             start: OWNED_OBJECTS
                 .try_with(|owned_objects| {
+                    #[cfg(debug_assertions)]
+                    let len = owned_objects.borrow().len();
+                    #[cfg(not(debug_assertions))]
                     // SAFETY: This is not re-entrant.
-                    unsafe { (*owned_objects.get()).len() }
+                    let len = unsafe { (*owned_objects.get()).len() };
+                    len
                 })
                 .ok(),
             _not_send: NOT_SEND,
@@ -394,6 +405,9 @@ impl Drop for GILPool {
     fn drop(&mut self) {
         if let Some(start) = self.start {
             let owned_objects = OWNED_OBJECTS.with(|owned_objects| {
+                #[cfg(debug_assertions)]
+                let mut owned_objects = owned_objects.borrow_mut();
+                #[cfg(not(debug_assertions))]
                 // SAFETY: `OWNED_OBJECTS` is released before calling Py_DECREF,
                 // or Py_DECREF may call `GILPool::drop` recursively, resulting in invalid borrowing.
                 let owned_objects = unsafe { &mut *owned_objects.get() };
@@ -453,6 +467,9 @@ pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
     // Ignores the error in case this function called from `atexit`.
     let _ = OWNED_OBJECTS.try_with(|owned_objects| {
+        #[cfg(debug_assertions)]
+        owned_objects.borrow_mut().push(obj);
+        #[cfg(not(debug_assertions))]
         // SAFETY: This is not re-entrant.
         unsafe {
             (*owned_objects.get()).push(obj);
@@ -506,7 +523,11 @@ mod tests {
     }
 
     fn owned_object_count() -> usize {
-        OWNED_OBJECTS.with(|owned_objects| unsafe { (*owned_objects.get()).len() })
+        #[cfg(debug_assertions)]
+        let len = OWNED_OBJECTS.with(|owned_objects| owned_objects.borrow().len());
+        #[cfg(not(debug_assertions))]
+        let len = OWNED_OBJECTS.with(|owned_objects| unsafe { (*owned_objects.get()).len() });
+        len
     }
 
     fn pool_inc_refs_does_not_contain(obj: &PyObject) -> bool {
