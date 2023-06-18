@@ -14,7 +14,7 @@ pub struct PyComplex(PyAny);
 pyobject_native_type!(
     PyComplex,
     ffi::PyComplexObject,
-    ffi::PyComplex_Type,
+    pyobject_native_static_type_object!(ffi::PyComplex_Type),
     #checkfunction=ffi::PyComplex_Check
 );
 

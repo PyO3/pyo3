@@ -17,7 +17,7 @@ pub struct PyFloat(PyAny);
 pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
-    ffi::PyFloat_Type,
+    pyobject_native_static_type_object!(ffi::PyFloat_Type),
     #checkfunction=ffi::PyFloat_Check
 );
 

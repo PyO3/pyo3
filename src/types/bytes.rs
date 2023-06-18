@@ -13,7 +13,7 @@ use super::bytearray::PyByteArray;
 #[repr(transparent)]
 pub struct PyBytes(PyAny);
 
-pyobject_native_type_core!(PyBytes, ffi::PyBytes_Type, #checkfunction=ffi::PyBytes_Check);
+pyobject_native_type_core!(PyBytes, pyobject_native_static_type_object!(ffi::PyBytes_Type), #checkfunction=ffi::PyBytes_Check);
 
 impl PyBytes {
     /// Creates a new Python bytestring object.

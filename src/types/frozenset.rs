@@ -48,14 +48,14 @@ pub struct PyFrozenSet(PyAny);
 pyobject_native_type!(
     PyFrozenSet,
     ffi::PySetObject,
-    ffi::PyFrozenSet_Type,
+    pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
     #checkfunction=ffi::PyFrozenSet_Check
 );
 
 #[cfg(PyPy)]
 pyobject_native_type_core!(
     PyFrozenSet,
-    ffi::PyFrozenSet_Type,
+    pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
     #checkfunction=ffi::PyFrozenSet_Check
 );
 

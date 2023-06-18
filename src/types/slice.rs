@@ -12,7 +12,7 @@ pub struct PySlice(PyAny);
 pyobject_native_type!(
     PySlice,
     ffi::PySliceObject,
-    ffi::PySlice_Type,
+    pyobject_native_static_type_object!(ffi::PySlice_Type),
     #checkfunction=ffi::PySlice_Check
 );
 

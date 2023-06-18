@@ -15,14 +15,14 @@ pub struct PySet(PyAny);
 pyobject_native_type!(
     PySet,
     ffi::PySetObject,
-    ffi::PySet_Type,
+    pyobject_native_static_type_object!(ffi::PySet_Type),
     #checkfunction=ffi::PySet_Check
 );
 
 #[cfg(PyPy)]
 pyobject_native_type_core!(
     PySet,
-    ffi::PySet_Type,
+    pyobject_native_static_type_object!(ffi::PySet_Type),
     #checkfunction=ffi::PySet_Check
 );
 

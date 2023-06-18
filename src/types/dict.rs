@@ -14,7 +14,7 @@ pub struct PyDict(PyAny);
 pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,
-    ffi::PyDict_Type,
+    pyobject_native_static_type_object!(ffi::PyDict_Type),
     #checkfunction=ffi::PyDict_Check
 );
 
@@ -26,7 +26,7 @@ pub struct PyDictKeys(PyAny);
 #[cfg(not(PyPy))]
 pyobject_native_type_core!(
     PyDictKeys,
-    ffi::PyDictKeys_Type,
+    pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
     #checkfunction=ffi::PyDictKeys_Check
 );
 
@@ -38,7 +38,7 @@ pub struct PyDictValues(PyAny);
 #[cfg(not(PyPy))]
 pyobject_native_type_core!(
     PyDictValues,
-    ffi::PyDictValues_Type,
+    pyobject_native_static_type_object!(ffi::PyDictValues_Type),
     #checkfunction=ffi::PyDictValues_Check
 );
 
@@ -50,7 +50,7 @@ pub struct PyDictItems(PyAny);
 #[cfg(not(PyPy))]
 pyobject_native_type_core!(
     PyDictItems,
-    ffi::PyDictItems_Type,
+    pyobject_native_static_type_object!(ffi::PyDictItems_Type),
     #checkfunction=ffi::PyDictItems_Check
 );
 

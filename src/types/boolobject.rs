@@ -8,7 +8,7 @@ use crate::{
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
-pyobject_native_type!(PyBool, ffi::PyObject, ffi::PyBool_Type, #checkfunction=ffi::PyBool_Check);
+pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), #checkfunction=ffi::PyBool_Check);
 
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.

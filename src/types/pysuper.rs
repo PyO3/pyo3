@@ -8,7 +8,10 @@ use crate::{PyAny, PyResult};
 #[repr(transparent)]
 pub struct PySuper(PyAny);
 
-pyobject_native_type_core!(PySuper, ffi::PySuper_Type);
+pyobject_native_type_core!(
+    PySuper,
+    pyobject_native_static_type_object!(ffi::PySuper_Type)
+);
 
 impl PySuper {
     /// Constructs a new super object. More read about super object: [docs](https://docs.python.org/3/library/functions.html#super)
