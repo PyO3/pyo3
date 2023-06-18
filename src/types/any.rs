@@ -10,6 +10,7 @@ use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
+use std::ptr::NonNull;
 
 /// Represents any Python object.
 ///
@@ -35,6 +36,12 @@ use std::os::raw::c_int;
 /// of the different Python object types.
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
+
+// TODO: this will become the main PyAny type in PyO3 0.20, with normal ownership
+// rather than GIL-bound pool semantics.
+//
+// All other types to be migrated in individual PRs first.
+pub(crate) struct PyAnyOwned<'py>(NonNull<ffi::PyObject>, Python<'py>);
 
 impl crate::AsPyPointer for PyAny {
     #[inline]
@@ -934,8 +941,8 @@ impl PyAny {
     /// Returns the list of attributes of this object.
     ///
     /// This is equivalent to the Python expression `dir(self)`.
-    pub fn dir(&self) -> &PyList {
-        unsafe { self.py().from_owned_ptr(ffi::PyObject_Dir(self.as_ptr())) }
+    pub fn dir(&self) -> PyList<'_> {
+        unsafe { PyList::from_owned_ptr(self.py(), ffi::PyObject_Dir(self.as_ptr())) }
     }
 
     /// Checks whether this object is an instance of type `ty`.
@@ -1004,6 +1011,116 @@ impl PyAny {
     #[cfg(not(PyPy))]
     pub fn py_super(&self) -> PyResult<&PySuper> {
         PySuper::new(self.get_type(), self)
+    }
+}
+
+impl<'py> PyAnyOwned<'py> {
+    /// Create a `PyAny` by taking ownership of the given FFI pointer.
+    ///
+    /// # Safety
+    /// `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// Callers must own the object referred to by `ptr`, as this function
+    /// implicitly takes ownership of that object.
+    ///
+    /// # Panics
+    /// Panics if `ptr` is null.
+    #[inline]
+    pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => Self(nonnull_ptr, py),
+            None => crate::err::panic_after_error(py),
+        }
+    }
+
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be an owned non-null pointer to a Python object.
+    #[inline]
+    pub unsafe fn from_owned_ptr_or_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        match NonNull::new(ptr) {
+            Some(non_null) => Ok(Self(non_null, py)),
+            None => Err(PyErr::fetch(py)),
+        }
+    }
+
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be an owned non-null pointer to a Python object.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr_or_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py))
+    }
+
+    /// Create a new `PyAny` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be an owned non-null pointer to a Python object.
+    #[inline]
+    pub(crate) unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<Self> {
+        NonNull::new(ptr).map(|non_null| {
+            ffi::Py_INCREF(ptr);
+            Self(non_null, py)
+        })
+    }
+
+    #[inline]
+    pub fn py(&self) -> Python<'py> {
+        self.1
+    }
+
+    /// For internal conversions.
+    #[inline]
+    pub(crate) unsafe fn into_non_null(self) -> NonNull<ffi::PyObject> {
+        let ptr = self.0;
+        std::mem::forget(self);
+        ptr
+    }
+
+    /// For internal conversions.
+    #[inline]
+    pub(crate) unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, py)
+    }
+}
+
+impl Clone for PyAnyOwned<'_> {
+    #[inline]
+    fn clone(&self) -> Self {
+        unsafe { ffi::Py_INCREF(self.0.as_ptr()) };
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+
+impl Drop for PyAnyOwned<'_> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe { ffi::Py_DECREF(self.0.as_ptr()) };
+    }
+}
+
+// This helps with backwards-compatibility between PyAnyOwned -> PyAny,
+// for the purposes of migrating.
+impl std::ops::Deref for PyAnyOwned<'_> {
+    type Target = PyAny;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.py().from_borrowed_ptr(self.0.as_ptr()) }
     }
 }
 
@@ -1149,7 +1266,7 @@ class SimpleClass:
             let dir = py
                 .eval("dir(42)", None, None)
                 .unwrap()
-                .downcast::<PyList>()
+                .downcast::<PyList<'_>>()
                 .unwrap();
             let a = obj
                 .dir()
@@ -1175,7 +1292,7 @@ class SimpleClass:
             assert!(x.is_instance_of::<PyLong>());
 
             let l = vec![x, x].to_object(py).into_ref(py);
-            assert!(l.is_instance_of::<PyList>());
+            assert!(l.is_instance_of::<PyList<'_>>());
         });
     }
 
@@ -1183,7 +1300,7 @@ class SimpleClass:
     fn test_any_is_instance() {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_ref(py);
-            assert!(l.is_instance(py.get_type::<PyList>()).unwrap());
+            assert!(l.is_instance(py.get_type::<PyList<'_>>()).unwrap());
         });
     }
 
@@ -1199,7 +1316,7 @@ class SimpleClass:
             assert!(t.is_exact_instance_of::<PyBool>());
 
             let l = vec![x, x].to_object(py).into_ref(py);
-            assert!(l.is_exact_instance_of::<PyList>());
+            assert!(l.is_exact_instance_of::<PyList<'_>>());
         });
     }
 

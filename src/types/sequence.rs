@@ -238,17 +238,14 @@ impl PySequence {
 
     /// Returns a fresh list based on the Sequence.
     #[inline]
-    pub fn to_list(&self) -> PyResult<&PyList> {
-        unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
-        }
+    pub fn to_list(&self) -> PyResult<PyList<'_>> {
+        unsafe { PyList::from_owned_ptr_or_err(self.py(), ffi::PySequence_List(self.as_ptr())) }
     }
 
     /// Returns a fresh list based on the Sequence.
     #[inline]
     #[deprecated(since = "0.19.0", note = "renamed to .to_list()")]
-    pub fn list(&self) -> PyResult<&PyList> {
+    pub fn list(&self) -> PyResult<PyList<'_>> {
         self.to_list()
     }
 

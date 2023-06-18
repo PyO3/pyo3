@@ -216,7 +216,7 @@ impl PyTuple {
     /// Return a new list containing the contents of this tuple; equivalent to the Python expression `list(tuple)`.
     ///
     /// This method is equivalent to `self.as_sequence().to_list()` and faster than `PyList::new(py, self)`.
-    pub fn to_list(&self) -> &PyList {
+    pub fn to_list(&self) -> PyList<'_> {
         self.as_sequence()
             .to_list()
             .expect("failed to convert tuple to list")

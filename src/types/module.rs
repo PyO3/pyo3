@@ -165,14 +165,14 @@ impl PyModule {
     /// creating one if needed.
     ///
     /// `__all__` declares the items that will be imported with `from my_module import *`.
-    pub fn index(&self) -> PyResult<&PyList> {
+    pub fn index(&self) -> PyResult<PyList<'_>> {
         let __all__ = __all__(self.py());
         match self.getattr(__all__) {
-            Ok(idx) => idx.downcast().map_err(PyErr::from),
+            Ok(idx) => idx.extract(),
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
-                    self.setattr(__all__, l).map_err(PyErr::from)?;
+                    self.setattr(__all__, l)?;
                     Ok(l)
                 } else {
                     Err(err)

@@ -19,7 +19,7 @@ The table below contains the Python type and the corresponding function argument
 | `int`         | Any integer type (`i32`, `u32`, `usize`, etc) | `&PyLong` |
 | `float`       | `f32`, `f64`                    | `&PyFloat`           |
 | `complex`     | `num_complex::Complex`[^1]      | `&PyComplex`         |
-| `list[T]`     | `Vec<T>`                        | `&PyList`            |
+| `list[T]`     | `Vec<T>`                        | `PyList<'py>`        |
 | `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^2], `indexmap::IndexMap<K, V>`[^3] | `&PyDict` |
 | `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `&PyTuple`           |
 | `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^2] | `&PySet` |

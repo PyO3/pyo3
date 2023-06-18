@@ -213,31 +213,22 @@ impl PyDict {
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
-    pub fn keys(&self) -> &PyList {
-        unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
-        }
+    pub fn keys(&self) -> PyList<'_> {
+        unsafe { PyList::from_owned_ptr(self.py(), ffi::PyDict_Keys(self.as_ptr())) }
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
-    pub fn values(&self) -> &PyList {
-        unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
-        }
+    pub fn values(&self) -> PyList<'_> {
+        unsafe { PyList::from_owned_ptr(self.py(), ffi::PyDict_Values(self.as_ptr())) }
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
-    pub fn items(&self) -> &PyList {
-        unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
-        }
+    pub fn items(&self) -> PyList<'_> {
+        unsafe { PyList::from_owned_ptr(self.py(), ffi::PyDict_Items(self.as_ptr())) }
     }
 
     /// Returns an iterator of `(key, value)` pairs in this dictionary.

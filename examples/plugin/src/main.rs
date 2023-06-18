@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //do useful work
     Python::with_gil(|py| {
         //add the current directory to import path of Python (do not use this in production!)
-        let syspath: &PyList = py.import("sys")?.getattr("path")?.extract()?;
+        let syspath: PyList<'_> = py.import("sys")?.getattr("path")?.extract()?;
         syspath.insert(0, &path)?;
         println!("Import path is: {:?}", syspath);
 

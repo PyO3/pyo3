@@ -76,7 +76,7 @@ impl Dummy {
 
     fn __delattr__(&mut self, name: ::std::string::String) {}
 
-    fn __dir__<'py>(&self, py: crate::Python<'py>) -> &'py crate::types::PyList {
+    fn __dir__<'py>(&self, py: crate::Python<'py>) -> crate::types::PyList<'py> {
         crate::types::PyList::new(py, ::std::vec![0_u8])
     }
 

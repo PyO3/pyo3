@@ -185,11 +185,11 @@ mod tests {
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pyobject = array.to_object(py);
-            let pylist: &PyList = pyobject.extract(py).unwrap();
-            assert_eq!(pylist[0].extract::<f32>().unwrap(), 0.0);
-            assert_eq!(pylist[1].extract::<f32>().unwrap(), -16.0);
-            assert_eq!(pylist[2].extract::<f32>().unwrap(), 16.0);
-            assert_eq!(pylist[3].extract::<f32>().unwrap(), 42.0);
+            let pylist: PyList<'_> = pyobject.extract(py).unwrap();
+            assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
+            assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
+            assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
+            assert_eq!(pylist.get_item(3).unwrap().extract::<f32>().unwrap(), 42.0);
         });
     }
 
@@ -212,11 +212,11 @@ mod tests {
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pyobject = array.into_py(py);
-            let pylist: &PyList = pyobject.extract(py).unwrap();
-            assert_eq!(pylist[0].extract::<f32>().unwrap(), 0.0);
-            assert_eq!(pylist[1].extract::<f32>().unwrap(), -16.0);
-            assert_eq!(pylist[2].extract::<f32>().unwrap(), 16.0);
-            assert_eq!(pylist[3].extract::<f32>().unwrap(), 42.0);
+            let pylist: PyList<'_> = pyobject.extract(py).unwrap();
+            assert_eq!(pylist.get_item(0).unwrap().extract::<f32>().unwrap(), 0.0);
+            assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
+            assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
+            assert_eq!(pylist.get_item(3).unwrap().extract::<f32>().unwrap(), 42.0);
         });
     }
 
@@ -237,8 +237,8 @@ mod tests {
 
         Python::with_gil(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
-            let pyobject = array.into_py(py);
-            let list: &PyList = pyobject.downcast(py).unwrap();
+            let pyobject = array.into_py(py).into_owned(py);
+            let list: &PyList<'_> = pyobject.downcast().unwrap();
             let _cell: &crate::PyCell<Foo> = list.get_item(4).unwrap().extract().unwrap();
         });
     }

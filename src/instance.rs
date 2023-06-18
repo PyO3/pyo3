@@ -3,7 +3,7 @@ use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
-use crate::types::{PyDict, PyString, PyTuple};
+use crate::types::{PyAnyOwned, PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
     PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
@@ -285,7 +285,7 @@ where
     /// #
     /// Python::with_gil(|py| {
     ///     let list: Py<PyList> = PyList::empty(py).into();
-    ///     let list: &PyList = list.as_ref(py);
+    ///     let list: &PyList<'_> = list.as_ref(py);
     ///     assert_eq!(list.len(), 0);
     /// });
     /// ```
@@ -871,13 +871,13 @@ impl<T> Py<T> {
     /// # Safety
     /// `ptr` must point to a Python object of type T.
     #[inline]
-    unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
+    pub(crate) unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData)
     }
 
     /// Returns the inner pointer without decreasing the refcount.
     #[inline]
-    fn into_non_null(self) -> NonNull<ffi::PyObject> {
+    pub(crate) fn into_non_null(self) -> NonNull<ffi::PyObject> {
         let pointer = self.0;
         mem::forget(self);
         pointer
@@ -1105,6 +1105,10 @@ impl PyObject {
         T: PyTryFrom<'p>,
     {
         <T as PyTryFrom<'_>>::try_from_unchecked(self.as_ref(py))
+    }
+
+    pub(crate) fn into_owned(self, py: Python<'_>) -> PyAnyOwned<'_> {
+        unsafe { PyAnyOwned::from_non_null(py, self.into_non_null()) }
     }
 }
 

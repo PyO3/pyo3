@@ -1056,7 +1056,7 @@ mod tests {
 
     #[test]
     fn test_allow_threads_pass_stuff_in() {
-        let list: Py<PyList> = Python::with_gil(|py| {
+        let list: Py<PyList<'static>> = Python::with_gil(|py| {
             let list = PyList::new(py, vec!["foo", "bar"]);
             list.into()
         });
