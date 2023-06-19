@@ -459,16 +459,12 @@ pub mod inspect;
 /// Test readme and user guide
 #[cfg(doctest)]
 pub mod doc_test {
-    macro_rules! doctest_impl {
-        ($doc:expr, $mod:ident) => {
-            #[doc = $doc]
-            mod $mod {}
-        };
-    }
-
     macro_rules! doctests {
         ($($path:expr => $mod:ident),* $(,)?) => {
-            $(doctest_impl!(include_str!(concat!("../", $path)), $mod);)*
+            $(
+                #[doc = include_str!(concat!("../", $path))]
+                mod $mod{}
+            )*
         };
     }
 
