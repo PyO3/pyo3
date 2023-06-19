@@ -204,7 +204,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, spec.name))
+                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, spec)?)
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
@@ -398,7 +398,16 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>) -> Result<MethodAndSlot
     })
 }
 
-fn impl_traverse_slot(cls: &syn::Type, rust_fn_ident: &syn::Ident) -> MethodAndSlotDef {
+fn impl_traverse_slot(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<MethodAndSlotDef> {
+    if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
+        return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
+            Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. \
+            Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, \
+            i.e. `Python::with_gil` will panic."));
+    }
+
+    let rust_fn_ident = spec.name;
+
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod_traverse__(
             slf: *mut _pyo3::ffi::PyObject,
@@ -414,10 +423,10 @@ fn impl_traverse_slot(cls: &syn::Type, rust_fn_ident: &syn::Ident) -> MethodAndS
             pfunc: #cls::__pymethod_traverse__ as _pyo3::ffi::traverseproc as _
         }
     };
-    MethodAndSlotDef {
+    Ok(MethodAndSlotDef {
         associated_method,
         slot_def,
-    }
+    })
 }
 
 fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<MethodAndMethodDef> {
