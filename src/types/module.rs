@@ -18,7 +18,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
-pyobject_native_type_core!(PyModule, ffi::PyModule_Type, #checkfunction=ffi::PyModule_Check);
+pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), #checkfunction=ffi::PyModule_Check);
 
 impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to `name`.

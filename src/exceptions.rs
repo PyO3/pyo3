@@ -94,7 +94,7 @@ macro_rules! import_exception {
 
         $crate::pyobject_native_type_core!(
             $name,
-            *$name::type_object_raw($crate::Python::assume_gil_acquired()),
+            $name::type_object_raw,
             #module=::std::option::Option::Some(stringify!($module))
         );
 
@@ -233,7 +233,7 @@ macro_rules! create_exception_type_object {
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
-            *$name::type_object_raw($crate::Python::assume_gil_acquired()),
+            $name::type_object_raw,
             #module=::std::option::Option::Some(stringify!($module))
         );
 
@@ -266,7 +266,7 @@ macro_rules! impl_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, *($crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject));
+        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject });
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
@@ -282,7 +282,7 @@ macro_rules! impl_windows_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, *($crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject));
+        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject });
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_windows_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);

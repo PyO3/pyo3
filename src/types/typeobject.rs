@@ -5,7 +5,7 @@ use crate::{ffi, AsPyPointer, PyAny, PyTypeInfo, Python};
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
-pyobject_native_type_core!(PyType, ffi::PyType_Type, #checkfunction=ffi::PyType_Check);
+pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), #checkfunction=ffi::PyType_Check);
 
 impl PyType {
     /// Creates a new type object.

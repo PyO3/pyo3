@@ -173,7 +173,7 @@ pub struct PyDate(PyAny);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
-    *ensure_datetime_api(Python::assume_gil_acquired()).DateType,
+    |py| ensure_datetime_api(py).DateType,
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
@@ -228,7 +228,7 @@ pub struct PyDateTime(PyAny);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
-    *ensure_datetime_api(Python::assume_gil_acquired()).DateTimeType,
+    |py| ensure_datetime_api(py).DateTimeType,
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
@@ -377,7 +377,7 @@ pub struct PyTime(PyAny);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
-    *ensure_datetime_api(Python::assume_gil_acquired()).TimeType,
+    |py| ensure_datetime_api(py).TimeType,
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
@@ -477,7 +477,7 @@ pub struct PyTzInfo(PyAny);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
-    *ensure_datetime_api(Python::assume_gil_acquired()).TZInfoType,
+    |py| ensure_datetime_api(py).TZInfoType,
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
@@ -493,7 +493,7 @@ pub struct PyDelta(PyAny);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
-    *ensure_datetime_api(Python::assume_gil_acquired()).DeltaType,
+    |py| ensure_datetime_api(py).DeltaType,
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
