@@ -13,5 +13,5 @@ path = "../pyo3-ffi"
 features = ["extension-module"]  # A lazy way of skipping linking in most cases (as we don't use any runtime symbols)
 
 [build-dependencies]
-bindgen = "0.65.1"
+bindgen = "0.66.1"
 pyo3-build-config = { path = "../pyo3-build-config" }
