@@ -87,8 +87,8 @@ impl From<&'_ str> for Error {
 }
 
 impl From<std::convert::Infallible> for Error {
-    fn from(_: std::convert::Infallible) -> Self {
-        unreachable!()
+    fn from(x: std::convert::Infallible) -> Self {
+        match x {}
     }
 }
 
