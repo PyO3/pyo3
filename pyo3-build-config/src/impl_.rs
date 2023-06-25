@@ -176,6 +176,10 @@ impl InterpreterConfig {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
 
+        if self.implementation == PythonImplementation::NoGIL {
+            println!("cargo:rustc-cfg=Py_NOGIL");
+        }
+
         for flag in &self.build_flags.0 {
             println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag);
         }
@@ -220,7 +224,11 @@ FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
 # unix-style shared library enabled
 SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 
-print("implementation", platform.python_implementation())
+implementation = platform.python_implementation()
+if sys.implementation.name == "nogil":
+    implementation = "NoGIL"
+
+print("implementation", implementation)
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
 print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
@@ -644,6 +652,7 @@ impl FromStr for PythonVersion {
 pub enum PythonImplementation {
     CPython,
     PyPy,
+    NoGIL,
 }
 
 impl PythonImplementation {
@@ -658,6 +667,8 @@ impl PythonImplementation {
             Ok(PythonImplementation::PyPy)
         } else if soabi.starts_with("cpython") {
             Ok(PythonImplementation::CPython)
+        } else if soabi.starts_with("nogil") {
+            Ok(PythonImplementation::NoGIL)
         } else {
             bail!("unsupported Python interpreter");
         }
@@ -669,6 +680,7 @@ impl Display for PythonImplementation {
         match self {
             PythonImplementation::CPython => write!(f, "CPython"),
             PythonImplementation::PyPy => write!(f, "PyPy"),
+            PythonImplementation::NoGIL => write!(f, "NoGIL"),
         }
     }
 }
@@ -679,6 +691,7 @@ impl FromStr for PythonImplementation {
         match s {
             "CPython" => Ok(PythonImplementation::CPython),
             "PyPy" => Ok(PythonImplementation::PyPy),
+            "NoGIL" => Ok(PythonImplementation::NoGIL),
             _ => bail!("unknown interpreter: {}", s),
         }
     }
@@ -1535,7 +1548,7 @@ fn default_lib_name_unix(
     ld_version: Option<&str>,
 ) -> String {
     match implementation {
-        PythonImplementation::CPython => match ld_version {
+        PythonImplementation::CPython | PythonImplementation::NoGIL => match ld_version {
             Some(ld_version) => format!("python{}", ld_version),
             None => {
                 if version > PythonVersion::PY37 {
