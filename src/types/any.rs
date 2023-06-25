@@ -1,7 +1,7 @@
 use crate::class::basic::CompareOp;
 use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToPyObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
-use crate::exceptions::PyTypeError;
+use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::type_object::PyTypeInfo;
 #[cfg(not(PyPy))]
 use crate::types::PySuper;
@@ -79,14 +79,37 @@ impl PyAny {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
+    ///
+    /// # Example: `intern!`ing the attribute name
+    ///
+    /// ```
+    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// #
+    /// #[pyfunction]
+    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    ///     sys.hasattr(intern!(sys.py(), "version"))
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #    let sys = py.import("sys").unwrap();
+    /// #    has_version(sys).unwrap();
+    /// # });
+    /// ```
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
         N: IntoPy<Py<PyString>>,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
+        fn inner(any: &PyAny, attr_name: Py<PyString>) -> PyResult<bool> {
+            // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
+            // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
+            match any._getattr(attr_name) {
+                Ok(_) => Ok(true),
+                Err(err) if err.is_instance_of::<PyAttributeError>(any.py()) => Ok(false),
+                Err(e) => Err(e),
+            }
+        }
 
-        unsafe { Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name.as_ptr()) != 0) }
+        inner(self, attr_name.into_py(self.py()))
     }
 
     /// Retrieves an attribute value.
@@ -115,12 +138,20 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
+        fn inner(any: &PyAny, attr_name: Py<PyString>) -> PyResult<&PyAny> {
+            any._getattr(attr_name)
+                .map(|object| object.into_ref(any.py()))
+        }
 
+        inner(self, attr_name.into_py(self.py()))
+    }
+
+    fn _getattr(&self, attr_name: Py<PyString>) -> PyResult<PyObject> {
         unsafe {
-            let ret = ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr());
-            py.from_owned_ptr_or_err(ret)
+            Py::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr()),
+            )
         }
     }
 
@@ -1167,6 +1198,44 @@ class SimpleClass:
             let b = dir.into_iter().map(|x| x.extract::<String>().unwrap());
             assert!(a.eq(b));
         });
+    }
+
+    #[test]
+    fn test_hasattr() {
+        Python::with_gil(|py| {
+            let x = 5.to_object(py).into_ref(py);
+            assert!(x.is_instance_of::<PyLong>());
+
+            assert!(x.hasattr("to_bytes").unwrap());
+            assert!(!x.hasattr("bbbbbbytes").unwrap());
+        })
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_hasattr_error() {
+        use crate::exceptions::PyValueError;
+        use crate::prelude::*;
+
+        #[pyclass(crate = "crate")]
+        struct GetattrFail;
+
+        #[pymethods(crate = "crate")]
+        impl GetattrFail {
+            fn __getattr__(&self, attr: PyObject) -> PyResult<PyObject> {
+                Err(PyValueError::new_err(attr))
+            }
+        }
+
+        Python::with_gil(|py| {
+            let obj = Py::new(py, GetattrFail).unwrap();
+            let obj = obj.as_ref(py).as_ref();
+
+            assert!(obj
+                .hasattr("foo")
+                .unwrap_err()
+                .is_instance_of::<PyValueError>(py));
+        })
     }
 
     #[test]
