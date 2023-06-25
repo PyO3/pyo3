@@ -157,7 +157,6 @@ impl PyDict {
     /// returns `Ok(None)` if item is not present, or `Err(PyErr)` if an error occurs.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item_with_error`.
-    #[cfg(not(PyPy))]
     pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
     where
         K: ToPyObject,
