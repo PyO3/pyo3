@@ -111,6 +111,36 @@ To include your changes in the release notes, you should create one (or more) ne
 - `removed` - for features which have been removed
 - `fixed` - for "changed" features which were classed as a bugfix
 
+### Style guide
+
+#### Generic code
+
+PyO3 has a lot of generic APIs to increase usability. These can come at the cost of generic code bloat. Where reasonable, try to implement a concrete sub-portion of generic functions. There are two forms of this:
+
+- If the concrete sub-portion doesn't benefit from re-use by other functions, name it `inner` and keep it as a local to the function.
+- If the concrete sub-portion is re-used by other functions, preferably name it `_foo` and place it directly below `foo` in the source code (where `foo` is the original generic function).
+
+#### FFI calls
+
+PyO3 makes a lot of FFI calls to Python's C API using raw pointers. Where possible try to avoid using pointers-to-temporaries in expressions:
+
+```rust
+// dangerous
+pyo3::ffi::Something(name.to_object(py).as_ptr());
+
+// because the following refactoring is a use-after-free error:
+let name = name.to_object(py).as_ptr();
+pyo3::ffi::Something(name)
+```
+
+Instead, prefer to bind the safe owned `PyObject` wrapper before passing to ffi functions:
+
+```rust
+let name: PyObject = name.to_object(py);
+pyo3::ffi::Something(name.as_ptr())
+// name will automatically be freed when it falls out of scope
+```
+
 ## Python and Rust version support policy
 
 PyO3 aims to keep sufficient compatibility to make packaging Python extensions built with PyO3 feasible on most common package managers.
