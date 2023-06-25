@@ -10,5 +10,5 @@ Please consider adding the following to your pull request:
  - tests for all new or changed functions
 
 PyO3's CI pipeline will check your pull request. To run its tests
-locally, you can run ```cargo xtask ci```. See its documentation
- [here](https://github.com/PyO3/pyo3/tree/main/xtask#readme).
+locally, you can run ```nox```. See ```nox --list-sessions```
+for a list of supported actions.
