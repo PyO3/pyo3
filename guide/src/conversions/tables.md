@@ -13,7 +13,7 @@ The table below contains the Python type and the corresponding function argument
 | Python        | Rust                            | Rust (Python-native) |
 | ------------- |:-------------------------------:|:--------------------:|
 | `object`      | -                               | `&PyAny`             |
-| `str`         | `String`, `Cow<str>`, `&str`, `OsString`, `PathBuf` | `&PyUnicode` |
+| `str`         | `String`, `Cow<str>`, `&str`, `OsString`, `PathBuf`, `Path` | `&PyString`, `&PyUnicode` |
 | `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `&PyBytes`           |
 | `bool`        | `bool`                          | `&PyBool`            |
 | `int`         | Any integer type (`i32`, `u32`, `usize`, etc) | `&PyLong` |
@@ -28,6 +28,7 @@ The table below contains the Python type and the corresponding function argument
 | `slice`       | -                               | `&PySlice`           |
 | `type`        | -                               | `&PyType`            |
 | `module`      | -                               | `&PyModule`          |
+| `pathlib.Path` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
 | `datetime.datetime` | -                         | `&PyDateTime`        |
 | `datetime.date` | -                             | `&PyDate`            |
 | `datetime.time` | -                             | `&PyTime`            |
