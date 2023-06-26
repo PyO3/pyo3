@@ -34,7 +34,7 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session)
     _run_cargo_test(session, features="abi3")
-    if not "skip-full" in session.posargs:
+    if "skip-full" not in session.posargs:
         _run_cargo_test(session, features="full")
         _run_cargo_test(session, features="abi3 full")
 
@@ -338,7 +338,7 @@ def format_guide(session: nox.Session):
 
     for path in Path("guide").glob("**/*.md"):
         session.log("Working on %s", path)
-        content = path.read_text()
+        path.read_text()
 
         lines = iter(path.read_text().splitlines(True))
         new_lines = []
@@ -469,6 +469,8 @@ def set_minimal_package_versions(session: nox.Session):
         "rayon": "1.6.1",
         "rayon-core": "1.10.2",
         "regex": "1.7.3",
+        "proptest": "1.0.0",
+        "indexmap": "1.9.3",
     }
 
     # run cargo update first to ensure that everything is at highest
