@@ -78,7 +78,8 @@ fn main() {
     non_camel_case_types,
     non_upper_case_globals,
     dead_code,
-    improper_ctypes
+    improper_ctypes,
+    clippy::all
 )]
 mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));

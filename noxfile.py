@@ -76,7 +76,8 @@ def fmt(session: nox.Session):
 
 @nox.session(name="fmt-rust", venv_backend="none")
 def fmt_rust(session: nox.Session):
-    _run(session, "cargo", "fmt", "--all", "--check", external=True)
+    _run_cargo(session, "fmt", "--all", "--check")
+    _run_cargo(session, "fmt", *_FFI_CHECK, "--all", "--check")
 
 
 @nox.session(name="fmt-py")
@@ -103,9 +104,6 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
                 *feature_set,
                 "--all-targets",
                 "--workspace",
-                # linting pyo3-ffi-check requires docs to have been built or
-                # the macros will error; doesn't seem worth it on CI
-                "--exclude=pyo3-ffi-check",
                 "--",
                 "--deny=warnings",
                 external=True,
@@ -146,9 +144,6 @@ def check_all(session: nox.Session) -> None:
                     *feature_set,
                     "--all-targets",
                     "--workspace",
-                    # linting pyo3-ffi-check requires docs to have been built or
-                    # the macros will error; doesn't seem worth it on CI
-                    "--exclude=pyo3-ffi-check",
                     external=True,
                     env=env,
                 )
@@ -338,8 +333,6 @@ def format_guide(session: nox.Session):
 
     for path in Path("guide").glob("**/*.md"):
         session.log("Working on %s", path)
-        path.read_text()
-
         lines = iter(path.read_text().splitlines(True))
         new_lines = []
 
@@ -533,8 +526,9 @@ def set_minimal_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    session.run("cargo", "doc", "-p", "pyo3-ffi", "--no-deps", external=True)
-    _run(session, "cargo", "run", "-p", "pyo3-ffi-check", external=True)
+    _run_cargo(session, "doc", *_FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
+    _run_cargo(session, "clippy", "--workspace", "--all-targets", *_FFI_CHECK)
+    _run_cargo(session, "run", *_FFI_CHECK)
 
 
 @lru_cache()
@@ -616,6 +610,10 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
         print("::endgroup::", file=sys.stderr)
 
 
+def _run_cargo(session: nox.Session, *args: str, **kwargs: Any) -> None:
+    _run(session, "cargo", *args, **kwargs, external=True)
+
+
 def _run_cargo_test(
     session: nox.Session,
     *,
@@ -685,3 +683,6 @@ suppress_build_script_link_lines=true
 
         for version in PYPY_VERSIONS:
             _job_with_config("PyPy", version)
+
+
+_FFI_CHECK = ("--manifest-path", "pyo3-ffi-check/Cargo.toml")
