@@ -36,7 +36,7 @@ anyhow = { version = "1.0", optional = true }
 chrono = { version = "0.4", default-features = false, optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.15", optional = true }
-indexmap = { version = "1.6", optional = true }
+indexmap = { version = "2.0", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-complex = { version = ">= 0.2, < 0.5", optional = true }
 rust_decimal = { version = "1.0.0", default-features = false, optional = true }
