@@ -142,17 +142,20 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        self.get_item_impl(key.to_object(self.py()))
-    }
-
-    fn get_item_impl(&self, key: PyObject) -> Option<&PyAny> {
-        let py = self.py();
-        unsafe {
-            let ptr = ffi::PyDict_GetItem(self.as_ptr(), key.as_ptr());
+        fn inner(dict: &PyDict, key: PyObject) -> Option<&PyAny> {
+            let py = dict.py();
             // PyDict_GetItem returns a borrowed ptr, must make it owned for safety (see #890).
             // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
-            PyObject::from_borrowed_ptr_or_opt(py, ptr).map(|pyobject| pyobject.into_ref(py))
+            unsafe {
+                PyObject::from_borrowed_ptr_or_opt(
+                    py,
+                    ffi::PyDict_GetItem(dict.as_ptr(), key.as_ptr()),
+                )
+            }
+            .map(|pyobject| pyobject.into_ref(py))
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Gets an item from the dictionary,
@@ -164,20 +167,22 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        self.get_item_with_error_impl(key.to_object(self.py()))
-    }
-
-    fn get_item_with_error_impl(&self, key: PyObject) -> PyResult<Option<&PyAny>> {
-        let py = self.py();
-        unsafe {
-            let ptr = ffi::PyDict_GetItemWithError(self.as_ptr(), key.as_ptr());
+        fn inner(dict: &PyDict, key: PyObject) -> PyResult<Option<&PyAny>> {
+            let py = dict.py();
             // PyDict_GetItemWithError returns a borrowed ptr, must make it owned for safety (see #890).
             // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
-            PyObject::from_borrowed_ptr_or_opt(py, ptr)
-                .map(|pyobject| Ok(pyobject.into_ref(py)))
-                .or_else(|| PyErr::take(py).map(Err))
-                .transpose()
+            unsafe {
+                PyObject::from_borrowed_ptr_or_opt(
+                    py,
+                    ffi::PyDict_GetItemWithError(dict.as_ptr(), key.as_ptr()),
+                )
+            }
+            .map(|pyobject| Ok(pyobject.into_ref(py)))
+            .or_else(|| PyErr::take(py).map(Err))
+            .transpose()
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Sets an item value.
