@@ -247,7 +247,7 @@ impl PySetterDef {
 
 /// Calls an implementation of __traverse__ for tp_traverse
 #[doc(hidden)]
-pub unsafe fn call_traverse_impl<T>(
+pub unsafe fn _call_traverse<T>(
     slf: *mut ffi::PyObject,
     impl_: fn(&T, PyVisit<'_>) -> Result<(), PyTraverseError>,
     visit: ffi::visitproc,

@@ -197,7 +197,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
 ) -> PyResult<Py<PyFrozenSet>> {
-    fn new_from_iter_inner(
+    fn inner(
         py: Python<'_>,
         elements: &mut dyn Iterator<Item = PyObject>,
     ) -> PyResult<Py<PyFrozenSet>> {
@@ -217,7 +217,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     }
 
     let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    new_from_iter_inner(py, &mut iter)
+    inner(py, &mut iter)
 }
 
 #[cfg(test)]

@@ -420,7 +420,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<MethodA
             visit: _pyo3::ffi::visitproc,
             arg: *mut ::std::os::raw::c_void,
         ) -> ::std::os::raw::c_int {
-            _pyo3::impl_::pymethods::call_traverse_impl::<#cls>(slf, #cls::#rust_fn_ident, visit, arg)
+            _pyo3::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg)
         }
     };
     let slot_def = quote! {

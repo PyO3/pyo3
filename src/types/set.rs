@@ -248,10 +248,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
 ) -> PyResult<Py<PySet>> {
-    fn new_from_iter_inner(
-        py: Python<'_>,
-        elements: &mut dyn Iterator<Item = PyObject>,
-    ) -> PyResult<Py<PySet>> {
+    fn inner(py: Python<'_>, elements: &mut dyn Iterator<Item = PyObject>) -> PyResult<Py<PySet>> {
         let set: Py<PySet> = unsafe {
             // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
             Py::from_owned_ptr_or_err(py, ffi::PySet_New(std::ptr::null_mut()))?
@@ -268,7 +265,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     }
 
     let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    new_from_iter_inner(py, &mut iter)
+    inner(py, &mut iter)
 }
 
 #[cfg(test)]
