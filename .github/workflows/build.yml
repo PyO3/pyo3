@@ -136,10 +136,10 @@ jobs:
               - '.github/workflows/build.yml'
 
       - name: Run pyo3-ffi-check
-        run: nox -s ffi-check
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here, nor
         # is pypy 3.9 on windows
         if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows')) }}
+        run: nox -s ffi-check
 
 
       - name: Test cross compilation
