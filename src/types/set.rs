@@ -81,13 +81,23 @@ impl PySet {
     }
 
     /// Removes the element from the set if it is present.
-    pub fn discard<K>(&self, key: K)
+    ///
+    /// Returns `true` if the element was present in the set.
+    pub fn discard<K>(&self, key: K) -> PyResult<bool>
     where
         K: ToPyObject,
     {
-        unsafe {
-            ffi::PySet_Discard(self.as_ptr(), key.to_object(self.py()).as_ptr());
+        fn inner(set: &PySet, key: PyObject) -> PyResult<bool> {
+            unsafe {
+                match ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) {
+                    1 => Ok(true),
+                    0 => Ok(false),
+                    _ => Err(PyErr::fetch(set.py())),
+                }
+            }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Adds an element to the set.
@@ -322,10 +332,14 @@ mod tests {
     fn test_set_discard() {
         Python::with_gil(|py| {
             let set = PySet::new(py, &[1]).unwrap();
-            set.discard(2);
+            assert!(!set.discard(2).unwrap());
             assert_eq!(1, set.len());
-            set.discard(1);
+
+            assert!(set.discard(1).unwrap());
             assert_eq!(0, set.len());
+            assert!(!set.discard(1).unwrap());
+
+            assert!(set.discard(vec![1, 2]).is_err());
         });
     }
 
