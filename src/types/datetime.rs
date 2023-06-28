@@ -257,7 +257,7 @@ impl PyDateTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 api.DateTimeType,
             );
             py.from_owned_ptr_or_err(ptr)
@@ -294,7 +294,7 @@ impl PyDateTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 c_int::from(fold),
                 api.DateTimeType,
             );
@@ -399,7 +399,7 @@ impl PyTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 api.TimeType,
             );
             py.from_owned_ptr_or_err(ptr)
@@ -423,7 +423,7 @@ impl PyTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 fold as c_int,
                 api.TimeType,
             );
@@ -535,12 +535,12 @@ impl PyDeltaAccess for PyDelta {
     }
 }
 
-// Utility function
-fn opt_to_pyobj(py: Python<'_>, opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
-    // Convenience function for unpacking Options to either an Object or None
+// Utility function which returns a borrowed reference to either
+// the underlying tzinfo or None.
+fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
     match opt {
         Some(tzi) => tzi.as_ptr(),
-        None => py.None().as_ptr(),
+        None => unsafe { ffi::Py_None() },
     }
 }
 
