@@ -1,7 +1,7 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
+use crate::{ffi, IntoPyPointer, Py, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
     pycell::{
@@ -134,9 +134,14 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///     );
 /// });
 /// ```
-pub struct PyClassInitializer<T: PyClass> {
-    init: T,
-    super_init: <T::BaseType as PyClassBaseType>::Initializer,
+pub struct PyClassInitializer<T: PyClass>(PyClassInitializerImpl<T>);
+
+enum PyClassInitializerImpl<T: PyClass> {
+    Existing(Py<T>),
+    New {
+        init: T,
+        super_init: <T::BaseType as PyClassBaseType>::Initializer,
+    },
 }
 
 impl<T: PyClass> PyClassInitializer<T> {
@@ -144,7 +149,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///
     /// It is recommended to use `add_subclass` instead of this method for most usage.
     pub fn new(init: T, super_init: <T::BaseType as PyClassBaseType>::Initializer) -> Self {
-        Self { init, super_init }
+        Self(PyClassInitializerImpl::New { init, super_init })
     }
 
     /// Constructs a new initializer from an initializer for the base class.
@@ -242,13 +247,18 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
             contents: MaybeUninit<PyCellContents<T>>,
         }
 
-        let obj = self.super_init.into_new_object(py, subtype)?;
+        let (init, super_init) = match self.0 {
+            PyClassInitializerImpl::Existing(value) => return Ok(value.into_ptr()),
+            PyClassInitializerImpl::New { init, super_init } => (init, super_init),
+        };
+
+        let obj = super_init.into_new_object(py, subtype)?;
 
         let cell: *mut PartiallyInitializedPyCell<T> = obj as _;
         std::ptr::write(
             (*cell).contents.as_mut_ptr(),
             PyCellContents {
-                value: ManuallyDrop::new(UnsafeCell::new(self.init)),
+                value: ManuallyDrop::new(UnsafeCell::new(init)),
                 borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
                 thread_checker: T::ThreadChecker::new(),
                 dict: T::Dict::INIT,
@@ -281,6 +291,13 @@ where
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
         PyClassInitializer::from(base).add_subclass(sub)
+    }
+}
+
+impl<T: PyClass> From<Py<T>> for PyClassInitializer<T> {
+    #[inline]
+    fn from(value: Py<T>) -> PyClassInitializer<T> {
+        PyClassInitializer(PyClassInitializerImpl::Existing(value))
     }
 }
 
