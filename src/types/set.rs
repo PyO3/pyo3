@@ -2,7 +2,7 @@
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
-    IntoPyPointer, Py,
+    Py,
 };
 use crate::{ffi, AsPyPointer, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
@@ -250,7 +250,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
 
         for obj in elements {
             unsafe {
-                err::error_on_minusone(py, ffi::PySet_Add(ptr, obj.into_ptr()))?;
+                err::error_on_minusone(py, ffi::PySet_Add(ptr, obj.as_ptr()))?;
             }
         }
 
