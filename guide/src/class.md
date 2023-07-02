@@ -113,6 +113,9 @@ impl Nonzero {
 }
 ```
 
+If you want to return an existing object (for example, because your `new`
+method caches the values it returns), `new` can return `pyo3::Py<Self>`.
+
 As you can see, the Rust method name is not important here; this way you can
 still, use `new()` for a Rust-level constructor.
 
