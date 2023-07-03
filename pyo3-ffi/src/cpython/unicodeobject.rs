@@ -262,22 +262,19 @@ pub struct PyASCIIObject {
 
 /// Interacting with the bitfield is not actually well-defined, so we mark these APIs unsafe.
 impl PyASCIIObject {
-    #[cfg_attr(not(Py_3_12), allow(rustdoc::broken_intra_doc_links))] // SSTATE_INTERNED_IMMORTAL_STATIC requires 3.12
     /// Get the `interned` field of the [`PyASCIIObject`] state bitfield.
     ///
     /// Returns one of: [`SSTATE_NOT_INTERNED`], [`SSTATE_INTERNED_MORTAL`],
-    /// [`SSTATE_INTERNED_IMMORTAL`], or [`SSTATE_INTERNED_IMMORTAL_STATIC`].
+    /// or [`SSTATE_INTERNED_IMMORTAL`].
     #[inline]
     pub unsafe fn interned(&self) -> c_uint {
         PyASCIIObjectState::from(self.state).interned()
     }
 
-    #[cfg_attr(not(Py_3_12), allow(rustdoc::broken_intra_doc_links))] // SSTATE_INTERNED_IMMORTAL_STATIC requires 3.12
     /// Set the `interned` field of the [`PyASCIIObject`] state bitfield.
     ///
     /// Calling this function with an argument that is not [`SSTATE_NOT_INTERNED`],
-    /// [`SSTATE_INTERNED_MORTAL`], [`SSTATE_INTERNED_IMMORTAL`], or
-    /// [`SSTATE_INTERNED_IMMORTAL_STATIC`] is invalid.
+    /// [`SSTATE_INTERNED_MORTAL`], or [`SSTATE_INTERNED_IMMORTAL`] is invalid.
     #[inline]
     pub unsafe fn set_interned(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
