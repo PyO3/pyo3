@@ -254,7 +254,7 @@ jobs:
             extra-features: "multiple-pymethods"
 
   valgrind:
-    if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -274,7 +274,7 @@ jobs:
       TRYBUILD: overwrite
 
   careful:
-    if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
