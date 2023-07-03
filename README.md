@@ -1,12 +1,12 @@
 # PyO3
 
-[![actions status](https://github.com/PyO3/pyo3/workflows/CI/badge.svg)](https://github.com/PyO3/pyo3/actions)
-[![benchmark](https://github.com/PyO3/pyo3/actions/workflows/bench.yml/badge.svg)](https://pyo3.rs/dev/bench/)
-[![codecov](https://codecov.io/gh/PyO3/pyo3/branch/main/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3)
-[![crates.io](https://img.shields.io/crates/v/pyo3)](https://crates.io/crates/pyo3)
+[![actions status](https://img.shields.io/github/actions/workflow/status/PyO3/pyo3/ci.yml?branch=main&logo=github&style=)](https://github.com/PyO3/pyo3/actions)
+[![benchmark](https://img.shields.io/badge/benchmark-✓-Green?logo=github)](https://pyo3.rs/dev/bench/)
+[![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
+[![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
 [![minimum rustc 1.48](https://img.shields.io/badge/rustc-1.48+-blue.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
-[![dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
-[![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
+[![dev chat](https://img.shields.io/gitter/room/PyO3/Lobby?logo=gitter)](https://gitter.im/PyO3/Lobby)
+[![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
 [Rust](https://www.rust-lang.org/) bindings for [Python](https://www.python.org/), including tools for creating native Python extension modules. Running and interacting with Python code from a Rust binary is also supported.
 
@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.19.0", features = ["extension-module"] }
+pyo3 = { version = "0.19.1", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.19.0"
+version = "0.19.1"
 features = ["auto-initialize"]
 ```
 
@@ -216,7 +216,9 @@ about this topic.
 
 ## Articles and other media
 
-- [Making Python 100x faster with less than 100 lines of Rust](https://ohadravid.github.io/posts/2023-03-rusty-python/) - March 28, 2023
+- [A Week of PyO3 + rust-numpy (How to Speed Up Your Data Pipeline X Times)](https://terencezl.github.io/blog/2023/06/06/a-week-of-pyo3-rust-numpy/) - Jun 6, 2023
+- [(Podcast) PyO3 with David Hewitt](https://rustacean-station.org/episode/david-hewitt/) - May 19, 2023
+- [Making Python 100x faster with less than 100 lines of Rust](https://ohadravid.github.io/posts/2023-03-rusty-python/) - Mar 28, 2023
 - [How Pydantic V2 leverages Rust's Superpowers](https://fosdem.org/2023/schedule/event/rust_how_pydantic_v2_leverages_rusts_superpowers/) - Feb 4, 2023
 - [How we extended the River stats module with Rust using PyO3](https://boring-guy.sh/posts/river-rust/) - Dec 23, 2022
 - [Nine Rules for Writing Python Extensions in Rust](https://towardsdatascience.com/nine-rules-for-writing-python-extensions-in-rust-d35ea3a4ec29?sk=f8d808d5f414154fdb811e4137011437) - Dec 31, 2021
@@ -244,7 +246,8 @@ If you don't have time to contribute yourself but still wish to support the proj
 
 ## License
 
-PyO3 is licensed under the [Apache-2.0 license](https://opensource.org/licenses/APACHE-2.0).
+PyO3 is licensed under the [Apache-2.0 license](https://opensource.org/licenses/APACHE-2.0). (The PyO3 project is in the process of collecting permission from past contributors to additionally license under the [MIT license](https://opensource.org/license/mit/), see [#3108](https://github.com/PyO3/pyo3/pull/3108). Once complete, PyO3 will additionally be licensed under the MIT license, the same as the Rust language itself is both Apache and MIT licensed.)
+
 Python is licensed under the [Python License](https://docs.python.org/3/license.html).
 
 <a href="https://www.netlify.com"> <img src="https://www.netlify.com/v3/img/components/netlify-color-accent.svg" alt="Deploys by Netlify" /> </a>

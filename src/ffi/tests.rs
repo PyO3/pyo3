@@ -2,6 +2,7 @@ use crate::ffi::*;
 use crate::{types::PyDict, AsPyPointer, IntoPy, Py, PyAny, Python};
 
 use crate::types::PyString;
+#[cfg(not(Py_3_12))]
 use libc::wchar_t;
 
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
@@ -116,6 +117,7 @@ fn ascii_object_bitfield() {
         #[cfg(not(PyPy))]
         hash: 0,
         state: 0u32,
+        #[cfg(not(Py_3_12))]
         wstr: std::ptr::null_mut() as *mut wchar_t,
     };
 
@@ -124,9 +126,12 @@ fn ascii_object_bitfield() {
         assert_eq!(o.kind(), 0);
         assert_eq!(o.compact(), 0);
         assert_eq!(o.ascii(), 0);
+        #[cfg(not(Py_3_12))]
         assert_eq!(o.ready(), 0);
 
-        for i in 0..4 {
+        let interned_count = if cfg!(Py_3_12) { 2 } else { 4 };
+
+        for i in 0..interned_count {
             o.set_interned(i);
             assert_eq!(o.interned(), i);
         }
@@ -142,7 +147,9 @@ fn ascii_object_bitfield() {
         o.set_ascii(1);
         assert_eq!(o.ascii(), 1);
 
+        #[cfg(not(Py_3_12))]
         o.set_ready(1);
+        #[cfg(not(Py_3_12))]
         assert_eq!(o.ready(), 1);
     }
 }
@@ -163,6 +170,7 @@ fn ascii() {
             assert_eq!(ascii.kind(), PyUnicode_1BYTE_KIND);
             assert_eq!(ascii.compact(), 1);
             assert_eq!(ascii.ascii(), 1);
+            #[cfg(not(Py_3_12))]
             assert_eq!(ascii.ready(), 1);
 
             assert_eq!(PyUnicode_IS_ASCII(ptr), 1);
@@ -203,6 +211,7 @@ fn ucs4() {
             assert_eq!(ascii.kind(), PyUnicode_4BYTE_KIND);
             assert_eq!(ascii.compact(), 1);
             assert_eq!(ascii.ascii(), 0);
+            #[cfg(not(Py_3_12))]
             assert_eq!(ascii.ready(), 1);
 
             assert_eq!(PyUnicode_IS_ASCII(ptr), 0);

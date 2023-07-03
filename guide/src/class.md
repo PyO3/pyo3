@@ -60,7 +60,7 @@ To integrate Rust types with Python, PyO3 needs to place some restrictions on th
 
 Rust lifetimes are used by the Rust compiler to reason about a program's memory safety. They are a compile-time only concept; there is no way to access Rust lifetimes at runtime from a dynamic language like Python.
 
-As soon as Rust data is exposed to Python, there is no guarantee which the Rust compiler can make on how long the data will live. Python is a reference-counted language and those references can be held for an arbitrarily long time which is untraceable by the Rust compiler. The only possible way to express this correctly is to require that any `#[pyclass]` does not borrow data for any lifetime shorter than the `'static` lifetime, i.e. the `#[pyclass]` cannot have any lifetime parameters.
+As soon as Rust data is exposed to Python, there is no guarantee that the Rust compiler can make on how long the data will live. Python is a reference-counted language and those references can be held for an arbitrarily long time which is untraceable by the Rust compiler. The only possible way to express this correctly is to require that any `#[pyclass]` does not borrow data for any lifetime shorter than the `'static` lifetime, i.e. the `#[pyclass]` cannot have any lifetime parameters.
 
 When you need to share ownership of data between Python and Rust, instead of using borrowed references with lifetimes consider using reference-counted smart pointers such as [`Arc`] or [`Py`].
 
@@ -74,7 +74,7 @@ Because Python objects are freely shared between threads by the Python interpret
 
 ## Constructor
 
-By default it is not possible to create an instance of a custom class from Python code.
+By default, it is not possible to create an instance of a custom class from Python code.
 To declare a constructor, you need to define a method and annotate it with the `#[new]`
 attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
 
@@ -113,8 +113,11 @@ impl Nonzero {
 }
 ```
 
+If you want to return an existing object (for example, because your `new`
+method caches the values it returns), `new` can return `pyo3::Py<Self>`.
+
 As you can see, the Rust method name is not important here; this way you can
-still use `new()` for a Rust-level constructor.
+still, use `new()` for a Rust-level constructor.
 
 If no method marked with `#[new]` is declared, object instances can only be
 created from Rust, but not from Python.
@@ -226,8 +229,10 @@ struct FrozenCounter {
     value: AtomicUsize,
 }
 
-let py_counter: Py<FrozenCounter>  = Python::with_gil(|py| {
-    let counter = FrozenCounter { value: AtomicUsize::new(0) };
+let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+    let counter = FrozenCounter {
+        value: AtomicUsize::new(0),
+    };
 
     Py::new(py, counter).unwrap()
 });
@@ -264,7 +269,7 @@ use the `extends` parameter for `pyclass` with the full path to the base class.
 
 For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
 base class of `T`.
-But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
+But for a more deeply nested inheritance, you have to return `PyClassInitializer<T>`
 explicitly.
 
 To get a parent class from a child, use [`PyRef`] instead of `&self` for methods,
@@ -647,9 +652,9 @@ impl BaseClass {
     #[new]
     #[classmethod]
     fn py_new<'p>(cls: &'p PyType, py: Python<'p>) -> PyResult<Self> {
-      // Get an abstract attribute (presumably) declared on a subclass of this class.
-      let subclass_attr = cls.getattr("a_class_attr")?;
-      Ok(Self(subclass_attr.to_object(py)))
+        // Get an abstract attribute (presumably) declared on a subclass of this class.
+        let subclass_attr = cls.getattr("a_class_attr")?;
+        Ok(Self(subclass_attr.to_object(py)))
     }
 }
 ```
@@ -716,11 +721,72 @@ impl MyClass {
 }
 ```
 
+## Free functions
+
+Free functions defined using `#[pyfunction]` interact with classes through the same mechanisms as the self parameters of instance methods, i.e. they can take GIL-bound references, GIL-bound reference wrappers or GIL-indepedent references:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+    my_field: i32,
+}
+
+// Take a GIL-bound reference when the underlying `PyCell` is irrelevant.
+#[pyfunction]
+fn increment_field(my_class: &mut MyClass) {
+    my_class.my_field += 1;
+}
+
+// Take a GIL-bound reference wrapper when borrowing should be automatic,
+// but interaction with the underlying `PyCell` is desired.
+#[pyfunction]
+fn print_field(my_class: PyRef<'_, MyClass>) {
+    println!("{}", my_class.my_field);
+}
+
+// Take a GIL-bound reference to the underlying cell
+// when borrowing needs to be managed manually.
+#[pyfunction]
+fn increment_then_print_field(my_class: &PyCell<MyClass>) {
+    my_class.borrow_mut().my_field += 1;
+
+    println!("{}", my_class.borrow().my_field);
+}
+
+// Take a GIL-indepedent reference when you want to store the reference elsewhere.
+#[pyfunction]
+fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
+    println!("{}", my_class.get_refcnt(py));
+}
+```
+
+Classes can also be passed by value if they can be cloned, i.e. they automatically implement `FromPyObject` if they implement `Clone`, e.g. via `#[derive(Clone)]`:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyclass]
+#[derive(Clone)]
+struct MyClass {
+    my_field: Box<i32>,
+}
+
+#[pyfunction]
+fn dissamble_clone(my_class: MyClass) {
+    let MyClass { mut my_field } = my_class;
+    *my_field += 1;
+}
+```
+
+Note that `#[derive(FromPyObject)]` on a class is usually not useful as it tries to construct a new Rust value by filling in the fields by looking up attributes of any given Python value.
+
 ## Method arguments
 
 Similar to `#[pyfunction]`, the `#[pyo3(signature = (...))]` attribute can be used to specify the way that `#[pymethods]` accept arguments. Consult the documentation for [`function signatures`](./function/signature.md) to see the parameters this attribute accepts.
 
-The following example defines a class `MyClass` with a method `method`. This method has a signature which sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
+The following example defines a class `MyClass` with a method `method`. This method has a signature that sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
 
 ```rust
 # use pyo3::prelude::*;
@@ -756,7 +822,7 @@ impl MyClass {
 }
 ```
 
-In Python this might be used like:
+In Python, this might be used like:
 
 ```python
 >>> import mymodule

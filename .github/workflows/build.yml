@@ -25,6 +25,7 @@ on:
 
 jobs:
   build:
+    continue-on-error: ${{ contains(fromJSON('["3.7", "3.12-dev", "pypy3.7", "pypy3.10"]'), inputs.python-version) }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v3
@@ -122,9 +123,11 @@ jobs:
 
       - uses: dorny/paths-filter@v2
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
-        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
+        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
         id: ffi-changes
         with:
+          base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
           filters: |
             changed:
               - 'pyo3-ffi/**'
@@ -133,10 +136,10 @@ jobs:
               - '.github/workflows/build.yml'
 
       - name: Run pyo3-ffi-check
+        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here, nor
+        # is pypy 3.9 on windows
+        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows')) }}
         run: nox -s ffi-check
-        # Allow failure on PyPy for now
-        continue-on-error: ${{ startsWith(inputs.python-version, 'pypy') }}
-        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
 
 
       - name: Test cross compilation

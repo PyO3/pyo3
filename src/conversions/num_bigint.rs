@@ -1,8 +1,4 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
-#![cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API))))]
+#![cfg(feature = "num-bigint")]
 //!  Conversions to and from [num-bigint](https://docs.rs/num-bigint)’s [`BigInt`] and [`BigUint`] types.
 //!
 //! This is useful for converting Python integers when they may not fit in Rust's built-in integer types.
@@ -57,15 +53,16 @@
 //! ```
 
 use crate::{
-    err, ffi, types::*, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult,
-    Python, ToPyObject,
+    ffi, types::*, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
 };
 
 use num_bigint::{BigInt, BigUint};
 use std::os::raw::{c_int, c_uchar};
 
+#[cfg(not(Py_LIMITED_API))]
 unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyResult<()> {
-    err::error_on_minusone(
+    crate::err::error_on_minusone(
         ob.py(),
         ffi::_PyLong_AsByteArray(
             ob.as_ptr() as *mut ffi::PyLongObject,
@@ -77,13 +74,33 @@ unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyRe
     )
 }
 
+#[cfg(Py_LIMITED_API)]
+unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyResult<()> {
+    use crate::intern;
+    let py = ob.py();
+    let kwargs = if is_signed != 0 {
+        let kwargs = PyDict::new(py);
+        kwargs.set_item(intern!(py, "signed"), true)?;
+        Some(kwargs)
+    } else {
+        None
+    };
+    let bytes_obj = ob
+        .getattr(intern!(py, "to_bytes"))?
+        .call((buffer.len(), "little"), kwargs)?;
+    let bytes: &PyBytes = bytes_obj.downcast_unchecked();
+    buffer.copy_from_slice(bytes.as_bytes());
+    Ok(())
+}
+
 macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: expr, $to_bytes: path, $from_bytes: path) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl ToPyObject for $rust_ty {
+            #[cfg(not(Py_LIMITED_API))]
             fn to_object(&self, py: Python<'_>) -> PyObject {
+                let bytes = $to_bytes(self);
                 unsafe {
-                    let bytes = $to_bytes(self);
                     let obj = ffi::_PyLong_FromByteArray(
                         bytes.as_ptr() as *const c_uchar,
                         bytes.len(),
@@ -92,6 +109,23 @@ macro_rules! bigint_conversion {
                     );
                     PyObject::from_owned_ptr(py, obj)
                 }
+            }
+
+            #[cfg(Py_LIMITED_API)]
+            fn to_object(&self, py: Python<'_>) -> PyObject {
+                let bytes = $to_bytes(self);
+                let bytes_obj = PyBytes::new(py, &bytes);
+                let kwargs = if $is_signed > 0 {
+                    let kwargs = PyDict::new(py);
+                    kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
+                    Some(kwargs)
+                } else {
+                    None
+                };
+                py.get_type::<PyLong>()
+                    .call_method("from_bytes", (bytes_obj, "little"), kwargs)
+                    .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
+                    .into()
             }
         }
 
@@ -109,14 +143,33 @@ macro_rules! bigint_conversion {
                 unsafe {
                     let num: Py<PyLong> =
                         Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))?;
-                    let n_bits = ffi::_PyLong_NumBits(num.as_ptr());
-                    let n_bytes = if n_bits == (-1isize as usize) {
-                        return Err(PyErr::fetch(py));
-                    } else if n_bits == 0 {
-                        0
-                    } else {
-                        (n_bits - 1 + $is_signed) / 8 + 1
+
+                    let n_bytes = {
+                        cfg_if::cfg_if! {
+                            if #[cfg(not(Py_LIMITED_API))] {
+                                // fast path
+                                let n_bits = ffi::_PyLong_NumBits(num.as_ptr());
+                                if n_bits == (-1isize as usize) {
+                                    return Err(crate::PyErr::fetch(py));
+                                } else if n_bits == 0 {
+                                    0
+                                } else {
+                                    (n_bits - 1 + $is_signed) / 8 + 1
+                                }
+                            } else {
+                                // slow path
+                                let n_bits_obj = num.getattr(py, crate::intern!(py, "bit_length"))?.call0(py)?;
+                                let n_bits_int: &PyLong = n_bits_obj.downcast_unchecked(py);
+                                let n_bits = n_bits_int.extract::<usize>()?;
+                                if n_bits == 0 {
+                                    0
+                                } else {
+                                    (n_bits - 1 + $is_signed) / 8 + 1
+                                }
+                            }
+                        }
                     };
+
                     if n_bytes <= 128 {
                         let mut buffer = [0; 128];
                         extract(num.as_ref(py), &mut buffer[..n_bytes], $is_signed)?;

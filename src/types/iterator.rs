@@ -1,7 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
 use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyAny, PyErr, PyNativeType, PyResult, Python};
 use crate::{PyDowncastError, PyTryFrom};
 

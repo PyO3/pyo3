@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Defines conversions between Rust and Python types.
 use crate::err::{self, PyDowncastError, PyResult};
 #[cfg(feature = "experimental-inspect")]

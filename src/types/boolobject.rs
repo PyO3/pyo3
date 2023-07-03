@@ -1,4 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{

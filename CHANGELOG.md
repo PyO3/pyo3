@@ -10,6 +10,31 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.19.1] - 2023-07-03
+
+### Packaging
+
+- Extend range of supported versions of `hashbrown` optional dependency to include version 0.14 [#3258](https://github.com/PyO3/pyo3/pull/3258)
+- Extend range of supported versions of `indexmap` optional dependency to include version 2. [#3277](https://github.com/PyO3/pyo3/pull/3277)
+- Support PyPy 3.10. [#3289](https://github.com/PyO3/pyo3/pull/3289)
+
+### Added
+
+- Add `pyo3::types::PyFrozenSetBuilder` to allow building a `PyFrozenSet` item by item. [#3156](https://github.com/PyO3/pyo3/pull/3156)
+- Add support for converting to and from Python's `ipaddress.IPv4Address`/`ipaddress.IPv6Address` and `std::net::IpAddr`. [#3197](https://github.com/PyO3/pyo3/pull/3197)
+- Add support for `num-bigint` feature in combination with `abi3`. [#3198](https://github.com/PyO3/pyo3/pull/3198)
+- Add `PyErr_GetRaisedException()`, `PyErr_SetRaisedException()` to FFI definitions for Python 3.12 and later. [#3248](https://github.com/PyO3/pyo3/pull/3248)
+- Add `Python::with_pool` which is a safer but more limited alternative to `Python::new_pool`. [#3263](https://github.com/PyO3/pyo3/pull/3263)
+- Add `PyDict::get_item_with_error` on PyPy. [#3270](https://github.com/PyO3/pyo3/pull/3270)
+- Allow `#[new]` methods may to return `Py<Self>` in order to return existing instances. [#3287](https://github.com/PyO3/pyo3/pull/3287)
+
+### Fixed
+
+- Fix conversion of classes implementing `__complex__` to `Complex` when using `abi3` or PyPy. [#3185](https://github.com/PyO3/pyo3/pull/3185)
+- Stop suppressing unrelated exceptions in `PyAny::hasattr`. [#3271](https://github.com/PyO3/pyo3/pull/3271)
+- Fix memory leak when creating `PySet` or `PyFrozenSet` or returning types converted into these internally, e.g. `HashSet` or `BTreeSet`. [#3286](https://github.com/PyO3/pyo3/pull/3286)
+
+
 ## [0.19.0] - 2023-05-31
 
 ### Packaging
@@ -1478,7 +1503,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/pyo3/pyo3/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/pyo3/pyo3/compare/v0.18.3...v0.19.0
 [0.18.3]: https://github.com/pyo3/pyo3/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/pyo3/pyo3/compare/v0.18.1...v0.18.2

@@ -1,11 +1,11 @@
 [package]
-name = "examples"
+name = "pyo3-examples"
 version = "0.0.0"
 publish = false
 edition = "2018"
 
 [dev-dependencies]
-pyo3 = { version = "0.19.0", path = "..", features = ["auto-initialize", "extension-module"] }
+pyo3 = { version = "0.19.1", path = "..", features = ["auto-initialize", "extension-module"] }
 
 [[example]]
 name = "decorator"

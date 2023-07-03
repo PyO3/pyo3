@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Support for [free allocation lists][1].
 //!
 //! This can improve performance for types that are often created and deleted in quick succession.

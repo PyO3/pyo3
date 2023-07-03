@@ -11,4 +11,4 @@ proc-macro = true
 glob = "0.3"
 quote = "1"
 proc-macro2 = "1"
-scraper = "0.12"
+scraper = "0.17"

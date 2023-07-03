@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Exception and warning types defined by Python.
 //!
 //! The structs in this module represent Python's built-in exceptions and

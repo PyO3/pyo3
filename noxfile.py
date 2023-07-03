@@ -4,15 +4,14 @@ import re
 import subprocess
 import sys
 import tempfile
-import time
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import nox
 
-nox.options.sessions = ["test", "clippy", "fmt"]
+nox.options.sessions = ["test", "clippy", "fmt", "docs"]
 
 
 PYO3_DIR = Path(__file__).parent
@@ -35,7 +34,7 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session)
     _run_cargo_test(session, features="abi3")
-    if not "skip-full" in session.posargs:
+    if "skip-full" not in session.posargs:
         _run_cargo_test(session, features="full")
         _run_cargo_test(session, features="abi3 full")
 
@@ -50,11 +49,10 @@ def test_py(session: nox.Session) -> None:
 @nox.session(venv_backend="none")
 def coverage(session: nox.Session) -> None:
     session.env.update(_get_coverage_env())
-    _run(session, "cargo", "llvm-cov", "clean", "--workspace", external=True)
+    _run_cargo(session, "llvm-cov", "clean", "--workspace")
     test(session)
-    _run(
+    _run_cargo(
         session,
-        "cargo",
         "llvm-cov",
         "--package=pyo3",
         "--package=pyo3-build-config",
@@ -65,7 +63,6 @@ def coverage(session: nox.Session) -> None:
         "--codecov",
         "--output-path",
         "coverage.json",
-        external=True,
     )
 
 
@@ -77,7 +74,8 @@ def fmt(session: nox.Session):
 
 @nox.session(name="fmt-rust", venv_backend="none")
 def fmt_rust(session: nox.Session):
-    _run(session, "cargo", "fmt", "--all", "--check", external=True)
+    _run_cargo(session, "fmt", "--all", "--check")
+    _run_cargo(session, "fmt", *_FFI_CHECK, "--all", "--check")
 
 
 @nox.session(name="fmt-py")
@@ -96,26 +94,15 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
     success = True
     env = env or os.environ
     for feature_set in _get_feature_sets():
-        command = "clippy"
-        extra = ("--", "--deny=warnings")
-        if _get_rust_version()[:2] == (1, 48):
-            # 1.48 crashes during clippy because of lints requested
-            # in .cargo/config
-            command = "check"
-            extra = ()
         try:
-            _run(
+            _run_cargo(
                 session,
-                "cargo",
-                command,
+                "clippy",
                 *feature_set,
                 "--all-targets",
                 "--workspace",
-                # linting pyo3-ffi-check requires docs to have been built or
-                # the macros will error; doesn't seem worth it on CI
-                "--exclude=pyo3-ffi-check",
-                *extra,
-                external=True,
+                "--",
+                "--deny=warnings",
                 env=env,
             )
         except Exception:
@@ -126,31 +113,37 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
 @nox.session(name="clippy-all", venv_backend="none")
 def clippy_all(session: nox.Session) -> None:
     success = True
-    with tempfile.NamedTemporaryFile("r+") as config:
-        env = os.environ.copy()
-        env["PYO3_CONFIG_FILE"] = config.name
-        env["PYO3_CI"] = "1"
 
-        def _clippy_with_config(implementation, version) -> bool:
-            config.seek(0)
-            config.truncate(0)
-            config.write(
-                f"""\
-implementation={implementation}
-version={version}
-suppress_build_script_link_lines=true
-"""
-            )
-            config.flush()
+    def _clippy_with_config(env: Dict[str, str]) -> None:
+        nonlocal success
+        success &= _clippy(session, env=env)
 
-            session.log(f"{implementation} {version}")
-            return _clippy(session, env=env)
+    _for_all_version_configs(session, _clippy_with_config)
 
-        for version in PY_VERSIONS:
-            success &= _clippy_with_config("CPython", version)
+    if not success:
+        session.error("one or more jobs failed")
 
-        for version in PYPY_VERSIONS:
-            success &= _clippy_with_config("PyPy", version)
+
+@nox.session(name="check-all", venv_backend="none")
+def check_all(session: nox.Session) -> None:
+    success = True
+
+    def _check(env: Dict[str, str]) -> None:
+        nonlocal success
+        for feature_set in _get_feature_sets():
+            try:
+                _run_cargo(
+                    session,
+                    "check",
+                    *feature_set,
+                    "--all-targets",
+                    "--workspace",
+                    env=env,
+                )
+            except Exception:
+                success = False
+
+    _for_all_version_configs(session, _check)
 
     if not success:
         session.error("one or more jobs failed")
@@ -159,13 +152,9 @@ suppress_build_script_link_lines=true
 @nox.session(venv_backend="none")
 def publish(session: nox.Session) -> None:
     _run_cargo_publish(session, package="pyo3-build-config")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-macros-backend")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-macros")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3-ffi")
-    time.sleep(10)
     _run_cargo_publish(session, package="pyo3")
 
 
@@ -287,6 +276,43 @@ def test_emscripten(session: nox.Session):
     )
 
 
+@nox.session(venv_backend="none")
+def docs(session: nox.Session) -> None:
+    rustdoc_flags = ["-Dwarnings"]
+    toolchain_flags = []
+    cargo_flags = []
+
+    if "open" in session.posargs:
+        cargo_flags.append("--open")
+
+    if "nightly" in session.posargs:
+        rustdoc_flags.append("--cfg docsrs")
+        toolchain_flags.append("+nightly")
+        cargo_flags.extend(["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples"])
+
+    if "nightly" in session.posargs and "internal" in session.posargs:
+        rustdoc_flags.append("--Z unstable-options")
+        rustdoc_flags.append("--document-hidden-items")
+        cargo_flags.append("--document-private-items")
+    else:
+        cargo_flags.extend(["--exclude=pyo3-macros", "--exclude=pyo3-macros-backend"])
+
+    rustdoc_flags.append(session.env.get("RUSTDOCFLAGS", ""))
+    session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
+
+    _run_cargo(
+        session,
+        *toolchain_flags,
+        "doc",
+        "--lib",
+        "--no-default-features",
+        "--features=full",
+        "--no-deps",
+        "--workspace",
+        *cargo_flags,
+    )
+
+
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
     _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
@@ -298,8 +324,6 @@ def format_guide(session: nox.Session):
 
     for path in Path("guide").glob("**/*.md"):
         session.log("Working on %s", path)
-        content = path.read_text()
-
         lines = iter(path.read_text().splitlines(True))
         new_lines = []
 
@@ -346,9 +370,8 @@ def format_guide(session: nox.Session):
 
 @nox.session(name="address-sanitizer", venv_backend="none")
 def address_sanitizer(session: nox.Session):
-    _run(
+    _run_cargo(
         session,
-        "cargo",
         "+nightly",
         "test",
         "--release",
@@ -361,7 +384,6 @@ def address_sanitizer(session: nox.Session):
             "RUSTDOCFLAGS": "-Zsanitizer=address",
             "ASAN_OPTIONS": "detect_leaks=0",
         },
-        external=True,
     )
 
 
@@ -459,20 +481,13 @@ def set_minimal_package_versions(session: nox.Session):
         "wasm-bindgen": "0.2.84",
         "syn": "1.0.109",
     }
-
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
         if project is None:
-            _run(session, "cargo", "update", external=True)
+            _run_cargo(session, "update")
         else:
-            _run(
-                session,
-                "cargo",
-                "update",
-                f"--manifest-path={project}/Cargo.toml",
-                external=True,
-            )
+            _run_cargo(session, "update", f"--manifest-path={project}/Cargo.toml")
 
     for project in projects:
         lock_file = Path(project or "") / "Cargo.lock"
@@ -506,22 +521,21 @@ def set_minimal_package_versions(session: nox.Session):
     # supported on MSRV
     for project in projects:
         if project is None:
-            _run(session, "cargo", "metadata", silent=True, external=True)
+            _run_cargo(session, "metadata", silent=True)
         else:
-            _run(
+            _run_cargo(
                 session,
-                "cargo",
                 "metadata",
                 f"--manifest-path={project}/Cargo.toml",
                 silent=True,
-                external=True,
             )
 
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    session.run("cargo", "doc", "-p", "pyo3-ffi", "--no-deps", external=True)
-    _run(session, "cargo", "run", "-p", "pyo3-ffi-check", external=True)
+    _run_cargo(session, "doc", *_FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
+    _run_cargo(session, "clippy", "--workspace", "--all-targets", *_FFI_CHECK)
+    _run_cargo(session, "run", *_FFI_CHECK)
 
 
 @lru_cache()
@@ -603,6 +617,10 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
         print("::endgroup::", file=sys.stderr)
 
 
+def _run_cargo(session: nox.Session, *args: str, **kwargs: Any) -> None:
+    _run(session, "cargo", *args, **kwargs, external=True)
+
+
 def _run_cargo_test(
     session: nox.Session,
     *,
@@ -624,7 +642,7 @@ def _run_cargo_test(
 
 
 def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
-    _run(session, "cargo", "publish", f"--package={package}", external=True)
+    _run_cargo(session, "publish", f"--package={package}")
 
 
 def _run_cargo_set_package_version(
@@ -642,3 +660,36 @@ def _run_cargo_set_package_version(
 
 def _get_output(*args: str) -> str:
     return subprocess.run(args, capture_output=True, text=True, check=True).stdout
+
+
+def _for_all_version_configs(
+    session: nox.Session, job: Callable[[Dict[str, str]], None]
+) -> None:
+    with tempfile.NamedTemporaryFile("r+") as config:
+        env = os.environ.copy()
+        env["PYO3_CONFIG_FILE"] = config.name
+        env["PYO3_CI"] = "1"
+
+        def _job_with_config(implementation, version) -> bool:
+            config.seek(0)
+            config.truncate(0)
+            config.write(
+                f"""\
+implementation={implementation}
+version={version}
+suppress_build_script_link_lines=true
+"""
+            )
+            config.flush()
+
+            session.log(f"{implementation} {version}")
+            return job(env)
+
+        for version in PY_VERSIONS:
+            _job_with_config("CPython", version)
+
+        for version in PYPY_VERSIONS:
+            _job_with_config("PyPy", version)
+
+
+_FFI_CHECK = ("--manifest-path", "pyo3-ffi-check/Cargo.toml")

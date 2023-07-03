@@ -1,4 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
 use crate::{ffi, AsPyPointer, Py, PyAny, Python};
 use std::os::raw::c_char;

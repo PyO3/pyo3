@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
 pub use self::any::PyAny;
@@ -21,7 +19,7 @@ pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
-pub use self::frozenset::PyFrozenSet;
+pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder};
 pub use self::function::PyCFunction;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::function::PyFunction;

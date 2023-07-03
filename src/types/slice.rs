@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};

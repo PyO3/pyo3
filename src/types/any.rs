@@ -1,7 +1,7 @@
 use crate::class::basic::CompareOp;
 use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToPyObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
-use crate::exceptions::PyTypeError;
+use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::type_object::PyTypeInfo;
 #[cfg(not(PyPy))]
 use crate::types::PySuper;
@@ -79,14 +79,37 @@ impl PyAny {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
+    ///
+    /// # Example: `intern!`ing the attribute name
+    ///
+    /// ```
+    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// #
+    /// #[pyfunction]
+    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    ///     sys.hasattr(intern!(sys.py(), "version"))
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #    let sys = py.import("sys").unwrap();
+    /// #    has_version(sys).unwrap();
+    /// # });
+    /// ```
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
         N: IntoPy<Py<PyString>>,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
+        fn inner(any: &PyAny, attr_name: Py<PyString>) -> PyResult<bool> {
+            // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
+            // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
+            match any._getattr(attr_name) {
+                Ok(_) => Ok(true),
+                Err(err) if err.is_instance_of::<PyAttributeError>(any.py()) => Ok(false),
+                Err(e) => Err(e),
+            }
+        }
 
-        unsafe { Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name.as_ptr()) != 0) }
+        inner(self, attr_name.into_py(self.py()))
     }
 
     /// Retrieves an attribute value.
@@ -115,12 +138,65 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
+        fn inner(any: &PyAny, attr_name: Py<PyString>) -> PyResult<&PyAny> {
+            any._getattr(attr_name)
+                .map(|object| object.into_ref(any.py()))
+        }
 
+        inner(self, attr_name.into_py(self.py()))
+    }
+
+    fn _getattr(&self, attr_name: Py<PyString>) -> PyResult<PyObject> {
         unsafe {
-            let ret = ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr());
-            py.from_owned_ptr_or_err(ret)
+            Py::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr()),
+            )
+        }
+    }
+
+    /// Retrieve an attribute value, skipping the instance dictionary during the lookup but still
+    /// binding the object to the instance.
+    ///
+    /// This is useful when trying to resolve Python's "magic" methods like `__getitem__`, which
+    /// are looked up starting from the type object.  This returns an `Option` as it is not
+    /// typically a direct error for the special lookup to fail, as magic methods are optional in
+    /// many situations in which they might be called.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
+    #[allow(dead_code)] // Currently only used with num-complex+abi3, so dead without that.
+    pub(crate) fn lookup_special<N>(&self, attr_name: N) -> PyResult<Option<&PyAny>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        let py = self.py();
+        let self_type = self.get_type();
+        let attr = if let Ok(attr) = self_type.getattr(attr_name) {
+            attr
+        } else {
+            return Ok(None);
+        };
+
+        // Manually resolve descriptor protocol.
+        if cfg!(Py_3_10)
+            || unsafe { ffi::PyType_HasFeature(attr.get_type_ptr(), ffi::Py_TPFLAGS_HEAPTYPE) } != 0
+        {
+            // This is the preferred faster path, but does not work on static types (generally,
+            // types defined in extension modules) before Python 3.10.
+            unsafe {
+                let descr_get_ptr = ffi::PyType_GetSlot(attr.get_type_ptr(), ffi::Py_tp_descr_get);
+                if descr_get_ptr.is_null() {
+                    return Ok(Some(attr));
+                }
+                let descr_get: ffi::descrgetfunc = std::mem::transmute(descr_get_ptr);
+                let ret = descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr());
+                py.from_owned_ptr_or_err(ret).map(Some)
+            }
+        } else if let Ok(descr_get) = attr.get_type().getattr(crate::intern!(py, "__get__")) {
+            descr_get.call1((attr, self, self_type)).map(Some)
+        } else {
+            Ok(Some(attr))
         }
     }
 
@@ -974,9 +1050,82 @@ impl PyAny {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{IntoPyDict, PyBool, PyList, PyLong, PyModule},
+        types::{IntoPyDict, PyAny, PyBool, PyList, PyLong, PyModule},
         Python, ToPyObject,
     };
+
+    #[test]
+    fn test_lookup_special() {
+        Python::with_gil(|py| {
+            let module = PyModule::from_code(
+                py,
+                r#"
+class CustomCallable:
+    def __call__(self):
+        return 1
+
+class SimpleInt:
+    def __int__(self):
+        return 1
+
+class InheritedInt(SimpleInt): pass
+
+class NoInt: pass
+
+class NoDescriptorInt:
+    __int__ = CustomCallable()
+
+class InstanceOverrideInt:
+    def __int__(self):
+        return 1
+instance_override = InstanceOverrideInt()
+instance_override.__int__ = lambda self: 2
+
+class ErrorInDescriptorInt:
+    @property
+    def __int__(self):
+        raise ValueError("uh-oh!")
+
+class NonHeapNonDescriptorInt:
+    # A static-typed callable that doesn't implement `__get__`.  These are pretty hard to come by.
+    __int__ = int
+                "#,
+                "test.py",
+                "test",
+            )
+            .unwrap();
+
+            let int = crate::intern!(py, "__int__");
+            let eval_int =
+                |obj: &PyAny| obj.lookup_special(int)?.unwrap().call0()?.extract::<u32>();
+
+            let simple = module.getattr("SimpleInt").unwrap().call0().unwrap();
+            assert_eq!(eval_int(simple).unwrap(), 1);
+            let inherited = module.getattr("InheritedInt").unwrap().call0().unwrap();
+            assert_eq!(eval_int(inherited).unwrap(), 1);
+            let no_descriptor = module.getattr("NoDescriptorInt").unwrap().call0().unwrap();
+            assert_eq!(eval_int(no_descriptor).unwrap(), 1);
+            let missing = module.getattr("NoInt").unwrap().call0().unwrap();
+            assert!(missing.lookup_special(int).unwrap().is_none());
+            // Note the instance override should _not_ call the instance method that returns 2,
+            // because that's not how special lookups are meant to work.
+            let instance_override = module.getattr("instance_override").unwrap();
+            assert_eq!(eval_int(instance_override).unwrap(), 1);
+            let descriptor_error = module
+                .getattr("ErrorInDescriptorInt")
+                .unwrap()
+                .call0()
+                .unwrap();
+            assert!(descriptor_error.lookup_special(int).is_err());
+            let nonheap_nondescriptor = module
+                .getattr("NonHeapNonDescriptorInt")
+                .unwrap()
+                .call0()
+                .unwrap();
+            assert_eq!(eval_int(nonheap_nondescriptor).unwrap(), 0);
+        })
+    }
+
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
@@ -1049,6 +1198,44 @@ class SimpleClass:
             let b = dir.into_iter().map(|x| x.extract::<String>().unwrap());
             assert!(a.eq(b));
         });
+    }
+
+    #[test]
+    fn test_hasattr() {
+        Python::with_gil(|py| {
+            let x = 5.to_object(py).into_ref(py);
+            assert!(x.is_instance_of::<PyLong>());
+
+            assert!(x.hasattr("to_bytes").unwrap());
+            assert!(!x.hasattr("bbbbbbytes").unwrap());
+        })
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_hasattr_error() {
+        use crate::exceptions::PyValueError;
+        use crate::prelude::*;
+
+        #[pyclass(crate = "crate")]
+        struct GetattrFail;
+
+        #[pymethods(crate = "crate")]
+        impl GetattrFail {
+            fn __getattr__(&self, attr: PyObject) -> PyResult<PyObject> {
+                Err(PyValueError::new_err(attr))
+            }
+        }
+
+        Python::with_gil(|py| {
+            let obj = Py::new(py, GetattrFail).unwrap();
+            let obj = obj.as_ref(py).as_ref();
+
+            assert!(obj
+                .hasattr("foo")
+                .unwrap_err()
+                .is_instance_of::<PyValueError>(py));
+        })
     }
 
     #[test]

@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 #[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;

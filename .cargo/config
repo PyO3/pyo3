@@ -1,6 +1,3 @@
-[alias]
-xtask = "run --package xtask --"
-
 [target.'cfg(feature = "cargo-clippy")']
 rustflags = [
     # TODO: remove these allows once msrv increased from 1.48

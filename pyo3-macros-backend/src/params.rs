@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::{
     method::{FnArg, FnSpec},
     pyfunction::FunctionSignature,

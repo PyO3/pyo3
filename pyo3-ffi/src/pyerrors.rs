@@ -13,12 +13,14 @@ extern "C" {
     pub fn PyErr_Occurred() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyErr_Clear")]
     pub fn PyErr_Clear();
+    #[cfg_attr(Py_3_12, deprecated(note = "Use PyErr_GetRaisedException() instead."))]
     #[cfg_attr(PyPy, link_name = "PyPyErr_Fetch")]
     pub fn PyErr_Fetch(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
     );
+    #[cfg_attr(Py_3_12, deprecated(note = "Use PyErr_SetRaisedException() instead."))]
     #[cfg_attr(PyPy, link_name = "PyPyErr_Restore")]
     pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_GetExcInfo")]
@@ -35,12 +37,22 @@ extern "C" {
     pub fn PyErr_GivenExceptionMatches(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_ExceptionMatches")]
     pub fn PyErr_ExceptionMatches(arg1: *mut PyObject) -> c_int;
+    #[cfg_attr(
+        Py_3_12,
+        deprecated(
+            note = "Use PyErr_GetRaisedException() instead, to avoid any possible de-normalization."
+        )
+    )]
     #[cfg_attr(PyPy, link_name = "PyPyErr_NormalizeException")]
     pub fn PyErr_NormalizeException(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
     );
+    #[cfg(Py_3_12)]
+    pub fn PyErr_GetRaisedException() -> *mut PyObject;
+    #[cfg(Py_3_12)]
+    pub fn PyErr_SetRaisedException(exc: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyException_SetTraceback")]
     pub fn PyException_SetTraceback(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyException_GetTraceback")]

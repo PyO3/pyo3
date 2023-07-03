@@ -1,7 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
 //! Fundamental properties of objects tied to the Python interpreter.
 //!
 //! The Python interpreter is not threadsafe. To protect the Python interpreter in multithreaded
@@ -941,6 +937,72 @@ impl<'py> Python<'py> {
     #[inline]
     pub unsafe fn new_pool(self) -> GILPool {
         GILPool::new()
+    }
+}
+
+impl Python<'_> {
+    /// Creates a scope using a new pool for managing PyO3's owned references.
+    ///
+    /// This is a safe alterantive to [`new_pool`][Self::new_pool] as
+    /// it limits the closure to using the new GIL token at the cost of
+    /// being unable to capture existing GIL-bound references.
+    ///
+    /// Note that on stable Rust, this API suffers from the same the `SendWrapper` loophole
+    /// as [`allow_threads`][Self::allow_threads], c.f. the documentation of the [`Ungil`] trait,
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// Python::with_gil(|py| {
+    ///     // Some long-running process like a webserver, which never releases the GIL.
+    ///     loop {
+    ///         // Create a new scope, so that PyO3 can clear memory at the end of the loop.
+    ///         py.with_pool(|py| {
+    ///             // do stuff...
+    ///         });
+    /// #       break;  // Exit the loop so that doctest terminates!
+    ///     }
+    /// });
+    /// ```
+    ///
+    /// The `Ungil` bound on the closure does prevent hanging on to existing GIL-bound references
+    ///
+    /// ```compile_fail
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyString;
+    ///
+    /// Python::with_gil(|py| {
+    ///     let old_str = PyString::new(py, "a message from the past");
+    ///
+    ///     py.with_pool(|_py| {
+    ///         print!("{:?}", old_str);
+    ///     });
+    /// });
+    /// ```
+    ///
+    /// or continuing to use the old GIL token
+    ///
+    /// ```compile_fail
+    /// # use pyo3::prelude::*;
+    ///
+    /// Python::with_gil(|old_py| {
+    ///     old_py.with_pool(|_new_py| {
+    ///         let _none = old_py.None();
+    ///     });
+    /// });
+    /// ```
+    #[inline]
+    pub fn with_pool<F, R>(&self, f: F) -> R
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R + Ungil,
+    {
+        // SAFETY: The closure is `Ungil`,
+        // i.e. it does not capture any GIL-bound references
+        // and accesses only the newly created GIL token.
+        let pool = unsafe { GILPool::new() };
+
+        f(pool.python())
     }
 }
 
