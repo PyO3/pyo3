@@ -444,17 +444,43 @@ def set_minimal_package_versions(session: nox.Session):
         "examples/word-count",
     )
     min_pkg_versions = {
-        "rust_decimal": "1.26.1",
+        # newer versions of rust_decimal want newer arrayvec
+        "rust_decimal": "1.18.0",
+        # newer versions of arrayvec use const generics (Rust 1.51+)
+        "arrayvec": "0.5.2",
         "csv": "1.1.6",
-        "hashbrown": "0.12.3",
-        "once_cell": "1.17.2",
-        "rayon": "1.6.1",
-        "rayon-core": "1.10.2",
+        # newer versions of chrono use i32::rem_euclid as a const fn
+        "chrono": "0.4.24",
+        "indexmap": "1.6.2",
+        "inventory": "0.3.4",
+        "hashbrown": "0.9.1",
+        "plotters": "0.3.1",
+        "plotters-svg": "0.3.1",
+        "plotters-backend": "0.3.2",
+        "bumpalo": "3.10.0",
+        "once_cell": "1.14.0",
+        "rayon": "1.5.3",
+        "rayon-core": "1.9.3",
         "regex": "1.7.3",
-        "proptest": "1.0.0",
-        "indexmap": "1.9.3",
+        # string_cache 0.8.4 depends on parking_lot 0.12
+        "string_cache": "0.8.3",
+        # 1.15.0 depends on hermit-abi 0.2.6 which has edition 2021 and breaks 1.48.0
+        "num_cpus": "1.14.0",
+        "parking_lot": "0.11.0",
+        # 1.0.77 needs basic-toml which has edition 2021
+        "trybuild": "1.0.76",
+        # pins to avoid syn 2.0 (which requires Rust 1.56)
+        "ghost": "0.1.8",
+        "serde": "1.0.156",
+        "serde_derive": "1.0.156",
+        "cxx": "1.0.92",
+        "cxxbridge-macro": "1.0.92",
+        "cxx-build": "1.0.92",
+        "web-sys": "0.3.61",
+        "js-sys": "0.3.61",
+        "wasm-bindgen": "0.2.84",
+        "syn": "1.0.109",
     }
-
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
@@ -626,7 +652,7 @@ def _run_cargo_set_package_version(
     *,
     project: Optional[str] = None,
 ) -> None:
-    command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
+    command = ["cargo", "update", "-p", pkg_id, "--precise", version]
     if project:
         command.append(f"--manifest-path={project}/Cargo.toml")
     _run(session, *command, external=True)
