@@ -23,11 +23,8 @@ impl PySequence {
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v as usize)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v as usize)
     }
 
     /// Returns whether the sequence is empty.
@@ -191,11 +188,8 @@ impl PySequence {
     {
         fn inner(seq: &PySequence, value: PyObject) -> PyResult<usize> {
             let r = unsafe { ffi::PySequence_Count(seq.as_ptr(), value.as_ptr()) };
-            if r == -1 {
-                Err(PyErr::fetch(seq.py()))
-            } else {
-                Ok(r as usize)
-            }
+            crate::err::error_on_minusone(seq.py(), r)?;
+            Ok(r as usize)
         }
 
         inner(self, value.to_object(self.py()))
@@ -231,11 +225,8 @@ impl PySequence {
     {
         fn inner(seq: &PySequence, value: PyObject) -> PyResult<usize> {
             let r = unsafe { ffi::PySequence_Index(seq.as_ptr(), value.as_ptr()) };
-            if r == -1 {
-                Err(PyErr::fetch(seq.py()))
-            } else {
-                Ok(r as usize)
-            }
+            crate::err::error_on_minusone(seq.py(), r)?;
+            Ok(r as usize)
         }
 
         inner(self, value.to_object(self.py()))
