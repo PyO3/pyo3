@@ -956,11 +956,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `hash(self)`.
     pub fn hash(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v)
     }
 
     /// Returns the length of the sequence or mapping.
@@ -968,11 +965,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v as usize)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v as usize)
     }
 
     /// Returns the list of attributes of this object.
