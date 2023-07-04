@@ -314,7 +314,7 @@ impl PyErr {
             (ptype, pvalue, ptraceback)
         };
 
-        if ptype.as_ptr() == PanicException::type_object(py).as_ptr() {
+        if ptype.as_ptr() == PanicException::type_object_raw(py).cast() {
             let msg: String = pvalue
                 .as_ref()
                 .and_then(|obj| obj.extract(py).ok())
@@ -439,9 +439,8 @@ impl PyErr {
     where
         T: ToPyObject,
     {
-        unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc.to_object(py).as_ptr()) != 0
-        }
+        let exc = exc.to_object(py);
+        unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc.as_ptr()) != 0 }
     }
 
     /// Returns true if the current exception is instance of `T`.
@@ -610,18 +609,21 @@ impl PyErr {
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
-        let ptr = unsafe { ffi::PyException_GetCause(self.value(py).as_ptr()) };
-        let obj = unsafe { py.from_owned_ptr_or_opt::<PyAny>(ptr) };
+        let value = self.value(py);
+        let obj =
+            unsafe { py.from_owned_ptr_or_opt::<PyAny>(ffi::PyException_GetCause(value.as_ptr())) };
         obj.map(Self::from_value)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
     pub fn set_cause(&self, py: Python<'_>, cause: Option<Self>) {
+        let value = self.value(py);
+        let cause = cause.map(|err| err.into_value(py));
         unsafe {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
-                self.value(py).as_ptr(),
-                cause.map_or(std::ptr::null_mut(), |err| err.into_value(py).into_ptr()),
+                value.as_ptr(),
+                cause.map_or(std::ptr::null_mut(), IntoPyPointer::into_ptr),
             );
         }
     }
