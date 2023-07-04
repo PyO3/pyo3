@@ -438,14 +438,16 @@ impl PyErr {
     where
         T: ToPyObject,
     {
-        let exc = exc.to_object(py);
-        unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc.as_ptr()) != 0 }
+        fn inner(err: &PyErr, py: Python<'_>, exc: PyObject) -> bool {
+            (unsafe { ffi::PyErr_GivenExceptionMatches(err.type_ptr(py), exc.as_ptr()) }) != 0
+        }
+        inner(self, py, exc.to_object(py))
     }
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
     pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
-        unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), ty.as_ptr()) != 0 }
+        (unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), ty.as_ptr()) }) != 0
     }
 
     /// Returns true if the current exception is instance of `T`.
