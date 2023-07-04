@@ -216,8 +216,8 @@ impl FromPyObject<'_> for NaiveDateTime {
 
 impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let date = self.naive_utc().date();
-        let time = self.naive_utc().time();
+        let date = self.naive_local().date();
+        let time = self.naive_local().time();
         let yy = date.year();
         let mm = date.month() as u8;
         let dd = date.day() as u8;
@@ -246,7 +246,7 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
 impl FromPyObject<'_> for DateTime<FixedOffset> {
     fn extract(ob: &PyAny) -> PyResult<DateTime<FixedOffset>> {
         let dt: &PyDateTime = ob.downcast()?;
-        let ms = dt.get_fold() as u32 * 1_000_000 + dt.get_microsecond();
+        let ms = dt.get_microsecond();
         let h = dt.get_hour().into();
         let m = dt.get_minute().into();
         let s = dt.get_second().into();
@@ -261,7 +261,8 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
             NaiveTime::from_hms_micro_opt(h, m, s, ms)
                 .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))?,
         );
-        Ok(DateTime::from_utc(dt, tz))
+        // `FixedOffset` cannot have ambiguities so we don't have to worry about DST folds and such
+        Ok(DateTime::from_local(dt, tz))
     }
 }
 
@@ -607,7 +608,7 @@ mod tests {
                         .and_hms_micro_opt(hour, minute, ssecond, ms)
                         .unwrap();
                     let datetime =
-                        DateTime::<FixedOffset>::from_utc(datetime, offset).to_object(py);
+                        DateTime::<FixedOffset>::from_local(datetime, offset).to_object(py);
                     let datetime: &PyDateTime = datetime.extract(py).unwrap();
                     let py_tz = offset.to_object(py);
                     let py_tz = py_tz.downcast(py).unwrap();
@@ -676,41 +677,36 @@ mod tests {
         check_utc("fold", 2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
         check_utc("non fold", 2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
-        let check_fixed_offset =
-            |name: &'static str, year, month, day, hour, minute, second, ms, py_ms, fold| {
-                Python::with_gil(|py| {
-                    let offset = FixedOffset::east_opt(3600).unwrap();
-                    let py_tz = offset.to_object(py);
-                    let py_tz = py_tz.downcast(py).unwrap();
-                    let py_datetime = PyDateTime::new_with_fold(
-                        py,
-                        year,
-                        month as u8,
-                        day as u8,
-                        hour as u8,
-                        minute as u8,
-                        second as u8,
-                        py_ms,
-                        Some(py_tz),
-                        fold,
-                    )
+        let check_fixed_offset = |year, month, day, hour, minute, second, ms| {
+            Python::with_gil(|py| {
+                let offset = FixedOffset::east_opt(3600).unwrap();
+                let py_tz = offset.to_object(py);
+                let py_tz = py_tz.downcast(py).unwrap();
+                let py_datetime = PyDateTime::new_with_fold(
+                    py,
+                    year,
+                    month as u8,
+                    day as u8,
+                    hour as u8,
+                    minute as u8,
+                    second as u8,
+                    ms,
+                    Some(py_tz),
+                    false, // No such thing as fold for fixed offset timezones
+                )
+                .unwrap();
+                let py_datetime: DateTime<FixedOffset> = py_datetime.extract().unwrap();
+                let datetime = NaiveDate::from_ymd_opt(year, month, day)
+                    .unwrap()
+                    .and_hms_micro_opt(hour, minute, second, ms)
                     .unwrap();
-                    let py_datetime: DateTime<FixedOffset> = py_datetime.extract().unwrap();
-                    let datetime = NaiveDate::from_ymd_opt(year, month, day)
-                        .unwrap()
-                        .and_hms_micro_opt(hour, minute, second, ms)
-                        .unwrap();
-                    let datetime = DateTime::<FixedOffset>::from_utc(datetime, offset);
-                    assert_eq!(
-                        py_datetime, datetime,
-                        "{}: {} != {}",
-                        name, datetime, py_datetime
-                    );
-                })
-            };
+                let datetime = DateTime::<FixedOffset>::from_local(datetime, offset);
 
-        check_fixed_offset("fold", 2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-        check_fixed_offset("non fold", 2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+                assert_eq!(py_datetime, datetime, "{} != {}", datetime, py_datetime);
+            })
+        };
+
+        check_fixed_offset(2014, 5, 6, 7, 8, 9, 999_999);
 
         Python::with_gil(|py| {
             let py_tz = Utc.to_object(py);
@@ -845,10 +841,38 @@ mod tests {
     #[cfg(all(test, not(target_arch = "wasm32")))]
     mod proptests {
         use super::*;
+        use crate::types::IntoPyDict;
 
         use proptest::prelude::*;
 
         proptest! {
+
+            // Range is limited to 1970 to 2038 due to windows limitations
+            #[test]
+            fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
+                Python::with_gil(|py| {
+
+                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py);
+                    let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
+                    let t = py.eval(&code, Some(globals), None).unwrap();
+
+                    // Get ISO 8601 string from python
+                    let py_iso_str = t.call_method0("isoformat").unwrap();
+
+                    // Get ISO 8601 string from rust
+                    let t = t.extract::<DateTime<FixedOffset>>().unwrap();
+                    // Python doesn't print the seconds of the offset if they are 0
+                    let rust_iso_str = if timedelta % 60 == 0 {
+                        t.format("%Y-%m-%dT%H:%M:%S%:z").to_string()
+                    } else {
+                        t.format("%Y-%m-%dT%H:%M:%S%::z").to_string()
+                    };
+
+                    // They should be equal
+                    assert_eq!(py_iso_str.to_string(), rust_iso_str);
+                })
+            }
+
             #[test]
             fn test_duration_roundtrip(days in -999999999i64..=999999999i64) {
                 // Test roundtrip convertion rust->python->rust for all allowed
@@ -942,7 +966,7 @@ mod tests {
                 hour in 0u32..=24u32,
                 min in 0u32..=60u32,
                 sec in 0u32..=60u32,
-                micro in 0u32..=2_000_000u32,
+                micro in 0u32..=1_000_000u32,
                 offset_secs in -86399i32..=86399i32
             ) {
                 Python::with_gil(|py| {
