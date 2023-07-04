@@ -227,14 +227,14 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
         V: ToPyObject,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
-        let value = value.to_object(py);
-
-        unsafe {
-            let ret = ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr());
-            err::error_on_minusone(py, ret)
+        fn inner(any: &PyAny, attr_name: Py<PyString>, value: PyObject) -> PyResult<()> {
+            err::error_on_minusone(any.py(), unsafe {
+                ffi::PyObject_SetAttr(any.as_ptr(), attr_name.as_ptr(), value.as_ptr())
+            })
         }
+
+        let py = self.py();
+        inner(self, attr_name.into_py(py), value.to_object(py))
     }
 
     /// Deletes an attribute.
@@ -247,13 +247,13 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
-
-        unsafe {
-            let ret = ffi::PyObject_DelAttr(self.as_ptr(), attr_name.as_ptr());
-            err::error_on_minusone(py, ret)
+        fn inner(any: &PyAny, attr_name: Py<PyString>) -> PyResult<()> {
+            err::error_on_minusone(any.py(), unsafe {
+                ffi::PyObject_DelAttr(any.as_ptr(), attr_name.as_ptr())
+            })
         }
+
+        inner(self, attr_name.into_py(self.py()))
     }
 
     /// Returns an [`Ordering`] between `self` and `other`.

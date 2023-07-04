@@ -529,16 +529,13 @@ impl PyErr {
     /// ```
     pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message)?;
-        unsafe {
-            error_on_minusone(
-                py,
-                ffi::PyErr_WarnEx(
-                    category.as_ptr(),
-                    message.as_ptr(),
-                    stacklevel as ffi::Py_ssize_t,
-                ),
+        error_on_minusone(py, unsafe {
+            ffi::PyErr_WarnEx(
+                category.as_ptr(),
+                message.as_ptr(),
+                stacklevel as ffi::Py_ssize_t,
             )
-        }
+        })
     }
 
     /// Issues a warning message, with more control over the warning attributes.
@@ -569,19 +566,16 @@ impl PyErr {
             None => std::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
-        unsafe {
-            error_on_minusone(
-                py,
-                ffi::PyErr_WarnExplicit(
-                    category.as_ptr(),
-                    message.as_ptr(),
-                    filename.as_ptr(),
-                    lineno,
-                    module_ptr,
-                    registry,
-                ),
+        error_on_minusone(py, unsafe {
+            ffi::PyErr_WarnExplicit(
+                category.as_ptr(),
+                message.as_ptr(),
+                filename.as_ptr(),
+                lineno,
+                module_ptr,
+                registry,
             )
-        }
+        })
     }
 
     /// Clone the PyErr. This requires the GIL, which is why PyErr does not implement Clone.

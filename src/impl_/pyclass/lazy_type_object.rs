@@ -202,8 +202,9 @@ fn initialize_tp_dict(
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.
     for (key, val) in items {
-        let ret = unsafe { ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.into_ptr()) };
-        crate::err::error_on_minusone(py, ret)?;
+        crate::err::error_on_minusone(py, unsafe {
+            ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.into_ptr())
+        })?;
     }
     Ok(())
 }

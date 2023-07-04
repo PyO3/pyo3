@@ -193,14 +193,13 @@ impl<T: Element> PyBuffer<T> {
     pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
         // TODO: use nightly API Box::new_uninit() once stable
         let mut buf = Box::new(mem::MaybeUninit::uninit());
-        let buf: Box<ffi::Py_buffer> = unsafe {
-            err::error_on_minusone(
-                obj.py(),
-                ffi::PyObject_GetBuffer(obj.as_ptr(), buf.as_mut_ptr(), ffi::PyBUF_FULL_RO),
-            )?;
+        let buf: Box<ffi::Py_buffer> = {
+            err::error_on_minusone(obj.py(), unsafe {
+                ffi::PyObject_GetBuffer(obj.as_ptr(), buf.as_mut_ptr(), ffi::PyBUF_FULL_RO)
+            })?;
             // Safety: buf is initialized by PyObject_GetBuffer.
             // TODO: use nightly API Box::assume_init() once stable
-            mem::transmute(buf)
+            unsafe { mem::transmute(buf) }
         };
         // Create PyBuffer immediately so that if validation checks fail, the PyBuffer::drop code
         // will call PyBuffer_Release (thus avoiding any leaks).
@@ -493,22 +492,20 @@ impl<T: Element> PyBuffer<T> {
                 self.item_count()
             )));
         }
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyBuffer_ToContiguous(
-                    target.as_ptr() as *mut raw::c_void,
-                    #[cfg(Py_3_11)]
-                    &*self.0,
-                    #[cfg(not(Py_3_11))]
-                    {
-                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                    },
-                    self.0.len,
-                    fort as std::os::raw::c_char,
-                ),
+
+        err::error_on_minusone(py, unsafe {
+            ffi::PyBuffer_ToContiguous(
+                target.as_ptr() as *mut raw::c_void,
+                #[cfg(Py_3_11)]
+                &*self.0,
+                #[cfg(not(Py_3_11))]
+                {
+                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                },
+                self.0.len,
+                fort as std::os::raw::c_char,
             )
-        }
+        })
     }
 
     /// Copies the buffer elements to a newly allocated vector.
@@ -530,26 +527,24 @@ impl<T: Element> PyBuffer<T> {
     fn _to_vec(&self, py: Python<'_>, fort: u8) -> PyResult<Vec<T>> {
         let item_count = self.item_count();
         let mut vec: Vec<T> = Vec::with_capacity(item_count);
-        unsafe {
-            // Copy the buffer into the uninitialized space in the vector.
-            // Due to T:Copy, we don't need to be concerned with Drop impls.
-            err::error_on_minusone(
-                py,
-                ffi::PyBuffer_ToContiguous(
-                    vec.as_ptr() as *mut raw::c_void,
-                    #[cfg(Py_3_11)]
-                    &*self.0,
-                    #[cfg(not(Py_3_11))]
-                    {
-                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                    },
-                    self.0.len,
-                    fort as std::os::raw::c_char,
-                ),
-            )?;
-            // set vector length to mark the now-initialized space as usable
-            vec.set_len(item_count);
-        }
+
+        // Copy the buffer into the uninitialized space in the vector.
+        // Due to T:Copy, we don't need to be concerned with Drop impls.
+        err::error_on_minusone(py, unsafe {
+            ffi::PyBuffer_ToContiguous(
+                vec.as_ptr() as *mut raw::c_void,
+                #[cfg(Py_3_11)]
+                &*self.0,
+                #[cfg(not(Py_3_11))]
+                {
+                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                },
+                self.0.len,
+                fort as std::os::raw::c_char,
+            )
+        })?;
+        // set vector length to mark the now-initialized space as usable
+        unsafe { vec.set_len(item_count) };
         Ok(vec)
     }
 
@@ -591,29 +586,27 @@ impl<T: Element> PyBuffer<T> {
                 self.item_count()
             )));
         }
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyBuffer_FromContiguous(
-                    #[cfg(Py_3_11)]
-                    &*self.0,
-                    #[cfg(not(Py_3_11))]
-                    {
-                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                    },
-                    #[cfg(Py_3_11)]
-                    {
-                        source.as_ptr() as *const raw::c_void
-                    },
-                    #[cfg(not(Py_3_11))]
-                    {
-                        source.as_ptr() as *mut raw::c_void
-                    },
-                    self.0.len,
-                    fort as std::os::raw::c_char,
-                ),
+
+        err::error_on_minusone(py, unsafe {
+            ffi::PyBuffer_FromContiguous(
+                #[cfg(Py_3_11)]
+                &*self.0,
+                #[cfg(not(Py_3_11))]
+                {
+                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                },
+                #[cfg(Py_3_11)]
+                {
+                    source.as_ptr() as *const raw::c_void
+                },
+                #[cfg(not(Py_3_11))]
+                {
+                    source.as_ptr() as *mut raw::c_void
+                },
+                self.0.len,
+                fort as std::os::raw::c_char,
             )
-        }
+        })
     }
 
     /// Releases the buffer object, freeing the reference to the Python object
