@@ -6,7 +6,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, PyNativeType, ToPyObject};
+use crate::{ffi, PyNativeType, PyObject, ToPyObject};
 use crate::{AsPyPointer, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
 
@@ -128,17 +128,13 @@ impl PySequence {
     where
         I: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PySequence_SetItem(
-                    self.as_ptr(),
-                    get_ssize_index(i),
-                    item.to_object(py).as_ptr(),
-                ),
-            )
+        fn inner(seq: &PySequence, i: usize, item: PyObject) -> PyResult<()> {
+            err::error_on_minusone(seq.py(), unsafe {
+                ffi::PySequence_SetItem(seq.as_ptr(), get_ssize_index(i), item.as_ptr())
+            })
         }
+
+        inner(self, i, item.to_object(self.py()))
     }
 
     /// Deletes the `i`th element of self.
@@ -193,13 +189,16 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        let r =
-            unsafe { ffi::PySequence_Count(self.as_ptr(), value.to_object(self.py()).as_ptr()) };
-        if r == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(r as usize)
+        fn inner(seq: &PySequence, value: PyObject) -> PyResult<usize> {
+            let r = unsafe { ffi::PySequence_Count(seq.as_ptr(), value.as_ptr()) };
+            if r == -1 {
+                Err(PyErr::fetch(seq.py()))
+            } else {
+                Ok(r as usize)
+            }
         }
+
+        inner(self, value.to_object(self.py()))
     }
 
     /// Determines if self contains `value`.
@@ -210,13 +209,16 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        let r =
-            unsafe { ffi::PySequence_Contains(self.as_ptr(), value.to_object(self.py()).as_ptr()) };
-        match r {
-            0 => Ok(false),
-            1 => Ok(true),
-            _ => Err(PyErr::fetch(self.py())),
+        fn inner(seq: &PySequence, value: PyObject) -> PyResult<bool> {
+            let r = unsafe { ffi::PySequence_Contains(seq.as_ptr(), value.as_ptr()) };
+            match r {
+                0 => Ok(false),
+                1 => Ok(true),
+                _ => Err(PyErr::fetch(seq.py())),
+            }
         }
+
+        inner(self, value.to_object(self.py()))
     }
 
     /// Returns the first index `i` for which `self[i] == value`.
@@ -227,13 +229,16 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        let r =
-            unsafe { ffi::PySequence_Index(self.as_ptr(), value.to_object(self.py()).as_ptr()) };
-        if r == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(r as usize)
+        fn inner(seq: &PySequence, value: PyObject) -> PyResult<usize> {
+            let r = unsafe { ffi::PySequence_Index(seq.as_ptr(), value.as_ptr()) };
+            if r == -1 {
+                Err(PyErr::fetch(seq.py()))
+            } else {
+                Ok(r as usize)
+            }
         }
+
+        inner(self, value.to_object(self.py()))
     }
 
     /// Returns a fresh list based on the Sequence.

@@ -248,19 +248,17 @@ mod slow_128bit_int_conversion {
 
             impl IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python<'_>) -> PyObject {
-                    let lower = self as u64;
-                    let upper = (self >> SHIFT) as $half_type;
+                    let lower = (self as u64).into_py(py);
+                    let upper = ((self >> SHIFT) as $half_type).into_py(py);
+                    let shift = SHIFT.into_py(py);
                     unsafe {
                         let shifted = PyObject::from_owned_ptr(
                             py,
-                            ffi::PyNumber_Lshift(
-                                upper.into_py(py).as_ptr(),
-                                SHIFT.into_py(py).as_ptr(),
-                            ),
+                            ffi::PyNumber_Lshift(upper.as_ptr(), shift.as_ptr()),
                         );
                         PyObject::from_owned_ptr(
                             py,
-                            ffi::PyNumber_Or(shifted.as_ptr(), lower.into_py(py).as_ptr()),
+                            ffi::PyNumber_Or(shifted.as_ptr(), lower.as_ptr()),
                         )
                     }
                 }
@@ -280,9 +278,10 @@ mod slow_128bit_int_conversion {
                             -1 as _,
                             ffi::PyLong_AsUnsignedLongLongMask(ob.as_ptr()),
                         )? as $rust_type;
+                        let shift = SHIFT.into_py(py);
                         let shifted = PyObject::from_owned_ptr_or_err(
                             py,
-                            ffi::PyNumber_Rshift(ob.as_ptr(), SHIFT.into_py(py).as_ptr()),
+                            ffi::PyNumber_Rshift(ob.as_ptr(), shift.as_ptr()),
                         )?;
                         let upper: $half_type = shifted.extract(py)?;
                         Ok((<$rust_type>::from(upper) << SHIFT) | lower)

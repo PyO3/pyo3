@@ -71,13 +71,15 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        unsafe {
-            match ffi::PySet_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
+        fn inner(set: &PySet, key: PyObject) -> PyResult<bool> {
+            match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py())),
+                _ => Err(PyErr::fetch(set.py())),
             }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Removes the element from the set if it is present.
@@ -95,12 +97,13 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PySet_Add(self.as_ptr(), key.to_object(self.py()).as_ptr()),
-            )
+        fn inner(set: &PySet, key: PyObject) -> PyResult<()> {
+            err::error_on_minusone(set.py(), unsafe {
+                ffi::PySet_Add(set.as_ptr(), key.as_ptr())
+            })
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Removes and returns an arbitrary element from the set.

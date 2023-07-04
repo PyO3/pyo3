@@ -218,13 +218,13 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyList_Append(self.as_ptr(), item.to_object(py).as_ptr()),
-            )
+        fn inner(list: &PyList, item: PyObject) -> PyResult<()> {
+            err::error_on_minusone(list.py(), unsafe {
+                ffi::PyList_Append(list.as_ptr(), item.as_ptr())
+            })
         }
+
+        inner(self, item.to_object(self.py()))
     }
 
     /// Inserts an item at the specified index.
@@ -234,17 +234,13 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyList_Insert(
-                    self.as_ptr(),
-                    get_ssize_index(index),
-                    item.to_object(py).as_ptr(),
-                ),
-            )
+        fn inner(list: &PyList, index: usize, item: PyObject) -> PyResult<()> {
+            err::error_on_minusone(list.py(), unsafe {
+                ffi::PyList_Insert(list.as_ptr(), get_ssize_index(index), item.as_ptr())
+            })
         }
+
+        inner(self, index, item.to_object(self.py()))
     }
 
     /// Determines if self contains `value`.

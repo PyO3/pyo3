@@ -124,13 +124,15 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        unsafe {
-            match ffi::PyDict_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
+        fn inner(dict: &PyDict, key: PyObject) -> PyResult<bool> {
+            match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py())),
+                _ => Err(PyErr::fetch(dict.py())),
             }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Gets an item from the dictionary.
@@ -193,17 +195,14 @@ impl PyDict {
         K: ToPyObject,
         V: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyDict_SetItem(
-                    self.as_ptr(),
-                    key.to_object(py).as_ptr(),
-                    value.to_object(py).as_ptr(),
-                ),
-            )
+        fn inner(dict: &PyDict, key: PyObject, value: PyObject) -> PyResult<()> {
+            err::error_on_minusone(dict.py(), unsafe {
+                ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
+            })
         }
+
+        let py = self.py();
+        inner(self, key.to_object(py), value.to_object(py))
     }
 
     /// Deletes an item.
@@ -213,13 +212,13 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyDict_DelItem(self.as_ptr(), key.to_object(py).as_ptr()),
-            )
+        fn inner(dict: &PyDict, key: PyObject) -> PyResult<()> {
+            err::error_on_minusone(dict.py(), unsafe {
+                ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
+            })
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Returns a list of dict keys.
