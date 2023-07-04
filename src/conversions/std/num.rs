@@ -178,16 +178,18 @@ mod fast_128bit_int_conversion {
             }
             impl IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python<'_>) -> PyObject {
+                    // Always use little endian
+                    let bytes = self.to_le_bytes();
                     unsafe {
-                        // Always use little endian
-                        let bytes = self.to_le_bytes();
-                        let obj = ffi::_PyLong_FromByteArray(
-                            bytes.as_ptr() as *const std::os::raw::c_uchar,
-                            bytes.len(),
-                            1,
-                            $is_signed,
-                        );
-                        PyObject::from_owned_ptr(py, obj)
+                        PyObject::from_owned_ptr(
+                            py,
+                            ffi::_PyLong_FromByteArray(
+                                bytes.as_ptr() as *const std::os::raw::c_uchar,
+                                bytes.len(),
+                                1,
+                                $is_signed,
+                            ),
+                        )
                     }
                 }
 
@@ -199,23 +201,20 @@ mod fast_128bit_int_conversion {
 
             impl<'source> FromPyObject<'source> for $rust_type {
                 fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
-                    unsafe {
-                        let num = ffi::PyNumber_Index(ob.as_ptr());
-                        if num.is_null() {
-                            return Err(PyErr::fetch(ob.py()));
-                        }
-                        let mut buffer = [0; std::mem::size_of::<$rust_type>()];
-                        let ok = ffi::_PyLong_AsByteArray(
-                            num as *mut ffi::PyLongObject,
+                    let num = unsafe {
+                        PyObject::from_owned_ptr_or_err(ob.py(), ffi::PyNumber_Index(ob.as_ptr()))?
+                    };
+                    let mut buffer = [0; std::mem::size_of::<$rust_type>()];
+                    crate::err::error_on_minusone(ob.py(), unsafe {
+                        ffi::_PyLong_AsByteArray(
+                            num.as_ptr() as *mut ffi::PyLongObject,
                             buffer.as_mut_ptr(),
                             buffer.len(),
                             1,
                             $is_signed,
-                        );
-                        ffi::Py_DECREF(num);
-                        crate::err::error_on_minusone(ob.py(), ok)?;
-                        Ok(<$rust_type>::from_le_bytes(buffer))
-                    }
+                        )
+                    })?;
+                    Ok(<$rust_type>::from_le_bytes(buffer))
                 }
 
                 #[cfg(feature = "experimental-inspect")]

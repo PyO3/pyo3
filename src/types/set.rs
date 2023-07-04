@@ -257,9 +257,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
         let ptr = set.as_ptr();
 
         for obj in elements {
-            unsafe {
-                err::error_on_minusone(py, ffi::PySet_Add(ptr, obj.as_ptr()))?;
-            }
+            err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
         }
 
         Ok(set)

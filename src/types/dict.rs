@@ -68,14 +68,11 @@ impl PyDict {
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
     pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<&PyDict> {
-        unsafe {
-            let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
-            err::error_on_minusone(
-                py,
-                ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1),
-            )?;
-            Ok(dict)
-        }
+        let dict = Self::new(py);
+        err::error_on_minusone(py, unsafe {
+            ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1)
+        })?;
+        Ok(dict)
     }
 
     /// Returns a new dictionary that contains the same key-value pairs as self.
@@ -273,7 +270,9 @@ impl PyDict {
     /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
     pub fn update(&self, other: &PyMapping) -> PyResult<()> {
         let py = self.py();
-        unsafe { err::error_on_minusone(py, ffi::PyDict_Update(self.as_ptr(), other.as_ptr())) }
+        err::error_on_minusone(py, unsafe {
+            ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
+        })
     }
 
     /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
@@ -286,7 +285,9 @@ impl PyDict {
     /// so should have the same performance as `update`.
     pub fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
         let py = self.py();
-        unsafe { err::error_on_minusone(py, ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)) }
+        err::error_on_minusone(py, unsafe {
+            ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
+        })
     }
 }
 

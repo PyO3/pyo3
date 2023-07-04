@@ -139,12 +139,9 @@ impl PySequence {
     /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
     pub fn del_item(&self, i: usize) -> PyResult<()> {
-        unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i)),
-            )
-        }
+        err::error_on_minusone(self.py(), unsafe {
+            ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i))
+        })
     }
 
     /// Assigns the sequence `v` to the slice of `self` from `i1` to `i2`.
@@ -152,17 +149,14 @@ impl PySequence {
     /// This is equivalent to the Python statement `self[i1:i2] = v`.
     #[inline]
     pub fn set_slice(&self, i1: usize, i2: usize, v: &PyAny) -> PyResult<()> {
-        unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PySequence_SetSlice(
-                    self.as_ptr(),
-                    get_ssize_index(i1),
-                    get_ssize_index(i2),
-                    v.as_ptr(),
-                ),
+        err::error_on_minusone(self.py(), unsafe {
+            ffi::PySequence_SetSlice(
+                self.as_ptr(),
+                get_ssize_index(i1),
+                get_ssize_index(i2),
+                v.as_ptr(),
             )
-        }
+        })
     }
 
     /// Deletes the slice from `i1` to `i2` from `self`.
@@ -170,12 +164,9 @@ impl PySequence {
     /// This is equivalent to the Python statement `del self[i1:i2]`.
     #[inline]
     pub fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
-        unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2)),
-            )
-        }
+        err::error_on_minusone(self.py(), unsafe {
+            ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2))
+        })
     }
 
     /// Returns the number of occurrences of `value` in self, that is, return the

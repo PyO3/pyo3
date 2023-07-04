@@ -1,4 +1,4 @@
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{PyDowncastError, PyResult};
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
