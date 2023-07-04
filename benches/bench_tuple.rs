@@ -83,6 +83,12 @@ fn tuple_to_list(b: &mut Bencher<'_>) {
     });
 }
 
+fn tuple_into_py(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        b.iter(|| -> PyObject { (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).into_py(py) });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_tuple", iter_tuple);
     c.bench_function("tuple_new", tuple_new);
@@ -92,6 +98,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("sequence_from_tuple", sequence_from_tuple);
     c.bench_function("tuple_new_list", tuple_new_list);
     c.bench_function("tuple_to_list", tuple_to_list);
+    c.bench_function("tuple_into_py", tuple_into_py);
 }
 
 criterion_group!(benches, criterion_benchmark);
