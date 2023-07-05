@@ -99,7 +99,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
     end: Py_ssize_t,
     reason: *const c_char,
 ) -> *mut PyObject {
-    crate::PyObject_CallFunction(
+    crate::_PyObject_CallFunction_SizeT(
         PyExc_UnicodeDecodeError,
         b"sy#nns\0".as_ptr().cast::<c_char>(),
         encoding,
