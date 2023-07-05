@@ -876,8 +876,7 @@ impl<'py> Python<'py> {
     /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
     /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
-        let v = unsafe { ffi::PyErr_CheckSignals() };
-        err::error_on_minusone(self, v)
+        err::error_on_minusone(self, unsafe { ffi::PyErr_CheckSignals() })
     }
 
     /// Create a new pool for managing PyO3's owned references.

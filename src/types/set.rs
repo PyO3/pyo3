@@ -71,13 +71,15 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        unsafe {
-            match ffi::PySet_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
+        fn inner(set: &PySet, key: PyObject) -> PyResult<bool> {
+            match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py())),
+                _ => Err(PyErr::fetch(set.py())),
             }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Removes the element from the set if it is present.
@@ -88,12 +90,10 @@ impl PySet {
         K: ToPyObject,
     {
         fn inner(set: &PySet, key: PyObject) -> PyResult<bool> {
-            unsafe {
-                match ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) {
-                    1 => Ok(true),
-                    0 => Ok(false),
-                    _ => Err(PyErr::fetch(set.py())),
-                }
+            match unsafe { ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) } {
+                1 => Ok(true),
+                0 => Ok(false),
+                _ => Err(PyErr::fetch(set.py())),
             }
         }
 
@@ -105,12 +105,13 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PySet_Add(self.as_ptr(), key.to_object(self.py()).as_ptr()),
-            )
+        fn inner(set: &PySet, key: PyObject) -> PyResult<()> {
+            err::error_on_minusone(set.py(), unsafe {
+                ffi::PySet_Add(set.as_ptr(), key.as_ptr())
+            })
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Removes and returns an arbitrary element from the set.
@@ -248,10 +249,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
 ) -> PyResult<Py<PySet>> {
-    fn new_from_iter_inner(
-        py: Python<'_>,
-        elements: &mut dyn Iterator<Item = PyObject>,
-    ) -> PyResult<Py<PySet>> {
+    fn inner(py: Python<'_>, elements: &mut dyn Iterator<Item = PyObject>) -> PyResult<Py<PySet>> {
         let set: Py<PySet> = unsafe {
             // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
             Py::from_owned_ptr_or_err(py, ffi::PySet_New(std::ptr::null_mut()))?
@@ -259,16 +257,14 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
         let ptr = set.as_ptr();
 
         for obj in elements {
-            unsafe {
-                err::error_on_minusone(py, ffi::PySet_Add(ptr, obj.as_ptr()))?;
-            }
+            err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
         }
 
         Ok(set)
     }
 
     let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    new_from_iter_inner(py, &mut iter)
+    inner(py, &mut iter)
 }
 
 #[cfg(test)]

@@ -650,12 +650,9 @@ impl<T> Py<T> {
         let attr_name = attr_name.into_py(py);
         let value = value.into_py(py);
 
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr()),
-            )
-        }
+        err::error_on_minusone(py, unsafe {
+            ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr())
+        })
     }
 
     /// Calls the object.

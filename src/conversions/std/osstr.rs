@@ -1,6 +1,4 @@
 use crate::types::PyString;
-#[cfg(windows)]
-use crate::PyErr;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
@@ -92,9 +90,7 @@ impl FromPyObject<'_> for OsString {
             // ourselves
             let size =
                 unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), std::ptr::null_mut(), 0) };
-            if size == -1 {
-                return Err(PyErr::fetch(ob.py()));
-            }
+            crate::err::error_on_minusone(ob.py(), size)?;
 
             let mut buffer = vec![0; size as usize];
             let bytes_read =

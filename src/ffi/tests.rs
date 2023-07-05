@@ -71,12 +71,8 @@ fn test_timezone_from_offset() {
     use crate::types::PyDelta;
 
     Python::with_gil(|py| {
-        let tz: &PyAny = unsafe {
-            PyDateTime_IMPORT();
-            py.from_borrowed_ptr(PyTimeZone_FromOffset(
-                PyDelta::new(py, 0, 100, 0, false).unwrap().as_ptr(),
-            ))
-        };
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
+        let tz: &PyAny = unsafe { py.from_borrowed_ptr(PyTimeZone_FromOffset(delta.as_ptr())) };
         crate::py_run!(
             py,
             tz,
@@ -92,11 +88,12 @@ fn test_timezone_from_offset_and_name() {
     use crate::types::PyDelta;
 
     Python::with_gil(|py| {
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
+        let tzname = PyString::new(py, "testtz");
         let tz: &PyAny = unsafe {
-            PyDateTime_IMPORT();
             py.from_borrowed_ptr(PyTimeZone_FromOffsetAndName(
-                PyDelta::new(py, 0, 100, 0, false).unwrap().as_ptr(),
-                PyString::new(py, "testtz").as_ptr(),
+                delta.as_ptr(),
+                tzname.as_ptr(),
             ))
         };
         crate::py_run!(

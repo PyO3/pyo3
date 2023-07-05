@@ -227,14 +227,14 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
         V: ToPyObject,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
-        let value = value.to_object(py);
-
-        unsafe {
-            let ret = ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr());
-            err::error_on_minusone(py, ret)
+        fn inner(any: &PyAny, attr_name: Py<PyString>, value: PyObject) -> PyResult<()> {
+            err::error_on_minusone(any.py(), unsafe {
+                ffi::PyObject_SetAttr(any.as_ptr(), attr_name.as_ptr(), value.as_ptr())
+            })
         }
+
+        let py = self.py();
+        inner(self, attr_name.into_py(py), value.to_object(py))
     }
 
     /// Deletes an attribute.
@@ -247,13 +247,13 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
-
-        unsafe {
-            let ret = ffi::PyObject_DelAttr(self.as_ptr(), attr_name.as_ptr());
-            err::error_on_minusone(py, ret)
+        fn inner(any: &PyAny, attr_name: Py<PyString>) -> PyResult<()> {
+            err::error_on_minusone(any.py(), unsafe {
+                ffi::PyObject_DelAttr(any.as_ptr(), attr_name.as_ptr())
+            })
         }
+
+        inner(self, attr_name.into_py(self.py()))
     }
 
     /// Returns an [`Ordering`] between `self` and `other`.
@@ -369,13 +369,17 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PyObject_RichCompare(
-                self.as_ptr(),
-                other.to_object(self.py()).as_ptr(),
-                compare_op as c_int,
-            ))
+        fn inner(slf: &PyAny, other: PyObject, compare_op: CompareOp) -> PyResult<&PyAny> {
+            unsafe {
+                slf.py().from_owned_ptr_or_err(ffi::PyObject_RichCompare(
+                    slf.as_ptr(),
+                    other.as_ptr(),
+                    compare_op as c_int,
+                ))
+            }
         }
+
+        inner(self, other.to_object(self.py()), compare_op)
     }
 
     /// Tests whether this object is less than another.
@@ -767,12 +771,14 @@ impl PyAny {
     where
         K: ToPyObject,
     {
-        unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PyObject_GetItem(
-                self.as_ptr(),
-                key.to_object(self.py()).as_ptr(),
-            ))
+        fn inner(slf: &PyAny, key: PyObject) -> PyResult<&PyAny> {
+            unsafe {
+                slf.py()
+                    .from_owned_ptr_or_err(ffi::PyObject_GetItem(slf.as_ptr(), key.as_ptr()))
+            }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Sets a collection item value.
@@ -783,17 +789,14 @@ impl PyAny {
         K: ToPyObject,
         V: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyObject_SetItem(
-                    self.as_ptr(),
-                    key.to_object(py).as_ptr(),
-                    value.to_object(py).as_ptr(),
-                ),
-            )
+        fn inner(slf: &PyAny, key: PyObject, value: PyObject) -> PyResult<()> {
+            err::error_on_minusone(slf.py(), unsafe {
+                ffi::PyObject_SetItem(slf.as_ptr(), key.as_ptr(), value.as_ptr())
+            })
         }
+
+        let py = self.py();
+        inner(self, key.to_object(py), value.to_object(py))
     }
 
     /// Deletes an item from the collection.
@@ -803,12 +806,13 @@ impl PyAny {
     where
         K: ToPyObject,
     {
-        unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PyObject_DelItem(self.as_ptr(), key.to_object(self.py()).as_ptr()),
-            )
+        fn inner(slf: &PyAny, key: PyObject) -> PyResult<()> {
+            err::error_on_minusone(slf.py(), unsafe {
+                ffi::PyObject_DelItem(slf.as_ptr(), key.as_ptr())
+            })
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Takes an object and returns an iterator for it.
@@ -943,11 +947,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `hash(self)`.
     pub fn hash(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v)
     }
 
     /// Returns the length of the sequence or mapping.
@@ -955,11 +956,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v as usize)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v as usize)
     }
 
     /// Returns the list of attributes of this object.

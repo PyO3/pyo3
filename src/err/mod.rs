@@ -9,7 +9,6 @@ use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToP
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
-use std::os::raw::c_int;
 
 mod err_state;
 mod impls;
@@ -314,7 +313,7 @@ impl PyErr {
             (ptype, pvalue, ptraceback)
         };
 
-        if ptype.as_ptr() == PanicException::type_object(py).as_ptr() {
+        if ptype.as_ptr() == PanicException::type_object_raw(py).cast() {
             let msg: String = pvalue
                 .as_ref()
                 .and_then(|obj| obj.extract(py).ok())
@@ -439,15 +438,16 @@ impl PyErr {
     where
         T: ToPyObject,
     {
-        unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc.to_object(py).as_ptr()) != 0
+        fn inner(err: &PyErr, py: Python<'_>, exc: PyObject) -> bool {
+            (unsafe { ffi::PyErr_GivenExceptionMatches(err.type_ptr(py), exc.as_ptr()) }) != 0
         }
+        inner(self, py, exc.to_object(py))
     }
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
     pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
-        unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), ty.as_ptr()) != 0 }
+        (unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), ty.as_ptr()) }) != 0
     }
 
     /// Returns true if the current exception is instance of `T`.
@@ -531,16 +531,13 @@ impl PyErr {
     /// ```
     pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message)?;
-        unsafe {
-            error_on_minusone(
-                py,
-                ffi::PyErr_WarnEx(
-                    category.as_ptr(),
-                    message.as_ptr(),
-                    stacklevel as ffi::Py_ssize_t,
-                ),
+        error_on_minusone(py, unsafe {
+            ffi::PyErr_WarnEx(
+                category.as_ptr(),
+                message.as_ptr(),
+                stacklevel as ffi::Py_ssize_t,
             )
-        }
+        })
     }
 
     /// Issues a warning message, with more control over the warning attributes.
@@ -571,19 +568,16 @@ impl PyErr {
             None => std::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
-        unsafe {
-            error_on_minusone(
-                py,
-                ffi::PyErr_WarnExplicit(
-                    category.as_ptr(),
-                    message.as_ptr(),
-                    filename.as_ptr(),
-                    lineno,
-                    module_ptr,
-                    registry,
-                ),
+        error_on_minusone(py, unsafe {
+            ffi::PyErr_WarnExplicit(
+                category.as_ptr(),
+                message.as_ptr(),
+                filename.as_ptr(),
+                lineno,
+                module_ptr,
+                registry,
             )
-        }
+        })
     }
 
     /// Clone the PyErr. This requires the GIL, which is why PyErr does not implement Clone.
@@ -610,18 +604,21 @@ impl PyErr {
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
-        let ptr = unsafe { ffi::PyException_GetCause(self.value(py).as_ptr()) };
-        let obj = unsafe { py.from_owned_ptr_or_opt::<PyAny>(ptr) };
+        let value = self.value(py);
+        let obj =
+            unsafe { py.from_owned_ptr_or_opt::<PyAny>(ffi::PyException_GetCause(value.as_ptr())) };
         obj.map(Self::from_value)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
     pub fn set_cause(&self, py: Python<'_>, cause: Option<Self>) {
+        let value = self.value(py);
+        let cause = cause.map(|err| err.into_value(py));
         unsafe {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
-                self.value(py).as_ptr(),
-                cause.map_or(std::ptr::null_mut(), |err| err.into_value(py).into_ptr()),
+                value.as_ptr(),
+                cause.map_or(std::ptr::null_mut(), IntoPyPointer::into_ptr),
             );
         }
     }
@@ -790,13 +787,32 @@ pub fn panic_after_error(_py: Python<'_>) -> ! {
 
 /// Returns Ok if the error code is not -1.
 #[inline]
-pub fn error_on_minusone(py: Python<'_>, result: c_int) -> PyResult<()> {
-    if result != -1 {
+pub(crate) fn error_on_minusone<T: SignedInteger>(py: Python<'_>, result: T) -> PyResult<()> {
+    if result != T::MINUS_ONE {
         Ok(())
     } else {
         Err(PyErr::fetch(py))
     }
 }
+
+pub(crate) trait SignedInteger: Eq {
+    const MINUS_ONE: Self;
+}
+
+macro_rules! impl_signed_integer {
+    ($t:ty) => {
+        impl SignedInteger for $t {
+            const MINUS_ONE: Self = -1;
+        }
+    };
+}
+
+impl_signed_integer!(i8);
+impl_signed_integer!(i16);
+impl_signed_integer!(i32);
+impl_signed_integer!(i64);
+impl_signed_integer!(i128);
+impl_signed_integer!(isize);
 
 #[inline]
 fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> PyErr {

@@ -68,14 +68,11 @@ impl PyDict {
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
     pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<&PyDict> {
-        unsafe {
-            let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
-            err::error_on_minusone(
-                py,
-                ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1),
-            )?;
-            Ok(dict)
-        }
+        let dict = Self::new(py);
+        err::error_on_minusone(py, unsafe {
+            ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1)
+        })?;
+        Ok(dict)
     }
 
     /// Returns a new dictionary that contains the same key-value pairs as self.
@@ -124,13 +121,15 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        unsafe {
-            match ffi::PyDict_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
+        fn inner(dict: &PyDict, key: PyObject) -> PyResult<bool> {
+            match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py())),
+                _ => Err(PyErr::fetch(dict.py())),
             }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Gets an item from the dictionary.
@@ -142,17 +141,20 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        self.get_item_impl(key.to_object(self.py()))
-    }
-
-    fn get_item_impl(&self, key: PyObject) -> Option<&PyAny> {
-        let py = self.py();
-        unsafe {
-            let ptr = ffi::PyDict_GetItem(self.as_ptr(), key.as_ptr());
+        fn inner(dict: &PyDict, key: PyObject) -> Option<&PyAny> {
+            let py = dict.py();
             // PyDict_GetItem returns a borrowed ptr, must make it owned for safety (see #890).
             // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
-            PyObject::from_borrowed_ptr_or_opt(py, ptr).map(|pyobject| pyobject.into_ref(py))
+            unsafe {
+                PyObject::from_borrowed_ptr_or_opt(
+                    py,
+                    ffi::PyDict_GetItem(dict.as_ptr(), key.as_ptr()),
+                )
+            }
+            .map(|pyobject| pyobject.into_ref(py))
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Gets an item from the dictionary,
@@ -164,20 +166,22 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        self.get_item_with_error_impl(key.to_object(self.py()))
-    }
-
-    fn get_item_with_error_impl(&self, key: PyObject) -> PyResult<Option<&PyAny>> {
-        let py = self.py();
-        unsafe {
-            let ptr = ffi::PyDict_GetItemWithError(self.as_ptr(), key.as_ptr());
+        fn inner(dict: &PyDict, key: PyObject) -> PyResult<Option<&PyAny>> {
+            let py = dict.py();
             // PyDict_GetItemWithError returns a borrowed ptr, must make it owned for safety (see #890).
             // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
-            PyObject::from_borrowed_ptr_or_opt(py, ptr)
-                .map(|pyobject| Ok(pyobject.into_ref(py)))
-                .or_else(|| PyErr::take(py).map(Err))
-                .transpose()
+            unsafe {
+                PyObject::from_borrowed_ptr_or_opt(
+                    py,
+                    ffi::PyDict_GetItemWithError(dict.as_ptr(), key.as_ptr()),
+                )
+            }
+            .map(|pyobject| Ok(pyobject.into_ref(py)))
+            .or_else(|| PyErr::take(py).map(Err))
+            .transpose()
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Sets an item value.
@@ -188,17 +192,14 @@ impl PyDict {
         K: ToPyObject,
         V: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyDict_SetItem(
-                    self.as_ptr(),
-                    key.to_object(py).as_ptr(),
-                    value.to_object(py).as_ptr(),
-                ),
-            )
+        fn inner(dict: &PyDict, key: PyObject, value: PyObject) -> PyResult<()> {
+            err::error_on_minusone(dict.py(), unsafe {
+                ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
+            })
         }
+
+        let py = self.py();
+        inner(self, key.to_object(py), value.to_object(py))
     }
 
     /// Deletes an item.
@@ -208,13 +209,13 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyDict_DelItem(self.as_ptr(), key.to_object(py).as_ptr()),
-            )
+        fn inner(dict: &PyDict, key: PyObject) -> PyResult<()> {
+            err::error_on_minusone(dict.py(), unsafe {
+                ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
+            })
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Returns a list of dict keys.
@@ -269,7 +270,9 @@ impl PyDict {
     /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
     pub fn update(&self, other: &PyMapping) -> PyResult<()> {
         let py = self.py();
-        unsafe { err::error_on_minusone(py, ffi::PyDict_Update(self.as_ptr(), other.as_ptr())) }
+        err::error_on_minusone(py, unsafe {
+            ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
+        })
     }
 
     /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
@@ -282,7 +285,9 @@ impl PyDict {
     /// so should have the same performance as `update`.
     pub fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
         let py = self.py();
-        unsafe { err::error_on_minusone(py, ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)) }
+        err::error_on_minusone(py, unsafe {
+            ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
+        })
     }
 }
 

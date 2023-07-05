@@ -714,14 +714,14 @@ mod tests {
         };
 
         Python::with_gil(|py| {
+            let args = PyTuple::new(py, Vec::<&PyAny>::new());
+            let kwargs = [("foo".to_object(py).into_ref(py), 0u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
                         py,
-                        PyTuple::new(py, Vec::<&PyAny>::new()).as_ptr(),
-                        [("foo".to_object(py).into_ref(py), 0u8)]
-                            .into_py_dict(py)
-                            .as_ptr(),
+                        args.as_ptr(),
+                        kwargs.as_ptr(),
                         &mut [],
                     )
                     .unwrap_err()
@@ -745,14 +745,14 @@ mod tests {
         };
 
         Python::with_gil(|py| {
+            let args = PyTuple::new(py, Vec::<&PyAny>::new());
+            let kwargs = [(1u8.to_object(py).into_ref(py), 1u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
                         py,
-                        PyTuple::new(py, Vec::<&PyAny>::new()).as_ptr(),
-                        [(1u8.to_object(py).into_ref(py), 1u8)]
-                            .into_py_dict(py)
-                            .as_ptr(),
+                        args.as_ptr(),
+                        kwargs.as_ptr(),
                         &mut [],
                     )
                     .unwrap_err()
@@ -776,11 +776,12 @@ mod tests {
         };
 
         Python::with_gil(|py| {
+            let args = PyTuple::new(py, Vec::<&PyAny>::new());
             let mut output = [None, None];
             let err = unsafe {
                 function_description.extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
                     py,
-                    PyTuple::new(py, Vec::<&PyAny>::new()).as_ptr(),
+                    args.as_ptr(),
                     std::ptr::null_mut(),
                     &mut output,
                 )

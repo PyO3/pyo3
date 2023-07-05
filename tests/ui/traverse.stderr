@@ -19,5 +19,5 @@ error[E0308]: mismatched types
 note: function defined here
   --> src/impl_/pymethods.rs
    |
-   | pub unsafe fn call_traverse_impl<T>(
-   |               ^^^^^^^^^^^^^^^^^^
+   | pub unsafe fn _call_traverse<T>(
+   |               ^^^^^^^^^^^^^^
