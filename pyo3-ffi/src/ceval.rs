@@ -76,7 +76,7 @@ extern "C" {
 extern "C" {
     #[cfg(Py_3_9)]
     #[cfg_attr(PyPy, link_name = "PyPy_EnterRecursiveCall")]
-    pub fn Py_EnterRecursiveCall(arg1: *const c_char);
+    pub fn Py_EnterRecursiveCall(arg1: *const c_char) -> c_int;
     #[cfg(Py_3_9)]
     #[cfg_attr(PyPy, link_name = "PyPy_LeaveRecursiveCall")]
     pub fn Py_LeaveRecursiveCall();
