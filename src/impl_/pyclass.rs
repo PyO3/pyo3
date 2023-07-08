@@ -122,7 +122,7 @@ impl<T> Default for PyClassImplCollector<T> {
 
 impl<T> Clone for PyClassImplCollector<T> {
     fn clone(&self) -> Self {
-        Self::new()
+        *self
     }
 }
 
