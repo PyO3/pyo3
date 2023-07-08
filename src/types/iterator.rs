@@ -55,6 +55,12 @@ impl<'p> Iterator for &'p PyIterator {
             None => PyErr::take(py).map(Err),
         }
     }
+
+    #[cfg(not(Py_LIMITED_API))]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let hint = unsafe { ffi::PyObject_LengthHint(self.0.as_ptr(), 0) };
+        (hint.max(0) as usize, None)
+    }
 }
 
 // PyIter_Check does not exist in the limited API until 3.8
@@ -311,6 +317,17 @@ def fibonacci(target):
                     assert_iterator(MyIter())
                 "#
             );
+        });
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn length_hint_becomes_size_hint_lower_bound() {
+        Python::with_gil(|py| {
+            let list = py.eval("[1, 2, 3]", None, None).unwrap();
+            let iter = list.iter().unwrap();
+            let hint = iter.size_hint();
+            assert_eq!(hint, (3, None));
         });
     }
 }
