@@ -1006,7 +1006,7 @@ impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
 // Thread checkers
 
 #[doc(hidden)]
-pub trait PyClassThreadChecker<T>: Sized {
+pub trait PyClassThreadChecker<T: ?Sized>: Sized {
     fn ensure(&self);
     fn can_drop(&self, py: Python<'_>) -> bool;
     fn new() -> Self;
@@ -1097,7 +1097,7 @@ impl<T: PyClass + Send, U: PyClassBaseType> PyClassThreadChecker<T>
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
-pub trait PyClassBaseType: Sized {
+pub trait PyClassBaseType {
     type LayoutAsBase: PyCellLayout<Self>;
     type BaseNativeType;
     type ThreadChecker: PyClassThreadChecker<Self>;

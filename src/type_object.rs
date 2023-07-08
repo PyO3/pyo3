@@ -12,11 +12,15 @@ use crate::{ffi, AsPyPointer, PyNativeType, Python};
 /// # Safety
 ///
 /// This trait must only be implemented for types which represent valid layouts of Python objects.
-pub unsafe trait PyLayout<T> {}
+pub unsafe trait PyLayout<T: ?Sized> {}
 
 /// `T: PySizedLayout<U>` represents that `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
 /// In addition, that `T` is a concrete representation of `U`.
+#[deprecated(
+    since = "0.20.0",
+    note = "this trait is no longer used by PyO3 and scheduled for removal"
+)]
 pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 
 /// Python type information.

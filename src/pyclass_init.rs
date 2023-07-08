@@ -20,7 +20,7 @@ use std::{
 ///
 /// This trait is intended to use internally for distinguishing `#[pyclass]` and
 /// Python native types.
-pub trait PyObjectInit<T>: Sized {
+pub trait PyObjectInit<T: ?Sized>: Sized {
     /// # Safety
     /// - `subtype` must be a valid pointer to a type object of T or a subclass.
     unsafe fn into_new_object(

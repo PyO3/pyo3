@@ -200,7 +200,7 @@ use crate::pyclass::{
     PyClass,
 };
 use crate::pyclass_init::PyClassInitializer;
-use crate::type_object::{PyLayout, PySizedLayout};
+use crate::type_object::PyLayout;
 use crate::types::PyAny;
 use crate::{
     conversion::{AsPyPointer, FromPyPointer, ToPyObject},
@@ -224,7 +224,7 @@ pub struct PyCellBase<T> {
     ob_base: T,
 }
 
-unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
+unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PyLayout<T> {}
 
 /// A container type for (mutably) accessing [`PyClass`] values
 ///
@@ -526,7 +526,8 @@ impl<T: PyClassImpl> PyCell<T> {
 }
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyCell<T> {}
-impl<T: PyClass> PySizedLayout<T> for PyCell<T> {}
+#[allow(deprecated)]
+impl<T: PyClass> crate::type_object::PySizedLayout<T> for PyCell<T> {}
 
 impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -888,7 +889,7 @@ impl From<PyBorrowMutError> for PyErr {
 }
 
 #[doc(hidden)]
-pub trait PyCellLayout<T>: PyLayout<T> {
+pub trait PyCellLayout<T: ?Sized>: PyLayout<T> {
     fn ensure_threadsafe(&self);
     /// Implementation of tp_dealloc.
     /// # Safety
@@ -899,8 +900,8 @@ pub trait PyCellLayout<T>: PyLayout<T> {
 
 impl<T, U> PyCellLayout<T> for PyCellBase<U>
 where
-    U: PySizedLayout<T>,
-    T: PyTypeInfo,
+    U: PyLayout<T>,
+    T: PyTypeInfo + PyClassBaseType,
 {
     fn ensure_threadsafe(&self) {}
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
@@ -924,10 +925,7 @@ where
     }
 }
 
-impl<T: PyClassImpl> PyCellLayout<T> for PyCell<T>
-where
-    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyCellLayout<T::BaseType>,
-{
+impl<T: PyClassImpl> PyCellLayout<T> for PyCell<T> {
     fn ensure_threadsafe(&self) {
         self.contents.thread_checker.ensure();
         self.ob_base.ensure_threadsafe();

@@ -340,8 +340,8 @@ impl SubSubClass {
 # });
 ```
 
-You can also inherit native types such as `PyDict`, if they implement
-[`PySizedLayout`]({{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PySizedLayout.html).
+You can also inherit native types such as `PyDict`, if they implement `PyClassBaseType` (this
+trait is currently an implementation detail of PyO3).
 This is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
 However, because of some technical problems, we don't currently provide safe upcasting methods for types

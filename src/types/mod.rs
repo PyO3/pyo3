@@ -245,6 +245,7 @@ macro_rules! pyobject_native_type_core {
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
+        #[allow(deprecated)]
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::pycell::PyCellBase<$layout>;
