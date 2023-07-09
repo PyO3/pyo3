@@ -52,3 +52,43 @@ fn frobnicate(value: &PyAny) -> PyResult<&PyAny> {
     }
 }
 ```
+
+## Access to GIL-bound reference implies access to GIL token
+
+Calling `Python::with_gil` is effectively a no-op when the GIL is already held, but checking that this is the case still has a cost. If an existing GIL token can not be accessed, for example when implementing a pre-existing trait, but a GIL-bound reference is available, this cost can be avoided by exploiting that access to GIL-bound reference gives zero-cost access to a GIL token via `PyAny::py`.
+
+For example, instead of writing
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::types::PyList;
+
+struct Foo(Py<PyList>);
+
+struct FooRef<'a>(&'a PyList);
+
+impl PartialEq<Foo> for FooRef<'_> {
+    fn eq(&self, other: &Foo) -> bool {
+        Python::with_gil(|py| self.0.len() == other.0.as_ref(py).len())
+    }
+}
+```
+
+use more efficient
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::types::PyList;
+# struct Foo(Py<PyList>);
+# struct FooRef<'a>(&'a PyList);
+#
+impl PartialEq<Foo> for FooRef<'_> {
+    fn eq(&self, other: &Foo) -> bool {
+        // Access to `&'a PyAny` implies access to `Python<'a>`.
+        let py = self.0.py();
+        self.0.len() == other.0.as_ref(py).len()
+    }
+}
+```
