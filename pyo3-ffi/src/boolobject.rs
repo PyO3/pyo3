@@ -24,12 +24,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
-    addr_of_mut!(_Py_FalseStruct) as *mut PyLongObject as *mut PyObject
+    addr_of_mut!(_Py_FalseStruct) as *mut PyObject
 }
 
 #[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
-    addr_of_mut!(_Py_TrueStruct) as *mut PyLongObject as *mut PyObject
+    addr_of_mut!(_Py_TrueStruct) as *mut PyObject
 }
 
 #[inline]

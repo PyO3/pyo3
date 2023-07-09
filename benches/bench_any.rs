@@ -5,7 +5,7 @@ use pyo3::{
         PyBool, PyByteArray, PyBytes, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PyMapping,
         PySequence, PySet, PyString, PyTuple,
     },
-    PyAny, Python,
+    PyAny, PyResult, Python,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -71,8 +71,23 @@ fn bench_identify_object_type(b: &mut Bencher<'_>) {
     });
 }
 
+fn bench_collect_generic_iterator(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        let collection = py.eval("list(range(1 << 20))", None, None).unwrap();
+
+        b.iter(|| {
+            collection
+                .iter()
+                .unwrap()
+                .collect::<PyResult<Vec<_>>>()
+                .unwrap()
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("identify_object_type", bench_identify_object_type);
+    c.bench_function("collect_generic_iterator", bench_collect_generic_iterator);
 }
 
 criterion_group!(benches, criterion_benchmark);
