@@ -24,6 +24,7 @@
 - [Debugging](debugging.md)
 - [Features reference](features.md)
 - [Memory management](memory.md)
+- [Performance](performance.md)
 - [Advanced topics](advanced.md)
 - [Building and distribution](building_and_distribution.md)
   - [Supporting multiple Python versions](building_and_distribution/multiple_python_versions.md)
