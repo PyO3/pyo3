@@ -504,6 +504,7 @@ pub mod doc_test {
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,
         "guide/src/parallelism.md" => guide_parallelism_md,
+        "guide/src/performance.md" => guide_performance_md,
         "guide/src/python_from_rust.md" => guide_python_from_rust_md,
         "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
         "guide/src/rust_cpython.md" => guide_rust_cpython_md,
