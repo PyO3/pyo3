@@ -14,8 +14,6 @@ use syn::Result;
 #[derive(Clone, Debug)]
 pub struct FnArg<'a> {
     pub name: &'a syn::Ident,
-    pub by_ref: &'a Option<syn::token::Ref>,
-    pub mutability: &'a Option<syn::token::Mut>,
     pub ty: &'a syn::Type,
     pub optional: Option<&'a syn::Type>,
     pub default: Option<syn::Expr>,
@@ -38,20 +36,13 @@ impl<'a> FnArg<'a> {
                 }
 
                 let arg_attrs = PyFunctionArgPyO3Attributes::from_attrs(&mut cap.attrs)?;
-                let (ident, by_ref, mutability) = match &*cap.pat {
-                    syn::Pat::Ident(syn::PatIdent {
-                        ident,
-                        by_ref,
-                        mutability,
-                        ..
-                    }) => (ident, by_ref, mutability),
+                let ident = match &*cap.pat {
+                    syn::Pat::Ident(syn::PatIdent { ident, .. }) => ident,
                     other => return Err(handle_argument_error(other)),
                 };
 
                 Ok(FnArg {
                     name: ident,
-                    by_ref,
-                    mutability,
                     ty: &cap.ty,
                     optional: utils::option_type_argument(&cap.ty),
                     default: None,
