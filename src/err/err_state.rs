@@ -68,11 +68,17 @@ impl PyErrState {
                     )
                 }
             }
-            PyErrState::LazyValue { ptype, pvalue } => (
-                ptype.into_ptr(),
-                pvalue(py).into_ptr(),
-                std::ptr::null_mut(),
-            ),
+            PyErrState::LazyValue { ptype, pvalue } => {
+                if unsafe { ffi::PyExceptionClass_Check(ptype.as_ptr()) } == 0 {
+                    Self::exceptions_must_derive_from_base_exception(py).into_ffi_tuple(py)
+                } else {
+                    (
+                        ptype.into_ptr(),
+                        pvalue(py).into_ptr(),
+                        std::ptr::null_mut(),
+                    )
+                }
+            }
             PyErrState::FfiTuple {
                 ptype,
                 pvalue,
