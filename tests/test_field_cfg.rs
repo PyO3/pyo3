@@ -8,7 +8,12 @@ struct CfgClass {
     #[cfg(any())]
     pub a: u32,
     #[pyo3(get, set)]
-    #[cfg(all())]
+    // This is always true
+    #[cfg(any(
+        target_family = "unix",
+        target_family = "windows",
+        target_family = "wasm"
+    ))]
     pub b: u32,
 }
 
