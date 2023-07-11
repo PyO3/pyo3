@@ -177,12 +177,10 @@ impl PyErr {
     /// });
     /// ```
     pub fn from_value(obj: &PyAny) -> PyErr {
-        let ptr = obj.as_ptr();
-
-        let state = if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
+        let state = if let Ok(obj) = obj.downcast::<PyBaseException>() {
             PyErrState::Normalized(PyErrStateNormalized {
                 ptype: obj.get_type().into(),
-                pvalue: unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ptr()) },
+                pvalue: obj.into(),
                 ptraceback: None,
             })
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
