@@ -297,9 +297,10 @@ impl PyErr {
         };
 
         if ptype.as_ptr() == PanicException::type_object_raw(py).cast() {
-            let msg: String = pvalue
+            let msg = pvalue
                 .as_ref()
-                .and_then(|obj| obj.extract(py).ok())
+                .and_then(|obj| obj.as_ref(py).str().ok())
+                .map(|py_str| py_str.to_string_lossy().into())
                 .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
 
             eprintln!(
@@ -837,6 +838,25 @@ mod tests {
 
         Python::with_gil(|py| {
             let err: PyErr = PanicException::new_err("new panic");
+            err.restore(py);
+            assert!(PyErr::occurred(py));
+
+            // should resume unwind
+            let _ = PyErr::fetch(py);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "new panic")]
+    #[cfg(not(Py_3_12))]
+    fn fetching_normalized_panic_exception_resumes_unwind() {
+        use crate::panic::PanicException;
+
+        Python::with_gil(|py| {
+            let err: PyErr = PanicException::new_err("new panic");
+            // Restoring an error doesn't normalize it before Python 3.12,
+            // so we have to explicitly test this case.
+            let _ = err.normalized(py);
             err.restore(py);
             assert!(PyErr::occurred(py));
 
