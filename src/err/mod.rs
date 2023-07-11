@@ -138,10 +138,6 @@ impl PyErr {
     where
         A: PyErrArguments + Send + Sync + 'static,
     {
-        if unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } == 0 {
-            return exceptions_must_derive_from_base_exception(ty.py());
-        }
-
         PyErr::from_state(PyErrState::LazyValue {
             ptype: ty.into(),
             pvalue: boxed_args(args),
@@ -438,16 +434,13 @@ impl PyErr {
     where
         T: ToPyObject,
     {
-        fn inner(err: &PyErr, py: Python<'_>, exc: PyObject) -> bool {
-            (unsafe { ffi::PyErr_GivenExceptionMatches(err.type_ptr(py), exc.as_ptr()) }) != 0
-        }
-        inner(self, py, exc.to_object(py))
+        self.is_instance(py, exc.to_object(py).as_ref(py))
     }
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
     pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
-        (unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), ty.as_ptr()) }) != 0
+        (unsafe { ffi::PyErr_GivenExceptionMatches(self.get_type(py).as_ptr(), ty.as_ptr()) }) != 0
     }
 
     /// Returns true if the current exception is instance of `T`.
@@ -630,19 +623,6 @@ impl PyErr {
         }
     }
 
-    /// Returns borrowed reference to this Err's type
-    fn type_ptr(&self, py: Python<'_>) -> *mut ffi::PyObject {
-        match unsafe { &*self.state.get() } {
-            // In lazy type case, normalize before returning ptype in case the type is not a valid
-            // exception type.
-            Some(PyErrState::LazyTypeAndValue { .. }) => self.normalized(py).ptype.as_ptr(),
-            Some(PyErrState::LazyValue { ptype, .. }) => ptype.as_ptr(),
-            Some(PyErrState::FfiTuple { ptype, .. }) => ptype.as_ptr(),
-            Some(PyErrState::Normalized(n)) => n.ptype.as_ptr(),
-            None => panic!("Cannot access exception type while normalizing"),
-        }
-    }
-
     #[inline]
     fn normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         if let Some(PyErrState::Normalized(n)) = unsafe {
@@ -822,8 +802,8 @@ fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> PyErr {
 #[cfg(test)]
 mod tests {
     use super::PyErrState;
-    use crate::exceptions;
-    use crate::{PyErr, Python};
+    use crate::exceptions::{self, PyTypeError, PyValueError};
+    use crate::{PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -935,6 +915,25 @@ mod tests {
 
         is_send::<PyErrState>();
         is_sync::<PyErrState>();
+    }
+
+    #[test]
+    fn test_pyerr_matches() {
+        Python::with_gil(|py| {
+            let err = PyErr::new::<PyValueError, _>("foo");
+            assert!(err.matches(py, PyValueError::type_object(py)));
+
+            assert!(err.matches(
+                py,
+                (PyValueError::type_object(py), PyTypeError::type_object(py))
+            ));
+
+            assert!(!err.matches(py, PyTypeError::type_object(py)));
+
+            // String is not a valid exception class, so we should get a TypeError
+            let err: PyErr = PyErr::from_type(crate::types::PyString::type_object(py), "foo");
+            assert!(err.matches(py, PyTypeError::type_object(py)));
+        })
     }
 
     #[test]
