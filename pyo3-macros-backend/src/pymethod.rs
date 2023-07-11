@@ -520,9 +520,11 @@ pub fn impl_py_setter_def(
     };
 
     let slf = match property_type {
-        PropertyType::Descriptor { .. } => {
-            SelfType::Receiver { mutable: true }.receiver(cls, ExtractErrorMode::Raise)
+        PropertyType::Descriptor { .. } => SelfType::Receiver {
+            mutable: true,
+            span: Span::call_site(),
         }
+        .receiver(cls, ExtractErrorMode::Raise),
         PropertyType::Function { self_type, .. } => {
             self_type.receiver(cls, ExtractErrorMode::Raise)
         }
@@ -633,9 +635,11 @@ pub fn impl_py_getter_def(
     };
 
     let slf = match property_type {
-        PropertyType::Descriptor { .. } => {
-            SelfType::Receiver { mutable: false }.receiver(cls, ExtractErrorMode::Raise)
+        PropertyType::Descriptor { .. } => SelfType::Receiver {
+            mutable: false,
+            span: Span::call_site(),
         }
+        .receiver(cls, ExtractErrorMode::Raise),
         PropertyType::Function { self_type, .. } => {
             self_type.receiver(cls, ExtractErrorMode::Raise)
         }
@@ -948,8 +952,7 @@ impl Ty {
                     #ident.to_borrowed_any(#py)
                 },
             ),
-            Ty::CompareOp => handle_error(
-                extract_error_mode,
+            Ty::CompareOp => extract_error_mode.handle_error(
                 py,
                 quote! {
                     _pyo3::class::basic::CompareOp::from_raw(#ident)
@@ -958,8 +961,7 @@ impl Ty {
             ),
             Ty::PySsizeT => {
                 let ty = arg.ty;
-                handle_error(
-                    extract_error_mode,
+                extract_error_mode.handle_error(
                     py,
                     quote! {
                             ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| _pyo3::exceptions::PyValueError::new_err(e.to_string()))
@@ -972,30 +974,13 @@ impl Ty {
     }
 }
 
-fn handle_error(
-    extract_error_mode: ExtractErrorMode,
-    py: &syn::Ident,
-    extract: TokenStream,
-) -> TokenStream {
-    match extract_error_mode {
-        ExtractErrorMode::Raise => quote! { #extract? },
-        ExtractErrorMode::NotImplemented => quote! {
-            match #extract {
-                ::std::result::Result::Ok(value) => value,
-                ::std::result::Result::Err(_) => { return _pyo3::callback::convert(#py, #py.NotImplemented()); },
-            }
-        },
-    }
-}
-
 fn extract_object(
     extract_error_mode: ExtractErrorMode,
     py: &syn::Ident,
     name: &str,
     source: TokenStream,
 ) -> TokenStream {
-    handle_error(
-        extract_error_mode,
+    extract_error_mode.handle_error(
         py,
         quote! {
             _pyo3::impl_::extract_argument::extract_argument(

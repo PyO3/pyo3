@@ -6,6 +6,11 @@ pub struct Foo {
     field: u32,
 }
 
+#[pymethods]
+impl Foo {
+    fn mut_method(&mut self) {}
+}
+
 fn borrow_mut_fails(foo: Py<Foo>, py: Python) {
     let borrow = foo.as_ref(py).borrow_mut();
 }
@@ -26,6 +31,12 @@ fn py_get_of_mutable_class_fails(class: Py<MutableBase>) {
 
 fn pyclass_get_of_mutable_class_fails(class: &PyCell<MutableBase>) {
     class.get();
+}
+
+#[pyclass(frozen)]
+pub struct SetOnFrozenClass {
+    #[pyo3(set)]
+    field: u32,
 }
 
 fn main() {}
