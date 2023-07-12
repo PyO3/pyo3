@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
     ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute,
@@ -355,7 +356,7 @@ fn impl_class(
         cls,
         args,
         methods_type,
-        descriptors_to_items(cls, field_options)?,
+        descriptors_to_items(cls, args.options.frozen, field_options)?,
         vec![],
     )
     .doc(doc)
@@ -674,6 +675,7 @@ fn extract_variant_data(variant: &mut syn::Variant) -> syn::Result<PyClassEnumVa
 
 fn descriptors_to_items(
     cls: &syn::Ident,
+    frozen: Option<frozen>,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
 ) -> syn::Result<Vec<MethodAndMethodDef>> {
     let ty = syn::parse_quote!(#cls);
@@ -700,7 +702,8 @@ fn descriptors_to_items(
             items.push(getter);
         }
 
-        if options.set.is_some() {
+        if let Some(set) = options.set {
+            ensure_spanned!(frozen.is_none(), set.span() => "cannot use `#[pyo3(set)]` on a `frozen` class");
             let setter = impl_py_setter_def(
                 &ty,
                 PropertyType::Descriptor {
