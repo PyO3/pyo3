@@ -1,7 +1,7 @@
 #![cfg(feature = "fixed")]
-//! Conversions to and from [fixed](https://docs.rs/fixed)'s [`fixed`] type.
+//! Conversions to and from [fixed](https://docs.rs/fixed)'s type.
 //!
-//! This is useful for converting Python's fixed into and from a native Rust type.
+//! This is useful for converting Python's decimal.Decimal into and from a native Rust type (fixed).
 //!
 //! # Setup
 //!
@@ -58,11 +58,18 @@ macro_rules! fixed_conversion {
                 // TODO: handle error gracefully when ToPyObject can error
                 // look up the decimal.Decimal
                 let dec_cls = get_decimal_cls(py).expect("failed to load decimal.Decimal");
-                // now call the constructor with the Rust Decimal string-ified
-                // to not be lossy
+
+                // now call the constructor
+                // lossy with f64
+                // let ret = dec_cls
+                //     .call1((self.to_num::<f64>(),))
+                //     .expect("failed to call decimal.Decimal(value)");
+
+                // if don't want to be lossy, use this instead:
                 let ret = dec_cls
-                    .call1((self.to_num::<f64>(),))
+                    .call1((self.to_string(),))
                     .expect("failed to call decimal.Decimal(value)");
+
                 ret.to_object(py)
             }
         }

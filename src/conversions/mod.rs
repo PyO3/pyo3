@@ -10,4 +10,5 @@ pub mod num_complex;
 pub mod rust_decimal;
 pub mod serde;
 pub mod fixed;
+pub mod fpdec;
 mod std;
