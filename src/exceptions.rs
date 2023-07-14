@@ -260,13 +260,13 @@ macro_rules! create_exception_type_object {
 }
 
 macro_rules! impl_native_exception (
-    ($name:ident, $exc_name:ident, $doc:expr, $layout:path) => (
+    ($name:ident, $exc_name:ident, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
         #[doc = $doc]
         #[allow(clippy::upper_case_acronyms)]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject });
+        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject } $(, #checkfunction=$checkfunction)?);
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
@@ -359,7 +359,9 @@ Python::with_gil(|py| {
 impl_native_exception!(
     PyBaseException,
     PyExc_BaseException,
-    native_doc!("BaseException")
+    native_doc!("BaseException"),
+    ffi::PyBaseExceptionObject,
+    #checkfunction=ffi::PyExceptionInstance_Check
 );
 impl_native_exception!(PyException, PyExc_Exception, native_doc!("Exception"));
 impl_native_exception!(
