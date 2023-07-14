@@ -18,12 +18,13 @@ use err_state::{boxed_args, PyErrState, PyErrStateNormalized};
 
 /// Represents a Python exception.
 ///
-/// Python exceptions can be raised in a "lazy" fashion, where the full Python object for the
-/// exception is not created until needed. The process of creating the full object is known
-/// as "normalization". An exception which has not yet been created is known as "unnormalized".
+/// To avoid needing access to [`Python`] in `Into` conversions to create `PyErr` (thus improving
+/// compatibility with `?` and other Rust errors) this type supports creating exceptions instances
+/// in a lazy fashion, where the full Python object for the exception is created only when needed.
 ///
-/// This struct builds upon that design, supporting all lazily-created Python exceptions and also
-/// supporting exceptions lazily-created from Rust.
+/// Accessing the contained exception in any way, such as with [`value`](PyErr::value),
+/// [`get_type`](PyErr::get_type), or [`is_instance`](PyErr::is_instance) will create the full
+/// exception object if it was not already created.
 pub struct PyErr {
     // Safety: can only hand out references when in the "normalized" state. Will never change
     // after normalization.
@@ -69,12 +70,13 @@ impl PyErr {
     /// * any other value: the exception instance will be created using the equivalent to the Python
     ///   expression `T(value)`
     ///
-    /// This error will be stored in an unnormalized state. This avoids the need for the Python GIL
+    /// This exception instance will be initialized lazily. This avoids the need for the Python GIL
     /// to be held, but requires `args` to be `Send` and `Sync`. If `args` is not `Send` or `Sync`,
     /// consider using [`PyErr::from_value`] instead.
     ///
-    /// If an error occurs during normalization (for example if `T` is not a Python type which
-    /// extends from `BaseException`), then a different error may be produced during normalization.
+    /// If `T` does not inherit from `BaseException`, then a `TypeError` will be returned.
+    ///
+    /// If calling T's constructor with `args` raises an exception, that exception will be returned.
     ///
     /// # Examples
     ///
@@ -130,10 +132,9 @@ impl PyErr {
     ///
     /// `args` is either a tuple or a single value, with the same meaning as in [`PyErr::new`].
     ///
-    /// If an error occurs during normalization (for example if `T` is not a Python type which
-    /// extends from `BaseException`), then a different error may be produced during normalization.
+    /// If `ty` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
-    /// This error will be stored in an unnormalized state.
+    /// If calling `ty` with `args` raises an exception, that exception will be returned.
     pub fn from_type<A>(ty: &PyType, args: A) -> PyErr
     where
         A: PyErrArguments + Send + Sync + 'static,
@@ -146,8 +147,7 @@ impl PyErr {
 
     /// Creates a new PyErr.
     ///
-    /// If `obj` is a Python exception object, the PyErr will contain that object. The error will be
-    /// in a normalized state.
+    /// If `obj` is a Python exception object, the PyErr will contain that object.
     ///
     /// If `obj` is a Python exception type object, this is equivalent to `PyErr::from_type(obj, ())`.
     ///
@@ -200,8 +200,6 @@ impl PyErr {
 
     /// Returns the type of this exception.
     ///
-    /// The object will be normalized first if needed.
-    ///
     /// # Examples
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, types::PyType, PyErr, Python};
@@ -216,8 +214,6 @@ impl PyErr {
     }
 
     /// Returns the value of this exception.
-    ///
-    /// The object will be normalized first if needed.
     ///
     /// # Examples
     ///
@@ -243,8 +239,6 @@ impl PyErr {
     }
 
     /// Returns the traceback of this exception object.
-    ///
-    /// The object will be normalized first if needed.
     ///
     /// # Examples
     /// ```rust
