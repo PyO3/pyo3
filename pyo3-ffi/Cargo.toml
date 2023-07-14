@@ -38,4 +38,4 @@ generate-import-lib = ["pyo3-build-config/python3-dll-a"]
 
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.19.1-fixed", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.19.1", features = ["resolve-config"] }
