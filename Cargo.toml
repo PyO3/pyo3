@@ -41,7 +41,7 @@ num-bigint = { version = "0.4", optional = true }
 num-complex = { version = ">= 0.2, < 0.5", optional = true }
 rust_decimal = { version = "1.0.0", default-features = false, optional = true }
 fixed = { version = "1.23.1", default-features = false, optional = true }
-fpdec = { version = ">=0.8.1", default-features = false, optional = true }
+fpdec = { version = "0.8.1", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
