@@ -24,7 +24,7 @@ fn iter_set(b: &mut Bencher<'_>) {
         let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
         let mut sum = 0;
         b.iter(|| {
-            for x in set.iter() {
+            for x in set {
                 let i: u64 = x.extract().unwrap();
                 sum += i;
             }
