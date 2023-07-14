@@ -177,8 +177,8 @@ extern "C" {
 #[inline(always)]
 pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     assert!(!arg.is_null());
-    let _args = [std::ptr::null_mut(), arg];
-    let args = _args.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
+    let args_array = [std::ptr::null_mut(), arg];
+    let args = args_array.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
     let tstate = PyThreadState_GET();
     let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
     _PyObject_VectorcallTstate(tstate, func, args, nargsf as size_t, std::ptr::null_mut())

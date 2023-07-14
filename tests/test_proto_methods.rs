@@ -14,14 +14,14 @@ struct EmptyClass;
 struct ExampleClass {
     #[pyo3(get, set)]
     value: i32,
-    _custom_attr: Option<i32>,
+    custom_attr: Option<i32>,
 }
 
 #[pymethods]
 impl ExampleClass {
     fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<PyObject> {
         if attr == "special_custom_attr" {
-            Ok(self._custom_attr.into_py(py))
+            Ok(self.custom_attr.into_py(py))
         } else {
             Err(PyAttributeError::new_err(attr.to_string()))
         }
@@ -29,7 +29,7 @@ impl ExampleClass {
 
     fn __setattr__(&mut self, attr: &str, value: &PyAny) -> PyResult<()> {
         if attr == "special_custom_attr" {
-            self._custom_attr = Some(value.extract()?);
+            self.custom_attr = Some(value.extract()?);
             Ok(())
         } else {
             Err(PyAttributeError::new_err(attr.to_string()))
@@ -38,7 +38,7 @@ impl ExampleClass {
 
     fn __delattr__(&mut self, attr: &str) -> PyResult<()> {
         if attr == "special_custom_attr" {
-            self._custom_attr = None;
+            self.custom_attr = None;
             Ok(())
         } else {
             Err(PyAttributeError::new_err(attr.to_string()))
@@ -68,7 +68,7 @@ fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
         py,
         ExampleClass {
             value: 5,
-            _custom_attr: Some(20),
+            custom_attr: Some(20),
         },
     )
     .unwrap()
