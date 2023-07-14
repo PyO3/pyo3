@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.19.1"
+version = "0.19.1-fixed"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -21,10 +21,10 @@ parking_lot = ">= 0.11, < 0.13"
 memoffset = "0.9"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.19.1" }
+pyo3-ffi = { path = "pyo3-ffi", version = "=0.19.1-fixed" }
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.19.1", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.19.1-fixed", optional = true }
 indoc = { version = "2.0.1", optional = true }
 unindent = { version = "0.2.1", optional = true }
 
@@ -40,6 +40,7 @@ indexmap = { version = ">= 1.6, < 3", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-complex = { version = ">= 0.2, < 0.5", optional = true }
 rust_decimal = { version = "1.0.0", default-features = false, optional = true }
+fixed = { version = "1.23.1", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
@@ -54,10 +55,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 rayon = "1.0.2"
 rust_decimal = { version = "1.8.0", features = ["std"] }
+fixed = { version = "1.23.1" }
 widestring = "0.5.1"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.19.1", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "0.19.1-fixed", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
@@ -111,6 +113,7 @@ full = [
     "anyhow",
     "experimental-inspect",
     "rust_decimal",
+    "fixed",
 ]
 
 [[bench]]
@@ -184,6 +187,7 @@ members = [
     "pyo3-macros-backend",
     "pytests",
     "examples",
+    "pyo3_example",
 ]
 
 [package.metadata.docs.rs]
