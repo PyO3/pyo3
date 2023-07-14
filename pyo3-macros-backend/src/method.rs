@@ -157,7 +157,7 @@ impl ExtractErrorMode {
 impl SelfType {
     pub fn receiver(&self, cls: &syn::Type, error_mode: ExtractErrorMode) -> TokenStream {
         let py = syn::Ident::new("_py", Span::call_site());
-        let _slf = syn::Ident::new("_slf", Span::call_site());
+        let slf = syn::Ident::new("_slf", Span::call_site());
         match self {
             SelfType::Receiver { span, mutable } => {
                 let method = if *mutable {
@@ -169,7 +169,7 @@ impl SelfType {
                     &py,
                     quote_spanned! { *span =>
                         _pyo3::impl_::extract_argument::#method::<#cls>(
-                            #py.from_borrowed_ptr::<_pyo3::PyAny>(#_slf),
+                            #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf),
                             &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
                         )
                     },
@@ -179,10 +179,10 @@ impl SelfType {
                 error_mode.handle_error(
                     &py,
                     quote_spanned! { *span =>
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#_slf).downcast::<_pyo3::PyCell<#cls>>()
+                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf).downcast::<_pyo3::PyCell<#cls>>()
                             .map_err(::std::convert::Into::<_pyo3::PyErr>::into)
                             .and_then(
-                                #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
+                                #[allow(clippy::useless_conversion)]  // In case slf is PyCell<Self>
                                 |cell| ::std::convert::TryFrom::try_from(cell).map_err(::std::convert::Into::into)
                             )
 
