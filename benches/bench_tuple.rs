@@ -9,7 +9,7 @@ fn iter_tuple(b: &mut Bencher<'_>) {
         let tuple = PyTuple::new(py, 0..LEN);
         let mut sum = 0;
         b.iter(|| {
-            for x in tuple.iter() {
+            for x in tuple {
                 let i: u64 = x.extract().unwrap();
                 sum += i;
             }

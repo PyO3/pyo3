@@ -474,7 +474,7 @@ mod tests {
             let v = vec![2, 3, 5, 7];
             let list = PyList::new(py, &v);
             let mut idx = 0;
-            for el in list.iter() {
+            for el in list {
                 assert_eq!(v[idx], el.extract::<i32>().unwrap());
                 idx += 1;
             }

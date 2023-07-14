@@ -654,7 +654,7 @@ mod tests {
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for el in dict.items().iter() {
+            for el in dict.items() {
                 let tuple = el.downcast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
@@ -675,7 +675,7 @@ mod tests {
             let dict: &PyDict = ob.downcast(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
-            for el in dict.keys().iter() {
+            for el in dict.keys() {
                 key_sum += el.extract::<i32>().unwrap();
             }
             assert_eq!(7 + 8 + 9, key_sum);
@@ -693,7 +693,7 @@ mod tests {
             let dict: &PyDict = ob.downcast(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
-            for el in dict.values().iter() {
+            for el in dict.values() {
                 values_sum += el.extract::<i32>().unwrap();
             }
             assert_eq!(32 + 42 + 123, values_sum);
@@ -711,7 +711,7 @@ mod tests {
             let dict: &PyDict = ob.downcast(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for (key, value) in dict.iter() {
+            for (key, value) in dict {
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
             }
@@ -731,7 +731,7 @@ mod tests {
             let ob = v.to_object(py);
             let dict: &PyDict = ob.downcast(py).unwrap();
 
-            for (key, value) in dict.iter() {
+            for (key, value) in dict {
                 dict.set_item(key, value.extract::<i32>().unwrap() + 7)
                     .unwrap();
             }

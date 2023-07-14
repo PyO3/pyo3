@@ -773,7 +773,7 @@ mod tests {
             let seq = ob.downcast::<PySequence>(py).unwrap();
             let repeat_seq = seq.repeat(3).unwrap();
             assert_eq!(6, repeat_seq.len().unwrap());
-            let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
+            let repeated = ["foo", "bar", "foo", "bar", "foo", "bar"];
             for (el, rpt) in repeat_seq.iter().unwrap().zip(repeated.iter()) {
                 assert_eq!(*rpt, el.unwrap().extract::<String>().unwrap());
             }

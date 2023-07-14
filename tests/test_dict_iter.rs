@@ -8,7 +8,7 @@ fn iter_dict_nosegv() {
         const LEN: usize = 10_000_000;
         let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
         let mut sum = 0;
-        for (k, _v) in dict.iter() {
+        for (k, _v) in dict {
             let i: u64 = k.extract().unwrap();
             sum += i;
         }
