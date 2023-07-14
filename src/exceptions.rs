@@ -724,7 +724,7 @@ impl_native_exception!(
 
 #[cfg(test)]
 macro_rules! test_exception {
-    ($exc_ty:ident $(, $constructor:expr)?) => {
+    ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
         #[allow(non_snake_case)]
         #[test]
         fn $exc_ty () {
@@ -735,7 +735,7 @@ macro_rules! test_exception {
                 let err: $crate::PyErr = {
                     None
                     $(
-                        .or(Some($constructor(py)))
+                        .or(Some({ let $py = py; $constructor }))
                     )?
                         .unwrap_or($exc_ty::new_err("a test exception"))
                 };
@@ -770,12 +770,12 @@ pub mod asyncio {
         test_exception!(CancelledError);
         test_exception!(InvalidStateError);
         test_exception!(TimeoutError);
-        test_exception!(IncompleteReadError, |_| {
-            IncompleteReadError::new_err(("partial", "expected"))
-        });
-        test_exception!(LimitOverrunError, |_| {
-            LimitOverrunError::new_err(("message", "consumed"))
-        });
+        test_exception!(IncompleteReadError, |_| IncompleteReadError::new_err((
+            "partial", "expected"
+        )));
+        test_exception!(LimitOverrunError, |_| LimitOverrunError::new_err((
+            "message", "consumed"
+        )));
         test_exception!(QueueEmpty);
         test_exception!(QueueFull);
     }
@@ -1033,9 +1033,10 @@ mod tests {
         });
     }
     #[cfg(Py_3_11)]
-    test_exception!(PyBaseExceptionGroup, |_| {
-        PyBaseExceptionGroup::new_err(("msg", vec![PyValueError::new_err("err")]))
-    });
+    test_exception!(PyBaseExceptionGroup, |_| PyBaseExceptionGroup::new_err((
+        "msg",
+        vec![PyValueError::new_err("err")]
+    )));
     test_exception!(PyBaseException);
     test_exception!(PyException);
     test_exception!(PyStopAsyncIteration);
@@ -1072,10 +1073,9 @@ mod tests {
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
     });
-    test_exception!(PyUnicodeEncodeError, |py: Python<'_>| {
-        py.eval("chr(40960).encode('ascii')", None, None)
-            .unwrap_err()
-    });
+    test_exception!(PyUnicodeEncodeError, |py| py
+        .eval("chr(40960).encode('ascii')", None, None)
+        .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
         PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))
     });

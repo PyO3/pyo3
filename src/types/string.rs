@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn test_to_str_surrogate() {
         Python::with_gil(|py| {
-            let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
+            let obj: PyObject = py.eval(r"'\ud800'", None, None).unwrap().into();
             let py_string: &PyString = obj.downcast(py).unwrap();
             assert!(py_string.to_str().is_err());
         })
@@ -316,7 +316,7 @@ mod tests {
     fn test_to_string_lossy() {
         Python::with_gil(|py| {
             let obj: PyObject = py
-                .eval(r#"'🐈 Hello \ud800World'"#, None, None)
+                .eval(r"'🐈 Hello \ud800World'", None, None)
                 .unwrap()
                 .into();
             let py_string: &PyString = obj.downcast(py).unwrap();
