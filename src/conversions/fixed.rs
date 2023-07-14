@@ -1087,3 +1087,92 @@ fixed_conversion!(U2F126);
 fixed_conversion!(U1F127);
 /// [`FixedU128`] with no integer bits and 128 fractional bits.
 fixed_conversion!(U0F128);
+
+#[cfg(test)]
+mod test_fixed {
+    use super::*;
+    use crate::err::PyErr;
+    use crate::types::PyDict;
+    use fixed::types::*;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    use proptest::prelude::*;
+
+    macro_rules! convert_constants {
+        ($name:ident, $rs:expr, $py:literal) => {
+            #[test]
+            fn $name() {
+                Python::with_gil(|py| {
+                    let rs_orig = $rs;
+                    let rs_dec = rs_orig.into_py(py);
+                    let locals = PyDict::new(py);
+                    locals.set_item("rs_dec", &rs_dec).unwrap();
+                    // Checks if Rust I64F64 -> Python Decimal conversion is correct
+                    py.run(
+                        &format!(
+                            "import decimal\npy_dec = decimal.Decimal({})\nassert py_dec == rs_dec",
+                            $py
+                        ),
+                        None,
+                        Some(locals),
+                    )
+                    .unwrap();
+                    // Checks if Python Decimal -> Rust I64F64 conversion is correct
+                    let py_dec = locals.get_item("py_dec").unwrap();
+                    let py_result: I64F64 = FromPyObject::extract(py_dec).unwrap();
+                    assert_eq!(rs_orig, py_result);
+                })
+            }
+        };
+    }
+
+    convert_constants!(convert_zero, I64F64::from_str("0").unrwap(), "0");
+    convert_constants!(convert_one, I64F64::from_str("1").unrwap(), "1");
+    convert_constants!(convert_neg_one, I64F64::from_str("-1").unrwap(), "-1");
+    convert_constants!(
+        convert_one_thousand,
+        I64F64::from_str("1000").unrwap(),
+        "1000"
+    );
+    convert_constants!(
+        convert_decimal,
+        I64F64::from_str("999.999").unrwap(),
+        "999.999"
+    );
+    convert_constants!(
+        convert_neg_decimal,
+        I64F64::from_str("-999.999").unrwap(),
+        "-999.999"
+    );
+
+    #[cfg(not(target_arch = "wasm32"))]
+    proptest! {
+        #[test]
+        fn test_roundtrip(
+            val in any::<f64>()) {
+            let num = I64F64::from_num(x);
+            Python::with_gil(|py| {
+                let rs_dec = num.into_py(py);
+                let locals = PyDict::new(py);
+                locals.set_item("rs_dec", &rs_dec).unwrap();
+                py.run(
+                    &format!(
+                       "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
+                     num.to_string()),
+                None, Some(locals)).unwrap();
+                let roundtripped: I64F64 = rs_dec.extract(py).unwrap();
+                assert_eq!(num, roundtripped);
+            })
+        }
+
+        #[test]
+        fn test_integers(num in any::<i64>()) {
+            Python::with_gil(|py| {
+                let py_num = num.into_py(py);
+                let roundtripped: I64F64 = py_num.extract(py).unwrap();
+                let rs_dec = I64F64::from_num(num);
+                assert_eq!(rs_dec, roundtripped);
+            })
+        }
+    }
+}
