@@ -260,7 +260,7 @@ mod tests {
             let set = PyFrozenSet::new(py, &[1]).unwrap();
 
             // iter method
-            for el in set.iter() {
+            for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
             }
 

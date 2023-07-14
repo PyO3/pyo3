@@ -22,7 +22,7 @@ impl DictSize {
 
     fn iter_dict(&mut self, _py: Python<'_>, dict: &PyDict) -> PyResult<u32> {
         let mut seen = 0u32;
-        for (sym, values) in dict.iter() {
+        for (sym, values) in dict {
             seen += 1;
             println!(
                 "{:4}/{:4} iterations:{}=>{}",

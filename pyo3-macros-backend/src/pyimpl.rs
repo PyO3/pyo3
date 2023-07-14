@@ -97,7 +97,7 @@ pub fn impl_methods(
 
     let mut implemented_proto_fragments = HashSet::new();
 
-    for iimpl in impls.iter_mut() {
+    for iimpl in impls {
         match iimpl {
             syn::ImplItem::Fn(meth) => {
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;

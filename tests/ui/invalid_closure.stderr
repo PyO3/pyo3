@@ -1,6 +1,8 @@
 error[E0597]: `local_data` does not live long enough
   --> tests/ui/invalid_closure.rs:7:27
    |
+6  |         let local_data = vec![0, 1, 2, 3, 4];
+   |             ---------- binding `local_data` declared here
 7  |         let ref_: &[u8] = &local_data;
    |                           ^^^^^^^^^^^ borrowed value does not live long enough
 ...
