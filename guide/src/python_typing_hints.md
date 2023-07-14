@@ -1,6 +1,6 @@
 # Typing and IDE hints for you Python package
 
-PyO3 provides an easy to use interface to code native Python libraries in Rust. The accompanying Maturin allows you to build and publish them as a package. Yet, for the better user experience, Python libraries should provide typing hints and documentation for all public entities, so that IDEs can show them during development and type analyzing tools such as `mypy` can use them to properly verify the code.
+PyO3 provides an easy to use interface to code native Python libraries in Rust. The accompanying Maturin allows you to build and publish them as a package. Yet, for a better user experience, Python libraries should provide typing hints and documentation for all public entities, so that IDEs can show them during development and type analyzing tools such as `mypy` can use them to properly verify the code.
 
 Currently the best solution for the problem is to manually maintain `*.pyi` files and ship them along with the package.
 
@@ -12,7 +12,7 @@ There is a sketch of a roadmap towards completing [the `experimental-inspect` fe
 
 > A stubs file only contains a description of the public interface of the module without any implementations.
 
-There is also [extensive documentation on type stubs on the offical Python typing documentation](https://typing.readthedocs.io/en/latest/source/stubs.html).
+There is also [extensive documentation on type stubs on the official Python typing documentation](https://typing.readthedocs.io/en/latest/source/stubs.html).
 
 Most Python developers probably already encountered them when trying to use their IDE's "Go to Definition" function on any builtin type. For example, the definitions of a few standard exceptions look like this:
 
@@ -37,7 +37,7 @@ class StopIteration(Exception):
     value: Any
 ```
 
-As we can see, those are not full definitions containing implementation, but just a description of interface. It is usually all that the user of the library needs.
+As we can see, those are not full definitions containing implementation, but just a description of the interface. It is usually all that the user of the library needs.
 
 ### What do the PEPs say?
 
@@ -75,7 +75,7 @@ When source files are in the same package as stub files, they should be placed n
 
 #### If you do not have other Python files
 
-If you do not need to add any other Python files apart from `pyi` to the package, Maturin provides a way to do most of the work for you. As documented in the [Maturin Guide](https://github.com/PyO3/maturin/blob/084cfaced651b28616aeea1f818bdc933a536bfe/guide/src/project_layout.md#adding-python-type-information), the only thing you need to do is to create a stub file for your module named `<module_name>.pyi` in your project root and Maturin will do the rest.
+If you do not need to add any other Python files apart from `pyi` to the package, Maturin provides a way to do most of the work for you. As documented in the [Maturin Guide](https://github.com/PyO3/maturin/#mixed-rustpython-projects), the only thing you need to do is to create a stub file for your module named `<module_name>.pyi` in your project root and Maturin will do the rest.
 
 ```text
 my-rust-project/
@@ -108,7 +108,7 @@ my-project
     └── lib.rs
 ```
 
-Let's go a little bit more into details regarding the files inside the package folder.
+Let's go a little bit more into detail regarding the files inside the package folder.
 
 ##### `__init__.py` content
 
