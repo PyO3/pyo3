@@ -12,12 +12,7 @@
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"fpdec\"] }")]
 //! fpdec = "0.8.1"
 //! ```
-//!
-//! Note that you must use a compatible version of fpdec and PyO3.
-//! The required fpdec version may vary based on the version of PyO3.
-//!
-//! ```
-//!
+
 use crate::exceptions::PyValueError;
 use crate::once_cell::GILOnceCell;
 use crate::types::PyType;

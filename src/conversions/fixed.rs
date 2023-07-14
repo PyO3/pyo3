@@ -12,11 +12,6 @@
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"fixed\"] }")]
 //! fixed = "1.23.1"
 //! ```
-//!
-//! Note that you must use a compatible version of fixed and PyO3.
-//! The required fixed version may vary based on the version of PyO3.
-//!
-//! ```
 
 use crate::exceptions::PyValueError;
 use crate::once_cell::GILOnceCell;
