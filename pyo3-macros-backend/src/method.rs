@@ -9,7 +9,7 @@ use quote::ToTokens;
 use quote::{quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
-use syn::{Result, Token};
+use syn::Result;
 
 #[derive(Clone, Debug)]
 pub struct FnArg<'a> {
@@ -101,36 +101,29 @@ pub enum FnType {
 }
 
 impl FnType {
-    pub fn self_conversion(
-        &self,
-        cls: Option<&syn::Type>,
-        error_mode: ExtractErrorMode,
-    ) -> TokenStream {
+    pub fn self_arg(&self, cls: Option<&syn::Type>, error_mode: ExtractErrorMode) -> TokenStream {
         match self {
-            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => st.receiver(
-                cls.expect("no class given for Fn with a \"self\" receiver"),
-                error_mode,
-            ),
+            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => {
+                let mut receiver = st.receiver(
+                    cls.expect("no class given for Fn with a \"self\" receiver"),
+                    error_mode,
+                );
+                syn::Token![,](Span::call_site()).to_tokens(&mut receiver);
+                receiver
+            }
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
                 quote!()
             }
             FnType::FnClass | FnType::FnNewClass => {
                 quote! {
-                    let _slf = _pyo3::types::PyType::from_type_ptr(_py, _slf as *mut _pyo3::ffi::PyTypeObject);
+                    _pyo3::types::PyType::from_type_ptr(_py, _slf as *mut _pyo3::ffi::PyTypeObject),
                 }
             }
             FnType::FnModule => {
                 quote! {
-                    let _slf = _py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf);
+                    _py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf),
                 }
             }
-        }
-    }
-
-    pub fn self_arg(&self) -> TokenStream {
-        match self {
-            FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => quote!(),
-            _ => quote!(_slf,),
         }
     }
 }
@@ -167,40 +160,34 @@ impl SelfType {
         let _slf = syn::Ident::new("_slf", Span::call_site());
         match self {
             SelfType::Receiver { span, mutable } => {
-                let (method, mutability) = if *mutable {
-                    (
-                        quote_spanned! { *span => extract_pyclass_ref_mut },
-                        Some(Token![mut](*span)),
-                    )
+                let method = if *mutable {
+                    syn::Ident::new("extract_pyclass_ref_mut", *span)
                 } else {
-                    (quote_spanned! { *span => extract_pyclass_ref }, None)
+                    syn::Ident::new("extract_pyclass_ref", *span)
                 };
-                let extract = error_mode.handle_error(
+                error_mode.handle_error(
                     &py,
                     quote_spanned! { *span =>
-                        _pyo3::impl_::extract_argument::#method(
+                        _pyo3::impl_::extract_argument::#method::<#cls>(
                             #py.from_borrowed_ptr::<_pyo3::PyAny>(#_slf),
-                            &mut holder,
+                            &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
                         )
                     },
-                );
-                quote_spanned! { *span =>
-                    let mut holder = _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
-                    let #_slf: &#mutability #cls = #extract;
-                }
+                )
             }
             SelfType::TryFromPyCell(span) => {
-                let cell = error_mode.handle_error(
+                error_mode.handle_error(
                     &py,
-                    quote!{
-                        _py.from_borrowed_ptr::<_pyo3::PyAny>(_slf).downcast::<_pyo3::PyCell<#cls>>()
+                    quote_spanned! { *span =>
+                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#_slf).downcast::<_pyo3::PyCell<#cls>>()
+                            .map_err(::std::convert::Into::<_pyo3::PyErr>::into)
+                            .and_then(
+                                #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
+                                |cell| ::std::convert::TryFrom::try_from(cell).map_err(::std::convert::Into::into)
+                            )
+
                     }
-                );
-                quote_spanned! { *span =>
-                    let _cell = #cell;
-                    #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
-                    let #_slf = ::std::convert::TryFrom::try_from(_cell)?;
-                }
+                )
             }
         }
     }
@@ -433,8 +420,7 @@ impl<'a> FnSpec<'a> {
         cls: Option<&syn::Type>,
     ) -> Result<TokenStream> {
         let deprecations = &self.deprecations;
-        let self_conversion = self.tp.self_conversion(cls, ExtractErrorMode::Raise);
-        let self_arg = self.tp.self_arg();
+        let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise);
         let py = syn::Ident::new("_py", Span::call_site());
         let func_name = &self.name;
 
@@ -460,6 +446,7 @@ impl<'a> FnSpec<'a> {
                 } else {
                     rust_call(vec![])
                 };
+
                 quote! {
                     unsafe fn #ident<'py>(
                         #py: _pyo3::Python<'py>,
@@ -467,7 +454,6 @@ impl<'a> FnSpec<'a> {
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #deprecations
-                        #self_conversion
                         #call
                     }
                 }
@@ -485,7 +471,6 @@ impl<'a> FnSpec<'a> {
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #deprecations
-                        #self_conversion
                         #arg_convert
                         #call
                     }
@@ -503,7 +488,6 @@ impl<'a> FnSpec<'a> {
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #deprecations
-                        #self_conversion
                         #arg_convert
                         #call
                     }
