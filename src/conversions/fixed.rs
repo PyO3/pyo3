@@ -37,10 +37,8 @@ fn get_decimal_cls(py: Python<'_>) -> PyResult<&PyType> {
         .map(|ty| ty.as_ref(py))
 }
 
-
 macro_rules! fixed_conversion {
     ($decimal: ty) => {
-
         impl FromPyObject<'_> for $decimal {
             fn extract(obj: &PyAny) -> PyResult<Self> {
                 // use the string representation to not be lossy
@@ -79,10 +77,8 @@ macro_rules! fixed_conversion {
                 self.to_object(py)
             }
         }
-    }
+    };
 }
-
-
 
 /// [`FixedI8`] with eight integer bits and no fractional bits.
 fixed_conversion!(I8F0);
