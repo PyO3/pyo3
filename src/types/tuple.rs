@@ -284,22 +284,12 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
         fn to_object(&self, py: Python<'_>) -> PyObject {
-            unsafe {
-                let ptr = ffi::PyTuple_New($length);
-                let ret = PyObject::from_owned_ptr(py, ptr);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
-                ret
-            }
+            array_into_tuple(py, [$(self.$n.to_object(py)),+]).into()
         }
     }
     impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> PyObject {
-            unsafe {
-                let ptr = ffi::PyTuple_New($length);
-                let ret =  PyObject::from_owned_ptr(py, ptr);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-               ret
-            }
+            array_into_tuple(py, [$(self.$n.into_py(py)),+]).into()
         }
 
         #[cfg(feature = "experimental-inspect")]
@@ -310,12 +300,7 @@ fn type_output() -> TypeInfo {
 
     impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-            unsafe {
-                let ptr = ffi::PyTuple_New($length);
-                let ret = Py::from_owned_ptr(py, ptr);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                ret
-            }
+            array_into_tuple(py, [$(self.$n.into_py(py)),+])
         }
 
         #[cfg(feature = "experimental-inspect")]
@@ -345,6 +330,20 @@ fn type_input() -> TypeInfo {
         }
     }
 });
+
+fn array_into_tuple<const N: usize>(py: Python<'_>, array: [PyObject; N]) -> Py<PyTuple> {
+    unsafe {
+        let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
+        let tup = Py::from_owned_ptr(py, ptr);
+        for (index, obj) in array.into_iter().enumerate() {
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            ffi::PyTuple_SET_ITEM(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
+            #[cfg(any(Py_LIMITED_API, PyPy))]
+            ffi::PyTuple_SetItem(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
+        }
+        tup
+    }
+}
 
 tuple_conversion!(1, (ref0, 0, T0));
 tuple_conversion!(2, (ref0, 0, T0), (ref1, 1, T1));
