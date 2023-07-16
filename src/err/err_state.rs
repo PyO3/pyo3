@@ -2,7 +2,7 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     types::{PyTraceback, PyType},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, PyTypeInfo, Python,
 };
 
 #[derive(Clone)]
@@ -12,15 +12,16 @@ pub(crate) struct PyErrStateNormalized {
     pub ptraceback: Option<Py<PyTraceback>>,
 }
 
+pub(crate) struct PyErrStateLazyFnOutput {
+    pub(crate) ptype: PyObject,
+    pub(crate) pvalue: PyObject,
+}
+
+pub(crate) type PyErrStateLazyFn =
+    dyn for<'py> FnOnce(Python<'py>) -> PyErrStateLazyFnOutput + Send + Sync;
+
 pub(crate) enum PyErrState {
-    LazyTypeAndValue {
-        ptype: for<'py> fn(Python<'py>) -> &PyType,
-        pvalue: Box<dyn for<'py> FnOnce(Python<'py>) -> PyObject + Send + Sync>,
-    },
-    LazyValue {
-        ptype: Py<PyType>,
-        pvalue: Box<dyn for<'py> FnOnce(Python<'py>) -> PyObject + Send + Sync>,
-    },
+    Lazy(Box<PyErrStateLazyFn>),
     FfiTuple {
         ptype: PyObject,
         pvalue: Option<PyObject>,
@@ -44,10 +45,14 @@ where
     }
 }
 
-pub(crate) fn boxed_args(
-    args: impl PyErrArguments + 'static,
-) -> Box<dyn for<'py> FnOnce(Python<'py>) -> PyObject + Send + Sync> {
-    Box::new(|py| args.arguments(py))
+impl PyErrState {
+    pub(crate) fn lazy(ptype: &PyAny, args: impl PyErrArguments + 'static) -> Self {
+        let ptype = ptype.into();
+        PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
+            ptype,
+            pvalue: args.arguments(py),
+        }))
+    }
 }
 
 impl PyErrState {
@@ -56,27 +61,12 @@ impl PyErrState {
         py: Python<'_>,
     ) -> (*mut ffi::PyObject, *mut ffi::PyObject, *mut ffi::PyObject) {
         match self {
-            PyErrState::LazyTypeAndValue { ptype, pvalue } => {
-                let ty = ptype(py);
-                if unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } == 0 {
-                    Self::exceptions_must_derive_from_base_exception(py).into_ffi_tuple(py)
-                } else {
-                    (
-                        ptype(py).into_ptr(),
-                        pvalue(py).into_ptr(),
-                        std::ptr::null_mut(),
-                    )
-                }
-            }
-            PyErrState::LazyValue { ptype, pvalue } => {
+            PyErrState::Lazy(lazy) => {
+                let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
                 if unsafe { ffi::PyExceptionClass_Check(ptype.as_ptr()) } == 0 {
                     Self::exceptions_must_derive_from_base_exception(py).into_ffi_tuple(py)
                 } else {
-                    (
-                        ptype.into_ptr(),
-                        pvalue(py).into_ptr(),
-                        std::ptr::null_mut(),
-                    )
+                    (ptype.into_ptr(), pvalue.into_ptr(), std::ptr::null_mut())
                 }
             }
             PyErrState::FfiTuple {
@@ -92,11 +82,10 @@ impl PyErrState {
         }
     }
 
-    #[inline]
-    pub(crate) fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> Self {
-        PyErrState::LazyValue {
-            ptype: py.get_type::<PyTypeError>().into(),
-            pvalue: boxed_args("exceptions must derive from BaseException"),
-        }
+    fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> Self {
+        PyErrState::lazy(
+            PyTypeError::type_object(py),
+            "exceptions must derive from BaseException",
+        )
     }
 }
