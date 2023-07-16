@@ -38,7 +38,11 @@ impl<'p> PyVisit<'p> {
 
     /// Creates the PyVisit from the arguments to tp_traverse
     #[doc(hidden)]
-    pub unsafe fn from_raw(visit: ffi::visitproc, arg: *mut c_void, _py: Python<'p>) -> Self {
-        Self { visit, arg, _py }
+    pub unsafe fn from_raw(visit: ffi::visitproc, arg: *mut c_void, py: Python<'p>) -> Self {
+        Self {
+            visit,
+            arg,
+            _py: py,
+        }
     }
 }

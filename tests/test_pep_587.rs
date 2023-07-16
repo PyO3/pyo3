@@ -29,7 +29,10 @@ fn test_default_interpreter() {
     unsafe { ffi::PyConfig_InitPythonConfig(&mut config) };
 
     // Require manually calling _Py_InitializeMain to exercise more ffi code
-    config._init_main = 0;
+    #[allow(clippy::used_underscore_binding)]
+    {
+        config._init_main = 0;
+    }
 
     #[cfg(Py_3_10)]
     unsafe {
