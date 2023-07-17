@@ -14,7 +14,7 @@ mod err_state;
 mod impls;
 
 pub use err_state::PyErrArguments;
-use err_state::{boxed_args, PyErrState, PyErrStateNormalized};
+use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 
 /// Represents a Python exception.
 ///
@@ -119,10 +119,12 @@ impl PyErr {
         T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
-        PyErr::from_state(PyErrState::LazyTypeAndValue {
-            ptype: T::type_object,
-            pvalue: boxed_args(args),
-        })
+        PyErr::from_state(PyErrState::Lazy(Box::new(move |py| {
+            PyErrStateLazyFnOutput {
+                ptype: T::type_object(py).into(),
+                pvalue: args.arguments(py),
+            }
+        })))
     }
 
     /// Constructs a new PyErr from the given Python type and arguments.
@@ -139,10 +141,7 @@ impl PyErr {
     where
         A: PyErrArguments + Send + Sync + 'static,
     {
-        PyErr::from_state(PyErrState::LazyValue {
-            ptype: ty.into(),
-            pvalue: boxed_args(args),
-        })
+        PyErr::from_state(PyErrState::lazy(ty, args))
     }
 
     /// Creates a new PyErr.
@@ -183,14 +182,10 @@ impl PyErr {
                 pvalue: obj.into(),
                 ptraceback: None,
             })
-        } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
-            PyErrState::FfiTuple {
-                ptype: obj.into(),
-                pvalue: None,
-                ptraceback: None,
-            }
         } else {
-            return exceptions_must_derive_from_base_exception(obj.py());
+            // Assume obj is Type[Exception]; let later normalization handle if this
+            // is not the case
+            PyErrState::lazy(obj, obj.py().None())
         };
 
         PyErr::from_state(state)
@@ -277,9 +272,9 @@ impl PyErr {
             ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
 
             // Convert to Py immediately so that any references are freed by early return.
-            let ptype = Py::from_owned_ptr_or_opt(py, ptype);
-            let pvalue = Py::from_owned_ptr_or_opt(py, pvalue);
-            let ptraceback = Py::from_owned_ptr_or_opt(py, ptraceback);
+            let ptype = PyObject::from_owned_ptr_or_opt(py, ptype);
+            let pvalue = PyObject::from_owned_ptr_or_opt(py, pvalue);
+            let ptraceback = PyObject::from_owned_ptr_or_opt(py, ptraceback);
 
             // A valid exception state should always have a non-null ptype, but the other two may be
             // null.
@@ -785,11 +780,6 @@ impl_signed_integer!(i32);
 impl_signed_integer!(i64);
 impl_signed_integer!(i128);
 impl_signed_integer!(isize);
-
-#[inline]
-fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> PyErr {
-    PyErr::from_state(PyErrState::exceptions_must_derive_from_base_exception(py))
-}
 
 #[cfg(test)]
 mod tests {
