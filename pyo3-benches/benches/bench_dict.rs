@@ -32,7 +32,12 @@ fn dict_get_item(b: &mut Bencher<'_>) {
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
-                sum += dict.get_item(i).unwrap().extract::<usize>().unwrap();
+                sum += dict
+                    .get_item(i)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<usize>()
+                    .unwrap();
             }
         });
     });

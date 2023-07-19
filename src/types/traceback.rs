@@ -97,7 +97,7 @@ except Exception as e:
                 Some(locals),
             )
             .unwrap();
-            let err = PyErr::from_value(locals.get_item("err").unwrap());
+            let err = PyErr::from_value(locals.get_item("err").unwrap().unwrap());
             let traceback = err.value(py).getattr("__traceback__").unwrap();
             assert!(err.traceback(py).unwrap().is(traceback));
         })
@@ -117,7 +117,7 @@ def f():
                 Some(locals),
             )
             .unwrap();
-            let f = locals.get_item("f").unwrap();
+            let f = locals.get_item("f").unwrap().unwrap();
             let err = f.call0().unwrap_err();
             let traceback = err.traceback(py).unwrap();
             let err_object = err.clone_ref(py).into_py(py).into_ref(py);
