@@ -132,35 +132,10 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     ///
-    /// Returns `None` if the item is not present, or if an error occurs.
+    /// Returns `Ok(None)` if the item is not present.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
-    where
-        K: ToPyObject,
-    {
-        fn inner(dict: &PyDict, key: PyObject) -> Option<&PyAny> {
-            let py = dict.py();
-            // PyDict_GetItem returns a borrowed ptr, must make it owned for safety (see #890).
-            // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
-            unsafe {
-                PyObject::from_borrowed_ptr_or_opt(
-                    py,
-                    ffi::PyDict_GetItem(dict.as_ptr(), key.as_ptr()),
-                )
-            }
-            .map(|pyobject| pyobject.into_ref(py))
-        }
-
-        inner(self, key.to_object(self.py()))
-    }
-
-    /// Gets an item from the dictionary,
-    ///
-    /// returns `Ok(None)` if item is not present, or `Err(PyErr)` if an error occurs.
-    ///
-    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item_with_error`.
-    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
+    pub fn get_item<K>(&self, key: K) -> PyResult<Option<&PyAny>>
     where
         K: ToPyObject,
     {
@@ -180,6 +155,19 @@ impl PyDict {
         }
 
         inner(self, key.to_object(self.py()))
+    }
+
+    /// Deprecated version of `get_item`.
+    #[deprecated(
+        since = "0.20.0",
+        note = "this is now equivalent to `PyDict::get_item`"
+    )]
+    #[inline]
+    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
+    where
+        K: ToPyObject,
+    {
+        self.get_item(key)
     }
 
     /// Sets an item value.
