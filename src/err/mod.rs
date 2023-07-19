@@ -177,10 +177,16 @@ impl PyErr {
     /// ```
     pub fn from_value(obj: &PyAny) -> PyErr {
         let state = if let Ok(obj) = obj.downcast::<PyBaseException>() {
+            let pvalue: Py<PyBaseException> = obj.into();
+
+            let ptraceback = unsafe {
+                Py::from_owned_ptr_or_opt(obj.py(), ffi::PyException_GetTraceback(pvalue.as_ptr()))
+            };
+
             PyErrState::Normalized(PyErrStateNormalized {
                 ptype: obj.get_type().into(),
-                pvalue: obj.into(),
-                ptraceback: None,
+                pvalue,
+                ptraceback,
             })
         } else {
             // Assume obj is Type[Exception]; let later normalization handle if this
@@ -228,7 +234,14 @@ impl PyErr {
         // NB technically this causes one reference count increase and decrease in quick succession
         // on pvalue, but it's probably not worth optimizing this right now for the additional code
         // complexity.
-        self.normalized(py).pvalue.clone_ref(py)
+        let normalized = self.normalized(py);
+        let exc = normalized.pvalue.clone_ref(py);
+        if let Some(tb) = normalized.ptraceback.as_ref() {
+            unsafe {
+                ffi::PyException_SetTraceback(exc.as_ptr(), tb.as_ptr());
+            }
+        }
+        exc
     }
 
     /// Returns the traceback of this exception object.

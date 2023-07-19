@@ -65,7 +65,7 @@ impl PyTraceback {
 
 #[cfg(test)]
 mod tests {
-    use crate::Python;
+    use crate::{prelude::*, types::PyDict};
 
     #[test]
     fn format_traceback() {
@@ -78,6 +78,51 @@ mod tests {
                 err.traceback(py).unwrap().format().unwrap(),
                 "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n"
             );
+        })
+    }
+
+    #[test]
+    fn test_err_from_value() {
+        Python::with_gil(|py| {
+            let locals = PyDict::new(py);
+            // Produce an error from python so that it has a traceback
+            py.run(
+                r"
+try:
+    raise ValueError('raised exception')
+except Exception as e:
+    err = e
+",
+                None,
+                Some(locals),
+            )
+            .unwrap();
+            let err = PyErr::from_value(locals.get_item("err").unwrap());
+            let traceback = err.value(py).getattr("__traceback__").unwrap();
+            assert!(err.traceback(py).unwrap().is(traceback));
+        })
+    }
+
+    #[test]
+    fn test_err_into_py() {
+        Python::with_gil(|py| {
+            let locals = PyDict::new(py);
+            // Produce an error from python so that it has a traceback
+            py.run(
+                r"
+def f():
+    raise ValueError('raised exception')
+",
+                None,
+                Some(locals),
+            )
+            .unwrap();
+            let f = locals.get_item("f").unwrap();
+            let err = f.call0().unwrap_err();
+            let traceback = err.traceback(py).unwrap();
+            let err_object = err.clone_ref(py).into_py(py).into_ref(py);
+
+            assert!(err_object.getattr("__traceback__").unwrap().is(traceback));
         })
     }
 }
