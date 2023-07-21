@@ -407,6 +407,7 @@ mod warnings;
 mod weakrefobject;
 
 // Additional headers that are not exported by Python.h
+#[deprecated(note = "Python 3.12")]
 pub mod structmember;
 
 // "Limited API" definitions matching Python's `include/cpython` directory.

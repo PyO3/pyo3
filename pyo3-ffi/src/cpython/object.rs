@@ -1,7 +1,6 @@
-use crate::object;
 #[cfg(Py_3_8)]
 use crate::vectorcallfunc;
-use crate::{PyObject, Py_ssize_t};
+use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 
@@ -247,9 +246,9 @@ pub struct PyTypeObject {
     pub tp_weaklistoffset: Py_ssize_t,
     pub tp_iter: Option<object::getiterfunc>,
     pub tp_iternext: Option<object::iternextfunc>,
-    pub tp_methods: *mut crate::methodobject::PyMethodDef,
-    pub tp_members: *mut crate::structmember::PyMemberDef,
-    pub tp_getset: *mut crate::descrobject::PyGetSetDef,
+    pub tp_methods: *mut PyMethodDef,
+    pub tp_members: *mut PyMemberDef,
+    pub tp_getset: *mut PyGetSetDef,
     pub tp_base: *mut PyTypeObject,
     pub tp_dict: *mut object::PyObject,
     pub tp_descr_get: Option<object::descrgetfunc>,
@@ -327,12 +326,10 @@ impl Default for PyHeapTypeObject {
 }
 
 #[inline]
-pub unsafe fn PyHeapType_GET_MEMBERS(
-    etype: *mut PyHeapTypeObject,
-) -> *mut crate::structmember::PyMemberDef {
+pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMemberDef {
     let py_type = object::Py_TYPE(etype as *mut object::PyObject);
     let ptr = etype.offset((*py_type).tp_basicsize);
-    ptr as *mut crate::structmember::PyMemberDef
+    ptr as *mut PyMemberDef
 }
 
 // skipped _PyType_Name

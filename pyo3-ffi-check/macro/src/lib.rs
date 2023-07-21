@@ -152,6 +152,10 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             // PyObject since 3.12 implements ob_refcnt as a union; bindgen creates
             // an anonymous name for the field
             Ident::new("__bindgen_anon_1", Span::call_site())
+        } else if struct_name == "PyMemberDef" && field_name == "type_code" {
+            // the field name in the C API is `type`, but that's a keyword in Rust
+            // so PyO3 picked type_code, bindgen picked type_
+            Ident::new("type_", Span::call_site())
         } else {
             field_ident.clone()
         };
