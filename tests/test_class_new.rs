@@ -127,7 +127,7 @@ fn new_with_two_args() {
         let typeobj = py.get_type::<NewWithTwoArgs>();
         let wrp = typeobj
             .call((10, 20), None)
-            .map_err(|e| e.print(py))
+            .map_err(|e| e.display(py))
             .unwrap();
         let obj = wrp.downcast::<PyCell<NewWithTwoArgs>>().unwrap();
         let obj_ref = obj.borrow();
@@ -172,7 +172,7 @@ assert c.from_rust is False
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
         py.run(source, Some(globals), None)
-            .map_err(|e| e.print(py))
+            .map_err(|e| e.display(py))
             .unwrap();
     });
 }
