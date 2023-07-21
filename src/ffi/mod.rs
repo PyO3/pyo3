@@ -21,7 +21,7 @@
 //!
 //! [capi]: https://docs.python.org/3/c-api/index.html
 
-#[cfg(all(not(Py_LIMITED_API), test))]
+#[cfg(test)]
 mod tests;
 
 //  reexport raw bindings exposed in pyo3_ffi
