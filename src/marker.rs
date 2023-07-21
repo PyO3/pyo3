@@ -1041,7 +1041,7 @@ mod tests {
             // Make sure builtin names are accessible
             let v: i32 = py
                 .eval("min(1, 2)", None, None)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1158,7 +1158,10 @@ mod tests {
         Python::with_gil(|py| {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
-            let v = py.eval("...", None, None).map_err(|e| e.print(py)).unwrap();
+            let v = py
+                .eval("...", None, None)
+                .map_err(|e| e.display(py))
+                .unwrap();
 
             assert!(v.eq(py.Ellipsis()).unwrap());
         });

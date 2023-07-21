@@ -1411,7 +1411,10 @@ class SimpleClass:
     #[test]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
-            let v = py.eval("...", None, None).map_err(|e| e.print(py)).unwrap();
+            let v = py
+                .eval("...", None, None)
+                .map_err(|e| e.display(py))
+                .unwrap();
 
             assert!(v.is_ellipsis());
 

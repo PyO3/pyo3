@@ -1237,7 +1237,7 @@ a = A()
         Python::with_gil(|py| {
             let v = py
                 .eval("...", None, None)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .unwrap()
                 .to_object(py);
 

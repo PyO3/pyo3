@@ -86,7 +86,7 @@ fn test_time_check() {
 fn test_datetime_check() {
     Python::with_gil(|py| {
         let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
-            .map_err(|e| e.print(py))
+            .map_err(|e| e.display(py))
             .unwrap();
         unsafe { PyDateTime_IMPORT() }
 
