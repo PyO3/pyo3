@@ -1,21 +1,24 @@
 import nox
-import platform
+from nox.command import CommandFailed
 
 nox.options.sessions = ["test"]
 
 
 @nox.session
-def test(session):
+def test(session: nox.Session):
     session.install("-rrequirements-dev.txt")
-    if platform.system() == "Linux" and platform.python_implementation() == "CPython":
-        session.install("numpy>=1.16")
+    try:
+        session.install("--only-binary=numpy", "numpy>=1.16")
+    except CommandFailed:
+        # No binary wheel for numpy available on this platform
+        pass
     session.install("maturin")
     session.run_always("maturin", "develop")
     session.run("pytest", *session.posargs)
 
 
 @nox.session
-def bench(session):
+def bench(session: nox.Session):
     session.install("-rrequirements-dev.txt")
     session.install(".")
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)
