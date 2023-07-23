@@ -349,6 +349,9 @@ pub unsafe fn PyHeapType_GET_MEMBERS(
 // skipped _PyType_GetModuleByDef
 
 extern "C" {
+    #[cfg(Py_3_12)]
+    pub fn PyType_GetDict(o: *mut PyTypeObject) -> *mut PyObject;
+
     #[cfg_attr(PyPy, link_name = "PyPyObject_Print")]
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
 
