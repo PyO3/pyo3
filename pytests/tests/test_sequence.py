@@ -1,5 +1,4 @@
 import pytest
-import platform
 
 from pyo3_pytests import sequence
 
@@ -21,21 +20,15 @@ def test_vec_from_str():
         sequence.vec_to_vec_pystring("123")
 
 
-@pytest.mark.skipif(
-    platform.system() != "Linux" or platform.python_implementation() != "CPython",
-    reason="Binary NumPy wheels are not available for all platforms and Python implementations",
-)
 def test_vec_from_array():
-    import numpy
+    # binary numpy wheel not available on all platforms
+    numpy = pytest.importorskip("numpy")
 
     assert sequence.vec_to_vec_i32(numpy.array([1, 2, 3])) == [1, 2, 3]
 
 
-@pytest.mark.skipif(
-    platform.system() != "Linux" or platform.python_implementation() != "CPython",
-    reason="Binary NumPy wheels are not available for all platforms and Python implementations",
-)
 def test_rust_array_from_array():
-    import numpy
+    # binary numpy wheel not available on all platforms
+    numpy = pytest.importorskip("numpy")
 
     assert sequence.array_to_array_i32(numpy.array([1, 2, 3])) == [1, 2, 3]
