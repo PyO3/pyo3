@@ -287,8 +287,9 @@ impl PyASCIIObject {
 
     /// Get the `kind` field of the [`PyASCIIObject`] state bitfield.
     ///
-    /// Returns one of: [`PyUnicode_WCHAR_KIND`], [`PyUnicode_1BYTE_KIND`], [`PyUnicode_2BYTE_KIND`],
-    /// [`PyUnicode_4BYTE_KIND`]
+    /// Returns one of:
+    #[cfg_attr(not(Py_3_12), doc = "[`PyUnicode_WCHAR_KIND`], ")]
+    /// [`PyUnicode_1BYTE_KIND`], [`PyUnicode_2BYTE_KIND`], or [`PyUnicode_4BYTE_KIND`].
     #[inline]
     pub unsafe fn kind(&self) -> c_uint {
         PyASCIIObjectState::from(self.state).kind()
@@ -296,8 +297,9 @@ impl PyASCIIObject {
 
     /// Set the `kind` field of the [`PyASCIIObject`] state bitfield.
     ///
-    /// Calling this function with an argument that is not [`PyUnicode_WCHAR_KIND`], [`PyUnicode_1BYTE_KIND`],
-    /// [`PyUnicode_2BYTE_KIND`], or [`PyUnicode_4BYTE_KIND`] is invalid.
+    /// Calling this function with an argument that is not
+    #[cfg_attr(not(Py_3_12), doc = "[`PyUnicode_WCHAR_KIND`], ")]
+    /// [`PyUnicode_1BYTE_KIND`], [`PyUnicode_2BYTE_KIND`], or [`PyUnicode_4BYTE_KIND`] is invalid.
     #[inline]
     pub unsafe fn set_kind(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
