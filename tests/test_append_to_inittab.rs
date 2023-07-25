@@ -26,7 +26,7 @@ assert module_with_functions.foo() == 123
             None,
             None,
         )
-        .map_err(|e| e.print(py))
+        .map_err(|e| e.display(py))
         .unwrap();
     })
 }
