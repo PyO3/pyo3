@@ -299,6 +299,8 @@ pub struct PyTypeObject {
 #[derive(Clone)]
 pub struct _specialization_cache {
     pub getitem: *mut PyObject,
+    #[cfg(Py_3_12)]
+    pub getitem_version: u32,
 }
 
 #[repr(C)]

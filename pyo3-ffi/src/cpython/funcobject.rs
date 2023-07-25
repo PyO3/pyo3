@@ -41,6 +41,8 @@ pub struct PyFunctionObject {
     pub func_weakreflist: *mut PyObject,
     pub func_module: *mut PyObject,
     pub func_annotations: *mut PyObject,
+    #[cfg(Py_3_12)]
+    pub func_typeparams: *mut PyObject,
     pub vectorcall: Option<crate::vectorcallfunc>,
     #[cfg(Py_3_11)]
     pub func_version: u32,
