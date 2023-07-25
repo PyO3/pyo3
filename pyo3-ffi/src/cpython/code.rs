@@ -6,12 +6,30 @@ use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 
+#[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
+opaque_struct!(_PyOpcache);
+
+pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 14;
+pub const _PY_MONITORING_EVENTS: usize = 16;
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _Py_Monitors {
+    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
+}
+
 // skipped _Py_CODEUNIT
+
 // skipped _Py_OPCODE
 // skipped _Py_OPARG
 
-#[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
-opaque_struct!(_PyOpcache);
+// skipped _py_make_codeunit
+
+// skipped _py_set_opcode
+
+// skipped _Py_MAKE_CODEUNIT
+// skipped _Py_SET_OPCODE
 
 #[cfg(Py_3_12)]
 #[repr(C)]
@@ -21,6 +39,27 @@ pub struct _PyCoCached {
     pub _co_varnames: *mut PyObject,
     pub _co_cellvars: *mut PyObject,
     pub _co_freevars: *mut PyObject,
+}
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _PyCoLineInstrumentationData {
+    pub original_opcode: u8,
+    pub line_delta: i8,
+}
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _PyCoMonitoringData {
+    pub local_monitors: _Py_Monitors,
+    pub active_monitors: _Py_Monitors,
+    pub tools: *mut u8,
+    pub lines: *mut _PyCoLineInstrumentationData,
+    pub line_tools: *mut u8,
+    pub per_instruction_opcodes: *mut u8,
+    pub per_instruction_tools: *mut u8,
 }
 
 #[cfg(all(not(PyPy), not(Py_3_7)))]
@@ -97,8 +136,7 @@ pub struct PyCodeObject {
     pub co_flags: c_int,
     #[cfg(not(Py_3_12))]
     pub co_warmup: c_int,
-    #[cfg(Py_3_12)]
-    pub _co_linearray_entry_size: c_short,
+
     pub co_argcount: c_int,
     pub co_posonlyargcount: c_int,
     pub co_kwonlyargcount: c_int,
@@ -109,9 +147,12 @@ pub struct PyCodeObject {
     #[cfg(Py_3_12)]
     pub co_framesize: c_int,
     pub co_nlocals: c_int,
+    #[cfg(not(Py_3_12))]
     pub co_nplaincellvars: c_int,
     pub co_ncellvars: c_int,
     pub co_nfreevars: c_int,
+    #[cfg(Py_3_12)]
+    pub co_version: u32,
 
     pub co_localsplusnames: *mut PyObject,
     pub co_localspluskinds: *mut PyObject,
@@ -122,13 +163,15 @@ pub struct PyCodeObject {
     pub co_weakreflist: *mut PyObject,
     #[cfg(not(Py_3_12))]
     pub _co_code: *mut PyObject,
-    #[cfg(Py_3_12)]
-    pub _co_cached: *mut _PyCoCached,
     #[cfg(not(Py_3_12))]
     pub _co_linearray: *mut c_char,
-    pub _co_firsttraceable: c_int,
     #[cfg(Py_3_12)]
-    pub _co_linearray: *mut c_char,
+    pub _co_cached: *mut _PyCoCached,
+    #[cfg(Py_3_12)]
+    pub _co_instrumentation_version: u64,
+    #[cfg(Py_3_12)]
+    pub _co_monitoring: *mut _PyCoMonitoringData,
+    pub _co_firsttraceable: c_int,
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],
 }
