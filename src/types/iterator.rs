@@ -155,31 +155,30 @@ mod tests {
     #[test]
     fn iter_item_refcnt() {
         Python::with_gil(|py| {
-            let obj;
-            let none;
             let count;
-            {
+            let obj = py.eval("object()", None, None).unwrap();
+            let list = {
                 let _pool = unsafe { GILPool::new() };
-                let l = PyList::empty(py);
-                none = py.None();
-                l.append(10).unwrap();
-                l.append(&none).unwrap();
-                count = none.get_refcnt(py);
-                obj = l.to_object(py);
-            }
+                let list = PyList::empty(py);
+                list.append(10).unwrap();
+                list.append(obj).unwrap();
+                count = obj.get_refcnt();
+                list.to_object(py)
+            };
 
             {
                 let _pool = unsafe { GILPool::new() };
-                let inst = obj.as_ref(py);
+                let inst = list.as_ref(py);
                 let mut it = inst.iter().unwrap();
 
                 assert_eq!(
                     10_i32,
                     it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
                 );
-                assert!(it.next().unwrap().unwrap().is_none());
+                assert!(it.next().unwrap().unwrap().is(obj));
+                assert!(it.next().is_none());
             }
-            assert_eq!(count, none.get_refcnt(py));
+            assert_eq!(count, obj.get_refcnt());
         });
     }
 
