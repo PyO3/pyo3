@@ -395,18 +395,18 @@ mod tests {
     #[test]
     fn test_set_item_refcnt() {
         Python::with_gil(|py| {
+            let obj = py.eval("object()", None, None).unwrap();
             let cnt;
             {
                 let _pool = unsafe { crate::GILPool::new() };
                 let v = vec![2];
                 let ob = v.to_object(py);
                 let list: &PyList = ob.downcast(py).unwrap();
-                let none = py.None();
-                cnt = none.get_refcnt(py);
-                list.set_item(0, none).unwrap();
+                cnt = obj.get_refcnt();
+                list.set_item(0, obj).unwrap();
             }
 
-            assert_eq!(cnt, py.None().get_refcnt(py));
+            assert_eq!(cnt, obj.get_refcnt());
         });
     }
 
@@ -431,15 +431,15 @@ mod tests {
     fn test_insert_refcnt() {
         Python::with_gil(|py| {
             let cnt;
+            let obj = py.eval("object()", None, None).unwrap();
             {
                 let _pool = unsafe { crate::GILPool::new() };
                 let list = PyList::empty(py);
-                let none = py.None();
-                cnt = none.get_refcnt(py);
-                list.insert(0, none).unwrap();
+                cnt = obj.get_refcnt();
+                list.insert(0, obj).unwrap();
             }
 
-            assert_eq!(cnt, py.None().get_refcnt(py));
+            assert_eq!(cnt, obj.get_refcnt());
         });
     }
 
@@ -457,14 +457,14 @@ mod tests {
     fn test_append_refcnt() {
         Python::with_gil(|py| {
             let cnt;
+            let obj = py.eval("object()", None, None).unwrap();
             {
                 let _pool = unsafe { crate::GILPool::new() };
                 let list = PyList::empty(py);
-                let none = py.None();
-                cnt = none.get_refcnt(py);
-                list.append(none).unwrap();
+                cnt = obj.get_refcnt();
+                list.append(obj).unwrap();
             }
-            assert_eq!(cnt, py.None().get_refcnt(py));
+            assert_eq!(cnt, obj.get_refcnt());
         });
     }
 
