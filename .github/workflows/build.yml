@@ -25,7 +25,7 @@ on:
 
 jobs:
   build:
-    continue-on-error: ${{ contains(fromJSON('["3.7", "3.12-dev", "pypy3.7", "pypy3.10"]'), inputs.python-version) }}
+    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7", "pypy3.10"]'), inputs.python-version) }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v3
@@ -138,7 +138,7 @@ jobs:
       - name: Run pyo3-ffi-check
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here, nor
         # is pypy 3.9 on windows
-        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows')) }}
+        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
 
 
