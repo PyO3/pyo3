@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::{
     prelude::*,
-    types::{PyList, PyString},
+    types::{PyFloat, PyList, PyString},
 };
 
 #[derive(FromPyObject)]
@@ -79,6 +79,15 @@ fn not_a_list_via_extract_enum(b: &mut Bencher<'_>) {
     })
 }
 
+fn f64_from_pyobject(b: &mut Bencher<'_>) {
+    Python::with_gil(|py| {
+        let obj = PyFloat::new(py, 1.234);
+        b.iter(|| {
+            let _: f64 = obj.extract().unwrap();
+        });
+    })
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("enum_from_pyobject", enum_from_pyobject);
     c.bench_function("list_via_downcast", list_via_downcast);
@@ -86,6 +95,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("not_a_list_via_downcast", not_a_list_via_downcast);
     c.bench_function("not_a_list_via_extract", not_a_list_via_extract);
     c.bench_function("not_a_list_via_extract_enum", not_a_list_via_extract_enum);
+    c.bench_function("f64_from_pyobject", f64_from_pyobject);
 }
 
 criterion_group!(benches, criterion_benchmark);
