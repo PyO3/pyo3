@@ -1,5 +1,5 @@
-use std::ops::AddAssign;
 use quote::{quote, TokenStreamExt};
+use std::ops::AddAssign;
 
 use proc_macro2::TokenStream;
 use syn::{
@@ -135,7 +135,7 @@ pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream {
         let ident_tok: TokenStream = field.name.parse().unwrap();
         match field.attr_type {
             Pyo3Type::Primitive => {
-                body.append_all(quote!{
+                body.append_all(quote! {
                     pydict.set_item(#ident, self.#ident_tok).expect("Bad element in set_item");
                 });
             }
@@ -154,7 +154,7 @@ pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream {
                 ));
 
                 let ls_name: TokenStream = format!("pylist0{}", ident).parse().unwrap();
-                body.append_all(quote!{
+                body.append_all(quote! {
                     pydict.set_item(#ident, #ls_name).expect("Bad element in set_item");
                 });
             } // Pyo3Type::Map(ref key, ref val) => {
@@ -184,12 +184,16 @@ fn handle_single_collection_code_gen(
     non_class_ident: &str,
     counter: usize,
 ) -> TokenStream {
-    let curr_pylist: TokenStream = format!("pylist{}{}", counter, non_class_ident).parse().unwrap();
-    let next_pylist: TokenStream = format!("pylist{}{}", counter + 1, non_class_ident).parse().unwrap();
+    let curr_pylist: TokenStream = format!("pylist{}{}", counter, non_class_ident)
+        .parse()
+        .unwrap();
+    let next_pylist: TokenStream = format!("pylist{}{}", counter + 1, non_class_ident)
+        .parse()
+        .unwrap();
     let ident_tok: TokenStream = ident.parse().unwrap();
     match py_type {
         Pyo3Type::Primitive => {
-            quote!{
+            quote! {
                 let mut #curr_pylist = pyo3::types::PyList::empty(py);
                 for i in #ident.into_iter() {
                     #curr_pylist.append(i).expect("Bad element in set_item");
@@ -197,7 +201,7 @@ fn handle_single_collection_code_gen(
             }
         }
         Pyo3Type::NonPrimitive => {
-            quote!{
+            quote! {
                 let mut #curr_pylist = pyo3::types::PyList::empty(py);
                 for i in #ident_tok.into_iter() {
                     #curr_pylist.append(i.into_py_dict(py)).expect("Bad element in set_item");
@@ -205,8 +209,9 @@ fn handle_single_collection_code_gen(
             }
         }
         Pyo3Type::CollectionSing(coll) => {
-            let body = handle_single_collection_code_gen(coll.as_ref(), "i", non_class_ident, counter + 1);
-            quote!{
+            let body =
+                handle_single_collection_code_gen(coll.as_ref(), "i", non_class_ident, counter + 1);
+            quote! {
                 let mut #curr_pylist = pyo3::types::PyList::empty(py);
                 for i in #ident_tok.into_iter(){
                     #body
