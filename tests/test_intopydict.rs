@@ -1,7 +1,12 @@
 
 
+use std::marker::PhantomData;
 use pyo3::types::{PyDict, IntoPyDict};
 use pyo3_macros::IntoPyDict;
+
+pub trait TestTrait<'a> {
+
+}
 
 #[derive(IntoPyDict)]
 pub struct Test1 {
@@ -10,8 +15,9 @@ pub struct Test1 {
 }
 
 #[derive(IntoPyDict)]
-pub struct Test {
+pub struct Test<T> {
     j: Test1,
     h: u8,
-    i: u8
+    i: u8,
+    x: T
 }

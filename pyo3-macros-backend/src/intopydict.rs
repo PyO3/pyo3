@@ -1,7 +1,7 @@
 
-use std::ops::AddAssign;
+use std::{ops::AddAssign, collections::HashMap};
 
-use syn::{parse::{ParseStream, Parse}, parse_macro_input, __private::TokenStream};
+use syn::{parse::{ParseStream, Parse}, parse_macro_input, __private::TokenStream, Generics};
 
 #[derive(Debug, Clone)]
 enum Pyo3Type {
@@ -82,4 +82,35 @@ pub fn build_derive_into_pydict(tokens: TokenStream) -> TokenStream  {
     body += "return pydict;";
 
     return body.parse().unwrap();
+}
+
+pub fn parse_generics(generics: &Generics) -> String {
+    if generics.params.len() > 0 {
+        let mut generics_parsed = "<".to_string();
+
+        for param in &generics.params {
+            match param {
+                syn::GenericParam::Lifetime(lt) => generics_parsed += ("'".to_string() + &lt.lifetime.ident.to_string()).as_str(),
+                syn::GenericParam::Type(generic_type) => {
+                    generics_parsed += generic_type.ident.to_string().as_str();
+                    let mut bound_parsed = String::new();
+                    if generic_type.bounds.len() > 0 {
+                        bound_parsed = format!("{}:", generic_type.ident.to_string());
+                    }
+                    if bound_parsed.len() > 0 {
+                        bound_parsed = bound_parsed[0..bound_parsed.len() - 1].to_string();
+                    }
+                },
+                syn::GenericParam::Const(const_type) => generics_parsed += ("const".to_string() + const_type.ident.to_string().as_str()).as_str(),
+            }
+
+            generics_parsed += ",";
+        }
+
+        generics_parsed = generics_parsed[0..generics_parsed.len() - 1].to_string();
+        generics_parsed += ">";
+        return generics_parsed;
+    } else {
+        return String::new();
+    }
 }
