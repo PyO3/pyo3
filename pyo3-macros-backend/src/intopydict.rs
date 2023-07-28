@@ -142,7 +142,12 @@ pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream {
     body
 }
 
-fn match_tok(field: &Pyo3DictField, body: &mut TokenStream, ident: &String, ident_tok: TokenStream) {
+fn match_tok(
+    field: &Pyo3DictField,
+    body: &mut TokenStream,
+    ident: &String,
+    ident_tok: TokenStream,
+) {
     match field.attr_type {
         Pyo3Type::Primitive => {
             body.append_all(quote! {
@@ -162,7 +167,7 @@ fn match_tok(field: &Pyo3DictField, body: &mut TokenStream, ident: &String, iden
                 &non_class_ident,
                 0,
             ));
-    
+
             let ls_name: TokenStream = format!("pylist0{}", ident).parse().unwrap();
             body.append_all(quote! {
                 pydict.set_item(#ident, #ls_name).expect("Bad element in set_item");
@@ -171,7 +176,7 @@ fn match_tok(field: &Pyo3DictField, body: &mut TokenStream, ident: &String, iden
           //     if let Pyo3Type::NonPrimitive = key.as_ref() {
           //         panic!("Key must be a primitive type to be derived into a dict. If you want to use non primitive as a dict key, use a custom implementation");
           //     }
-    
+
           //     match val.as_ref() {
           //         Pyo3Type::Primitive => todo!(),
           //         Pyo3Type::NonPrimitive => todo!(),
@@ -199,7 +204,7 @@ fn handle_single_collection_code_gen(
         Pyo3Type::Primitive => {
             quote! {
                 let mut #curr_pylist = pyo3::types::PyList::empty(py);
-                for i in #ident.into_iter() {
+                for i in #ident_tok.into_iter() {
                     #curr_pylist.append(i).expect("Bad element in set_item");
                 };
             }

@@ -193,7 +193,7 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
         }}",
         generics, ident, generic_params, where_clause, body
     );
-    // panic!("{}", out);
+
     out.parse().unwrap()
 }
 

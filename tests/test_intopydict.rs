@@ -21,7 +21,12 @@ pub struct Test {
 
 #[derive(IntoPyDict)]
 pub struct TestGeneric<T: IntoPyDict> {
-    x: T
+    x: T,
+}
+
+#[derive(IntoPyDict)]
+pub struct TestVecPrim {
+    v: Vec<u8>,
 }
 
 #[test]
@@ -33,7 +38,7 @@ fn test_into_py_dict_derive() {
     };
 
     let test_generic_struct = TestGeneric {
-        x: test_struct.clone()
+        x: test_struct.clone(),
     };
 
     Python::with_gil(|py| {
