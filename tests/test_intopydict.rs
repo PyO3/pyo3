@@ -1,6 +1,6 @@
 use pyo3::{
-    prelude::*,
-    types::{IntoPyDict, PyDict},
+    prelude::IntoPyDict,
+    types::PyDict,
     Python,
 };
 
