@@ -92,11 +92,11 @@ impl Parse for Pyo3Collection {
             .as_str()
             .replace([' ', '{', '}'], "");
 
-        let tok_split: Vec<&str> = binding.split(',').collect();
+            if !binding.contains(':') {
+                return Ok(Pyo3Collection(Vec::new()));
+            }
 
-        if tok_split.len() <= 1 {
-            return Ok(Pyo3Collection(Vec::new()));
-        }
+        let tok_split: Vec<&str> = binding.split(',').collect();
 
         let mut field_collection: Vec<Pyo3DictField> = Vec::new();
 
