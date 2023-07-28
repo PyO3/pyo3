@@ -1,3 +1,4 @@
+#![cfg(feature = "macros")]
 use pyo3::{
     prelude::IntoPyDict,
     types::{IntoPyDict, PyDict},
