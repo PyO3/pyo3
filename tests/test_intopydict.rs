@@ -1,4 +1,8 @@
-use pyo3::{prelude::IntoPyDict, types::{PyDict, IntoPyDict}, Python};
+use pyo3::{
+    prelude::IntoPyDict,
+    types::{IntoPyDict, PyDict},
+    Python,
+};
 
 pub trait TestTrait<'a> {}
 
