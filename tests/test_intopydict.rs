@@ -10,7 +10,6 @@ pub trait TestTrait<'a> {}
 #[derive(IntoPyDict, PartialEq, Debug)]
 pub struct Test1 {
     x: u8,
-    y: u8,
 }
 
 #[derive(IntoPyDict)]
@@ -23,8 +22,8 @@ pub struct Test {
 #[test]
 fn test_into_py_dict_derive() {
     let test_struct = Test {
-        v: vec![vec![Test1 { x: 9, y: 10 }]],
-        j: Test1 { x: 10, y: 11 },
+        v: vec![vec![Test1 { x: 9 }]],
+        j: Test1 { x: 10 },
         h: 9,
     };
 

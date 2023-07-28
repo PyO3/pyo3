@@ -69,7 +69,7 @@ impl Pyo3DictField {
             //     let types: Vec<&str> = join.split(',').collect();
             //     let key: Vec<&str> = types[0].split('<').collect();
             //     let val: Vec<&str> = types[1].split('<').collect();
-                
+
             //     Pyo3Type::Map(
             //         Box::new(Self::handle_collection(&key)),
             //         Box::new(Self::handle_collection(&val)),
@@ -87,14 +87,11 @@ impl Pyo3DictField {
 impl Parse for Pyo3Collection {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let tok_stream: TokenStream = input.parse()?;
-        let binding = tok_stream
-            .to_string()
-            .as_str()
-            .replace([' ', '{', '}'], "");
+        let binding = tok_stream.to_string().as_str().replace([' ', '{', '}'], "");
 
-            if !binding.contains(':') {
-                return Ok(Pyo3Collection(Vec::new()));
-            }
+        if !binding.contains(':') {
+            return Ok(Pyo3Collection(Vec::new()));
+        }
 
         let tok_split: Vec<&str> = binding.split(',').collect();
 
@@ -148,19 +145,18 @@ pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream {
                     "pydict.set_item(\"{}\", pylist0{}).expect(\"Bad element in set_item\");\n",
                     ident, ident
                 )
-            }
-            // Pyo3Type::Map(ref key, ref val) => {
-            //     if let Pyo3Type::NonPrimitive = key.as_ref() {
-            //         panic!("Key must be a primitive type to be derived into a dict. If you want to use non primitive as a dict key, use a custom implementation");
-            //     }
+            } // Pyo3Type::Map(ref key, ref val) => {
+              //     if let Pyo3Type::NonPrimitive = key.as_ref() {
+              //         panic!("Key must be a primitive type to be derived into a dict. If you want to use non primitive as a dict key, use a custom implementation");
+              //     }
 
-            //     match val.as_ref() {
-            //         Pyo3Type::Primitive => todo!(),
-            //         Pyo3Type::NonPrimitive => todo!(),
-            //         Pyo3Type::CollectionSing(_) => todo!(),
-            //         Pyo3Type::Map(_, _) => todo!(),
-            //     }
-            // }
+              //     match val.as_ref() {
+              //         Pyo3Type::Primitive => todo!(),
+              //         Pyo3Type::NonPrimitive => todo!(),
+              //         Pyo3Type::CollectionSing(_) => todo!(),
+              //         Pyo3Type::Map(_, _) => todo!(),
+              //     }
+              // }
         };
     }
     body += "return pydict;";
@@ -216,8 +212,7 @@ fn handle_single_collection_code_gen(
                 non_class_ident
             );
             out
-        }
-        // Pyo3Type::Map(_, _) => todo!(),
+        } // Pyo3Type::Map(_, _) => todo!(),
     }
 }
 
