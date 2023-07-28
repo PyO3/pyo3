@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use pyo3::{types::{PyDict, IntoPyDict}, Python};
 use pyo3_macros::IntoPyDict;
 

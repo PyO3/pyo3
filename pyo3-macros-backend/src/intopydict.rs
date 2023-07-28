@@ -10,8 +10,8 @@ const SINGLE_COL: [&str; 6] = ["BTreeSet", "BinaryHeap", "Vec", "HashSet", "Link
 enum Pyo3Type {
     Primitive,
     NonPrimitive,
-    Collection(Box<crate::intopydict::Pyo3Type>),
-    // HashMap(Box<Pyo3Type>)
+    CollectionSing(Box<crate::intopydict::Pyo3Type>),
+    Map(Box<crate::intopydict::Pyo3Type>, Box<crate::intopydict::Pyo3Type>),
 }
 
 
@@ -42,7 +42,16 @@ impl Pyo3DictField {
 
     fn handle_collection(attr_type: &[&str]) -> Pyo3Type {
         match attr_type[0] {
-            "BTreeSet" | "BinaryHeap" | "Vec" | "HashSet" | "LinkedList" | "VecDeque" => return Pyo3Type::Collection(Box::new(Self::handle_collection(&attr_type[1..]))), 
+            "BTreeSet" | "BinaryHeap" | "Vec" | "HashSet" | "LinkedList" | "VecDeque" => return Pyo3Type::CollectionSing(Box::new(Self::handle_collection(&attr_type[1..]))), 
+            "BTreeMap" | "HashMap" => {
+                let join = &attr_type.join("<");
+                let types: Vec<&str> = join.split(",").collect();
+                let key: Vec<&str> = types[0].split("<").collect();
+                let val: Vec<&str> = types[1].split("<").collect();
+                let map = Pyo3Type::Map(Box::new(Self::handle_collection(&key)), Box::new(Self::handle_collection(&val)));
+                panic!("{:?}", map);
+                return map;
+            },
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "f32" | "f64" | "char" | "bool" | "&str" | "String" => return Pyo3Type::Primitive,
             _ => return Pyo3Type::NonPrimitive
         }
@@ -95,10 +104,22 @@ pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream  {
             Pyo3Type::NonPrimitive => {
                 body += &format!("pydict.set_item(\"{}\", self.{}.into_py_dict(py)).expect(\"Bad element in set_item\");\n", ident, ident);
             },
-            Pyo3Type::Collection(ref collection) => {
+            Pyo3Type::CollectionSing(ref collection) => {
                 let non_class_ident = ident.replace(".", "_");
                 body += &handle_single_collection_code_gen(collection, &format!("self.{}", ident), &non_class_ident, 0);
                 body += &format!("pydict.set_item(\"{}\", pylist0{}).expect(\"Bad element in set_item\");\n", ident, ident)
+            },
+            Pyo3Type::Map(ref key, ref val) => {
+                if let Pyo3Type::NonPrimitive = key.as_ref() {
+                    panic!("Key must be a primitive type to be derived into a dict. If you want to use non primitive as a dict key, use a custom implementation");
+                }
+
+                match val.as_ref() {
+                    Pyo3Type::Primitive => todo!(),
+                    Pyo3Type::NonPrimitive => todo!(),
+                    Pyo3Type::CollectionSing(_) => todo!(),
+                    Pyo3Type::Map(_, _) => todo!(),
+                }
             }
         };
     }
@@ -121,7 +142,7 @@ fn handle_single_collection_code_gen(py_type: &Pyo3Type, ident: &str, non_class_
             pylist{}{}.append(i.into_py_dict(py)).expect(\"Bad element in set_item\");
         }};
     ", counter, non_class_ident, ident, counter, non_class_ident),
-        Pyo3Type::Collection(coll) => {
+        Pyo3Type::CollectionSing(coll) => {
             let out = format!("
                 let mut pylist{}{} = pyo3::types::PyList::empty(py);
                 for i in {} .into_iter(){{
@@ -131,6 +152,7 @@ fn handle_single_collection_code_gen(py_type: &Pyo3Type, ident: &str, non_class_
             ", counter, non_class_ident, ident, handle_single_collection_code_gen(coll.as_ref(), "i", non_class_ident, counter + 1), counter, non_class_ident, counter + 1, non_class_ident);
             return out;
         },
+        Pyo3Type::Map(_, _) => todo!(),
     }
 }
 
