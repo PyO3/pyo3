@@ -92,7 +92,7 @@ impl Parse for Pyo3Collection {
         let binding = tok_stream
             .to_string()
             .as_str()
-            .replace(|c| return c == ' ' || c == '{' || c == '}', "");
+            .replace(|c| c == ' ' || c == '{' || c == '}', "");
 
         if !binding.contains(':') {
             return Ok(Pyo3Collection(Vec::new()));
