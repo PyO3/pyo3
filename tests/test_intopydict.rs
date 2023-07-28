@@ -2,21 +2,26 @@
 use pyo3::{
     prelude::IntoPyDict,
     types::{IntoPyDict, PyDict},
-    Python,
+    Python, ToPyObject,
 };
 
 pub trait TestTrait<'a> {}
 
-#[derive(IntoPyDict, PartialEq, Debug)]
+#[derive(IntoPyDict, PartialEq, Debug, Clone)]
 pub struct Test1 {
     x: u8,
 }
 
-#[derive(IntoPyDict)]
+#[derive(IntoPyDict, Clone)]
 pub struct Test {
     v: Vec<Vec<Test1>>,
     j: Test1,
     h: u8,
+}
+
+#[derive(IntoPyDict)]
+pub struct TestGeneric<T: IntoPyDict> {
+    x: T
 }
 
 #[test]
@@ -27,10 +32,15 @@ fn test_into_py_dict_derive() {
         h: 9,
     };
 
+    let test_generic_struct = TestGeneric {
+        x: test_struct.clone()
+    };
+
     Python::with_gil(|py| {
         let py_dict = test_struct.into_py_dict(py);
         let h: u8 = py_dict.get_item("h").unwrap().extract().unwrap();
         assert_eq!(h, 9);
         println!("{:?}", py_dict);
+        println!("{:?}", test_generic_struct.into_py_dict(py));
     });
 }

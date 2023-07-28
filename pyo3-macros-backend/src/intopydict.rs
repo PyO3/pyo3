@@ -131,49 +131,55 @@ pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream {
     for field in &dict_fields.0 {
         let ident = &field.name;
         let ident_tok: TokenStream = field.name.parse().unwrap();
-        match field.attr_type {
-            Pyo3Type::Primitive => {
-                body.append_all(quote! {
-                    pydict.set_item(#ident, self.#ident_tok).expect("Bad element in set_item");
-                });
-            }
-            Pyo3Type::NonPrimitive => {
-                body.append_all(quote! {
-                    pydict.set_item(#ident, self.#ident_tok.into_py_dict(py)).expect("Bad element in set_item");
-                });
-            }
-            Pyo3Type::CollectionSing(ref collection) => {
-                let non_class_ident = ident.replace('.', "_");
-                body.append_all(handle_single_collection_code_gen(
-                    collection,
-                    &format!("self.{}", ident),
-                    &non_class_ident,
-                    0,
-                ));
-
-                let ls_name: TokenStream = format!("pylist0{}", ident).parse().unwrap();
-                body.append_all(quote! {
-                    pydict.set_item(#ident, #ls_name).expect("Bad element in set_item");
-                });
-            } // Pyo3Type::Map(ref key, ref val) => {
-              //     if let Pyo3Type::NonPrimitive = key.as_ref() {
-              //         panic!("Key must be a primitive type to be derived into a dict. If you want to use non primitive as a dict key, use a custom implementation");
-              //     }
-
-              //     match val.as_ref() {
-              //         Pyo3Type::Primitive => todo!(),
-              //         Pyo3Type::NonPrimitive => todo!(),
-              //         Pyo3Type::CollectionSing(_) => todo!(),
-              //         Pyo3Type::Map(_, _) => todo!(),
-              //     }
-              // }
-        };
+        if !ident.is_empty() {
+            match_tok(field, &mut body, ident, ident_tok);
+        }
     }
     body.append_all(quote! {
         return pydict;
     });
 
     body
+}
+
+fn match_tok(field: &Pyo3DictField, body: &mut TokenStream, ident: &String, ident_tok: TokenStream) {
+    match field.attr_type {
+        Pyo3Type::Primitive => {
+            body.append_all(quote! {
+                pydict.set_item(#ident, self.#ident_tok).expect("Bad element in set_item");
+            });
+        }
+        Pyo3Type::NonPrimitive => {
+            body.append_all(quote! {
+                pydict.set_item(#ident, self.#ident_tok.into_py_dict(py)).expect("Bad element in set_item");
+            });
+        }
+        Pyo3Type::CollectionSing(ref collection) => {
+            let non_class_ident = ident.replace('.', "_");
+            body.append_all(handle_single_collection_code_gen(
+                collection,
+                &format!("self.{}", ident),
+                &non_class_ident,
+                0,
+            ));
+    
+            let ls_name: TokenStream = format!("pylist0{}", ident).parse().unwrap();
+            body.append_all(quote! {
+                pydict.set_item(#ident, #ls_name).expect("Bad element in set_item");
+            });
+        } // Pyo3Type::Map(ref key, ref val) => {
+          //     if let Pyo3Type::NonPrimitive = key.as_ref() {
+          //         panic!("Key must be a primitive type to be derived into a dict. If you want to use non primitive as a dict key, use a custom implementation");
+          //     }
+    
+          //     match val.as_ref() {
+          //         Pyo3Type::Primitive => todo!(),
+          //         Pyo3Type::NonPrimitive => todo!(),
+          //         Pyo3Type::CollectionSing(_) => todo!(),
+          //         Pyo3Type::Map(_, _) => todo!(),
+          //     }
+          // }
+    };
 }
 
 fn handle_single_collection_code_gen(
