@@ -625,7 +625,7 @@ pub fn impl_py_getter_def(
     let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc();
 
-    let getter_impl = match property_type {
+    let body = match property_type {
         PropertyType::Descriptor {
             field_index, field, ..
         } => {
@@ -634,31 +634,28 @@ pub fn impl_py_getter_def(
                 span: Span::call_site(),
             }
             .receiver(cls, ExtractErrorMode::Raise);
-            if let Some(ident) = &field.ident {
+            let field_token = if let Some(ident) = &field.ident {
                 // named struct field
-                quote!(::std::clone::Clone::clone(&(#slf.#ident)))
+                ident.to_token_stream()
             } else {
                 // tuple struct field
-                let index = syn::Index::from(field_index);
-                quote!(::std::clone::Clone::clone(&(#slf.#index)))
-            }
-        }
-        PropertyType::Function {
-            spec, self_type, ..
-        } => impl_call_getter(cls, spec, self_type)?,
-    };
-
-    let conversion = match property_type {
-        PropertyType::Descriptor { .. } => {
+                syn::Index::from(field_index).to_token_stream()
+            };
             quote! {
-                let item: _pyo3::Py<_pyo3::PyAny> = _pyo3::IntoPy::into_py(item, _py);
-                ::std::result::Result::Ok(_pyo3::conversion::IntoPyPointer::into_ptr(item))
+                ::std::result::Result::Ok(
+                    _pyo3::conversion::IntoPyPointer::into_ptr(
+                        _pyo3::IntoPy::<_pyo3::Py<_pyo3::PyAny>>::into_py(::std::clone::Clone::clone(&(#slf.#field_token)), _py)
+                    )
+                )
             }
         }
         // Forward to `IntoPyCallbackOutput`, to handle `#[getter]`s returning results.
-        PropertyType::Function { .. } => {
+        PropertyType::Function {
+            spec, self_type, ..
+        } => {
+            let call = impl_call_getter(cls, spec, self_type)?;
             quote! {
-                _pyo3::callback::convert(_py, item)
+                _pyo3::callback::convert(_py, #call)
             }
         }
     };
@@ -697,8 +694,7 @@ pub fn impl_py_getter_def(
             _py: _pyo3::Python<'_>,
             _slf: *mut _pyo3::ffi::PyObject
         ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
-            let item = #getter_impl;
-            #conversion
+            #body
         }
     };
 
