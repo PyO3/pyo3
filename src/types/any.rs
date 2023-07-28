@@ -903,6 +903,44 @@ impl PyAny {
         <T as PyTryFrom>::try_from(self)
     }
 
+    /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
+    ///
+    /// It is almost always better to use [`PyAny::downcast`] because it accounts for Python
+    /// subtyping. Use this method only when you do not want to allow subtypes.
+    ///
+    /// The advantage of this method over [`PyAny::downcast`] is that it is faster. The implementation
+    /// of `downcast_exact` uses the equivalent of the Python expression `type(self) is T`, whereas
+    /// `downcast` uses `isinstance(self, T)`.
+    ///
+    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
+    ///
+    /// # Example: Downcasting to a specific Python object but not a subtype
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyBool, PyLong};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let b = PyBool::new(py, true);
+    ///     assert!(b.is_instance_of::<PyBool>());
+    ///     let any: &PyAny = b.as_ref();
+    ///
+    ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
+    ///     // but `downcast_exact` will not.
+    ///     assert!(any.downcast::<PyLong>().is_ok());
+    ///     assert!(any.downcast_exact::<PyLong>().is_err());
+    ///
+    ///     assert!(any.downcast_exact::<PyBool>().is_ok());
+    /// });
+    /// ```
+    #[inline]
+    pub fn downcast_exact<'p, T>(&'p self) -> Result<&'p T, PyDowncastError<'_>>
+    where
+        T: PyTryFrom<'p>,
+    {
+        <T as PyTryFrom>::try_from_exact(self)
+    }
+
     /// Converts this `PyAny` to a concrete Python type without checking validity.
     ///
     /// # Safety
