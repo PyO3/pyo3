@@ -499,6 +499,7 @@ def set_minimal_package_versions(session: nox.Session):
         "trybuild": "1.0.76",
         # pins to avoid syn 2.0 (which requires Rust 1.56)
         "ghost": "0.1.8",
+        "serde_json": "1.0.99",
         "serde": "1.0.156",
         "serde_derive": "1.0.156",
         "cxx": "1.0.92",
@@ -508,6 +509,9 @@ def set_minimal_package_versions(session: nox.Session):
         "js-sys": "0.3.61",
         "wasm-bindgen": "0.2.84",
         "syn": "1.0.109",
+        # proc-macro2 1.0.66+ is edition 2021
+        "quote": "1.0.30",
+        "proc-macro2": "1.0.65",
     }
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.

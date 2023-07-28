@@ -254,8 +254,8 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
         ) => {
             bail_spanned!(recv.span() => RECEIVER_BY_VALUE_ERR);
         }
-        syn::FnArg::Receiver(recv @ syn::Receiver { mutability, .. }) => Ok(SelfType::Receiver {
-            mutable: mutability.is_some(),
+        syn::FnArg::Receiver(recv) => Ok(SelfType::Receiver {
+            mutable: recv.mutability.is_some(),
             span: recv.span(),
         }),
         syn::FnArg::Typed(syn::PatType { ty, .. }) => {

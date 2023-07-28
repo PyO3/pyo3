@@ -111,8 +111,8 @@ pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
 
 #[inline]
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
-    debug_assert_ne!((*ob).ob_type, std::ptr::addr_of_mut!(crate::PyLong_Type));
-    debug_assert_ne!((*ob).ob_type, std::ptr::addr_of_mut!(crate::PyBool_Type));
+    debug_assert_ne!((*ob).ob_type, addr_of_mut_shim!(crate::PyLong_Type));
+    debug_assert_ne!((*ob).ob_type, addr_of_mut_shim!(crate::PyBool_Type));
     (*ob.cast::<PyVarObject>()).ob_size
 }
 
