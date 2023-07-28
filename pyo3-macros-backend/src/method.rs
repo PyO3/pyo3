@@ -2,6 +2,7 @@ use crate::attributes::{TextSignatureAttribute, TextSignatureAttributeValue};
 use crate::params::impl_arg_params;
 use crate::pyfunction::{FunctionSignature, PyFunctionArgPyO3Attributes};
 use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
+use crate::quotes;
 use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -413,11 +414,7 @@ impl<'a> FnSpec<'a> {
         let func_name = &self.name;
 
         let rust_call = |args: Vec<TokenStream>| {
-            quote! {
-                _pyo3::impl_::pymethods::OkWrap::wrap(function(#self_arg #(#args),*), #py)
-                    .map(|obj| _pyo3::conversion::IntoPyPointer::into_ptr(obj))
-                    .map_err(::core::convert::Into::into)
-            }
+            quotes::map_result_into_ptr(quotes::ok_wrap(quote! { function(#self_arg #(#args),*) }))
         };
 
         let rust_name = if let Some(cls) = cls {

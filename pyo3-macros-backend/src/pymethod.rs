@@ -2,12 +2,12 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::utils;
 use crate::utils::{ensure_not_async_fn, PythonDoc};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
 };
+use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Result};
@@ -451,12 +451,12 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
 
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
     let python_name = spec.null_terminated_python_name();
+    let body = quotes::ok_wrap(fncall);
 
     let associated_method = quote! {
         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
-            _pyo3::impl_::pymethods::OkWrap::wrap(#fncall, py)
-                .map_err(::core::convert::Into::into)
+            #body
         }
     };
 
@@ -641,13 +641,9 @@ pub fn impl_py_getter_def(
                 // tuple struct field
                 syn::Index::from(field_index).to_token_stream()
             };
-            quote! {
-                ::std::result::Result::Ok(
-                    _pyo3::conversion::IntoPyPointer::into_ptr(
-                        _pyo3::IntoPy::<_pyo3::Py<_pyo3::PyAny>>::into_py(::std::clone::Clone::clone(&(#slf.#field_token)), _py)
-                    )
-                )
-            }
+            quotes::map_result_into_ptr(quotes::ok_wrap(quote! {
+                ::std::clone::Clone::clone(&(#slf.#field_token))
+            }))
         }
         // Forward to `IntoPyCallbackOutput`, to handle `#[getter]`s returning results.
         PropertyType::Function {
