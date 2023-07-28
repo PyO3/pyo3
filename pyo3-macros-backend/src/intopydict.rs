@@ -89,12 +89,7 @@ impl Pyo3DictField {
 impl Parse for Pyo3Collection {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let tok_stream: TokenStream = input.parse()?;
-        let binding = tok_stream
-            .to_string()
-            .as_str()
-            .replace(' ', "")
-            .replace('{', "")
-            .replace('}', "");
+        let binding = tok_stream.to_string().as_str().replace([' ', '{', '}'], "");
 
         if !binding.contains(':') {
             return Ok(Pyo3Collection(Vec::new()));
