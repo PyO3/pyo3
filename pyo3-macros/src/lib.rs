@@ -8,11 +8,11 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    get_doc, process_functions_in_module, pymodule_impl, PyClassArgs, PyClassMethodsType,
+    get_doc, process_functions_in_module, pymodule_impl, build_derive_into_pydict, PyClassArgs, PyClassMethodsType,
     PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
-use syn::{parse::Nothing, parse_macro_input};
+use syn::{parse::Nothing, parse_macro_input, DeriveInput};
 
 /// A proc macro used to implement Python modules.
 ///
@@ -158,6 +158,20 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
         #expanded
     )
     .into()
+}
+
+#[proc_macro_derive(IntoPyDict, attributes(pyo3))]
+pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
+    let cloned = item.clone();
+    let ast = parse_macro_input!(cloned as DeriveInput);
+    let ident = ast.ident.to_string();
+    let body = build_derive_into_pydict(item as syn::__private::TokenStream).to_string();
+    return  format!("
+        impl IntoPyDict for {} {{
+            fn into_py_dict(self, py: pyo3::Python<'_>) -> &PyDict {{
+                {}
+            }}
+        }}", ident, body).parse().unwrap()
 }
 
 fn pyclass_impl(
