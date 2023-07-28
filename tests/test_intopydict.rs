@@ -1,4 +1,7 @@
-use pyo3::{types::{PyDict, IntoPyDict}, Python};
+use pyo3::{
+    types::{IntoPyDict, PyDict},
+    Python,
+};
 use pyo3_macros::IntoPyDict;
 
 pub trait TestTrait<'a> {}
@@ -28,5 +31,6 @@ fn test_into_py_dict_derive() {
         let py_dict = test_struct.into_py_dict(py);
         let h: u8 = py_dict.get_item("h").unwrap().extract().unwrap();
         assert_eq!(h, 9);
+        println!("{:?}", py_dict);
     });
 }

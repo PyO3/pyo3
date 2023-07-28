@@ -7,9 +7,10 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
-    build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    get_doc, process_functions_in_module, pymodule_impl, build_derive_into_pydict, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions, parse_generics, Pyo3Collection,
+    build_derive_from_pyobject, build_derive_into_pydict, build_py_class, build_py_enum,
+    build_py_function, build_py_methods, get_doc, parse_generics, process_functions_in_module,
+    pymodule_impl, PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
+    Pyo3Collection,
 };
 use quote::{quote, ToTokens};
 use syn::{parse::Nothing, parse_macro_input, DeriveInput};
@@ -168,7 +169,11 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
     let clause_wrapped = ast.generics.where_clause.clone();
     let mut where_clause = String::new();
     let generic_params = parse_generics(&ast.generics);
-    let generics = &ast.generics.into_token_stream().to_string().replace(" ", "");
+    let generics = &ast
+        .generics
+        .into_token_stream()
+        .to_string()
+        .replace(" ", "");
 
     if let Some(clause) = clause_wrapped {
         where_clause = clause.into_token_stream().to_string();
@@ -179,12 +184,15 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
         dict_fields += parse_macro_input!(token_stream as Pyo3Collection);
     }
     let body = build_derive_into_pydict(dict_fields).to_string();
-    let out =  format!("
+    let out = format!(
+        "
         impl{} IntoPyDict for {}{} {} {{
             fn into_py_dict(self, py: pyo3::Python<'_>) -> &PyDict {{
                 {}
             }}
-        }}", generics, ident, generic_params, where_clause, body);
+        }}",
+        generics, ident, generic_params, where_clause, body
+    );
     return out.parse().unwrap();
 }
 
