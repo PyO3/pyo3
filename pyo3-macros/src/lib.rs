@@ -9,7 +9,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
     get_doc, process_functions_in_module, pymodule_impl, build_derive_into_pydict, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions, parse_generics,
+    PyFunctionOptions, PyModuleOptions, parse_generics, Pyo3Collection,
 };
 use quote::{quote, ToTokens};
 use syn::{parse::Nothing, parse_macro_input, DeriveInput};
@@ -173,8 +173,12 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
     if let Some(clause) = clause_wrapped {
         where_clause = clause.into_token_stream().to_string();
     }
-
-    let body = build_derive_into_pydict(item as syn::__private::TokenStream).to_string();
+    let mut dict_fields: Pyo3Collection = Pyo3Collection(Vec::new());
+    for token in item {
+        let token_stream: syn::__private::TokenStream = token.into();
+        dict_fields += parse_macro_input!(token_stream as Pyo3Collection);
+    }
+    let body = build_derive_into_pydict(dict_fields).to_string();
     let out =  format!("
         impl{} IntoPyDict for {}{} {} {{
             fn into_py_dict(self, py: pyo3::Python<'_>) -> &PyDict {{
