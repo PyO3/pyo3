@@ -1,5 +1,5 @@
 
-use std::{ops::AddAssign, collections::HashMap};
+use std::ops::AddAssign;
 
 use syn::{parse::{ParseStream, Parse}, parse_macro_input, __private::TokenStream, Generics};
 
@@ -91,16 +91,7 @@ pub fn parse_generics(generics: &Generics) -> String {
         for param in &generics.params {
             match param {
                 syn::GenericParam::Lifetime(lt) => generics_parsed += ("'".to_string() + &lt.lifetime.ident.to_string()).as_str(),
-                syn::GenericParam::Type(generic_type) => {
-                    generics_parsed += generic_type.ident.to_string().as_str();
-                    let mut bound_parsed = String::new();
-                    if generic_type.bounds.len() > 0 {
-                        bound_parsed = format!("{}:", generic_type.ident.to_string());
-                    }
-                    if bound_parsed.len() > 0 {
-                        bound_parsed = bound_parsed[0..bound_parsed.len() - 1].to_string();
-                    }
-                },
+                syn::GenericParam::Type(generic_type) => generics_parsed += generic_type.ident.to_string().as_str(),
                 syn::GenericParam::Const(const_type) => generics_parsed += ("const".to_string() + const_type.ident.to_string().as_str()).as_str(),
             }
 
