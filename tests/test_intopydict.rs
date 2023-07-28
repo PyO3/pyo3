@@ -15,6 +15,5 @@ pub struct Test1 {
 pub struct Test<T: IntoPyDict> {
     j: Test1,
     h: u8,
-    i: u8,
     x: T
 }

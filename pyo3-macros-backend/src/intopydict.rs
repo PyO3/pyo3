@@ -4,6 +4,13 @@ use std::ops::AddAssign;
 use syn::{parse::{ParseStream, Parse}, parse_macro_input, __private::TokenStream, Generics};
 
 #[derive(Debug, Clone)]
+enum BaseCollections {
+    Vec,
+    HashSet,
+    HashMap
+}
+
+#[derive(Debug, Clone)]
 enum Pyo3Type {
     Primitive,
     NonPrimitive
@@ -72,7 +79,7 @@ pub fn build_derive_into_pydict(tokens: TokenStream) -> TokenStream  {
         let ident = &field.name;
         match field.attr_type {
             Pyo3Type::Primitive => {
-                body += &format!("pydict.set_item(\"{}\", self.{}).expect(\"Bad element in set_item\");\n", ident, ident);
+                body += &format!("pydict.set_item(\"{}\", self.{}).expect(\"Bad element in set_item\");", ident, ident);
             },
             Pyo3Type::NonPrimitive => {
                 body += &format!("pydict.set_item(\"{}\", self.{}.into_py_dict(py)).expect(\"Bad element in set_item\");\n", ident, ident);
