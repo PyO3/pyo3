@@ -43,7 +43,8 @@ impl Pyo3DictField {
     fn check_primitive(attr_type: &str) -> Pyo3Type {
         for collection in SINGLE_COL {
             if attr_type.starts_with(collection) {
-                let attr_list: Vec<&str> = attr_type.split(['<', '>']).collect();
+                let attr_type = attr_type.replace('>', "");
+                let attr_list: Vec<&str> = attr_type.split('<').collect();
                 let out = Self::handle_collection(&attr_list);
 
                 return out;
