@@ -1,7 +1,7 @@
 use pyo3::{
+    prelude::*,
     types::{IntoPyDict, PyDict},
     Python,
-    prelude::*
 };
 
 pub trait TestTrait<'a> {}
