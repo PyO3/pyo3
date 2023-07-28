@@ -173,7 +173,7 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
         .generics
         .into_token_stream()
         .to_string()
-        .replace(" ", "");
+        .replace(' ', "");
 
     if let Some(clause) = clause_wrapped {
         where_clause = clause.into_token_stream().to_string();
@@ -193,7 +193,7 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
         }}",
         generics, ident, generic_params, where_clause, body
     );
-    return out.parse().unwrap();
+    out.parse().unwrap()
 }
 
 fn pyclass_impl(
