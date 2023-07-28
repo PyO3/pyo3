@@ -1,11 +1,7 @@
-use std::collections::HashMap;
-
 use pyo3::{types::{PyDict, IntoPyDict}, Python};
 use pyo3_macros::IntoPyDict;
 
-pub trait TestTrait<'a> {
-
-}
+pub trait TestTrait<'a> {}
 
 #[derive(IntoPyDict, PartialEq, Debug)]
 pub struct Test1 {
