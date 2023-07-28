@@ -1,8 +1,8 @@
 use pyo3::{
     types::{IntoPyDict, PyDict},
     Python,
+    prelude::*
 };
-use pyo3_macros::IntoPyDict;
 
 pub trait TestTrait<'a> {}
 

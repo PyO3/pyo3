@@ -19,7 +19,7 @@ pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
+pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject, IntoPyDict};
 
 #[cfg(feature = "macros")]
 pub use crate::wrap_pyfunction;
