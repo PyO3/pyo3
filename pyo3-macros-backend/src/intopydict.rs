@@ -1,19 +1,12 @@
 
 use std::ops::AddAssign;
 
-use syn::{DeriveInput, token::{Enum, self}, parse_quote, Data, parse::{Parser, ParseStream, Parse, discouraged::Speculative}, PathSegment, parse_macro_input, __private::TokenStream};
-use quote::{quote, ToTokens};
+use syn::{parse::{ParseStream, Parse}, parse_macro_input, __private::TokenStream};
 
 #[derive(Debug, Clone)]
 enum Pyo3Type {
     Primitive,
     NonPrimitive
-}
-
-enum Pyo3Option {
-    SomePyo3(Pyo3Collection),
-    Ident(String),
-    None
 }
 
 
@@ -79,19 +72,14 @@ pub fn build_derive_into_pydict(tokens: TokenStream) -> TokenStream  {
         let ident = &field.name;
         match field.attr_type {
             Pyo3Type::Primitive => {
-                body += &format!("pydict.set_item(\"{}\", self.{});\n", ident, ident);
+                body += &format!("pydict.set_item(\"{}\", self.{}).expect(\"Bad element in set_item\");\n", ident, ident);
             },
             Pyo3Type::NonPrimitive => {
-                body += &format!("pydict.set_item(\"{}\", self.{}.into_py_dict(py));\n", ident, ident);
+                body += &format!("pydict.set_item(\"{}\", self.{}.into_py_dict(py)).expect(\"Bad element in set_item\");\n", ident, ident);
             },
         };
     }
     body += "return pydict;";
 
     return body.parse().unwrap();
-    // return quote! {
-    //     impl IntoPyDict for #ident {
-
-    //     }
-    // };
 }
