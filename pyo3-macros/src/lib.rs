@@ -172,14 +172,14 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
     let generics = ast.generics.into_token_stream();
 
     if let Some(clause) = clause_wrapped {
-        where_clause = clause.into_token_stream().into();
+        where_clause = clause.into_token_stream();
     }
     let mut dict_fields: Pyo3Collection = Pyo3Collection(Vec::new());
     for token in item {
         let token_stream: syn::__private::TokenStream = token.into();
         dict_fields += parse_macro_input!(token_stream as Pyo3Collection);
     }
-    let body: TokenStream2 = build_derive_into_pydict(dict_fields).into();
+    let body: TokenStream2 = build_derive_into_pydict(dict_fields);
     let out = quote! {
         impl #generics IntoPyDict for #ident #generic_params  #where_clause {
             fn into_py_dict(self, py: pyo3::Python<'_>) -> &PyDict {
