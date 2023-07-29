@@ -91,7 +91,7 @@ impl Parse for Pyo3Collection {
             .replace(|c| c == ' ' || c == '{' || c == '}', "");
 
         if binding.contains("enum") || binding.contains('(') {
-            return Err(syn::Error::new(input.span(), "Tuple struct derives and enums derives for IntoPyDict are not permitted. Please use a custom implementation if you want to use this trait."));
+            return Err(syn::Error::new(input.span(), "Tuple struct as well as tuple derives and enums derives for IntoPyDict are not permitted. Please use a custom implementation if you want to use this trait."));
         }
 
         if !binding.contains(':') {
