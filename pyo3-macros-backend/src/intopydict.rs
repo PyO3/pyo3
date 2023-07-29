@@ -1,10 +1,10 @@
 use quote::{quote, TokenStreamExt};
 use std::ops::AddAssign;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use syn::{
     parse::{Parse, ParseStream},
-    Generics,
+    Error, Generics,
 };
 
 const SINGLE_COL: [&str; 6] = [
@@ -34,21 +34,21 @@ pub struct Pyo3DictField {
 }
 
 impl Pyo3DictField {
-    pub fn new(name: String, type_: &str) -> Self {
+    pub fn new(name: String, type_: &str, span: Span) -> Self {
         Self {
             name,
-            attr_type: Self::check_primitive(type_),
+            attr_type: Self::check_primitive(type_, span),
         }
     }
 
-    fn check_primitive(attr_type: &str) -> Pyo3Type {
+    fn check_primitive(attr_type: &str, span: Span) -> Pyo3Type {
         for collection in SINGLE_COL {
             if attr_type.starts_with(collection) {
                 let attr_type = attr_type.replace('>', "");
                 let attr_list: Vec<&str> = attr_type.split('<').collect();
-                let out = Self::handle_collection(&attr_list);
+                let out = Self::handle_collection(&attr_list, span);
 
-                return out;
+                return out.unwrap();
             }
         }
 
@@ -61,27 +61,30 @@ impl Pyo3DictField {
         }
     }
 
-    fn handle_collection(attr_type: &[&str]) -> Pyo3Type {
+    fn handle_collection(attr_type: &[&str], span: Span) -> syn::Result<Pyo3Type> {
         match attr_type[0] {
             "BTreeSet" | "BinaryHeap" | "Vec" | "HashSet" | "LinkedList" | "VecDeque" => {
-                Pyo3Type::CollectionSing(Box::new(Self::handle_collection(&attr_type[1..])))
+                Ok(Pyo3Type::CollectionSing(Box::new(
+                    Self::handle_collection(&attr_type[1..], span).unwrap(),
+                )))
             }
-            // "BTreeMap" | "HashMap" => {
-            //     let join = &attr_type.join("<");
-            //     let types: Vec<&str> = join.split(',').collect();
-            //     let key: Vec<&str> = types[0].split('<').collect();
-            //     let val: Vec<&str> = types[1].split('<').collect();
+            "BTreeMap" | "HashMap" => {
+                Err(Error::new(span, "Derive currently doesn't support map types. Please make a custom implementation"))
+                // let join = &attr_type.join("<");
+                // let types: Vec<&str> = join.split(',').collect();
+                // let key: Vec<&str> = types[0].split('<').collect();
+                // let val: Vec<&str> = types[1].split('<').collect();
 
-            //     Pyo3Type::Map(
-            //         Box::new(Self::handle_collection(&key)),
-            //         Box::new(Self::handle_collection(&val)),
-            //     )
-            // }
+                // Pyo3Type::Map(
+                //     Box::new(Self::handle_collection(&key)),
+                //     Box::new(Self::handle_collection(&val)),
+                // )
+            }
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
             | "u128" | "usize" | "f32" | "f64" | "char" | "bool" | "&str" | "String" => {
-                Pyo3Type::Primitive
+                Ok(Pyo3Type::Primitive)
             }
-            _ => Pyo3Type::NonPrimitive,
+            _ => Ok(Pyo3Type::NonPrimitive),
         }
     }
 }
@@ -106,7 +109,11 @@ impl Parse for Pyo3Collection {
             let tok_params_unparsed = &i.to_string();
             let tok_bind: Vec<&str> = tok_params_unparsed.split(':').collect();
             if tok_bind.len() == 2 {
-                field_collection.push(Pyo3DictField::new(tok_bind[0].to_string(), tok_bind[1]));
+                field_collection.push(Pyo3DictField::new(
+                    tok_bind[0].to_string(),
+                    tok_bind[1],
+                    input.span(),
+                ));
             }
         }
 
