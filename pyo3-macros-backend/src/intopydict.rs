@@ -166,6 +166,10 @@ impl AddAssign for Pyo3Collection {
 
 pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream {
     let mut body = quote! {
+        use pyo3::{
+            types::{IntoPyDict, PyDict},
+            Python,
+        };
         let mut pydict = PyDict::new(py);
     };
 
