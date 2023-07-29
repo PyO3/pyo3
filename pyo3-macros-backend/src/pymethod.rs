@@ -494,7 +494,7 @@ fn impl_call_setter(
 
     let name = &spec.name;
     let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(#slf, _py, _val))
+        quote!(#cls::#name(#slf, py, _val))
     } else {
         quote!(#cls::#name(#slf, _val))
     };
@@ -563,18 +563,18 @@ pub fn impl_py_setter_def(
     let associated_method = quote! {
         #cfg_attrs
         unsafe fn #wrapper_ident(
-            _py: _pyo3::Python<'_>,
+            py: _pyo3::Python<'_>,
             _slf: *mut _pyo3::ffi::PyObject,
             _value: *mut _pyo3::ffi::PyObject,
         ) -> _pyo3::PyResult<::std::os::raw::c_int> {
-            let _value = _py
+            let _value = py
                 .from_borrowed_ptr_or_opt(_value)
                 .ok_or_else(|| {
                     _pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
             let _val = _pyo3::FromPyObject::extract(_value)?;
 
-            _pyo3::callback::convert(_py, #setter_impl)
+            _pyo3::callback::convert(py, #setter_impl)
         }
     };
 
@@ -609,7 +609,7 @@ fn impl_call_getter(
 
     let name = &spec.name;
     let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(#slf, _py))
+        quote!(#cls::#name(#slf, py))
     } else {
         quote!(#cls::#name(#slf))
     };
@@ -655,7 +655,7 @@ pub fn impl_py_getter_def(
         } => {
             let call = impl_call_getter(cls, spec, self_type)?;
             quote! {
-                _pyo3::callback::convert(_py, #call)
+                _pyo3::callback::convert(py, #call)
             }
         }
     };
@@ -691,7 +691,7 @@ pub fn impl_py_getter_def(
     let associated_method = quote! {
         #cfg_attrs
         unsafe fn #wrapper_ident(
-            _py: _pyo3::Python<'_>,
+            py: _pyo3::Python<'_>,
             _slf: *mut _pyo3::ffi::PyObject
         ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
             #body
@@ -1084,7 +1084,7 @@ impl SlotDef {
                 spec.name.span() => format!("`{}` must be `unsafe fn`", method_name)
             );
         }
-        let py = syn::Ident::new("_py", Span::call_site());
+        let py = syn::Ident::new("py", Span::call_site());
         let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type()).collect();
         let arg_idents: &Vec<_> = &(0..arguments.len())
             .map(|i| format_ident!("arg{}", i))
@@ -1192,7 +1192,7 @@ impl SlotFragmentDef {
         let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
         let method = syn::Ident::new(fragment, Span::call_site());
         let wrapper_ident = format_ident!("__pymethod_{}__", fragment);
-        let py = syn::Ident::new("_py", Span::call_site());
+        let py = syn::Ident::new("py", Span::call_site());
         let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type()).collect();
         let arg_idents: &Vec<_> = &(0..arguments.len())
             .map(|i| format_ident!("arg{}", i))
