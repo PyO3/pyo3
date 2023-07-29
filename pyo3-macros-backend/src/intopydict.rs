@@ -98,7 +98,7 @@ impl Parse for Pyo3Collection {
             return Ok(Pyo3Collection(Vec::new()));
         }
 
-        let tok_split: Vec<&str> = binding.split(',').collect();
+        let tok_split = split_struct(binding);
 
         let mut field_collection: Vec<Pyo3DictField> = Vec::new();
 
@@ -116,6 +116,30 @@ impl Parse for Pyo3Collection {
 
         Ok(Pyo3Collection(field_collection))
     }
+}
+
+fn split_struct(binding: String) -> Vec<String> {
+    let mut stack: Vec<char> = Vec::new();
+    let mut tok_split: Vec<String> = Vec::new();
+    let mut start = 0;
+
+    for (i, char_val) in binding.chars().enumerate() {
+        if char_val == ',' && stack.is_empty() {
+            tok_split.push(binding[start..i].to_string());
+            start = i + 1;
+        } else if i == binding.len() - 1 {
+            tok_split.push(binding[start..].to_string());
+        }
+
+        if char_val == '<' {
+            stack.push(char_val);
+        }
+
+        if char_val == '>' {
+            stack.pop();
+        }
+    }
+    tok_split
 }
 
 #[derive(Debug, Clone)]
