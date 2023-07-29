@@ -7,13 +7,15 @@ use syn::{
     Error, Generics,
 };
 
-const SINGLE_COL: [&str; 6] = [
+const COL_NAMES: [&str; 8] = [
     "BTreeSet",
     "BinaryHeap",
     "Vec",
     "HashSet",
     "LinkedList",
     "VecDeque",
+    "BTreeMap",
+    "HashMap",
 ];
 
 #[derive(Debug, Clone)]
@@ -42,7 +44,7 @@ impl Pyo3DictField {
     }
 
     fn check_primitive(attr_type: &str, span: Span) -> Pyo3Type {
-        for collection in SINGLE_COL {
+        for collection in COL_NAMES {
             if attr_type.starts_with(collection) {
                 let attr_type = attr_type.replace('>', "");
                 let attr_list: Vec<&str> = attr_type.split('<').collect();
@@ -69,16 +71,7 @@ impl Pyo3DictField {
                 )))
             }
             "BTreeMap" | "HashMap" => {
-                Err(Error::new(span, "Derive currently doesn't support map types. Please make a custom implementation"))
-                // let join = &attr_type.join("<");
-                // let types: Vec<&str> = join.split(',').collect();
-                // let key: Vec<&str> = types[0].split('<').collect();
-                // let val: Vec<&str> = types[1].split('<').collect();
-
-                // Pyo3Type::Map(
-                //     Box::new(Self::handle_collection(&key)),
-                //     Box::new(Self::handle_collection(&val)),
-                // )
+                Err(Error::new(span, "Derive currently doesn't support map types. Please use a custom implementation for structs using a map type like HashMap or BTreeMap"))
             }
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
             | "u128" | "usize" | "f32" | "f64" | "char" | "bool" | "&str" | "String" => {
