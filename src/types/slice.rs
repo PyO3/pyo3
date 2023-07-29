@@ -54,6 +54,14 @@ impl PySlice {
         }
     }
 
+    /// Constructs a new full slice that is equivalent to `::`.
+    pub fn full(py: Python<'_>) -> &PySlice {
+        unsafe {
+            let ptr = ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None());
+            py.from_owned_ptr(ptr)
+        }
+    }
+
     /// Retrieves the start, stop, and step indices from the slice object,
     /// assuming a sequence of length `length`, and stores the length of the
     /// slice in its `slicelength` member.
@@ -112,6 +120,34 @@ mod tests {
             assert_eq!(
                 slice.getattr("step").unwrap().extract::<isize>().unwrap(),
                 1
+            );
+        });
+    }
+
+    #[test]
+    fn test_py_slice_full() {
+        Python::with_gil(|py| {
+            let slice = PySlice::full(py);
+            assert!(slice.getattr("start").unwrap().is_none(),);
+            assert!(slice.getattr("stop").unwrap().is_none(),);
+            assert!(slice.getattr("step").unwrap().is_none(),);
+            assert_eq!(
+                slice.indices(0).unwrap(),
+                PySliceIndices {
+                    start: 0,
+                    stop: 0,
+                    step: 1,
+                    slicelength: 0,
+                },
+            );
+            assert_eq!(
+                slice.indices(42).unwrap(),
+                PySliceIndices {
+                    start: 0,
+                    stop: 42,
+                    step: 1,
+                    slicelength: 42,
+                },
             );
         });
     }
