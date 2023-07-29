@@ -2,7 +2,7 @@
 use pyo3::{
     prelude::IntoPyDict,
     types::{IntoPyDict, PyDict},
-    Python, ToPyObject,
+    Python,
 };
 
 pub trait TestTrait<'a> {}
