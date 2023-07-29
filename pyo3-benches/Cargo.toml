@@ -10,7 +10,7 @@ publish = false
 pyo3 = { path = "../", features = ["auto-initialize"] }
 
 [dev-dependencies]
-criterion = "0.3.5"
+criterion = "0.5.1"
 
 [[bench]]
 name = "bench_any"
