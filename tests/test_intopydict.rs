@@ -57,7 +57,11 @@ fn test_into_py_dict_derive() {
         let py_dict = test_struct.into_py_dict(py);
         let h: u8 = py_dict.get_item("h").unwrap().extract().unwrap();
         assert_eq!(h, 9);
-        println!("{:?}", py_dict);
-        println!("{:?}", test_generic_struct.into_py_dict(py));
+        assert_eq!(
+            format!("{:?}", py_dict),
+            "{'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}".to_string()
+        );
+        let pydict = test_generic_struct.into_py_dict(py);
+        assert_eq!(format!("{:?}", pydict), "{'x': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}, 'y': {'x': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}, 'y': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}}}".to_string());
     });
 }

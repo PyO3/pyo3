@@ -8,9 +8,9 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_derive_into_pydict, build_py_class, build_py_enum,
-    build_py_function, build_py_methods, get_doc, parse_generics, process_functions_in_module,
-    pymodule_impl, PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
-    Pyo3Collection,
+    build_py_function, build_py_methods, check_type, get_doc, parse_generics,
+    process_functions_in_module, pymodule_impl, PyClassArgs, PyClassMethodsType, PyFunctionOptions,
+    PyModuleOptions, Pyo3Collection,
 };
 use quote::{quote, ToTokens};
 use syn::{parse::Nothing, parse_macro_input, DeriveInput};
@@ -165,6 +165,7 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
 pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
     let cloned = item.clone();
     let ast = parse_macro_input!(cloned as DeriveInput);
+    check_type(&ast).unwrap();
     let ident = ast.ident.into_token_stream();
     let clause_wrapped = ast.generics.where_clause.clone();
     let mut where_clause: TokenStream2 = TokenStream2::new();

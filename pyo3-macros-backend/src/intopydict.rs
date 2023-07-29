@@ -4,7 +4,7 @@ use std::ops::AddAssign;
 use proc_macro2::{Span, TokenStream};
 use syn::{
     parse::{Parse, ParseStream},
-    Error, Generics,
+    DeriveInput, Error, Generics,
 };
 
 const COL_NAMES: [&str; 8] = [
@@ -90,8 +90,11 @@ impl Parse for Pyo3Collection {
             .as_str()
             .replace(|c| c == ' ' || c == '{' || c == '}', "");
 
-        if binding.contains("enum") || binding.contains('(') {
-            return Err(syn::Error::new(input.span(), "Tuple struct as well as tuple derives and enums derives for IntoPyDict are not permitted. Please use a custom implementation if you want to use this trait."));
+        if binding.contains("enum") {
+            return Err(syn::Error::new(
+                input.span(),
+                "Enums not permitted. Please use a custom implementation of this enum.s",
+            ));
         }
 
         if !binding.contains(':') {
@@ -131,14 +134,24 @@ fn split_struct(binding: String) -> Vec<String> {
             tok_split.push(binding[start..].to_string());
         }
 
-        if char_val == '<' {
+        if char_val == '<' || char_val == '(' {
             stack.push(char_val);
         }
 
-        if char_val == '>' {
+        if char_val == '>' || char_val == ')' {
             stack.pop();
         }
     }
+
+    if !tok_split.is_empty() {
+        let mut last = tok_split.last().unwrap().clone();
+        for i in stack {
+            last.push(i)
+        }
+        let len = tok_split.len();
+        tok_split[len - 1] = last;
+    }
+
     tok_split
 }
 
@@ -285,5 +298,28 @@ pub fn parse_generics(generics: &Generics) -> String {
         generics_parsed
     } else {
         String::new()
+    }
+}
+
+pub fn check_type(input: &DeriveInput) -> syn::Result<()> {
+    match input.data {
+        syn::Data::Struct(ref info) => {
+            if let syn::Fields::Unnamed(_) = info.fields {
+                return Err(syn::Error::new(
+                    info.struct_token.span,
+                    "No support for enums currently",
+                ));
+            }
+
+            Ok(())
+        }
+        syn::Data::Enum(ref info) => Err(syn::Error::new(
+            info.brace_token.span.close(),
+            "No support for enums currently",
+        )),
+        syn::Data::Union(ref info) => Err(syn::Error::new(
+            info.union_token.span,
+            "No support for enums currently",
+        )),
     }
 }

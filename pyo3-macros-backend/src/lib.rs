@@ -22,7 +22,7 @@ mod pyimpl;
 mod pymethod;
 
 pub use frompyobject::build_derive_from_pyobject;
-pub use intopydict::{build_derive_into_pydict, parse_generics, Pyo3Collection};
+pub use intopydict::{build_derive_into_pydict, check_type, parse_generics, Pyo3Collection};
 pub use module::{process_functions_in_module, pymodule_impl, PyModuleOptions};
 pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionOptions};
