@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
+      - uses: actions/setup-python@v4
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: actions/cache@v3
@@ -74,8 +74,10 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          for bench in call dict gil list pyclass pyobject set tuple; do
-            cargo bench --features hashbrown --bench "bench_$bench" -- --output-format bencher | tee -a output.txt
+          python -m pip install --upgrade pip && pip install nox
+          for bench in pyo3-benches/benches/*.rs; do
+            bench_name=$(basename "$bench" .rs)
+            nox -s bench -- --bench "$bench_name" -- --output-format bencher | tee -a output.txt
           done
 
       # Download previous benchmark result from cache (if exists)
