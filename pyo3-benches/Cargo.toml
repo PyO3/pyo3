@@ -1,0 +1,80 @@
+[package]
+name = "pyo3-benches"
+version = "0.1.0"
+description = "In-tree benchmarks for the PyO3 project"
+authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+pyo3 = { path = "../", features = ["auto-initialize"] }
+
+[dev-dependencies]
+criterion = "0.3.5"
+
+[[bench]]
+name = "bench_any"
+harness = false
+
+[[bench]]
+name = "bench_call"
+harness = false
+
+[[bench]]
+name = "bench_comparisons"
+harness = false
+
+[[bench]]
+name = "bench_err"
+harness = false
+
+[[bench]]
+name = "bench_decimal"
+harness = false
+required-features = ["pyo3/rust_decimal"]
+
+[[bench]]
+name = "bench_dict"
+harness = false
+required-features = ["pyo3/hashbrown"]
+
+[[bench]]
+name = "bench_frompyobject"
+harness = false
+required-features = ["pyo3/macros"]
+
+[[bench]]
+name = "bench_gil"
+harness = false
+
+[[bench]]
+name = "bench_list"
+harness = false
+
+[[bench]]
+name = "bench_pyclass"
+harness = false
+required-features = ["pyo3/macros"]
+
+[[bench]]
+name = "bench_pyobject"
+harness = false
+
+[[bench]]
+name = "bench_set"
+harness = false
+required-features = ["pyo3/hashbrown"]
+
+[[bench]]
+name = "bench_tuple"
+harness = false
+
+[[bench]]
+name = "bench_intern"
+harness = false
+
+[[bench]]
+name = "bench_extract"
+harness = false
+
+[workspace]

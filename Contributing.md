@@ -165,9 +165,9 @@ CI tests both the most recent stable Rust version and the minimum supported Rust
 
 PyO3 has two sets of benchmarks for evaluating some aspects of its performance. The benchmark suite is currently very small - please open PRs with new benchmarks if you're interested in helping to expand it!
 
-First, there are Rust-based benchmarks located in the `benches` subdirectory. As long as you have a nightly rust compiler available on your system, you can run these benchmarks with:
+First, there are Rust-based benchmarks located in the `pyo3-benches` subdirectory. You can run these benchmarks with:
 
-    cargo +nightly bench
+    nox -s bench
 
 Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](pytests).
 
