@@ -116,12 +116,12 @@ impl FnType {
             }
             FnType::FnClass | FnType::FnNewClass => {
                 quote! {
-                    _pyo3::types::PyType::from_type_ptr(_py, _slf as *mut _pyo3::ffi::PyTypeObject),
+                    _pyo3::types::PyType::from_type_ptr(py, _slf as *mut _pyo3::ffi::PyTypeObject),
                 }
             }
             FnType::FnModule => {
                 quote! {
-                    _py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf),
+                    py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf),
                 }
             }
         }
@@ -156,7 +156,7 @@ impl ExtractErrorMode {
 
 impl SelfType {
     pub fn receiver(&self, cls: &syn::Type, error_mode: ExtractErrorMode) -> TokenStream {
-        let py = syn::Ident::new("_py", Span::call_site());
+        let py = syn::Ident::new("py", Span::call_site());
         let slf = syn::Ident::new("_slf", Span::call_site());
         match self {
             SelfType::Receiver { span, mutable } => {
@@ -421,7 +421,7 @@ impl<'a> FnSpec<'a> {
     ) -> Result<TokenStream> {
         let deprecations = &self.deprecations;
         let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise);
-        let py = syn::Ident::new("_py", Span::call_site());
+        let py = syn::Ident::new("py", Span::call_site());
         let func_name = &self.name;
 
         let rust_call = |args: Vec<TokenStream>| {
