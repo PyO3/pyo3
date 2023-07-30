@@ -7,6 +7,8 @@ use syn::{
     DeriveInput, Error, Generics,
 };
 
+use crate::attributes::kw::name;
+
 const COL_NAMES: [&str; 8] = [
     "BTreeSet",
     "BinaryHeap",
@@ -96,59 +98,53 @@ impl Parse for Pyo3Collection {
             return Ok(Pyo3Collection(Vec::new()));
         }
 
-        let (name_map, tok_split) = split_struct(binding);
+        let name_map = split_struct(binding);
 
         let mut field_collection: Vec<Pyo3DictField> = Vec::new();
 
-        for i in &tok_split {
-            let tok_params_unparsed = &i.to_string();
-            let tok_bind: Vec<&str> = tok_params_unparsed.split(':').collect();
-            if tok_bind.len() == 2 {
-                if let Some(val) = name_map.get(tok_bind[0]) {
-                    field_collection.push(Pyo3DictField::new(
-                        tok_bind[0].to_string(),
-                        tok_bind[1],
-                        input.span(),
-                        Some(val.to_string()),
-                    ));
-                } else {
-                    field_collection.push(Pyo3DictField::new(
-                        tok_bind[0].to_string(),
-                        tok_bind[1],
-                        input.span(),
-                        None,
-                    ));
-                }
-            }
+        for (field_name, (field_val, dict_key)) in name_map.iter() {
+            field_collection.push(Pyo3DictField::new(
+                field_name.to_string(),
+                field_val,
+                input.span(),
+                dict_key.clone(),
+            ))
         }
 
         Ok(Pyo3Collection(field_collection))
     }
 }
 
-fn split_struct(binding: String) -> (HashMap<String, String>, Vec<String>) {
+fn split_struct(binding: String) -> HashMap<String, (String, Option<String>)> {
     let mut stack: Vec<char> = Vec::new();
-    let mut tok_split: Vec<String> = Vec::new();
     let mut start = 0;
     let binding = binding.replace('\n', "");
-    let mut name_map: HashMap<String, String> = HashMap::new();
+    let mut name_map: HashMap<String, (String, Option<String>)> = HashMap::new();
 
     for (i, char_val) in binding.chars().enumerate() {
         if char_val == ',' && stack.is_empty() {
             if binding[start..i].starts_with('#') {
                 let new_name = get_new_name(binding.clone(), start, i);
                 let var_string = &binding[start..i].split(']').collect::<Vec<&str>>()[1];
+                let info_parsed = var_string.split(':').collect::<Vec<&str>>();
                 name_map.insert(
-                    var_string.split(':').collect::<Vec<&str>>()[0].to_string(),
-                    new_name,
+                    info_parsed[0].to_string(),
+                    (info_parsed[1].to_string(), Some(new_name)),
                 );
-                tok_split.push(var_string.to_string());
             } else {
-                tok_split.push(binding[start..i].to_string());
+                let info_parsed = binding[start..i].split(':').collect::<Vec<&str>>();
+                name_map.insert(
+                    info_parsed[0].to_string(),
+                    (info_parsed[1].to_string(), None),
+                );
             }
             start = i + 1;
         } else if i == binding.len() - 1 {
-            tok_split.push(binding[start..].to_string());
+            let info_parsed = binding[start..].split(':').collect::<Vec<&str>>();
+            name_map.insert(
+                info_parsed[0].to_string(),
+                (info_parsed[1].to_string(), None),
+            );
         }
 
         if char_val == '<' || char_val == '(' {
@@ -160,16 +156,16 @@ fn split_struct(binding: String) -> (HashMap<String, String>, Vec<String>) {
         }
     }
 
-    if !tok_split.is_empty() {
-        let mut last = tok_split.last().unwrap().clone();
-        for i in stack {
-            last.push(i)
-        }
-        let len = tok_split.len();
-        tok_split[len - 1] = last;
-    }
+    // if !name_map.is_empty() {
+    //     let mut last = tok_split.last().unwrap().clone();
+    //     for i in stack {
+    //         last.push(i)
+    //     }
+    //     let len = tok_split.len();
+    //     tok_split[len - 1] = last;
+    // }
 
-    (name_map, tok_split)
+    name_map
 }
 
 fn get_new_name(binding: String, start: usize, i: usize) -> String {
