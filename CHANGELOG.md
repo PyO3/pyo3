@@ -10,6 +10,36 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.19.2] - 2023-08-01
+
+### Added
+
+- Add FFI definitions `PyState_AddModule`, `PyState_RemoveModule` and `PyState_FindModule` for PyPy 3.9 and up. [#3295](https://github.com/PyO3/pyo3/pull/3295)
+- Add FFI definitions `_PyObject_CallFunction_SizeT` and `_PyObject_CallMethod_SizeT`. [#3297](https://github.com/PyO3/pyo3/pull/3297)
+- Add a "performance" section to the guide collecting performance-related tricks and problems. [#3304](https://github.com/PyO3/pyo3/pull/3304)
+- Add `PyErr::Display` for all Python versions, and FFI symbol `PyErr_DisplayException` for Python 3.12. [#3334](https://github.com/PyO3/pyo3/pull/3334)
+- Add FFI definition `PyType_GetDict()` for Python 3.12. [#3339](https://github.com/PyO3/pyo3/pull/3339)
+- Add `PyAny::downcast_exact`. [#3346](https://github.com/PyO3/pyo3/pull/3346)
+- Add `PySlice::full()` to construct a full slice (`::`). [#3353](https://github.com/PyO3/pyo3/pull/3353)
+
+### Changed
+
+- Update `PyErr` for 3.12 betas to avoid deprecated ffi methods. [#3306](https://github.com/PyO3/pyo3/pull/3306)
+- Update FFI definitions of `object.h` for Python 3.12.0b4. [#3335](https://github.com/PyO3/pyo3/pull/3335)
+- Update `pyo3::ffi` struct definitions to be compatible with 3.12.0b4. [#3342](https://github.com/PyO3/pyo3/pull/3342)
+- Optimize conversion of `float` to `f64` (and `PyFloat::value`) on non-abi3 builds. [#3345](https://github.com/PyO3/pyo3/pull/3345)
+
+### Fixed
+
+- Fix timezone conversion bug for FixedOffset datetimes that were being incorrectly converted to and from UTC. [#3269](https://github.com/PyO3/pyo3/pull/3269)
+- Fix `SystemError` raised in `PyUnicodeDecodeError_Create` on PyPy 3.10. [#3297](https://github.com/PyO3/pyo3/pull/3297)
+- Correct FFI definition `Py_EnterRecursiveCall` to return `c_int` (was incorrectly returning `()`). [#3300](https://github.com/PyO3/pyo3/pull/3300)
+- Fix case where `PyErr::matches` and `PyErr::is_instance` returned results inconsistent with `PyErr::get_type`. [#3313](https://github.com/PyO3/pyo3/pull/3313)
+- Fix loss of panic message in `PanicException` when unwinding after the exception was "normalized". [#3326](https://github.com/PyO3/pyo3/pull/3326)
+- Fix `PyErr::from_value` and `PyErr::into_value` losing traceback on conversion. [#3328](https://github.com/PyO3/pyo3/pull/3328)
+- Fix reference counting of immortal objects on Python 3.12.0b4. [#3335](https://github.com/PyO3/pyo3/pull/3335)
+
+
 ## [0.19.1] - 2023-07-03
 
 ### Packaging
@@ -1503,7 +1533,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.19.2...HEAD
+[0.19.2]: https://github.com/pyo3/pyo3/compare/v0.19.1...v0.19.2
 [0.19.1]: https://github.com/pyo3/pyo3/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/pyo3/pyo3/compare/v0.18.3...v0.19.0
 [0.18.3]: https://github.com/pyo3/pyo3/compare/v0.18.2...v0.18.3
