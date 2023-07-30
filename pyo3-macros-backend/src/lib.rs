@@ -20,6 +20,7 @@ mod pyclass;
 mod pyfunction;
 mod pyimpl;
 mod pymethod;
+mod quotes;
 
 pub use frompyobject::build_derive_from_pyobject;
 pub use intopydict::{build_derive_into_pydict, check_type, parse_generics, Pyo3Collection};

@@ -216,3 +216,23 @@ fn cell_getter_setter() {
         );
     });
 }
+
+#[test]
+fn borrowed_value_with_lifetime_of_self() {
+    #[pyclass]
+    struct BorrowedValue {}
+
+    #[pymethods]
+    impl BorrowedValue {
+        #[getter]
+        fn value(&self) -> &str {
+            "value"
+        }
+    }
+
+    Python::with_gil(|py| {
+        let inst = Py::new(py, BorrowedValue {}).unwrap().to_object(py);
+
+        py_run!(py, inst, "assert inst.value == 'value'");
+    });
+}

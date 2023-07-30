@@ -53,6 +53,9 @@ impl Py_buffer {
     }
 }
 
+pub type getbufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buffer, c_int) -> c_int;
+pub type releasebufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buffer);
+
 /* Return 1 if the getbuffer function is available, otherwise return 0. */
 extern "C" {
     #[cfg(not(PyPy))]

@@ -2,6 +2,7 @@ use crate::attributes::{TextSignatureAttribute, TextSignatureAttributeValue};
 use crate::params::impl_arg_params;
 use crate::pyfunction::{FunctionSignature, PyFunctionArgPyO3Attributes};
 use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
+use crate::quotes;
 use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -115,12 +116,12 @@ impl FnType {
             }
             FnType::FnClass | FnType::FnNewClass => {
                 quote! {
-                    _pyo3::types::PyType::from_type_ptr(_py, _slf as *mut _pyo3::ffi::PyTypeObject),
+                    _pyo3::types::PyType::from_type_ptr(py, _slf as *mut _pyo3::ffi::PyTypeObject),
                 }
             }
             FnType::FnModule => {
                 quote! {
-                    _py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf),
+                    py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf),
                 }
             }
         }
@@ -155,7 +156,7 @@ impl ExtractErrorMode {
 
 impl SelfType {
     pub fn receiver(&self, cls: &syn::Type, error_mode: ExtractErrorMode) -> TokenStream {
-        let py = syn::Ident::new("_py", Span::call_site());
+        let py = syn::Ident::new("py", Span::call_site());
         let slf = syn::Ident::new("_slf", Span::call_site());
         match self {
             SelfType::Receiver { span, mutable } => {
@@ -409,15 +410,11 @@ impl<'a> FnSpec<'a> {
         cls: Option<&syn::Type>,
     ) -> Result<TokenStream> {
         let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise);
-        let py = syn::Ident::new("_py", Span::call_site());
+        let py = syn::Ident::new("py", Span::call_site());
         let func_name = &self.name;
 
         let rust_call = |args: Vec<TokenStream>| {
-            quote! {
-                _pyo3::impl_::pymethods::OkWrap::wrap(function(#self_arg #(#args),*), #py)
-                    .map(|obj| _pyo3::conversion::IntoPyPointer::into_ptr(obj))
-                    .map_err(::core::convert::Into::into)
-            }
+            quotes::map_result_into_ptr(quotes::ok_wrap(quote! { function(#self_arg #(#args),*) }))
         };
 
         let rust_name = if let Some(cls) = cls {
