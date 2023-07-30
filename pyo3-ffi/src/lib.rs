@@ -259,8 +259,6 @@ macro_rules! opaque_struct {
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
-#[cfg(Py_3_11)]
-pub use self::buffer::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
 pub use self::ceval::*;
@@ -293,6 +291,8 @@ pub use self::objimpl::*;
 pub use self::osmodule::*;
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 pub use self::pyarena::*;
+#[cfg(Py_3_11)]
+pub use self::pybuffer::*;
 pub use self::pycapsule::*;
 pub use self::pyerrors::*;
 pub use self::pyframe::*;
@@ -320,8 +320,6 @@ mod abstract_;
 // skipped ast.h
 mod bltinmodule;
 mod boolobject;
-#[cfg(Py_3_11)]
-mod buffer;
 mod bytearrayobject;
 mod bytesobject;
 // skipped cellobject.h
@@ -372,8 +370,9 @@ mod osmodule;
 // skipped py_curses.h
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 mod pyarena;
+#[cfg(Py_3_11)]
+mod pybuffer;
 mod pycapsule;
-// skipped pydecimal.h
 // skipped pydtrace.h
 mod pyerrors;
 // skipped pyexpat.h
@@ -387,6 +386,7 @@ mod pylifecycle;
 mod pymem;
 mod pyport;
 mod pystate;
+// skipped pystats.h
 mod pythonrun;
 // skipped pystrhex.h
 // skipped pystrcmp.h

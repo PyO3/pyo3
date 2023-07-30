@@ -591,14 +591,14 @@ mod tests {
     fn test_set_item_refcnt() {
         Python::with_gil(|py| {
             let cnt;
+            let obj = py.eval("object()", None, None).unwrap();
             {
                 let _pool = unsafe { crate::GILPool::new() };
-                let none = py.None();
-                cnt = none.get_refcnt(py);
-                let _dict = [(10, none)].into_py_dict(py);
+                cnt = obj.get_refcnt();
+                let _dict = [(10, obj)].into_py_dict(py);
             }
             {
-                assert_eq!(cnt, py.None().get_refcnt(py));
+                assert_eq!(cnt, obj.get_refcnt());
             }
         });
     }
