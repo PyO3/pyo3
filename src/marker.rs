@@ -1059,6 +1059,7 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::*;
     use crate::types::{IntoPyDict, PyDict, PyList};
     use crate::Py;
     use std::sync::Arc;

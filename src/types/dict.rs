@@ -1,6 +1,7 @@
 use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
+use crate::prelude::*;
 use crate::types::{PyAny, PyList};
 use crate::{ffi, PyObject, Python, ToPyObject};
 
@@ -219,30 +220,30 @@ impl PyDict {
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
-    pub fn keys(&self) -> &PyList {
+    pub fn keys<'py>(&'py self) -> Py2<'py, PyList> {
         unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
+            Py2::from_owned_ptr(self.py(), ffi::PyDict_Keys(self.as_ptr()))
+                .downcast_into_unchecked()
         }
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
-    pub fn values(&self) -> &PyList {
+    pub fn values<'py>(&'py self) -> Py2<'py, PyList> {
         unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
+            Py2::from_owned_ptr(self.py(), ffi::PyDict_Values(self.as_ptr()))
+                .downcast_into_unchecked()
         }
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
-    pub fn items(&self) -> &PyList {
+    pub fn items<'py>(&'py self) -> Py2<'py, PyList> {
         unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
+            Py2::from_owned_ptr(self.py(), ffi::PyDict_Items(self.as_ptr()))
+                .downcast_into_unchecked()
         }
     }
 

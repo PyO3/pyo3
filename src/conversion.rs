@@ -572,7 +572,7 @@ mod test_no_clone {}
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
+    use crate::types::{IntoPyDict, PyAny, PyDict, PyList, PyTuple};
     use crate::{PyObject, Python, ToPyObject};
 
     use super::PyTryFrom;
@@ -608,9 +608,9 @@ mod tests {
     #[test]
     fn test_try_from_unchecked() {
         Python::with_gil(|py| {
-            let list = PyList::new(py, [1, 2, 3]);
-            let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-            assert!(list.is(val));
+            let tuple = PyTuple::new(py, [1, 2, 3]);
+            let val = unsafe { <PyTuple as PyTryFrom>::try_from_unchecked(tuple.as_ref()) };
+            assert!(tuple.is(val));
         });
     }
 

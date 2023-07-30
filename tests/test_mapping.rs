@@ -9,6 +9,7 @@ use pyo3::types::IntoPyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyMapping;
 use pyo3::types::PySequence;
+use pyo3::Py2;
 
 mod common;
 
@@ -20,7 +21,7 @@ struct Mapping {
 #[pymethods]
 impl Mapping {
     #[new]
-    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    fn new(elements: Option<Py2<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = HashMap::with_capacity(pylist.len());
             for (i, pyelem) in pylist.into_iter().enumerate() {

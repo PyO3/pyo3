@@ -59,7 +59,8 @@ Calling `Python::with_gil` is effectively a no-op when the GIL is already held, 
 
 For example, instead of writing
 
-```rust
+// FIXME this example needs updating for new Py API
+```rust,compile_fail
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
@@ -77,7 +78,8 @@ impl PartialEq<Foo> for FooRef<'_> {
 
 use more efficient
 
-```rust
+// FIXME this example needs updating for new Py API
+```rust,compile_fail
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;

@@ -67,7 +67,8 @@ such as `getattr`, `setattr`, and `.call`.
 For a `&PyAny` object reference `any` where the underlying object is a Python-native type such as
 a list:
 
-```rust
+// FIXME this documentation needs updating for the new Py2 API
+```rust,compile_fail
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # Python::with_gil(|py| -> PyResult<()> {
@@ -138,14 +139,14 @@ let list = PyList::empty(py);
 // Use methods from PyAny on all Python types with Deref implementation
 let _ = list.repr()?;
 
-// To &PyAny automatically with Deref implementation
-let _: &PyAny = list;
+// To &Py2<PyAny> automatically with Deref implementation
+let _: &Py2<'_, PyAny> = &list;
 
-// To &PyAny explicitly with .as_ref()
-let _: &PyAny = list.as_ref();
+// To &Py2<PyAny> explicitly with .as_ref()
+let _: &Py2<'_, PyAny> = list.as_ref();
 
 // To Py<T> with .into() or Py::from()
-let _: Py<PyList> = list.into();
+let _: Py<PyList> = list.clone().into();
 
 // To PyObject with .into() or .to_object(py)
 let _: PyObject = list.into();

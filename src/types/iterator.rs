@@ -118,6 +118,7 @@ mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
+    use crate::prelude::*;
     use crate::types::{PyDict, PyList};
     use crate::{Py, PyAny, Python, ToPyObject};
 
@@ -238,7 +239,7 @@ def fibonacci(target):
     #[test]
     fn test_as_ref() {
         Python::with_gil(|py| {
-            let iter: Py<PyIterator> = PyAny::iter(PyList::empty(py)).unwrap().into();
+            let iter: Py<PyIterator> = PyAny::iter(PyList::empty(py).as_gil_ref()).unwrap().into();
             let mut iter_ref: &PyIterator = iter.as_ref(py);
             assert!(iter_ref.next().is_none());
         })
@@ -247,7 +248,7 @@ def fibonacci(target):
     #[test]
     fn test_into_ref() {
         Python::with_gil(|py| {
-            let bare_iter = PyAny::iter(PyList::empty(py)).unwrap();
+            let bare_iter = PyAny::iter(PyList::empty(py).into_gil_ref()).unwrap();
             assert_eq!(bare_iter.get_refcnt(), 1);
             let iter: Py<PyIterator> = bare_iter.into();
             assert_eq!(bare_iter.get_refcnt(), 2);

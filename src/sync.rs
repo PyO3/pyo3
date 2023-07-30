@@ -70,10 +70,10 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///
 /// static LIST_CELL: GILOnceCell<Py<PyList>> = GILOnceCell::new();
 ///
-/// pub fn get_shared_list(py: Python<'_>) -> &PyList {
+/// pub fn get_shared_list(py: Python<'_>) -> &Py2<'_, PyList> {
 ///     LIST_CELL
 ///         .get_or_init(py, || PyList::empty(py).into())
-///         .as_ref(py)
+///         .attach(py)
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```

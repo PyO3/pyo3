@@ -388,7 +388,7 @@ impl Py<PySequence> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyList, PySequence, PyTuple};
-    use crate::{Py, PyObject, Python, ToPyObject};
+    use crate::{prelude::*, Py, PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -656,7 +656,8 @@ mod tests {
             let ins = w.to_object(py);
             seq.set_slice(1, 4, ins.as_ref(py)).unwrap();
             assert_eq!([1, 7, 4, 5, 8], seq.extract::<[i32; 5]>().unwrap());
-            seq.set_slice(3, 100, PyList::empty(py)).unwrap();
+            seq.set_slice(3, 100, PyList::empty(py).as_gil_ref())
+                .unwrap();
             assert_eq!([1, 7, 4], seq.extract::<[i32; 3]>().unwrap());
         });
     }

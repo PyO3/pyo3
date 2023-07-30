@@ -1,9 +1,9 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
-use crate::exceptions;
-use crate::ffi;
+use crate::prelude::*;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
+use crate::{exceptions, ffi};
 use crate::{IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
@@ -162,14 +162,14 @@ impl PyModule {
     /// creating one if needed.
     ///
     /// `__all__` declares the items that will be imported with `from my_module import *`.
-    pub fn index(&self) -> PyResult<&PyList> {
+    pub fn index<'py>(&'py self) -> PyResult<Py2<'py, PyList>> {
         let __all__ = __all__(self.py());
-        match self.getattr(__all__) {
-            Ok(idx) => idx.downcast().map_err(PyErr::from),
+        match Py2::<PyModule>::borrowed_from_gil_ref(&self).getattr(__all__) {
+            Ok(idx) => idx.downcast_into().map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
-                    self.setattr(__all__, l).map_err(PyErr::from)?;
+                    self.setattr(__all__, &l).map_err(PyErr::from)?;
                     Ok(l)
                 } else {
                     Err(err)

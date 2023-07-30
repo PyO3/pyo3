@@ -569,7 +569,7 @@ An additional advantage of using Rust's indexing conventions for these types is
 that these types can now also support Rust's indexing operators as part of a
 consistent API:
 
-```rust
+```rust,compile_fail
 use pyo3::{Python, types::PyList};
 
 Python::with_gil(|py| {

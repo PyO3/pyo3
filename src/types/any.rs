@@ -981,7 +981,7 @@ impl PyAny {
 /// It is recommended you import this trait via `use pyo3::prelude::*` rather than
 /// by importing this trait directly.
 #[doc(alias = "PyAny")]
-pub(crate) trait PyAnyMethods<'py> {
+pub trait PyAnyMethods<'py> {
     /// Returns whether `self` and `other` point to the same object. To compare
     /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
     ///
@@ -2180,9 +2180,10 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        basic::CompareOp,
+        class::basic::CompareOp,
+        prelude::*,
         types::{IntoPyDict, PyAny, PyBool, PyList, PyLong, PyModule},
-        PyTypeInfo, Python, ToPyObject,
+        Py2, PyTypeInfo, Python, ToPyObject,
     };
 
     #[test]
@@ -2316,11 +2317,14 @@ class SimpleClass:
     #[test]
     fn test_dir() {
         Python::with_gil(|py| {
-            let obj = py.eval("42", None, None).unwrap();
-            let dir = py
-                .eval("dir(42)", None, None)
+            let obj = py
+                .eval("42", None, None)
                 .unwrap()
-                .downcast::<PyList>()
+                .to_object(py)
+                .attach_into(py);
+            let dir = Py2::<PyAny>::borrowed_from_gil_ref(&py.eval("dir(42)", None, None).unwrap())
+                .clone()
+                .downcast_into::<PyList>()
                 .unwrap();
             let a = obj
                 .dir()
@@ -2584,10 +2588,10 @@ class SimpleClass:
     #[test]
     fn test_is_empty() {
         Python::with_gil(|py| {
-            let empty_list: &PyAny = PyList::empty(py);
+            let empty_list: &PyAny = PyList::empty(py).into_gil_ref();
             assert!(empty_list.is_empty().unwrap());
 
-            let list: &PyAny = PyList::new(py, vec![1, 2, 3]);
+            let list: &PyAny = PyList::new(py, vec![1, 2, 3]).into_gil_ref();
             assert!(!list.is_empty().unwrap());
 
             let not_container = 5.to_object(py).into_ref(py);

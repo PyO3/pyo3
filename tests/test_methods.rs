@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
+use pyo3::Py2;
 use pyo3::PyCell;
 
 mod common;
@@ -675,7 +676,7 @@ struct MethodWithLifeTime {}
 
 #[pymethods]
 impl MethodWithLifeTime {
-    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<&'py PyList> {
+    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<Py2<'py, PyList>> {
         let mut items = vec![];
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());

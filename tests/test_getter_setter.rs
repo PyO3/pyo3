@@ -5,6 +5,7 @@ use std::cell::Cell;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyList};
+use pyo3::Py2;
 
 mod common;
 
@@ -41,7 +42,7 @@ impl ClassWithProperties {
     }
 
     #[getter]
-    fn get_data_list<'py>(&self, py: Python<'py>) -> &'py PyList {
+    fn get_data_list<'py>(&self, py: Python<'py>) -> Py2<'py, PyList> {
         PyList::new(py, [self.num])
     }
 }

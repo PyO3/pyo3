@@ -4,10 +4,13 @@ use std::iter::FusedIterator;
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
+use crate::prelude::*;
 use crate::types::{PySequence, PyTuple};
-use crate::{Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{Py2, PyAny, PyObject, Python, ToPyObject};
 
 /// Represents a Python `list`.
+///
+/// For methods associated with this type, see the [`PyListMethods`] trait.
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
@@ -15,10 +18,10 @@ pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyLi
 
 #[inline]
 #[track_caller]
-pub(crate) fn new_from_iter(
-    py: Python<'_>,
+pub(crate) fn new_from_iter<'py>(
+    py: Python<'py>,
     elements: &mut dyn ExactSizeIterator<Item = PyObject>,
-) -> Py<PyList> {
+) -> Py2<'py, PyList> {
     unsafe {
         // PyList_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -31,7 +34,7 @@ pub(crate) fn new_from_iter(
         // We create the  `Py` pointer here for two reasons:
         // - panics if the ptr is null
         // - its Drop cleans up the list if user code or the asserts panic.
-        let list: Py<PyList> = Py::from_owned_ptr(py, ptr);
+        let list: Py2<'_, PyList> = Py2::from_owned_ptr(py, ptr).downcast_into_unchecked();
 
         let mut counter: Py_ssize_t = 0;
 
@@ -65,7 +68,7 @@ impl PyList {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
-    ///     let list: &PyList = PyList::new(py, elements);
+    ///     let list = PyList::new(py, elements);
     ///     assert_eq!(format!("{:?}", list), "[0, 1, 2, 3, 4, 5]");
     /// });
     /// # }
@@ -77,43 +80,38 @@ impl PyList {
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function with (for example) [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
-    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
+    pub fn new<'py, T, U>(
+        py: Python<'py>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> Py2<'py, PyList>
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
         let mut iter = elements.into_iter().map(|e| e.to_object(py));
-        let list = new_from_iter(py, &mut iter);
-        list.into_ref(py)
+        new_from_iter(py, &mut iter)
     }
 
     /// Constructs a new empty list.
-    pub fn empty(py: Python<'_>) -> &PyList {
-        unsafe { py.from_owned_ptr::<PyList>(ffi::PyList_New(0)) }
+    pub fn empty(py: Python<'_>) -> Py2<'_, PyList> {
+        unsafe { Py2::from_owned_ptr(py, ffi::PyList_New(0)).downcast_into_unchecked() }
     }
+}
 
+/// Implementation of functionality for [`PyList`].
+///
+/// These methods are defined for the `Py2<'py, PyList>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+pub trait PyListMethods<'py> {
     /// Returns the length of the list.
-    pub fn len(&self) -> usize {
-        unsafe {
-            #[cfg(not(Py_LIMITED_API))]
-            let size = ffi::PyList_GET_SIZE(self.as_ptr());
-            #[cfg(Py_LIMITED_API)]
-            let size = ffi::PyList_Size(self.as_ptr());
-
-            // non-negative Py_ssize_t should always fit into Rust usize
-            size as usize
-        }
-    }
+    fn len(&self) -> usize;
 
     /// Checks if the list is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+    fn is_empty(&self) -> bool;
 
     /// Returns `self` cast as a `PySequence`.
-    pub fn as_sequence(&self) -> &PySequence {
-        unsafe { self.downcast_unchecked() }
-    }
+    fn as_sequence(&self) -> &'py PySequence;
 
     /// Gets the list item at the specified index.
     /// # Example
@@ -125,7 +123,107 @@ impl PyList {
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 2);
     /// });
     /// ```
-    pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
+    fn get_item(&self, index: usize) -> PyResult<&'py PyAny>;
+
+    /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
+    ///
+    /// # Safety
+    ///
+    /// Caller must verify that the index is within the bounds of the list.
+    #[cfg(not(Py_LIMITED_API))]
+    unsafe fn get_item_unchecked(&self, index: usize) -> &'py PyAny;
+
+    /// Takes the slice `self[low:high]` and returns it as a new list.
+    ///
+    /// Indices must be nonnegative, and out-of-range indices are clipped to
+    /// `self.len()`.
+    fn get_slice(&self, low: usize, high: usize) -> &'py PyList;
+
+    /// Sets the item at the specified index.
+    ///
+    /// Raises `IndexError` if the index is out of range.
+    fn set_item<I>(&self, index: usize, item: I) -> PyResult<()>
+    where
+        I: ToPyObject;
+
+    /// Deletes the `index`th element of self.
+    ///
+    /// This is equivalent to the Python statement `del self[i]`.
+    fn del_item(&self, index: usize) -> PyResult<()>;
+
+    /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
+    ///
+    /// This is equivalent to the Python statement `self[low:high] = v`.
+    fn set_slice(&self, low: usize, high: usize, seq: &PyAny) -> PyResult<()>;
+
+    /// Deletes the slice from `low` to `high` from `self`.
+    ///
+    /// This is equivalent to the Python statement `del self[low:high]`.
+    fn del_slice(&self, low: usize, high: usize) -> PyResult<()>;
+
+    /// Appends an item to the list.
+    fn append<I>(&self, item: I) -> PyResult<()>
+    where
+        I: ToPyObject;
+
+    /// Inserts an item at the specified index.
+    ///
+    /// If `index >= self.len()`, inserts at the end.
+    fn insert<I>(&self, index: usize, item: I) -> PyResult<()>
+    where
+        I: ToPyObject;
+
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
+    fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToPyObject;
+
+    /// Returns the first index `i` for which `self[i] == value`.
+    ///
+    /// This is equivalent to the Python expression `self.index(value)`.
+    fn index<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToPyObject;
+
+    /// Returns an iterator over this list's items.
+    fn iter(&self) -> PyListIterator<'py>;
+
+    /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
+    fn sort(&self) -> PyResult<()>;
+
+    /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
+    fn reverse(&self) -> PyResult<()>;
+
+    /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
+    ///
+    /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
+    fn to_tuple(&self) -> &'py PyTuple;
+}
+
+impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
+    fn len(&self) -> usize {
+        unsafe {
+            #[cfg(not(Py_LIMITED_API))]
+            let size = ffi::PyList_GET_SIZE(self.as_ptr());
+            #[cfg(Py_LIMITED_API)]
+            let size = ffi::PyList_Size(self.as_ptr());
+
+            // non-negative Py_ssize_t should always fit into Rust usize
+            size as usize
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn as_sequence(&self) -> &'py PySequence {
+        unsafe { self.clone().into_gil_ref().downcast_unchecked() }
+    }
+
+    fn get_item(&self, index: usize) -> PyResult<&'py PyAny> {
         unsafe {
             let item = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
             // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
@@ -134,24 +232,15 @@ impl PyList {
         }
     }
 
-    /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
-    ///
-    /// # Safety
-    ///
-    /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(Py_LIMITED_API))]
-    pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
+    unsafe fn get_item_unchecked(&self, index: usize) -> &'py PyAny {
         let item = ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
         // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
         ffi::Py_XINCREF(item);
         self.py().from_owned_ptr(item)
     }
 
-    /// Takes the slice `self[low:high]` and returns it as a new list.
-    ///
-    /// Indices must be nonnegative, and out-of-range indices are clipped to
-    /// `self.len()`.
-    pub fn get_slice(&self, low: usize, high: usize) -> &PyList {
+    fn get_slice(&self, low: usize, high: usize) -> &'py PyList {
         unsafe {
             self.py().from_owned_ptr(ffi::PyList_GetSlice(
                 self.as_ptr(),
@@ -161,14 +250,11 @@ impl PyList {
         }
     }
 
-    /// Sets the item at the specified index.
-    ///
-    /// Raises `IndexError` if the index is out of range.
-    pub fn set_item<I>(&self, index: usize, item: I) -> PyResult<()>
+    fn set_item<I>(&self, index: usize, item: I) -> PyResult<()>
     where
         I: ToPyObject,
     {
-        fn inner(list: &PyList, index: usize, item: PyObject) -> PyResult<()> {
+        fn inner(list: &Py2<'_, PyList>, index: usize, item: PyObject) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_SetItem(list.as_ptr(), get_ssize_index(index), item.into_ptr())
             })
@@ -177,19 +263,13 @@ impl PyList {
         inner(self, index, item.to_object(self.py()))
     }
 
-    /// Deletes the `index`th element of self.
-    ///
-    /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
-    pub fn del_item(&self, index: usize) -> PyResult<()> {
+    fn del_item(&self, index: usize) -> PyResult<()> {
         self.as_sequence().del_item(index)
     }
 
-    /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
-    ///
-    /// This is equivalent to the Python statement `self[low:high] = v`.
     #[inline]
-    pub fn set_slice(&self, low: usize, high: usize, seq: &PyAny) -> PyResult<()> {
+    fn set_slice(&self, low: usize, high: usize, seq: &PyAny) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyList_SetSlice(
                 self.as_ptr(),
@@ -200,20 +280,16 @@ impl PyList {
         })
     }
 
-    /// Deletes the slice from `low` to `high` from `self`.
-    ///
-    /// This is equivalent to the Python statement `del self[low:high]`.
     #[inline]
-    pub fn del_slice(&self, low: usize, high: usize) -> PyResult<()> {
+    fn del_slice(&self, low: usize, high: usize) -> PyResult<()> {
         self.as_sequence().del_slice(low, high)
     }
 
-    /// Appends an item to the list.
-    pub fn append<I>(&self, item: I) -> PyResult<()>
+    fn append<I>(&self, item: I) -> PyResult<()>
     where
         I: ToPyObject,
     {
-        fn inner(list: &PyList, item: PyObject) -> PyResult<()> {
+        fn inner(list: &Py2<'_, PyList>, item: PyObject) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_Append(list.as_ptr(), item.as_ptr())
             })
@@ -222,14 +298,11 @@ impl PyList {
         inner(self, item.to_object(self.py()))
     }
 
-    /// Inserts an item at the specified index.
-    ///
-    /// If `index >= self.len()`, inserts at the end.
-    pub fn insert<I>(&self, index: usize, item: I) -> PyResult<()>
+    fn insert<I>(&self, index: usize, item: I) -> PyResult<()>
     where
         I: ToPyObject,
     {
-        fn inner(list: &PyList, index: usize, item: PyObject) -> PyResult<()> {
+        fn inner(list: &Py2<'_, PyList>, index: usize, item: PyObject) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_Insert(list.as_ptr(), get_ssize_index(index), item.as_ptr())
             })
@@ -238,60 +311,59 @@ impl PyList {
         inner(self, index, item.to_object(self.py()))
     }
 
-    /// Determines if self contains `value`.
-    ///
-    /// This is equivalent to the Python expression `value in self`.
     #[inline]
-    pub fn contains<V>(&self, value: V) -> PyResult<bool>
+    fn contains<V>(&self, value: V) -> PyResult<bool>
     where
         V: ToPyObject,
     {
         self.as_sequence().contains(value)
     }
 
-    /// Returns the first index `i` for which `self[i] == value`.
-    ///
-    /// This is equivalent to the Python expression `self.index(value)`.
     #[inline]
-    pub fn index<V>(&self, value: V) -> PyResult<usize>
+    fn index<V>(&self, value: V) -> PyResult<usize>
     where
         V: ToPyObject,
     {
         self.as_sequence().index(value)
     }
 
-    /// Returns an iterator over this list's items.
-    pub fn iter(&self) -> PyListIterator<'_> {
+    fn iter(&self) -> PyListIterator<'py> {
         PyListIterator {
-            list: self,
+            list: self.clone(),
             index: 0,
             length: self.len(),
         }
     }
 
-    /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
-    pub fn sort(&self) -> PyResult<()> {
+    fn sort(&self) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe { ffi::PyList_Sort(self.as_ptr()) })
     }
 
-    /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
-    pub fn reverse(&self) -> PyResult<()> {
+    fn reverse(&self) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe { ffi::PyList_Reverse(self.as_ptr()) })
     }
 
-    /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
-    ///
-    /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
-    pub fn to_tuple(&self) -> &PyTuple {
+    fn to_tuple(&self) -> &'py PyTuple {
         unsafe { self.py().from_owned_ptr(ffi::PyList_AsTuple(self.as_ptr())) }
     }
 }
 
 index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 
+// Helper implementations to allow index_impls! to remain for now
+impl PyList {
+    fn len(&self) -> usize {
+        Py2::<PyList>::borrowed_from_gil_ref(&self).len()
+    }
+
+    fn get_slice(&self, low: usize, high: usize) -> &PyList {
+        Py2::<PyList>::borrowed_from_gil_ref(&self).get_slice(low, high)
+    }
+}
+
 /// Used by `PyList::iter()`.
-pub struct PyListIterator<'a> {
-    list: &'a PyList,
+pub struct PyListIterator<'py> {
+    list: Py2<'py, PyList>,
     index: usize,
     length: usize,
 }
@@ -306,8 +378,8 @@ impl<'a> PyListIterator<'a> {
     }
 }
 
-impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyAny;
+impl<'py> Iterator for PyListIterator<'py> {
+    type Item = &'py PyAny;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -352,9 +424,18 @@ impl<'a> ExactSizeIterator for PyListIterator<'a> {
 
 impl FusedIterator for PyListIterator<'_> {}
 
-impl<'a> IntoIterator for &'a PyList {
-    type Item = &'a PyAny;
-    type IntoIter = PyListIterator<'a>;
+impl<'py> std::iter::IntoIterator for Py2<'py, PyList> {
+    type Item = &'py PyAny;
+    type IntoIter = PyListIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'py> std::iter::IntoIterator for &Py2<'py, PyList> {
+    type Item = &'py PyAny;
+    type IntoIter = PyListIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -363,6 +444,7 @@ impl<'a> IntoIterator for &'a PyList {
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::*;
     use crate::types::{PyList, PyTuple};
     use crate::Python;
     use crate::{IntoPy, PyObject, ToPyObject};
@@ -371,10 +453,10 @@ mod tests {
     fn test_new() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5, 7]);
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
-            assert_eq!(3, list[1].extract::<i32>().unwrap());
-            assert_eq!(5, list[2].extract::<i32>().unwrap());
-            assert_eq!(7, list[3].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
+            assert_eq!(5, list.clone().into_gil_ref()[2].extract::<i32>().unwrap());
+            assert_eq!(7, list.clone().into_gil_ref()[3].extract::<i32>().unwrap());
         });
     }
 
@@ -414,9 +496,9 @@ mod tests {
             let list = PyList::new(py, [2, 3, 5, 7]);
             let val = 42i32.to_object(py);
             let val2 = 42i32.to_object(py);
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             list.set_item(0, val).unwrap();
-            assert_eq!(42, list[0].extract::<i32>().unwrap());
+            assert_eq!(42, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             assert!(list.set_item(10, val2).is_err());
         });
     }
@@ -446,13 +528,13 @@ mod tests {
             let val = 42i32.to_object(py);
             let val2 = 43i32.to_object(py);
             assert_eq!(4, list.len());
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             list.insert(0, val).unwrap();
             list.insert(1000, val2).unwrap();
             assert_eq!(6, list.len());
-            assert_eq!(42, list[0].extract::<i32>().unwrap());
-            assert_eq!(2, list[1].extract::<i32>().unwrap());
-            assert_eq!(43, list[5].extract::<i32>().unwrap());
+            assert_eq!(42, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
+            assert_eq!(43, list.clone().into_gil_ref()[5].extract::<i32>().unwrap());
         });
     }
 
@@ -477,8 +559,8 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2]);
             list.append(3).unwrap();
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
-            assert_eq!(3, list[1].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
         });
     }
 
@@ -515,8 +597,8 @@ mod tests {
     fn test_iter_size_hint() {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
-            let ob = v.to_object(py);
-            let list: &PyList = ob.downcast(py).unwrap();
+            let ob = v.to_object(py).attach_into(py);
+            let list = ob.downcast_into::<PyList>().unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -534,8 +616,8 @@ mod tests {
     fn test_iter_rev() {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
-            let ob = v.to_object(py);
-            let list: &PyList = ob.downcast(py).unwrap();
+            let ob = v.to_object(py).attach_into(py);
+            let list = ob.downcast::<PyList>().unwrap();
 
             let mut iter = list.iter().rev();
 
@@ -583,15 +665,15 @@ mod tests {
         Python::with_gil(|py| {
             let v = vec![7, 3, 2, 5];
             let list = PyList::new(py, &v);
-            assert_eq!(7, list[0].extract::<i32>().unwrap());
-            assert_eq!(3, list[1].extract::<i32>().unwrap());
-            assert_eq!(2, list[2].extract::<i32>().unwrap());
-            assert_eq!(5, list[3].extract::<i32>().unwrap());
+            assert_eq!(7, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[2].extract::<i32>().unwrap());
+            assert_eq!(5, list.clone().into_gil_ref()[3].extract::<i32>().unwrap());
             list.sort().unwrap();
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
-            assert_eq!(3, list[1].extract::<i32>().unwrap());
-            assert_eq!(5, list[2].extract::<i32>().unwrap());
-            assert_eq!(7, list[3].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
+            assert_eq!(5, list.clone().into_gil_ref()[2].extract::<i32>().unwrap());
+            assert_eq!(7, list.clone().into_gil_ref()[3].extract::<i32>().unwrap());
         });
     }
 
@@ -600,15 +682,15 @@ mod tests {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
             let list = PyList::new(py, &v);
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
-            assert_eq!(3, list[1].extract::<i32>().unwrap());
-            assert_eq!(5, list[2].extract::<i32>().unwrap());
-            assert_eq!(7, list[3].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
+            assert_eq!(5, list.clone().into_gil_ref()[2].extract::<i32>().unwrap());
+            assert_eq!(7, list.clone().into_gil_ref()[3].extract::<i32>().unwrap());
             list.reverse().unwrap();
-            assert_eq!(7, list[0].extract::<i32>().unwrap());
-            assert_eq!(5, list[1].extract::<i32>().unwrap());
-            assert_eq!(3, list[2].extract::<i32>().unwrap());
-            assert_eq!(2, list[3].extract::<i32>().unwrap());
+            assert_eq!(7, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(5, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[2].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[3].extract::<i32>().unwrap());
         });
     }
 
@@ -616,9 +698,9 @@ mod tests {
     fn test_array_into_py() {
         Python::with_gil(|py| {
             let array: PyObject = [1, 2].into_py(py);
-            let list: &PyList = array.downcast(py).unwrap();
-            assert_eq!(1, list[0].extract::<i32>().unwrap());
-            assert_eq!(2, list[1].extract::<i32>().unwrap());
+            let list = array.attach_into(py).downcast_into::<PyList>().unwrap();
+            assert_eq!(1, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
         });
     }
 
@@ -658,9 +740,9 @@ mod tests {
     fn test_list_index_trait() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5]);
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
-            assert_eq!(3, list[1].extract::<i32>().unwrap());
-            assert_eq!(5, list[2].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[1].extract::<i32>().unwrap());
+            assert_eq!(5, list.clone().into_gil_ref()[2].extract::<i32>().unwrap());
         });
     }
 
@@ -669,7 +751,7 @@ mod tests {
     fn test_list_index_trait_panic() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5]);
-            let _ = &list[7];
+            let _ = &list.clone().into_gil_ref()[7];
         });
     }
 
@@ -677,14 +759,54 @@ mod tests {
     fn test_list_index_trait_ranges() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5]);
-            assert_eq!(vec![3, 5], list[1..3].extract::<Vec<i32>>().unwrap());
-            assert_eq!(Vec::<i32>::new(), list[3..3].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![3, 5], list[1..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(Vec::<i32>::new(), list[3..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![2, 3, 5], list[..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![3, 5], list[1..=2].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![2, 3], list[..2].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![2, 3], list[..=1].extract::<Vec<i32>>().unwrap());
+            assert_eq!(
+                vec![3, 5],
+                list.clone().into_gil_ref()[1..3]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
+            assert_eq!(
+                Vec::<i32>::new(),
+                list.clone().into_gil_ref()[3..3]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
+            assert_eq!(
+                vec![3, 5],
+                list.clone().into_gil_ref()[1..]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
+            assert_eq!(
+                Vec::<i32>::new(),
+                list.clone().into_gil_ref()[3..]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
+            assert_eq!(
+                vec![2, 3, 5],
+                list.clone().into_gil_ref()[..]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
+            assert_eq!(
+                vec![3, 5],
+                list.clone().into_gil_ref()[1..=2]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
+            assert_eq!(
+                vec![2, 3],
+                list.clone().into_gil_ref()[..2]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
+            assert_eq!(
+                vec![2, 3],
+                list.clone().into_gil_ref()[..=1]
+                    .extract::<Vec<i32>>()
+                    .unwrap()
+            );
         })
     }
 
@@ -693,7 +815,9 @@ mod tests {
     fn test_list_index_trait_range_panic_start() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5]);
-            list[5..10].extract::<Vec<i32>>().unwrap();
+            list.clone().into_gil_ref()[5..10]
+                .extract::<Vec<i32>>()
+                .unwrap();
         })
     }
 
@@ -702,7 +826,9 @@ mod tests {
     fn test_list_index_trait_range_panic_end() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5]);
-            list[1..10].extract::<Vec<i32>>().unwrap();
+            list.clone().into_gil_ref()[1..10]
+                .extract::<Vec<i32>>()
+                .unwrap();
         })
     }
 
@@ -712,7 +838,9 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5]);
             #[allow(clippy::reversed_empty_ranges)]
-            list[2..1].extract::<Vec<i32>>().unwrap();
+            list.clone().into_gil_ref()[2..1]
+                .extract::<Vec<i32>>()
+                .unwrap();
         })
     }
 
@@ -721,7 +849,9 @@ mod tests {
     fn test_list_index_trait_range_from_panic() {
         Python::with_gil(|py| {
             let list = PyList::new(py, [2, 3, 5]);
-            list[8..].extract::<Vec<i32>>().unwrap();
+            list.clone().into_gil_ref()[8..]
+                .extract::<Vec<i32>>()
+                .unwrap();
         })
     }
 
@@ -730,17 +860,17 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, [1, 1, 2, 3, 5, 8]);
             assert!(list.del_item(10).is_err());
-            assert_eq!(1, list[0].extract::<i32>().unwrap());
+            assert_eq!(1, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             assert!(list.del_item(0).is_ok());
-            assert_eq!(1, list[0].extract::<i32>().unwrap());
+            assert_eq!(1, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             assert!(list.del_item(0).is_ok());
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(2, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             assert!(list.del_item(0).is_ok());
-            assert_eq!(3, list[0].extract::<i32>().unwrap());
+            assert_eq!(3, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             assert!(list.del_item(0).is_ok());
-            assert_eq!(5, list[0].extract::<i32>().unwrap());
+            assert_eq!(5, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             assert!(list.del_item(0).is_ok());
-            assert_eq!(8, list[0].extract::<i32>().unwrap());
+            assert_eq!(8, list.clone().into_gil_ref()[0].extract::<i32>().unwrap());
             assert!(list.del_item(0).is_ok());
             assert_eq!(0, list.len());
             assert!(list.del_item(0).is_err());
@@ -752,9 +882,10 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, [1, 1, 2, 3, 5, 8]);
             let ins = PyList::new(py, [7, 4]);
-            list.set_slice(1, 4, ins).unwrap();
+            list.set_slice(1, 4, ins.clone().into_gil_ref()).unwrap();
             assert_eq!([1, 7, 4, 5, 8], list.extract::<[i32; 5]>().unwrap());
-            list.set_slice(3, 100, PyList::empty(py)).unwrap();
+            list.set_slice(3, 100, PyList::empty(py).into_gil_ref())
+                .unwrap();
             assert_eq!([1, 7, 4], list.extract::<[i32; 3]>().unwrap());
         });
     }

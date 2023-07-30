@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
-use pyo3::{ffi, prelude::*};
+use pyo3::{ffi, prelude::*, Py2};
 
 use pyo3::py_run;
 
@@ -16,7 +16,7 @@ struct ByteSequence {
 #[pymethods]
 impl ByteSequence {
     #[new]
-    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    fn new(elements: Option<Py2<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
             for pyelem in pylist {

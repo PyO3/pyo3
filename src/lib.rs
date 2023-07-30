@@ -303,7 +303,7 @@ pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::instance::{Py, PyNativeType, PyObject};
+pub use crate::instance::{Py, Py2, PyNativeType, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
@@ -311,9 +311,6 @@ pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
-
-// Expected to become public API in 0.21 under a different name
-pub(crate) use crate::instance::Py2;
 
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
