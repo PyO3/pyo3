@@ -38,4 +38,5 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/get_set_all.rs");
     t.compile_fail("tests/ui/traverse.rs");
     t.compile_fail("tests/ui/invalid_intopydict.rs");
+    t.compile_fail("tests/ui/invalid_intopydict.rs");
 }
