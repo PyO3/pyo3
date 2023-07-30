@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     callback::PyCallbackOutput, ffi, impl_::panic::PanicTrap, methods::IPowModulo,
-    panic::PanicException, types::PyModule, GILPool, IntoPyPointer, Py, PyResult, Python,
+    panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
 };
 
 #[inline]

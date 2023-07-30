@@ -4,7 +4,7 @@ use crate::{
     err::{self, PyErr, PyResult},
     Py, PyObject,
 };
-use crate::{ffi, AsPyPointer, PyAny, Python, ToPyObject};
+use crate::{ffi, PyAny, Python, ToPyObject};
 
 use std::ptr;
 

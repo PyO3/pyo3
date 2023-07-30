@@ -1,7 +1,7 @@
 //! `PyClass` and related traits.
 use crate::{
-    callback::IntoPyCallbackOutput, ffi, impl_::pyclass::PyClassImpl, IntoPy, IntoPyPointer,
-    PyCell, PyObject, PyResult, PyTypeInfo, Python,
+    callback::IntoPyCallbackOutput, ffi, impl_::pyclass::PyClassImpl, IntoPy, PyCell, PyObject,
+    PyResult, PyTypeInfo, Python,
 };
 use std::{cmp::Ordering, os::raw::c_int};
 

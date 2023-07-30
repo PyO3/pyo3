@@ -2,7 +2,7 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     types::{PyTraceback, PyType},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, PyTypeInfo, Python,
+    IntoPy, Py, PyAny, PyObject, PyTypeInfo, Python,
 };
 
 #[derive(Clone)]
@@ -118,12 +118,20 @@ impl PyErrState {
                 ptype,
                 pvalue,
                 ptraceback,
-            } => (ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr()),
+            } => (
+                ptype.into_ptr(),
+                pvalue.map_or(std::ptr::null_mut(), Py::into_ptr),
+                ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr),
+            ),
             PyErrState::Normalized(PyErrStateNormalized {
                 ptype,
                 pvalue,
                 ptraceback,
-            }) => (ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr()),
+            }) => (
+                ptype.into_ptr(),
+                pvalue.into_ptr(),
+                ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr),
+            ),
         }
     }
 

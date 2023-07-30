@@ -2,7 +2,7 @@ use crate::err::{PyDowncastError, PyResult};
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
-use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
+use crate::{ffi, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]

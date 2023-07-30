@@ -1,4 +1,4 @@
-use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
+use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
 use std::os::raw::c_char;

@@ -1,5 +1,5 @@
 use crate::Python;
-use crate::{ffi, AsPyPointer, PyAny};
+use crate::{ffi, PyAny};
 use crate::{pyobject_native_type_core, PyErr, PyResult};
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};

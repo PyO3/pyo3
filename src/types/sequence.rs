@@ -7,8 +7,8 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{ffi, PyNativeType, PyObject, ToPyObject};
-use crate::{AsPyPointer, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
+use crate::{Py, Python};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -388,7 +388,7 @@ impl Py<PySequence> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyList, PySequence, PyTuple};
-    use crate::{AsPyPointer, Py, PyObject, Python, ToPyObject};
+    use crate::{Py, PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

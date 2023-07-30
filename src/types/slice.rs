@@ -1,6 +1,6 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
+use crate::{PyAny, PyObject, Python, ToPyObject};
 use std::os::raw::c_long;
 
 /// Represents a Python `slice`.

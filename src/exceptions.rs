@@ -42,7 +42,6 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
                 unsafe {
-                    use $crate::AsPyPointer;
                     let cause: &$crate::exceptions::PyBaseException = self
                         .py()
                         .from_owned_ptr_or_opt($crate::ffi::PyException_GetCause(self.as_ptr()))?;
@@ -101,7 +100,6 @@ macro_rules! import_exception {
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::GILOnceCell;
-                use $crate::AsPyPointer;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 
@@ -240,7 +238,6 @@ macro_rules! create_exception_type_object {
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::GILOnceCell;
-                use $crate::AsPyPointer;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 

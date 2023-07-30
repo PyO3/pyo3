@@ -20,7 +20,6 @@ use std::ptr::NonNull;
 ///
 /// ```rust
 /// use pyo3::prelude::*;
-/// use pyo3::AsPyPointer;
 /// use pyo3::types::PyString;
 /// use pyo3::ffi;
 ///
@@ -40,7 +39,6 @@ use std::ptr::NonNull;
 ///
 /// ```rust,no_run
 /// # use pyo3::prelude::*;
-/// # use pyo3::AsPyPointer;
 /// # use pyo3::ffi;
 /// #
 /// Python::with_gil(|py| {
@@ -632,7 +630,7 @@ mod test_no_clone {}
 #[cfg(test)]
 mod tests {
     use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
-    use crate::{AsPyPointer, PyObject, Python, ToPyObject};
+    use crate::{PyObject, Python, ToPyObject};
 
     use super::PyTryFrom;
 
@@ -676,6 +674,7 @@ mod tests {
     #[test]
     fn test_option_as_ptr() {
         Python::with_gil(|py| {
+            use crate::AsPyPointer;
             let mut option: Option<PyObject> = None;
             assert_eq!(option.as_ptr(), std::ptr::null_mut());
 

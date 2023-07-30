@@ -120,10 +120,7 @@ use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
 use crate::version::PythonVersionInfo;
-use crate::{
-    ffi, AsPyPointer, FromPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
-    PyTypeInfo,
-};
+use crate::{ffi, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTryFrom, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -628,9 +625,9 @@ impl<'py> Python<'py> {
             }
 
             let globals = globals
-                .map(AsPyPointer::as_ptr)
+                .map(|dict| dict.as_ptr())
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
+            let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
 
             let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
             if code_obj.is_null() {

@@ -101,7 +101,7 @@ fn test_exception_nosegfault() {
 #[cfg(Py_3_8)]
 fn test_write_unraisable() {
     use common::UnraisableCapture;
-    use pyo3::{exceptions::PyRuntimeError, ffi, AsPyPointer};
+    use pyo3::{exceptions::PyRuntimeError, ffi};
 
     Python::with_gil(|py| {
         let capture = UnraisableCapture::install(py);

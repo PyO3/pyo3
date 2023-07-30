@@ -18,9 +18,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! `PyBuffer` implementation
-use crate::{
-    err, exceptions::PyBufferError, ffi, AsPyPointer, FromPyObject, PyAny, PyResult, Python,
-};
+use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
 use std::marker::PhantomData;
 use std::os::raw;
 use std::pin::Pin;

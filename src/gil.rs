@@ -507,7 +507,7 @@ fn decrement_gil_count() {
 #[cfg(test)]
 mod tests {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
-    use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
+    use crate::{ffi, gil, PyObject, Python, ToPyObject};
     #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::{const_mutex, Condvar, Mutex};
     use std::ptr::NonNull;

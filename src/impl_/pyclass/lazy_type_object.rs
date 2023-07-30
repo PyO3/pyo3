@@ -12,7 +12,7 @@ use crate::{
     pyclass::{create_type_object, PyClassTypeObject},
     sync::{GILOnceCell, GILProtected},
     types::PyType,
-    AsPyPointer, IntoPyPointer, PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
+    PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
 };
 
 use super::PyClassItemsIter;

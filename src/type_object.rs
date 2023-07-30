@@ -1,7 +1,7 @@
 //! Python type object information
 
 use crate::types::{PyAny, PyType};
-use crate::{ffi, AsPyPointer, PyNativeType, Python};
+use crate::{ffi, PyNativeType, Python};
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
 /// E.g., `PyCell` is a concrete representation of all `pyclass`es, and `ffi::PyObject`

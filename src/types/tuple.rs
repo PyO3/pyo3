@@ -8,8 +8,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::PyList;
 use crate::types::PySequence;
 use crate::{
-    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
-    PyResult, Python, ToPyObject,
+    exceptions, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 #[inline]

@@ -1,4 +1,3 @@
-use crate::conversion::{AsPyPointer, IntoPyPointer};
 use crate::types::PySequence;
 use crate::{exceptions, PyErr};
 use crate::{
