@@ -75,7 +75,7 @@ def fmt(session: nox.Session):
 @nox.session(name="fmt-rust", venv_backend="none")
 def fmt_rust(session: nox.Session):
     _run_cargo(session, "fmt", "--all", "--check")
-    _run_cargo(session, "fmt", *_FFI_CHECK, "--all", "--check")
+    _run_cargo(session, "fmt", _FFI_CHECK, "--all", "--check")
 
 
 @nox.session(name="fmt-py")
@@ -86,7 +86,7 @@ def fmt_py(session: nox.Session):
 
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
-    if not _clippy(session):
+    if not _clippy(session) and _clippy_additional_workspaces(session):
         session.error("one or more jobs failed")
 
 
@@ -110,6 +110,33 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
     return success
 
 
+def _clippy_additional_workspaces(session: nox.Session) -> bool:
+    # pyo3-benches and pyo3-ffi-check are in isolated workspaces so that their
+    # dependencies do not interact with MSRV
+
+    success = True
+    try:
+        _run_cargo(session, "clippy", _BENCHES)
+    except Exception:
+        success = False
+
+    # Run pyo3-ffi-check only on when not cross-compiling, because it needs to
+    # have Python headers to feed to bindgen which gets messy when cross-compiling.
+    target = os.environ.get("CARGO_BUILD_TARGET")
+    if target is None or _get_rust_default_target() == target:
+        try:
+            _build_docs_for_ffi_check(session)
+            _run_cargo(session, "clippy", _FFI_CHECK, "--workspace", "--all-targets")
+        except Exception:
+            success = False
+    return success
+
+
+@nox.session(venv_backend="none")
+def bench(session: nox.Session) -> bool:
+    _run_cargo(session, "bench", _BENCHES, *session.posargs)
+
+
 @nox.session(name="clippy-all", venv_backend="none")
 def clippy_all(session: nox.Session) -> None:
     success = True
@@ -119,6 +146,7 @@ def clippy_all(session: nox.Session) -> None:
         success &= _clippy(session, env=env)
 
     _for_all_version_configs(session, _clippy_with_config)
+    success &= _clippy_additional_workspaces(session)
 
     if not success:
         session.error("one or more jobs failed")
@@ -377,7 +405,7 @@ def address_sanitizer(session: nox.Session):
         "test",
         "--release",
         "-Zbuild-std",
-        f"--target={_get_rust_target()}",
+        f"--target={_get_rust_default_target()}",
         "--",
         "--test-threads=1",
         env={
@@ -509,9 +537,13 @@ def set_minimal_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _run_cargo(session, "doc", *_FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
-    _run_cargo(session, "clippy", "--workspace", "--all-targets", *_FFI_CHECK)
-    _run_cargo(session, "run", *_FFI_CHECK)
+    _build_docs_for_ffi_check(session)
+    _run_cargo(session, "run", _FFI_CHECK)
+
+
+def _build_docs_for_ffi_check(session: nox.Session) -> None:
+    # pyo3-ffi-check needs to scrape docs of pyo3-ffi
+    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
 
 
 @lru_cache()
@@ -530,7 +562,7 @@ def _get_rust_version() -> Tuple[int, int, int, List[str]]:
             return (*map(int, version_number.split(".")), extra)
 
 
-def _get_rust_target() -> str:
+def _get_rust_default_target() -> str:
     for line in _get_rust_info():
         if line.startswith(_HOST_LINE_START):
             return line[len(_HOST_LINE_START) :].strip()
@@ -667,4 +699,5 @@ suppress_build_script_link_lines=true
             _job_with_config("PyPy", version)
 
 
-_FFI_CHECK = ("--manifest-path", "pyo3-ffi-check/Cargo.toml")
+_BENCHES = "--manifest-path=pyo3-benches/Cargo.toml"
+_FFI_CHECK = "--manifest-path=pyo3-ffi-check/Cargo.toml"
