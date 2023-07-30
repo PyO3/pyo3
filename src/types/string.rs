@@ -1,7 +1,9 @@
 #[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::types::TypeInfo;
 use crate::types::PyBytes;
-use crate::{ffi, PyAny, PyResult, Python};
+use crate::{ffi, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
@@ -272,6 +274,18 @@ impl PyString {
             ))),
             _ => unreachable!(),
         }
+    }
+}
+
+impl IntoPy<Py<PyString>> for Py<PyString> {
+    #[inline]
+    fn into_py(self, _: Python<'_>) -> Py<PyString> {
+        self
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 

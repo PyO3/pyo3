@@ -42,7 +42,7 @@ pub unsafe trait PyNativeType: Sized {
 
 /// A GIL-attached equivalent to `Py`.
 #[repr(transparent)]
-pub(crate) struct Py2<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
+pub struct Py2<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
 
 impl<'py> Py2<'py, PyAny> {
     /// Constructs a new Py2 from a pointer. Panics if ptr is null.
@@ -714,13 +714,13 @@ where
 
 impl<T> Py<T> {
     /// Attaches this `Py` to the given Python context, allowing access to further Python APIs.
-    pub(crate) fn attach<'py>(&self, _py: Python<'py>) -> &Py2<'py, T> {
+    pub fn attach<'py>(&self, _py: Python<'py>) -> &Py2<'py, T> {
         // Safety: `Py2` has the same layout as `Py`
         unsafe { &*(self as *const Py<T>).cast() }
     }
 
     /// Same as `attach` but takes ownership of `self`.
-    pub(crate) fn attach_into(self, py: Python<'_>) -> Py2<'_, T> {
+    pub fn attach_into(self, py: Python<'_>) -> Py2<'_, T> {
         Py2(py, ManuallyDrop::new(self))
     }
 
