@@ -1,8 +1,4 @@
-use pyo3::{
-    prelude::IntoPyDict,
-    types::{IntoPyDict, PyDict},
-    Python,
-};
+use pyo3::prelude::IntoPyDict;
 
 #[derive(IntoPyDict)]
 pub struct TestPyTupleInvalid(u8);

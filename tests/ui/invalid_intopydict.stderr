@@ -1,0 +1,15 @@
+error: proc-macro derive panicked
+ --> tests/ui/invalid_intopydict.rs:3:10
+  |
+3 | #[derive(IntoPyDict)]
+  |          ^^^^^^^^^^
+  |
+  = help: message: called `Result::unwrap()` on an `Err` value: Error("No support for tuple structs currently. Please write your own implementation for the struct.")
+
+error: proc-macro derive panicked
+ --> tests/ui/invalid_intopydict.rs:6:10
+  |
+6 | #[derive(IntoPyDict)]
+  |          ^^^^^^^^^^
+  |
+  = help: message: called `Result::unwrap()` on an `Err` value: Error("No support for enums currently. Please write your own implementation for the enum.")

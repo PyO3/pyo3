@@ -90,13 +90,6 @@ impl Parse for Pyo3Collection {
             .as_str()
             .replace(|c| c == ' ' || c == '{' || c == '}', "");
 
-        if binding.contains("enum") {
-            return Err(syn::Error::new(
-                input.span(),
-                "Enums not permitted. Please use a custom implementation of this enum.s",
-            ));
-        }
-
         if !binding.contains(':') {
             return Ok(Pyo3Collection(Vec::new()));
         }
@@ -311,7 +304,7 @@ pub fn check_type(input: &DeriveInput) -> syn::Result<()> {
             if let syn::Fields::Unnamed(_) = info.fields {
                 return Err(syn::Error::new(
                     info.struct_token.span,
-                    "No support for enums currently",
+                    "No support for tuple structs currently. Please write your own implementation for the struct.",
                 ));
             }
 
@@ -319,11 +312,11 @@ pub fn check_type(input: &DeriveInput) -> syn::Result<()> {
         }
         syn::Data::Enum(ref info) => Err(syn::Error::new(
             info.brace_token.span.close(),
-            "No support for enums currently",
+            "No support for enums currently. Please write your own implementation for the enum.",
         )),
         syn::Data::Union(ref info) => Err(syn::Error::new(
             info.union_token.span,
-            "No support for enums currently",
+            "No support for unions currently. Please write your own implementation for the union.",
         )),
     }
 }
