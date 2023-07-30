@@ -7,8 +7,6 @@ use syn::{
     DeriveInput, Error, Generics,
 };
 
-use crate::attributes::kw::name;
-
 const COL_NAMES: [&str; 8] = [
     "BTreeSet",
     "BinaryHeap",
@@ -89,20 +87,24 @@ impl Pyo3DictField {
 impl Parse for Pyo3Collection {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let tok_stream: TokenStream = input.parse()?;
-        let binding = tok_stream
+        let mut binding = tok_stream
             .to_string()
             .as_str()
-            .replace(|c| c == ' ' || c == '{' || c == '}', "");
+            .replace(|c| c == ' ' || c == '{' || c == '}' || c == '\n', "");
 
         if !binding.contains(':') {
             return Ok(Pyo3Collection(Vec::new()));
+        }
+
+        if binding.as_bytes()[binding.len() - 1] as char != ',' {
+            binding.push(',');
         }
 
         let name_map = split_struct(binding);
 
         let mut field_collection: Vec<Pyo3DictField> = Vec::new();
 
-        for (field_name, (field_val, dict_key)) in name_map.iter() {
+        for (field_name, (field_val, dict_key)) in &name_map {
             field_collection.push(Pyo3DictField::new(
                 field_name.to_string(),
                 field_val,
