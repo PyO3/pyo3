@@ -34,7 +34,7 @@ use std::ptr::NonNull;
 ///
 /// # Safety
 ///
-/// It is your responsibility to make sure that the underlying Python object is not dropped too
+/// For callers, it is your responsibility to make sure that the underlying Python object is not dropped too
 /// early. For example, the following code will cause undefined behavior:
 ///
 /// ```rust,no_run
@@ -56,13 +56,15 @@ use std::ptr::NonNull;
 /// and the Python object is dropped immediately after the `0xabad1dea_u32.into_py(py).as_ptr()`
 /// expression is evaluated. To fix the problem, bind Python object to a local variable like earlier
 /// to keep the Python object alive until the end of its scope.
-pub trait AsPyPointer {
+///
+/// Implementors must ensure this returns a valid pointer to a Python object, which borrows a reference count from `&self`.
+pub unsafe trait AsPyPointer {
     /// Returns the underlying FFI pointer as a borrowed pointer.
     fn as_ptr(&self) -> *mut ffi::PyObject;
 }
 
 /// Convert `None` into a null pointer.
-impl<T> AsPyPointer for Option<T>
+unsafe impl<T> AsPyPointer for Option<T>
 where
     T: AsPyPointer,
 {

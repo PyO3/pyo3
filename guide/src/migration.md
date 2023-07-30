@@ -66,6 +66,10 @@ fn add(a: u64, b: u64) -> u64 {
 
 The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed. `into_ptr` is now available as an inherent method on all types that previously implemented this trait.
 
+### `AsPyPointer` now `unsafe` trait
+
+The trait `AsPyPointer` is now `unsafe trait`, meaning any external implementation of it must be marked as `unsafe impl`, and ensure that they uphold the invariant of returning valid pointers.
+
 ## from 0.18.* to 0.19
 
 ### Access to `Python` inside `__traverse__` implementations are now forbidden

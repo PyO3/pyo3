@@ -528,7 +528,7 @@ impl<T: PyClassImpl> PyCell<T> {
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyCell<T> {}
 impl<T: PyClass> PySizedLayout<T> for PyCell<T> {}
 
-impl<T: PyClass> AsPyPointer for PyCell<T> {
+unsafe impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         (self as *const _) as *mut _
     }
@@ -756,7 +756,7 @@ impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRef<'a, T
     }
 }
 
-impl<'a, T: PyClass> AsPyPointer for PyRef<'a, T> {
+unsafe impl<'a, T: PyClass> AsPyPointer for PyRef<'a, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.inner.as_ptr()
     }
@@ -879,7 +879,7 @@ impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for &'_ PyRefMut<'_, T> {
     }
 }
 
-impl<'a, T: PyClass<Frozen = False>> AsPyPointer for PyRefMut<'a, T> {
+unsafe impl<'a, T: PyClass<Frozen = False>> AsPyPointer for PyRefMut<'a, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.inner.as_ptr()
     }
