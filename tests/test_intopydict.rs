@@ -2,21 +2,35 @@
 
 use pyo3::{
     prelude::IntoPyDict,
+    pyclass,
     types::{IntoPyDict, PyDict},
-    Python,
 };
 
 pub trait TestTrait<'a> {}
+
+#[pyclass]
+#[derive(IntoPyDict)]
+pub struct TestDict {
+    x: u8,
+}
+
+#[derive(IntoPyDict)]
+pub struct PyClass {
+    x: u8,
+    y: TestDict,
+}
 
 #[derive(IntoPyDict, PartialEq, Debug, Clone)]
 pub struct Test1 {
     x: u8,
 }
 
-#[derive(IntoPyDict, Clone)]
+#[derive(IntoPyDict, Clone, Debug)]
 pub struct Test {
+    #[pyo3(get, set, name = "hello")]
     v: Vec<Vec<Test1>>,
     j: Test1,
+    #[pyo3(get, set, name = "world")]
     h: u8,
 }
 
@@ -53,15 +67,16 @@ fn test_into_py_dict_derive() {
         },
     };
 
-    Python::with_gil(|py| {
+    pyo3::Python::with_gil(|py| {
         let py_dict = test_struct.into_py_dict(py);
-        let h: u8 = py_dict.get_item("h").unwrap().extract().unwrap();
+        let h: u8 = py_dict.get_item("world").unwrap().extract().unwrap();
+
         assert_eq!(h, 9);
         assert_eq!(
             format!("{:?}", py_dict),
-            "{'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}".to_string()
+            "{'hello': [[{'x': 9}]], 'j': {'x': 10}, 'world': 9}".to_string()
         );
         let pydict = test_generic_struct.into_py_dict(py);
-        assert_eq!(format!("{:?}", pydict), "{'x': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}, 'y': {'x': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}, 'y': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}}}".to_string());
+        assert_eq!(format!("{:?}", pydict), "{'x': {'hello': [[{'x': 9}]], 'j': {'x': 10}, 'world': 9}, 'y': {'x': {'hello': [[{'x': 9}]], 'j': {'x': 10}, 'world': 9}, 'y': {'hello': [[{'x': 9}]], 'j': {'x': 10}, 'world': 9}}}".to_string());
     });
 }

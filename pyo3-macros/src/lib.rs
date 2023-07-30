@@ -182,7 +182,8 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
     }
     let body: TokenStream2 = build_derive_into_pydict(dict_fields);
     let out = quote! {
-        impl #generics IntoPyDict for #ident #generic_params  #where_clause {
+
+        impl #generics pyo3::types::IntoPyDict for #ident #generic_params  #where_clause {
             fn into_py_dict(self, py: pyo3::Python<'_>) -> &PyDict {
                 #body
             }

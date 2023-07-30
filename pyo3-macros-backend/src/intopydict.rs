@@ -1,5 +1,5 @@
 use quote::{quote, TokenStreamExt};
-use std::ops::AddAssign;
+use std::{collections::HashMap, ops::AddAssign};
 
 use proc_macro2::{Span, TokenStream};
 use syn::{
@@ -33,13 +33,15 @@ enum Pyo3Type {
 pub struct Pyo3DictField {
     name: String,
     attr_type: Pyo3Type,
+    attr_name: Option<String>,
 }
 
 impl Pyo3DictField {
-    pub fn new(name: String, type_: &str, span: Span) -> Self {
+    pub fn new(name: String, type_: &str, span: Span, attr_name: Option<String>) -> Self {
         Self {
             name,
             attr_type: Self::check_primitive(type_, span),
+            attr_name,
         }
     }
 
@@ -94,7 +96,7 @@ impl Parse for Pyo3Collection {
             return Ok(Pyo3Collection(Vec::new()));
         }
 
-        let tok_split = split_struct(binding);
+        let (name_map, tok_split) = split_struct(binding);
 
         let mut field_collection: Vec<Pyo3DictField> = Vec::new();
 
@@ -102,11 +104,21 @@ impl Parse for Pyo3Collection {
             let tok_params_unparsed = &i.to_string();
             let tok_bind: Vec<&str> = tok_params_unparsed.split(':').collect();
             if tok_bind.len() == 2 {
-                field_collection.push(Pyo3DictField::new(
-                    tok_bind[0].to_string(),
-                    tok_bind[1],
-                    input.span(),
-                ));
+                if let Some(val) = name_map.get(tok_bind[0]) {
+                    field_collection.push(Pyo3DictField::new(
+                        tok_bind[0].to_string(),
+                        tok_bind[1],
+                        input.span(),
+                        Some(val.to_string()),
+                    ));
+                } else {
+                    field_collection.push(Pyo3DictField::new(
+                        tok_bind[0].to_string(),
+                        tok_bind[1],
+                        input.span(),
+                        None,
+                    ));
+                }
             }
         }
 
@@ -114,14 +126,26 @@ impl Parse for Pyo3Collection {
     }
 }
 
-fn split_struct(binding: String) -> Vec<String> {
+fn split_struct(binding: String) -> (HashMap<String, String>, Vec<String>) {
     let mut stack: Vec<char> = Vec::new();
     let mut tok_split: Vec<String> = Vec::new();
     let mut start = 0;
+    let binding = binding.replace('\n', "");
+    let mut name_map: HashMap<String, String> = HashMap::new();
 
     for (i, char_val) in binding.chars().enumerate() {
         if char_val == ',' && stack.is_empty() {
-            tok_split.push(binding[start..i].to_string());
+            if binding[start..i].starts_with('#') {
+                let new_name = get_new_name(binding.clone(), start, i);
+                let var_string = &binding[start..i].split(']').collect::<Vec<&str>>()[1];
+                name_map.insert(
+                    var_string.split(':').collect::<Vec<&str>>()[0].to_string(),
+                    new_name,
+                );
+                tok_split.push(var_string.to_string());
+            } else {
+                tok_split.push(binding[start..i].to_string());
+            }
             start = i + 1;
         } else if i == binding.len() - 1 {
             tok_split.push(binding[start..].to_string());
@@ -145,7 +169,28 @@ fn split_struct(binding: String) -> Vec<String> {
         tok_split[len - 1] = last;
     }
 
-    tok_split
+    (name_map, tok_split)
+}
+
+fn get_new_name(binding: String, start: usize, i: usize) -> String {
+    let fragments: Vec<&str> = binding[start..i].split("name=").collect();
+    let mut quote_count = 0;
+    let mut start = 0;
+    for (j, char_val_inner) in fragments[1].chars().enumerate() {
+        if char_val_inner == '"' {
+            quote_count += 1;
+
+            if quote_count == 1 {
+                start = j + 1;
+            }
+        }
+
+        if quote_count == 2 {
+            return fragments[1][start..j].to_string();
+        }
+    }
+
+    String::new()
 }
 
 #[derive(Debug, Clone)]
@@ -159,15 +204,16 @@ impl AddAssign for Pyo3Collection {
 
 pub fn build_derive_into_pydict(dict_fields: Pyo3Collection) -> TokenStream {
     let mut body = quote! {
-        use pyo3::{
-            types::{IntoPyDict, PyDict},
-            Python,
-        };
-        let mut pydict = PyDict::new(py);
+        let mut pydict = pyo3::types::PyDict::new(py);
     };
 
     for field in &dict_fields.0 {
-        let ident = &field.name;
+        let ident: &String;
+        if let Some(ref val) = field.attr_name {
+            ident = val;
+        } else {
+            ident = &field.name;
+        }
         let ident_tok: TokenStream = field.name.parse().unwrap();
         if !ident.is_empty() {
             match_tok(field, &mut body, ident, ident_tok);
@@ -201,7 +247,7 @@ fn match_tok(
             let non_class_ident = ident.replace('.', "_");
             body.append_all(handle_single_collection_code_gen(
                 collection,
-                &format!("self.{}", ident),
+                &format!("self.{}", ident_tok),
                 &non_class_ident,
                 0,
             ));
@@ -265,7 +311,7 @@ fn handle_single_collection_code_gen(
                     #curr_pylist.append(#next_pylist).expect("Bad element in set_item");
                 };
             }
-        } // Pyo3Type::Map(_, _) => todo!(),
+        }
     }
 }
 
