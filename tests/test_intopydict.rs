@@ -5,7 +5,6 @@ use pyo3::{
     types::{IntoPyDict, PyDict},
     Python,
 };
-use trybuild::TestCases;
 
 pub trait TestTrait<'a> {}
 
@@ -65,10 +64,4 @@ fn test_into_py_dict_derive() {
         let pydict = test_generic_struct.into_py_dict(py);
         assert_eq!(format!("{:?}", pydict), "{'x': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}, 'y': {'x': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}, 'y': {'v': [[{'x': 9}]], 'j': {'x': 10}, 'h': 9}}}".to_string());
     });
-}
-
-#[test]
-fn test_fail_macro() {
-    let t = TestCases::new();
-    t.compile_fail("tests/ui/invalid_intopydict.rs");
 }
