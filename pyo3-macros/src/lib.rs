@@ -184,7 +184,7 @@ pub fn derive_into_pydict(item: TokenStream) -> TokenStream {
     let out = quote! {
 
         impl #generics pyo3::types::IntoPyDict for #ident #generic_params  #where_clause {
-            fn into_py_dict(self, py: pyo3::Python<'_>) -> &PyDict {
+            fn into_py_dict(self, py: pyo3::Python<'_>) -> &pyo3::types::PyDict {
                 #body
             }
         }

@@ -1,10 +1,6 @@
 #![cfg(feature = "macros")]
 
-use pyo3::{
-    prelude::IntoPyDict,
-    pyclass,
-    types::{IntoPyDict, PyDict},
-};
+use pyo3::{prelude::IntoPyDict, pyclass, types::IntoPyDict};
 
 pub trait TestTrait<'a> {}
 
