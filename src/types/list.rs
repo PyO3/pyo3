@@ -103,6 +103,7 @@ impl PyList {
 /// These methods are defined for the `Py2<'py, PyList>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
+#[doc(alias = "PyList")]
 pub trait PyListMethods<'py> {
     /// Returns the length of the list.
     fn len(&self) -> usize;
