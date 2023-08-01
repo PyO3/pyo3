@@ -29,6 +29,7 @@ pub(crate) mod pymem;
 pub(crate) mod pystate;
 pub(crate) mod pythonrun;
 // skipped sysmodule.h
+pub(crate) mod floatobject;
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
 pub(crate) mod weakrefobject;
@@ -42,6 +43,7 @@ pub use self::compile::*;
 pub use self::descrobject::*;
 #[cfg(not(PyPy))]
 pub use self::dictobject::*;
+pub use self::floatobject::*;
 pub use self::frameobject::*;
 pub use self::funcobject::*;
 pub use self::genobject::*;

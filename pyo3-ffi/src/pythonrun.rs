@@ -15,6 +15,9 @@ extern "C" {
     pub fn PyErr_PrintEx(arg1: c_int);
     #[cfg_attr(PyPy, link_name = "PyPyErr_Display")]
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
+
+    #[cfg(Py_3_12)]
+    pub fn PyErr_DisplayException(exc: *mut PyObject);
 }
 
 // skipped PyOS_InputHook

@@ -79,7 +79,7 @@ pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> 
     let mut first = true;
     let mut current_part = text_signature.unwrap_or_default();
 
-    for attr in attrs.iter() {
+    for attr in attrs {
         if attr.path.is_ident("doc") {
             if let Ok(DocArgs {
                 _eq_token,

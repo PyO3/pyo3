@@ -16,6 +16,7 @@ impl EmptyClass {
 
 /// This is for demonstrating how to return a value from __next__
 #[pyclass]
+#[derive(Default)]
 struct PyClassIter {
     count: usize,
 }

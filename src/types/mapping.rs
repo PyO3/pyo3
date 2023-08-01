@@ -1,4 +1,4 @@
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{PyDowncastError, PyResult};
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
@@ -17,11 +17,8 @@ impl PyMapping {
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyMapping_Size(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v as usize)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v as usize)
     }
 
     /// Returns whether the mapping is empty.

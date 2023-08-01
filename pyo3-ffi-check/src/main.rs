@@ -47,9 +47,11 @@ fn main() {
     }
 
     macro_rules! check_field {
-        ($struct_name:ident, $field:ident) => {{
+        ($struct_name:ident, $field:ident, $bindgen_field:ident) => {{
+            #[allow(clippy::used_underscore_binding)]
             let pyo3_ffi_offset = memoffset::offset_of!(pyo3_ffi::$struct_name, $field);
-            let bindgen_offset = memoffset::offset_of!(bindings::$struct_name, $field);
+            #[allow(clippy::used_underscore_binding)]
+            let bindgen_offset = memoffset::offset_of!(bindings::$struct_name, $bindgen_field);
 
             if pyo3_ffi_offset != bindgen_offset {
                 failed = true;
@@ -79,7 +81,9 @@ fn main() {
     non_upper_case_globals,
     dead_code,
     improper_ctypes,
-    clippy::all
+    clippy::all,
+    // clippy fails with lots of errors if this is not set specifically
+    clippy::used_underscore_binding
 )]
 mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));

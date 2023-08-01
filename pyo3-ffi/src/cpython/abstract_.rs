@@ -41,11 +41,11 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[cfg(all(Py_3_8))]
+#[cfg(Py_3_8)]
 const PY_VECTORCALL_ARGUMENTS_OFFSET: Py_ssize_t =
     1 << (8 * std::mem::size_of::<Py_ssize_t>() as Py_ssize_t - 1);
 
-#[cfg(all(Py_3_8))]
+#[cfg(Py_3_8)]
 #[inline(always)]
 pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
     assert!(n <= (PY_SSIZE_T_MAX as size_t));
@@ -113,7 +113,7 @@ extern "C" {
         kwnames: *mut PyObject,
     ) -> *mut PyObject;
 
-    #[cfg(all(Py_3_8))]
+    #[cfg(Py_3_8)]
     #[cfg_attr(all(not(PyPy), not(Py_3_9)), link_name = "_PyObject_VectorcallDict")]
     #[cfg_attr(all(PyPy, not(Py_3_9)), link_name = "_PyPyObject_VectorcallDict")]
     #[cfg_attr(all(PyPy, Py_3_9), link_name = "PyPyObject_VectorcallDict")]
@@ -124,7 +124,7 @@ extern "C" {
         kwdict: *mut PyObject,
     ) -> *mut PyObject;
 
-    #[cfg(all(Py_3_8))]
+    #[cfg(Py_3_8)]
     #[cfg_attr(not(any(Py_3_9, PyPy)), link_name = "_PyVectorcall_Call")]
     #[cfg_attr(PyPy, link_name = "PyPyVectorcall_Call")]
     pub fn PyVectorcall_Call(
@@ -177,8 +177,8 @@ extern "C" {
 #[inline(always)]
 pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     assert!(!arg.is_null());
-    let _args = [std::ptr::null_mut(), arg];
-    let args = _args.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
+    let args_array = [std::ptr::null_mut(), arg];
+    let args = args_array.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
     let tstate = PyThreadState_GET();
     let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
     _PyObject_VectorcallTstate(tstate, func, args, nargsf as size_t, std::ptr::null_mut())

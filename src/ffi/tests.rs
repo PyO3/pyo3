@@ -1,10 +1,15 @@
 use crate::ffi::*;
-use crate::{types::PyDict, AsPyPointer, IntoPy, Py, PyAny, Python};
+use crate::{AsPyPointer, Python};
 
-use crate::types::PyString;
-#[cfg(not(Py_3_12))]
+#[cfg(not(Py_LIMITED_API))]
+use crate::{
+    types::{PyDict, PyString},
+    IntoPy, Py, PyAny,
+};
+#[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
 
+#[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_datetime_fromtimestamp() {
@@ -25,6 +30,7 @@ fn test_datetime_fromtimestamp() {
     })
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_date_fromtimestamp() {
@@ -45,6 +51,7 @@ fn test_date_fromtimestamp() {
     })
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[test]
 fn test_utc_timezone() {
@@ -65,18 +72,15 @@ fn test_utc_timezone() {
 }
 
 #[test]
+#[cfg(not(Py_LIMITED_API))]
 #[cfg(feature = "macros")]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 fn test_timezone_from_offset() {
     use crate::types::PyDelta;
 
     Python::with_gil(|py| {
-        let tz: &PyAny = unsafe {
-            PyDateTime_IMPORT();
-            py.from_borrowed_ptr(PyTimeZone_FromOffset(
-                PyDelta::new(py, 0, 100, 0, false).unwrap().as_ptr(),
-            ))
-        };
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
+        let tz: &PyAny = unsafe { py.from_borrowed_ptr(PyTimeZone_FromOffset(delta.as_ptr())) };
         crate::py_run!(
             py,
             tz,
@@ -86,17 +90,19 @@ fn test_timezone_from_offset() {
 }
 
 #[test]
+#[cfg(not(Py_LIMITED_API))]
 #[cfg(feature = "macros")]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 fn test_timezone_from_offset_and_name() {
     use crate::types::PyDelta;
 
     Python::with_gil(|py| {
+        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
+        let tzname = PyString::new(py, "testtz");
         let tz: &PyAny = unsafe {
-            PyDateTime_IMPORT();
             py.from_borrowed_ptr(PyTimeZone_FromOffsetAndName(
-                PyDelta::new(py, 0, 100, 0, false).unwrap().as_ptr(),
-                PyString::new(py, "testtz").as_ptr(),
+                delta.as_ptr(),
+                tzname.as_ptr(),
             ))
         };
         crate::py_run!(
@@ -108,6 +114,7 @@ fn test_timezone_from_offset_and_name() {
 }
 
 #[test]
+#[cfg(not(Py_LIMITED_API))]
 fn ascii_object_bitfield() {
     let ob_base: PyObject = unsafe { std::mem::zeroed() };
 
@@ -155,6 +162,7 @@ fn ascii_object_bitfield() {
 }
 
 #[test]
+#[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ascii() {
     Python::with_gil(|py| {
@@ -196,6 +204,7 @@ fn ascii() {
 }
 
 #[test]
+#[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ucs4() {
     Python::with_gil(|py| {
@@ -239,6 +248,7 @@ fn ucs4() {
 }
 
 #[test]
+#[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[cfg(not(PyPy))]
 fn test_get_tzinfo() {
@@ -277,5 +287,42 @@ fn test_get_tzinfo() {
             unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
                 .is_none()
         );
+    })
+}
+
+#[test]
+fn test_inc_dec_ref() {
+    Python::with_gil(|py| {
+        let obj = py.eval("object()", None, None).unwrap();
+
+        let ref_count = obj.get_refcnt();
+        let ptr = obj.as_ptr();
+
+        unsafe { Py_INCREF(ptr) };
+
+        assert_eq!(obj.get_refcnt(), ref_count + 1);
+
+        unsafe { Py_DECREF(ptr) };
+
+        assert_eq!(obj.get_refcnt(), ref_count);
+    })
+}
+
+#[test]
+#[cfg(Py_3_12)]
+fn test_inc_dec_ref_immortal() {
+    Python::with_gil(|py| {
+        let obj = py.None();
+
+        let ref_count = obj.get_refcnt(py);
+        let ptr = obj.as_ptr();
+
+        unsafe { Py_INCREF(ptr) };
+
+        assert_eq!(obj.get_refcnt(py), ref_count);
+
+        unsafe { Py_DECREF(ptr) };
+
+        assert_eq!(obj.get_refcnt(py), ref_count);
     })
 }

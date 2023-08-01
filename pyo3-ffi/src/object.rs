@@ -1,5 +1,3 @@
-// FFI note: this file changed a lot between 3.6 and 3.10.
-// Some missing definitions may not be marked "skipped".
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
@@ -14,11 +12,24 @@ pub use crate::cpython::object::PyTypeObject;
 // _PyObject_HEAD_EXTRA: conditionally defined in PyObject_HEAD_INIT
 // _PyObject_EXTRA_INIT: conditionally defined in PyObject_HEAD_INIT
 
+#[cfg(Py_3_12)]
+pub const _Py_IMMORTAL_REFCNT: Py_ssize_t = {
+    if cfg!(target_pointer_width = "64") {
+        c_uint::MAX as Py_ssize_t
+    } else {
+        // for 32-bit systems, use the lower 30 bits (see comment in CPython's object.h)
+        (c_uint::MAX >> 2) as Py_ssize_t
+    }
+};
+
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_next: std::ptr::null_mut(),
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_prev: std::ptr::null_mut(),
+    #[cfg(Py_3_12)]
+    ob_refcnt: PyObjectObRefcnt { ob_refcnt: 1 },
+    #[cfg(not(Py_3_12))]
     ob_refcnt: 1,
     #[cfg(PyPy)]
     ob_pypy_link: 0,
@@ -29,20 +40,40 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 // skipped Py_INVALID_SIZE
 
 #[repr(C)]
+#[derive(Copy, Clone)]
+#[cfg(Py_3_12)]
+/// This union is anonymous in CPython, so the name was given by PyO3 because
+/// Rust unions need a name.
+pub union PyObjectObRefcnt {
+    pub ob_refcnt: Py_ssize_t,
+    #[cfg(target_pointer_width = "64")]
+    pub ob_refcnt_split: [crate::PY_UINT32_T; 2],
+}
+
+#[cfg(Py_3_12)]
+impl std::fmt::Debug for PyObjectObRefcnt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", unsafe { self.ob_refcnt })
+    }
+}
+
+#[cfg(not(Py_3_12))]
+pub type PyObjectObRefcnt = Py_ssize_t;
+
+#[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
-    pub ob_refcnt: Py_ssize_t,
+    pub ob_refcnt: PyObjectObRefcnt,
     #[cfg(PyPy)]
     pub ob_pypy_link: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
 }
 
 // skipped _PyObject_CAST
-// skipped _PyObject_CAST_CONST
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -52,18 +83,21 @@ pub struct PyVarObject {
 }
 
 // skipped _PyVarObject_CAST
-// skipped _PyVarObject_CAST_CONST
 
 #[inline]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
     (x == y).into()
 }
 
-// skipped _Py_REFCNT: defined in Py_REFCNT
+#[inline]
+#[cfg(Py_3_12)]
+pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+    (*ob).ob_refcnt.ob_refcnt
+}
 
 #[inline]
+#[cfg(not(Py_3_12))]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
-    assert!(!ob.is_null());
     (*ob).ob_refcnt
 }
 
@@ -72,14 +106,31 @@ pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     (*ob).ob_type
 }
 
+// PyLong_Type defined in longobject.rs
+// PyBool_Type defined in boolobject.rs
+
 #[inline]
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
-    (*(ob as *mut PyVarObject)).ob_size
+    debug_assert_ne!((*ob).ob_type, addr_of_mut_shim!(crate::PyLong_Type));
+    debug_assert_ne!((*ob).ob_type, addr_of_mut_shim!(crate::PyBool_Type));
+    (*ob.cast::<PyVarObject>()).ob_size
 }
 
 #[inline]
 pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp) as c_int
+}
+
+#[inline(always)]
+#[cfg(all(Py_3_12, target_pointer_width = "64"))]
+pub unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
+    (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
+}
+
+#[inline(always)]
+#[cfg(all(Py_3_12, target_pointer_width = "32"))]
+pub unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
+    ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
 }
 
 // skipped _Py_SET_REFCNT
@@ -89,82 +140,51 @@ pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
 // skipped _Py_SET_SIZE
 // skipped Py_SET_SIZE
 
-pub type unaryfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
-
-pub type binaryfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
-
-pub type ternaryfunc = unsafe extern "C" fn(
-    arg1: *mut PyObject,
-    arg2: *mut PyObject,
-    arg3: *mut PyObject,
-) -> *mut PyObject;
-
-pub type inquiry = unsafe extern "C" fn(arg1: *mut PyObject) -> c_int;
-
-pub type lenfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> Py_ssize_t;
-
-pub type ssizeargfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
-
+pub type unaryfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
+pub type binaryfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject;
+pub type ternaryfunc =
+    unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> *mut PyObject;
+pub type inquiry = unsafe extern "C" fn(*mut PyObject) -> c_int;
+pub type lenfunc = unsafe extern "C" fn(*mut PyObject) -> Py_ssize_t;
+pub type ssizeargfunc = unsafe extern "C" fn(*mut PyObject, Py_ssize_t) -> *mut PyObject;
 pub type ssizessizeargfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: Py_ssize_t) -> *mut PyObject;
+    unsafe extern "C" fn(*mut PyObject, Py_ssize_t, Py_ssize_t) -> *mut PyObject;
+pub type ssizeobjargproc = unsafe extern "C" fn(*mut PyObject, Py_ssize_t, *mut PyObject) -> c_int;
+pub type ssizessizeobjargproc =
+    unsafe extern "C" fn(*mut PyObject, Py_ssize_t, Py_ssize_t, arg4: *mut PyObject) -> c_int;
+pub type objobjargproc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> c_int;
 
-pub type ssizeobjargproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
-
-pub type ssizessizeobjargproc = unsafe extern "C" fn(
-    arg1: *mut PyObject,
-    arg2: Py_ssize_t,
-    arg3: Py_ssize_t,
-    arg4: *mut PyObject,
-) -> c_int;
-
-pub type objobjargproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
-
-pub type objobjproc = unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
+pub type objobjproc = unsafe extern "C" fn(*mut PyObject, *mut PyObject) -> c_int;
 pub type visitproc = unsafe extern "C" fn(object: *mut PyObject, arg: *mut c_void) -> c_int;
 pub type traverseproc =
     unsafe extern "C" fn(slf: *mut PyObject, visit: visitproc, arg: *mut c_void) -> c_int;
 
-pub type freefunc = unsafe extern "C" fn(arg1: *mut c_void);
-pub type destructor = unsafe extern "C" fn(arg1: *mut PyObject);
-pub type getattrfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char) -> *mut PyObject;
-pub type getattrofunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
-pub type setattrfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char, arg3: *mut PyObject) -> c_int;
-pub type setattrofunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
-pub type reprfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
-pub type hashfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> Py_hash_t;
-pub type richcmpfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int) -> *mut PyObject;
-pub type getiterfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
-pub type iternextfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
-pub type descrgetfunc = unsafe extern "C" fn(
-    arg1: *mut PyObject,
-    arg2: *mut PyObject,
-    arg3: *mut PyObject,
+pub type freefunc = unsafe extern "C" fn(*mut c_void);
+pub type destructor = unsafe extern "C" fn(*mut PyObject);
+pub type getattrfunc = unsafe extern "C" fn(*mut PyObject, *mut c_char) -> *mut PyObject;
+pub type getattrofunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject;
+pub type setattrfunc = unsafe extern "C" fn(*mut PyObject, *mut c_char, *mut PyObject) -> c_int;
+pub type setattrofunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> c_int;
+pub type reprfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
+pub type hashfunc = unsafe extern "C" fn(*mut PyObject) -> Py_hash_t;
+pub type richcmpfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, c_int) -> *mut PyObject;
+pub type getiterfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
+pub type iternextfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
+pub type descrgetfunc =
+    unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> *mut PyObject;
+pub type descrsetfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> c_int;
+pub type initproc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> c_int;
+pub type newfunc =
+    unsafe extern "C" fn(*mut PyTypeObject, *mut PyObject, *mut PyObject) -> *mut PyObject;
+pub type allocfunc = unsafe extern "C" fn(*mut PyTypeObject, Py_ssize_t) -> *mut PyObject;
+
+#[cfg(Py_3_8)]
+pub type vectorcallfunc = unsafe extern "C" fn(
+    callable: *mut PyObject,
+    args: *const *mut PyObject,
+    nargsf: libc::size_t,
+    kwnames: *mut PyObject,
 ) -> *mut PyObject;
-pub type descrsetfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
-pub type initproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
-pub type newfunc = unsafe extern "C" fn(
-    arg1: *mut PyTypeObject,
-    arg2: *mut PyObject,
-    arg3: *mut PyObject,
-) -> *mut PyObject;
-pub type allocfunc =
-    unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
-#[cfg(Py_3_11)]
-pub type getbufferproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut crate::Py_buffer, arg3: c_int) -> c_int;
-#[cfg(Py_3_11)]
-pub type releasebufferproc = unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut crate::Py_buffer);
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -220,9 +240,32 @@ extern "C" {
     #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleState")]
     pub fn PyType_GetModuleState(arg1: *mut PyTypeObject) -> *mut c_void;
-}
 
-extern "C" {
+    #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetName")]
+    pub fn PyType_GetName(arg1: *mut PyTypeObject) -> *mut PyObject;
+
+    #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetQualName")]
+    pub fn PyType_GetQualName(arg1: *mut PyTypeObject) -> *mut PyObject;
+
+    #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_FromMetaclass")]
+    pub fn PyType_FromMetaclass(
+        metaclass: *mut PyTypeObject,
+        module: *mut PyObject,
+        spec: *mut PyType_Spec,
+        bases: *mut PyObject,
+    ) -> *mut PyObject;
+
+    #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyObject_GetTypeData")]
+    pub fn PyObject_GetTypeData(obj: *mut PyObject, cls: *mut PyTypeObject) -> *mut c_void;
+
+    #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyObject_GetTypeDataSize")]
+    pub fn PyObject_GetTypeDataSize(cls: *mut PyTypeObject) -> Py_ssize_t;
+
     #[cfg_attr(PyPy, link_name = "PyPyType_IsSubtype")]
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
 }
@@ -246,9 +289,7 @@ extern "C" {
 
 extern "C" {
     pub fn PyType_GetFlags(arg1: *mut PyTypeObject) -> c_ulong;
-}
 
-extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_Ready")]
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyType_GenericAlloc")]
@@ -337,6 +378,15 @@ extern "C" {
 // Flag bits for printing:
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
+#[cfg(all(Py_3_12, not(Py_LIMITED_API)))]
+pub const _Py_TPFLAGS_STATIC_BUILTIN: c_ulong = 1 << 1;
+
+#[cfg(all(Py_3_12, not(Py_LIMITED_API)))]
+pub const Py_TPFLAGS_MANAGED_WEAKREF: c_ulong = 1 << 3;
+
+#[cfg(all(Py_3_11, not(Py_LIMITED_API)))]
+pub const Py_TPFLAGS_MANAGED_DICT: c_ulong = 1 << 4;
+
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 pub const Py_TPFLAGS_SEQUENCE: c_ulong = 1 << 5;
 
@@ -356,7 +406,7 @@ pub const Py_TPFLAGS_HEAPTYPE: c_ulong = 1 << 9;
 pub const Py_TPFLAGS_BASETYPE: c_ulong = 1 << 10;
 
 /// Set if the type implements the vectorcall protocol (PEP 590)
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
+#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
 pub const Py_TPFLAGS_HAVE_VECTORCALL: c_ulong = 1 << 11;
 // skipped non-limited _Py_TPFLAGS_HAVE_VECTORCALL
 
@@ -374,15 +424,14 @@ const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION: c_ulong = 0;
 #[cfg(Py_3_8)]
 pub const Py_TPFLAGS_METHOD_DESCRIPTOR: c_ulong = 1 << 17;
 
-/// This flag does nothing in Python 3.10+
-pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
-
 pub const Py_TPFLAGS_VALID_VERSION_TAG: c_ulong = 1 << 19;
 
 /* Type is abstract and cannot be instantiated */
 pub const Py_TPFLAGS_IS_ABSTRACT: c_ulong = 1 << 20;
 
 // skipped non-limited / 3.10 Py_TPFLAGS_HAVE_AM_SEND
+#[cfg(Py_3_12)]
+pub const Py_TPFLAGS_ITEMS_AT_END: c_ulong = 1 << 23;
 
 /* These flags are used to determine if a type is a subclass. */
 pub const Py_TPFLAGS_LONG_SUBCLASS: c_ulong = 1 << 24;
@@ -394,37 +443,161 @@ pub const Py_TPFLAGS_DICT_SUBCLASS: c_ulong = 1 << 29;
 pub const Py_TPFLAGS_BASE_EXC_SUBCLASS: c_ulong = 1 << 30;
 pub const Py_TPFLAGS_TYPE_SUBCLASS: c_ulong = 1 << 31;
 
-pub const Py_TPFLAGS_DEFAULT: c_ulong =
-    Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | Py_TPFLAGS_HAVE_VERSION_TAG;
+pub const Py_TPFLAGS_DEFAULT: c_ulong = if cfg!(Py_3_10) {
+    Py_TPFLAGS_HAVE_STACKLESS_EXTENSION
+} else {
+    Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | Py_TPFLAGS_HAVE_VERSION_TAG
+};
 
 pub const Py_TPFLAGS_HAVE_FINALIZE: c_ulong = 1;
+pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
 
-// skipped _Py_RefTotal
-// skipped _Py_NegativeRefCount
+#[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
+extern "C" {
+    pub fn _Py_NegativeRefCount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
+    #[cfg(Py_3_12)]
+    #[link_name = "_Py_IncRefTotal_DO_NOT_USE_THIS"]
+    fn _Py_INC_REFTOTAL();
+    #[cfg(Py_3_12)]
+    #[link_name = "_Py_DecRefTotal_DO_NOT_USE_THIS"]
+    fn _Py_DEC_REFTOTAL();
+}
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
     pub fn _Py_Dealloc(arg1: *mut PyObject);
+
+    #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
+    pub fn Py_IncRef(o: *mut PyObject);
+    #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
+    pub fn Py_DecRef(o: *mut PyObject);
+
+    #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "_PyPy_IncRef")]
+    pub fn _Py_IncRef(o: *mut PyObject);
+    #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "_PyPy_DecRef")]
+    pub fn _Py_DecRef(o: *mut PyObject);
 }
 
-// Reference counting macros.
-#[inline]
+#[inline(always)]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
-    if cfg!(py_sys_config = "Py_REF_DEBUG") {
-        Py_IncRef(op)
-    } else {
-        (*op).ob_refcnt += 1
+    #[cfg(any(
+        all(Py_LIMITED_API, Py_3_12),
+        all(
+            py_sys_config = "Py_REF_DEBUG",
+            Py_3_10,
+            not(all(Py_3_12, not(Py_LIMITED_API)))
+        )
+    ))]
+    {
+        return _Py_IncRef(op);
+    }
+
+    #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_3_10)))]
+    {
+        return Py_IncRef(op);
+    }
+
+    #[cfg(any(
+        not(Py_LIMITED_API),
+        all(Py_LIMITED_API, not(Py_3_12)),
+        all(py_sys_config = "Py_REF_DEBUG", Py_3_12, not(Py_LIMITED_API))
+    ))]
+    {
+        #[cfg(all(Py_3_12, target_pointer_width = "64"))]
+        {
+            let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
+            let new_refcnt = cur_refcnt.wrapping_add(1);
+            if new_refcnt == 0 {
+                return;
+            }
+            (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
+        }
+
+        #[cfg(all(Py_3_12, target_pointer_width = "32"))]
+        {
+            if _Py_IsImmortal(op) != 0 {
+                return;
+            }
+            (*op).ob_refcnt.ob_refcnt += 1
+        }
+
+        #[cfg(not(Py_3_12))]
+        {
+            (*op).ob_refcnt += 1
+        }
+
+        // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
+        // or submit a PR supporting Py_STATS build option and pystats.h
+
+        #[cfg(all(py_sys_config = "Py_REF_DEBUG", Py_3_12))]
+        _Py_INC_REFTOTAL();
     }
 }
 
-#[inline]
+#[inline(always)]
+#[cfg_attr(
+    all(py_sys_config = "Py_REF_DEBUG", Py_3_12, not(Py_LIMITED_API)),
+    track_caller
+)]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
-    if cfg!(py_sys_config = "Py_REF_DEBUG") {
-        Py_DecRef(op)
-    } else {
-        (*op).ob_refcnt -= 1;
-        if (*op).ob_refcnt == 0 {
-            _Py_Dealloc(op)
+    #[cfg(any(
+        all(Py_LIMITED_API, Py_3_12),
+        all(
+            py_sys_config = "Py_REF_DEBUG",
+            Py_3_10,
+            not(all(Py_3_12, not(Py_LIMITED_API)))
+        )
+    ))]
+    {
+        return _Py_DecRef(op);
+    }
+
+    #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_3_10)))]
+    {
+        return Py_DecRef(op);
+    }
+
+    #[cfg(any(
+        not(Py_LIMITED_API),
+        all(Py_LIMITED_API, not(Py_3_12)),
+        all(py_sys_config = "Py_REF_DEBUG", Py_3_12, not(Py_LIMITED_API))
+    ))]
+    {
+        #[cfg(Py_3_12)]
+        if _Py_IsImmortal(op) != 0 {
+            return;
+        }
+
+        // Skipped _Py_DECREF_STAT_INC - if anyone needs this, please file an issue
+        // or submit a PR supporting Py_STATS build option and pystats.h
+
+        #[cfg(all(py_sys_config = "Py_REF_DEBUG", Py_3_12))]
+        _Py_DEC_REFTOTAL();
+
+        #[cfg(Py_3_12)]
+        {
+            (*op).ob_refcnt.ob_refcnt -= 1;
+
+            #[cfg(py_sys_config = "Py_REF_DEBUG")]
+            if (*op).ob_refcnt.ob_refcnt < 0 {
+                let location = std::panic::Location::caller();
+                _Py_NegativeRefcount(location.file(), location.line(), op);
+            }
+
+            if (*op).ob_refcnt.ob_refcnt == 0 {
+                _Py_Dealloc(op);
+            }
+        }
+
+        #[cfg(not(Py_3_12))]
+        {
+            (*op).ob_refcnt -= 1;
+
+            if (*op).ob_refcnt == 0 {
+                _Py_Dealloc(op);
+            }
         }
     }
 }
@@ -453,14 +626,9 @@ pub unsafe fn Py_XDECREF(op: *mut PyObject) {
 }
 
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
-    pub fn Py_IncRef(o: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
-    pub fn Py_DecRef(o: *mut PyObject);
-
-    #[cfg(Py_3_10)]
+    #[cfg(all(Py_3_10, Py_LIMITED_API))]
     pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
-    #[cfg(Py_3_10)]
+    #[cfg(all(Py_3_10, Py_LIMITED_API))]
     pub fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject;
 }
 
@@ -478,6 +646,18 @@ pub unsafe fn _Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
 pub unsafe fn _Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
     Py_XINCREF(obj);
     obj
+}
+
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+#[inline]
+pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
+    _Py_NewRef(obj)
+}
+
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+#[inline]
+pub unsafe fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
+    _Py_XNewRef(obj)
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -554,5 +734,5 @@ pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyType_Type)) as c_int
+    Py_IS_TYPE(op, addr_of_mut_shim!(PyType_Type))
 }

@@ -1,3 +1,4 @@
 pytest>=3.5.0
 setuptools_rust~=1.0.0
 pip>=21.3
+wheel

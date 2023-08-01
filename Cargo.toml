@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.19.1"
+version = "0.19.2"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -20,10 +20,10 @@ parking_lot = ">= 0.11, < 0.13"
 memoffset = "0.9"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.19.1" }
+pyo3-ffi = { path = "pyo3-ffi", version = "=0.19.2" }
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.19.1", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.19.2", optional = true }
 indoc = { version = "1.0.3", optional = true }
 unindent = { version = "0.1.4", optional = true }
 
@@ -44,7 +44,6 @@ serde = { version = "1.0", optional = true }
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
 chrono = { version = "0.4" }
-criterion = "0.3.5"
 # Required for "and $N others" normalization
 trybuild = ">=1.0.70"
 rustversion = "1.0"
@@ -58,7 +57,7 @@ rust_decimal = { version = "1.8.0", features = ["std"] }
 widestring = "0.5.1"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.19.1", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "0.19.2", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
@@ -113,65 +112,6 @@ full = [
     "experimental-inspect",
     "rust_decimal",
 ]
-
-[[bench]]
-name = "bench_any"
-harness = false
-
-[[bench]]
-name = "bench_call"
-harness = false
-
-[[bench]]
-name = "bench_err"
-harness = false
-
-[[bench]]
-name = "bench_decimal"
-harness = false
-required-features = ["rust_decimal"]
-
-[[bench]]
-name = "bench_dict"
-harness = false
-
-[[bench]]
-name = "bench_frompyobject"
-harness = false
-required-features = ["macros"]
-
-[[bench]]
-name = "bench_gil"
-harness = false
-
-[[bench]]
-name = "bench_list"
-harness = false
-
-[[bench]]
-name = "bench_pyclass"
-harness = false
-required-features = ["macros"]
-
-[[bench]]
-name = "bench_pyobject"
-harness = false
-
-[[bench]]
-name = "bench_set"
-harness = false
-
-[[bench]]
-name = "bench_tuple"
-harness = false
-
-[[bench]]
-name = "bench_intern"
-harness = false
-
-[[bench]]
-name = "bench_extract"
-harness = false
 
 [workspace]
 members = [

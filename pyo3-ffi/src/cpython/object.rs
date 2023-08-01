@@ -1,4 +1,6 @@
 use crate::object;
+#[cfg(Py_3_8)]
+use crate::vectorcallfunc;
 use crate::{PyObject, Py_ssize_t};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
@@ -111,14 +113,6 @@ mod bufferinfo {
 
 #[cfg(not(Py_3_11))]
 pub use self::bufferinfo::*;
-
-#[cfg(Py_3_8)]
-pub type vectorcallfunc = unsafe extern "C" fn(
-    callable: *mut PyObject,
-    args: *const *mut PyObject,
-    nargsf: libc::size_t,
-    kwnames: *mut PyObject,
-) -> *mut PyObject;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -275,7 +269,7 @@ pub struct PyTypeObject {
     pub tp_version_tag: c_uint,
     pub tp_finalize: Option<object::destructor>,
     #[cfg(Py_3_8)]
-    pub tp_vectorcall: Option<super::vectorcallfunc>,
+    pub tp_vectorcall: Option<vectorcallfunc>,
     #[cfg(Py_3_12)]
     pub tp_watched: c_char,
     #[cfg(any(all(PyPy, Py_3_8, not(Py_3_10)), all(not(PyPy), Py_3_8, not(Py_3_9))))]
@@ -299,6 +293,8 @@ pub struct PyTypeObject {
 #[derive(Clone)]
 pub struct _specialization_cache {
     pub getitem: *mut PyObject,
+    #[cfg(Py_3_12)]
+    pub getitem_version: u32,
 }
 
 #[repr(C)]
@@ -349,6 +345,9 @@ pub unsafe fn PyHeapType_GET_MEMBERS(
 // skipped _PyType_GetModuleByDef
 
 extern "C" {
+    #[cfg(Py_3_12)]
+    pub fn PyType_GetDict(o: *mut PyTypeObject) -> *mut PyObject;
+
     #[cfg_attr(PyPy, link_name = "PyPyObject_Print")]
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
 

@@ -15,6 +15,7 @@ pub struct PyGenObject {
     pub gi_frame: *mut PyFrameObject,
     #[cfg(not(Py_3_10))]
     pub gi_running: c_int,
+    #[cfg(not(Py_3_12))]
     pub gi_code: *mut PyObject,
     pub gi_weakreflist: *mut PyObject,
     pub gi_name: *mut PyObject,

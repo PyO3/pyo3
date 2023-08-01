@@ -26,7 +26,7 @@ fn subclass() {
             None,
             Some(d),
         )
-        .map_err(|e| e.print(py))
+        .map_err(|e| e.display(py))
         .unwrap();
     });
 }

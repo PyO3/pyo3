@@ -19,6 +19,7 @@ mod pyclass;
 mod pyfunction;
 mod pyimpl;
 mod pymethod;
+mod quotes;
 
 pub use frompyobject::build_derive_from_pyobject;
 pub use module::{process_functions_in_module, pymodule_impl, PyModuleOptions};

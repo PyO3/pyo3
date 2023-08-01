@@ -20,7 +20,7 @@ exclude = '''
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
-version = "0.19.1"
+version = "0.19.2"
 start_string = "<!-- towncrier release notes start -->\n"
 template = ".towncrier.template.md"
 title_format = "## [{version}] - {project_date}"

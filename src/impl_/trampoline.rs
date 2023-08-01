@@ -18,7 +18,7 @@ use crate::{
 pub unsafe fn module_init(
     f: for<'py> unsafe fn(Python<'py>) -> PyResult<Py<PyModule>>,
 ) -> *mut ffi::PyObject {
-    trampoline_inner(|py| f(py).map(|module| module.into_ptr()))
+    trampoline(|py| f(py).map(|module| module.into_ptr()))
 }
 
 #[inline]
@@ -28,7 +28,7 @@ pub unsafe fn noargs(
     f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
 ) -> *mut ffi::PyObject {
     debug_assert!(args.is_null());
-    trampoline_inner(|py| f(py, slf))
+    trampoline(|py| f(py, slf))
 }
 
 macro_rules! trampoline {
@@ -38,7 +38,7 @@ macro_rules! trampoline {
             $($arg_names: $arg_types,)*
             f: for<'py> unsafe fn (Python<'py>, $($arg_types),*) -> PyResult<$ret>,
         ) -> $ret {
-            trampoline_inner(|py| f(py, $($arg_names,)*))
+            trampoline(|py| f(py, $($arg_names,)*))
         }
     }
 }
@@ -131,7 +131,7 @@ pub unsafe fn releasebufferproc(
     buf: *mut ffi::Py_buffer,
     f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>,
 ) {
-    trampoline_inner_unraisable(|py| f(py, slf, buf), slf)
+    trampoline_unraisable(|py| f(py, slf, buf), slf)
 }
 
 #[inline]
@@ -143,7 +143,7 @@ pub(crate) unsafe fn dealloc(
     // so pass null_mut() to the context.
     //
     // (Note that we don't allow the implementation `f` to fail.)
-    trampoline_inner_unraisable(
+    trampoline_unraisable(
         |py| {
             f(py, slf);
             Ok(())
@@ -168,7 +168,7 @@ trampoline!(
 /// Panics during execution are trapped so that they don't propagate through any
 /// outer FFI boundary.
 #[inline]
-pub(crate) fn trampoline_inner<F, R>(body: F) -> R
+pub(crate) fn trampoline<F, R>(body: F) -> R
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
     R: PyCallbackOutput,
@@ -214,7 +214,7 @@ where
 ///
 /// ctx must be either a valid ffi::PyObject or NULL
 #[inline]
-unsafe fn trampoline_inner_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
+unsafe fn trampoline_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<()> + UnwindSafe,
 {

@@ -178,16 +178,18 @@ mod fast_128bit_int_conversion {
             }
             impl IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python<'_>) -> PyObject {
+                    // Always use little endian
+                    let bytes = self.to_le_bytes();
                     unsafe {
-                        // Always use little endian
-                        let bytes = self.to_le_bytes();
-                        let obj = ffi::_PyLong_FromByteArray(
-                            bytes.as_ptr() as *const std::os::raw::c_uchar,
-                            bytes.len(),
-                            1,
-                            $is_signed,
-                        );
-                        PyObject::from_owned_ptr(py, obj)
+                        PyObject::from_owned_ptr(
+                            py,
+                            ffi::_PyLong_FromByteArray(
+                                bytes.as_ptr() as *const std::os::raw::c_uchar,
+                                bytes.len(),
+                                1,
+                                $is_signed,
+                            ),
+                        )
                     }
                 }
 
@@ -199,23 +201,20 @@ mod fast_128bit_int_conversion {
 
             impl<'source> FromPyObject<'source> for $rust_type {
                 fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
-                    unsafe {
-                        let num = ffi::PyNumber_Index(ob.as_ptr());
-                        if num.is_null() {
-                            return Err(PyErr::fetch(ob.py()));
-                        }
-                        let mut buffer = [0; std::mem::size_of::<$rust_type>()];
-                        let ok = ffi::_PyLong_AsByteArray(
-                            num as *mut ffi::PyLongObject,
+                    let num = unsafe {
+                        PyObject::from_owned_ptr_or_err(ob.py(), ffi::PyNumber_Index(ob.as_ptr()))?
+                    };
+                    let mut buffer = [0; std::mem::size_of::<$rust_type>()];
+                    crate::err::error_on_minusone(ob.py(), unsafe {
+                        ffi::_PyLong_AsByteArray(
+                            num.as_ptr() as *mut ffi::PyLongObject,
                             buffer.as_mut_ptr(),
                             buffer.len(),
                             1,
                             $is_signed,
-                        );
-                        ffi::Py_DECREF(num);
-                        crate::err::error_on_minusone(ob.py(), ok)?;
-                        Ok(<$rust_type>::from_le_bytes(buffer))
-                    }
+                        )
+                    })?;
+                    Ok(<$rust_type>::from_le_bytes(buffer))
                 }
 
                 #[cfg(feature = "experimental-inspect")]
@@ -248,19 +247,17 @@ mod slow_128bit_int_conversion {
 
             impl IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python<'_>) -> PyObject {
-                    let lower = self as u64;
-                    let upper = (self >> SHIFT) as $half_type;
+                    let lower = (self as u64).into_py(py);
+                    let upper = ((self >> SHIFT) as $half_type).into_py(py);
+                    let shift = SHIFT.into_py(py);
                     unsafe {
                         let shifted = PyObject::from_owned_ptr(
                             py,
-                            ffi::PyNumber_Lshift(
-                                upper.into_py(py).as_ptr(),
-                                SHIFT.into_py(py).as_ptr(),
-                            ),
+                            ffi::PyNumber_Lshift(upper.as_ptr(), shift.as_ptr()),
                         );
                         PyObject::from_owned_ptr(
                             py,
-                            ffi::PyNumber_Or(shifted.as_ptr(), lower.into_py(py).as_ptr()),
+                            ffi::PyNumber_Or(shifted.as_ptr(), lower.as_ptr()),
                         )
                     }
                 }
@@ -280,9 +277,10 @@ mod slow_128bit_int_conversion {
                             -1 as _,
                             ffi::PyLong_AsUnsignedLongLongMask(ob.as_ptr()),
                         )? as $rust_type;
+                        let shift = SHIFT.into_py(py);
                         let shifted = PyObject::from_owned_ptr_or_err(
                             py,
-                            ffi::PyNumber_Rshift(ob.as_ptr(), SHIFT.into_py(py).as_ptr()),
+                            ffi::PyNumber_Rshift(ob.as_ptr(), shift.as_ptr()),
                         )?;
                         let upper: $half_type = shifted.extract(py)?;
                         Ok((<$rust_type>::from(upper) << SHIFT) | lower)

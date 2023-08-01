@@ -227,14 +227,14 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
         V: ToPyObject,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
-        let value = value.to_object(py);
-
-        unsafe {
-            let ret = ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr());
-            err::error_on_minusone(py, ret)
+        fn inner(any: &PyAny, attr_name: Py<PyString>, value: PyObject) -> PyResult<()> {
+            err::error_on_minusone(any.py(), unsafe {
+                ffi::PyObject_SetAttr(any.as_ptr(), attr_name.as_ptr(), value.as_ptr())
+            })
         }
+
+        let py = self.py();
+        inner(self, attr_name.into_py(py), value.to_object(py))
     }
 
     /// Deletes an attribute.
@@ -247,13 +247,13 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        let py = self.py();
-        let attr_name = attr_name.into_py(py);
-
-        unsafe {
-            let ret = ffi::PyObject_DelAttr(self.as_ptr(), attr_name.as_ptr());
-            err::error_on_minusone(py, ret)
+        fn inner(any: &PyAny, attr_name: Py<PyString>) -> PyResult<()> {
+            err::error_on_minusone(any.py(), unsafe {
+                ffi::PyObject_DelAttr(any.as_ptr(), attr_name.as_ptr())
+            })
         }
+
+        inner(self, attr_name.into_py(self.py()))
     }
 
     /// Returns an [`Ordering`] between `self` and `other`.
@@ -369,13 +369,17 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PyObject_RichCompare(
-                self.as_ptr(),
-                other.to_object(self.py()).as_ptr(),
-                compare_op as c_int,
-            ))
+        fn inner(slf: &PyAny, other: PyObject, compare_op: CompareOp) -> PyResult<&PyAny> {
+            unsafe {
+                slf.py().from_owned_ptr_or_err(ffi::PyObject_RichCompare(
+                    slf.as_ptr(),
+                    other.as_ptr(),
+                    compare_op as c_int,
+                ))
+            }
         }
+
+        inner(self, other.to_object(self.py()), compare_op)
     }
 
     /// Tests whether this object is less than another.
@@ -767,12 +771,14 @@ impl PyAny {
     where
         K: ToPyObject,
     {
-        unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PyObject_GetItem(
-                self.as_ptr(),
-                key.to_object(self.py()).as_ptr(),
-            ))
+        fn inner(slf: &PyAny, key: PyObject) -> PyResult<&PyAny> {
+            unsafe {
+                slf.py()
+                    .from_owned_ptr_or_err(ffi::PyObject_GetItem(slf.as_ptr(), key.as_ptr()))
+            }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Sets a collection item value.
@@ -783,17 +789,14 @@ impl PyAny {
         K: ToPyObject,
         V: ToPyObject,
     {
-        let py = self.py();
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyObject_SetItem(
-                    self.as_ptr(),
-                    key.to_object(py).as_ptr(),
-                    value.to_object(py).as_ptr(),
-                ),
-            )
+        fn inner(slf: &PyAny, key: PyObject, value: PyObject) -> PyResult<()> {
+            err::error_on_minusone(slf.py(), unsafe {
+                ffi::PyObject_SetItem(slf.as_ptr(), key.as_ptr(), value.as_ptr())
+            })
         }
+
+        let py = self.py();
+        inner(self, key.to_object(py), value.to_object(py))
     }
 
     /// Deletes an item from the collection.
@@ -803,12 +806,13 @@ impl PyAny {
     where
         K: ToPyObject,
     {
-        unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PyObject_DelItem(self.as_ptr(), key.to_object(self.py()).as_ptr()),
-            )
+        fn inner(slf: &PyAny, key: PyObject) -> PyResult<()> {
+            err::error_on_minusone(slf.py(), unsafe {
+                ffi::PyObject_DelItem(slf.as_ptr(), key.as_ptr())
+            })
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Takes an object and returns an iterator for it.
@@ -899,6 +903,44 @@ impl PyAny {
         <T as PyTryFrom>::try_from(self)
     }
 
+    /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
+    ///
+    /// It is almost always better to use [`PyAny::downcast`] because it accounts for Python
+    /// subtyping. Use this method only when you do not want to allow subtypes.
+    ///
+    /// The advantage of this method over [`PyAny::downcast`] is that it is faster. The implementation
+    /// of `downcast_exact` uses the equivalent of the Python expression `type(self) is T`, whereas
+    /// `downcast` uses `isinstance(self, T)`.
+    ///
+    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
+    ///
+    /// # Example: Downcasting to a specific Python object but not a subtype
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyBool, PyLong};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let b = PyBool::new(py, true);
+    ///     assert!(b.is_instance_of::<PyBool>());
+    ///     let any: &PyAny = b.as_ref();
+    ///
+    ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
+    ///     // but `downcast_exact` will not.
+    ///     assert!(any.downcast::<PyLong>().is_ok());
+    ///     assert!(any.downcast_exact::<PyLong>().is_err());
+    ///
+    ///     assert!(any.downcast_exact::<PyBool>().is_ok());
+    /// });
+    /// ```
+    #[inline]
+    pub fn downcast_exact<'p, T>(&'p self) -> Result<&'p T, PyDowncastError<'_>>
+    where
+        T: PyTryFrom<'p>,
+    {
+        <T as PyTryFrom>::try_from_exact(self)
+    }
+
     /// Converts this `PyAny` to a concrete Python type without checking validity.
     ///
     /// # Safety
@@ -952,11 +994,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `hash(self)`.
     pub fn hash(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v)
     }
 
     /// Returns the length of the sequence or mapping.
@@ -964,11 +1003,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v as usize)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v as usize)
     }
 
     /// Returns the list of attributes of this object.
@@ -1413,7 +1449,10 @@ class SimpleClass:
     #[test]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
-            let v = py.eval("...", None, None).map_err(|e| e.print(py)).unwrap();
+            let v = py
+                .eval("...", None, None)
+                .map_err(|e| e.display(py))
+                .unwrap();
 
             assert!(v.is_ellipsis());
 

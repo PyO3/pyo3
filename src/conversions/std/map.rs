@@ -74,7 +74,7 @@ where
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
         let dict: &PyDict = ob.downcast()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(K::extract(k)?, V::extract(v)?);
         }
         Ok(ret)
@@ -94,7 +94,7 @@ where
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
         let dict: &PyDict = ob.downcast()?;
         let mut ret = collections::BTreeMap::new();
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(K::extract(k)?, V::extract(v)?);
         }
         Ok(ret)

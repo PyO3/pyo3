@@ -260,13 +260,13 @@ macro_rules! create_exception_type_object {
 }
 
 macro_rules! impl_native_exception (
-    ($name:ident, $exc_name:ident, $doc:expr, $layout:path) => (
+    ($name:ident, $exc_name:ident, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
         #[doc = $doc]
         #[allow(clippy::upper_case_acronyms)]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, *($crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject));
+        $crate::pyobject_native_type!($name, $layout, *($crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject) $(, #checkfunction=$checkfunction)?);
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
@@ -359,7 +359,9 @@ Python::with_gil(|py| {
 impl_native_exception!(
     PyBaseException,
     PyExc_BaseException,
-    native_doc!("BaseException")
+    native_doc!("BaseException"),
+    ffi::PyBaseExceptionObject,
+    #checkfunction=ffi::PyExceptionInstance_Check
 );
 impl_native_exception!(PyException, PyExc_Exception, native_doc!("Exception"));
 impl_native_exception!(
@@ -724,7 +726,7 @@ impl_native_exception!(
 
 #[cfg(test)]
 macro_rules! test_exception {
-    ($exc_ty:ident $(, $constructor:expr)?) => {
+    ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
         #[allow(non_snake_case)]
         #[test]
         fn $exc_ty () {
@@ -735,7 +737,7 @@ macro_rules! test_exception {
                 let err: $crate::PyErr = {
                     None
                     $(
-                        .or(Some($constructor(py)))
+                        .or(Some({ let $py = py; $constructor }))
                     )?
                         .unwrap_or($exc_ty::new_err("a test exception"))
                 };
@@ -770,12 +772,12 @@ pub mod asyncio {
         test_exception!(CancelledError);
         test_exception!(InvalidStateError);
         test_exception!(TimeoutError);
-        test_exception!(IncompleteReadError, |_| {
-            IncompleteReadError::new_err(("partial", "expected"))
-        });
-        test_exception!(LimitOverrunError, |_| {
-            LimitOverrunError::new_err(("message", "consumed"))
-        });
+        test_exception!(IncompleteReadError, |_| IncompleteReadError::new_err((
+            "partial", "expected"
+        )));
+        test_exception!(LimitOverrunError, |_| LimitOverrunError::new_err((
+            "message", "consumed"
+        )));
         test_exception!(QueueEmpty);
         test_exception!(QueueFull);
     }
@@ -811,20 +813,20 @@ mod tests {
             let err: PyErr = gaierror::new_err(());
             let socket = py
                 .import("socket")
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
             let d = PyDict::new(py);
             d.set_item("socket", socket)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
             d.set_item("exc", err)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
             py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("assertion failed");
         });
     }
@@ -835,15 +837,15 @@ mod tests {
             let err: PyErr = MessageError::new_err(());
             let email = py
                 .import("email")
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not import email");
 
             let d = PyDict::new(py);
             d.set_item("email", email)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
             d.set_item("exc", err)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
             py.run(
@@ -851,7 +853,7 @@ mod tests {
                 None,
                 Some(d),
             )
-            .map_err(|e| e.print(py))
+            .map_err(|e| e.display(py))
             .expect("assertion failed");
         });
     }
@@ -1033,9 +1035,10 @@ mod tests {
         });
     }
     #[cfg(Py_3_11)]
-    test_exception!(PyBaseExceptionGroup, |_| {
-        PyBaseExceptionGroup::new_err(("msg", vec![PyValueError::new_err("err")]))
-    });
+    test_exception!(PyBaseExceptionGroup, |_| PyBaseExceptionGroup::new_err((
+        "msg",
+        vec![PyValueError::new_err("err")]
+    )));
     test_exception!(PyBaseException);
     test_exception!(PyException);
     test_exception!(PyStopAsyncIteration);
@@ -1072,10 +1075,9 @@ mod tests {
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
     });
-    test_exception!(PyUnicodeEncodeError, |py: Python<'_>| {
-        py.eval("chr(40960).encode('ascii')", None, None)
-            .unwrap_err()
-    });
+    test_exception!(PyUnicodeEncodeError, |py| py
+        .eval("chr(40960).encode('ascii')", None, None)
+        .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
         PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))
     });

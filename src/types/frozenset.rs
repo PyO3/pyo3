@@ -28,10 +28,13 @@ impl<'py> PyFrozenSetBuilder<'py> {
     where
         K: ToPyObject,
     {
-        let py = self.py_frozen_set.py();
-        err::error_on_minusone(py, unsafe {
-            ffi::PySet_Add(self.py_frozen_set.as_ptr(), key.to_object(py).as_ptr())
-        })
+        fn inner(frozenset: &PyFrozenSet, key: PyObject) -> PyResult<()> {
+            err::error_on_minusone(frozenset.py(), unsafe {
+                ffi::PySet_Add(frozenset.as_ptr(), key.as_ptr())
+            })
+        }
+
+        inner(self.py_frozen_set, key.to_object(self.py_frozen_set.py()))
     }
 
     /// Finish building the set and take ownership of its current value
@@ -94,13 +97,15 @@ impl PyFrozenSet {
     where
         K: ToPyObject,
     {
-        unsafe {
-            match ffi::PySet_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
+        fn inner(frozenset: &PyFrozenSet, key: PyObject) -> PyResult<bool> {
+            match unsafe { ffi::PySet_Contains(frozenset.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py())),
+                _ => Err(PyErr::fetch(frozenset.py())),
             }
         }
+
+        inner(self, key.to_object(self.py()))
     }
 
     /// Returns an iterator of values in this frozen set.
@@ -197,7 +202,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
 ) -> PyResult<Py<PyFrozenSet>> {
-    fn new_from_iter_inner(
+    fn inner(
         py: Python<'_>,
         elements: &mut dyn Iterator<Item = PyObject>,
     ) -> PyResult<Py<PyFrozenSet>> {
@@ -208,16 +213,14 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
         let ptr = set.as_ptr();
 
         for obj in elements {
-            unsafe {
-                err::error_on_minusone(py, ffi::PySet_Add(ptr, obj.as_ptr()))?;
-            }
+            err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
         }
 
         Ok(set)
     }
 
     let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    new_from_iter_inner(py, &mut iter)
+    inner(py, &mut iter)
 }
 
 #[cfg(test)]
@@ -257,7 +260,7 @@ mod tests {
             let set = PyFrozenSet::new(py, &[1]).unwrap();
 
             // iter method
-            for el in set.iter() {
+            for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
             }
 

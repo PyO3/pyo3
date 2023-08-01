@@ -10,5 +10,5 @@ coverage:
 
 ignore:
   - tests/*.rs
+  - pytests/*.rs
   - src/test_hygiene/*.rs
-  - src/impl_/ghost.rs

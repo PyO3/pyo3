@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.19.1", features = ["extension-module"] }
+pyo3 = { version = "0.19.2", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.19.1"
+version = "0.19.2"
 features = ["auto-initialize"]
 ```
 
@@ -192,6 +192,7 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._
 - [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
@@ -212,6 +213,7 @@ about this topic.
 - [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python._
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
+- [tzfpy](http://github.com/ringsaturn/tzfpy) _A fast package to convert longitude/latitude to timezone name._
 - [wasmer-python](https://github.com/wasmerio/wasmer-python) _Python library to run WebAssembly binaries._
 
 ## Articles and other media

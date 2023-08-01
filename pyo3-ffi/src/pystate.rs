@@ -1,4 +1,4 @@
-#[cfg(not(PyPy))]
+#[cfg(any(not(PyPy), Py_3_9))]
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use std::os::raw::c_int;
@@ -28,13 +28,17 @@ extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
-    #[cfg(not(PyPy))]
+    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
+    #[cfg_attr(PyPy, link_name = "PyPyState_AddModule")]
     pub fn PyState_AddModule(arg1: *mut PyObject, arg2: *mut PyModuleDef) -> c_int;
 
-    #[cfg(not(PyPy))]
+    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
+    #[cfg_attr(PyPy, link_name = "PyPyState_RemoveModule")]
     pub fn PyState_RemoveModule(arg1: *mut PyModuleDef) -> c_int;
 
-    #[cfg(not(PyPy))]
+    #[cfg(any(not(PyPy), Py_3_9))] // only on PyPy since 3.9
+    // only has PyPy prefix since 3.10
+    #[cfg_attr(all(PyPy, Py_3_10), link_name = "PyPyState_FindModule")]
     pub fn PyState_FindModule(arg1: *mut PyModuleDef) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_New")]

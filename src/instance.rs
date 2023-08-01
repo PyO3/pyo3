@@ -650,12 +650,9 @@ impl<T> Py<T> {
         let attr_name = attr_name.into_py(py);
         let value = value.into_py(py);
 
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr()),
-            )
-        }
+        err::error_on_minusone(py, unsafe {
+            ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr())
+        })
     }
 
     /// Calls the object.
@@ -1240,7 +1237,7 @@ a = A()
         Python::with_gil(|py| {
             let v = py
                 .eval("...", None, None)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .unwrap()
                 .to_object(py);
 

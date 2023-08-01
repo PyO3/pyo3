@@ -7,7 +7,7 @@ use crate::{
     },
     impl_::{
         pymethods::{get_doc, get_name, Getter, Setter},
-        trampoline::trampoline_inner,
+        trampoline::trampoline,
     },
     types::PyType,
     Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
@@ -413,7 +413,7 @@ unsafe extern "C" fn no_constructor_defined(
     _args: *mut ffi::PyObject,
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
-    trampoline_inner(|_| {
+    trampoline(|_| {
         Err(crate::exceptions::PyTypeError::new_err(
             "No constructor defined",
         ))
@@ -513,7 +513,7 @@ impl GetSetDefType {
                     ) -> *mut ffi::PyObject {
                         // Safety: PyO3 sets the closure when constructing the ffi getter so this cast should always be valid
                         let getter: Getter = std::mem::transmute(closure);
-                        trampoline_inner(|py| getter(py, slf))
+                        trampoline(|py| getter(py, slf))
                     }
                     (Some(getter), None, closure as Getter as _)
                 }
@@ -525,7 +525,7 @@ impl GetSetDefType {
                     ) -> c_int {
                         // Safety: PyO3 sets the closure when constructing the ffi setter so this cast should always be valid
                         let setter: Setter = std::mem::transmute(closure);
-                        trampoline_inner(|py| setter(py, slf, value))
+                        trampoline(|py| setter(py, slf, value))
                     }
                     (None, Some(setter), closure as Setter as _)
                 }
@@ -535,7 +535,7 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
                         let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
-                        trampoline_inner(|py| (getset.getter)(py, slf))
+                        trampoline(|py| (getset.getter)(py, slf))
                     }
 
                     unsafe extern "C" fn getset_setter(
@@ -544,7 +544,7 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> c_int {
                         let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
-                        trampoline_inner(|py| (getset.setter)(py, slf, value))
+                        trampoline(|py| (getset.setter)(py, slf, value))
                     }
                     (
                         Some(getset_getter),

@@ -82,14 +82,14 @@ fn tuple_class_with_new() {
 #[pyclass]
 #[derive(Debug)]
 struct NewWithOneArg {
-    _data: i32,
+    data: i32,
 }
 
 #[pymethods]
 impl NewWithOneArg {
     #[new]
     fn new(arg: i32) -> NewWithOneArg {
-        NewWithOneArg { _data: arg }
+        NewWithOneArg { data: arg }
     }
 }
 
@@ -100,14 +100,14 @@ fn new_with_one_arg() {
         let wrp = typeobj.call((42,), None).unwrap();
         let obj = wrp.downcast::<PyCell<NewWithOneArg>>().unwrap();
         let obj_ref = obj.borrow();
-        assert_eq!(obj_ref._data, 42);
+        assert_eq!(obj_ref.data, 42);
     });
 }
 
 #[pyclass]
 struct NewWithTwoArgs {
-    _data1: i32,
-    _data2: i32,
+    data1: i32,
+    data2: i32,
 }
 
 #[pymethods]
@@ -115,8 +115,8 @@ impl NewWithTwoArgs {
     #[new]
     fn new(arg1: i32, arg2: i32) -> Self {
         NewWithTwoArgs {
-            _data1: arg1,
-            _data2: arg2,
+            data1: arg1,
+            data2: arg2,
         }
     }
 }
@@ -127,12 +127,12 @@ fn new_with_two_args() {
         let typeobj = py.get_type::<NewWithTwoArgs>();
         let wrp = typeobj
             .call((10, 20), None)
-            .map_err(|e| e.print(py))
+            .map_err(|e| e.display(py))
             .unwrap();
         let obj = wrp.downcast::<PyCell<NewWithTwoArgs>>().unwrap();
         let obj_ref = obj.borrow();
-        assert_eq!(obj_ref._data1, 10);
-        assert_eq!(obj_ref._data2, 20);
+        assert_eq!(obj_ref.data1, 10);
+        assert_eq!(obj_ref.data2, 20);
     });
 }
 
@@ -172,7 +172,7 @@ assert c.from_rust is False
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
         py.run(source, Some(globals), None)
-            .map_err(|e| e.print(py))
+            .map_err(|e| e.display(py))
             .unwrap();
     });
 }

@@ -876,8 +876,7 @@ impl<'py> Python<'py> {
     /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
     /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
-        let v = unsafe { ffi::PyErr_CheckSignals() };
-        err::error_on_minusone(self, v)
+        err::error_on_minusone(self, unsafe { ffi::PyErr_CheckSignals() })
     }
 
     /// Create a new pool for managing PyO3's owned references.
@@ -1042,7 +1041,7 @@ mod tests {
             // Make sure builtin names are accessible
             let v: i32 = py
                 .eval("min(1, 2)", None, None)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1159,7 +1158,10 @@ mod tests {
         Python::with_gil(|py| {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
-            let v = py.eval("...", None, None).map_err(|e| e.print(py)).unwrap();
+            let v = py
+                .eval("...", None, None)
+                .map_err(|e| e.display(py))
+                .unwrap();
 
             assert!(v.eq(py.Ellipsis()).unwrap());
         });

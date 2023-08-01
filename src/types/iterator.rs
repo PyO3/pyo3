@@ -55,6 +55,12 @@ impl<'p> Iterator for &'p PyIterator {
             None => PyErr::take(py).map(Err),
         }
     }
+
+    #[cfg(not(Py_LIMITED_API))]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let hint = unsafe { ffi::PyObject_LengthHint(self.0.as_ptr(), 0) };
+        (hint.max(0) as usize, None)
+    }
 }
 
 // PyIter_Check does not exist in the limited API until 3.8
@@ -149,31 +155,30 @@ mod tests {
     #[test]
     fn iter_item_refcnt() {
         Python::with_gil(|py| {
-            let obj;
-            let none;
             let count;
-            {
+            let obj = py.eval("object()", None, None).unwrap();
+            let list = {
                 let _pool = unsafe { GILPool::new() };
-                let l = PyList::empty(py);
-                none = py.None();
-                l.append(10).unwrap();
-                l.append(&none).unwrap();
-                count = none.get_refcnt(py);
-                obj = l.to_object(py);
-            }
+                let list = PyList::empty(py);
+                list.append(10).unwrap();
+                list.append(obj).unwrap();
+                count = obj.get_refcnt();
+                list.to_object(py)
+            };
 
             {
                 let _pool = unsafe { GILPool::new() };
-                let inst = obj.as_ref(py);
+                let inst = list.as_ref(py);
                 let mut it = inst.iter().unwrap();
 
                 assert_eq!(
                     10_i32,
                     it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
                 );
-                assert!(it.next().unwrap().unwrap().is_none());
+                assert!(it.next().unwrap().unwrap().is(obj));
+                assert!(it.next().is_none());
             }
-            assert_eq!(count, none.get_refcnt(py));
+            assert_eq!(count, obj.get_refcnt());
         });
     }
 
@@ -311,6 +316,17 @@ def fibonacci(target):
                     assert_iterator(MyIter())
                 "#
             );
+        });
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn length_hint_becomes_size_hint_lower_bound() {
+        Python::with_gil(|py| {
+            let list = py.eval("[1, 2, 3]", None, None).unwrap();
+            let iter = list.iter().unwrap();
+            let hint = iter.size_hint();
+            assert_eq!(hint, (3, None));
         });
     }
 }
