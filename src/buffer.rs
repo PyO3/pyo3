@@ -34,8 +34,8 @@ pub struct PyBuffer<T>(Pin<Box<ffi::Py_buffer>>, PhantomData<T>);
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
 // Accessing the buffer contents is protected using the GIL.
-unsafe impl<T> Send for PyBuffer<T> {}
-unsafe impl<T> Sync for PyBuffer<T> {}
+unsafe impl<T: Send> Send for PyBuffer<T> {}
+unsafe impl<T: Sync> Sync for PyBuffer<T> {}
 
 impl<T> Debug for PyBuffer<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
