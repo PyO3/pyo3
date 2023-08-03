@@ -226,8 +226,8 @@ pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 // The inner value is only accessed through ways that require proving the gil is held
 #[cfg(feature = "nightly")]
 unsafe impl<T> crate::marker::Ungil for Py<T> {}
-unsafe impl<T> Send for Py<T> {}
-unsafe impl<T> Sync for Py<T> {}
+unsafe impl<T: Send> Send for Py<T> {}
+unsafe impl<T: Sync> Sync for Py<T> {}
 
 impl<T> Py<T>
 where
