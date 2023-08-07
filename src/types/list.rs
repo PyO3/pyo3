@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use std::iter::FusedIterator;
 
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
@@ -264,6 +265,7 @@ impl PyList {
         PyListIterator {
             list: self,
             index: 0,
+            length: self.len(),
         }
     }
 
@@ -291,18 +293,28 @@ index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 pub struct PyListIterator<'a> {
     list: &'a PyList,
     index: usize,
+    length: usize,
+}
+
+impl<'a> PyListIterator<'a> {
+    unsafe fn get_item(&self, index: usize) -> &'a PyAny {
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        let item = self.list.get_item(index).expect("list.get failed");
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        let item = self.list.get_item_unchecked(index);
+        item
+    }
 }
 
 impl<'a> Iterator for PyListIterator<'a> {
     type Item = &'a PyAny;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyAny> {
-        if self.index < self.list.len() {
-            #[cfg(any(Py_LIMITED_API, PyPy))]
-            let item = self.list.get_item(self.index).expect("list.get failed");
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-            let item = unsafe { self.list.get_item_unchecked(self.index) };
+    fn next(&mut self) -> Option<Self::Item> {
+        let length = self.length.min(self.list.len());
+
+        if self.index < length {
+            let item = unsafe { self.get_item(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -317,13 +329,30 @@ impl<'a> Iterator for PyListIterator<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for PyListIterator<'a> {
-    fn len(&self) -> usize {
-        self.list.len().saturating_sub(self.index)
+impl<'a> DoubleEndedIterator for PyListIterator<'a> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let length = self.length.min(self.list.len());
+
+        if self.index < length {
+            let item = unsafe { self.get_item(length - 1) };
+            self.length = length - 1;
+            Some(item)
+        } else {
+            None
+        }
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyList {
+impl<'a> ExactSizeIterator for PyListIterator<'a> {
+    fn len(&self) -> usize {
+        self.length.saturating_sub(self.index)
+    }
+}
+
+impl FusedIterator for PyListIterator<'_> {}
+
+impl<'a> IntoIterator for &'a PyList {
     type Item = &'a PyAny;
     type IntoIter = PyListIterator<'a>;
 
@@ -494,10 +523,38 @@ mod tests {
             iter.next();
             assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
 
-            // Exhust iterator.
+            // Exhaust iterator.
             for _ in &mut iter {}
 
             assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
+    }
+
+    #[test]
+    fn test_iter_rev() {
+        Python::with_gil(|py| {
+            let v = vec![2, 3, 5, 7];
+            let ob = v.to_object(py);
+            let list: &PyList = ob.downcast(py).unwrap();
+
+            let mut iter = list.iter().rev();
+
+            assert_eq!(iter.size_hint(), (4, Some(4)));
+
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 7);
+            assert_eq!(iter.size_hint(), (3, Some(3)));
+
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 5);
+            assert_eq!(iter.size_hint(), (2, Some(2)));
+
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 3);
+            assert_eq!(iter.size_hint(), (1, Some(1)));
+
+            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+
+            assert!(iter.next().is_none());
+            assert!(iter.next().is_none());
         });
     }
 
