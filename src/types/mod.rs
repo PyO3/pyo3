@@ -75,6 +75,7 @@ pub mod iter {
     pub use super::dict::PyDictIterator;
     pub use super::frozenset::PyFrozenSetIterator;
     pub use super::set::PySetIterator;
+    pub use super::tuple::PyTupleIterator;
 }
 
 // Implementations core to all native types

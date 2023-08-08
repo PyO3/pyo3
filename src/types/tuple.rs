@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use std::iter::FusedIterator;
 
 use crate::ffi::{self, Py_ssize_t};
 #[cfg(feature = "experimental-inspect")]
@@ -232,16 +233,23 @@ pub struct PyTupleIterator<'a> {
     length: usize,
 }
 
+impl<'a> PyTupleIterator<'a> {
+    unsafe fn get_item(&self, index: usize) -> &'a PyAny {
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        let item = self.tuple.get_item(index).expect("tuple.get failed");
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        let item = self.tuple.get_item_unchecked(index);
+        item
+    }
+}
+
 impl<'a> Iterator for PyTupleIterator<'a> {
     type Item = &'a PyAny;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyAny> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            #[cfg(any(Py_LIMITED_API, PyPy))]
-            let item = self.tuple.get_item(self.index).expect("tuple.get failed");
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-            let item = unsafe { self.tuple.get_item_unchecked(self.index) };
+            let item = unsafe { self.get_item(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -256,11 +264,26 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     }
 }
 
+impl<'a> DoubleEndedIterator for PyTupleIterator<'a> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let item = unsafe { self.get_item(self.length - 1) };
+            self.length -= 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
 impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
     fn len(&self) -> usize {
         self.length.saturating_sub(self.index)
     }
 }
+
+impl FusedIterator for PyTupleIterator<'_> {}
 
 impl<'a> IntoIterator for &'a PyTuple {
     type Item = &'a PyAny;
@@ -510,6 +533,33 @@ mod tests {
 
             assert_eq!(3_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
             assert_eq!(iter.size_hint(), (0, Some(0)));
+
+            assert!(iter.next().is_none());
+            assert!(iter.next().is_none());
+        });
+    }
+
+    #[test]
+    fn test_iter_rev() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            assert_eq!(3, tuple.len());
+            let mut iter = tuple.iter().rev();
+
+            assert_eq!(iter.size_hint(), (3, Some(3)));
+
+            assert_eq!(3_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (2, Some(2)));
+
+            assert_eq!(2_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (1, Some(1)));
+
+            assert_eq!(1_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+
+            assert!(iter.next().is_none());
+            assert!(iter.next().is_none());
         });
     }
 

@@ -495,7 +495,7 @@ impl<T: Element> PyBuffer<T> {
 
         err::error_on_minusone(py, unsafe {
             ffi::PyBuffer_ToContiguous(
-                target.as_ptr() as *mut raw::c_void,
+                target.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
                 &*self.0,
                 #[cfg(not(Py_3_11))]
