@@ -1,5 +1,7 @@
-use crate::intern;
-use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    ffi, AsPyPointer, FromPyObject, FromPyPointer, IntoPy, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
+};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -14,21 +16,9 @@ impl ToPyObject for Path {
 
 impl FromPyObject<'_> for PathBuf {
     fn extract(ob: &PyAny) -> PyResult<Self> {
-        let os_str = match OsString::extract(ob) {
-            Ok(s) => s,
-            Err(err) => {
-                let py = ob.py();
-                let pathlib = py.import(intern!(py, "pathlib"))?;
-                let pathlib_path = pathlib.getattr(intern!(py, "Path"))?;
-                if ob.is_instance(pathlib_path)? {
-                    let path_str = ob.call_method0(intern!(py, "__str__"))?;
-                    OsString::extract(path_str)?
-                } else {
-                    return Err(err);
-                }
-            }
-        };
-        Ok(PathBuf::from(os_str))
+        // We use os.fspath to get the underlying path as bytes or str
+        let path = unsafe { PyAny::from_owned_ptr_or_err(ob.py(), ffi::PyOS_FSPath(ob.as_ptr())) }?;
+        Ok(OsString::extract(path)?.into())
     }
 }
 
