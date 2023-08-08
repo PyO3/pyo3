@@ -9,8 +9,8 @@ use std::ptr::addr_of_mut;
 #[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
-pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 14;
-pub const _PY_MONITORING_EVENTS: usize = 16;
+pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 15;
+pub const _PY_MONITORING_EVENTS: usize = 17;
 
 #[cfg(Py_3_12)]
 #[repr(C)]
