@@ -37,6 +37,7 @@ The table below contains the Python type and the corresponding function argument
 | `decimal.Decimal` | `rust_decimal::Decimal`[^5] | -                    |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
+| `os.PathLike ` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
 | `pathlib.Path` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `&PySequence`        |
