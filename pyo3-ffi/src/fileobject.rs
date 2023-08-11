@@ -26,10 +26,13 @@ extern "C" {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[deprecated(note = "Python 3.12")]
     pub static mut Py_FileSystemDefaultEncoding: *const c_char;
+    #[deprecated(note = "Python 3.12")]
     pub static mut Py_FileSystemDefaultEncodeErrors: *const c_char;
+    #[deprecated(note = "Python 3.12")]
     pub static mut Py_HasFileSystemDefaultEncoding: c_int;
-    // skipped Python 3.7 / ex-non-limited Py_UTF8Mode
+    // skipped 3.12-deprecated Py_UTF8Mode
 }
 
 // skipped _PyIsSelectable_fd

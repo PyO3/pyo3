@@ -1,6 +1,6 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
-use crate::structmember::PyMemberDef;
+use crate::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
@@ -61,4 +61,63 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDictProxy_New")]
     pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct PyMemberDef {
+    pub name: *const c_char,
+    pub type_code: c_int,
+    pub offset: Py_ssize_t,
+    pub flags: c_int,
+    pub doc: *const c_char,
+}
+
+impl Default for PyMemberDef {
+    fn default() -> PyMemberDef {
+        PyMemberDef {
+            name: ptr::null_mut(),
+            type_code: 0,
+            offset: 0,
+            flags: 0,
+            doc: ptr::null_mut(),
+        }
+    }
+}
+
+/* Types */
+pub const Py_T_SHORT: c_int = 0;
+pub const Py_T_INT: c_int = 1;
+pub const Py_T_LONG: c_int = 2;
+pub const Py_T_FLOAT: c_int = 3;
+pub const Py_T_DOUBLE: c_int = 4;
+pub const Py_T_STRING: c_int = 5;
+#[deprecated(note = "Use Py_T_OBJECT_EX instead")]
+pub const _Py_T_OBJECT: c_int = 6;
+pub const Py_T_CHAR: c_int = 7;
+pub const Py_T_BYTE: c_int = 8;
+pub const Py_T_UBYTE: c_int = 9;
+pub const Py_T_USHORT: c_int = 10;
+pub const Py_T_UINT: c_int = 11;
+pub const Py_T_ULONG: c_int = 12;
+pub const Py_T_STRING_INPLACE: c_int = 13;
+pub const Py_T_BOOL: c_int = 14;
+pub const Py_T_OBJECT_EX: c_int = 16;
+pub const Py_T_LONGLONG: c_int = 17;
+pub const Py_T_ULONGLONG: c_int = 18;
+pub const Py_T_PYSSIZET: c_int = 19;
+#[deprecated(note = "Value is always none")]
+pub const _Py_T_NONE: c_int = 20;
+
+/* Flags */
+pub const Py_READONLY: c_int = 1;
+#[cfg(Py_3_10)]
+pub const Py_AUDIT_READ: c_int = 2; // Added in 3.10, harmless no-op before that
+#[deprecated]
+pub const _Py_WRITE_RESTRICTED: c_int = 4; // Deprecated, no-op. Do not reuse the value.
+pub const Py_RELATIVE_OFFSET: c_int = 8;
+
+extern "C" {
+    pub fn PyMember_GetOne(addr: *const c_char, l: *mut PyMemberDef) -> *mut PyObject;
+    pub fn PyMember_SetOne(addr: *mut c_char, l: *mut PyMemberDef, value: *mut PyObject) -> c_int;
 }
