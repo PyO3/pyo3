@@ -356,6 +356,34 @@ where
     }
 }
 
+impl<T> Py<T> {
+    /// Returns the raw FFI pointer represented by self.
+    ///
+    /// # Safety
+    ///
+    /// Callers are responsible for ensuring that the pointer does not outlive self.
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the pointer.
+    #[inline]
+    pub fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.0.as_ptr()
+    }
+
+    /// Returns an owned raw FFI pointer represented by self.
+    ///
+    /// # Safety
+    ///
+    /// The reference is owned; when finished the caller should either transfer ownership
+    /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
+    #[inline]
+    pub fn into_ptr(self) -> *mut ffi::PyObject {
+        let ptr = self.0.as_ptr();
+        std::mem::forget(self);
+        ptr
+    }
+}
+
 impl<T> Py<T>
 where
     T: PyClass,
@@ -897,7 +925,7 @@ impl<T> IntoPy<PyObject> for Py<T> {
     }
 }
 
-impl<T> AsPyPointer for Py<T> {
+impl<T> crate::AsPyPointer for Py<T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {

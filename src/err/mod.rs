@@ -5,7 +5,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{IntoPy, Py, PyAny, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -443,7 +443,7 @@ impl PyErr {
                 self.get_type(py).as_ptr(),
                 self.value(py).as_ptr(),
                 self.traceback(py)
-                    .map_or(std::ptr::null_mut(), PyTraceback::as_ptr),
+                    .map_or(std::ptr::null_mut(), |traceback| traceback.as_ptr()),
             )
         }
     }
@@ -642,7 +642,7 @@ impl PyErr {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
                 value.as_ptr(),
-                cause.map_or(std::ptr::null_mut(), IntoPyPointer::into_ptr),
+                cause.map_or(std::ptr::null_mut(), Py::into_ptr),
             );
         }
     }

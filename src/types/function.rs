@@ -5,7 +5,6 @@ use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyTuple},
-    AsPyPointer,
 };
 use std::cell::UnsafeCell;
 use std::ffi::CStr;

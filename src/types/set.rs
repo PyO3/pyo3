@@ -4,7 +4,7 @@ use crate::{
     err::{self, PyErr, PyResult},
     Py,
 };
-use crate::{ffi, AsPyPointer, PyAny, PyObject, Python, ToPyObject};
+use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
 
 /// Represents a Python `set`

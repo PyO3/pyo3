@@ -2,9 +2,7 @@ use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::types::{PyAny, PyList};
-#[cfg(not(PyPy))]
-use crate::IntoPyPointer;
-use crate::{ffi, AsPyPointer, PyObject, Python, ToPyObject};
+use crate::{ffi, PyObject, Python, ToPyObject};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]

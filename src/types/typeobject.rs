@@ -1,5 +1,5 @@
 use crate::err::{self, PyResult};
-use crate::{ffi, AsPyPointer, PyAny, PyTypeInfo, Python};
+use crate::{ffi, PyAny, PyTypeInfo, Python};
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]

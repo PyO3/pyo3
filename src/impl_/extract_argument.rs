@@ -697,7 +697,7 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 mod tests {
     use crate::{
         types::{IntoPyDict, PyTuple},
-        AsPyPointer, PyAny, Python, ToPyObject,
+        PyAny, Python, ToPyObject,
     };
 
     use super::{push_parameter_list, FunctionDescription, NoVarargs, NoVarkeywords};

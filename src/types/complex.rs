@@ -1,4 +1,4 @@
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, PyAny, Python};
 use std::os::raw::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.

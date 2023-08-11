@@ -21,7 +21,7 @@ use crate::ffi::{
 };
 use crate::instance::PyNativeType;
 use crate::types::PyTuple;
-use crate::{AsPyPointer, IntoPy, Py, PyAny, Python};
+use crate::{IntoPy, Py, PyAny, Python};
 use std::os::raw::c_int;
 
 fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {

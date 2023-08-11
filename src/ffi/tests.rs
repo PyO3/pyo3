@@ -1,5 +1,5 @@
 use crate::ffi::*;
-use crate::{AsPyPointer, Python};
+use crate::Python;
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
@@ -256,7 +256,7 @@ fn test_get_tzinfo() {
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
-        use crate::{AsPyPointer, PyAny};
+        use crate::PyAny;
 
         let utc = timezone_utc(py);
 

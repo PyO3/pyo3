@@ -1,6 +1,5 @@
 use crate::{
-    ffi, AsPyPointer, FromPyObject, FromPyPointer, IntoPy, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
+    ffi, FromPyObject, FromPyPointer, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 use std::borrow::Cow;
 use std::ffi::OsString;

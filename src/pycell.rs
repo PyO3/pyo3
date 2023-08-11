@@ -603,7 +603,6 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 ///
 ///     fn format(slf: PyRef<'_, Self>) -> String {
 ///         // We can get *mut ffi::PyObject from PyRef
-///         use pyo3::AsPyPointer;
 ///         let refcnt = unsafe { pyo3::ffi::Py_REFCNT(slf.as_ptr()) };
 ///         // We can get &Self::BaseType by as_ref
 ///         let basename = slf.as_ref().basename;
@@ -635,6 +634,32 @@ where
 {
     fn as_ref(&self) -> &T::BaseType {
         unsafe { &*self.inner.ob_base.get_ptr() }
+    }
+}
+
+impl<'p, T: PyClass> PyRef<'p, T> {
+    /// Returns the raw FFI pointer represented by self.
+    ///
+    /// # Safety
+    ///
+    /// Callers are responsible for ensuring that the pointer does not outlive self.
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the pointer.
+    #[inline]
+    pub fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.inner.as_ptr()
+    }
+
+    /// Returns an owned raw FFI pointer represented by self.
+    ///
+    /// # Safety
+    ///
+    /// The reference is owned; when finished the caller should either transfer ownership
+    /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
+    #[inline]
+    pub fn into_ptr(self) -> *mut ffi::PyObject {
+        self.inner.into_ptr()
     }
 }
 
@@ -768,6 +793,32 @@ where
 {
     fn as_mut(&mut self) -> &mut T::BaseType {
         unsafe { &mut *self.inner.ob_base.get_ptr() }
+    }
+}
+
+impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
+    /// Returns the raw FFI pointer represented by self.
+    ///
+    /// # Safety
+    ///
+    /// Callers are responsible for ensuring that the pointer does not outlive self.
+    ///
+    /// The reference is borrowed; callers should not decrease the reference count
+    /// when they are finished with the pointer.
+    #[inline]
+    pub fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.inner.as_ptr()
+    }
+
+    /// Returns an owned raw FFI pointer represented by self.
+    ///
+    /// # Safety
+    ///
+    /// The reference is owned; when finished the caller should either transfer ownership
+    /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
+    #[inline]
+    pub fn into_ptr(self) -> *mut ffi::PyObject {
+        self.inner.into_ptr()
     }
 }
 
@@ -1039,6 +1090,31 @@ mod tests {
 
             let _guard = cell2.borrow();
             cell.swap(cell2);
+        })
+    }
+
+    #[test]
+    fn test_as_ptr() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let ptr = cell.as_ptr();
+
+            assert_eq!(cell.borrow().as_ptr(), ptr);
+            assert_eq!(cell.borrow_mut().as_ptr(), ptr);
+        })
+    }
+
+    #[test]
+    fn test_into_ptr() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let ptr = cell.as_ptr();
+
+            assert_eq!(cell.borrow().into_ptr(), ptr);
+            unsafe { ffi::Py_DECREF(ptr) };
+
+            assert_eq!(cell.borrow_mut().into_ptr(), ptr);
+            unsafe { ffi::Py_DECREF(ptr) };
         })
     }
 }

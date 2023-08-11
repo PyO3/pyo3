@@ -3,7 +3,6 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
-use crate::IntoPyPointer;
 use crate::{IntoPy, PyObject, Python};
 use std::isize;
 use std::os::raw::c_int;

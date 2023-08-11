@@ -120,10 +120,7 @@ use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
 use crate::version::PythonVersionInfo;
-use crate::{
-    ffi, AsPyPointer, FromPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
-    PyTypeInfo,
-};
+use crate::{ffi, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTryFrom, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -634,9 +631,9 @@ impl<'py> Python<'py> {
             }
 
             let globals = globals
-                .map(AsPyPointer::as_ptr)
+                .map(|dict| dict.as_ptr())
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
+            let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
 
             // If `globals` don't provide `__builtins__`, most of the code will fail if Python
             // version is <3.10. That's probably not what user intended, so insert `__builtins__`

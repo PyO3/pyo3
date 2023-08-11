@@ -1,7 +1,7 @@
 #[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;
-use crate::{ffi, AsPyPointer, PyAny, PyResult, Python};
+use crate::{ffi, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;

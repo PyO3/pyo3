@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
 
-use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*, AsPyPointer};
+use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*};
 use std::{
     ffi::CStr,
     os::raw::{c_int, c_void},

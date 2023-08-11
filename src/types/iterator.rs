@@ -1,4 +1,4 @@
-use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyAny, PyErr, PyNativeType, PyResult, Python};
+use crate::{ffi, AsPyPointer, Py, PyAny, PyErr, PyNativeType, PyResult, Python};
 use crate::{PyDowncastError, PyTryFrom};
 
 /// A Python iterator object.

@@ -1,7 +1,7 @@
 use crate::err::{error_on_minusone, PyResult};
 use crate::ffi;
 use crate::types::PyString;
-use crate::{AsPyPointer, PyAny};
+use crate::PyAny;
 
 /// Represents a Python traceback.
 #[repr(transparent)]

@@ -5,7 +5,7 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{AsPyPointer, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{Py, PyAny, PyObject, Python, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]

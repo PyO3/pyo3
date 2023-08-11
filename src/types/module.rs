@@ -4,7 +4,7 @@ use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
-use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
+use crate::{IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 

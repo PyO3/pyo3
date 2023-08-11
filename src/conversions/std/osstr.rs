@@ -1,7 +1,5 @@
 use crate::types::PyString;
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
 #[cfg(not(windows))]

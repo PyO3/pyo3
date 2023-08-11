@@ -421,7 +421,6 @@ Let's create that helper function. The signature has to be `fn(&PyAny) -> PyResu
 use std::os::raw::c_ulong;
 use pyo3::prelude::*;
 use pyo3::ffi;
-use pyo3::conversion::AsPyPointer;
 
 fn wrap(obj: &PyAny) -> Result<i32, PyErr> {
     let py: Python<'_> = obj.py();

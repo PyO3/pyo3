@@ -3,7 +3,7 @@
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
-use pyo3::{py_run, AsPyPointer, PyCell, PyTryInto};
+use pyo3::{py_run, PyCell, PyTryInto};
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
