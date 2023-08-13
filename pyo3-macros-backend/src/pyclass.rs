@@ -16,7 +16,8 @@ use crate::pymethod::{
 };
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
-use proc_macro2::{Span, TokenStream};
+use heck::ToShoutySnakeCase;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
@@ -66,6 +67,7 @@ pub struct PyClassPyO3Options {
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
+    pub rename_all: Option<kw::rename_all>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
     pub subclass: Option<kw::subclass>,
@@ -86,6 +88,7 @@ enum PyClassPyO3Option {
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
+    RenameAll(kw::rename_all),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
     Subclass(kw::subclass),
@@ -115,6 +118,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
             input.parse().map(PyClassPyO3Option::Name)
+        } else if lookahead.peek(attributes::kw::rename_all) {
+            input.parse().map(PyClassPyO3Option::RenameAll)
         } else if lookahead.peek(attributes::kw::sequence) {
             input.parse().map(PyClassPyO3Option::Sequence)
         } else if lookahead.peek(attributes::kw::set_all) {
@@ -173,6 +178,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
+            PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
@@ -202,6 +208,11 @@ pub fn build_py_class(
             lt.span() =>
             "#[pyclass] cannot have lifetime parameters. \
             For an explanation, see https://pyo3.rs/latest/class.html#no-lifetime-parameters"
+        );
+    } else if let Some(rename_all) = args.options.rename_all {
+        bail_spanned!(
+            rename_all.span() =>
+            "rename_all should only be applied to enums."
         );
     }
 
@@ -379,12 +390,21 @@ struct PyClassEnumVariant<'a> {
 }
 
 impl<'a> PyClassEnumVariant<'a> {
-    fn python_name(&self) -> Cow<'_, syn::Ident> {
-        self.options
+    fn python_name(&self, args: &PyClassArgs) -> Cow<'_, syn::Ident> {
+        let name = self
+            .options
             .name
             .as_ref()
             .map(|name_attr| Cow::Borrowed(&name_attr.value.0))
-            .unwrap_or_else(|| Cow::Owned(self.ident.unraw()))
+            .unwrap_or_else(|| Cow::Owned(self.ident.unraw()));
+        if args.options.rename_all.is_some() {
+            Cow::Owned(Ident::new(
+                &format!("{}", name).to_shouty_snake_case(),
+                Span::call_site(),
+            ))
+        } else {
+            name
+        }
     }
 }
 
@@ -515,7 +535,7 @@ fn impl_enum(
             let repr = format!(
                 "{}.{}",
                 get_class_python_name(cls, args),
-                variant.python_name(),
+                variant.python_name(args),
             );
             quote! { #cls::#variant_name => #repr, }
         });
@@ -597,7 +617,7 @@ fn impl_enum(
         cls,
         args,
         methods_type,
-        enum_default_methods(cls, variants.iter().map(|v| (v.ident, v.python_name()))),
+        enum_default_methods(cls, variants.iter().map(|v| (v.ident, v.python_name(args)))),
         default_slots,
     )
     .doc(doc)
