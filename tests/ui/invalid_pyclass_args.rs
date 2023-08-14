@@ -15,6 +15,12 @@ struct InvalidName2 {}
 #[pyclass(name = CustomName)]
 struct DeprecatedName {}
 
+#[pyclass(rename_all = camelCase)]
+struct InvalidRenamingRule {}
+
+#[pyclass(rename_all = "Camel-Case")]
+struct InvalidRenamingRule2 {}
+
 #[pyclass(module = my_module)]
 struct InvalidModule {}
 

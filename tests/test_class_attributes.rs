@@ -160,3 +160,42 @@ RuntimeError: An error occurred while initializing class BrokenClass"
         )
     });
 }
+
+#[pyclass(get_all, set_all, rename_all = "camelCase")]
+struct StructWithRenamedFields {
+    first_field: bool,
+    second_field: u8,
+    #[pyo3(name = "third_field")]
+    fourth_field: bool,
+}
+
+#[pymethods]
+impl StructWithRenamedFields {
+    #[new]
+    fn new() -> Self {
+        Self {
+            first_field: true,
+            second_field: 5,
+            fourth_field: false,
+        }
+    }
+}
+
+#[test]
+fn test_renaming_all_struct_fields() {
+    use pyo3::types::PyBool;
+
+    Python::with_gil(|py| {
+        let struct_class = py.get_type::<StructWithRenamedFields>();
+        let struct_obj = struct_class.call0().unwrap();
+        assert!(struct_obj
+            .setattr("firstField", PyBool::new(py, false))
+            .is_ok());
+        py_assert!(py, struct_obj, "struct_obj.firstField == False");
+        py_assert!(py, struct_obj, "struct_obj.secondField == 5");
+        assert!(struct_obj
+            .setattr("third_field", PyBool::new(py, true))
+            .is_ok());
+        py_assert!(py, struct_obj, "struct_obj.third_field == True");
+    });
+}

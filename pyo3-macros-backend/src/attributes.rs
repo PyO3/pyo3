@@ -83,6 +83,55 @@ impl ToTokens for NameLitStr {
     }
 }
 
+/// Available renaming rules
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RenamingRule {
+    CamelCase,
+    KebabCase,
+    Lowercase,
+    PascalCase,
+    ScreamingKebabCase,
+    ScreamingSnakeCase,
+    SnakeCase,
+    Uppercase,
+}
+
+/// A helper type which parses a renaming rule via a literal string
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RenamingRuleLitStr {
+    pub lit: LitStr,
+    pub rule: RenamingRule,
+}
+
+impl Parse for RenamingRuleLitStr {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let string_literal: LitStr = input.parse()?;
+        let rule = match string_literal.value().as_ref() {
+            "camelCase" => RenamingRule::CamelCase,
+            "kebab-case" => RenamingRule::KebabCase,
+            "lowercase" => RenamingRule::Lowercase,
+            "PascalCase" => RenamingRule::PascalCase,
+            "SCREAMING-KEBAB-CASE" => RenamingRule::ScreamingKebabCase,
+            "SCREAMING_SNAKE_CASE" => RenamingRule::ScreamingSnakeCase,
+            "snake_case" => RenamingRule::SnakeCase,
+            "UPPERCASE" => RenamingRule::Uppercase,
+            _ => {
+                bail_spanned!(string_literal.span() => "expected a valid renaming rule, possible values are: \"camelCase\", \"kebab-case\", \"lowercase\", \"PascalCase\", \"SCREAMING-KEBAB-CASE\", \"SCREAMING_SNAKE_CASE\", \"snake_case\", \"UPPERCASE\"")
+            }
+        };
+        Ok(Self {
+            lit: string_literal,
+            rule,
+        })
+    }
+}
+
+impl ToTokens for RenamingRuleLitStr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.lit.to_tokens(tokens)
+    }
+}
+
 /// Text signatue can be either a literal string or opt-in/out
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TextSignatureAttributeValue {
@@ -122,6 +171,7 @@ pub type ExtendsAttribute = KeywordAttribute<kw::extends, Path>;
 pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
 pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
 pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
+pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitStr>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {

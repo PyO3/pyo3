@@ -2,7 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{punctuated::Punctuated, spanned::Spanned, Token};
 
-use crate::attributes::CrateAttribute;
+use crate::attributes::{CrateAttribute, RenamingRule};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
 macro_rules! err_spanned {
@@ -160,4 +160,19 @@ pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
     attr.as_ref()
         .map(|p| p.value.0.clone())
         .unwrap_or_else(|| syn::parse_str("::pyo3").unwrap())
+}
+
+pub fn apply_renaming_rule(rule: RenamingRule, name: &str) -> String {
+    use heck::*;
+
+    match rule {
+        RenamingRule::CamelCase => name.to_lower_camel_case(),
+        RenamingRule::KebabCase => name.to_kebab_case(),
+        RenamingRule::Lowercase => name.to_lowercase(),
+        RenamingRule::PascalCase => name.to_upper_camel_case(),
+        RenamingRule::ScreamingKebabCase => name.to_shouty_kebab_case(),
+        RenamingRule::ScreamingSnakeCase => name.to_shouty_snake_case(),
+        RenamingRule::SnakeCase => name.to_snake_case(),
+        RenamingRule::Uppercase => name.to_uppercase(),
+    }
 }

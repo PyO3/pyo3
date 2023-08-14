@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute,
+    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, TextSignatureAttribute,
     TextSignatureAttributeValue,
 };
 use crate::deprecations::{Deprecation, Deprecations};
@@ -14,9 +14,8 @@ use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
     SlotDef, __INT__, __REPR__, __RICHCMP__,
 };
-use crate::utils::{self, get_pyo3_crate, PythonDoc};
+use crate::utils::{self, apply_renaming_rule, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
-use heck::ToShoutySnakeCase;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
@@ -67,7 +66,7 @@ pub struct PyClassPyO3Options {
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
-    pub rename_all: Option<kw::rename_all>,
+    pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
     pub subclass: Option<kw::subclass>,
@@ -88,7 +87,7 @@ enum PyClassPyO3Option {
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
-    RenameAll(kw::rename_all),
+    RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
     Subclass(kw::subclass),
@@ -118,7 +117,7 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
             input.parse().map(PyClassPyO3Option::Name)
-        } else if lookahead.peek(attributes::kw::rename_all) {
+        } else if lookahead.peek(kw::rename_all) {
             input.parse().map(PyClassPyO3Option::RenameAll)
         } else if lookahead.peek(attributes::kw::sequence) {
             input.parse().map(PyClassPyO3Option::Sequence)
@@ -208,11 +207,6 @@ pub fn build_py_class(
             lt.span() =>
             "#[pyclass] cannot have lifetime parameters. \
             For an explanation, see https://pyo3.rs/latest/class.html#no-lifetime-parameters"
-        );
-    } else if let Some(rename_all) = args.options.rename_all {
-        bail_spanned!(
-            rename_all.span() =>
-            "rename_all should only be applied to enums."
         );
     }
 
@@ -367,7 +361,12 @@ fn impl_class(
         cls,
         args,
         methods_type,
-        descriptors_to_items(cls, args.options.frozen, field_options)?,
+        descriptors_to_items(
+            cls,
+            args.options.rename_all.as_ref(),
+            args.options.frozen,
+            field_options,
+        )?,
         vec![],
     )
     .doc(doc)
@@ -391,20 +390,19 @@ struct PyClassEnumVariant<'a> {
 
 impl<'a> PyClassEnumVariant<'a> {
     fn python_name(&self, args: &PyClassArgs) -> Cow<'_, syn::Ident> {
-        let name = self
-            .options
+        self.options
             .name
             .as_ref()
             .map(|name_attr| Cow::Borrowed(&name_attr.value.0))
-            .unwrap_or_else(|| Cow::Owned(self.ident.unraw()));
-        if args.options.rename_all.is_some() {
-            Cow::Owned(Ident::new(
-                &format!("{}", name).to_shouty_snake_case(),
-                Span::call_site(),
-            ))
-        } else {
-            name
-        }
+            .unwrap_or_else(|| {
+                let name = self.ident.unraw();
+                if let Some(attr) = &args.options.rename_all {
+                    let new_name = apply_renaming_rule(attr.value.rule, &format!("{}", name));
+                    Cow::Owned(Ident::new(&new_name, Span::call_site()))
+                } else {
+                    Cow::Owned(name)
+                }
+            })
     }
 }
 
@@ -695,6 +693,7 @@ fn extract_variant_data(variant: &mut syn::Variant) -> syn::Result<PyClassEnumVa
 
 fn descriptors_to_items(
     cls: &syn::Ident,
+    rename_all: Option<&RenameAllAttribute>,
     frozen: Option<frozen>,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
 ) -> syn::Result<Vec<MethodAndMethodDef>> {
@@ -717,6 +716,7 @@ fn descriptors_to_items(
                     field_index,
                     field,
                     python_name: options.name.as_ref(),
+                    renaming_rule: rename_all.map(|rename_all| rename_all.value.rule),
                 },
             )?;
             items.push(getter);
@@ -730,6 +730,7 @@ fn descriptors_to_items(
                     field_index,
                     field,
                     python_name: options.name.as_ref(),
+                    renaming_rule: rename_all.map(|rename_all| rename_all.value.rule),
                 },
             )?;
             items.push(setter);
