@@ -5,8 +5,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
+    PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -693,7 +693,7 @@ impl<T> Py<T> {
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         let args = args.into_py(py);
-        let kwargs = kwargs.into_ptr();
+        let kwargs = kwargs.map_or(std::ptr::null_mut(), |p| p.into_ptr());
 
         unsafe {
             let ret = PyObject::from_owned_ptr_or_err(
@@ -750,7 +750,7 @@ impl<T> Py<T> {
     {
         let callee = self.getattr(py, name)?;
         let args: Py<PyTuple> = args.into_py(py);
-        let kwargs = kwargs.into_ptr();
+        let kwargs = kwargs.map_or(std::ptr::null_mut(), |p| p.into_ptr());
 
         unsafe {
             let result = PyObject::from_owned_ptr_or_err(
@@ -930,15 +930,6 @@ impl<T> crate::AsPyPointer for Py<T> {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.0.as_ptr()
-    }
-}
-
-impl<T> IntoPyPointer for Py<T> {
-    /// Gets the underlying FFI pointer, returns a owned pointer.
-    #[inline]
-    #[must_use]
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        self.into_non_null().as_ptr()
     }
 }
 

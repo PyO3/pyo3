@@ -61,38 +61,6 @@ pub trait AsPyPointer {
     fn as_ptr(&self) -> *mut ffi::PyObject;
 }
 
-/// Returns an owned pointer to a Python object.
-///
-/// The returned pointer will be valid until you decrease its reference count. It may be null
-/// depending on the implementation.
-/// It is your responsibility to decrease the reference count of the pointer to avoid leaking memory.
-///
-/// # Examples
-///
-/// ```rust
-/// use pyo3::prelude::*;
-/// use pyo3::types::PyString;
-/// use pyo3::ffi;
-///
-/// Python::with_gil(|py| {
-///     let s: Py<PyString> = "foo".into_py(py);
-///     let ptr = s.into_ptr();
-///
-///     let is_really_a_pystring = unsafe { ffi::PyUnicode_CheckExact(ptr) };
-///     assert_eq!(is_really_a_pystring, 1);
-///
-///     // Because we took ownership of the pointer,
-///     // we must manually decrement it to avoid leaking memory
-///     unsafe { ffi::Py_DECREF(ptr) };
-/// });
-/// ```
-pub trait IntoPyPointer {
-    /// Returns the underlying FFI pointer as an owned pointer.
-    ///
-    /// If `self` has ownership of the underlying pointer, it will "steal" ownership of it.
-    fn into_ptr(self) -> *mut ffi::PyObject;
-}
-
 /// Convert `None` into a null pointer.
 impl<T> AsPyPointer for Option<T>
 where
@@ -102,26 +70,6 @@ where
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.as_ref()
             .map_or_else(std::ptr::null_mut, |t| t.as_ptr())
-    }
-}
-
-/// Convert `None` into a null pointer.
-impl<T> IntoPyPointer for Option<T>
-where
-    T: IntoPyPointer,
-{
-    #[inline]
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        self.map_or_else(std::ptr::null_mut, |t| t.into_ptr())
-    }
-}
-
-impl<'a, T> IntoPyPointer for &'a T
-where
-    T: AsPyPointer,
-{
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        unsafe { ffi::_Py_XNewRef(self.as_ptr()) }
     }
 }
 
