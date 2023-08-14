@@ -62,6 +62,10 @@ fn add(a: u64, b: u64) -> u64 {
 }
 ```
 
+### `IntoPyPointer` trait removed
+
+The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed. `into_ptr` is now available as an inherent method on all types that previously implemented this trait.
+
 ## from 0.18.* to 0.19
 
 ### Access to `Python` inside `__traverse__` implementations are now forbidden
