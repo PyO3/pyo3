@@ -124,7 +124,7 @@ mod impl_ {
 
         fn into_iter(self) -> Self::IntoIter {
             PyFrozenSetIterator {
-                it: PyIterator::from_object(self.py(), self).unwrap(),
+                it: PyIterator::from_object(self).unwrap(),
             }
         }
     }

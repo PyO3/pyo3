@@ -818,7 +818,7 @@ impl PyAny {
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
     pub fn iter(&self) -> PyResult<&PyIterator> {
-        PyIterator::from_object(self.py(), self)
+        PyIterator::from_object(self)
     }
 
     /// Returns the Python type object for this object's type.

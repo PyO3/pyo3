@@ -149,7 +149,7 @@ mod impl_ {
         /// If PyO3 detects that the set is mutated during iteration, it will panic.
         fn into_iter(self) -> Self::IntoIter {
             PySetIterator {
-                it: PyIterator::from_object(self.py(), self).unwrap(),
+                it: PyIterator::from_object(self).unwrap(),
             }
         }
     }
