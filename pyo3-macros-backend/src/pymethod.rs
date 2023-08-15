@@ -745,12 +745,12 @@ impl PropertyType<'_> {
                 let name = match (python_name, &field.ident) {
                     (Some(name), _) => name.value.0.to_string(),
                     (None, Some(field_name)) => {
-                        let name = format!("{}\0", field_name.unraw());
+                        let mut name = field_name.unraw().to_string();
                         if let Some(rule) = renaming_rule {
-                            utils::apply_renaming_rule(*rule, &name)
-                        } else {
-                            name
+                            name = utils::apply_renaming_rule(*rule, &name);
                         }
+                        name.push('\0');
+                        name
                     }
                     (None, None) => {
                         bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");

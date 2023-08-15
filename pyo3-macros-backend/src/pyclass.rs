@@ -397,7 +397,7 @@ impl<'a> PyClassEnumVariant<'a> {
             .unwrap_or_else(|| {
                 let name = self.ident.unraw();
                 if let Some(attr) = &args.options.rename_all {
-                    let new_name = apply_renaming_rule(attr.value.rule, &format!("{}", name));
+                    let new_name = apply_renaming_rule(attr.value.rule, &name.to_string());
                     Cow::Owned(Ident::new(&new_name, Span::call_site()))
                 } else {
                     Cow::Owned(name)
