@@ -64,11 +64,11 @@ impl PyByteArray {
 
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
-    pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
-    where
-        I: AsPyPointer,
-    {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyByteArray_FromObject(src.as_ptr())) }
+    pub fn from(src: &PyAny) -> PyResult<&PyByteArray> {
+        unsafe {
+            src.py()
+                .from_owned_ptr_or_err(ffi::PyByteArray_FromObject(src.as_ptr()))
+        }
     }
 
     /// Gets the length of the bytearray.
@@ -305,7 +305,7 @@ mod tests {
             let bytearray = PyByteArray::new(py, src);
 
             let ba: PyObject = bytearray.into();
-            let bytearray = PyByteArray::from(py, &ba).unwrap();
+            let bytearray = PyByteArray::from(ba.as_ref(py)).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });
         });
@@ -314,7 +314,7 @@ mod tests {
     #[test]
     fn test_from_err() {
         Python::with_gil(|py| {
-            if let Err(err) = PyByteArray::from(py, &py.None()) {
+            if let Err(err) = PyByteArray::from(py.None().as_ref(py)) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
                 panic!("error");

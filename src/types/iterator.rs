@@ -30,11 +30,11 @@ impl PyIterator {
     /// Constructs a `PyIterator` from a Python iterable object.
     ///
     /// Equivalent to Python's built-in `iter` function.
-    pub fn from_object<'p, T>(py: Python<'p>, obj: &T) -> PyResult<&'p PyIterator>
-    where
-        T: AsPyPointer,
-    {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr())) }
+    pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
+        unsafe {
+            obj.py()
+                .from_owned_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr()))
+        }
     }
 }
 
@@ -209,7 +209,7 @@ def fibonacci(target):
     fn int_not_iterable() {
         Python::with_gil(|py| {
             let x = 5.to_object(py);
-            let err = PyIterator::from_object(py, &x).unwrap_err();
+            let err = PyIterator::from_object(x.as_ref(py)).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
         });
