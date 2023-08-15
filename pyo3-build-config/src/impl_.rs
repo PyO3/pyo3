@@ -300,7 +300,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             lib_dir,
             executable: map.get("executable").cloned(),
             pointer_width: Some(calcsize_pointer * 8),
-            build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version),
+            build_flags: BuildFlags::from_interpreter(interpreter)?,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         })
@@ -349,7 +349,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
             .map(|bytes_width: u32| bytes_width * 8)
             .ok();
-        let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata).fixup(version);
+        let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
         Ok(InterpreterConfig {
             implementation,
@@ -1019,6 +1019,7 @@ impl BuildFlags {
                 })
                 .collect(),
         )
+        .fixup()
     }
 
     /// Examine python's compile flags to pass to cfg by launching
@@ -1053,16 +1054,12 @@ impl BuildFlags {
             .map(|(flag, _)| flag.clone())
             .collect();
 
-        Ok(Self(flags))
+        Ok(Self(flags).fixup())
     }
 
-    fn fixup(mut self, version: PythonVersion) -> Self {
+    fn fixup(mut self) -> Self {
         if self.0.contains(&BuildFlag::Py_DEBUG) {
             self.0.insert(BuildFlag::Py_REF_DEBUG);
-            if version <= PythonVersion::PY37 {
-                // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
-                self.0.insert(BuildFlag::Py_TRACE_REFS);
-            }
         }
 
         self
@@ -1935,25 +1932,17 @@ mod tests {
     }
 
     #[test]
-    fn build_flags_fixup_py37_debug() {
+    fn build_flags_fixup() {
         let mut build_flags = BuildFlags::new();
+
+        build_flags = build_flags.fixup();
+        assert!(build_flags.0.is_empty());
+
         build_flags.0.insert(BuildFlag::Py_DEBUG);
 
-        build_flags = build_flags.fixup(PythonVersion { major: 3, minor: 7 });
+        build_flags = build_flags.fixup();
 
-        // On 3.7, Py_DEBUG implies Py_REF_DEBUG and Py_TRACE_REFS
-        assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
-        assert!(build_flags.0.contains(&BuildFlag::Py_TRACE_REFS));
-    }
-
-    #[test]
-    fn build_flags_fixup_py38_debug() {
-        let mut build_flags = BuildFlags::new();
-        build_flags.0.insert(BuildFlag::Py_DEBUG);
-
-        build_flags = build_flags.fixup(PythonVersion { major: 3, minor: 8 });
-
-        // On 3.8, Py_DEBUG implies Py_REF_DEBUG
+        // Py_DEBUG implies Py_REF_DEBUG
         assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
     }
 
