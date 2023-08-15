@@ -2,7 +2,7 @@
 
 ## Defining a new exception
 
-You can use the [`create_exception!`] macro to define a new exception type:
+Use the [`create_exception!`] macro:
 
 ```rust
 use pyo3::create_exception;
