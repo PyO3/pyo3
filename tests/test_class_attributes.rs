@@ -199,3 +199,89 @@ fn test_renaming_all_struct_fields() {
         py_assert!(py, struct_obj, "struct_obj.third_field == True");
     });
 }
+
+macro_rules! test_case {
+    ($struct_name: ident, $rule: literal, $field_name: ident, $renamed_field_name: literal, $test_name: ident) => {
+        #[pyclass(get_all, set_all, rename_all = $rule)]
+        #[allow(non_snake_case)]
+        struct $struct_name {
+            $field_name: u8,
+        }
+        #[pymethods]
+        impl $struct_name {
+            #[new]
+            fn new() -> Self {
+                Self { $field_name: 0 }
+            }
+        }
+        #[test]
+        fn $test_name() {
+            //use pyo3::types::PyInt;
+
+            Python::with_gil(|py| {
+                let struct_class = py.get_type::<$struct_name>();
+                let struct_obj = struct_class.call0().unwrap();
+                assert!(struct_obj.setattr($renamed_field_name, 2).is_ok());
+                let attr = struct_obj.getattr($renamed_field_name).unwrap();
+                assert_eq!(2, PyAny::extract::<u8>(attr).unwrap());
+            });
+        }
+    };
+}
+
+test_case!(
+    LowercaseTest,
+    "lowercase",
+    fieldOne,
+    "fieldone",
+    test_rename_all_lowercase
+);
+test_case!(
+    CamelCaseTest,
+    "camelCase",
+    field_one,
+    "fieldOne",
+    test_rename_all_camel_case
+);
+test_case!(
+    KebabCaseTest,
+    "kebab-case",
+    field_one,
+    "field-one",
+    test_rename_all_kebab_case
+);
+test_case!(
+    PascalCaseTest,
+    "PascalCase",
+    field_one,
+    "FieldOne",
+    test_rename_all_pascal_case
+);
+test_case!(
+    ScreamingSnakeCaseTest,
+    "SCREAMING_SNAKE_CASE",
+    field_one,
+    "FIELD_ONE",
+    test_rename_all_screaming_snake_case
+);
+test_case!(
+    ScreamingKebabCaseTest,
+    "SCREAMING-KEBAB-CASE",
+    field_one,
+    "FIELD-ONE",
+    test_rename_all_screaming_kebab_case
+);
+test_case!(
+    SnakeCaseTest,
+    "snake_case",
+    fieldOne,
+    "field_one",
+    test_rename_all_snake_case
+);
+test_case!(
+    UppercaseTest,
+    "UPPERCASE",
+    fieldOne,
+    "FIELDONE",
+    test_rename_all_uppercase
+);
