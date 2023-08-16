@@ -933,12 +933,18 @@ impl<T> crate::AsPyPointer for Py<T> {
     }
 }
 
+impl std::convert::From<&'_ PyAny> for PyObject {
+    fn from(obj: &PyAny) -> Self {
+        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ptr()) }
+    }
+}
+
 impl<T> std::convert::From<&'_ T> for PyObject
 where
-    T: AsPyPointer + PyNativeType,
+    T: PyNativeType + AsRef<PyAny>,
 {
     fn from(obj: &T) -> Self {
-        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ptr()) }
+        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ref().as_ptr()) }
     }
 }
 
