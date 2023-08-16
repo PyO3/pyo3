@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::attributes::NameAttribute;
+use crate::attributes::{NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode};
 use crate::utils::{ensure_not_async_fn, PythonDoc};
 use crate::{
@@ -724,6 +724,7 @@ pub enum PropertyType<'a> {
         field_index: usize,
         field: &'a syn::Field,
         python_name: Option<&'a NameAttribute>,
+        renaming_rule: Option<RenamingRule>,
     },
     Function {
         self_type: &'a SelfType,
@@ -736,11 +737,21 @@ impl PropertyType<'_> {
     fn null_terminated_python_name(&self) -> Result<syn::LitStr> {
         match self {
             PropertyType::Descriptor {
-                field, python_name, ..
+                field,
+                python_name,
+                renaming_rule,
+                ..
             } => {
                 let name = match (python_name, &field.ident) {
                     (Some(name), _) => name.value.0.to_string(),
-                    (None, Some(field_name)) => format!("{}\0", field_name.unraw()),
+                    (None, Some(field_name)) => {
+                        let mut name = field_name.unraw().to_string();
+                        if let Some(rule) = renaming_rule {
+                            name = utils::apply_renaming_rule(*rule, &name);
+                        }
+                        name.push('\0');
+                        name
+                    }
                     (None, None) => {
                         bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
                     }

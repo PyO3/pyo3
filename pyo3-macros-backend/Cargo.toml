@@ -16,6 +16,7 @@ edition = "2021"
 [dependencies]
 quote = { version = "1", default-features = false }
 proc-macro2 = { version = "1", default-features = false }
+heck = "0.4"
 
 [dependencies.syn]
 version = "2"

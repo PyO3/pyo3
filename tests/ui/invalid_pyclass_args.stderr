@@ -1,4 +1,4 @@
-error: expected one of: `crate`, `dict`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `sequence`, `set_all`, `subclass`, `text_signature`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `text_signature`, `unsendable`, `weakref`
  --> tests/ui/invalid_pyclass_args.rs:3:11
   |
 3 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -29,19 +29,31 @@ error: expected string literal
    |                  ^^^^^^^^^^
 
 error: expected string literal
-  --> tests/ui/invalid_pyclass_args.rs:18:20
+  --> tests/ui/invalid_pyclass_args.rs:18:24
    |
-18 | #[pyclass(module = my_module)]
+18 | #[pyclass(rename_all = camelCase)]
+   |                        ^^^^^^^^^
+
+error: expected a valid renaming rule, possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE"
+  --> tests/ui/invalid_pyclass_args.rs:21:24
+   |
+21 | #[pyclass(rename_all = "Camel-Case")]
+   |                        ^^^^^^^^^^^^
+
+error: expected string literal
+  --> tests/ui/invalid_pyclass_args.rs:24:20
+   |
+24 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `sequence`, `set_all`, `subclass`, `text_signature`, `unsendable`, `weakref`
-  --> tests/ui/invalid_pyclass_args.rs:21:11
+error: expected one of: `crate`, `dict`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `text_signature`, `unsendable`, `weakref`
+  --> tests/ui/invalid_pyclass_args.rs:27:11
    |
-21 | #[pyclass(weakrev)]
+27 | #[pyclass(weakrev)]
    |           ^^^^^^^
 
 error: a `#[pyclass]` cannot be both a `mapping` and a `sequence`
-  --> tests/ui/invalid_pyclass_args.rs:25:8
+  --> tests/ui/invalid_pyclass_args.rs:31:8
    |
-25 | struct CannotBeMappingAndSequence {}
+31 | struct CannotBeMappingAndSequence {}
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
