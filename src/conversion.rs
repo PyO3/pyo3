@@ -276,13 +276,20 @@ impl IntoPy<PyObject> for () {
     }
 }
 
-impl<T> IntoPy<PyObject> for &'_ T
-where
-    T: AsPyPointer,
-{
+impl IntoPy<PyObject> for &'_ PyAny {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<T> IntoPy<PyObject> for &'_ T
+where
+    T: AsRef<PyAny>,
+{
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ref().as_ptr()) }
     }
 }
 

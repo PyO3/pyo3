@@ -743,6 +743,12 @@ impl<T: PyClass> IntoPy<PyObject> for PyRef<'_, T> {
     }
 }
 
+impl<T: PyClass> IntoPy<PyObject> for &'_ PyRef<'_, T> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.inner.into_py(py)
+    }
+}
+
 impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRef<'a, T> {
     type Error = PyBorrowError;
     fn try_from(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
@@ -864,6 +870,12 @@ impl<'p, T: PyClass<Frozen = False>> Drop for PyRefMut<'p, T> {
 impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for PyRefMut<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
+    }
+}
+
+impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for &'_ PyRefMut<'_, T> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.inner.into_py(py)
     }
 }
 
