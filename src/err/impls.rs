@@ -33,21 +33,19 @@ impl PyErrArguments for io::Error {
     }
 }
 
-impl<W: 'static + Send + Sync + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>>
-    for PyErr
-{
-    fn from(err: std::io::IntoInnerError<W>) -> PyErr {
-        exceptions::PyOSError::new_err(err)
+impl<W> From<io::IntoInnerError<W>> for PyErr {
+    fn from(err: io::IntoInnerError<W>) -> PyErr {
+        err.into_error().into()
     }
 }
 
-impl<W: Send + Sync + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
+impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     fn arguments(self, py: Python<'_>) -> PyObject {
-        self.to_string().into_py(py)
+        self.into_error().arguments(py)
     }
 }
 
-impl std::convert::From<std::convert::Infallible> for PyErr {
+impl From<std::convert::Infallible> for PyErr {
     fn from(_: std::convert::Infallible) -> PyErr {
         unreachable!()
     }
