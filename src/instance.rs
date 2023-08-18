@@ -925,6 +925,13 @@ impl<T> IntoPy<PyObject> for Py<T> {
     }
 }
 
+impl<T> IntoPy<PyObject> for &'_ Py<T> {
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.to_object(py)
+    }
+}
+
 impl<T> crate::AsPyPointer for Py<T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
