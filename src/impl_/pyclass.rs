@@ -6,7 +6,6 @@ use crate::{
     internal_tricks::extract_c_string,
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
-    type_object::PyLayout,
     Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -152,9 +151,6 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// #[pyclass(sequence)]
     const IS_SEQUENCE: bool = false;
-
-    /// Layout
-    type Layout: PyLayout<Self>;
 
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
@@ -1098,9 +1094,18 @@ impl<T: PyClass> PyClassBaseType for T {
     type PyClassMutability = T::PyClassMutability;
 }
 
-/// Implementation of tp_dealloc for all pyclasses
+/// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::impl_::trampoline::dealloc(obj, T::Layout::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, PyCell::<T>::tp_dealloc)
+}
+
+/// Implementation of tp_dealloc for pyclasses with gc
+pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
+    #[cfg(not(PyPy))]
+    {
+        ffi::PyObject_GC_UnTrack(obj.cast());
+    }
+    crate::impl_::trampoline::dealloc(obj, PyCell::<T>::tp_dealloc)
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(

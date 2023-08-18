@@ -55,7 +55,7 @@ impl<T> FreeList<T> {
         }
     }
 
-    /// Inserts a value into the list. Returns `None` if the `FreeList` is full.
+    /// Inserts a value into the list. Returns `Some(val)` if the `FreeList` is full.
     pub fn insert(&mut self, val: T) -> Option<T> {
         let next = self.split + 1;
         if next < self.capacity {

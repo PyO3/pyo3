@@ -174,8 +174,7 @@ impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for Immutable
 impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
     for ExtendsMutableAncestor<M>
 where
-    T::BaseType: PyClassImpl<Layout = PyCell<T::BaseType>>
-        + PyClassBaseType<LayoutAsBase = PyCell<T::BaseType>>,
+    T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = PyCell<T::BaseType>>,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
     fn borrow_checker(cell: &PyCell<T>) -> &BorrowChecker {
@@ -188,7 +187,6 @@ where
 mod tests {
     use super::*;
 
-    use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};
     use crate::prelude::*;
     use crate::pyclass::boolean_struct::{False, True};
     use crate::PyClass;
@@ -239,25 +237,11 @@ mod tests {
     fn assert_immutable<T: PyClass<Frozen = True, PyClassMutability = ImmutableClass>>() {}
     fn assert_mutable_with_mutable_ancestor<
         T: PyClass<Frozen = False, PyClassMutability = ExtendsMutableAncestor<MutableClass>>,
-    >()
-    // These horrible bounds are necessary for Rust 1.48 but not newer versions
-    where
-        <T as PyClassImpl>::BaseType: PyClassImpl<Layout = PyCell<T::BaseType>>,
-        <<T as PyClassImpl>::BaseType as PyClassImpl>::PyClassMutability:
-            PyClassMutability<Checker = BorrowChecker>,
-        <T as PyClassImpl>::BaseType: PyClassBaseType<LayoutAsBase = PyCell<T::BaseType>>,
-    {
+    >() {
     }
     fn assert_immutable_with_mutable_ancestor<
         T: PyClass<Frozen = True, PyClassMutability = ExtendsMutableAncestor<ImmutableClass>>,
-    >()
-    // These horrible bounds are necessary for Rust 1.48 but not newer versions
-    where
-        <T as PyClassImpl>::BaseType: PyClassImpl<Layout = PyCell<T::BaseType>>,
-        <<T as PyClassImpl>::BaseType as PyClassImpl>::PyClassMutability:
-            PyClassMutability<Checker = BorrowChecker>,
-        <T as PyClassImpl>::BaseType: PyClassBaseType<LayoutAsBase = PyCell<T::BaseType>>,
-    {
+    >() {
     }
 
     #[test]

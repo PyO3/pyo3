@@ -1,16 +1,18 @@
+use pyo3_ffi::PyType_IS_GC;
+
 use crate::{
     exceptions::PyTypeError,
     ffi,
     impl_::pyclass::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-        PyClassItemsIter,
+        tp_dealloc_with_gc, PyClassItemsIter,
     },
     impl_::{
         pymethods::{get_doc, get_name, Getter, Setter},
         trampoline::trampoline,
     },
     types::PyType,
-    Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
+    Py, PyCell, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
@@ -32,22 +34,37 @@ where
     T: PyClass,
 {
     unsafe {
-        PyTypeBuilder::default()
-            .type_doc(T::doc(py)?)
-            .offsets(T::dict_offset(), T::weaklist_offset())
-            .slot(ffi::Py_tp_base, T::BaseType::type_object_raw(py))
-            .slot(ffi::Py_tp_dealloc, tp_dealloc::<T> as *mut c_void)
-            .set_is_basetype(T::IS_BASETYPE)
-            .set_is_mapping(T::IS_MAPPING)
-            .set_is_sequence(T::IS_SEQUENCE)
-            .class_items(T::items_iter())
-            .build(py, T::NAME, T::MODULE, std::mem::size_of::<T::Layout>())
+        PyTypeBuilder {
+            slots: Vec::new(),
+            method_defs: Vec::new(),
+            getset_builders: HashMap::new(),
+            cleanup: Vec::new(),
+            tp_base: T::BaseType::type_object_raw(py),
+            tp_dealloc: tp_dealloc::<T>,
+            tp_dealloc_with_gc: tp_dealloc_with_gc::<T>,
+            is_mapping: T::IS_MAPPING,
+            is_sequence: T::IS_SEQUENCE,
+            has_new: false,
+            has_dealloc: false,
+            has_getitem: false,
+            has_setitem: false,
+            has_traverse: false,
+            has_clear: false,
+            has_dict: false,
+            class_flags: 0,
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            buffer_procs: Default::default(),
+        }
+        .type_doc(T::doc(py)?)
+        .offsets(T::dict_offset(), T::weaklist_offset())
+        .set_is_basetype(T::IS_BASETYPE)
+        .class_items(T::items_iter())
+        .build(py, T::NAME, T::MODULE, std::mem::size_of::<PyCell<T>>())
     }
 }
 
 type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 
-#[derive(Default)]
 struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
     method_defs: Vec<ffi::PyMethodDef>,
@@ -56,6 +73,9 @@ struct PyTypeBuilder {
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
     cleanup: Vec<PyTypeBuilderCleanup>,
+    tp_base: *mut ffi::PyTypeObject,
+    tp_dealloc: ffi::destructor,
+    tp_dealloc_with_gc: ffi::destructor,
     is_mapping: bool,
     is_sequence: bool,
     has_new: bool,
@@ -112,13 +132,6 @@ impl PyTypeBuilder {
             data.push(std::mem::zeroed());
             self.push_slot(slot, Box::into_raw(data.into_boxed_slice()) as *mut c_void);
         }
-    }
-
-    /// # Safety
-    /// The given pointer must be of the correct type for the given slot
-    unsafe fn slot<T>(mut self, slot: c_int, pfunc: *mut T) -> Self {
-        self.push_slot(slot, pfunc);
-        self
     }
 
     fn pymethod_def(&mut self, def: &PyMethodDefType) {
@@ -217,16 +230,6 @@ impl PyTypeBuilder {
         if is_basetype {
             self.class_flags |= ffi::Py_TPFLAGS_BASETYPE;
         }
-        self
-    }
-
-    fn set_is_mapping(mut self, is_mapping: bool) -> Self {
-        self.is_mapping = is_mapping;
-        self
-    }
-
-    fn set_is_sequence(mut self, is_sequence: bool) -> Self {
-        self.is_sequence = is_sequence;
         self
     }
 
@@ -342,15 +345,19 @@ impl PyTypeBuilder {
 
         let getset_destructors = self.finalize_methods_and_properties()?;
 
+        unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
+
         if !self.has_new {
             // Safety: This is the correct slot type for Py_tp_new
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
         }
 
-        assert!(
-            self.has_dealloc,
-            "PyTypeBuilder requires you to specify slot ffi::Py_tp_dealloc"
-        );
+        let tp_dealloc = if self.has_traverse || unsafe { PyType_IS_GC(self.tp_base) == 1 } {
+            self.tp_dealloc_with_gc
+        } else {
+            self.tp_dealloc
+        };
+        unsafe { self.push_slot(ffi::Py_tp_dealloc, tp_dealloc as *mut c_void) }
 
         if self.has_clear && !self.has_traverse {
             return Err(PyTypeError::new_err(format!(

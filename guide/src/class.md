@@ -1136,7 +1136,6 @@ impl pyo3::IntoPy<PyObject> for MyClass {
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
-    type Layout = PyCell<MyClass>;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::SendablePyClass<MyClass>;
     type PyClassMutability = <<pyo3::PyAny as pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as pyo3::impl_::pycell::PyClassMutability>::MutableChild;
