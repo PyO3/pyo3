@@ -29,13 +29,19 @@ impl From<PyErr> for io::Error {
                 io::ErrorKind::Other
             }
         });
-        io::Error::new(kind, format!("Python exception: {}", err))
+        io::Error::new(kind, err)
     }
 }
 
-/// Create `OSError` from `io::Error`
+/// Create `PyErr` from `io::Error`
+/// (`OSError` except if the `io::Error` is wrapping a Python exception,
+/// in this case the exception is returned)
 impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
+        // If the error wraps a Python error we return it
+        if err.get_ref().map_or(false, |e| e.is::<PyErr>()) {
+            return *err.into_inner().unwrap().downcast().unwrap();
+        }
         match err.kind() {
             io::ErrorKind::BrokenPipe => exceptions::PyBrokenPipeError::new_err(err),
             io::ErrorKind::ConnectionRefused => exceptions::PyConnectionRefusedError::new_err(err),
@@ -113,24 +119,29 @@ impl_to_pyerr!(std::net::AddrParseError, exceptions::PyValueError);
 
 #[cfg(test)]
 mod tests {
-    use crate::PyErr;
+    use crate::{PyErr, Python};
     use std::io;
 
     #[test]
     fn io_errors() {
         let check_err = |kind, expected_ty| {
-            let rust_err = io::Error::new(kind, "some error msg");
+            Python::with_gil(|py| {
+                let rust_err = io::Error::new(kind, "some error msg");
 
-            let py_err: PyErr = rust_err.into();
-            let py_err_msg = format!("{}: some error msg", expected_ty);
-            assert_eq!(py_err.to_string(), py_err_msg);
+                let py_err: PyErr = rust_err.into();
+                let py_err_msg = format!("{}: some error msg", expected_ty);
+                assert_eq!(py_err.to_string(), py_err_msg);
+                let py_error_clone = py_err.clone_ref(py);
 
-            let rust_err_from_py_err: io::Error = py_err.into();
-            assert_eq!(
-                rust_err_from_py_err.to_string(),
-                format!("Python exception: {}", py_err_msg)
-            );
-            assert_eq!(rust_err_from_py_err.kind(), kind);
+                let rust_err_from_py_err: io::Error = py_err.into();
+                assert_eq!(rust_err_from_py_err.to_string(), py_err_msg);
+                assert_eq!(rust_err_from_py_err.kind(), kind);
+
+                let py_err_recovered_from_rust_err: PyErr = rust_err_from_py_err.into();
+                assert!(py_err_recovered_from_rust_err
+                    .value(py)
+                    .is(py_error_clone.value(py))); // It should be the same exception
+            })
         };
 
         check_err(io::ErrorKind::BrokenPipe, "BrokenPipeError");
