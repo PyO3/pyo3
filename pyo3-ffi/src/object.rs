@@ -500,9 +500,14 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
     }
 
     #[cfg(any(
-        not(Py_LIMITED_API),
         all(Py_LIMITED_API, not(Py_3_12)),
-        all(py_sys_config = "Py_REF_DEBUG", Py_3_12, not(Py_LIMITED_API))
+        all(
+            not(Py_LIMITED_API),
+            any(
+                not(py_sys_config = "Py_REF_DEBUG"),
+                all(py_sys_config = "Py_REF_DEBUG", Py_3_12),
+            )
+        ),
     ))]
     {
         #[cfg(all(Py_3_12, target_pointer_width = "64"))]
@@ -560,9 +565,14 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
     }
 
     #[cfg(any(
-        not(Py_LIMITED_API),
         all(Py_LIMITED_API, not(Py_3_12)),
-        all(py_sys_config = "Py_REF_DEBUG", Py_3_12, not(Py_LIMITED_API))
+        all(
+            not(Py_LIMITED_API),
+            any(
+                not(py_sys_config = "Py_REF_DEBUG"),
+                all(py_sys_config = "Py_REF_DEBUG", Py_3_12),
+            )
+        ),
     ))]
     {
         #[cfg(Py_3_12)]
