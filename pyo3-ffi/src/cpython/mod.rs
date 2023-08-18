@@ -21,6 +21,7 @@ pub(crate) mod listobject;
 #[cfg(all(Py_3_9, not(PyPy)))]
 pub(crate) mod methodobject;
 pub(crate) mod object;
+pub(crate) mod objimpl;
 pub(crate) mod pydebug;
 pub(crate) mod pyerrors;
 #[cfg(all(Py_3_8, not(PyPy)))]
@@ -54,6 +55,7 @@ pub use self::listobject::*;
 #[cfg(all(Py_3_9, not(PyPy)))]
 pub use self::methodobject::*;
 pub use self::object::*;
+pub use self::objimpl::*;
 pub use self::pydebug::*;
 pub use self::pyerrors::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
