@@ -372,8 +372,9 @@ impl PyTypeBuilder {
         // Safety: python expects this empty slot
         unsafe { self.push_slot(0, ptr::null_mut::<c_void>()) }
 
+        let class_name = py_class_qualified_name(module_name, name)?;
         let mut spec = ffi::PyType_Spec {
-            name: py_class_qualified_name(module_name, name)?,
+            name: class_name.as_ptr() as _,
             basicsize: basicsize as c_int,
             itemsize: 0,
 
@@ -387,6 +388,9 @@ impl PyTypeBuilder {
         let type_object: Py<PyType> =
             unsafe { Py::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
 
+        #[cfg(not(Py_3_11))]
+        bpo_45315_workaround(py, class_name);
+
         for cleanup in std::mem::take(&mut self.cleanup) {
             cleanup(&self, type_object.as_ref(py).as_type_ptr());
         }
@@ -398,13 +402,32 @@ impl PyTypeBuilder {
     }
 }
 
-fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyResult<*mut c_char> {
+fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyResult<CString> {
     Ok(CString::new(format!(
         "{}.{}",
         module_name.unwrap_or("builtins"),
         class_name
-    ))?
-    .into_raw())
+    ))?)
+}
+
+/// Workaround for Python issue 45315; no longer necessary in Python 3.11
+#[inline]
+#[cfg(not(Py_3_11))]
+fn bpo_45315_workaround(_py: Python<'_>, class_name: CString) {
+    #[cfg(Py_LIMITED_API)]
+    {
+        // Must check version at runtime for abi3 wheels - they could run against a higher version
+        // than the build config suggests.
+        use crate::sync::GILOnceCell;
+        static IS_PYTHON_3_11: GILOnceCell<bool> = GILOnceCell::new();
+
+        if *IS_PYTHON_3_11.get_or_init(_py, || _py.version_info() >= (3, 11)) {
+            // No fix needed - the wheel is running on a sufficiently new interpreter.
+            return;
+        }
+    }
+
+    std::mem::forget(class_name);
 }
 
 /// Default new implementation
