@@ -16,6 +16,7 @@ pub use self::datetime::{
 pub use self::dict::{IntoPyDict, PyDict};
 #[cfg(not(PyPy))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
+pub use self::ellipsis::PyEllipsis;
 pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
@@ -27,6 +28,8 @@ pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::mapping::PyMapping;
 pub use self::module::PyModule;
+pub use self::none::PyNone;
+pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
 #[cfg(not(PyPy))]
@@ -278,6 +281,7 @@ mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;
 mod dict;
+mod ellipsis;
 mod floatob;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 mod frame;
@@ -287,6 +291,8 @@ mod iterator;
 pub(crate) mod list;
 mod mapping;
 mod module;
+mod none;
+mod notimplemented;
 mod num;
 #[cfg(not(PyPy))]
 mod pysuper;

@@ -262,19 +262,6 @@ where
     }
 }
 
-/// `()` is converted to Python `None`.
-impl ToPyObject for () {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        py.None()
-    }
-}
-
-impl IntoPy<PyObject> for () {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        py.None()
-    }
-}
-
 impl IntoPy<PyObject> for &'_ PyAny {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
