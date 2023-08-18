@@ -2,14 +2,39 @@ use crate::{err::PyErrArguments, exceptions, IntoPy, PyErr, PyObject, Python};
 use std::io;
 
 /// Convert `PyErr` to `io::Error`
-impl std::convert::From<PyErr> for io::Error {
+impl From<PyErr> for io::Error {
     fn from(err: PyErr) -> Self {
-        io::Error::new(io::ErrorKind::Other, format!("Python exception: {}", err))
+        let kind = Python::with_gil(|py| {
+            if err.is_instance_of::<exceptions::PyBrokenPipeError>(py) {
+                io::ErrorKind::BrokenPipe
+            } else if err.is_instance_of::<exceptions::PyConnectionRefusedError>(py) {
+                io::ErrorKind::ConnectionRefused
+            } else if err.is_instance_of::<exceptions::PyConnectionAbortedError>(py) {
+                io::ErrorKind::ConnectionAborted
+            } else if err.is_instance_of::<exceptions::PyConnectionResetError>(py) {
+                io::ErrorKind::ConnectionReset
+            } else if err.is_instance_of::<exceptions::PyInterruptedError>(py) {
+                io::ErrorKind::Interrupted
+            } else if err.is_instance_of::<exceptions::PyFileNotFoundError>(py) {
+                io::ErrorKind::NotFound
+            } else if err.is_instance_of::<exceptions::PyPermissionError>(py) {
+                io::ErrorKind::PermissionDenied
+            } else if err.is_instance_of::<exceptions::PyFileExistsError>(py) {
+                io::ErrorKind::AlreadyExists
+            } else if err.is_instance_of::<exceptions::PyBlockingIOError>(py) {
+                io::ErrorKind::WouldBlock
+            } else if err.is_instance_of::<exceptions::PyTimeoutError>(py) {
+                io::ErrorKind::TimedOut
+            } else {
+                io::ErrorKind::Other
+            }
+        });
+        io::Error::new(kind, format!("Python exception: {}", err))
     }
 }
 
 /// Create `OSError` from `io::Error`
-impl std::convert::From<io::Error> for PyErr {
+impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         match err.kind() {
             io::ErrorKind::BrokenPipe => exceptions::PyBrokenPipeError::new_err(err),
@@ -96,12 +121,18 @@ mod tests {
     #[test]
     fn io_errors() {
         let check_err = |kind, expected_ty| {
-            let py_err: PyErr = io::Error::new(kind, "some error msg").into();
-            let err_msg = format!("{}: some error msg", expected_ty);
-            assert_eq!(py_err.to_string(), err_msg);
+            let rust_err = io::Error::new(kind, "some error msg");
 
-            let os_err: io::Error = py_err.into();
-            assert_eq!(os_err.to_string(), format!("Python exception: {}", err_msg));
+            let py_err: PyErr = rust_err.into();
+            let py_err_msg = format!("{}: some error msg", expected_ty);
+            assert_eq!(py_err.to_string(), py_err_msg);
+
+            let rust_err_from_py_err: io::Error = py_err.into();
+            assert_eq!(
+                rust_err_from_py_err.to_string(),
+                format!("Python exception: {}", py_err_msg)
+            );
+            assert_eq!(rust_err_from_py_err.kind(), kind);
         };
 
         check_err(io::ErrorKind::BrokenPipe, "BrokenPipeError");
