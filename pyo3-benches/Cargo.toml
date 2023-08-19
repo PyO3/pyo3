@@ -11,6 +11,7 @@ pyo3 = { path = "../", features = ["auto-initialize"] }
 
 [dev-dependencies]
 criterion = "0.5.1"
+num-bigint = "0.4.3"
 
 [[bench]]
 name = "bench_any"
@@ -76,5 +77,10 @@ harness = false
 [[bench]]
 name = "bench_extract"
 harness = false
+
+[[bench]]
+name = "bench_bigint"
+harness = false
+required-features = ["pyo3/num-bigint"]
 
 [workspace]
