@@ -1017,14 +1017,12 @@ impl<T> Drop for Py<T> {
 impl<'a, T> FromPyObject<'a> for Py<T>
 where
     T: PyTypeInfo,
-    &'a T::AsRefTarget: FromPyObject<'a>,
-    T::AsRefTarget: 'a + AsPyPointer,
 {
-    /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        unsafe {
-            ob.extract::<&T::AsRefTarget>()
-                .map(|val| Py::from_borrowed_ptr(ob.py(), val.as_ptr()))
+        if ob.is_instance_of::<T>() {
+            Ok(unsafe { Py::from_non_null(NonNull::new_unchecked(ob.into_ptr())) })
+        } else {
+            Err(PyDowncastError::new(ob, T::NAME).into())
         }
     }
 }
