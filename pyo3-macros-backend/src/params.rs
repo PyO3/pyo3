@@ -27,7 +27,6 @@ pub fn is_forwarded_args(signature: &FunctionSignature<'_>) -> bool {
 pub fn impl_arg_params(
     spec: &FnSpec<'_>,
     self_: Option<&syn::Type>,
-    py: &syn::Ident,
     fastcall: bool,
 ) -> Result<(TokenStream, Vec<TokenStream>)> {
     let args_array = syn::Ident::new("output", Span::call_site());
@@ -39,12 +38,12 @@ pub fn impl_arg_params(
             .signature
             .arguments
             .iter()
-            .map(|arg| impl_arg_param(arg, &mut 0, py, &args_array))
+            .map(|arg| impl_arg_param(arg, &mut 0, &args_array))
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
-                let _args = #py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
-                let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+                let _args = py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
+                let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = py.from_borrowed_ptr_or_opt(_kwargs);
             },
             arg_convert,
         ));
@@ -77,7 +76,7 @@ pub fn impl_arg_params(
         .signature
         .arguments
         .iter()
-        .map(|arg| impl_arg_param(arg, &mut option_pos, py, &args_array))
+        .map(|arg| impl_arg_param(arg, &mut option_pos, &args_array))
         .collect::<Result<_>>()?;
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
@@ -101,7 +100,7 @@ pub fn impl_arg_params(
     let extract_expression = if fastcall {
         quote! {
             DESCRIPTION.extract_arguments_fastcall::<#args_handler, #kwargs_handler>(
-                #py,
+                py,
                 _args,
                 _nargs,
                 _kwnames,
@@ -111,7 +110,7 @@ pub fn impl_arg_params(
     } else {
         quote! {
             DESCRIPTION.extract_arguments_tuple_dict::<#args_handler, #kwargs_handler>(
-                #py,
+                py,
                 _args,
                 _kwargs,
                 &mut #args_array
@@ -143,7 +142,6 @@ pub fn impl_arg_params(
 fn impl_arg_param(
     arg: &FnArg<'_>,
     option_pos: &mut usize,
-    py: &syn::Ident,
     args_array: &syn::Ident,
 ) -> Result<TokenStream> {
     // Use this macro inside this function, to ensure that all code generated here is associated
@@ -153,7 +151,7 @@ fn impl_arg_param(
     }
 
     if arg.py {
-        return Ok(quote_arg_span! { #py });
+        return Ok(quote! { py });
     }
 
     let name = arg.name;

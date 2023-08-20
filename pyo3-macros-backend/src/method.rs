@@ -141,13 +141,13 @@ pub enum ExtractErrorMode {
 }
 
 impl ExtractErrorMode {
-    pub fn handle_error(self, py: &syn::Ident, extract: TokenStream) -> TokenStream {
+    pub fn handle_error(self, extract: TokenStream) -> TokenStream {
         match self {
             ExtractErrorMode::Raise => quote! { #extract? },
             ExtractErrorMode::NotImplemented => quote! {
                 match #extract {
                     ::std::result::Result::Ok(value) => value,
-                    ::std::result::Result::Err(_) => { return _pyo3::callback::convert(#py, #py.NotImplemented()); },
+                    ::std::result::Result::Err(_) => { return _pyo3::callback::convert(py, py.NotImplemented()); },
                 }
             },
         }
@@ -156,6 +156,8 @@ impl ExtractErrorMode {
 
 impl SelfType {
     pub fn receiver(&self, cls: &syn::Type, error_mode: ExtractErrorMode) -> TokenStream {
+        // Due to use of quote_spanned in this function, need to bind these idents to the
+        // main macro callsite.
         let py = syn::Ident::new("py", Span::call_site());
         let slf = syn::Ident::new("_slf", Span::call_site());
         match self {
@@ -165,19 +167,15 @@ impl SelfType {
                 } else {
                     syn::Ident::new("extract_pyclass_ref", *span)
                 };
-                error_mode.handle_error(
-                    &py,
-                    quote_spanned! { *span =>
-                        _pyo3::impl_::extract_argument::#method::<#cls>(
-                            #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf),
-                            &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
-                        )
-                    },
-                )
+                error_mode.handle_error(quote_spanned! { *span =>
+                    _pyo3::impl_::extract_argument::#method::<#cls>(
+                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf),
+                        &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
+                    )
+                })
             }
             SelfType::TryFromPyCell(span) => {
                 error_mode.handle_error(
-                    &py,
                     quote_spanned! { *span =>
                         #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf).downcast::<_pyo3::PyCell<#cls>>()
                             .map_err(::std::convert::Into::<_pyo3::PyErr>::into)
@@ -410,7 +408,6 @@ impl<'a> FnSpec<'a> {
         cls: Option<&syn::Type>,
     ) -> Result<TokenStream> {
         let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise);
-        let py = syn::Ident::new("py", Span::call_site());
         let func_name = &self.name;
 
         let rust_call = |args: Vec<TokenStream>| {
@@ -427,14 +424,14 @@ impl<'a> FnSpec<'a> {
             CallingConvention::Noargs => {
                 let call = if !self.signature.arguments.is_empty() {
                     // Only `py` arg can be here
-                    rust_call(vec![quote!(#py)])
+                    rust_call(vec![quote!(py)])
                 } else {
                     rust_call(vec![])
                 };
 
                 quote! {
                     unsafe fn #ident<'py>(
-                        #py: _pyo3::Python<'py>,
+                        py: _pyo3::Python<'py>,
                         _slf: *mut _pyo3::ffi::PyObject,
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
@@ -443,11 +440,11 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::Fastcall => {
-                let (arg_convert, args) = impl_arg_params(self, cls, &py, true)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, true)?;
                 let call = rust_call(args);
                 quote! {
                     unsafe fn #ident<'py>(
-                        #py: _pyo3::Python<'py>,
+                        py: _pyo3::Python<'py>,
                         _slf: *mut _pyo3::ffi::PyObject,
                         _args: *const *mut _pyo3::ffi::PyObject,
                         _nargs: _pyo3::ffi::Py_ssize_t,
@@ -460,11 +457,11 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::Varargs => {
-                let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, false)?;
                 let call = rust_call(args);
                 quote! {
                     unsafe fn #ident<'py>(
-                        #py: _pyo3::Python<'py>,
+                        py: _pyo3::Python<'py>,
                         _slf: *mut _pyo3::ffi::PyObject,
                         _args: *mut _pyo3::ffi::PyObject,
                         _kwargs: *mut _pyo3::ffi::PyObject
@@ -476,17 +473,17 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::TpNew => {
-                let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, false)?;
                 let call = match &self.tp {
                     FnType::FnNew => quote! { #rust_name(#(#args),*) },
                     FnType::FnNewClass => {
-                        quote! { #rust_name(_pyo3::types::PyType::from_type_ptr(#py, subtype), #(#args),*) }
+                        quote! { #rust_name(_pyo3::types::PyType::from_type_ptr(py, subtype), #(#args),*) }
                     }
                     x => panic!("Only `FnNew` or `FnNewClass` may use the `TpNew` calling convention. Got: {:?}", x),
                 };
                 quote! {
                     unsafe fn #ident(
-                        #py: _pyo3::Python<'_>,
+                        py: _pyo3::Python<'_>,
                         subtype: *mut _pyo3::ffi::PyTypeObject,
                         _args: *mut _pyo3::ffi::PyObject,
                         _kwargs: *mut _pyo3::ffi::PyObject
@@ -495,8 +492,8 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         let result = #call;
-                        let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
-                        let cell = initializer.create_cell_from_subtype(#py, subtype)?;
+                        let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(py)?;
+                        let cell = initializer.create_cell_from_subtype(py, subtype)?;
                         ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)
                     }
                 }

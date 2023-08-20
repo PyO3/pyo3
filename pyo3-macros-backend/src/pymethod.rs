@@ -908,7 +908,6 @@ impl Ty {
 
     fn extract(
         self,
-        py: &syn::Ident,
         ident: &syn::Ident,
         arg: &FnArg<'_>,
         extract_error_mode: ExtractErrorMode,
@@ -917,18 +916,16 @@ impl Ty {
         match self {
             Ty::Object => extract_object(
                 extract_error_mode,
-                py,
                 &name_str,
                 quote! {
-                    #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident)
+                    py.from_borrowed_ptr::<_pyo3::PyAny>(#ident)
                 },
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
-                py,
                 &name_str,
                 quote! {
-                    #py.from_borrowed_ptr::<_pyo3::PyAny>(
+                    py.from_borrowed_ptr::<_pyo3::PyAny>(
                         if #ident.is_null() {
                             _pyo3::ffi::Py_None()
                         } else {
@@ -939,22 +936,19 @@ impl Ty {
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
-                py,
                 &name_str,
                 quote! {
-                    #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr())
+                    py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr())
                 },
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
-                py,
                 &name_str,
                 quote! {
-                    #ident.to_borrowed_any(#py)
+                    #ident.to_borrowed_any(py)
                 },
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
-                py,
                 quote! {
                     _pyo3::class::basic::CompareOp::from_raw(#ident)
                         .ok_or_else(|| _pyo3::exceptions::PyValueError::new_err("invalid comparison operator"))
@@ -963,7 +957,6 @@ impl Ty {
             Ty::PySsizeT => {
                 let ty = arg.ty;
                 extract_error_mode.handle_error(
-                    py,
                     quote! {
                             ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| _pyo3::exceptions::PyValueError::new_err(e.to_string()))
                     },
@@ -977,20 +970,16 @@ impl Ty {
 
 fn extract_object(
     extract_error_mode: ExtractErrorMode,
-    py: &syn::Ident,
     name: &str,
     source: TokenStream,
 ) -> TokenStream {
-    extract_error_mode.handle_error(
-        py,
-        quote! {
-            _pyo3::impl_::extract_argument::extract_argument(
-                #source,
-                &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
-                #name
-            )
-        },
-    )
+    extract_error_mode.handle_error(quote! {
+        _pyo3::impl_::extract_argument::extract_argument(
+            #source,
+            &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
+            #name
+        )
+    })
 }
 
 enum ReturnMode {
@@ -999,11 +988,11 @@ enum ReturnMode {
 }
 
 impl ReturnMode {
-    fn return_call_output(&self, py: &syn::Ident, call: TokenStream) -> TokenStream {
+    fn return_call_output(&self, call: TokenStream) -> TokenStream {
         match self {
             ReturnMode::Conversion(conversion) => quote! {
                 let _result: _pyo3::PyResult<#conversion> = #call;
-                _pyo3::callback::convert(#py, _result)
+                _pyo3::callback::convert(py, _result)
             },
             ReturnMode::ReturnSelf => quote! {
                 let _result: _pyo3::PyResult<()> = #call;
@@ -1091,7 +1080,6 @@ impl SlotDef {
                 spec.name.span() => format!("`{}` must be `unsafe fn`", method_name)
             );
         }
-        let py = syn::Ident::new("py", Span::call_site());
         let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type()).collect();
         let arg_idents: &Vec<_> = &(0..arguments.len())
             .map(|i| format_ident!("arg{}", i))
@@ -1101,7 +1089,6 @@ impl SlotDef {
         let body = generate_method_body(
             cls,
             spec,
-            &py,
             arguments,
             *extract_error_mode,
             return_mode.as_ref(),
@@ -1109,7 +1096,7 @@ impl SlotDef {
         let name = spec.name;
         let associated_method = quote! {
             unsafe fn #wrapper_ident(
-                #py: _pyo3::Python<'_>,
+                py: _pyo3::Python<'_>,
                 _raw_slf: *mut _pyo3::ffi::PyObject,
                 #(#arg_idents: #arg_types),*
             ) -> _pyo3::PyResult<#ret_ty> {
@@ -1146,17 +1133,16 @@ impl SlotDef {
 fn generate_method_body(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
-    py: &syn::Ident,
     arguments: &[Ty],
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<&ReturnMode>,
 ) -> Result<TokenStream> {
     let self_arg = spec.tp.self_arg(Some(cls), extract_error_mode);
     let rust_name = spec.name;
-    let args = extract_proto_arguments(py, spec, arguments, extract_error_mode)?;
-    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(#self_arg #(#args),*)) };
+    let args = extract_proto_arguments(spec, arguments, extract_error_mode)?;
+    let call = quote! { _pyo3::callback::convert(py, #cls::#rust_name(#self_arg #(#args),*)) };
     Ok(if let Some(return_mode) = return_mode {
-        return_mode.return_call_output(py, call)
+        return_mode.return_call_output(call)
     } else {
         call
     })
@@ -1199,12 +1185,11 @@ impl SlotFragmentDef {
         let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
         let method = syn::Ident::new(fragment, Span::call_site());
         let wrapper_ident = format_ident!("__pymethod_{}__", fragment);
-        let py = syn::Ident::new("py", Span::call_site());
         let arg_types: &Vec<_> = &arguments.iter().map(|arg| arg.ffi_type()).collect();
         let arg_idents: &Vec<_> = &(0..arguments.len())
             .map(|i| format_ident!("arg{}", i))
             .collect();
-        let body = generate_method_body(cls, spec, &py, arguments, *extract_error_mode, None)?;
+        let body = generate_method_body(cls, spec, arguments, *extract_error_mode, None)?;
         let ret_ty = ret_ty.ffi_type();
         Ok(quote! {
             impl _pyo3::impl_::pyclass::#fragment_trait<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
@@ -1212,13 +1197,13 @@ impl SlotFragmentDef {
                 #[inline]
                 unsafe fn #method(
                     self,
-                    #py: _pyo3::Python,
+                    py: _pyo3::Python,
                     _raw_slf: *mut _pyo3::ffi::PyObject,
                     #(#arg_idents: #arg_types),*
                 ) -> _pyo3::PyResult<#ret_ty> {
                     impl #cls {
                         unsafe fn #wrapper_ident(
-                            #py: _pyo3::Python,
+                            py: _pyo3::Python,
                             _raw_slf: *mut _pyo3::ffi::PyObject,
                             #(#arg_idents: #arg_types),*
                         ) -> _pyo3::PyResult<#ret_ty> {
@@ -1226,7 +1211,7 @@ impl SlotFragmentDef {
                             #body
                         }
                     }
-                    #cls::#wrapper_ident(#py, _raw_slf, #(#arg_idents),*)
+                    #cls::#wrapper_ident(py, _raw_slf, #(#arg_idents),*)
                 }
             }
         })
@@ -1308,7 +1293,6 @@ const __GE__: SlotFragmentDef = SlotFragmentDef::new("__ge__", &[Ty::Object])
     .ret_ty(Ty::Object);
 
 fn extract_proto_arguments(
-    py: &syn::Ident,
     spec: &FnSpec<'_>,
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
@@ -1318,12 +1302,12 @@ fn extract_proto_arguments(
 
     for arg in &spec.signature.arguments {
         if arg.py {
-            args.push(quote! { #py });
+            args.push(quote! { py });
         } else {
             let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
             let conversions = proto_args.get(non_python_args)
                 .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
-                .extract(py, &ident, arg, extract_error_mode);
+                .extract(&ident, arg, extract_error_mode);
             non_python_args += 1;
             args.push(conversions);
         }
