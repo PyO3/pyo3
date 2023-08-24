@@ -88,7 +88,12 @@ You can then open a Python shell in the output directory and you'll be able to r
 
 If you're packaging your library for redistribution, you should indicated the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name. This prevents incompatible interpreters from trying to import your library. If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
 
-See, as an example, Bazel rules to build PyO3 on Linux at https://github.com/TheButlah/rules_pyo3.
+#### Bazel builds
+
+To use PyO3 with bazel one needs to manually configure PyO3, PyO3-ffi and PyO3-macros. In particular, one needs to make sure that it is compiled with the right python flags for the version you intend to use.
+For example see:
+1. https://github.com/OliverFM/pytorch_with_gazelle -- for a minimal example of a repo that can use PyO3, PyTorch and Gazelle to generate python Build files.
+2. https://github.com/TheButlah/rules_pyo3 -- which has more extensive support, but is outdated.
 
 #### Platform tags
 
