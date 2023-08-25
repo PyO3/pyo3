@@ -81,9 +81,8 @@ pub trait ToPyObject {
 
 /// Defines a conversion from a Rust type to a Python object.
 ///
-/// It functions similarly to std's [`Into`](std::convert::Into) trait,
-/// but requires a [GIL token](Python) as an argument.
-/// Many functions and traits internal to PyO3 require this trait as a bound,
+/// It functions similarly to std's [`Into`] trait, but requires a [GIL token](Python)
+/// as an argument. Many functions and traits internal to PyO3 require this trait as a bound,
 /// so a lack of this trait can manifest itself in different error messages.
 ///
 /// # Examples

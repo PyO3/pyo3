@@ -948,7 +948,7 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
 /// Workaround for Python issue 35810; no longer necessary in Python 3.8
 #[inline]
 #[cfg(not(Py_3_8))]
-unsafe fn bpo_35810_workaround(_py: Python<'_>, ty: *mut ffi::PyTypeObject) {
+unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     #[cfg(Py_LIMITED_API)]
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
@@ -956,10 +956,15 @@ unsafe fn bpo_35810_workaround(_py: Python<'_>, ty: *mut ffi::PyTypeObject) {
         use crate::sync::GILOnceCell;
         static IS_PYTHON_3_8: GILOnceCell<bool> = GILOnceCell::new();
 
-        if *IS_PYTHON_3_8.get_or_init(_py, || _py.version_info() >= (3, 8)) {
+        if *IS_PYTHON_3_8.get_or_init(py, || py.version_info() >= (3, 8)) {
             // No fix needed - the wheel is running on a sufficiently new interpreter.
             return;
         }
+    }
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        // suppress unused variable warning
+        let _ = py;
     }
 
     ffi::Py_INCREF(ty as *mut ffi::PyObject);

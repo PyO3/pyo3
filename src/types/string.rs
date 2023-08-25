@@ -184,11 +184,11 @@ impl PyString {
                 if #[cfg(any(Py_3_10, not(Py_LIMITED_API)))] {
                     // PyUnicode_AsUTF8AndSize only available on limited API starting with 3.10.
                     let mut size: ffi::Py_ssize_t = 0;
-                    let data = unsafe { ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) };
+                    let data: *const u8 = unsafe { ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size).cast() };
                     if data.is_null() {
                         return Err(crate::PyErr::fetch(self.py()));
                     } else {
-                        unsafe { std::slice::from_raw_parts(data as *const u8, size as usize) }
+                        unsafe { std::slice::from_raw_parts(data, size as usize) }
                     }
                 } else {
                     let bytes = unsafe {

@@ -413,7 +413,7 @@ fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyRes
 /// Workaround for Python issue 45315; no longer necessary in Python 3.11
 #[inline]
 #[cfg(not(Py_3_11))]
-fn bpo_45315_workaround(_py: Python<'_>, class_name: CString) {
+fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
     #[cfg(Py_LIMITED_API)]
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version
@@ -421,10 +421,15 @@ fn bpo_45315_workaround(_py: Python<'_>, class_name: CString) {
         use crate::sync::GILOnceCell;
         static IS_PYTHON_3_11: GILOnceCell<bool> = GILOnceCell::new();
 
-        if *IS_PYTHON_3_11.get_or_init(_py, || _py.version_info() >= (3, 11)) {
+        if *IS_PYTHON_3_11.get_or_init(py, || py.version_info() >= (3, 11)) {
             // No fix needed - the wheel is running on a sufficiently new interpreter.
             return;
         }
+    }
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        // suppress unused variable warning
+        let _ = py;
     }
 
     std::mem::forget(class_name);

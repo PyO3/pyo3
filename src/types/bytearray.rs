@@ -52,7 +52,7 @@ impl PyByteArray {
                 ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
             let pypybytearray: Py<PyByteArray> = Py::from_owned_ptr_or_err(py, pyptr)?;
-            let buffer = ffi::PyByteArray_AsString(pyptr) as *mut u8;
+            let buffer: *mut u8 = ffi::PyByteArray_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
             std::ptr::write_bytes(buffer, 0u8, len);
@@ -89,7 +89,7 @@ impl PyByteArray {
     ///
     /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
     pub fn data(&self) -> *mut u8 {
-        unsafe { ffi::PyByteArray_AsString(self.as_ptr()) as *mut u8 }
+        unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
     }
 
     /// Extracts a slice of the `ByteArray`'s entire buffer.
