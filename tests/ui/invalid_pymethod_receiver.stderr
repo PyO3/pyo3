@@ -5,11 +5,11 @@ error[E0277]: the trait bound `i32: From<&PyCell<MyClass>>` is not satisfied
   |                                           ^^^ the trait `From<&PyCell<MyClass>>` is not implemented for `i32`
   |
   = help: the following other types implement trait `From<T>`:
-            <i32 as From<NonZeroI32>>
             <i32 as From<bool>>
-            <i32 as From<i16>>
             <i32 as From<i8>>
-            <i32 as From<u16>>
+            <i32 as From<i16>>
             <i32 as From<u8>>
+            <i32 as From<u16>>
+            <i32 as From<NonZeroI32>>
   = note: required for `&PyCell<MyClass>` to implement `Into<i32>`
   = note: required for `i32` to implement `TryFrom<&PyCell<MyClass>>`

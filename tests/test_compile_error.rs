@@ -12,7 +12,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyclass_enum.rs");
     t.compile_fail("tests/ui/invalid_pyclass_item.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_signatures.rs");
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
@@ -32,6 +32,8 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
     t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
     t.compile_fail("tests/ui/missing_intopy.rs");
+    // adding extra error conversion impls changes the output
+    #[cfg(not(any(feature = "eyre", feature = "anyhow")))]
     t.compile_fail("tests/ui/invalid_result_conversion.rs");
     t.compile_fail("tests/ui/not_send.rs");
     t.compile_fail("tests/ui/not_send2.rs");

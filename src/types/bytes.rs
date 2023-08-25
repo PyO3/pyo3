@@ -58,7 +58,7 @@ impl PyBytes {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
             let pypybytes: Py<PyBytes> = Py::from_owned_ptr_or_err(py, pyptr)?;
-            let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
+            let buffer: *mut u8 = ffi::PyBytes_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
             std::ptr::write_bytes(buffer, 0u8, len);
