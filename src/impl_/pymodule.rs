@@ -5,7 +5,10 @@ use std::{
     sync::atomic::{self, AtomicBool},
 };
 
-use crate::{exceptions::PyImportError, ffi, types::PyModule, Py, PyResult, Python};
+use crate::{
+    exceptions::PyImportError, ffi, gil::mark_python_initialized_from_import, types::PyModule, Py,
+    PyResult, Python,
+};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -56,6 +59,7 @@ impl ModuleDef {
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
     pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
+        mark_python_initialized_from_import();
         #[cfg(all(PyPy, not(Py_3_8)))]
         {
             const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];

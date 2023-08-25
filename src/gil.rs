@@ -94,6 +94,11 @@ pub fn prepare_freethreaded_python() {
     });
 }
 
+/// When a PyO3 module is imported we know that the Python interpreter has been initialized
+pub(crate) fn mark_python_initialized_from_import() {
+    START.call_once(|| {})
+}
+
 /// Executes the provided closure with an embedded Python interpreter.
 ///
 /// This function initializes the Python interpreter, executes the provided closure, and then
@@ -196,9 +201,9 @@ impl GILGuard {
                     // Use call_once_force because if there is a panic because the interpreter is
                     // not initialized, it's fine for the user to initialize the interpreter and
                     // retry.
-                    assert_ne!(
+                    assert_eq!(
                         ffi::Py_IsInitialized(),
-                        0,
+                        1,
                         "The Python interpreter is not initialized and the `auto-initialize` \
                          feature is not enabled.\n\n\
                          Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
@@ -207,6 +212,14 @@ impl GILGuard {
                 });
             }
         }
+
+        // This is necessary to protect against Python::with_gil being called after the Python
+        // interpreter has started shutting down.
+        assert_eq!(
+            unsafe { ffi::Py_IsInitialized() },
+            1,
+            "Python::with_gil: the Python interpreter is not initialized"
+        );
 
         Self::acquire_unchecked()
     }
