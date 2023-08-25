@@ -1018,53 +1018,46 @@ pub trait PyClassThreadChecker<T>: Sized {
     private_decl! {}
 }
 
-/// Stub checker for `Send` types.
+/// Default thread checker for `#[pyclass]`.
+///
+/// Keeping the T: Send bound here slightly improves the compile
+/// error message to hint to users to figure out what's wrong
+/// when `#[pyclass]` types do not implement `Send`.
 #[doc(hidden)]
-pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
+pub struct SendablePyClass<T: Send>(PhantomData<T>);
 
-impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
+impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
     fn ensure(&self) {}
     fn can_drop(&self, _py: Python<'_>) -> bool {
         true
     }
     #[inline]
     fn new() -> Self {
-        ThreadCheckerStub(PhantomData)
+        SendablePyClass(PhantomData)
     }
     private_impl! {}
 }
 
-impl<T: PyNativeType> PyClassThreadChecker<T> for ThreadCheckerStub<crate::PyObject> {
-    fn ensure(&self) {}
-    fn can_drop(&self, _py: Python<'_>) -> bool {
-        true
-    }
-    #[inline]
-    fn new() -> Self {
-        ThreadCheckerStub(PhantomData)
-    }
-    private_impl! {}
-}
-
-/// Thread checker for unsendable types.
+/// Thread checker for `#[pyclass(unsendable)]` types.
 /// Panics when the value is accessed by another thread.
 #[doc(hidden)]
-pub struct ThreadCheckerImpl<T>(thread::ThreadId, PhantomData<T>);
+pub struct ThreadCheckerImpl(thread::ThreadId);
 
-impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
-    fn ensure(&self) {
+impl ThreadCheckerImpl {
+    fn ensure(&self, type_name: &'static str) {
         assert_eq!(
             thread::current().id(),
             self.0,
-            "{} is unsendable, but sent to another thread!",
-            std::any::type_name::<T>()
+            "{} is unsendable, but sent to another thread",
+            type_name
         );
     }
-    fn can_drop(&self, py: Python<'_>) -> bool {
+
+    fn can_drop(&self, py: Python<'_>, type_name: &'static str) -> bool {
         if thread::current().id() != self.0 {
             PyRuntimeError::new_err(format!(
-                "{} is unsendbale, but is dropped on another thread!",
-                std::any::type_name::<T>()
+                "{} is unsendable, but is being dropped on another thread",
+                type_name
             ))
             .write_unraisable(py, None);
             return false;
@@ -1072,31 +1065,17 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
 
         true
     }
-    fn new() -> Self {
-        ThreadCheckerImpl(thread::current().id(), PhantomData)
-    }
-    private_impl! {}
 }
 
-/// Thread checker for types that have `Send` and `extends=...`.
-/// Ensures that `T: Send` and the parent is not accessed by another thread.
-#[doc(hidden)]
-pub struct ThreadCheckerInherited<T: PyClass + Send, U: PyClassBaseType>(
-    PhantomData<T>,
-    U::ThreadChecker,
-);
-
-impl<T: PyClass + Send, U: PyClassBaseType> PyClassThreadChecker<T>
-    for ThreadCheckerInherited<T, U>
-{
+impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     fn ensure(&self) {
-        self.1.ensure();
+        self.ensure(std::any::type_name::<T>());
     }
     fn can_drop(&self, py: Python<'_>) -> bool {
-        self.1.can_drop(py)
+        self.can_drop(py, std::any::type_name::<T>())
     }
     fn new() -> Self {
-        ThreadCheckerInherited(PhantomData, U::ThreadChecker::new())
+        ThreadCheckerImpl(thread::current().id())
     }
     private_impl! {}
 }
@@ -1105,7 +1084,6 @@ impl<T: PyClass + Send, U: PyClassBaseType> PyClassThreadChecker<T>
 pub trait PyClassBaseType: Sized {
     type LayoutAsBase: PyCellLayout<Self>;
     type BaseNativeType;
-    type ThreadChecker: PyClassThreadChecker<Self>;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
 }
@@ -1116,7 +1094,6 @@ pub trait PyClassBaseType: Sized {
 impl<T: PyClass> PyClassBaseType for T {
     type LayoutAsBase = crate::pycell::PyCell<T>;
     type BaseNativeType = T::BaseNativeType;
-    type ThreadChecker = T::ThreadChecker;
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
     type PyClassMutability = T::PyClassMutability;
 }

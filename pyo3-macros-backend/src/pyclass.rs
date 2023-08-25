@@ -947,13 +947,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         let thread_checker = if self.attr.options.unsendable.is_some() {
-            quote! { _pyo3::impl_::pyclass::ThreadCheckerImpl<#cls> }
-        } else if self.attr.options.extends.is_some() {
-            quote! {
-                _pyo3::impl_::pyclass::ThreadCheckerInherited<#cls, <#cls as _pyo3::impl_::pyclass::PyClassImpl>::BaseType>
-            }
+            quote! { _pyo3::impl_::pyclass::ThreadCheckerImpl }
         } else {
-            quote! { _pyo3::impl_::pyclass::ThreadCheckerStub<#cls> }
+            quote! { _pyo3::impl_::pyclass::SendablePyClass<#cls> }
         };
 
         let (pymethods_items, inventory, inventory_class) = match self.methods_type {

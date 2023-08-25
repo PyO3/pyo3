@@ -10,9 +10,9 @@ note: required because it appears within the type `NotThreadSafe`
   |
 5 | struct NotThreadSafe {
   |        ^^^^^^^^^^^^^
-note: required by a bound in `ThreadCheckerStub`
+note: required by a bound in `SendablePyClass`
  --> src/impl_/pyclass.rs
   |
-  | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
-  |                                 ^^^^ required by this bound in `ThreadCheckerStub`
+  | pub struct SendablePyClass<T: Send>(PhantomData<T>);
+  |                               ^^^^ required by this bound in `SendablePyClass`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
