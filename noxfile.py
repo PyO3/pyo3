@@ -606,7 +606,11 @@ def _get_coverage_env() -> Dict[str, str]:
 
     for line in output.strip().splitlines():
         (key, value) = line.split("=", maxsplit=1)
-        env[key] = value.strip('"')
+        # Strip single or double quotes from the variable value
+        # - quote used by llvm-cov differs between Windows and Linux
+        if value and value[0] in ("'", '"'):
+            value = value[1:-1]
+        env[key] = value
 
     # Ensure that examples/ and pytests/ all build to the correct target directory to collect
     # coverage artifacts.
