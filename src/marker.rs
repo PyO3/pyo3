@@ -118,7 +118,9 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
-use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
+use crate::types::{
+    PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
+};
 use crate::version::PythonVersionInfo;
 use crate::{ffi, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTryFrom, PyTypeInfo};
 use std::ffi::{CStr, CString};
@@ -690,21 +692,21 @@ impl<'py> Python<'py> {
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn None(self) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
+        PyNone::get(self).into()
     }
 
     /// Gets the Python builtin value `Ellipsis`, or `...`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn Ellipsis(self) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_Ellipsis()) }
+        PyEllipsis::get(self).into()
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn NotImplemented(self) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
+        PyNotImplemented::get(self).into()
     }
 
     /// Gets the running Python interpreter version as a string.
