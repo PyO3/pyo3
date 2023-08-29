@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BatchSize, Bencher, Criterion};
+use codspeed_criterion_compat::{criterion_group, criterion_main, BatchSize, Bencher, Criterion};
 
 use pyo3::{prelude::*, GILPool};
 

@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 use pyo3::{impl_::pyclass::LazyTypeObject, prelude::*};
 
 /// This is a feature-rich class instance used to benchmark various parts of the pyclass lifecycle.
@@ -26,7 +26,7 @@ impl MyClass {
     }
 }
 
-pub fn first_time_init(b: &mut criterion::Bencher<'_>) {
+pub fn first_time_init(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         b.iter(|| {
             // This is using an undocumented internal PyO3 API to measure pyclass performance; please
