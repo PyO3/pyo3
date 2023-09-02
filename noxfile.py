@@ -483,6 +483,7 @@ def set_minimal_package_versions(session: nox.Session):
         "regex": "1.7.3",
         "proptest": "1.0.0",
         "indexmap": "1.9.3",
+        "chrono": "0.4.25",
     }
 
     # run cargo update first to ensure that everything is at highest
