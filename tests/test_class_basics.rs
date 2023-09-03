@@ -268,7 +268,7 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
 #[test]
 #[cfg_attr(target_arch = "wasm32", ignore)]
 #[should_panic(
-    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread!"
+    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread"
 )]
 fn panic_unsendable_base() {
     test_unsendable::<UnsendableBase>().unwrap();
@@ -277,7 +277,7 @@ fn panic_unsendable_base() {
 #[test]
 #[cfg_attr(target_arch = "wasm32", ignore)]
 #[should_panic(
-    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread!"
+    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread"
 )]
 fn panic_unsendable_child() {
     test_unsendable::<UnsendableChild>().unwrap();
@@ -584,7 +584,7 @@ fn drop_unsendable_elsewhere() {
         assert!(!dropped.load(Ordering::SeqCst));
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
-        assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendbale, but is dropped on another thread!");
+        assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread");
         assert!(object.is_none(py));
 
         capture.borrow_mut(py).uninstall(py);
