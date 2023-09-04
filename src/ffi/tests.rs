@@ -3,6 +3,7 @@ use crate::Python;
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
+    prelude::*,
     types::{PyDict, PyString},
     IntoPy, Py, PyAny,
 };
@@ -24,7 +25,7 @@ fn test_datetime_fromtimestamp() {
         py.run(
             "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(locals.as_gil_ref()),
         )
         .unwrap();
     })
@@ -45,7 +46,7 @@ fn test_date_fromtimestamp() {
         py.run(
             "import datetime; assert dt == datetime.date.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(locals.as_gil_ref()),
         )
         .unwrap();
     })
@@ -65,7 +66,7 @@ fn test_utc_timezone() {
         py.run(
             "import datetime; assert utc_timezone is datetime.timezone.utc",
             None,
-            Some(locals),
+            Some(locals.as_gil_ref()),
         )
         .unwrap();
     })
@@ -116,7 +117,7 @@ fn test_timezone_from_offset_and_name() {
 #[test]
 #[cfg(not(Py_LIMITED_API))]
 fn ascii_object_bitfield() {
-    let ob_base: PyObject = unsafe { std::mem::zeroed() };
+    let ob_base: crate::ffi::PyObject = unsafe { std::mem::zeroed() };
 
     let mut o = PyASCIIObject {
         ob_base,

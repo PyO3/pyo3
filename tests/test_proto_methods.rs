@@ -190,7 +190,7 @@ pub struct Mapping {
 #[pymethods]
 impl Mapping {
     fn __len__(&self, py: Python<'_>) -> usize {
-        self.values.as_ref(py).len()
+        self.values.attach(py).len()
     }
 
     fn __getitem__<'a>(&'a self, key: &'a PyAny) -> PyResult<&'a PyAny> {

@@ -1080,7 +1080,7 @@ mod tests {
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval("foo + 29", Some(d), None)
+                .eval("foo + 29", Some(d.as_gil_ref()), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1088,7 +1088,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval("foo + 29", None, Some(d))
+                .eval("foo + 29", None, Some(d.as_gil_ref()))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1096,7 +1096,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval("min(foo, 2)", None, Some(d))
+                .eval("min(foo, 2)", None, Some(d.as_gil_ref()))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1200,8 +1200,12 @@ mod tests {
     fn test_py_run_inserts_globals() {
         Python::with_gil(|py| {
             let namespace = PyDict::new(py);
-            py.run("class Foo: pass", Some(namespace), Some(namespace))
-                .unwrap();
+            py.run(
+                "class Foo: pass",
+                Some(namespace.as_gil_ref()),
+                Some(namespace.as_gil_ref()),
+            )
+            .unwrap();
             assert!(namespace.get_item("Foo").is_some());
             assert!(namespace.get_item("__builtins__").is_some());
         })

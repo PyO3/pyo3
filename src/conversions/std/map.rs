@@ -3,8 +3,9 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
+    prelude::*,
     types::{IntoPyDict, PyDict},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
+    FromPyObject, IntoPy, Py2, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
@@ -72,10 +73,10 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+        let dict = Py2::borrowed_from_gil_ref(&ob).downcast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(K::extract(k.into_gil_ref())?, V::extract(v.into_gil_ref())?);
         }
         Ok(ret)
     }
@@ -92,10 +93,10 @@ where
     V: FromPyObject<'source>,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+        let dict = Py2::borrowed_from_gil_ref(&ob).downcast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
         for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(K::extract(k.into_gil_ref())?, V::extract(v.into_gil_ref())?);
         }
         Ok(ret)
     }
@@ -119,7 +120,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -134,7 +135,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -149,7 +150,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -163,7 +164,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

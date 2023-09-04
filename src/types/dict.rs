@@ -1,6 +1,7 @@
 use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
+use crate::internal_tricks::ToPy2;
 use crate::prelude::*;
 use crate::types::{PyAny, PyList};
 use crate::{ffi, PyObject, Python, ToPyObject};
@@ -54,8 +55,8 @@ pyobject_native_type_core!(
 
 impl PyDict {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python<'_>) -> &PyDict {
-        unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
+    pub fn new(py: Python<'_>) -> Py2<'_, PyDict> {
+        unsafe { Py2::from_owned_ptr(py, ffi::PyDict_New()).downcast_into_unchecked() }
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -66,61 +67,158 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<&PyDict> {
+    pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<Py2<'_, PyDict>> {
         let dict = Self::new(py);
         err::error_on_minusone(py, unsafe {
-            ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1)
+            ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
     }
+}
 
+/// Implementation of functionality for [`PyDict`].
+///
+/// These methods are defined for the `Py2<'py, PyDict>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PyDict")]
+pub trait PyDictMethods<'py> {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.
-    pub fn copy(&self) -> PyResult<&PyDict> {
+    fn copy(&self) -> PyResult<Py2<'py, PyDict>>;
+
+    /// Empties an existing dictionary of all key-value pairs.
+    fn clear(&self);
+
+    /// Return the number of items in the dictionary.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
+    fn len(&self) -> usize;
+
+    /// Checks if the dict is empty, i.e. `len(self) == 0`.
+    fn is_empty(&self) -> bool;
+
+    /// Determines if the dictionary contains the specified key.
+    ///
+    /// This is equivalent to the Python expression `key in self`.
+    fn contains<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToPyObject;
+
+    /// Gets an item from the dictionary.
+    ///
+    /// Returns `None` if the item is not present, or if an error occurs.
+    ///
+    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
+    fn get_item<K>(&self, key: K) -> Option<&'py PyAny>
+    where
+        K: ToPyObject;
+
+    /// Gets an item from the dictionary,
+    ///
+    /// returns `Ok(None)` if item is not present, or `Err(PyErr)` if an error occurs.
+    ///
+    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item_with_error`.
+    fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&'py PyAny>>
+    where
+        K: ToPyObject;
+
+    /// Sets an item value.
+    ///
+    /// This is equivalent to the Python statement `self[key] = value`.
+    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
+    where
+        K: ToPyObject,
+        V: ToPyObject;
+
+    /// Deletes an item.
+    ///
+    /// This is equivalent to the Python statement `del self[key]`.
+    fn del_item<K>(&self, key: K) -> PyResult<()>
+    where
+        K: ToPyObject;
+
+    /// Returns a list of dict keys.
+    ///
+    /// This is equivalent to the Python expression `list(dict.keys())`.
+    fn keys(&self) -> Py2<'py, PyList>;
+
+    /// Returns a list of dict values.
+    ///
+    /// This is equivalent to the Python expression `list(dict.values())`.
+    fn values(&self) -> Py2<'py, PyList>;
+
+    /// Returns a list of dict items.
+    ///
+    /// This is equivalent to the Python expression `list(dict.items())`.
+    fn items(&self) -> Py2<'py, PyList>;
+
+    /// Returns an iterator of `(key, value)` pairs in this dictionary.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
+    /// It is allowed to modify values as you iterate over the dictionary, but only
+    /// so long as the set of keys does not change.
+    fn iter(&self) -> PyDictIterator<'py>;
+
+    /// Returns `self` cast as a `PyMapping`.
+    fn as_mapping(&'py self) -> &'py PyMapping;
+
+    /// Update this dictionary with the key/value pairs from another.
+    ///
+    /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
+    /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
+    fn update(&self, other: &PyMapping) -> PyResult<()>;
+
+    /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
+    ///
+    /// This is equivalent to the Python expression `self.update({k: v for k, v in other.items() if k not in self})`.
+    /// If `other` is a `PyDict`, you may want to use `self.update_if_missing(other.as_mapping())`,
+    /// note: `PyDict::as_mapping` is a zero-cost conversion.
+    ///
+    /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
+    /// so should have the same performance as `update`.
+    fn update_if_missing(&self, other: &PyMapping) -> PyResult<()>;
+}
+
+impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
+    /// Returns a new dictionary that contains the same key-value pairs as self.
+    ///
+    /// This is equivalent to the Python expression `self.copy()`.
+    fn copy(&self) -> PyResult<Self> {
         unsafe {
-            self.py()
-                .from_owned_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
+            Py2::from_owned_ptr_or_err(self.py(), ffi::PyDict_Copy(self.as_ptr()))
+                .map(|dict| dict.downcast_into_unchecked())
         }
     }
 
     /// Empties an existing dictionary of all key-value pairs.
-    pub fn clear(&self) {
+    fn clear(&self) {
         unsafe { ffi::PyDict_Clear(self.as_ptr()) }
     }
 
     /// Return the number of items in the dictionary.
     ///
     /// This is equivalent to the Python expression `len(self)`.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self._len() as usize
     }
 
-    fn _len(&self) -> Py_ssize_t {
-        #[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
-        unsafe {
-            ffi::PyDict_Size(self.as_ptr())
-        }
-
-        #[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
-        unsafe {
-            (*self.as_ptr().cast::<ffi::PyDictObject>()).ma_used
-        }
-    }
-
     /// Checks if the dict is empty, i.e. `len(self) == 0`.
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Determines if the dictionary contains the specified key.
     ///
     /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
+    fn contains<K>(&self, key: K) -> PyResult<bool>
     where
         K: ToPyObject,
     {
-        fn inner(dict: &PyDict, key: PyObject) -> PyResult<bool> {
+        fn inner(dict: &Py2<'_, PyDict>, key: PyObject) -> PyResult<bool> {
             match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -136,11 +234,11 @@ impl PyDict {
     /// Returns `None` if the item is not present, or if an error occurs.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
+    fn get_item<K>(&self, key: K) -> Option<&'py PyAny>
     where
         K: ToPyObject,
     {
-        fn inner(dict: &PyDict, key: PyObject) -> Option<&PyAny> {
+        fn inner<'py>(dict: &Py2<'py, PyDict>, key: Py2<'_, PyAny>) -> Option<&'py PyAny> {
             let py = dict.py();
             // PyDict_GetItem returns a borrowed ptr, must make it owned for safety (see #890).
             // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
@@ -153,7 +251,7 @@ impl PyDict {
             .map(|pyobject| pyobject.into_ref(py))
         }
 
-        inner(self, key.to_object(self.py()))
+        inner(self, key.to_py2(self.py()))
     }
 
     /// Gets an item from the dictionary,
@@ -161,11 +259,14 @@ impl PyDict {
     /// returns `Ok(None)` if item is not present, or `Err(PyErr)` if an error occurs.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item_with_error`.
-    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
+    fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&'py PyAny>>
     where
         K: ToPyObject,
     {
-        fn inner(dict: &PyDict, key: PyObject) -> PyResult<Option<&PyAny>> {
+        fn inner<'py>(
+            dict: &Py2<'py, PyDict>,
+            key: Py2<'_, PyAny>,
+        ) -> PyResult<Option<&'py PyAny>> {
             let py = dict.py();
             // PyDict_GetItemWithError returns a borrowed ptr, must make it owned for safety (see #890).
             // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
@@ -180,47 +281,51 @@ impl PyDict {
             .transpose()
         }
 
-        inner(self, key.to_object(self.py()))
+        inner(self, key.to_py2(self.py()))
     }
 
     /// Sets an item value.
     ///
     /// This is equivalent to the Python statement `self[key] = value`.
-    pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
+    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
         K: ToPyObject,
         V: ToPyObject,
     {
-        fn inner(dict: &PyDict, key: PyObject, value: PyObject) -> PyResult<()> {
+        fn inner(
+            dict: &Py2<'_, PyDict>,
+            key: Py2<'_, PyAny>,
+            value: Py2<'_, PyAny>,
+        ) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, key.to_object(py), value.to_object(py))
+        inner(self, key.to_py2(py), value.to_py2(py))
     }
 
     /// Deletes an item.
     ///
     /// This is equivalent to the Python statement `del self[key]`.
-    pub fn del_item<K>(&self, key: K) -> PyResult<()>
+    fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: ToPyObject,
     {
-        fn inner(dict: &PyDict, key: PyObject) -> PyResult<()> {
+        fn inner(dict: &Py2<'_, PyDict>, key: Py2<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
             })
         }
 
-        inner(self, key.to_object(self.py()))
+        inner(self, key.to_py2(self.py()))
     }
 
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
-    pub fn keys<'py>(&'py self) -> Py2<'py, PyList> {
+    fn keys(&self) -> Py2<'py, PyList> {
         unsafe {
             Py2::from_owned_ptr(self.py(), ffi::PyDict_Keys(self.as_ptr()))
                 .downcast_into_unchecked()
@@ -230,7 +335,7 @@ impl PyDict {
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
-    pub fn values<'py>(&'py self) -> Py2<'py, PyList> {
+    fn values(&self) -> Py2<'py, PyList> {
         unsafe {
             Py2::from_owned_ptr(self.py(), ffi::PyDict_Values(self.as_ptr()))
                 .downcast_into_unchecked()
@@ -240,7 +345,7 @@ impl PyDict {
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
-    pub fn items<'py>(&'py self) -> Py2<'py, PyList> {
+    fn items(&self) -> Py2<'py, PyList> {
         unsafe {
             Py2::from_owned_ptr(self.py(), ffi::PyDict_Items(self.as_ptr()))
                 .downcast_into_unchecked()
@@ -254,20 +359,20 @@ impl PyDict {
     /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
     /// It is allowed to modify values as you iterate over the dictionary, but only
     /// so long as the set of keys does not change.
-    pub fn iter(&self) -> PyDictIterator<'_> {
+    fn iter(&self) -> PyDictIterator<'py> {
         IntoIterator::into_iter(self)
     }
 
     /// Returns `self` cast as a `PyMapping`.
-    pub fn as_mapping(&self) -> &PyMapping {
-        unsafe { self.downcast_unchecked() }
+    fn as_mapping(&'py self) -> &'py PyMapping {
+        unsafe { self.as_gil_ref().downcast_unchecked() }
     }
 
     /// Update this dictionary with the key/value pairs from another.
     ///
     /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
     /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
-    pub fn update(&self, other: &PyMapping) -> PyResult<()> {
+    fn update(&self, other: &PyMapping) -> PyResult<()> {
         let py = self.py();
         err::error_on_minusone(py, unsafe {
             ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
@@ -282,7 +387,7 @@ impl PyDict {
     ///
     /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
     /// so should have the same performance as `update`.
-    pub fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
+    fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
         let py = self.py();
         err::error_on_minusone(py, unsafe {
             ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
@@ -290,16 +395,30 @@ impl PyDict {
     }
 }
 
+impl Py2<'_, PyDict> {
+    fn _len(&self) -> Py_ssize_t {
+        #[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
+        unsafe {
+            ffi::PyDict_Size(self.as_ptr())
+        }
+
+        #[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
+        unsafe {
+            (*self.as_ptr().cast::<ffi::PyDictObject>()).ma_used
+        }
+    }
+}
+
 /// PyO3 implementation of an iterator for a Python `dict` object.
 pub struct PyDictIterator<'py> {
-    dict: &'py PyDict,
+    dict: Py2<'py, PyDict>,
     ppos: ffi::Py_ssize_t,
     di_used: ffi::Py_ssize_t,
     len: ffi::Py_ssize_t,
 }
 
 impl<'py> Iterator for PyDictIterator<'py> {
-    type Item = (&'py PyAny, &'py PyAny);
+    type Item = (Py2<'py, PyAny>, Py2<'py, PyAny>);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -349,17 +468,27 @@ impl<'py> ExactSizeIterator for PyDictIterator<'py> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyDict {
-    type Item = (&'a PyAny, &'a PyAny);
-    type IntoIter = PyDictIterator<'a>;
+impl<'py> std::iter::IntoIterator for Py2<'py, PyDict> {
+    type Item = (Py2<'py, PyAny>, Py2<'py, PyAny>);
+    type IntoIter = PyDictIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
+        let len = self._len();
         PyDictIterator {
             dict: self,
             ppos: 0,
-            di_used: self._len(),
-            len: self._len(),
+            di_used: len,
+            len,
         }
+    }
+}
+
+impl<'py> std::iter::IntoIterator for &Py2<'py, PyDict> {
+    type Item = (Py2<'py, PyAny>, Py2<'py, PyAny>);
+    type IntoIter = PyDictIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.clone().into_iter()
     }
 }
 
@@ -368,7 +497,7 @@ impl<'py> PyDictIterator<'py> {
     ///
     /// See [`PyDict_Next`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Next)
     /// for more information.
-    unsafe fn next_unchecked(&mut self) -> Option<(&'py PyAny, &'py PyAny)> {
+    unsafe fn next_unchecked(&mut self) -> Option<(Py2<'py, PyAny>, Py2<'py, PyAny>)> {
         let mut key: *mut ffi::PyObject = std::ptr::null_mut();
         let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
@@ -376,8 +505,8 @@ impl<'py> PyDictIterator<'py> {
             let py = self.dict.py();
             // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
             Some((
-                py.from_owned_ptr(ffi::_Py_NewRef(key)),
-                py.from_owned_ptr(ffi::_Py_NewRef(value)),
+                Py2::from_owned_ptr(py, ffi::_Py_NewRef(key)),
+                Py2::from_owned_ptr(py, ffi::_Py_NewRef(value)),
             ))
         } else {
             None
@@ -390,7 +519,7 @@ impl<'py> PyDictIterator<'py> {
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict;
+    fn into_py_dict(self, py: Python<'_>) -> Py2<'_, PyDict>;
 }
 
 impl<T, I> IntoPyDict for I
@@ -398,7 +527,7 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
+    fn into_py_dict(self, py: Python<'_>) -> Py2<'_, PyDict> {
         let dict = PyDict::new(py);
         for item in self {
             dict.set_item(item.key(), item.value())
@@ -452,7 +581,7 @@ mod tests {
     #[cfg(not(PyPy))]
     use crate::exceptions;
     #[cfg(not(PyPy))]
-    use crate::types::PyList;
+    use crate::types::{PyList, PyType};
     use crate::{types::PyTuple, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
@@ -509,11 +638,11 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert_eq!(0, dict.len());
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict2: &PyDict = ob.downcast(py).unwrap();
+            let dict2 = ob.attach(py).downcast::<PyDict>().unwrap();
             assert_eq!(1, dict2.len());
         });
     }
@@ -524,7 +653,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert!(dict.contains(7i32).unwrap());
             assert!(!dict.contains(8i32).unwrap());
         });
@@ -536,7 +665,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
             assert!(dict.get_item(8i32).is_none());
         });
@@ -549,7 +678,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert_eq!(
                 32,
                 dict.get_item_with_error(7i32)
@@ -572,7 +701,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
             assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
@@ -608,7 +737,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
             assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(32i32, v[&7i32]); // not updated!
@@ -622,7 +751,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert!(dict.del_item(7i32).is_ok());
             assert_eq!(0, dict.len());
             assert!(dict.get_item(7i32).is_none());
@@ -635,7 +764,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             assert!(dict.del_item(7i32).is_ok()); // change
             assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
         });
@@ -649,7 +778,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
@@ -671,7 +800,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             for el in dict.keys() {
@@ -689,7 +818,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
             for el in dict.values() {
@@ -707,7 +836,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -728,7 +857,7 @@ mod tests {
             v.insert(9, 123);
 
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
 
             for (key, value) in dict {
                 dict.set_item(key, value.extract::<i32>().unwrap() + 7)
@@ -746,7 +875,7 @@ mod tests {
                 v.insert(i * 2, i * 2);
             }
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -771,7 +900,7 @@ mod tests {
                 v.insert(i * 2, i * 2);
             }
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -795,7 +924,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
 
             let mut iter = dict.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -821,7 +950,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let dict: &PyDict = ob.downcast(py).unwrap();
+            let dict = ob.attach(py).downcast::<PyDict>().unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -903,7 +1032,7 @@ mod tests {
     }
 
     #[cfg(not(PyPy))]
-    fn abc_dict(py: Python<'_>) -> &PyDict {
+    fn abc_dict(py: Python<'_>) -> Py2<'_, PyDict> {
         let mut map = HashMap::<&'static str, i32>::new();
         map.insert("a", 1);
         map.insert("b", 2);
@@ -917,7 +1046,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
-            assert!(keys.is_instance(py.get_type::<PyDictKeys>()).unwrap());
+            assert!(keys.is_instance(Py2::<PyType>::borrowed_from_gil_ref(&py.get_type::<PyDictKeys>())).unwrap());
         })
     }
 
@@ -927,7 +1056,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
-            assert!(values.is_instance(py.get_type::<PyDictValues>()).unwrap());
+            assert!(values.is_instance(Py2::<PyType>::borrowed_from_gil_ref(&py.get_type::<PyDictValues>())).unwrap());
         })
     }
 
@@ -937,7 +1066,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
-            assert!(items.is_instance(py.get_type::<PyDictItems>()).unwrap());
+            assert!(items.is_instance(Py2::<PyType>::borrowed_from_gil_ref(&py.get_type::<PyDictItems>())).unwrap());
         })
     }
 

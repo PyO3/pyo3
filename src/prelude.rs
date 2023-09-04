@@ -23,4 +23,5 @@ pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
 pub use crate::wrap_pyfunction;
 
 pub use crate::types::any::PyAnyMethods;
+pub use crate::types::dict::PyDictMethods;
 pub use crate::types::list::PyListMethods;

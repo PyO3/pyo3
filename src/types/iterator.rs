@@ -206,9 +206,12 @@ def fibonacci(target):
 
         Python::with_gil(|py| {
             let context = PyDict::new(py);
-            py.run(fibonacci_generator, None, Some(context)).unwrap();
+            py.run(fibonacci_generator, None, Some(context.as_gil_ref()))
+                .unwrap();
 
-            let generator = py.eval("fibonacci(5)", None, Some(context)).unwrap();
+            let generator = py
+                .eval("fibonacci(5)", None, Some(context.as_gil_ref()))
+                .unwrap();
             for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)

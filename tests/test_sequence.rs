@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
-use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
+use pyo3::types::{IntoPyDict, PyDict, PyList, PyMapping, PySequence};
 use pyo3::{ffi, prelude::*, Py2};
 
 use pyo3::py_run;
@@ -104,7 +104,7 @@ impl ByteSequence {
 }
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
-fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
+fn seq_dict(py: Python<'_>) -> Py2<'_, PyDict> {
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");

@@ -17,6 +17,7 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
+    prelude::*,
     types::set::new_from_iter,
     types::{IntoPyDict, PyDict, PySet},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
@@ -55,10 +56,10 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+        let dict = Py2::borrowed_from_gil_ref(&ob).downcast::<PyDict>()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(K::extract(k.into_gil_ref())?, V::extract(v.into_gil_ref())?);
         }
         Ok(ret)
     }
@@ -109,7 +110,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -123,7 +124,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

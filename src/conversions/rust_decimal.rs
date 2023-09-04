@@ -104,6 +104,7 @@ impl IntoPy<PyObject> for Decimal {
 mod test_rust_decimal {
     use super::*;
     use crate::err::PyErr;
+    use crate::prelude::*;
     use crate::types::PyDict;
     use rust_decimal::Decimal;
 
@@ -126,7 +127,7 @@ mod test_rust_decimal {
                             $py
                         ),
                         None,
-                        Some(locals),
+                        Some(locals.as_gil_ref()),
                     )
                     .unwrap();
                     // Checks if Python Decimal -> Rust Decimal conversion is correct
@@ -165,7 +166,7 @@ mod test_rust_decimal {
                     &format!(
                        "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
                      num),
-                None, Some(locals)).unwrap();
+                None, Some(locals.as_gil_ref())).unwrap();
                 let roundtripped: Decimal = rs_dec.extract(py).unwrap();
                 assert_eq!(num, roundtripped);
             })
@@ -189,7 +190,7 @@ mod test_rust_decimal {
             py.run(
                 "import decimal\npy_dec = decimal.Decimal(\"NaN\")",
                 None,
-                Some(locals),
+                Some(locals.as_gil_ref()),
             )
             .unwrap();
             let py_dec = locals.get_item("py_dec").unwrap();
@@ -205,7 +206,7 @@ mod test_rust_decimal {
             py.run(
                 "import decimal\npy_dec = decimal.Decimal(\"Infinity\")",
                 None,
-                Some(locals),
+                Some(locals.as_gil_ref()),
             )
             .unwrap();
             let py_dec = locals.get_item("py_dec").unwrap();

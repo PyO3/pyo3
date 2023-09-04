@@ -375,7 +375,7 @@ fn pyfunction_with_module_and_default_arg<'a>(
 fn pyfunction_with_module_and_args_kwargs<'a>(
     module: &'a PyModule,
     args: &PyTuple,
-    kwargs: Option<&PyDict>,
+    kwargs: Option<Py2<'_, PyDict>>,
 ) -> PyResult<(&'a str, usize, Option<usize>)> {
     module
         .name()

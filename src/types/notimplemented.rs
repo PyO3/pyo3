@@ -54,7 +54,10 @@ mod tests {
     #[test]
     fn test_dict_is_not_notimplemented() {
         Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyNotImplemented>().is_err());
+            assert!(PyDict::new(py)
+                .as_gil_ref()
+                .downcast::<PyNotImplemented>()
+                .is_err());
         })
     }
 }

@@ -94,7 +94,7 @@ except Exception as e:
     err = e
 ",
                 None,
-                Some(locals),
+                Some(locals.as_gil_ref()),
             )
             .unwrap();
             let err = PyErr::from_value(locals.get_item("err").unwrap());
@@ -114,7 +114,7 @@ def f():
     raise ValueError('raised exception')
 ",
                 None,
-                Some(locals),
+                Some(locals.as_gil_ref()),
             )
             .unwrap();
             let f = locals.get_item("f").unwrap();

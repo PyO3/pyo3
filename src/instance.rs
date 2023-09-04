@@ -50,12 +50,12 @@ impl<'py> Py2<'py, PyAny> {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
 
-    // /// Constructs a new Py2 from a pointer. Returns None if ptr is null.
-    // ///
-    // /// Safety: ptr must be a valid pointer to a Python object, or NULL.
-    // pub unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
-    //     Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
-    // }
+    /// Constructs a new Py2 from a pointer. Returns None if ptr is null.
+    ///
+    /// Safety: ptr must be a valid pointer to a Python object, or NULL.
+    pub unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
 
     /// Constructs a new Py2 from a pointer. Returns error if ptr is null.
     pub(crate) unsafe fn from_owned_ptr_or_err(
@@ -63,6 +63,25 @@ impl<'py> Py2<'py, PyAny> {
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
+
+    // pub(crate) unsafe fn borrowed_from_ptr<'a>(
+    //     _py: Python<'py>,
+    //     ptr: &'a *mut ffi::PyObject,
+    // ) -> &'a Self {
+    //     if ptr.is_null() {
+    //         panic!("borrowed_from_ptr called with null pointer");
+    //     }
+    //     // Safety: *mut ffi::PyObject has the same layout as Self and ptr is not null
+    //     std::mem::transmute(ptr)
+    // }
+
+    pub(crate) unsafe fn borrowed_from_ptr_opt<'a>(
+        _py: Python<'py>,
+        ptr: &'a *mut ffi::PyObject,
+    ) -> &'a Option<Self> {
+        // Safety: *mut ffi::PyObject has the same layout as Self
+        std::mem::transmute(ptr)
     }
 }
 
@@ -868,7 +887,7 @@ impl<T> Py<T> {
         &self,
         py: Python<'_>,
         args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Py2<'_, PyDict>>,
     ) -> PyResult<PyObject> {
         self.attach(py).as_any().call(args, kwargs).map(Into::into)
     }
@@ -898,7 +917,7 @@ impl<T> Py<T> {
         py: Python<'_>,
         name: N,
         args: A,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Py2<'_, PyDict>>,
     ) -> PyResult<PyObject>
     where
         N: IntoPy<Py<PyString>>,

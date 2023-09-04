@@ -375,6 +375,7 @@ mod tests {
     use std::{cmp::Ordering, panic};
 
     use super::*;
+    use crate::prelude::*;
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
@@ -387,7 +388,7 @@ mod tests {
             py.run(
                 "import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,
-                Some(locals),
+                Some(locals.as_gil_ref()),
             )
             .unwrap();
             let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().extract();
@@ -856,7 +857,7 @@ mod tests {
 
                     let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py);
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
-                    let t = py.eval(&code, Some(globals), None).unwrap();
+                    let t = py.eval(&code, Some(globals.as_gil_ref()), None).unwrap();
 
                     // Get ISO 8601 string from python
                     let py_iso_str = t.call_method0("isoformat").unwrap();

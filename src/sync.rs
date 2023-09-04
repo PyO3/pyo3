@@ -252,6 +252,7 @@ impl Interned {
 mod tests {
     use super::*;
 
+    use crate::prelude::*;
     use crate::types::PyDict;
 
     #[test]

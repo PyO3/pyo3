@@ -581,7 +581,8 @@ mod tests {
     fn test_try_from() {
         Python::with_gil(|py| {
             let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-            let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
+            let dict = vec![("reverse", true)].into_py_dict(py);
+            let dict: &PyAny = dict.as_gil_ref();
 
             assert!(<PyList as PyTryFrom<'_>>::try_from(list).is_ok());
             assert!(<PyDict as PyTryFrom<'_>>::try_from(dict).is_ok());
@@ -595,7 +596,8 @@ mod tests {
     fn test_try_from_exact() {
         Python::with_gil(|py| {
             let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-            let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
+            let dict = vec![("reverse", true)].into_py_dict(py);
+            let dict: &PyAny = dict.as_gil_ref();
 
             assert!(PyList::try_from_exact(list).is_ok());
             assert!(PyDict::try_from_exact(dict).is_ok());

@@ -366,7 +366,7 @@ fn test_enum() {
 
         let dict = PyDict::new(py);
         dict.set_item("a", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = Foo::extract(dict.as_gil_ref()).expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItem { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItem, got {:?}", f),
@@ -374,7 +374,7 @@ fn test_enum() {
 
         let dict = PyDict::new(py);
         dict.set_item("foo", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = Foo::extract(dict.as_gil_ref()).expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItemArg { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {:?}", f),
@@ -386,7 +386,7 @@ fn test_enum() {
 fn test_enum_error() {
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
-        let err = Foo::extract(dict.as_ref()).unwrap_err();
+        let err = Foo::extract(dict.as_gil_ref()).unwrap_err();
         assert_eq!(
             err.to_string(),
             "\
@@ -429,11 +429,11 @@ enum EnumWithCatchAll<'a> {
 fn test_enum_catch_all() {
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
-        let f = EnumWithCatchAll::extract(dict.as_ref())
+        let f = EnumWithCatchAll::extract(dict.as_gil_ref())
             .expect("Failed to extract EnumWithCatchAll from dict");
         match f {
             EnumWithCatchAll::CatchAll(any) => {
-                let d = <&PyDict>::extract(any).expect("Expected pydict");
+                let d = <Py2<'_, PyDict>>::extract(any).expect("Expected pydict");
                 assert!(d.is_empty());
             }
             _ => panic!(
@@ -458,7 +458,7 @@ pub enum Bar {
 fn test_err_rename() {
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
-        let f = Bar::extract(dict.as_ref());
+        let f = Bar::extract(dict.as_gil_ref());
         assert!(f.is_err());
         assert_eq!(
             f.unwrap_err().to_string(),

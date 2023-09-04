@@ -87,7 +87,7 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::types::*;
+use crate::{prelude::*, types::*, Py2};
 use crate::{FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
@@ -123,10 +123,10 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+        let dict = Py2::borrowed_from_gil_ref(&ob).downcast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(K::extract(k.into_gil_ref())?, V::extract(v.into_gil_ref())?);
         }
         Ok(ret)
     }
@@ -135,6 +135,7 @@ where
 #[cfg(test)]
 mod test_indexmap {
 
+    use crate::prelude::*;
     use crate::types::*;
     use crate::{IntoPy, PyObject, Python, ToPyObject};
 
@@ -145,7 +146,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -163,7 +164,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.attach(py).downcast::<PyDict>().unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

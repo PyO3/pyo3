@@ -153,7 +153,7 @@ impl PyByteArray {
     /// # except RuntimeError as e:
     /// #     assert str(e) == 'input is not long enough'"#,
     /// #             None,
-    /// #             Some(locals),
+    /// #             Some(locals.as_gil_ref()),
     /// #         )?;
     /// #
     /// #         Ok(())

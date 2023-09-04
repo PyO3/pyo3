@@ -798,6 +798,7 @@ pub mod socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::*;
     use crate::types::{IntoPyDict, PyDict};
     use crate::{PyErr, Python};
 
@@ -822,9 +823,13 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
-                .map_err(|e| e.display(py))
-                .expect("assertion failed");
+            py.run(
+                "assert isinstance(exc, socket.gaierror)",
+                None,
+                Some(d.as_gil_ref()),
+            )
+            .map_err(|e| e.display(py))
+            .expect("assertion failed");
         });
     }
 
@@ -848,7 +853,7 @@ mod tests {
             py.run(
                 "assert isinstance(exc, email.errors.MessageError)",
                 None,
-                Some(d),
+                Some(d.as_gil_ref()),
             )
             .map_err(|e| e.display(py))
             .expect("assertion failed");
@@ -863,7 +868,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval("str(CustomError)", None, Some(ctx.as_gil_ref()))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -871,11 +876,15 @@ mod tests {
             py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
-                Some(ctx),
+                Some(ctx.as_gil_ref()),
             )
             .unwrap();
-            py.run("assert CustomError.__doc__ is None", None, Some(ctx))
-                .unwrap();
+            py.run(
+                "assert CustomError.__doc__ is None",
+                None,
+                Some(ctx.as_gil_ref()),
+            )
+            .unwrap();
         });
     }
 
@@ -886,7 +895,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval("str(CustomError)", None, Some(ctx.as_gil_ref()))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -905,7 +914,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval("str(CustomError)", None, Some(ctx.as_gil_ref()))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -913,11 +922,15 @@ mod tests {
             py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
-                Some(ctx),
+                Some(ctx.as_gil_ref()),
             )
             .unwrap();
-            py.run("assert CustomError.__doc__ == 'Some docs'", None, Some(ctx))
-                .unwrap();
+            py.run(
+                "assert CustomError.__doc__ == 'Some docs'",
+                None,
+                Some(ctx.as_gil_ref()),
+            )
+            .unwrap();
         });
     }
 
@@ -934,7 +947,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval("str(CustomError)", None, Some(ctx.as_gil_ref()))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -942,13 +955,13 @@ mod tests {
             py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
-                Some(ctx),
+                Some(ctx.as_gil_ref()),
             )
             .unwrap();
             py.run(
                 "assert CustomError.__doc__ == 'Some more docs'",
                 None,
-                Some(ctx),
+                Some(ctx.as_gil_ref()),
             )
             .unwrap();
         });

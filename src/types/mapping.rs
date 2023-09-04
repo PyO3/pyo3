@@ -175,6 +175,7 @@ mod tests {
 
     use crate::{
         exceptions::PyKeyError,
+        prelude::*,
         types::{PyDict, PyTuple},
         Python,
     };
@@ -337,7 +338,8 @@ mod tests {
     #[test]
     fn test_into_ref() {
         Python::with_gil(|py| {
-            let bare_mapping = PyDict::new(py).as_mapping();
+            let dict = PyDict::new(py);
+            let bare_mapping = dict.as_mapping();
             assert_eq!(bare_mapping.get_refcnt(), 1);
             let mapping: Py<PyMapping> = bare_mapping.into();
             assert_eq!(bare_mapping.get_refcnt(), 2);

@@ -194,7 +194,12 @@ impl MethSignature {
         test
     }
     #[pyo3(signature = (*args, **kwargs))]
-    fn get_kwargs(&self, py: Python<'_>, args: &PyTuple, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_kwargs(
+        &self,
+        py: Python<'_>,
+        args: &PyTuple,
+        kwargs: Option<Py2<'_, PyDict>>,
+    ) -> PyObject {
         [args.into(), kwargs.to_object(py)].to_object(py)
     }
 
@@ -204,7 +209,7 @@ impl MethSignature {
         py: Python<'_>,
         a: i32,
         args: &PyTuple,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<Py2<'_, PyDict>>,
     ) -> PyObject {
         [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
     }
@@ -249,7 +254,7 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<Py2<'_, PyDict>>,
     ) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
@@ -259,7 +264,7 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<Py2<'_, PyDict>>,
     ) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
@@ -295,7 +300,7 @@ impl MethSignature {
     }
 
     #[pyo3(signature = (a, **kwargs))]
-    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<Py2<'_, PyDict>>) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
@@ -1009,7 +1014,7 @@ issue_1506!(
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _kwargs: Option<Py2<'_, PyDict>>,
         ) {
         }
 
@@ -1018,7 +1023,7 @@ issue_1506!(
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _kwargs: Option<Py2<'_, PyDict>>,
         ) {
         }
 
@@ -1027,7 +1032,7 @@ issue_1506!(
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _kwargs: Option<Py2<'_, PyDict>>,
         ) {
         }
 
@@ -1036,7 +1041,7 @@ issue_1506!(
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _kwargs: Option<Py2<'_, PyDict>>,
         ) {
         }
 
@@ -1045,7 +1050,7 @@ issue_1506!(
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _kwargs: Option<Py2<'_, PyDict>>,
         ) -> Self {
             Issue1506 {}
         }
@@ -1063,7 +1068,7 @@ issue_1506!(
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _kwargs: Option<Py2<'_, PyDict>>,
         ) {
         }
 
@@ -1073,7 +1078,7 @@ issue_1506!(
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _kwargs: Option<Py2<'_, PyDict>>,
         ) {
         }
     }

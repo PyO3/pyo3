@@ -442,7 +442,7 @@ impl PyAny {
     pub fn call(
         &self,
         args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Py2<'_, PyDict>>,
     ) -> PyResult<&PyAny> {
         Py2::<PyAny>::borrowed_from_gil_ref(&self)
             .call(args, kwargs)
@@ -543,7 +543,7 @@ impl PyAny {
     /// })
     /// # }
     /// ```
-    pub fn call_method<N, A>(&self, name: N, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyAny>
+    pub fn call_method<N, A>(&self, name: N, args: A, kwargs: Option<&Py2<'_, PyDict>>) -> PyResult<&PyAny>
     where
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
@@ -1269,7 +1269,7 @@ pub trait PyAnyMethods<'py> {
     fn call(
         &self,
         args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Py2<'_, PyDict>>,
     ) -> PyResult<Py2<'py, PyAny>>;
 
     /// Calls the object without arguments.
@@ -1362,7 +1362,7 @@ pub trait PyAnyMethods<'py> {
         &self,
         name: N,
         args: A,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Py2<'_, PyDict>>,
     ) -> PyResult<Py2<'py, PyAny>>
     where
         N: IntoPy<Py<PyString>>,
@@ -1861,12 +1861,12 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
     fn call(
         &self,
         args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Py2<'_, PyDict>>,
     ) -> PyResult<Py2<'py, PyAny>> {
         fn inner<'py>(
             any: &Py2<'py, PyAny>,
             args: Py2<'_, PyTuple>,
-            kwargs: Option<&PyDict>,
+            kwargs: Option<&Py2<'_, PyDict>>,
         ) -> PyResult<Py2<'py, PyAny>> {
             unsafe {
                 Py2::from_owned_ptr_or_err(
@@ -1908,7 +1908,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         &self,
         name: N,
         args: A,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Py2<'_, PyDict>>,
     ) -> PyResult<Py2<'py, PyAny>>
     where
         N: IntoPy<Py<PyString>>,
@@ -2274,7 +2274,7 @@ class NonHeapNonDescriptorInt:
         Python::with_gil(|py| {
             let list = vec![3, 6, 5, 4, 7].to_object(py);
             let dict = vec![("reverse", true)].into_py_dict(py);
-            list.call_method(py, "sort", (), Some(dict)).unwrap();
+            list.call_method(py, "sort", (), Some(&dict)).unwrap();
             assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
         });
     }

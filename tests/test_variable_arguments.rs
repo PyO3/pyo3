@@ -18,7 +18,7 @@ impl MyClass {
 
     #[staticmethod]
     #[pyo3(signature = (**kwargs))]
-    fn test_kwargs(kwargs: Option<&PyDict>) -> Option<&PyDict> {
+    fn test_kwargs(kwargs: Option<Py2<'_, PyDict>>) -> Option<Py2<'_, PyDict>> {
         kwargs
     }
 }

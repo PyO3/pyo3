@@ -6,7 +6,7 @@ use std::{
 use crate::{
     exceptions::PyValueError,
     ffi::{Py_ssize_t, PY_SSIZE_T_MAX},
-    PyResult,
+    Py2, PyAny, PyResult, Python, ToPyObject,
 };
 pub struct PrivateMarker;
 
@@ -211,4 +211,14 @@ pub(crate) fn extract_c_string(
         }
     };
     Ok(cow)
+}
+
+pub(crate) trait ToPy2<'py>: ToPyObject {
+    fn to_py2(&self, py: Python<'py>) -> Py2<'py, PyAny>;
+}
+
+impl<'py, T: ToPyObject> ToPy2<'py> for T {
+    fn to_py2(&self, py: Python<'py>) -> Py2<'py, PyAny> {
+        self.to_object(py).attach_into(py)
+    }
 }

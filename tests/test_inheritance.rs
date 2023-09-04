@@ -24,7 +24,7 @@ fn subclass() {
         py.run(
             "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
             None,
-            Some(d),
+            Some(d.as_gil_ref()),
         )
         .map_err(|e| e.display(py))
         .unwrap();
@@ -96,9 +96,13 @@ fn call_base_and_sub_methods() {
 fn mutation_fails() {
     Python::with_gil(|py| {
         let obj = PyCell::new(py, SubClass::new()).unwrap();
-        let global = Some([("obj", obj)].into_py_dict(py));
+        let globals = [("obj", obj)].into_py_dict(py);
         let e = py
-            .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
+            .run(
+                "obj.base_set(lambda: obj.sub_set_and_ret(1))",
+                Some(globals.as_gil_ref()),
+                None,
+            )
             .unwrap_err();
         assert_eq!(&e.to_string(), "RuntimeError: Already borrowed");
     });
@@ -274,7 +278,7 @@ mod inheriting_native_type {
             let res = py.run(
             "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
             None,
-            Some(dict)
+            Some(dict.as_gil_ref())
             );
             let err = res.unwrap_err();
             assert!(err.matches(py, cls), "{}", err);

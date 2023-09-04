@@ -130,7 +130,7 @@ fn test_auto_test_signature_function() {
         args: &PyTuple,
         c: i32,
         d: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<Py2<'_, PyDict>>,
     ) {
         let _ = (a, b, args, c, d, kwargs);
     }
@@ -220,7 +220,7 @@ fn test_auto_test_signature_method() {
             args: &PyTuple,
             c: i32,
             d: i32,
-            kwargs: Option<&PyDict>,
+            kwargs: Option<Py2<'_, PyDict>>,
         ) {
             let _ = (a, b, args, c, d, kwargs);
         }

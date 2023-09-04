@@ -10,7 +10,7 @@ fn iter_dict(b: &mut Bencher<'_>) {
         let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
         let mut sum = 0;
         b.iter(|| {
-            for (k, _v) in dict {
+            for (k, _v) in dict.iter() {
                 let i: u64 = k.extract().unwrap();
                 sum += i;
             }
@@ -42,7 +42,7 @@ fn extract_hashmap(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
         let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-        b.iter(|| HashMap::<u64, u64>::extract(dict));
+        b.iter(|| HashMap::<u64, u64>::extract(dict.as_gil_ref()));
     });
 }
 
@@ -50,7 +50,7 @@ fn extract_btreemap(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
         let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-        b.iter(|| BTreeMap::<u64, u64>::extract(dict));
+        b.iter(|| BTreeMap::<u64, u64>::extract(dict.as_gil_ref()));
     });
 }
 
@@ -59,7 +59,7 @@ fn extract_hashbrown_map(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
         let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-        b.iter(|| hashbrown::HashMap::<u64, u64>::extract(dict));
+        b.iter(|| hashbrown::HashMap::<u64, u64>::extract(dict.as_gil_ref()));
     });
 }
 

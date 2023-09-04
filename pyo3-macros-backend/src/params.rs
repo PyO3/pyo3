@@ -43,7 +43,7 @@ pub fn impl_arg_params(
         return Ok((
             quote! {
                 let _args = py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
-                let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = py.from_borrowed_ptr_or_opt(_kwargs);
+                let _kwargs: ::std::option::Option<_pyo3::Py2<_pyo3::types::PyDict>> = _pyo3::Py2::from_owned_ptr_or_opt(py, _pyo3::ffi::Py_NewRef(_kwargs)).map(|x| unsafe { _pyo3::prelude::PyAnyMethods::downcast_into_unchecked(x) });
             },
             arg_convert,
         ));
@@ -176,7 +176,7 @@ fn impl_arg_param(
         );
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_optional_argument(
-                _kwargs.map(::std::convert::AsRef::as_ref),
+                _kwargs.as_ref().map(|dict| -> &_pyo3::PyAny { py.from_borrowed_ptr(dict.as_ptr()) }),
                 &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
                 #name_str,
                 || ::std::option::Option::None

@@ -53,6 +53,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::*;
     use crate::types::PyDict;
 
     #[test]
@@ -63,12 +64,12 @@ mod tests {
             dict.set_item("mies", "wim").unwrap();
             dict.set_item("zus", "jet").unwrap();
 
-            let bytes = dumps(py, dict, VERSION)
+            let bytes = dumps(py, &dict, VERSION)
                 .expect("marshalling failed")
                 .as_bytes();
             let deserialized = loads(py, bytes).expect("unmarshalling failed");
 
-            assert!(equal(py, dict, deserialized));
+            assert!(equal(py, &dict, deserialized));
         });
     }
 

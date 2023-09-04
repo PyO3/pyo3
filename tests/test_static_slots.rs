@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyDict};
 
 use pyo3::py_run;
 
@@ -36,7 +36,7 @@ impl Count5 {
 }
 
 /// Return a dict with `s = Count5()`.
-fn test_dict(py: Python<'_>) -> &pyo3::types::PyDict {
+fn test_dict(py: Python<'_>) -> Py2<'_, PyDict> {
     let d = [("Count5", py.get_type::<Count5>())].into_py_dict(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = Count5()");

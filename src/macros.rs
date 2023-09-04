@@ -104,7 +104,7 @@ macro_rules! py_run_impl {
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
-        if let ::std::result::Result::Err(e) = $py.run($code, None, Some($dict)) {
+        if let ::std::result::Result::Err(e) = $py.run($code, None, Some($dict.as_gil_ref())) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we

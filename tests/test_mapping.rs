@@ -6,6 +6,7 @@ use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::IntoPyDict;
+use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyMapping;
 use pyo3::types::PySequence;
@@ -68,7 +69,7 @@ impl Mapping {
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
-fn map_dict(py: Python<'_>) -> &pyo3::types::PyDict {
+fn map_dict(py: Python<'_>) -> Py2<'_, PyDict> {
     let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
     py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
     d

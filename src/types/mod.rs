@@ -58,7 +58,7 @@ pub use self::typeobject::PyType;
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast()?;
+///     let dict = Py2::borrowed_from_gil_ref(py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast::<PyDict>())?;
 ///
 ///     for (key, value) in dict {
 ///         println!("key: {}, value: {}", key, value);
@@ -279,7 +279,7 @@ mod code;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;
-mod dict;
+pub(crate) mod dict;
 mod ellipsis;
 mod floatob;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]

@@ -1,9 +1,10 @@
 #![cfg(feature = "anyhow")]
 
+use pyo3::prelude::*;
+use pyo3::{py_run, pyfunction, types::PyDict, wrap_pyfunction, Python};
+
 #[test]
 fn test_anyhow_py_function_ok_result() {
-    use pyo3::{py_run, pyfunction, wrap_pyfunction, Python};
-
     #[pyfunction]
     #[allow(clippy::unnecessary_wraps)]
     fn produce_ok_result() -> anyhow::Result<String> {
@@ -25,8 +26,6 @@ fn test_anyhow_py_function_ok_result() {
 
 #[test]
 fn test_anyhow_py_function_err_result() {
-    use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, Python};
-
     #[pyfunction]
     fn produce_err_result() -> anyhow::Result<String> {
         anyhow::bail!("error time")
@@ -42,7 +41,7 @@ fn test_anyhow_py_function_err_result() {
             func()
             "#,
             None,
-            Some(locals),
+            Some(locals.as_gil_ref()),
         )
         .unwrap_err();
     });

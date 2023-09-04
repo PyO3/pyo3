@@ -249,6 +249,7 @@ fn int_n_bits(long: &PyLong) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::*;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
 
@@ -329,7 +330,9 @@ mod tests {
             let index = python_index_class(py);
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
-            let ob = py.eval("index.C(10)", None, Some(locals)).unwrap();
+            let ob = py
+                .eval("index.C(10)", None, Some(locals.as_gil_ref()))
+                .unwrap();
             let _: BigInt = FromPyObject::extract(ob).unwrap();
         });
     }

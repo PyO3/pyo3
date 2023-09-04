@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn test_dict_is_not_none() {
         Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyNone>().is_err());
+            assert!(PyDict::new(py).as_gil_ref().downcast::<PyNone>().is_err());
         })
     }
 }
