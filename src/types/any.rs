@@ -36,7 +36,7 @@ use std::os::raw::c_int;
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
 
-impl AsPyPointer for PyAny {
+unsafe impl AsPyPointer for PyAny {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.0.get()

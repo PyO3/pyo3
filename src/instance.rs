@@ -932,7 +932,7 @@ impl<T> IntoPy<PyObject> for &'_ Py<T> {
     }
 }
 
-impl<T> crate::AsPyPointer for Py<T> {
+unsafe impl<T> crate::AsPyPointer for Py<T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
