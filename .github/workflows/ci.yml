@@ -363,6 +363,46 @@ jobs:
       - name: Test
         run: nox -s test-emscripten
 
+  test-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cargo-test-debug
+        continue-on-error: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+      - name: Install python3 standalone debug build with nox
+        run: |
+          wget https://github.com/indygreg/python-build-standalone/releases/download/20230826/cpython-3.11.5+20230826-x86_64-unknown-linux-gnu-debug-full.tar.zst
+          tar -I zstd -xf cpython-3.11.5+20230826-x86_64-unknown-linux-gnu-debug-full.tar.zst
+          ls -l $(pwd)/python/install/bin
+          ls -l $(pwd)/python/install/lib
+          echo PATH=$(pwd)/python/install/bin:$PATH >> $GITHUB_ENV
+          echo LD_LIBRARY_PATH=$(pwd)/python/install/lib:$LD_LIBRARY_PATH >> $GITHUB_ENV
+          echo PYTHONHOME=$(pwd)/python/install >> $GITHUB_ENV
+          echo PYO3_PYTHON=$(pwd)/python/install/bin/python3 >> $GITHUB_ENV
+      - run: python3 -m sysconfig
+      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: |
+          PYO3_CONFIG_FILE=$(mktemp)
+          cat > $PYO3_CONFIG_FILE << EOF
+          implementation=CPython
+          version=3.11
+          shared=true
+          abi3=false
+          lib_name=python3.11d
+          lib_dir=${{ github.workspace }}/python/install/lib
+          executable=${{ github.workspace }}/python/install/bin/python3
+          pointer_width=64
+          build_flags=Py_DEBUG,Py_REF_DEBUG
+          suppress_build_script_link_lines=false
+          EOF
+          echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
+      - run: python3 -m nox -s test
+
   conclusion:
     needs:
       - fmt
