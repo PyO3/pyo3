@@ -28,7 +28,7 @@ jobs:
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) }}
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ inputs.python-version }}
         uses: actions/setup-python@v4

@@ -21,7 +21,7 @@ jobs:
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
       - run: python -m pip install --upgrade pip && pip install nox
       - uses: dtolnay/rust-toolchain@stable
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.56.0
@@ -106,7 +106,7 @@ jobs:
         ]
     name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -258,7 +258,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
       - uses: Swatinem/rust-cache@v2
         with:
@@ -278,7 +278,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
       - uses: Swatinem/rust-cache@v2
         with:
@@ -306,7 +306,7 @@ jobs:
         id: should-skip
         shell: bash
         run: echo 'skip=true' >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: steps.should-skip.outputs.skip != 'true'
       - uses: actions/setup-python@v4
         if: steps.should-skip.outputs.skip != 'true'
@@ -337,7 +337,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         id: setup-python
       - name: Install Rust toolchain
