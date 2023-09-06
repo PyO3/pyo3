@@ -643,7 +643,7 @@ def _run_cargo_test(
     command = ["cargo"]
     if "careful" in session.posargs:
         command.append("careful")
-    command.append("test")
+    command.extend(("test", "--no-fail-fast"))
     if "release" in session.posargs:
         command.append("--release")
     if package:
