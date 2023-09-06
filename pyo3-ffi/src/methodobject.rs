@@ -85,6 +85,11 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
+/// Represents the [PyMethodDef](https://docs.python.org/3/c-api/structures.html#c.PyMethodDef)
+/// structure.
+///
+/// Note that CPython may leave fields uninitialized. You must ensure that
+/// `ml_name` != NULL before dereferencing or reading other fields.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct PyMethodDef {
