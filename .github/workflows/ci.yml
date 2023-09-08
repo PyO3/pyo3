@@ -376,8 +376,11 @@ jobs:
           components: rust-src
       - name: Install python3 standalone debug build with nox
         run: |
-          wget https://github.com/indygreg/python-build-standalone/releases/download/20230826/cpython-3.11.5+20230826-x86_64-unknown-linux-gnu-debug-full.tar.zst
-          tar -I zstd -xf cpython-3.11.5+20230826-x86_64-unknown-linux-gnu-debug-full.tar.zst
+          PBS_RELEASE="20230826"
+          PBS_PYTHON_VERSION="3.11.5"
+          PBS_ARCHIVE="cpython-${PBS_PYTHON_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-debug-full.tar.zst"
+          wget "https://github.com/indygreg/python-build-standalone/releases/download/${PBS_RELEASE}/${PBS_ARCHIVE}"
+          tar -I zstd -xf "${PBS_ARCHIVE}"
           ls -l $(pwd)/python/install/bin
           ls -l $(pwd)/python/install/lib
           echo PATH=$(pwd)/python/install/bin:$PATH >> $GITHUB_ENV
