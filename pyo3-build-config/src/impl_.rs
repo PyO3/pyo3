@@ -1129,7 +1129,7 @@ impl Sysconfigdata {
 /// The sysconfigdata is simply a dictionary containing all the build time variables used for the
 /// python executable and library. This function necessitates a python interpreter on the host
 /// machine to work. Here it is read into a `Sysconfigdata` (hash map), which can be turned into an
-/// [`InterpreterConfig`](InterpreterConfig) using
+/// [`InterpreterConfig`] using
 /// [`from_sysconfigdata`](InterpreterConfig::from_sysconfigdata).
 pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Sysconfigdata> {
     let sysconfigdata_path = sysconfigdata_path.as_ref();
