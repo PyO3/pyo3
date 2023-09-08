@@ -86,9 +86,9 @@ impl PyModule {
     /// Returns `PyErr` if:
     /// - `code` is not syntactically correct Python.
     /// - Any Python exceptions are raised while initializing the module.
-    /// - Any of the arguments cannot be converted to [`CString`](std::ffi::CString)s.
+    /// - Any of the arguments cannot be converted to [`CString`]s.
     ///
-    /// # Example: bundle in a file at compile time with [`include_str!`][1]:
+    /// # Example: bundle in a file at compile time with [`include_str!`][std::include_str]:
     ///
     /// ```rust
     /// use pyo3::prelude::*;
@@ -105,7 +105,7 @@ impl PyModule {
     /// # }
     /// ```
     ///
-    /// # Example: Load a file at runtime with [`std::fs::read_to_string`][2].
+    /// # Example: Load a file at runtime with [`std::fs::read_to_string`].
     ///
     /// ```rust
     /// use pyo3::prelude::*;
@@ -123,9 +123,6 @@ impl PyModule {
     /// Ok(())
     /// # }
     /// ```
-    ///
-    /// [1]: std::include_str
-    /// [2]: std::fs::read_to_string
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,

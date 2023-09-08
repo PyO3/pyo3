@@ -8,8 +8,7 @@ use std::os::raw::c_double;
 /// Represents a Python `float` object.
 ///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`](crate::conversion::ToPyObject)
-/// and [`extract`](PyAny::extract)
+/// by using [`ToPyObject`] and [`extract`](PyAny::extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
