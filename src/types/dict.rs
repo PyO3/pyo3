@@ -132,9 +132,46 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     ///
-    /// Returns `Ok(None)` if the item is not present.
+    /// Returns `Ok(None)` if the item is not present. To get a `KeyError` for
+    /// non-existing keys, use [`PyAny::get_item`].
     ///
-    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
+    /// Returns `Err(PyErr)` if Python magic methods `__hash__` or `__eq__` used in dictionary
+    /// lookup raise an exception, for example if the key `K` is not hashable. Usually it is
+    /// best to bubble this error up to the caller using the `?` operator.
+    ///
+    /// # Examples
+    ///
+    /// The following example calls `get_item` for the dictionary `{"a": 1}` with various
+    /// keys.
+    /// - `get_item("a")` returns `Ok(Some(...))`, with the `PyAny` being a reference to the Python
+    ///   int `1`.
+    /// - `get_item("b")` returns `Ok(None)`, because "b" is not in the dictionary.
+    /// - `get_item(dict)` returns an `Err(PyErr)`. The error will be a `TypeError` because a dict is not
+    ///   hashable.
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, IntoPyDict};
+    /// use pyo3::exceptions::{PyTypeError, PyKeyError};
+    ///
+    /// # fn main() {
+    /// # let _ =
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    ///     // `a` is in the dictionary, with value 1
+    ///     assert!(dict.get_item("a")?.map_or(Ok(false), |x| x.eq(1))?);
+    ///     // `b` is not in the dictionary
+    ///     assert!(dict.get_item("b")?.is_none());
+    ///     // `dict` is not hashable, so this returns an error
+    ///     assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+    ///
+    ///     // `PyAny::get_item("b")` will raise a `KeyError` instead of returning `None`
+    ///     let any: &PyAny = dict.as_ref();
+    ///     assert!(any.get_item("b").unwrap_err().is_instance_of::<PyKeyError>(py));
+    ///     Ok(())
+    /// });
+    /// # }
+    /// ```
     pub fn get_item<K>(&self, key: K) -> PyResult<Option<&PyAny>>
     where
         K: ToPyObject,
