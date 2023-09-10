@@ -132,35 +132,47 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     ///
-    /// Returns `None` if the item is not present, or if an error occurs.
+    /// Returns `Ok(None)` if the item is not present. To get a `KeyError` for
+    /// non-existing keys, use [`PyAny::get_item`].
     ///
-    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
-    where
-        K: ToPyObject,
-    {
-        fn inner(dict: &PyDict, key: PyObject) -> Option<&PyAny> {
-            let py = dict.py();
-            // PyDict_GetItem returns a borrowed ptr, must make it owned for safety (see #890).
-            // PyObject::from_borrowed_ptr_or_opt will take ownership in this way.
-            unsafe {
-                PyObject::from_borrowed_ptr_or_opt(
-                    py,
-                    ffi::PyDict_GetItem(dict.as_ptr(), key.as_ptr()),
-                )
-            }
-            .map(|pyobject| pyobject.into_ref(py))
-        }
-
-        inner(self, key.to_object(self.py()))
-    }
-
-    /// Gets an item from the dictionary,
+    /// Returns `Err(PyErr)` if Python magic methods `__hash__` or `__eq__` used in dictionary
+    /// lookup raise an exception, for example if the key `K` is not hashable. Usually it is
+    /// best to bubble this error up to the caller using the `?` operator.
     ///
-    /// returns `Ok(None)` if item is not present, or `Err(PyErr)` if an error occurs.
+    /// # Examples
     ///
-    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item_with_error`.
-    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
+    /// The following example calls `get_item` for the dictionary `{"a": 1}` with various
+    /// keys.
+    /// - `get_item("a")` returns `Ok(Some(...))`, with the `PyAny` being a reference to the Python
+    ///   int `1`.
+    /// - `get_item("b")` returns `Ok(None)`, because "b" is not in the dictionary.
+    /// - `get_item(dict)` returns an `Err(PyErr)`. The error will be a `TypeError` because a dict is not
+    ///   hashable.
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, IntoPyDict};
+    /// use pyo3::exceptions::{PyTypeError, PyKeyError};
+    ///
+    /// # fn main() {
+    /// # let _ =
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    ///     // `a` is in the dictionary, with value 1
+    ///     assert!(dict.get_item("a")?.map_or(Ok(false), |x| x.eq(1))?);
+    ///     // `b` is not in the dictionary
+    ///     assert!(dict.get_item("b")?.is_none());
+    ///     // `dict` is not hashable, so this returns an error
+    ///     assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+    ///
+    ///     // `PyAny::get_item("b")` will raise a `KeyError` instead of returning `None`
+    ///     let any: &PyAny = dict.as_ref();
+    ///     assert!(any.get_item("b").unwrap_err().is_instance_of::<PyKeyError>(py));
+    ///     Ok(())
+    /// });
+    /// # }
+    /// ```
+    pub fn get_item<K>(&self, key: K) -> PyResult<Option<&PyAny>>
     where
         K: ToPyObject,
     {
@@ -180,6 +192,19 @@ impl PyDict {
         }
 
         inner(self, key.to_object(self.py()))
+    }
+
+    /// Deprecated version of `get_item`.
+    #[deprecated(
+        since = "0.20.0",
+        note = "this is now equivalent to `PyDict::get_item`"
+    )]
+    #[inline]
+    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
+    where
+        K: ToPyObject,
+    {
+        self.get_item(key)
     }
 
     /// Sets an item value.
@@ -459,8 +484,15 @@ mod tests {
     fn test_new() {
         Python::with_gil(|py| {
             let dict = [(7, 32)].into_py_dict(py);
-            assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert!(dict.get_item(8i32).is_none());
+            assert_eq!(
+                32,
+                dict.get_item(7i32)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(dict.get_item(8i32).unwrap().is_none());
             let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
             let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
@@ -474,8 +506,22 @@ mod tests {
         Python::with_gil(|py| {
             let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
             let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
-            assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
+            assert_eq!(
+                1,
+                dict.get_item("a")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert_eq!(
+                2,
+                dict.get_item("b")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
             let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
             let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
@@ -498,8 +544,16 @@ mod tests {
             let dict = [(7, 32)].into_py_dict(py);
 
             let ndict = dict.copy().unwrap();
-            assert_eq!(32, ndict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert!(ndict.get_item(8i32).is_none());
+            assert_eq!(
+                32,
+                ndict
+                    .get_item(7i32)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(ndict.get_item(8i32).unwrap().is_none());
         });
     }
 
@@ -536,12 +590,20 @@ mod tests {
             v.insert(7, 32);
             let ob = v.to_object(py);
             let dict: &PyDict = ob.downcast(py).unwrap();
-            assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert!(dict.get_item(8i32).is_none());
+            assert_eq!(
+                32,
+                dict.get_item(7i32)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(dict.get_item(8i32).unwrap().is_none());
         });
     }
 
     #[test]
+    #[allow(deprecated)]
     #[cfg(not(PyPy))]
     fn test_get_item_with_error() {
         Python::with_gil(|py| {
@@ -576,11 +638,19 @@ mod tests {
             assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
                 42i32,
-                dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
+                dict.get_item(7i32)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
             );
             assert_eq!(
                 123i32,
-                dict.get_item(8i32).unwrap().extract::<i32>().unwrap()
+                dict.get_item(8i32)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
             );
         });
     }
@@ -624,7 +694,7 @@ mod tests {
             let dict: &PyDict = ob.downcast(py).unwrap();
             assert!(dict.del_item(7i32).is_ok());
             assert_eq!(0, dict.len());
-            assert!(dict.get_item(7i32).is_none());
+            assert!(dict.get_item(7i32).unwrap().is_none());
         });
     }
 
@@ -841,7 +911,15 @@ mod tests {
             let py_map = map.into_py_dict(py);
 
             assert_eq!(py_map.len(), 1);
-            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
         });
     }
 
@@ -854,7 +932,15 @@ mod tests {
             let py_map = map.into_py_dict(py);
 
             assert_eq!(py_map.len(), 1);
-            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
         });
     }
 
@@ -865,7 +951,15 @@ mod tests {
             let py_map = vec.into_py_dict(py);
 
             assert_eq!(py_map.len(), 3);
-            assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(
+                py_map
+                    .get_item("b")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                2
+            );
         });
     }
 
@@ -876,7 +970,15 @@ mod tests {
             let py_map = arr.into_py_dict(py);
 
             assert_eq!(py_map.len(), 3);
-            assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(
+                py_map
+                    .get_item("b")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                2
+            );
         });
     }
 
@@ -947,15 +1049,67 @@ mod tests {
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
             dict.update(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
-            assert_eq!(dict.get_item("a").unwrap().extract::<i32>().unwrap(), 1);
-            assert_eq!(dict.get_item("b").unwrap().extract::<i32>().unwrap(), 4);
-            assert_eq!(dict.get_item("c").unwrap().extract::<i32>().unwrap(), 5);
-            assert_eq!(dict.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
+            assert_eq!(
+                dict.get_item("a")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
+            assert_eq!(
+                dict.get_item("b")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                4
+            );
+            assert_eq!(
+                dict.get_item("c")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                5
+            );
+            assert_eq!(
+                dict.get_item("d")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                6
+            );
 
             assert_eq!(other.len(), 3);
-            assert_eq!(other.get_item("b").unwrap().extract::<i32>().unwrap(), 4);
-            assert_eq!(other.get_item("c").unwrap().extract::<i32>().unwrap(), 5);
-            assert_eq!(other.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
+            assert_eq!(
+                other
+                    .get_item("b")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                4
+            );
+            assert_eq!(
+                other
+                    .get_item("c")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                5
+            );
+            assert_eq!(
+                other
+                    .get_item("d")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                6
+            );
         })
     }
 
@@ -966,15 +1120,67 @@ mod tests {
             let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
             dict.update_if_missing(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
-            assert_eq!(dict.get_item("a").unwrap().extract::<i32>().unwrap(), 1);
-            assert_eq!(dict.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
-            assert_eq!(dict.get_item("c").unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(dict.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
+            assert_eq!(
+                dict.get_item("a")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
+            assert_eq!(
+                dict.get_item("b")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                2
+            );
+            assert_eq!(
+                dict.get_item("c")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                3
+            );
+            assert_eq!(
+                dict.get_item("d")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                6
+            );
 
             assert_eq!(other.len(), 3);
-            assert_eq!(other.get_item("b").unwrap().extract::<i32>().unwrap(), 4);
-            assert_eq!(other.get_item("c").unwrap().extract::<i32>().unwrap(), 5);
-            assert_eq!(other.get_item("d").unwrap().extract::<i32>().unwrap(), 6);
+            assert_eq!(
+                other
+                    .get_item("b")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                4
+            );
+            assert_eq!(
+                other
+                    .get_item("c")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                5
+            );
+            assert_eq!(
+                other
+                    .get_item("d")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                6
+            );
         })
     }
 }

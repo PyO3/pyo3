@@ -264,7 +264,14 @@ mod tests {
             let dict = PyDict::new(py);
             dict.set_item(foo1, 42_usize).unwrap();
             assert!(dict.contains(foo2).unwrap());
-            assert_eq!(dict.get_item(foo3).unwrap().extract::<usize>().unwrap(), 42);
+            assert_eq!(
+                dict.get_item(foo3)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<usize>()
+                    .unwrap(),
+                42
+            );
         });
     }
 

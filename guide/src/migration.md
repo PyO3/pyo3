@@ -9,6 +9,56 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 PyO3 0.20 has increased minimum Rust version to 1.56. This enables use of newer language features and simplifies maintenance of the project.
 
+### `PyDict::get_item` now returns a `Result`
+
+`PyDict::get_item` in PyO3 0.19 and older was implemented using a Python API which would suppress all exceptions and return `None` in those cases. This included errors in `__hash__` and `__eq__` implementations of the key being looked up.
+
+Newer recommendations by the Python core developers advise against using these APIs which suppress exceptions, instead allowing exceptions to bubble upwards. `PyDict::get_item_with_error` already implemented this recommended behavior, so that API has been renamed to `PyDict::get_item`.
+
+Before:
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::exceptions::PyTypeError;
+use pyo3::types::{PyDict, IntoPyDict};
+
+# fn main() {
+# let _ =
+Python::with_gil(|py| {
+    let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    // `a` is in the dictionary, with value 1
+    assert!(dict.get_item("a").map_or(Ok(false), |x| x.eq(1))?);
+    // `b` is not in the dictionary
+    assert!(dict.get_item("b").is_none());
+    // `dict` is not hashable, so this fails with a `TypeError`
+    assert!(dict.get_item_with_error(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+});
+# }
+```
+
+After:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::exceptions::PyTypeError;
+use pyo3::types::{PyDict, IntoPyDict};
+
+# fn main() {
+# let _ =
+Python::with_gil(|py| -> PyResult<()> {
+    let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    // `a` is in the dictionary, with value 1
+    assert!(dict.get_item("a")?.map_or(Ok(false), |x| x.eq(1))?);
+    // `b` is not in the dictionary
+    assert!(dict.get_item("b")?.is_none());
+    // `dict` is not hashable, so this fails with a `TypeError`
+    assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+
+    Ok(())
+});
+# }
+```
+
 ### Required arguments are no longer accepted after optional arguments
 
 [Trailing `Option<T>` arguments](./function/signature.md#trailing-optional-arguments) have an automatic default of `None`. To avoid unwanted changes when modifying function signatures, in PyO3 0.18 it was deprecated to have a required argument after an `Option<T>` argument without using `#[pyo3(signature = (...))]` to specify the intended defaults. In PyO3 0.20, this becomes a hard error.

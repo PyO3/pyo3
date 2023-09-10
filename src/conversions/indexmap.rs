@@ -148,7 +148,15 @@ mod test_indexmap {
             let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
-            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+                    == 1
+            );
             assert_eq!(
                 map,
                 py_map.extract::<indexmap::IndexMap::<i32, i32>>().unwrap()
@@ -166,7 +174,15 @@ mod test_indexmap {
             let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
-            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+                    == 1
+            );
         });
     }
 
@@ -179,7 +195,15 @@ mod test_indexmap {
             let py_map = map.into_py_dict(py);
 
             assert_eq!(py_map.len(), 1);
-            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
         });
     }
 

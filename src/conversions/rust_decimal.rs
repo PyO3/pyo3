@@ -130,7 +130,7 @@ mod test_rust_decimal {
                     )
                     .unwrap();
                     // Checks if Python Decimal -> Rust Decimal conversion is correct
-                    let py_dec = locals.get_item("py_dec").unwrap();
+                    let py_dec = locals.get_item("py_dec").unwrap().unwrap();
                     let py_result: Decimal = FromPyObject::extract(py_dec).unwrap();
                     assert_eq!(rs_orig, py_result);
                 })
@@ -192,7 +192,7 @@ mod test_rust_decimal {
                 Some(locals),
             )
             .unwrap();
-            let py_dec = locals.get_item("py_dec").unwrap();
+            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
             let roundtripped: Result<Decimal, PyErr> = FromPyObject::extract(py_dec);
             assert!(roundtripped.is_err());
         })
@@ -208,7 +208,7 @@ mod test_rust_decimal {
                 Some(locals),
             )
             .unwrap();
-            let py_dec = locals.get_item("py_dec").unwrap();
+            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
             let roundtripped: Result<Decimal, PyErr> = FromPyObject::extract(py_dec);
             assert!(roundtripped.is_err());
         })

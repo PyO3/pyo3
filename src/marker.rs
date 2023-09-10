@@ -591,7 +591,7 @@ impl<'py> Python<'py> {
     ///         Some(locals),
     ///     )
     ///     .unwrap();
-    ///     let ret = locals.get_item("ret").unwrap();
+    ///     let ret = locals.get_item("ret").unwrap().unwrap();
     ///     let b64: &PyBytes = ret.downcast().unwrap();
     ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// });
@@ -1201,8 +1201,8 @@ mod tests {
             let namespace = PyDict::new(py);
             py.run("class Foo: pass", Some(namespace), Some(namespace))
                 .unwrap();
-            assert!(namespace.get_item("Foo").is_some());
-            assert!(namespace.get_item("__builtins__").is_some());
+            assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
+            assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
         })
     }
 }

@@ -390,7 +390,7 @@ mod tests {
                 Some(locals),
             )
             .unwrap();
-            let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().extract();
+            let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().unwrap().extract();
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect

@@ -137,6 +137,7 @@ fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
         .dict()
         .get_item("modules")
         .unwrap()
+        .unwrap()
         .downcast::<PyDict>()?
         .set_item(module.name()?, module)
 }
