@@ -9,13 +9,24 @@ use std::ptr::addr_of_mut;
 #[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
+#[cfg(Py_3_12)]
+pub const _PY_MONITORING_LOCAL_EVENTS: usize = 10;
+#[cfg(Py_3_12)]
 pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 15;
+#[cfg(Py_3_12)]
 pub const _PY_MONITORING_EVENTS: usize = 17;
 
 #[cfg(Py_3_12)]
 #[repr(C)]
-#[derive(Copy, Clone)]
-pub struct _Py_Monitors {
+#[derive(Clone, Copy)]
+pub struct _Py_LocalMonitors {
+    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
+}
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct _Py_GlobalMonitors {
     pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
 }
 
@@ -53,8 +64,8 @@ pub struct _PyCoLineInstrumentationData {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _PyCoMonitoringData {
-    pub local_monitors: _Py_Monitors,
-    pub active_monitors: _Py_Monitors,
+    pub local_monitors: _Py_LocalMonitors,
+    pub active_monitors: _Py_LocalMonitors,
     pub tools: *mut u8,
     pub lines: *mut _PyCoLineInstrumentationData,
     pub line_tools: *mut u8,
