@@ -269,7 +269,7 @@ macro_rules! pyobject_native_type {
     };
 }
 
-mod any;
+pub(crate) mod any;
 mod boolobject;
 mod bytearray;
 mod bytes;

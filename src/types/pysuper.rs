@@ -1,4 +1,6 @@
 use crate::ffi;
+use crate::instance::Py2;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{PyAny, PyResult};
 
@@ -58,6 +60,17 @@ impl PySuper {
         let py = ty.py();
         let super_ = py.get_type::<PySuper>().call1((ty, obj))?;
         let super_ = super_.downcast::<PySuper>()?;
+        Ok(super_)
+    }
+
+    pub(crate) fn new2<'py>(
+        ty: &Py2<'py, PyType>,
+        obj: &Py2<'py, PyAny>,
+    ) -> PyResult<Py2<'py, PySuper>> {
+        let py = ty.py();
+        let super_ =
+            Py2::<PyType>::borrowed_from_gil_ref(&py.get_type::<PySuper>()).call1((ty, obj))?;
+        let super_ = super_.downcast_into::<PySuper>()?;
         Ok(super_)
     }
 }
