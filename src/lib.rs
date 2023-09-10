@@ -312,6 +312,9 @@ pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
 
+// Expected to become public API in 0.21 under a different name
+pub(crate) use crate::instance::Py2;
+
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
 /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead

@@ -1,5 +1,7 @@
-use crate::ffi;
+use crate::instance::Py2;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
+use crate::{ffi, PyTypeInfo};
 use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
@@ -55,9 +57,22 @@ impl PySuper {
     /// }
     /// ```
     pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
-        let py = ty.py();
-        let super_ = py.get_type::<PySuper>().call1((ty, obj))?;
-        let super_ = super_.downcast::<PySuper>()?;
-        Ok(super_)
+        Self::new2(
+            Py2::borrowed_from_gil_ref(&ty),
+            Py2::borrowed_from_gil_ref(&obj),
+        )
+        .map(Py2::into_gil_ref)
+    }
+
+    pub(crate) fn new2<'py>(
+        ty: &Py2<'py, PyType>,
+        obj: &Py2<'py, PyAny>,
+    ) -> PyResult<Py2<'py, PySuper>> {
+        Py2::<PyType>::borrowed_from_gil_ref(&PySuper::type_object(ty.py()))
+            .call1((ty, obj))
+            .map(|any| {
+                // Safety: super() always returns instance of super
+                unsafe { any.downcast_into_unchecked() }
+            })
     }
 }
