@@ -1029,7 +1029,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 const IS_MAPPING: bool = #is_mapping;
                 const IS_SEQUENCE: bool = #is_sequence;
 
-                type Layout = _pyo3::PyCell<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
                 #inventory

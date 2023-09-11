@@ -7,6 +7,7 @@ use crate::pyport::Py_ssize_t;
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Malloc")]
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_Calloc")]
     pub fn PyObject_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Realloc")]
     pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
@@ -72,7 +73,9 @@ extern "C" {
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_NewVar")]
     pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyVarObject;
+    #[cfg(not(PyPy))]
     pub fn PyObject_GC_Track(arg1: *mut c_void);
+    #[cfg(not(PyPy))]
     pub fn PyObject_GC_UnTrack(arg1: *mut c_void);
     #[cfg_attr(PyPy, link_name = "PyPyObject_GC_Del")]
     pub fn PyObject_GC_Del(arg1: *mut c_void);

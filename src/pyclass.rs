@@ -15,9 +15,7 @@ pub use self::gc::{PyTraverseError, PyVisit};
 ///
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
-pub trait PyClass:
-    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
-{
+pub trait PyClass: PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl {
     /// Whether the pyclass is frozen.
     ///
     /// This can be enabled via `#[pyclass(frozen)]`.
