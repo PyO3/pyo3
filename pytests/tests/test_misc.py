@@ -10,15 +10,27 @@ def test_issue_219():
     pyo3_pytests.misc.issue_219()
 
 
-@pytest.mark.skipif(
-    platform.python_implementation() == "PyPy",
-    reason="PyPy does not reinitialize the module (appears to be some internal caching)",
-)
-def test_second_module_import_fails():
+def test_multiple_imports_same_interpreter_ok():
     spec = importlib.util.find_spec("pyo3_pytests.pyo3_pytests")
 
+    module = importlib.util.module_from_spec(spec)
+    assert dir(module) == dir(pyo3_pytests.pyo3_pytests)
+
+
+@pytest.mark.skipif(
+    platform.python_implementation() == "PyPy",
+    reason="PyPy does not support subinterpreters",
+)
+def test_import_in_subinterpreter_forbidden():
+    import _xxsubinterpreters
+
+    sub_interpreter = _xxsubinterpreters.create()
     with pytest.raises(
-        ImportError,
-        match="PyO3 modules may only be initialized once per interpreter process",
+        _xxsubinterpreters.RunFailedError,
+        match="PyO3 modules do not yet support subinterpreters, see https://github.com/PyO3/pyo3/issues/576",
     ):
-        importlib.util.module_from_spec(spec)
+        _xxsubinterpreters.run_string(
+            sub_interpreter, "import pyo3_pytests.pyo3_pytests"
+        )
+
+    _xxsubinterpreters.destroy(sub_interpreter)

@@ -146,6 +146,11 @@ pub fn print_feature_cfgs() {
     if rustc_minor_version >= 59 {
         println!("cargo:rustc-cfg=thread_local_const_init");
     }
+
+    // Enable use of OnceLock on Rust 1.70 and greater
+    if rustc_minor_version >= 70 {
+        println!("cargo:rustc-cfg=once_lock");
+    }
 }
 
 /// Private exports used in PyO3's build.rs

@@ -1,9 +1,11 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::{
-    cell::UnsafeCell,
-    sync::atomic::{self, AtomicBool},
-};
+use std::cell::UnsafeCell;
+#[cfg(once_lock)]
+use std::sync::OnceLock;
+
+#[cfg(not(once_lock))]
+use parking_lot::Mutex;
 
 use crate::{exceptions::PyImportError, ffi, types::PyModule, Py, PyResult, Python};
 
@@ -12,7 +14,10 @@ pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     initializer: ModuleInitializer,
-    initialized: AtomicBool,
+    #[cfg(once_lock)]
+    interpreter: OnceLock<i64>,
+    #[cfg(not(once_lock))]
+    interpreter: Mutex<Option<i64>>,
 }
 
 /// Wrapper to enable initializer to be used in const fns.
@@ -51,7 +56,10 @@ impl ModuleDef {
         ModuleDef {
             ffi_def,
             initializer,
-            initialized: AtomicBool::new(false),
+            #[cfg(once_lock)]
+            interpreter: OnceLock::new(),
+            #[cfg(not(once_lock))]
+            interpreter: Mutex::new(None),
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
@@ -74,9 +82,22 @@ impl ModuleDef {
         let module = unsafe {
             Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
         };
-        if self.initialized.swap(true, atomic::Ordering::SeqCst) {
+        let current_interpreter =
+            unsafe { ffi::PyInterpreterState_GetID(ffi::PyInterpreterState_Get()) };
+        let initialized_interpreter = py.allow_threads(|| {
+            #[cfg(once_lock)]
+            {
+                *self.interpreter.get_or_init(|| current_interpreter)
+            }
+
+            #[cfg(not(once_lock))]
+            {
+                *self.interpreter.lock().get_or_insert(current_interpreter)
+            }
+        });
+        if current_interpreter != initialized_interpreter {
             return Err(PyImportError::new_err(
-                "PyO3 modules may only be initialized once per interpreter process",
+                "PyO3 modules do not yet support subinterpreters, see https://github.com/PyO3/pyo3/issues/576",
             ));
         }
         (self.initializer.0)(py, module.as_ref(py))?;
