@@ -702,7 +702,13 @@ impl PyAny {
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
     pub fn iter(&self) -> PyResult<&PyIterator> {
-        PyIterator::from_object(self)
+        Py2::<PyAny>::borrowed_from_gil_ref(&self)
+            .iter()
+            .map(|py2| {
+                // Can't use into_gil_ref here because T: PyTypeInfo bound is not satisfied
+                // Safety: into_ptr produces a valid pointer to PyIterator object
+                unsafe { self.py().from_owned_ptr(py2.into_ptr()) }
+            })
     }
 
     /// Returns the Python type object for this object's type.
@@ -1804,42 +1810,48 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
     where
         O: ToPyObject,
     {
-        self.rich_compare(other, CompareOp::Lt)?.is_true()
+        self.rich_compare(other, CompareOp::Lt)
+            .and_then(|any| any.is_true())
     }
 
     fn le<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
     {
-        self.rich_compare(other, CompareOp::Le)?.is_true()
+        self.rich_compare(other, CompareOp::Le)
+            .and_then(|any| any.is_true())
     }
 
     fn eq<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
     {
-        self.rich_compare(other, CompareOp::Eq)?.is_true()
+        self.rich_compare(other, CompareOp::Eq)
+            .and_then(|any| any.is_true())
     }
 
     fn ne<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
     {
-        self.rich_compare(other, CompareOp::Ne)?.is_true()
+        self.rich_compare(other, CompareOp::Ne)
+            .and_then(|any| any.is_true())
     }
 
     fn gt<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
     {
-        self.rich_compare(other, CompareOp::Gt)?.is_true()
+        self.rich_compare(other, CompareOp::Gt)
+            .and_then(|any| any.is_true())
     }
 
     fn ge<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
     {
-        self.rich_compare(other, CompareOp::Ge)?.is_true()
+        self.rich_compare(other, CompareOp::Ge)
+            .and_then(|any| any.is_true())
     }
 
     fn is_callable(&self) -> bool {
@@ -2168,8 +2180,9 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        basic::CompareOp,
         types::{IntoPyDict, PyAny, PyBool, PyList, PyLong, PyModule},
-        Python, ToPyObject,
+        PyTypeInfo, Python, ToPyObject,
     };
 
     #[test]
@@ -2529,6 +2542,21 @@ class SimpleClass:
     }
 
     #[test]
+    fn test_rich_compare_type_error() {
+        Python::with_gil(|py| {
+            let py_int = 1.to_object(py).into_ref(py);
+            let py_str = "1".to_object(py).into_ref(py);
+
+            assert!(py_int.rich_compare(py_str, CompareOp::Lt).is_err());
+            assert!(!py_int
+                .rich_compare(py_str, CompareOp::Eq)
+                .unwrap()
+                .is_true()
+                .unwrap());
+        })
+    }
+
+    #[test]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py
@@ -2540,6 +2568,30 @@ class SimpleClass:
 
             let not_ellipsis = 5.to_object(py).into_ref(py);
             assert!(!not_ellipsis.is_ellipsis());
+        });
+    }
+
+    #[test]
+    fn test_is_callable() {
+        Python::with_gil(|py| {
+            assert!(PyList::type_object(py).is_callable());
+
+            let not_callable = 5.to_object(py).into_ref(py);
+            assert!(!not_callable.is_callable());
+        });
+    }
+
+    #[test]
+    fn test_is_empty() {
+        Python::with_gil(|py| {
+            let empty_list: &PyAny = PyList::empty(py);
+            assert!(empty_list.is_empty().unwrap());
+
+            let list: &PyAny = PyList::new(py, vec![1, 2, 3]);
+            assert!(!list.is_empty().unwrap());
+
+            let not_container = 5.to_object(py).into_ref(py);
+            assert!(not_container.is_empty().is_err());
         });
     }
 }

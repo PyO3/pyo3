@@ -33,10 +33,11 @@ impl PyIterator {
     ///
     /// Equivalent to Python's built-in `iter` function.
     pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        unsafe {
-            obj.py()
-                .from_owned_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr()))
-        }
+        Self::from_object2(Py2::borrowed_from_gil_ref(&obj)).map(|py2| {
+            // Can't use into_gil_ref here because T: PyTypeInfo bound is not satisfied
+            // Safety: into_ptr produces a valid pointer to PyIterator object
+            unsafe { obj.py().from_owned_ptr(py2.into_ptr()) }
+        })
     }
 
     pub(crate) fn from_object2<'py>(obj: &Py2<'py, PyAny>) -> PyResult<Py2<'py, PyIterator>> {

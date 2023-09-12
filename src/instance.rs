@@ -67,54 +67,42 @@ impl<'py> Py2<'py, PyAny> {
 }
 
 impl<'py, T> Py2<'py, T> {
-    /// Helper to cast to Py2<'py, T>
+    /// Helper to cast to Py2<'py, PyAny>
     pub(crate) fn as_any(&self) -> &Py2<'py, PyAny> {
+        // Safety: all Py2<T> have the same memory layout, and all Py2<T> are valid Py2<PyAny>
         unsafe { std::mem::transmute(self) }
     }
 }
 
-impl<'py, T> std::fmt::Debug for Py2<'py, T>
-where
-    Self: Deref<Target = Py2<'py, PyAny>>,
-{
+impl<'py, T> std::fmt::Debug for Py2<'py, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let s = self.repr().or(Err(std::fmt::Error))?;
-        f.write_str(&s.as_gil_ref().to_string_lossy())
+        let any = self.as_any();
+        python_format(any, any.repr(), f)
     }
 }
 
-impl<'py, T> std::fmt::Display for Py2<'py, T>
-where
-    Self: Deref<Target = Py2<'py, PyAny>>,
-{
+impl<'py, T> std::fmt::Display for Py2<'py, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self.str() {
-            Result::Ok(s) => return f.write_str(&s.as_gil_ref().to_string_lossy()),
-            Result::Err(err) => {
-                err.write_unraisable(self.py(), std::option::Option::Some(self.as_gil_ref()))
-            }
-        }
-
-        match self.get_type().name() {
-            Result::Ok(name) => std::write!(f, "<unprintable {} object>", name),
-            Result::Err(_err) => f.write_str("<unprintable object>"),
-        }
+        let any = self.as_any();
+        python_format(any, any.str(), f)
     }
 }
 
-impl<'py> std::fmt::Display for Py2<'py, PyAny> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self.str() {
-            Result::Ok(s) => return f.write_str(&s.as_gil_ref().to_string_lossy()),
-            Result::Err(err) => {
-                err.write_unraisable(self.py(), std::option::Option::Some(self.as_gil_ref()))
-            }
+fn python_format(
+    any: &Py2<'_, PyAny>,
+    format_result: PyResult<Py2<'_, PyString>>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> Result<(), std::fmt::Error> {
+    match format_result {
+        Result::Ok(s) => return f.write_str(&s.as_gil_ref().to_string_lossy()),
+        Result::Err(err) => {
+            err.write_unraisable(any.py(), std::option::Option::Some(any.as_gil_ref()))
         }
+    }
 
-        match self.get_type().name() {
-            Result::Ok(name) => std::write!(f, "<unprintable {} object>", name),
-            Result::Err(_err) => f.write_str("<unprintable object>"),
-        }
+    match any.get_type().name() {
+        Result::Ok(name) => std::write!(f, "<unprintable {} object>", name),
+        Result::Err(_err) => f.write_str("<unprintable object>"),
     }
 }
 
@@ -126,14 +114,16 @@ where
 
     #[inline]
     fn deref(&self) -> &Py2<'py, PyAny> {
-        ::std::convert::AsRef::as_ref(self)
+        self.as_any()
     }
 }
 
-impl<'py, T> AsRef<Py2<'py, PyAny>> for Py2<'py, T> {
+impl<'py, T> AsRef<Py2<'py, PyAny>> for Py2<'py, T>
+where
+    T: AsRef<PyAny>,
+{
     fn as_ref(&self) -> &Py2<'py, PyAny> {
-        // Safety: &Py2<T> has the same layout as &Py2<PyAny>
-        unsafe { std::mem::transmute(self) }
+        self.as_any()
     }
 }
 
@@ -176,9 +166,7 @@ impl<'py, T> Py2<'py, T> {
     /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = (self.1).0.as_ptr();
-        std::mem::forget(self);
-        ptr
+        self.into_non_null().as_ptr()
     }
 
     /// Internal helper to convert e.g. &'a &'py PyDict to &'a Py2<'py, PyDict> for
@@ -211,10 +199,12 @@ impl<'py, T> Py2<'py, T> {
         unsafe { self.py().from_owned_ptr(self.into_ptr()) }
     }
 
+    // Internal helper to convert `self` into a `NonNull` which owns the
+    // Python reference.
     pub(crate) fn into_non_null(self) -> NonNull<ffi::PyObject> {
-        let ptr = (self.1).0;
-        std::mem::forget(self);
-        ptr
+        // wrap in ManuallyDrop to avoid running Drop for self and decreasing
+        // the reference count
+        ManuallyDrop::new(self).1 .0
     }
 }
 
@@ -1474,6 +1464,22 @@ a = A()
 
             let not_ellipsis = 5.to_object(py);
             assert!(!not_ellipsis.is_ellipsis());
+        });
+    }
+
+    #[test]
+    fn test_debug_fmt() {
+        Python::with_gil(|py| {
+            let obj = "hello world".to_object(py).attach_into(py);
+            assert_eq!(format!("{:?}", obj), "'hello world'");
+        });
+    }
+
+    #[test]
+    fn test_display_fmt() {
+        Python::with_gil(|py| {
+            let obj = "hello world".to_object(py).attach_into(py);
+            assert_eq!(format!("{}", obj), "hello world");
         });
     }
 
