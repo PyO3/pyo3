@@ -5,7 +5,12 @@ use std::{
     sync::atomic::{self, AtomicBool},
 };
 
-use crate::{exceptions::PyImportError, ffi, types::PyModule, Py, PyResult, Python};
+use crate::{
+    exceptions::PyImportError,
+    ffi,
+    types::{PyModule, PyO3Attr},
+    Py, PyResult, Python,
+};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -74,6 +79,7 @@ impl ModuleDef {
         let module = unsafe {
             Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
         };
+        module.setattr(py, "__pyo3__", PyO3Attr {})?;
         if self.initialized.swap(true, atomic::Ordering::SeqCst) {
             return Err(PyImportError::new_err(
                 "PyO3 modules may only be initialized once per interpreter process",
@@ -121,6 +127,16 @@ mod tests {
                     .extract::<&str>()
                     .unwrap(),
                 "some doc",
+            );
+            assert_eq!(
+                module
+                    .getattr("__pyo3__")
+                    .unwrap()
+                    .getattr("version")
+                    .unwrap()
+                    .extract::<&str>()
+                    .unwrap(),
+                env!("CARGO_PKG_VERSION")
             );
             assert_eq!(
                 module

@@ -32,6 +32,7 @@ pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
+pub(crate) use self::pyo3_attr::PyO3Attr;
 #[cfg(not(PyPy))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::PySequence;
@@ -293,6 +294,7 @@ mod module;
 mod none;
 mod notimplemented;
 mod num;
+pub(crate) mod pyo3_attr;
 #[cfg(not(PyPy))]
 mod pysuper;
 mod sequence;
