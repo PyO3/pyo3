@@ -366,7 +366,7 @@ jobs:
   test-debug:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-test-debug
