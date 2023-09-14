@@ -1,5 +1,6 @@
 import importlib
 import platform
+import sys
 
 import pyo3_pytests.misc
 import pytest
@@ -10,6 +11,10 @@ def test_issue_219():
     pyo3_pytests.misc.issue_219()
 
 
+@pytest.mark.xfail(
+    platform.python_implementation() == "CPython" and sys.version_info < (3, 9),
+    reason="Cannot identify subinterpreters on Python older than 3.9",
+)
 def test_multiple_imports_same_interpreter_ok():
     spec = importlib.util.find_spec("pyo3_pytests.pyo3_pytests")
 
@@ -17,6 +22,10 @@ def test_multiple_imports_same_interpreter_ok():
     assert dir(module) == dir(pyo3_pytests.pyo3_pytests)
 
 
+@pytest.mark.xfail(
+    platform.python_implementation() == "CPython" and sys.version_info < (3, 9),
+    reason="Cannot identify subinterpreters on Python older than 3.9",
+)
 @pytest.mark.skipif(
     platform.python_implementation() == "PyPy",
     reason="PyPy does not support subinterpreters",

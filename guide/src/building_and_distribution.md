@@ -276,7 +276,7 @@ If you encounter these or other complications when linking the interpreter stati
 
 ### Import your module when embedding the Python interpreter
 
-When you run your Rust binary with an embedded interpreter, any `#[pymodule]` created modules won't be accessible to import unless added to a table called `PyImport_Inittab` before the embedded interpreter is initialized. This will cause Python statements in your embedded interpreter such as `import your_new_module` to fail. You can call the macro [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) with your module before initializing the Python interpreter to add the module function into that table. (The Python interpreter will be initialized by calling `prepare_freethreaded_python`, `with_embedded_interpreter`, or `Python::with_gil` with the [`auto-initialize`](features.md#auto-initialize) feature enabled.)
+When you run your Rust binary with an embedded interpreter, any `#[pymodule]` created modules won't be accessible to import unless added to a table called `PyImport_Inittab` before the embedded interpreter is initialized. This will cause Python statements in your embedded interpreter such as `import your_new_module` to fail. You can call the macro [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) with your module before initializing the Python interpreter to add the module function into that table. (The Python interpreter will be initialized by calling `prepare_freethreaded_python`, `with_embedded_python_interpreter`, or `Python::with_gil` with the [`auto-initialize`](features.md#auto-initialize) feature enabled.)
 
 ## Cross Compiling
 
