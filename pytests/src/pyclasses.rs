@@ -58,10 +58,14 @@ impl AssertingBaseClass {
     }
 }
 
+#[pyclass]
+struct ClassWithoutConstructor;
+
 #[pymodule]
 pub fn pyclasses(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<EmptyClass>()?;
     m.add_class::<PyClassIter>()?;
     m.add_class::<AssertingBaseClass>()?;
+    m.add_class::<ClassWithoutConstructor>()?;
     Ok(())
 }
