@@ -82,6 +82,7 @@
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
 //! - [`chrono`]: Enables a conversion from [chrono]'s structures to the equivalent Python ones.
+//! - [`either`]: Enables conversions between Python objects and [either]'s [`Either`] type.
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
@@ -257,6 +258,9 @@
 //! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 //! [chrono]: https://docs.rs/chrono/ "Date and Time for Rust."
 //! [`chrono`]: ./chrono/index.html "Documentation about the `chrono` feature."
+//! [either]: https://docs.rs/either/ "A type that represents one of two alternatives."
+//! [`either`]: ./either/index.html "Documentation about the `either` feature."
+//! [`Either`]: https://docs.rs/either/latest/either/enum.Either.html
 //! [eyre]: https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications."
 //! [`Report`]: https://docs.rs/eyre/latest/eyre/struct.Report.html
 //! [`eyre`]: ./eyre/index.html "Documentation about the `eyre` feature."
