@@ -508,3 +508,23 @@ fn test_return_value_borrows_from_arguments() {
         py_assert!(py, function key value, "function(key, value) == { \"key\": 42 }");
     });
 }
+
+#[test]
+fn test_some_wrap_arguments() {
+    // https://github.com/PyO3/pyo3/issues/3460
+    const NONE: Option<u8> = None;
+    #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
+    fn some_wrap_arguments(
+        a: Option<u8>,
+        b: Option<u8>,
+        c: Option<u8>,
+        d: Option<u8>,
+    ) -> [Option<u8>; 4] {
+        [a, b, c, d]
+    }
+
+    Python::with_gil(|py| {
+        let function = wrap_pyfunction!(some_wrap_arguments, py).unwrap();
+        py_assert!(py, function, "function() == [1, 2, None, None]");
+    })
+}

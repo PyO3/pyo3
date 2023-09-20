@@ -1,6 +1,7 @@
 use crate::{
     method::{FnArg, FnSpec},
     pyfunction::FunctionSignature,
+    quotes::some_wrap,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
@@ -192,12 +193,7 @@ fn impl_arg_param(
     // Option<T> arguments have special treatment: the default should be specified _without_ the
     // Some() wrapper. Maybe this should be changed in future?!
     if arg.optional.is_some() {
-        default = Some(match &default {
-            Some(expression) if expression.to_string() != "None" => {
-                quote!(::std::option::Option::Some(#expression))
-            }
-            _ => quote!(::std::option::Option::None),
-        })
+        default = Some(default.map_or_else(|| quote!(::std::option::Option::None), some_wrap));
     }
 
     let tokens = if let Some(expr_path) = arg.attrs.from_py_with.as_ref().map(|attr| &attr.value) {
