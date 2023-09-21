@@ -9,6 +9,6 @@ coverage:
         threshold: 0.25%
 
 ignore:
-  - tests/*.rs
-  - pytests/*.rs
+  - tests/
+  - pytests/
   - src/test_hygiene/*.rs
