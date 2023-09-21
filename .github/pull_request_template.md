@@ -4,6 +4,7 @@ By submitting these contributions you agree for them to be dual-licensed under P
 
 Please consider adding the following to your pull request:
  - an entry for this PR in newsfragments - see [https://pyo3.rs/main/contributing.html#documenting-changes]
+   - or start the PR title with `docs:` if this is a docs-only change to skip the check
  - docs to all new functions and / or detail in the guide
  - tests for all new or changed functions
 
