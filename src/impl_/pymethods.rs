@@ -1,10 +1,7 @@
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
-use crate::{
-    ffi, IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit,
-    Python,
-};
+use crate::{ffi, PyAny, PyCell, PyClass, PyObject, PyResult, PyTraverseError, PyVisit, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::fmt;
@@ -293,32 +290,6 @@ pub(crate) struct PyMethodDefDestructor {
     name: Cow<'static, CStr>,
     #[allow(dead_code)]
     doc: Cow<'static, CStr>,
-}
-
-// The macros need to Ok-wrap the output of user defined functions; i.e. if they're not a result, make them into one.
-pub trait OkWrap<T> {
-    type Error;
-    fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error>;
-}
-
-impl<T> OkWrap<T> for T
-where
-    T: IntoPy<PyObject>,
-{
-    type Error = PyErr;
-    fn wrap(self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(self.into_py(py))
-    }
-}
-
-impl<T, E> OkWrap<T> for Result<T, E>
-where
-    T: IntoPy<PyObject>,
-{
-    type Error = E;
-    fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error> {
-        self.map(|o| o.into_py(py))
-    }
 }
 
 pub(crate) fn get_name(name: &'static str) -> PyResult<Cow<'static, CStr>> {
