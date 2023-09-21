@@ -1,4 +1,4 @@
-# Typing and IDE hints for you Python package
+# Typing and IDE hints for your Python package
 
 PyO3 provides an easy to use interface to code native Python libraries in Rust. The accompanying Maturin allows you to build and publish them as a package. Yet, for a better user experience, Python libraries should provide typing hints and documentation for all public entities, so that IDEs can show them during development and type analyzing tools such as `mypy` can use them to properly verify the code.
 
