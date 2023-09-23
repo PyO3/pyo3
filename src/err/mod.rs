@@ -325,18 +325,17 @@ impl PyErr {
 
     #[cfg(Py_3_12)]
     fn _take(py: Python<'_>) -> Option<PyErr> {
-        let pvalue = unsafe {
-            py.from_owned_ptr_or_opt::<PyBaseException>(ffi::PyErr_GetRaisedException())
-        }?;
+        let state = PyErrStateNormalized::take(py)?;
+        let pvalue = state.pvalue.as_ref(py);
         if pvalue.get_type().as_ptr() == PanicException::type_object_raw(py).cast() {
             let msg: String = pvalue
                 .str()
                 .map(|py_str| py_str.to_string_lossy().into())
                 .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
-            Self::print_panic_and_unwind(py, PyErrState::normalized(pvalue), msg)
+            Self::print_panic_and_unwind(py, PyErrState::Normalized(state), msg)
         }
 
-        Some(PyErr::from_state(PyErrState::normalized(pvalue)))
+        Some(PyErr::from_state(PyErrState::Normalized(state)))
     }
 
     fn print_panic_and_unwind(py: Python<'_>, state: PyErrState, msg: String) -> ! {
