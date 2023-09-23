@@ -156,18 +156,7 @@ impl PyErrState {
     #[cfg(not(Py_3_12))]
     pub(crate) fn restore(self, py: Python<'_>) {
         let (ptype, pvalue, ptraceback) = match self {
-            PyErrState::Lazy(lazy) => {
-                let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
-                if unsafe { ffi::PyExceptionClass_Check(ptype.as_ptr()) } == 0 {
-                    (
-                        PyTypeError::type_object_raw(py).cast(),
-                        PyString::new(py, "exceptions must derive from BaseException").into_ptr(),
-                        std::ptr::null_mut(),
-                    )
-                } else {
-                    (ptype.into_ptr(), pvalue.into_ptr(), std::ptr::null_mut())
-                }
-            }
+            PyErrState::Lazy(lazy) => lazy_into_normalized_ffi_tuple(py, lazy),
             PyErrState::FfiTuple {
                 ptype,
                 pvalue,
