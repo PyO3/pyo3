@@ -77,7 +77,7 @@ impl ToPyObject for Duration {
         // We pass true as the `normalize` parameter since we'd need to do several checks here to
         // avoid that, and it shouldn't have a big performance impact.
         let delta = PyDelta::new(py, days.try_into().unwrap_or(i32::MAX), secs, micros, true)
-            .expect("Failed to construct delta");
+            .expect("failed to construct delta");
         delta.into()
     }
 }
@@ -111,7 +111,7 @@ impl IntoPy<PyObject> for NaiveDate {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let DateArgs { year, month, day } = self.into();
         PyDate::new(py, year, month, day)
-            .expect("Failed to construct date")
+            .expect("failed to construct date")
             .into()
     }
 }
@@ -139,7 +139,7 @@ impl IntoPy<PyObject> for NaiveTime {
             fold,
         } = self.into();
         let time = PyTime::new_with_fold(py, hour, min, sec, micro, None, fold)
-            .expect("Failed to construct time");
+            .expect("failed to construct time");
         time.into()
     }
 }
@@ -154,7 +154,7 @@ impl FromPyObject<'_> for NaiveTime {
 impl ToPyObject for NaiveDateTime {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         naive_datetime_to_py_datetime(py, self, None)
-            .expect("Failed to construct datetime")
+            .expect("failed to construct datetime")
             .into()
     }
 }
@@ -172,9 +172,7 @@ impl FromPyObject<'_> for NaiveDateTime {
         // we return a hard error. We could silently remove tzinfo, or assume local timezone
         // and do a conversion, but better leave this decision to the user of the library.
         if dt.get_tzinfo().is_some() {
-            return Err(PyTypeError::new_err(
-                "Trying to convert a timezone aware datetime into a NaiveDateTime.",
-            ));
+            return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
 
         let dt = NaiveDateTime::new(
@@ -192,7 +190,7 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
         let tz = self.offset().fix().to_object(py);
         let tz = tz.downcast(py).unwrap();
         naive_datetime_to_py_datetime(py, &self.naive_local(), Some(tz))
-            .expect("Failed to construct datetime")
+            .expect("failed to construct datetime")
             .into()
     }
 }
@@ -209,7 +207,9 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
         let tz: FixedOffset = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
-            return Err(PyTypeError::new_err("Not datetime.tzinfo"));
+            return Err(PyTypeError::new_err(
+                "expected a datetime with non-None tzinfo",
+            ));
         };
         let dt = NaiveDateTime::new(
             py_date_to_naive_date(dt)?,
@@ -226,7 +226,9 @@ impl FromPyObject<'_> for DateTime<Utc> {
         let _: Utc = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
-            return Err(PyTypeError::new_err("Not datetime.timezone.utc"));
+            return Err(PyTypeError::new_err(
+                "expected a datetime with non-None tzinfo",
+            ));
         };
         let dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt, true)?);
         Ok(dt.and_utc())
@@ -247,7 +249,7 @@ impl ToPyObject for FixedOffset {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let seconds_offset = self.local_minus_utc();
         let td =
-            PyDelta::new(py, 0, seconds_offset, 0, true).expect("Failed to construct timedelta");
+            PyDelta::new(py, 0, seconds_offset, 0, true).expect("failed to construct timedelta");
         py_timezone_from_offset(&py, td).into()
     }
 }
@@ -310,7 +312,7 @@ impl FromPyObject<'_> for Utc {
         if py_tzinfo.eq(py_utc)? {
             Ok(Utc)
         } else {
-            Err(PyTypeError::new_err("Not datetime.timezone.utc"))
+            Err(PyValueError::new_err("expected datetime.timezone.utc"))
         }
     }
 }
@@ -443,9 +445,73 @@ mod tests {
             let res = res.err().unwrap();
             // Also check the error message is what we expect
             let msg = res.value(py).repr().unwrap().to_string();
+            assert_eq!(msg, "TypeError('expected a datetime without tzinfo')");
+        });
+    }
+
+    #[test]
+    fn test_naive_to_timezone_aware_fails() {
+        // Test that if a user tries to convert a python's timezone aware datetime into a naive
+        // one, the conversion fails.
+        Python::with_gil(|py| {
+            let py_datetime = PyDateTime::new(py, 2022, 1, 1, 1, 0, 0, 0, None).unwrap();
+            // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
+            let res: PyResult<DateTime<Utc>> = py_datetime.extract();
+            assert!(res.is_err());
+            let res = res.err().unwrap();
+            // Also check the error message is what we expect
+            let msg = res.value(py).repr().unwrap().to_string();
+            assert_eq!(msg, "TypeError('expected a datetime with non-None tzinfo')");
+
+            // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
+            let res: PyResult<DateTime<FixedOffset>> = py_datetime.extract();
+            assert!(res.is_err());
+            let res = res.err().unwrap();
+            // Also check the error message is what we expect
+            let msg = res.value(py).repr().unwrap().to_string();
+            assert_eq!(msg, "TypeError('expected a datetime with non-None tzinfo')");
+        });
+    }
+
+    #[test]
+    fn test_invalid_types_fail() {
+        // Test that if a user tries to convert a python's timezone aware datetime into a naive
+        // one, the conversion fails.
+        Python::with_gil(|py| {
+            let none = py.None().into_ref(py);
             assert_eq!(
-                msg,
-                "TypeError('Trying to convert a timezone aware datetime into a NaiveDateTime.')"
+                none.extract::<Duration>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"
+            );
+            assert_eq!(
+                none.extract::<FixedOffset>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
+            );
+            assert_eq!(
+                none.extract::<Utc>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyTzInfo'"
+            );
+            assert_eq!(
+                none.extract::<NaiveTime>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyTime'"
+            );
+            assert_eq!(
+                none.extract::<NaiveDate>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDate'"
+            );
+            assert_eq!(
+                none.extract::<NaiveDateTime>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+            );
+            assert_eq!(
+                none.extract::<DateTime<Utc>>().unwrap_err().to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
+            );
+            assert_eq!(
+                none.extract::<DateTime<FixedOffset>>()
+                    .unwrap_err()
+                    .to_string(),
+                "TypeError: 'NoneType' object cannot be converted to 'PyDateTime'"
             );
         });
     }
@@ -940,7 +1006,7 @@ mod tests {
                     // We use to `from_ymd_opt` constructor so that we only test valid `NaiveDate`s.
                     // This is to skip the test if we are creating an invalid date, like February 31.
                     if let Some(date) = NaiveDate::from_ymd_opt(year, month, day) {
-                        let pydate = date.into_py(py);
+                        let pydate = date.to_object(py);
                         let roundtripped: NaiveDate = pydate.extract(py).expect("Round trip");
                         assert_eq!(date, roundtripped);
                     }
@@ -962,9 +1028,31 @@ mod tests {
                     // We use to `from_hms_micro_opt` constructor so that we only test valid `NaiveTime`s.
                     // This is to skip the test if we are creating an invalid time
                     if let Some(time) = NaiveTime::from_hms_micro_opt(hour, min, sec, micro) {
-                        let pytime = time.into_py(py);
+                        let pytime = time.to_object(py);
                         let roundtripped: NaiveTime = pytime.extract(py).expect("Round trip");
                         assert_eq!(time, roundtripped);
+                    }
+                })
+            }
+
+            #[test]
+            fn test_naive_datetime_roundtrip(
+                year in 1i32..=9999i32,
+                month in 1u32..=12u32,
+                day in 1u32..=31u32,
+                hour in 0u32..=24u32,
+                min in 0u32..=60u32,
+                sec in 0u32..=60u32,
+                micro in 0u32..=999_999u32
+            ) {
+                Python::with_gil(|py| {
+                    let date_opt = NaiveDate::from_ymd_opt(year, month, day);
+                    let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
+                    if let (Some(date), Some(time)) = (date_opt, time_opt) {
+                        let dt = NaiveDateTime::new(date, time);
+                        let pydt = dt.to_object(py);
+                        let roundtripped: NaiveDateTime = pydt.extract(py).expect("Round trip");
+                        assert_eq!(dt, roundtripped);
                     }
                 })
             }
