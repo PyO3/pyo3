@@ -32,10 +32,10 @@
 //!         // Create an UTC datetime in python
 //!         let py_tz = Utc.to_object(py);
 //!         let py_tz = py_tz.downcast(py).unwrap();
-//!         let pydatetime = PyDateTime::new(py, 2022, 1, 1, 12, 0, 0, 0, Some(py_tz)).unwrap();
-//!         println!("PyDateTime: {}", pydatetime);
+//!         let py_datetime = PyDateTime::new(py, 2022, 1, 1, 12, 0, 0, 0, Some(py_tz)).unwrap();
+//!         println!("PyDateTime: {}", py_datetime);
 //!         // Now convert it to chrono's DateTime<Utc>
-//!         let chrono_datetime: DateTime<Utc> = pydatetime.extract().unwrap();
+//!         let chrono_datetime: DateTime<Utc> = py_datetime.extract().unwrap();
 //!         println!("DateTime<Utc>: {}", chrono_datetime);
 //!     });
 //! }
@@ -103,83 +103,59 @@ impl FromPyObject<'_> for Duration {
 
 impl ToPyObject for NaiveDate {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let month = self.month() as u8;
-        let day = self.day() as u8;
-        let date = PyDate::new(py, self.year(), month, day).expect("Failed to construct date");
-        date.into()
+        (*self).into_py(py)
     }
 }
 
 impl IntoPy<PyObject> for NaiveDate {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        ToPyObject::to_object(&self, py)
+        let DateArgs { year, month, day } = self.into();
+        PyDate::new(py, year, month, day)
+            .expect("Failed to construct date")
+            .into()
     }
 }
 
 impl FromPyObject<'_> for NaiveDate {
     fn extract(ob: &PyAny) -> PyResult<NaiveDate> {
         let date: &PyDate = ob.downcast()?;
-        NaiveDate::from_ymd_opt(
-            date.get_year(),
-            date.get_month() as u32,
-            date.get_day() as u32,
-        )
-        .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
+        py_date_to_naive_date(date)
     }
 }
 
 impl ToPyObject for NaiveTime {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let h = self.hour() as u8;
-        let m = self.minute() as u8;
-        let s = self.second() as u8;
-        let ns = self.nanosecond();
-        let (ms, fold) = match ns.checked_sub(1_000_000_000) {
-            Some(ns) => (ns / 1000, true),
-            None => (ns / 1000, false),
-        };
-        let time =
-            PyTime::new_with_fold(py, h, m, s, ms, None, fold).expect("Failed to construct time");
-        time.into()
+        (*self).into_py(py)
     }
 }
 
 impl IntoPy<PyObject> for NaiveTime {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        ToPyObject::to_object(&self, py)
+        let TimeArgs {
+            hour,
+            min,
+            sec,
+            micro,
+            fold,
+        } = self.into();
+        let time = PyTime::new_with_fold(py, hour, min, sec, micro, None, fold)
+            .expect("Failed to construct time");
+        time.into()
     }
 }
 
 impl FromPyObject<'_> for NaiveTime {
     fn extract(ob: &PyAny) -> PyResult<NaiveTime> {
         let time: &PyTime = ob.downcast()?;
-        let ms = time.get_fold() as u32 * 1_000_000 + time.get_microsecond();
-        let h = time.get_hour() as u32;
-        let m = time.get_minute() as u32;
-        let s = time.get_second() as u32;
-        NaiveTime::from_hms_micro_opt(h, m, s, ms)
-            .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
+        py_time_to_naive_time(time, true)
     }
 }
 
 impl ToPyObject for NaiveDateTime {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let date = self.date();
-        let time = self.time();
-        let yy = date.year();
-        let mm = date.month() as u8;
-        let dd = date.day() as u8;
-        let h = time.hour() as u8;
-        let m = time.minute() as u8;
-        let s = time.second() as u8;
-        let ns = time.nanosecond();
-        let (ms, fold) = match ns.checked_sub(1_000_000_000) {
-            Some(ns) => (ns / 1000, true),
-            None => (ns / 1000, false),
-        };
-        let datetime = PyDateTime::new_with_fold(py, yy, mm, dd, h, m, s, ms, None, fold)
-            .expect("Failed to construct datetime");
-        datetime.into()
+        naive_datetime_to_py_datetime(py, self, None)
+            .expect("Failed to construct datetime")
+            .into()
     }
 }
 
@@ -200,15 +176,10 @@ impl FromPyObject<'_> for NaiveDateTime {
                 "Trying to convert a timezone aware datetime into a NaiveDateTime.",
             ));
         }
-        let h = dt.get_hour().into();
-        let m = dt.get_minute().into();
-        let s = dt.get_second().into();
-        let ms = dt.get_microsecond();
+
         let dt = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(dt.get_year(), dt.get_month().into(), dt.get_day().into())
-                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))?,
-            NaiveTime::from_hms_micro_opt(h, m, s, ms)
-                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))?,
+            py_date_to_naive_date(dt)?,
+            py_time_to_naive_time(dt, false)?,
         );
         Ok(dt)
     }
@@ -216,24 +187,13 @@ impl FromPyObject<'_> for NaiveDateTime {
 
 impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let date = self.naive_local().date();
-        let time = self.naive_local().time();
-        let yy = date.year();
-        let mm = date.month() as u8;
-        let dd = date.day() as u8;
-        let h = time.hour() as u8;
-        let m = time.minute() as u8;
-        let s = time.second() as u8;
-        let ns = time.nanosecond();
-        let (ms, fold) = match ns.checked_sub(1_000_000_000) {
-            Some(ns) => (ns / 1000, true),
-            None => (ns / 1000, false),
-        };
+        // FIXME: convert to better timezone representation here than just convert to fixed offset
+        // See https://github.com/PyO3/pyo3/issues/3266
         let tz = self.offset().fix().to_object(py);
         let tz = tz.downcast(py).unwrap();
-        let datetime = PyDateTime::new_with_fold(py, yy, mm, dd, h, m, s, ms, Some(tz), fold)
-            .expect("Failed to construct datetime");
-        datetime.into()
+        naive_datetime_to_py_datetime(py, &self.naive_local(), Some(tz))
+            .expect("Failed to construct datetime")
+            .into()
     }
 }
 
@@ -246,20 +206,14 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
 impl FromPyObject<'_> for DateTime<FixedOffset> {
     fn extract(ob: &PyAny) -> PyResult<DateTime<FixedOffset>> {
         let dt: &PyDateTime = ob.downcast()?;
-        let ms = dt.get_microsecond();
-        let h = dt.get_hour().into();
-        let m = dt.get_minute().into();
-        let s = dt.get_second().into();
         let tz: FixedOffset = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
             return Err(PyTypeError::new_err("Not datetime.tzinfo"));
         };
         let dt = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(dt.get_year(), dt.get_month().into(), dt.get_day().into())
-                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))?,
-            NaiveTime::from_hms_micro_opt(h, m, s, ms)
-                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))?,
+            py_date_to_naive_date(dt)?,
+            py_time_to_naive_time(dt, false)?,
         );
         // `FixedOffset` cannot have ambiguities so we don't have to worry about DST folds and such
         Ok(dt.and_local_timezone(tz).unwrap())
@@ -269,21 +223,12 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
 impl FromPyObject<'_> for DateTime<Utc> {
     fn extract(ob: &PyAny) -> PyResult<DateTime<Utc>> {
         let dt: &PyDateTime = ob.downcast()?;
-        let ms = dt.get_fold() as u32 * 1_000_000 + dt.get_microsecond();
-        let h = dt.get_hour().into();
-        let m = dt.get_minute().into();
-        let s = dt.get_second().into();
         let _: Utc = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
             return Err(PyTypeError::new_err("Not datetime.timezone.utc"));
         };
-        let dt = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(dt.get_year(), dt.get_month().into(), dt.get_day().into())
-                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))?,
-            NaiveTime::from_hms_micro_opt(h, m, s, ms)
-                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))?,
-        );
+        let dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt, true)?);
         Ok(dt.and_utc())
     }
 }
@@ -368,6 +313,92 @@ impl FromPyObject<'_> for Utc {
             Err(PyTypeError::new_err("Not datetime.timezone.utc"))
         }
     }
+}
+
+struct DateArgs {
+    year: i32,
+    month: u8,
+    day: u8,
+}
+
+impl From<NaiveDate> for DateArgs {
+    fn from(value: NaiveDate) -> Self {
+        Self {
+            year: value.year(),
+            month: value.month() as u8,
+            day: value.day() as u8,
+        }
+    }
+}
+
+struct TimeArgs {
+    hour: u8,
+    min: u8,
+    sec: u8,
+    micro: u32,
+    fold: bool,
+}
+
+impl From<NaiveTime> for TimeArgs {
+    fn from(value: NaiveTime) -> Self {
+        let ns = value.nanosecond();
+        let checked_sub = ns.checked_sub(1_000_000_000);
+        // FIXME: should not try to handle fold as leap-seconds, see
+        // https://github.com/PyO3/pyo3/issues/3424
+        let fold = checked_sub.is_some();
+        let micro = checked_sub.unwrap_or(ns) / 1000;
+        Self {
+            hour: value.hour() as u8,
+            min: value.minute() as u8,
+            sec: value.second() as u8,
+            micro,
+            fold,
+        }
+    }
+}
+
+fn naive_datetime_to_py_datetime<'py>(
+    py: Python<'py>,
+    naive_datetime: &NaiveDateTime,
+    tzinfo: Option<&PyTzInfo>,
+) -> PyResult<&'py PyDateTime> {
+    let DateArgs { year, month, day } = naive_datetime.date().into();
+    let TimeArgs {
+        hour,
+        min,
+        sec,
+        micro,
+        fold,
+    } = naive_datetime.time().into();
+    let datetime =
+        PyDateTime::new_with_fold(py, year, month, day, hour, min, sec, micro, tzinfo, fold)?;
+    Ok(datetime)
+}
+
+fn py_date_to_naive_date(py_date: &impl PyDateAccess) -> PyResult<NaiveDate> {
+    NaiveDate::from_ymd_opt(
+        py_date.get_year(),
+        py_date.get_month().into(),
+        py_date.get_day().into(),
+    )
+    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
+}
+
+fn py_time_to_naive_time(py_time: &impl PyTimeAccess, add_fold: bool) -> PyResult<NaiveTime> {
+    NaiveTime::from_hms_micro_opt(
+        py_time.get_hour().into(),
+        py_time.get_minute().into(),
+        py_time.get_second().into(),
+        py_time.get_microsecond()
+            // FIXME: should not try to handle fold as leap-seconds, see
+            // https://github.com/PyO3/pyo3/issues/3424
+            + if add_fold && py_time.get_fold() {
+                1_000_000
+            } else {
+                0
+            },
+    )
+    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
 }
 
 #[cfg(test)]
