@@ -416,6 +416,12 @@ def address_sanitizer(session: nox.Session):
     )
 
 
+_IGNORE_CHANGELOG_PR_CATEGORIES = (
+    "release",
+    "docs",
+)
+
+
 @nox.session(name="check-changelog")
 def check_changelog(session: nox.Session):
     event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -425,8 +431,9 @@ def check_changelog(session: nox.Session):
     with open(event_path) as event_file:
         event = json.load(event_file)
 
-    if event["pull_request"]["title"].startswith("release:"):
-        session.skip("PR title starts with release")
+    for category in _IGNORE_CHANGELOG_PR_CATEGORIES:
+        if event["pull_request"]["title"].startswith(f"{category}:"):
+            session.skip(f"PR title starts with {category}")
 
     for label in event["pull_request"]["labels"]:
         if label["name"] == "CI-skip-changelog":
@@ -448,7 +455,9 @@ def check_changelog(session: nox.Session):
 
     if not fragments:
         session.error(
-            "Changelog entry not found, please add one (or more) to `newsfragments` directory. For more information see https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes"
+            "Changelog entry not found, please add one (or more) to the `newsfragments` directory.\n"
+            "Alternatively, start the PR title with `docs:` if this PR is a docs-only PR.\n"
+            "See https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes for more information."
         )
 
     print("Found newsfragments:")
