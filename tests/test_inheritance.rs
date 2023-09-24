@@ -5,6 +5,7 @@ use pyo3::py_run;
 
 use pyo3::types::IntoPyDict;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass(subclass)]

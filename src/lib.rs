@@ -386,6 +386,12 @@ pub use {
 #[doc(hidden)]
 pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.
 
+/// Tests and helpers which reside inside PyO3's main library. Declared first so that macros
+/// are available in unit tests.
+#[cfg(test)]
+#[macro_use]
+mod tests;
+
 #[macro_use]
 mod internal_tricks;
 
@@ -446,11 +452,6 @@ pub use pyo3_macros::pyclass;
 #[cfg(feature = "macros")]
 #[macro_use]
 mod macros;
-
-/// Test macro hygiene - this is in the crate since we won't have
-/// `pyo3` available in the crate root.
-#[cfg(all(test, feature = "macros"))]
-mod test_hygiene;
 
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;

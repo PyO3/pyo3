@@ -6,6 +6,7 @@ use pyo3::{py_run, PyCell};
 
 use std::fmt;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]

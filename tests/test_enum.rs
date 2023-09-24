@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::{py_run, wrap_pyfunction};
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]

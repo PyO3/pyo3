@@ -6,6 +6,7 @@ use pyo3::types::IntoPyDict;
 
 use pyo3::py_run;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]

@@ -5,6 +5,7 @@
 use pyo3::prelude::*;
 
 #[macro_use]
+#[path = "../src/tests/common.rs"]
 mod common;
 
 macro_rules! make_struct_using_macro {

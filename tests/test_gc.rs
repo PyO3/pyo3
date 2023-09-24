@@ -8,6 +8,7 @@ use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass(freelist = 2)]

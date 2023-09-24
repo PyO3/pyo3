@@ -5,6 +5,7 @@ use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{prelude::*, py_run, PyCell};
 use std::{isize, iter};
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]

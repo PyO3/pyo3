@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 
 #[macro_use]
+#[path = "../src/tests/common.rs"]
 mod common;
 
 /// Helper function that concatenates the error message from

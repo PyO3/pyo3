@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyfunction]

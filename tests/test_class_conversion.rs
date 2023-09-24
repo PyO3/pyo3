@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::ToPyObject;
 
 #[macro_use]
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]
