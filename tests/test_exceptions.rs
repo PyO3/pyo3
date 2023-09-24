@@ -7,6 +7,7 @@ use std::fmt;
 #[cfg(not(target_os = "windows"))]
 use std::fs::File;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyfunction]

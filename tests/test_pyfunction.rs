@@ -11,6 +11,7 @@ use pyo3::types::PyDateTime;
 use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyfunction(signature = (arg = true))]

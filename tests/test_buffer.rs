@@ -9,6 +9,7 @@ use std::{
 };
 
 #[macro_use]
+#[path = "../src/tests/common.rs"]
 mod common;
 
 enum TestGetBufferError {

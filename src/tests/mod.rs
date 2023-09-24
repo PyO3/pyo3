@@ -1,7 +1,7 @@
 #[macro_use]
 pub(crate) mod common {
     use crate as pyo3;
-    include!("../../tests/common.rs");
+    include!("./common.rs");
 }
 
 /// Test macro hygiene - this is in the crate since we won't have

@@ -10,6 +10,7 @@ use pyo3::types::PyList;
 use pyo3::types::PyMapping;
 use pyo3::types::PySequence;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass(mapping)]

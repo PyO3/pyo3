@@ -6,6 +6,7 @@ use pyo3::types::{PyBytes, PyString};
 use pyo3::PyCell;
 use std::collections::HashMap;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 /// Assumes it's a file reader or so.
