@@ -642,10 +642,6 @@ fn parse_method_attributes(
             syn::Meta::Path(ref name) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
                     set_compound_ty!(MethodTypeAttribute::New, name);
-                } else if name.is_ident("init") || name.is_ident("__init__") {
-                    bail_spanned!(name.span() => "#[init] is disabled since PyO3 0.9.0");
-                } else if name.is_ident("call") || name.is_ident("__call__") {
-                    bail_spanned!(name.span() => "use `fn __call__` instead of `#[call]` attribute since PyO3 0.15.0");
                 } else if name.is_ident("classmethod") {
                     set_compound_ty!(MethodTypeAttribute::ClassMethod, name);
                 } else if name.is_ident("staticmethod") {
@@ -670,14 +666,6 @@ fn parse_method_attributes(
             syn::Meta::List(ref ml @ syn::MetaList { ref path, .. }) => {
                 if path.is_ident("new") {
                     set_ty!(MethodTypeAttribute::New, path);
-                } else if path.is_ident("init") {
-                    bail_spanned!(path.span() => "#[init] is disabled since PyO3 0.9.0");
-                } else if path.is_ident("call") {
-                    ensure_spanned!(
-                        python_name.is_none(),
-                        python_name.span() => "`name` may not be used with `#[call]`"
-                    );
-                    python_name = Some(syn::Ident::new("__call__", Span::call_site()));
                 } else if path.is_ident("setter") || path.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
                         bail_spanned!(
