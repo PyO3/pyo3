@@ -7,6 +7,7 @@ pub mod buf_and_str;
 pub mod comparisons;
 pub mod datetime;
 pub mod dict_iter;
+pub mod exceptions;
 pub mod misc;
 pub mod objstore;
 pub mod othermod;
@@ -25,6 +26,7 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
     m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
+    m.add_wrapped(wrap_pymodule!(exceptions::exceptions))?;
     m.add_wrapped(wrap_pymodule!(misc::misc))?;
     m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
     m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
@@ -44,6 +46,7 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
     sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
     sys_modules.set_item("pyo3_pytests.dict_iter", m.getattr("dict_iter")?)?;
+    sys_modules.set_item("pyo3_pytests.exceptions", m.getattr("exceptions")?)?;
     sys_modules.set_item("pyo3_pytests.misc", m.getattr("misc")?)?;
     sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;
     sys_modules.set_item("pyo3_pytests.othermod", m.getattr("othermod")?)?;
