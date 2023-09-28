@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pymodule;
 
+pub mod awaitable;
 pub mod buf_and_str;
 pub mod comparisons;
 pub mod datetime;
@@ -17,6 +18,7 @@ pub mod subclassing;
 
 #[pymodule]
 fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pymodule!(awaitable::awaitable))?;
     #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
     m.add_wrapped(wrap_pymodule!(comparisons::comparisons))?;
@@ -37,6 +39,7 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     let sys = PyModule::import(py, "sys")?;
     let sys_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+    sys_modules.set_item("pyo3_pytests.awaitable", m.getattr("awaitable")?)?;
     sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
     sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
     sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
