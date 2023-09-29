@@ -2,7 +2,7 @@
 
 use std::cell::UnsafeCell;
 
-#[cfg(all(not(PyPy), Py_3_9))]
+#[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
 use std::sync::atomic::{AtomicI64, Ordering};
 
 #[cfg(not(PyPy))]
@@ -15,7 +15,7 @@ pub struct ModuleDef {
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     initializer: ModuleInitializer,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
-    #[cfg(all(not(PyPy), Py_3_9))]
+    #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
     interpreter: AtomicI64,
     /// Initialized module object, cached to avoid reinitialization.
     module: GILOnceCell<Py<PyModule>>,
@@ -58,7 +58,7 @@ impl ModuleDef {
             ffi_def,
             initializer,
             // -1 is never expected to be a valid interpreter ID
-            #[cfg(all(not(PyPy), Py_3_9))]
+            #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
             interpreter: AtomicI64::new(-1),
             module: GILOnceCell::new(),
         }
@@ -86,7 +86,9 @@ impl ModuleDef {
         // PyPy does not have subinterpreters, so no need to check interpreter ID.
         #[cfg(not(PyPy))]
         {
-            #[cfg(Py_3_9)]
+            // PyInterpreterState_Get is only available on 3.9 and later, but is missing
+            // from python3.dll for Windows stable API on 3.9
+            #[cfg(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
             {
                 let current_interpreter =
                     unsafe { ffi::PyInterpreterState_GetID(ffi::PyInterpreterState_Get()) };
@@ -104,7 +106,7 @@ impl ModuleDef {
                     }
                 }
             }
-            #[cfg(not(Py_3_9))]
+            #[cfg(not(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10))))))]
             {
                 // CPython before 3.9 does not have APIs to check the interpreter ID, so best that can be
                 // done to guard against subinterpreters is fail if the module is initialized twice
