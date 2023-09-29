@@ -1,18 +1,24 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::{
-    cell::UnsafeCell,
-    sync::atomic::{self, AtomicBool},
-};
+use std::cell::UnsafeCell;
 
-use crate::{exceptions::PyImportError, ffi, types::PyModule, Py, PyResult, Python};
+#[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+use std::sync::atomic::{AtomicI64, Ordering};
+
+#[cfg(not(PyPy))]
+use crate::exceptions::PyImportError;
+use crate::{ffi, sync::GILOnceCell, types::PyModule, Py, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     initializer: ModuleInitializer,
-    initialized: AtomicBool,
+    /// Interpreter ID where module was initialized (not applicable on PyPy).
+    #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+    interpreter: AtomicI64,
+    /// Initialized module object, cached to avoid reinitialization.
+    module: GILOnceCell<Py<PyModule>>,
 }
 
 /// Wrapper to enable initializer to be used in const fns.
@@ -51,7 +57,10 @@ impl ModuleDef {
         ModuleDef {
             ffi_def,
             initializer,
-            initialized: AtomicBool::new(false),
+            // -1 is never expected to be a valid interpreter ID
+            #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+            interpreter: AtomicI64::new(-1),
+            module: GILOnceCell::new(),
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
@@ -71,16 +80,55 @@ impl ModuleDef {
                 ))?;
             }
         }
-        let module = unsafe {
-            Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
-        };
-        if self.initialized.swap(true, atomic::Ordering::SeqCst) {
-            return Err(PyImportError::new_err(
-                "PyO3 modules may only be initialized once per interpreter process",
-            ));
+        // Check the interpreter ID has not changed, since we currently have no way to guarantee
+        // that static data is not reused across interpreters.
+        //
+        // PyPy does not have subinterpreters, so no need to check interpreter ID.
+        #[cfg(not(PyPy))]
+        {
+            // PyInterpreterState_Get is only available on 3.9 and later, but is missing
+            // from python3.dll for Windows stable API on 3.9
+            #[cfg(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+            {
+                let current_interpreter =
+                    unsafe { ffi::PyInterpreterState_GetID(ffi::PyInterpreterState_Get()) };
+                crate::err::error_on_minusone(py, current_interpreter)?;
+                if let Err(initialized_interpreter) = self.interpreter.compare_exchange(
+                    -1,
+                    current_interpreter,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                ) {
+                    if initialized_interpreter != current_interpreter {
+                        return Err(PyImportError::new_err(
+                            "PyO3 modules do not yet support subinterpreters, see https://github.com/PyO3/pyo3/issues/576",
+                        ));
+                    }
+                }
+            }
+            #[cfg(not(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10))))))]
+            {
+                // CPython before 3.9 does not have APIs to check the interpreter ID, so best that can be
+                // done to guard against subinterpreters is fail if the module is initialized twice
+                if self.module.get(py).is_some() {
+                    return Err(PyImportError::new_err(
+                        "PyO3 modules compiled for CPython 3.8 or older may only be initialized once per interpreter process"
+                    ));
+                }
+            }
         }
-        (self.initializer.0)(py, module.as_ref(py))?;
-        Ok(module)
+        self.module
+            .get_or_try_init(py, || {
+                let module = unsafe {
+                    Py::<PyModule>::from_owned_ptr_or_err(
+                        py,
+                        ffi::PyModule_Create(self.ffi_def.get()),
+                    )?
+                };
+                (self.initializer.0)(py, module.as_ref(py))?;
+                Ok(module)
+            })
+            .map(|py_module| py_module.clone_ref(py))
     }
 }
 
