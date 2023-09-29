@@ -186,93 +186,86 @@ pub unsafe trait Ungil {}
 unsafe impl<T: Send> Ungil for T {}
 
 #[cfg(feature = "nightly")]
-macro_rules! define {
-  ($($tt:tt)*) => { $($tt)* }
-}
-#[cfg(not(feature = "nightly"))]
-macro_rules! define {
-    ($($tt:tt)*) => {};
-}
+mod nightly {
+    macro_rules! define {
+        ($($tt:tt)*) => { $($tt)* }
+    }
 
-define! {
-    /// Types that are safe to access while the GIL is not held.
-    ///
-    /// # Safety
-    ///
-    /// The type must not carry borrowed Python references or, if it does, not allow access to them if
-    /// the GIL is not held.
-    ///
-    /// See the [module-level documentation](self) for more information.
-    ///
-    /// # Examples
-    ///
-    /// Types which are `Ungil` cannot be used in contexts where the GIL was released, e.g.
-    ///
-    /// ```compile_fail
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyString;
-    /// Python::with_gil(|py| {
-    ///     let string = PyString::new(py, "foo");
-    ///
-    ///     py.allow_threads(|| {
-    ///         println!("{:?}", string);
-    ///     });
-    /// });
-    /// ```
-    ///
-    /// This applies to the GIL token `Python` itself as well, e.g.
-    ///
-    /// ```compile_fail
-    /// # use pyo3::prelude::*;
-    /// Python::with_gil(|py| {
-    ///     py.allow_threads(|| {
-    ///         drop(py);
-    ///     });
-    /// });
-    /// ```
-    ///
-    /// On nightly Rust, this is not based on the [`Send`] auto trait and hence we are able
-    /// to prevent incorrectly circumventing it using e.g. the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
-    ///
-    /// ```compile_fail
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyString;
-    /// use send_wrapper::SendWrapper;
-    ///
-    /// Python::with_gil(|py| {
-    ///     let string = PyString::new(py, "foo");
-    ///
-    ///     let wrapped = SendWrapper::new(string);
-    ///
-    ///     py.allow_threads(|| {
-    ///         let sneaky: &PyString = *wrapped;
-    ///
-    ///         println!("{:?}", sneaky);
-    ///     });
-    /// });
-    /// ```
-    ///
-    /// This also enables using non-[`Send`] types in `allow_threads`,
-    /// at least if they are not also bound to the GIL:
-    ///
-    /// ```rust
-    /// # use pyo3::prelude::*;
-    /// use std::rc::Rc;
-    ///
-    /// Python::with_gil(|py| {
-    ///     let rc = Rc::new(42);
-    ///
-    ///     py.allow_threads(|| {
-    ///         println!("{:?}", rc);
-    ///     });
-    /// });
-    /// ```
-    pub unsafe auto trait Ungil {}
-}
-
-#[cfg(feature = "nightly")]
-mod negative_impls {
-    use super::Ungil;
+    define! {
+        /// Types that are safe to access while the GIL is not held.
+        ///
+        /// # Safety
+        ///
+        /// The type must not carry borrowed Python references or, if it does, not allow access to them if
+        /// the GIL is not held.
+        ///
+        /// See the [module-level documentation](self) for more information.
+        ///
+        /// # Examples
+        ///
+        /// Types which are `Ungil` cannot be used in contexts where the GIL was released, e.g.
+        ///
+        /// ```compile_fail
+        /// # use pyo3::prelude::*;
+        /// # use pyo3::types::PyString;
+        /// Python::with_gil(|py| {
+        ///     let string = PyString::new(py, "foo");
+        ///
+        ///     py.allow_threads(|| {
+        ///         println!("{:?}", string);
+        ///     });
+        /// });
+        /// ```
+        ///
+        /// This applies to the GIL token `Python` itself as well, e.g.
+        ///
+        /// ```compile_fail
+        /// # use pyo3::prelude::*;
+        /// Python::with_gil(|py| {
+        ///     py.allow_threads(|| {
+        ///         drop(py);
+        ///     });
+        /// });
+        /// ```
+        ///
+        /// On nightly Rust, this is not based on the [`Send`] auto trait and hence we are able
+        /// to prevent incorrectly circumventing it using e.g. the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
+        ///
+        /// ```compile_fail
+        /// # use pyo3::prelude::*;
+        /// # use pyo3::types::PyString;
+        /// use send_wrapper::SendWrapper;
+        ///
+        /// Python::with_gil(|py| {
+        ///     let string = PyString::new(py, "foo");
+        ///
+        ///     let wrapped = SendWrapper::new(string);
+        ///
+        ///     py.allow_threads(|| {
+        ///         let sneaky: &PyString = *wrapped;
+        ///
+        ///         println!("{:?}", sneaky);
+        ///     });
+        /// });
+        /// ```
+        ///
+        /// This also enables using non-[`Send`] types in `allow_threads`,
+        /// at least if they are not also bound to the GIL:
+        ///
+        /// ```rust
+        /// # use pyo3::prelude::*;
+        /// use std::rc::Rc;
+        ///
+        /// Python::with_gil(|py| {
+        ///     let rc = Rc::new(42);
+        ///
+        ///     py.allow_threads(|| {
+        ///         println!("{:?}", rc);
+        ///     });
+        /// });
+        /// ```
+        pub unsafe auto trait Ungil {}
+    }
 
     impl !Ungil for crate::Python<'_> {}
 
@@ -298,6 +291,9 @@ mod negative_impls {
     #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
     impl !Ungil for crate::ffi::PyArena {}
 }
+
+#[cfg(feature = "nightly")]
+pub use nightly::Ungil;
 
 /// A marker token that represents holding the GIL.
 ///
