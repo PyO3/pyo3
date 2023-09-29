@@ -139,7 +139,7 @@ fn main() -> PyResult<()> {
 
 ### Want to run just an expression? Then use `eval`.
 
-[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.eval) is
+[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
 and return the evaluated value as a `&PyAny` object.
 
@@ -260,7 +260,7 @@ An import in Python will first attempt to lookup the module from this dict,
 and if not present will use various strategies to attempt to locate and load
 the module.
 
-The [`append_to_inittab`]({{*PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html)
+The [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html)
 macro can be used to add additional `#[pymodule]` modules to an embedded
 Python interpreter. The macro **must** be invoked _before_ initializing Python.
 

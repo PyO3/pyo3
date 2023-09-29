@@ -177,7 +177,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 ### Packaging
 
-- Relax `indexmap` optional depecency to allow `>= 1.6, < 2`. [#2849](https://github.com/PyO3/pyo3/pull/2849
+- Relax `indexmap` optional depecency to allow `>= 1.6, < 2`. [#2849](https://github.com/PyO3/pyo3/pull/2849)
 - Relax `hashbrown` optional dependency to allow `>= 0.9, < 0.14`. [#2875](https://github.com/PyO3/pyo3/pull/2875)
 - Update `memoffset` dependency to 0.8. [#2875](https://github.com/PyO3/pyo3/pull/2875)
 
