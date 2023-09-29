@@ -295,7 +295,7 @@ usually defined using the `#[pyclass]` macro.
 This trait marks structs that mirror native Python types, such as `PyList`.
 
 
-[eval]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.eval
+[eval]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval
 [clone_ref]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.clone_ref
 [pyo3::types]: {{#PYO3_DOCS_URL}}/pyo3/types/index.html
 [PyAny]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
