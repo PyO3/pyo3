@@ -149,6 +149,90 @@ impl PyModule {
         }
     }
 
+    /// Creates and loads a module named `module_name`,
+    /// containing the Python bytecode passed to `data`
+    /// and pretending to live at `file_name`.
+    ///
+    /// <div class="information">
+    ///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;</div>
+    /// </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
+    //
+    ///  <strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code to this function!
+    ///
+    /// </pre></div>
+    ///
+    /// # Errors
+    ///
+    /// Returns `PyErr` if:
+    /// - `data` is not valid Python bytecode.
+    /// - Any Python exceptions are raised while initializing the module.
+    /// - `file_name` or `module_name` cannot be converted to [`CString`]s.
+    ///
+    /// # Example: bundle in a file at compile time with [`include_bytes!`][std::include_bytes]:
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// // This path is resolved relative to this file.
+    /// let bytes = include_bytes!("../../assets/script.pyc");
+    ///
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     PyModule::from_pyc(py, bytes, "example.py", "example")?;
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Example: Load a file at runtime with [`std::fs::read`].
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// // This path is resolved by however the platform resolves paths,
+    /// // which also makes this less portable. Consider using `include_str`
+    /// // if you just want to bundle a script with your module.
+    /// let bytes = std::fs::read("assets/script.pyc")?;
+    ///
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     PyModule::from_pyc(py, &bytes, "example.py", "example")?;
+    ///     Ok(())
+    /// })?;
+    /// Ok(())
+    /// # }
+    /// ```
+    pub fn from_pyc<'p>(
+        py: Python<'p>,
+        data: &[u8],
+        file_name: &str,
+        module_name: &str,
+    ) -> PyResult<&'p PyModule> {
+        let filename = CString::new(file_name)?;
+        let module = CString::new(module_name)?;
+
+        // remove the header (see https://github.com/python/cpython/blob/14098b78f7453adbd40c53e32c29588611b7c87b/Python/pythonrun.c#L1758C39-L1758C39)
+        let data = &data[16..];
+
+        unsafe {
+            let c_data_ptr = data.as_ptr() as *const i8;
+
+            let obj = ffi::PyMarshal_ReadObjectFromString(c_data_ptr, data.len() as isize);
+            if obj.is_null() {
+                return Err(PyErr::fetch(py));
+            }
+
+            let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), obj, filename.as_ptr());
+            ffi::Py_DecRef(obj);
+            if mptr.is_null() {
+                return Err(PyErr::fetch(py));
+            }
+
+            <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+        }
+    }
+
     /// Returns the module's `__dict__` attribute, which contains the module's symbol table.
     pub fn dict(&self) -> &PyDict {
         unsafe {
@@ -403,7 +487,7 @@ fn __name__(py: Python<'_>) -> &PyString {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::PyModule, Python};
+    use crate::prelude::*;
 
     #[test]
     fn module_import_and_name() {
@@ -412,4 +496,18 @@ mod tests {
             assert_eq!(builtins.name().unwrap(), "builtins");
         })
     }
+
+    // #[test]
+    // fn from_pyc() -> PyResult<()> {
+    //     let bytes = include_bytes!("t.pyc");
+
+    //     Python::with_gil(|py| -> PyResult<()> {
+    //         let m = PyModule::from_pyc(py, bytes, "t.py", "t")?;
+
+    //         m.getattr("say_hello").unwrap().call0().unwrap();
+
+    //         Ok(())
+    //     })?;
+    //     Ok(())
+    // }
 }
