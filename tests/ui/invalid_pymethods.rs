@@ -108,9 +108,43 @@ impl MyClass {
 
 #[pymethods]
 impl MyClass {
-    #[classattr]
+    #[new]
+    #[classmethod]
     #[staticmethod]
+    #[classattr]
+    #[getter(x)]
+    #[setter(x)]
     fn multiple_method_types() {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[new(signature = ())]
+    fn new_takes_no_arguments(&self) {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[new = ()] // in this form there's no suggestion to move arguments to `#[pyo3()]` attribute
+    fn new_takes_no_arguments_nv(&self) {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[classmethod(signature = ())]
+    fn classmethod_takes_no_arguments(&self) {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[staticmethod(signature = ())]
+    fn staticmethod_takes_no_arguments(&self) {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[classattr(signature = ())]
+    fn classattr_takes_no_arguments(&self) {}
 }
 
 #[pymethods]

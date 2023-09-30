@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::attributes::{TextSignatureAttribute, TextSignatureAttributeValue};
 use crate::params::impl_arg_params;
 use crate::pyfunction::{FunctionSignature, PyFunctionArgPyO3Attributes};
@@ -9,7 +11,7 @@ use quote::ToTokens;
 use quote::{quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
-use syn::Result;
+use syn::{Ident, Result};
 
 #[derive(Clone, Debug)]
 pub struct FnArg<'a> {
@@ -67,24 +69,6 @@ fn handle_argument_error(pat: &syn::Pat) -> syn::Error {
         _ => "unsupported argument",
     };
     syn::Error::new(span, msg)
-}
-
-#[derive(Clone, PartialEq, Debug, Copy, Eq)]
-pub enum MethodTypeAttribute {
-    /// `#[new]`
-    New,
-    /// `#[new]` && `#[classmethod]`
-    NewClassMethod,
-    /// `#[classmethod]`
-    ClassMethod,
-    /// `#[classattr]`
-    ClassAttribute,
-    /// `#[staticmethod]`
-    StaticMethod,
-    /// `#[getter]`
-    Getter,
-    /// `#[setter]`
-    Setter,
 }
 
 #[derive(Clone, Debug)]
@@ -278,13 +262,10 @@ impl<'a> FnSpec<'a> {
             ..
         } = options;
 
-        let MethodAttributes {
-            ty: fn_type_attr,
-            mut python_name,
-        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0))?;
+        let mut python_name = name.map(|name| name.value.0);
 
         let (fn_type, skip_first_arg, fixed_convention) =
-            Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
+            Self::parse_fn_type(sig, meth_attrs, &mut python_name)?;
         ensure_signatures_on_valid_method(&fn_type, signature.as_ref(), text_signature.as_ref())?;
 
         let name = &sig.ident;
@@ -331,9 +312,11 @@ impl<'a> FnSpec<'a> {
 
     fn parse_fn_type(
         sig: &syn::Signature,
-        fn_type_attr: Option<MethodTypeAttribute>,
+        meth_attrs: &mut Vec<syn::Attribute>,
         python_name: &mut Option<syn::Ident>,
     ) -> Result<(FnType, bool, Option<CallingConvention>)> {
+        let mut method_attributes = parse_method_attributes(meth_attrs)?;
+
         let name = &sig.ident;
         let parse_receiver = |msg: &'static str| {
             let first_arg = sig
@@ -351,52 +334,87 @@ impl<'a> FnSpec<'a> {
                 .map(|stripped| syn::Ident::new(stripped, name.span()))
         };
 
-        let (fn_type, skip_first_arg, fixed_convention) = match fn_type_attr {
-            Some(MethodTypeAttribute::StaticMethod) => (FnType::FnStatic, false, None),
-            Some(MethodTypeAttribute::ClassAttribute) => (FnType::ClassAttribute, false, None),
-            Some(MethodTypeAttribute::New) | Some(MethodTypeAttribute::NewClassMethod) => {
-                if let Some(name) = &python_name {
-                    bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
-                }
-                *python_name = Some(syn::Ident::new("__new__", Span::call_site()));
-                if matches!(fn_type_attr, Some(MethodTypeAttribute::New)) {
-                    (FnType::FnNew, false, Some(CallingConvention::TpNew))
-                } else {
-                    (FnType::FnNewClass, true, Some(CallingConvention::TpNew))
-                }
-            }
-            Some(MethodTypeAttribute::ClassMethod) => (FnType::FnClass, true, None),
-            Some(MethodTypeAttribute::Getter) => {
-                // Strip off "get_" prefix if needed
-                if python_name.is_none() {
-                    *python_name = strip_fn_name("get_");
-                }
-
-                (
-                    FnType::Getter(parse_receiver("expected receiver for #[getter]")?),
-                    true,
-                    None,
-                )
-            }
-            Some(MethodTypeAttribute::Setter) => {
-                // Strip off "set_" prefix if needed
-                if python_name.is_none() {
-                    *python_name = strip_fn_name("set_");
-                }
-
-                (
-                    FnType::Setter(parse_receiver("expected receiver for #[setter]")?),
-                    true,
-                    None,
-                )
-            }
-            None => (
+        let (fn_type, skip_first_arg, fixed_convention) = match method_attributes.as_mut_slice() {
+            [] => (
                 FnType::Fn(parse_receiver(
                     "static method needs #[staticmethod] attribute",
                 )?),
                 true,
                 None,
             ),
+            [MethodTypeAttribute::StaticMethod(_)] => (FnType::FnStatic, false, None),
+            [MethodTypeAttribute::ClassAttribute(_)] => (FnType::ClassAttribute, false, None),
+            [MethodTypeAttribute::New(_)]
+            | [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(_)]
+            | [MethodTypeAttribute::ClassMethod(_), MethodTypeAttribute::New(_)] => {
+                if let Some(name) = &python_name {
+                    bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
+                }
+                *python_name = Some(syn::Ident::new("__new__", Span::call_site()));
+                if matches!(method_attributes.as_slice(), [MethodTypeAttribute::New(_)]) {
+                    (FnType::FnNew, false, Some(CallingConvention::TpNew))
+                } else {
+                    (FnType::FnNewClass, true, Some(CallingConvention::TpNew))
+                }
+            }
+            [MethodTypeAttribute::ClassMethod(_)] => (FnType::FnClass, true, None),
+            [MethodTypeAttribute::Getter(_, name)] => {
+                if let Some(name) = name.take() {
+                    ensure_spanned!(
+                        python_name.replace(name).is_none(),
+                        python_name.span() => "`name` may only be specified once"
+                    );
+                } else if python_name.is_none() {
+                    // Strip off "get_" prefix if needed
+                    *python_name = strip_fn_name("get_");
+                }
+
+                (
+                    FnType::Getter(parse_receiver("expected receiver for `#[getter]`")?),
+                    true,
+                    None,
+                )
+            }
+            [MethodTypeAttribute::Setter(_, name)] => {
+                if let Some(name) = name.take() {
+                    ensure_spanned!(
+                        python_name.replace(name).is_none(),
+                        python_name.span() => "`name` may only be specified once"
+                    );
+                } else if python_name.is_none() {
+                    // Strip off "set_" prefix if needed
+                    *python_name = strip_fn_name("set_");
+                }
+
+                (
+                    FnType::Setter(parse_receiver("expected receiver for `#[setter]`")?),
+                    true,
+                    None,
+                )
+            }
+            [first, rest @ .., last] => {
+                // Join as many of the spans together as possible
+                let span = rest
+                    .iter()
+                    .fold(first.span(), |s, next| s.join(next.span()).unwrap_or(s));
+                let span = span.join(last.span()).unwrap_or(span);
+                // List all the attributes in the error message
+                let mut msg = format!("`{}` may not be combined with", first);
+                let mut is_first = true;
+                for attr in &*rest {
+                    msg.push_str(&format!(" `{}`", attr));
+                    if is_first {
+                        is_first = false;
+                    } else {
+                        msg.push(',');
+                    }
+                }
+                if !rest.is_empty() {
+                    msg.push_str(" and");
+                }
+                msg.push_str(&format!(" `{}`", last));
+                bail_spanned!(span => msg)
+            }
         };
         Ok((fn_type, skip_first_arg, fixed_convention))
     }
@@ -604,107 +622,128 @@ impl<'a> FnSpec<'a> {
     }
 }
 
-#[derive(Debug)]
-struct MethodAttributes {
-    ty: Option<MethodTypeAttribute>,
-    python_name: Option<syn::Ident>,
+enum MethodTypeAttribute {
+    New(Span),
+    ClassMethod(Span),
+    StaticMethod(Span),
+    Getter(Span, Option<Ident>),
+    Setter(Span, Option<Ident>),
+    ClassAttribute(Span),
 }
 
-fn parse_method_attributes(
-    attrs: &mut Vec<syn::Attribute>,
-    mut python_name: Option<syn::Ident>,
-) -> Result<MethodAttributes> {
+impl MethodTypeAttribute {
+    fn span(&self) -> Span {
+        match self {
+            MethodTypeAttribute::New(span)
+            | MethodTypeAttribute::ClassMethod(span)
+            | MethodTypeAttribute::StaticMethod(span)
+            | MethodTypeAttribute::Getter(span, _)
+            | MethodTypeAttribute::Setter(span, _)
+            | MethodTypeAttribute::ClassAttribute(span) => *span,
+        }
+    }
+
+    /// Attempts to parse a method type attribute.
+    ///
+    /// If the attribute does not match one of the attribute names, returns `Ok(None)`.
+    ///
+    /// Otherwise will either return a parse error or the attribute.
+    fn parse_if_matching_attribute(attr: &syn::Attribute) -> Result<Option<Self>> {
+        fn ensure_no_arguments(meta: &syn::Meta, ident: &str) -> syn::Result<()> {
+            match meta {
+                syn::Meta::Path(_) => Ok(()),
+                syn::Meta::List(l) => bail_spanned!(
+                    l.span() => format!(
+                        "`#[{ident}]` does not take any arguments\n= help: did you mean `#[{ident}] #[pyo3({meta})]`?",
+                        ident = ident,
+                        meta = l.tokens,
+                    )
+                ),
+                syn::Meta::NameValue(nv) => {
+                    bail_spanned!(nv.eq_token.span() => format!(
+                        "`#[{}]` does not take any arguments\n= note: this was previously accepted and ignored",
+                        ident
+                    ))
+                }
+            }
+        }
+
+        fn extract_name(meta: &syn::Meta, ident: &str) -> Result<Option<Ident>> {
+            match meta {
+                syn::Meta::Path(_) => Ok(None),
+                syn::Meta::NameValue(nv) => bail_spanned!(
+                    nv.eq_token.span() => format!("expected `#[{}(name)]` to set the name", ident)
+                ),
+                syn::Meta::List(l) => {
+                    if let Ok(name) = l.parse_args::<syn::Ident>() {
+                        Ok(Some(name))
+                    } else if let Ok(name) = l.parse_args::<syn::LitStr>() {
+                        name.parse().map(Some)
+                    } else {
+                        bail_spanned!(l.tokens.span() => "expected ident or string literal for property name");
+                    }
+                }
+            }
+        }
+
+        let meta = &attr.meta;
+        let path = meta.path();
+
+        if path.is_ident("new") {
+            ensure_no_arguments(meta, "new")?;
+            Ok(Some(MethodTypeAttribute::New(path.span())))
+        } else if path.is_ident("__new__") {
+            // TODO deprecate this form?
+            ensure_no_arguments(meta, "__new__")?;
+            Ok(Some(MethodTypeAttribute::New(path.span())))
+        } else if path.is_ident("classmethod") {
+            ensure_no_arguments(meta, "classmethod")?;
+            Ok(Some(MethodTypeAttribute::ClassMethod(path.span())))
+        } else if path.is_ident("staticmethod") {
+            ensure_no_arguments(meta, "staticmethod")?;
+            Ok(Some(MethodTypeAttribute::StaticMethod(path.span())))
+        } else if path.is_ident("classattr") {
+            ensure_no_arguments(meta, "classattr")?;
+            Ok(Some(MethodTypeAttribute::ClassAttribute(path.span())))
+        } else if path.is_ident("getter") {
+            let name = extract_name(meta, "getter")?;
+            Ok(Some(MethodTypeAttribute::Getter(path.span(), name)))
+        } else if path.is_ident("setter") {
+            let name = extract_name(meta, "setter")?;
+            Ok(Some(MethodTypeAttribute::Setter(path.span(), name)))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl Display for MethodTypeAttribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MethodTypeAttribute::New(_) => "#[new]".fmt(f),
+            MethodTypeAttribute::ClassMethod(_) => "#[classmethod]".fmt(f),
+            MethodTypeAttribute::StaticMethod(_) => "#[staticmethod]".fmt(f),
+            MethodTypeAttribute::Getter(_, _) => "#[getter]".fmt(f),
+            MethodTypeAttribute::Setter(_, _) => "#[setter]".fmt(f),
+            MethodTypeAttribute::ClassAttribute(_) => "#[classattr]".fmt(f),
+        }
+    }
+}
+
+fn parse_method_attributes(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<MethodTypeAttribute>> {
     let mut new_attrs = Vec::new();
-    let mut ty: Option<MethodTypeAttribute> = None;
-
-    macro_rules! set_compound_ty {
-        ($new_ty:expr, $ident:expr) => {
-            ty = match (ty, $new_ty) {
-                (None, new_ty) => Some(new_ty),
-                (Some(MethodTypeAttribute::ClassMethod), MethodTypeAttribute::New) => Some(MethodTypeAttribute::NewClassMethod),
-                (Some(MethodTypeAttribute::New), MethodTypeAttribute::ClassMethod) => Some(MethodTypeAttribute::NewClassMethod),
-                (Some(_), _) => bail_spanned!($ident.span() => "can only combine `new` and `classmethod`"),
-            };
-        };
-    }
-
-    macro_rules! set_ty {
-        ($new_ty:expr, $ident:expr) => {
-            ensure_spanned!(
-               ty.replace($new_ty).is_none(),
-               $ident.span() => "cannot combine these method types"
-            );
-        };
-    }
+    let mut found_attrs = Vec::new();
 
     for attr in attrs.drain(..) {
-        match attr.meta {
-            syn::Meta::Path(ref name) => {
-                if name.is_ident("new") || name.is_ident("__new__") {
-                    set_compound_ty!(MethodTypeAttribute::New, name);
-                } else if name.is_ident("classmethod") {
-                    set_compound_ty!(MethodTypeAttribute::ClassMethod, name);
-                } else if name.is_ident("staticmethod") {
-                    set_ty!(MethodTypeAttribute::StaticMethod, name);
-                } else if name.is_ident("classattr") {
-                    set_ty!(MethodTypeAttribute::ClassAttribute, name);
-                } else if name.is_ident("setter") || name.is_ident("getter") {
-                    if let syn::AttrStyle::Inner(_) = attr.style {
-                        bail_spanned!(
-                            attr.span() => "inner attribute is not supported for setter and getter"
-                        );
-                    }
-                    if name.is_ident("setter") {
-                        set_ty!(MethodTypeAttribute::Setter, name);
-                    } else {
-                        set_ty!(MethodTypeAttribute::Getter, name);
-                    }
-                } else {
-                    new_attrs.push(attr)
-                }
-            }
-            syn::Meta::List(ref ml @ syn::MetaList { ref path, .. }) => {
-                if path.is_ident("new") {
-                    set_ty!(MethodTypeAttribute::New, path);
-                } else if path.is_ident("setter") || path.is_ident("getter") {
-                    if let syn::AttrStyle::Inner(_) = attr.style {
-                        bail_spanned!(
-                            attr.span() => "inner attribute is not supported for setter and getter"
-                        );
-                    }
-
-                    if path.is_ident("setter") {
-                        set_ty!(MethodTypeAttribute::Setter, path);
-                    } else {
-                        set_ty!(MethodTypeAttribute::Getter, path);
-                    };
-
-                    ensure_spanned!(
-                        python_name.is_none(),
-                        python_name.span() => "`name` may only be specified once"
-                    );
-
-                    if let Ok(ident) = ml.parse_args::<syn::Ident>() {
-                        python_name = Some(ident);
-                    } else if let Ok(syn::Lit::Str(s)) = ml.parse_args::<syn::Lit>() {
-                        python_name = Some(s.parse()?);
-                    } else {
-                        return Err(syn::Error::new_spanned(
-                            ml,
-                            "expected ident or string literal for property name",
-                        ));
-                    }
-                } else {
-                    new_attrs.push(attr)
-                }
-            }
-            syn::Meta::NameValue(_) => new_attrs.push(attr),
+        match MethodTypeAttribute::parse_if_matching_attribute(&attr)? {
+            Some(attr) => found_attrs.push(attr),
+            None => new_attrs.push(attr),
         }
     }
 
     *attrs = new_attrs;
 
-    Ok(MethodAttributes { ty, python_name })
+    Ok(found_attrs)
 }
 
 const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";
