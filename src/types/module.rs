@@ -175,7 +175,7 @@ impl PyModule {
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved relative to this file.
-    /// let bytes = include_bytes!("../../assets/script.pyc");
+    /// let bytes = include_bytes!("../../assets/hello_world.pyc");
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     PyModule::from_pyc(py, bytes, "example.py", "example")?;
@@ -194,7 +194,7 @@ impl PyModule {
     /// // This path is resolved by however the platform resolves paths,
     /// // which also makes this less portable. Consider using `include_str`
     /// // if you just want to bundle a script with your module.
-    /// let bytes = std::fs::read("assets/script.pyc")?;
+    /// let bytes = std::fs::read("assets/hello_world.pyc")?;
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     PyModule::from_pyc(py, &bytes, "example.py", "example")?;
@@ -499,20 +499,10 @@ mod tests {
 
     #[test]
     fn from_pyc() -> PyResult<()> {
-        // this translates to `print("Hello from pyc file!")`
-        let bytes: [u8; 174] = [
-            167, 13, 13, 10, 0, 0, 0, 0, 8, 98, 23, 101, 31, 0, 0, 0, 227, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 243, 28, 0, 0, 0, 151, 0, 2, 0, 101, 0, 100, 0,
-            166, 1, 0, 0, 171, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 100, 1, 83, 0, 41, 2, 122, 20, 72,
-            101, 108, 108, 111, 32, 102, 114, 111, 109, 32, 112, 121, 99, 32, 102, 105, 108, 101,
-            33, 78, 41, 1, 218, 5, 112, 114, 105, 110, 116, 169, 0, 243, 0, 0, 0, 0, 250, 4, 116,
-            46, 112, 121, 250, 8, 60, 109, 111, 100, 117, 108, 101, 62, 114, 6, 0, 0, 0, 1, 0, 0,
-            0, 115, 28, 0, 0, 0, 240, 3, 1, 1, 1, 216, 0, 5, 128, 5, 208, 6, 28, 209, 0, 29, 212,
-            0, 29, 208, 0, 29, 208, 0, 29, 208, 0, 29, 114, 4, 0, 0, 0,
-        ];
+        let bytes = include_bytes!("../../assets/hello_world.pyc");
 
         Python::with_gil(|py| -> PyResult<()> {
-            PyModule::from_pyc(py, &bytes, "t.py", "t")?;
+            PyModule::from_pyc(py, bytes, "t.py", "t")?;
             Ok(())
         })?;
         Ok(())

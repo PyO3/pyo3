@@ -4,6 +4,7 @@ Cargo.lock
 /gh-pages
 build/
 *.py[co]
+!assets/*.pyc
 __pycache__/
 .cache
 .pytest_cache/
