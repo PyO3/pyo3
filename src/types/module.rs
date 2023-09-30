@@ -6,6 +6,7 @@ use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
 use crate::{IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 use std::str;
 
 /// Represents a Python [`module`][1] object.
@@ -216,7 +217,7 @@ impl PyModule {
         let data = &data[16..];
 
         unsafe {
-            let c_data_ptr = data.as_ptr() as *const i8;
+            let c_data_ptr = data.as_ptr() as *const c_char;
 
             let obj = ffi::PyMarshal_ReadObjectFromString(c_data_ptr, data.len() as isize);
             if obj.is_null() {
