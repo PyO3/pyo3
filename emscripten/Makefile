@@ -2,9 +2,10 @@ CURDIR=$(abspath .)
 
 # These three are passed in from nox.
 BUILDROOT ?= $(CURDIR)/builddir
-PYMAJORMINORMICRO ?= 3.11.0
+PYMAJORMINORMICRO ?= 3.12.0
+PYTHON ?= python3.12
 
-EMSCRIPTEN_VERSION=3.1.13
+EMSCRIPTEN_VERSION=3.1.46
 
 export EMSDKDIR = $(BUILDROOT)/emsdk
 
@@ -34,7 +35,7 @@ PYTHONLIBDIR=$(BUILDROOT)/install/Python-$(PYVERSION)/lib
 
 all: $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a
 
-$(BUILDROOT)/.exists: 
+$(BUILDROOT)/.exists:
 	mkdir -p $(BUILDROOT)
 	touch $@
 
@@ -66,18 +67,18 @@ $(PYTHONBUILD)/Makefile: $(PYTHONBUILD)/.patched $(BUILDROOT)/emsdk
 		--build=$(shell $(PYTHONBUILD)/config.guess) \
 		--with-emscripten-target=browser \
 		--enable-wasm-dynamic-linking \
-		--with-build-python=python3.11
+		--with-build-python=$(PYTHON)
 
 $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a : $(PYTHONBUILD)/Makefile
 	cd $(PYTHONBUILD) && \
 		emmake make -j3 libpython$(PYMAJORMINOR).a
 
 	# Generate sysconfigdata
-	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) python3.11 -m sysconfig --generate-posix-vars
+	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) $(PYTHON) -m sysconfig --generate-posix-vars
 	cp `cat pybuilddir.txt`/$(SYSCONFIGDATA_NAME).py $(PYTHONBUILD)/Lib
 
 	mkdir -p $(PYTHONLIBDIR)
-	# Copy libexpat.a, libmpdec.a, and libpython3.11.a
+	# Copy libexpat.a, libmpdec.a, and libpython3.12.a
 	# In noxfile, we explicitly link libexpat and libmpdec via RUSTFLAGS
 	find $(PYTHONBUILD) -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
 	# Install Python stdlib
