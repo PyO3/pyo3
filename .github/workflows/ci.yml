@@ -144,7 +144,7 @@ jobs:
       matrix:
         extra-features: ["multiple-pymethods"]
         rust: [stable]
-        python-version: ["3.11"]
+        python-version: ["3.12"]
         platform:
           [
             {
@@ -221,7 +221,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: 1.56.0
-            python-version: "3.11"
+            python-version: "3.12"
             platform:
               {
                 os: "ubuntu-latest",
@@ -233,7 +233,7 @@ jobs:
 
           # Test the `nightly` feature
           - rust: nightly
-            python-version: "3.11"
+            python-version: "3.12"
             platform:
               {
                 os: "ubuntu-latest",
@@ -244,7 +244,7 @@ jobs:
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
-            python-version: "3.11"
+            python-version: "3.12"
             platform:
               {
                 os: "windows-latest",
