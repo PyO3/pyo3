@@ -149,7 +149,12 @@ pub fn impl_methods(
                     }
                 }
             }
-            _ => (),
+            syn::ImplItem::Macro(m) => bail_spanned!(
+                m.span() =>
+                "macros cannot be used as items in `#[pymethods]` impl blocks\n\
+                 = note: this was previously accepted and ignored"
+            ),
+            _ => {}
         }
     }
 

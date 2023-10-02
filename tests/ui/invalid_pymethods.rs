@@ -170,4 +170,13 @@ impl DuplicateMethod {
     fn func_b(&self) {}
 }
 
+macro_rules! macro_invocation {
+    () => {};
+}
+
+#[pymethods]
+impl MyClass {
+    macro_invocation!();
+}
+
 fn main() {}

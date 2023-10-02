@@ -133,6 +133,13 @@ error: Python objects are shared, so 'self' cannot be moved out of the Python in
 144 |     fn method_self_by_value(self) {}
     |                             ^^^^
 
+error: macros cannot be used as items in `#[pymethods]` impl blocks
+       = note: this was previously accepted and ignored
+   --> tests/ui/invalid_pymethods.rs:179:5
+    |
+179 |     macro_invocation!();
+    |     ^^^^^^^^^^^^^^^^
+
 error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyClassNewTextSignature<TwoNew>` for type `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
    --> tests/ui/invalid_pymethods.rs:149:1
     |
