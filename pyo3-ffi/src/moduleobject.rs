@@ -85,6 +85,15 @@ impl Default for PyModuleDef_Slot {
 
 pub const Py_mod_create: c_int = 1;
 pub const Py_mod_exec: c_int = 2;
+#[cfg(Py_3_12)]
+pub const Py_mod_multiple_interpreters: c_int = 3;
+
+#[cfg(Py_3_12)]
+pub const Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED: *mut c_void = 0 as *mut c_void;
+#[cfg(Py_3_12)]
+pub const Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED: *mut c_void = 1 as *mut c_void;
+#[cfg(Py_3_12)]
+pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
 
 // skipped non-limited _Py_mod_LAST_SLOT
 
