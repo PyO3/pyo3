@@ -6,4 +6,12 @@ use pyo3::prelude::*;
 #[pyo3(text_signature = "()")]
 struct MyClass;
 
+#[pymethods]
+impl MyClass {
+    #[__new__]
+    fn new() -> Self {
+        Self
+    }
+}
+
 fn main() {}

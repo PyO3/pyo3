@@ -3,6 +3,7 @@ use crate::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
         FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
+    deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
     utils::{ensure_not_async_fn, get_pyo3_crate},
@@ -230,6 +231,7 @@ pub fn impl_wrap_pyfunction(
         output: ty,
         text_signature,
         unsafety: func.sig.unsafety,
+        deprecations: Deprecations::new(),
     };
 
     let krate = get_pyo3_crate(&krate);

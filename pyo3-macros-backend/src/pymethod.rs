@@ -335,6 +335,7 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAn
         || quote!(::std::option::Option::None),
         |text_signature| quote!(::std::option::Option::Some(#text_signature)),
     );
+    let deprecations = &spec.deprecations;
     let slot_def = quote! {
         _pyo3::ffi::PyType_Slot {
             slot: _pyo3::ffi::Py_tp_new,
@@ -345,6 +346,8 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAn
                     kwargs: *mut _pyo3::ffi::PyObject,
                 ) -> *mut _pyo3::ffi::PyObject
                 {
+                    #deprecations
+
                     use _pyo3::impl_::pyclass::*;
                     impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {
                         #[inline]
