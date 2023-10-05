@@ -376,8 +376,8 @@ jobs:
           components: rust-src
       - name: Install python3 standalone debug build with nox
         run: |
-          PBS_RELEASE="20230826"
-          PBS_PYTHON_VERSION="3.11.5"
+          PBS_RELEASE="20231002"
+          PBS_PYTHON_VERSION="3.12.0"
           PBS_ARCHIVE="cpython-${PBS_PYTHON_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-debug-full.tar.zst"
           wget "https://github.com/indygreg/python-build-standalone/releases/download/${PBS_RELEASE}/${PBS_ARCHIVE}"
           tar -I zstd -xf "${PBS_ARCHIVE}"
@@ -393,10 +393,10 @@ jobs:
           PYO3_CONFIG_FILE=$(mktemp)
           cat > $PYO3_CONFIG_FILE << EOF
           implementation=CPython
-          version=3.11
+          version=3.12
           shared=true
           abi3=false
-          lib_name=python3.11d
+          lib_name=python3.12d
           lib_dir=${{ github.workspace }}/python/install/lib
           executable=${{ github.workspace }}/python/install/bin/python3
           pointer_width=64

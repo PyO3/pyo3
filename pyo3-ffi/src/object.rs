@@ -452,18 +452,14 @@ pub const Py_TPFLAGS_DEFAULT: c_ulong = if cfg!(Py_3_10) {
 pub const Py_TPFLAGS_HAVE_FINALIZE: c_ulong = 1;
 pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
 
-#[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
 extern "C" {
-    pub fn _Py_NegativeRefCount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
-    #[cfg(Py_3_12)]
-    #[link_name = "_Py_IncRefTotal_DO_NOT_USE_THIS"]
-    fn _Py_INC_REFTOTAL();
-    #[cfg(Py_3_12)]
-    #[link_name = "_Py_DecRefTotal_DO_NOT_USE_THIS"]
-    fn _Py_DEC_REFTOTAL();
-}
+    #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
+    pub fn _Py_NegativeRefcount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
+    #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
+    fn _Py_INCREF_IncRefTotal();
+    #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
+    fn _Py_DECREF_DecRefTotal();
 
-extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
     pub fn _Py_Dealloc(arg1: *mut PyObject);
 
@@ -537,7 +533,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         // or submit a PR supporting Py_STATS build option and pystats.h
 
         #[cfg(all(py_sys_config = "Py_REF_DEBUG", Py_3_12))]
-        _Py_INC_REFTOTAL();
+        _Py_INCREF_IncRefTotal();
     }
 }
 
@@ -584,7 +580,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         // or submit a PR supporting Py_STATS build option and pystats.h
 
         #[cfg(all(py_sys_config = "Py_REF_DEBUG", Py_3_12))]
-        _Py_DEC_REFTOTAL();
+        _Py_DECREF_DecRefTotal();
 
         #[cfg(Py_3_12)]
         {
@@ -593,7 +589,8 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
             #[cfg(py_sys_config = "Py_REF_DEBUG")]
             if (*op).ob_refcnt.ob_refcnt < 0 {
                 let location = std::panic::Location::caller();
-                _Py_NegativeRefcount(location.file(), location.line(), op);
+                let filename = std::ffi::CString::new(location.file()).unwrap();
+                _Py_NegativeRefcount(filename.as_ptr(), location.line() as i32, op);
             }
 
             if (*op).ob_refcnt.ob_refcnt == 0 {
