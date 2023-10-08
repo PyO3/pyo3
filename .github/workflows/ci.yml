@@ -334,7 +334,7 @@ jobs:
 
   emscripten:
     name: emscripten
-    if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
