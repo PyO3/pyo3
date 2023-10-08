@@ -79,12 +79,13 @@ pub enum ElementType {
 
 impl ElementType {
     /// Determines the `ElementType` from a Python `struct` module format string.
+    ///
+    /// See <https://docs.python.org/3/library/struct.html#format-strings> for more information
+    /// about struct format strings.
     pub fn from_format(format: &CStr) -> ElementType {
         match format.to_bytes() {
-            [char] | [b'@', char] => native_element_type_from_type_char(*char),
-            [modifier, char] if matches!(modifier, b'=' | b'<' | b'>' | b'!') => {
-                standard_element_type_from_type_char(*char)
-            }
+            [size] | [b'@', size] => native_element_type_from_type_char(*size),
+            [b'=' | b'<' | b'>' | b'!', size] => standard_element_type_from_type_char(*size),
             _ => ElementType::Unknown,
         }
     }
