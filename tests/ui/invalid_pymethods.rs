@@ -26,12 +26,11 @@ impl MyClass {
     fn staticmethod_with_receiver(&self) {}
 }
 
-// FIXME: This currently doesn't fail
-// #[pymethods]
-// impl MyClass {
-//     #[classmethod]
-//     fn classmethod_with_receiver(&self) {}
-// }
+#[pymethods]
+impl MyClass {
+    #[classmethod]
+    fn classmethod_with_receiver(&self) {}
+}
 
 #[pymethods]
 impl MyClass {
