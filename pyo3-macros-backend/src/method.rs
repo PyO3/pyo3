@@ -365,7 +365,18 @@ impl<'a> FnSpec<'a> {
                     FnType::FnNewClass
                 }
             }
-            [MethodTypeAttribute::ClassMethod(_)] => FnType::FnClass,
+            [MethodTypeAttribute::ClassMethod(_)] => {
+                // Add a helpful hint if the classmethod doesn't look like a classmethod
+                match sig.inputs.first() {
+                    // Don't actually bother checking the type of the first argument, the compiler
+                    // will error on incorrect type.
+                    Some(syn::FnArg::Typed(_)) => {}
+                    Some(syn::FnArg::Receiver(_)) | None => bail_spanned!(
+                        sig.inputs.span() => "Expected `cls: &PyType` as the first argument to `#[classmethod]`"
+                    ),
+                }
+                FnType::FnClass
+            }
             [MethodTypeAttribute::Getter(_, name)] => {
                 if let Some(name) = name.take() {
                     ensure_spanned!(
