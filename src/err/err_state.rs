@@ -1,5 +1,3 @@
-#[cfg(not(Py_3_12))]
-use crate::types::PyString;
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
@@ -195,17 +193,14 @@ fn lazy_into_normalized_ffi_tuple(
     py: Python<'_>,
     lazy: Box<PyErrStateLazyFn>,
 ) -> (*mut ffi::PyObject, *mut ffi::PyObject, *mut ffi::PyObject) {
-    let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
-    let (mut ptype, mut pvalue) = if unsafe { ffi::PyExceptionClass_Check(ptype.as_ptr()) } == 0 {
-        (
-            PyTypeError::type_object_raw(py).cast(),
-            PyString::new(py, "exceptions must derive from BaseException").into_ptr(),
-        )
-    } else {
-        (ptype.into_ptr(), pvalue.into_ptr())
-    };
+    // To be consistent with 3.12 logic, go via raise_lazy, but also then normalize
+    // the resulting exception
+    raise_lazy(py, lazy);
+    let mut ptype = std::ptr::null_mut();
+    let mut pvalue = std::ptr::null_mut();
     let mut ptraceback = std::ptr::null_mut();
     unsafe {
+        ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
         ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
     }
     (ptype, pvalue, ptraceback)
@@ -218,7 +213,6 @@ fn lazy_into_normalized_ffi_tuple(
 ///
 /// This would require either moving some logic from C to Rust, or requesting a new
 /// API in CPython.
-#[cfg(Py_3_12)]
 fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
     let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
     unsafe {
