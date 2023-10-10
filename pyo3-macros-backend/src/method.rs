@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::attributes::{TextSignatureAttribute, TextSignatureAttributeValue};
+use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;
 use crate::pyfunction::{FunctionSignature, PyFunctionArgPyO3Attributes};
 use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
@@ -228,6 +229,7 @@ pub struct FnSpec<'a> {
     pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
     pub unsafety: Option<syn::Token![unsafe]>,
+    pub deprecations: Deprecations,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -275,8 +277,9 @@ impl<'a> FnSpec<'a> {
         } = options;
 
         let mut python_name = name.map(|name| name.value.0);
+        let mut deprecations = Deprecations::new();
 
-        let fn_type = Self::parse_fn_type(sig, meth_attrs, &mut python_name)?;
+        let fn_type = Self::parse_fn_type(sig, meth_attrs, &mut python_name, &mut deprecations)?;
         ensure_signatures_on_valid_method(&fn_type, signature.as_ref(), text_signature.as_ref())?;
 
         let name = &sig.ident;
@@ -315,6 +318,7 @@ impl<'a> FnSpec<'a> {
             output: ty,
             text_signature,
             unsafety: sig.unsafety,
+            deprecations,
         })
     }
 
@@ -326,8 +330,9 @@ impl<'a> FnSpec<'a> {
         sig: &syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         python_name: &mut Option<syn::Ident>,
+        deprecations: &mut Deprecations,
     ) -> Result<FnType> {
-        let mut method_attributes = parse_method_attributes(meth_attrs)?;
+        let mut method_attributes = parse_method_attributes(meth_attrs, deprecations)?;
 
         let name = &sig.ident;
         let parse_receiver = |msg: &'static str| {
@@ -648,7 +653,10 @@ impl MethodTypeAttribute {
     /// If the attribute does not match one of the attribute names, returns `Ok(None)`.
     ///
     /// Otherwise will either return a parse error or the attribute.
-    fn parse_if_matching_attribute(attr: &syn::Attribute) -> Result<Option<Self>> {
+    fn parse_if_matching_attribute(
+        attr: &syn::Attribute,
+        deprecations: &mut Deprecations,
+    ) -> Result<Option<Self>> {
         fn ensure_no_arguments(meta: &syn::Meta, ident: &str) -> syn::Result<()> {
             match meta {
                 syn::Meta::Path(_) => Ok(()),
@@ -693,9 +701,10 @@ impl MethodTypeAttribute {
             ensure_no_arguments(meta, "new")?;
             Ok(Some(MethodTypeAttribute::New(path.span())))
         } else if path.is_ident("__new__") {
-            // TODO deprecate this form?
+            let span = path.span();
+            deprecations.push(Deprecation::PyMethodsNewDeprecatedForm, span);
             ensure_no_arguments(meta, "__new__")?;
-            Ok(Some(MethodTypeAttribute::New(path.span())))
+            Ok(Some(MethodTypeAttribute::New(span)))
         } else if path.is_ident("classmethod") {
             ensure_no_arguments(meta, "classmethod")?;
             Ok(Some(MethodTypeAttribute::ClassMethod(path.span())))
@@ -730,12 +739,15 @@ impl Display for MethodTypeAttribute {
     }
 }
 
-fn parse_method_attributes(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<MethodTypeAttribute>> {
+fn parse_method_attributes(
+    attrs: &mut Vec<syn::Attribute>,
+    deprecations: &mut Deprecations,
+) -> Result<Vec<MethodTypeAttribute>> {
     let mut new_attrs = Vec::new();
     let mut found_attrs = Vec::new();
 
     for attr in attrs.drain(..) {
-        match MethodTypeAttribute::parse_if_matching_attribute(&attr)? {
+        match MethodTypeAttribute::parse_if_matching_attribute(&attr, deprecations)? {
             Some(attr) => found_attrs.push(attr),
             None => new_attrs.push(attr),
         }
