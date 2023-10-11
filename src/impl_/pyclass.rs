@@ -6,6 +6,7 @@ use crate::{
     internal_tricks::extract_c_string,
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
+    types::PyBool,
     Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -805,11 +806,14 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __ne__(
         self,
-        _py: Python<'_>,
-        _slf: *mut ffi::PyObject,
-        _other: *mut ffi::PyObject,
+        py: Python<'_>,
+        slf: *mut ffi::PyObject,
+        other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        // By default `__ne__` will try `__eq__` and invert the result
+        let slf: &PyAny = py.from_borrowed_ptr(slf);
+        let other: &PyAny = py.from_borrowed_ptr(other);
+        slf.eq(other).map(|is_eq| PyBool::new(py, !is_eq).into_ptr())
     }
 }
 

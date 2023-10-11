@@ -23,10 +23,14 @@ def test_eq(ty: Type[Union[Eq, PyEq]]):
     c = ty(1)
 
     assert a == b
+    assert not (a != b)
     assert a != c
+    assert not (a == c)
 
     assert b == a
+    assert not (a != b)
     assert b != c
+    assert not (b == c)
 
     with pytest.raises(TypeError):
         assert a <= b
@@ -49,17 +53,21 @@ class PyEqDefaultNe:
         return self.x == other.x
 
 
-@pytest.mark.parametrize("ty", (Eq, PyEq), ids=("rust", "python"))
+@pytest.mark.parametrize("ty", (EqDefaultNe, PyEqDefaultNe), ids=("rust", "python"))
 def test_eq_default_ne(ty: Type[Union[EqDefaultNe, PyEqDefaultNe]]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
 
     assert a == b
+    assert not (a != b)
     assert a != c
+    assert not (a == c)
 
     assert b == a
+    assert not (a != b)
     assert b != c
+    assert not (b == c)
 
     with pytest.raises(TypeError):
         assert a <= b
@@ -152,19 +160,25 @@ def test_ordered_default_ne(ty: Type[Union[OrderedDefaultNe, PyOrderedDefaultNe]
     c = ty(1)
 
     assert a == b
+    assert not (a != b)
     assert a <= b
     assert a >= b
     assert a != c
+    assert not (a == c)
     assert a <= c
 
     assert b == a
+    assert not (b != a)
     assert b <= a
     assert b >= a
     assert b != c
+    assert not (b == c)
     assert b <= c
 
     assert c != a
+    assert not (c == a)
     assert c != b
+    assert not (c == b)
     assert c > a
     assert c >= a
     assert c > b

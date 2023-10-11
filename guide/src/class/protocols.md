@@ -76,7 +76,8 @@ given signatures should be interpreted as follows:
   - `__richcmp__(<self>, object, pyo3::basic::CompareOp) -> object`
 
     Implements Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`) in a single method.
-    The `CompareOp` argument indicates the comparison operation being performed.
+    The `CompareOp` argument indicates the comparison operation being performed. You can use
+    [`CompareOp::matches`] to adapt a Rust `std::cmp::Ordering` result to the requested comparison.
 
     _This method cannot be implemented in combination with any of `__lt__`, `__le__`, `__eq__`, `__ne__`, `__gt__`, or `__ge__`._
 
@@ -84,11 +85,32 @@ given signatures should be interpreted as follows:
     <details>
     <summary>Return type</summary>
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.
+
+    If you want to leave some operations unimplemented, you can return `py.NotImplemented()`
+    for some of the operations:
+
+    ```rust
+    use pyo3::class::basic::CompareOp;
+
+    # use pyo3::prelude::*;
+    #
+    # #[pyclass]
+    # struct Number(i32);
+    #
+    #[pymethods]
+    impl Number {
+        fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+            match op {
+                CompareOp::Eq => (self.0 == other.0).into_py(py),
+                CompareOp::Ne => (self.0 != other.0).into_py(py),
+                _ => py.NotImplemented(),
+            }
+        }
+    }
+    ```
+
     If the second argument `object` is not of the type specified in the
     signature, the generated code will automatically `return NotImplemented`.
-
-    You can use [`CompareOp::matches`] to adapt a Rust `std::cmp::Ordering` result
-    to the requested comparison.
     </details>
 
   - `__getattr__(<self>, object) -> object`
