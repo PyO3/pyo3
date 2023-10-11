@@ -24,6 +24,7 @@ jobs:
   build:
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) || inputs.rust == 'beta' || inputs.rust == 'nightly' }}
     runs-on: ${{ inputs.os }}
+    if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,7 +75,7 @@ jobs:
           cargo build --no-default-features
 
       # Run tests (except on PyPy, because no embedding API).
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test (no features)
         run: cargo test --no-default-features --lib --tests
 
@@ -92,17 +93,17 @@ jobs:
         run: cargo build --lib --tests --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
 
       # Run tests (except on PyPy, because no embedding API).
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test
         run: cargo test --no-default-features --features "full ${{ inputs.extra-features }}"
 
       # Run tests again, but in abi3 mode
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test (abi3)
         run: cargo test --no-default-features --features "abi3 full ${{ inputs.extra-features }}"
 
       # Run tests again, for abi3-py37 (the minimal Python version)
-      - if: ${{ (!startsWith(inputs.python-version, 'pypy')) && (inputs.python-version != '3.7') }}
+      - if: ${{ (!startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy')) && (inputs.python-version != '3.7') }}
         name: Test (abi3-py37)
         run: cargo test --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
 
@@ -120,7 +121,7 @@ jobs:
 
       - uses: dorny/paths-filter@v3
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
-        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
+        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
           base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
@@ -135,7 +136,7 @@ jobs:
       - name: Run pyo3-ffi-check
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here, nor
         # is pypy 3.9 on windows
-        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
+        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
 
     env:
