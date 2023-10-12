@@ -9,22 +9,16 @@
 //! Support for `PyDateTime_CAPI` is limited as of PyPy 7.0.0.
 //! `DateTime_FromTimestamp` and `Date_FromTimestamp` are currently not supported.
 
-use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
 #[cfg(GraalPy)]
-use crate::{PyObject_GetAttrString, PyLong_Check, PyLong_AsLong, Py_DecRef};
+use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
+use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
 use std::cell::UnsafeCell;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 #[cfg(not(PyPy))]
-use {
-    crate::PyCapsule_Import,
-    std::ffi::CString,
-};
+use {crate::PyCapsule_Import, std::ffi::CString};
 #[cfg(not(any(PyPy, GraalPy)))]
-use {
-    crate::Py_hash_t,
-    std::os::raw::c_uchar,
-};
+use {crate::Py_hash_t, std::os::raw::c_uchar};
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;

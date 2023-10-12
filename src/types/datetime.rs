@@ -11,6 +11,8 @@ use crate::ffi::{
     PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND,
     PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
 };
+#[cfg(GraalPy)]
+use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 use crate::ffi::{
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
 };
@@ -20,8 +22,6 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
 };
 use crate::ffi_ptr_ext::FfiPtrExt;
-#[cfg(GraalPy)]
-use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 use crate::instance::PyNativeType;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;

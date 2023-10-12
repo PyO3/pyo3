@@ -114,7 +114,10 @@ extern "C" {
     ) -> *mut PyObject;
 
     #[cfg(Py_3_8)]
-    #[cfg_attr(all(not(any(PyPy, GraalPy)), not(Py_3_9)), link_name = "_PyObject_VectorcallDict")]
+    #[cfg_attr(
+        all(not(any(PyPy, GraalPy)), not(Py_3_9)),
+        link_name = "_PyObject_VectorcallDict"
+    )]
     #[cfg_attr(all(PyPy, not(Py_3_9)), link_name = "_PyPyObject_VectorcallDict")]
     #[cfg_attr(all(PyPy, Py_3_9), link_name = "PyPyObject_VectorcallDict")]
     pub fn PyObject_VectorcallDict(
