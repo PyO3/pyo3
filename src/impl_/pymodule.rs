@@ -2,10 +2,14 @@
 
 use std::cell::UnsafeCell;
 
-#[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    Py_3_9,
+    not(all(windows, Py_LIMITED_API, not(Py_3_10)))
+))]
 use portable_atomic::{AtomicI64, Ordering};
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
 use crate::{ffi, sync::GILOnceCell, types::PyModule, Bound, Py, PyResult, Python};
 
@@ -15,7 +19,11 @@ pub struct ModuleDef {
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     initializer: ModuleInitializer,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
-    #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+    #[cfg(all(
+        not(any(PyPy, GraalPy)),
+        Py_3_9,
+        not(all(windows, Py_LIMITED_API, not(Py_3_10)))
+    ))]
     interpreter: AtomicI64,
     /// Initialized module object, cached to avoid reinitialization.
     module: GILOnceCell<Py<PyModule>>,
@@ -58,7 +66,11 @@ impl ModuleDef {
             ffi_def,
             initializer,
             // -1 is never expected to be a valid interpreter ID
-            #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+            #[cfg(all(
+                not(any(PyPy, GraalPy)),
+                Py_3_9,
+                not(all(windows, Py_LIMITED_API, not(Py_3_10)))
+            ))]
             interpreter: AtomicI64::new(-1),
             module: GILOnceCell::new(),
         }
@@ -85,7 +97,7 @@ impl ModuleDef {
         // that static data is not reused across interpreters.
         //
         // PyPy does not have subinterpreters, so no need to check interpreter ID.
-        #[cfg(not(PyPy))]
+        #[cfg(not(any(PyPy, GraalPy)))]
         {
             // PyInterpreterState_Get is only available on 3.9 and later, but is missing
             // from python3.dll for Windows stable API on 3.9
