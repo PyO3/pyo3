@@ -66,6 +66,7 @@ jobs:
         run: nox -s docs
 
       - name: Build (no features)
+        if: ${{ !startsWith(inputs.python-version, 'graalpy') }}
         run: cargo build --lib --tests --no-default-features
 
       # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
@@ -86,6 +87,7 @@ jobs:
           cargo test --no-default-features
 
       - name: Build (all additive features)
+        if: ${{ !startsWith(inputs.python-version, 'graalpy') }}
         run: cargo build --lib --tests --no-default-features --features "full ${{ inputs.extra-features }}"
 
       - if: ${{ startsWith(inputs.python-version, 'pypy') }}
