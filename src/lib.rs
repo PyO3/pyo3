@@ -94,6 +94,7 @@
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
+//! - [`smallvec`][smallvec]: Enables conversions between Python list and [smallvec]'s [`SmallVec`].
 //! - [`indexmap`][indexmap_feature]: Enables conversions between Python dictionary and [indexmap]'s [`IndexMap`].
 //! - [`num-bigint`]: Enables conversions between Python objects and [num-bigint]'s [`BigInt`] and
 //! [`BigUint`] types.
@@ -256,6 +257,7 @@
 //! [inventory]: https://docs.rs/inventory
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
+//! [`SmallVec`]: https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html
 //! [`IndexMap`]: https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html
 //! [`BigInt`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html
 //! [`BigUint`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html
@@ -282,6 +284,7 @@
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
+//! [smallvec]: https://docs.rs/smallvec
 //! [indexmap]: https://docs.rs/indexmap
 //! [manual_builds]: https://pyo3.rs/latest/building_and_distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
 //! [num-bigint]: https://docs.rs/num-bigint
