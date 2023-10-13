@@ -863,8 +863,17 @@ impl PyErr {
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
         use crate::ffi_ptr_ext::FfiPtrExt;
-        unsafe { ffi::PyException_GetCause(self.value_bound(py).as_ptr()).assume_owned_or_opt(py) }
-            .map(Self::from_value_bound)
+        let obj = unsafe {
+            ffi::PyException_GetCause(self.value_bound(py).as_ptr()).assume_owned_or_opt(py)
+        };
+        // PyException_GetCause is documented as potentially returning PyNone, but only GraalPy seems to actually do that
+        #[cfg(GraalPy)]
+        if let Some(cause) = &obj {
+            if cause.is_none() {
+                return None;
+            }
+        }
+        obj.map(Self::from_value_bound)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
