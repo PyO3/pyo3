@@ -261,6 +261,7 @@ def build_emscripten(session: nox.Session):
         "make",
         "-C",
         str(info.emscripten_dir),
+        f"PYTHON={sys.executable}",
         f"BUILDROOT={info.builddir}",
         f"PYMAJORMINORMICRO={info.pymajorminormicro}",
         f"PYPRERELEASE={info.pydev}",
