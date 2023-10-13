@@ -339,6 +339,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
+        with:
+          # TODO bump emscripten builds to test on 3.12
+          python-version: 3.11
         id: setup-python
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
