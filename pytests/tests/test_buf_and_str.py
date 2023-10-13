@@ -1,4 +1,4 @@
-from pyo3_pytests.buf_and_str import BytesExtractor
+from pyo3_pytests.buf_and_str import BytesExtractor, return_memoryview
 
 
 def test_extract_bytes():
@@ -27,3 +27,10 @@ def test_extract_buffer():
 
     arr = bytearray(b'\\(-"-;) A message written in bytes')
     assert extractor.from_buffer(arr) == len(arr)
+
+
+def test_return_memoryview():
+    view = return_memoryview()
+    assert view.readonly
+    assert view.contiguous
+    assert view.tobytes() == b"hello world"
