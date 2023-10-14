@@ -33,7 +33,7 @@ inventory = { version = "0.3.0", optional = true }
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
-chrono = { version = "0.4", default-features = false, optional = true }
+chrono = { version = "0.4.25", default-features = false, optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.15", optional = true }
 indexmap = { version = ">= 1.6, < 3", optional = true }
