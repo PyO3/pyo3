@@ -2,15 +2,14 @@
 
 use crate::impl_::not_send::{NotSend, NOT_SEND};
 use crate::{ffi, Python};
-use parking_lot::{const_mutex, Mutex, Once};
 use std::cell::Cell;
 #[cfg(debug_assertions)]
 use std::cell::RefCell;
 #[cfg(not(debug_assertions))]
 use std::cell::UnsafeCell;
-use std::{mem, ptr::NonNull};
+use std::{mem, ptr::NonNull, sync};
 
-static START: Once = Once::new();
+static START: sync::Once = sync::Once::new();
 
 cfg_if::cfg_if! {
     if #[cfg(thread_local_const_init)] {
@@ -249,26 +248,26 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 /// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
 struct ReferencePool {
     // .0 is INCREFs, .1 is DECREFs
-    pointer_ops: Mutex<(PyObjVec, PyObjVec)>,
+    pointer_ops: sync::Mutex<(PyObjVec, PyObjVec)>,
 }
 
 impl ReferencePool {
     const fn new() -> Self {
         Self {
-            pointer_ops: const_mutex((Vec::new(), Vec::new())),
+            pointer_ops: sync::Mutex::new((Vec::new(), Vec::new())),
         }
     }
 
     fn register_incref(&self, obj: NonNull<ffi::PyObject>) {
-        self.pointer_ops.lock().0.push(obj);
+        self.pointer_ops.lock().unwrap().0.push(obj);
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
-        self.pointer_ops.lock().1.push(obj);
+        self.pointer_ops.lock().unwrap().1.push(obj);
     }
 
     fn update_counts(&self, _py: Python<'_>) {
-        let mut ops = self.pointer_ops.lock();
+        let mut ops = self.pointer_ops.lock().unwrap();
         if ops.0.is_empty() && ops.1.is_empty() {
             return;
         }
@@ -523,9 +522,9 @@ mod tests {
     use super::{gil_is_acquired, GIL_COUNT, OWNED_OBJECTS, POOL};
     use crate::types::any::PyAnyMethods;
     use crate::{ffi, gil, PyObject, Python};
-    #[cfg(not(target_arch = "wasm32"))]
-    use parking_lot::{const_mutex, Condvar, Mutex};
     use std::ptr::NonNull;
+    #[cfg(not(target_arch = "wasm32"))]
+    use std::sync;
 
     fn get_object(py: Python<'_>) -> PyObject {
         py.eval_bound("object()", None, None).unwrap().unbind()
@@ -543,6 +542,7 @@ mod tests {
         !POOL
             .pointer_ops
             .lock()
+            .unwrap()
             .0
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
@@ -551,6 +551,7 @@ mod tests {
         !POOL
             .pointer_ops
             .lock()
+            .unwrap()
             .1
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
@@ -559,6 +560,7 @@ mod tests {
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
         POOL.pointer_ops
             .lock()
+            .unwrap()
             .1
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
@@ -671,8 +673,8 @@ mod tests {
         Python::with_gil(|py| {
             assert_eq!(obj.get_refcnt(py), 1);
             let non_null = unsafe { NonNull::new_unchecked(obj.as_ptr()) };
-            assert!(!POOL.pointer_ops.lock().0.contains(&non_null));
-            assert!(!POOL.pointer_ops.lock().1.contains(&non_null));
+            assert!(!POOL.pointer_ops.lock().unwrap().0.contains(&non_null));
+            assert!(!POOL.pointer_ops.lock().unwrap().1.contains(&non_null));
         });
     }
 
@@ -770,29 +772,30 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     struct Event {
-        set: Mutex<bool>,
-        wait: Condvar,
+        set: sync::Mutex<bool>,
+        wait: sync::Condvar,
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     impl Event {
         const fn new() -> Self {
             Self {
-                set: const_mutex(false),
-                wait: Condvar::new(),
+                set: sync::Mutex::new(false),
+                wait: sync::Condvar::new(),
             }
         }
 
         fn set(&self) {
-            *self.set.lock() = true;
+            *self.set.lock().unwrap() = true;
             self.wait.notify_all();
         }
 
         fn wait(&self) {
-            let mut set = self.set.lock();
-            while !*set {
-                self.wait.wait(&mut set);
-            }
+            drop(
+                self.wait
+                    .wait_while(self.set.lock().unwrap(), |s| !*s)
+                    .unwrap(),
+            );
         }
     }
 
@@ -891,16 +894,16 @@ mod tests {
 
             // The pointer should appear once in the incref pool, and once in the
             // decref pool (for the clone being created and also dropped)
-            assert!(POOL.pointer_ops.lock().0.contains(&ptr));
-            assert!(POOL.pointer_ops.lock().1.contains(&ptr));
+            assert!(POOL.pointer_ops.lock().unwrap().0.contains(&ptr));
+            assert!(POOL.pointer_ops.lock().unwrap().1.contains(&ptr));
 
             (obj, count, ptr)
         });
 
         Python::with_gil(|py| {
             // Acquiring the gil clears the pool
-            assert!(!POOL.pointer_ops.lock().0.contains(&ptr));
-            assert!(!POOL.pointer_ops.lock().1.contains(&ptr));
+            assert!(!POOL.pointer_ops.lock().unwrap().0.contains(&ptr));
+            assert!(!POOL.pointer_ops.lock().unwrap().1.contains(&ptr));
 
             // Overall count is still unchanged
             assert_eq!(count, obj.get_refcnt(py));
