@@ -29,7 +29,10 @@ extern "C" {
         size: Py_ssize_t,
         flags: c_int,
     ) -> *mut PyObject;
-    // skipped non-limited PyMemoryView_FromBuffer
+    #[cfg(any(Py_3_11, not(Py_LIMITED_API)))]
+    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromBuffer")]
+    pub fn PyMemoryView_FromBuffer(view: *const crate::Py_buffer) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_GetContiguous")]
     pub fn PyMemoryView_GetContiguous(
         base: *mut PyObject,
         buffertype: c_int,
