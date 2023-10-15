@@ -1,7 +1,5 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-#[cfg(Py_3_11)]
-use crate::Py_buffer;
 use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
@@ -31,9 +29,9 @@ extern "C" {
         size: Py_ssize_t,
         flags: c_int,
     ) -> *mut PyObject;
-    #[cfg(Py_3_11)]
+    #[cfg(any(Py_3_11, not(Py_LIMITED_API)))]
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromBuffer")]
-    pub fn PyMemoryView_FromBuffer(view: *const Py_buffer) -> *mut PyObject;
+    pub fn PyMemoryView_FromBuffer(view: *const crate::Py_buffer) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_GetContiguous")]
     pub fn PyMemoryView_GetContiguous(
         base: *mut PyObject,
