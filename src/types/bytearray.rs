@@ -253,8 +253,8 @@ impl<'py> TryFrom<&'py PyAny> for &'py PyByteArray {
 
 #[cfg(test)]
 mod tests {
-    use crate::exceptions;
     use crate::types::PyByteArray;
+    use crate::{exceptions, PyAny};
     use crate::{PyObject, Python};
 
     #[test]
@@ -329,6 +329,17 @@ mod tests {
             } else {
                 panic!("error");
             }
+        });
+    }
+
+    #[test]
+    fn test_try_from() {
+        Python::with_gil(|py| {
+            let src = b"Hello Python";
+            let bytearray: &PyAny = PyByteArray::new(py, src).into();
+            let bytearray: &PyByteArray = TryInto::try_into(bytearray).unwrap();
+
+            assert_eq!(src, unsafe { bytearray.as_bytes() });
         });
     }
 

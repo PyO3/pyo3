@@ -43,8 +43,8 @@ impl BytesExtractor {
 
 #[pyfunction]
 fn return_memoryview(py: Python<'_>) -> PyResult<&PyMemoryView> {
-    let bytes = PyBytes::new(py, b"hello world");
-    let memoryview = PyMemoryView::from(bytes)?;
+    let bytes: &PyAny = PyBytes::new(py, b"hello world").into();
+    let memoryview = TryInto::try_into(bytes)?;
     Ok(memoryview)
 }
 
