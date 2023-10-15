@@ -241,6 +241,16 @@ impl PyByteArray {
     }
 }
 
+impl<'py> TryFrom<&'py PyAny> for &'py PyByteArray {
+    type Error = crate::PyErr;
+
+    /// Creates a new Python `bytearray` object from another Python object that
+    /// implements the buffer protocol.
+    fn try_from(value: &'py PyAny) -> Result<Self, Self::Error> {
+        PyByteArray::from(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::exceptions;

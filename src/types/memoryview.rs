@@ -17,3 +17,13 @@ impl PyMemoryView {
         }
     }
 }
+
+impl<'py> TryFrom<&'py PyAny> for &'py PyMemoryView {
+    type Error = crate::PyErr;
+
+    /// Creates a new Python `memoryview` object from another Python object that
+    /// implements the buffer protocol.
+    fn try_from(value: &'py PyAny) -> Result<Self, Self::Error> {
+        PyMemoryView::from(value)
+    }
+}
