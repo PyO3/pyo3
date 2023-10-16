@@ -11,22 +11,9 @@ use crate::PyObject;
 use crate::{ffi, AsPyPointer, PyErr, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
 
-macro_rules! addr_of_mut_shim {
-    ($place:expr) => {{
-        #[cfg(addr_of)]
-        {
-            ::std::ptr::addr_of_mut!($place)
-        }
-        #[cfg(not(addr_of))]
-        {
-            &mut $place as *mut _
-        }
-    }};
-}
-
 #[allow(non_snake_case)]
 unsafe fn PyDictProxy_Check(object: *mut crate::ffi::PyObject) -> c_int {
-    ffi::PyObject_TypeCheck(object, addr_of_mut_shim!(ffi::PyDictProxy_Type))
+    ffi::PyObject_TypeCheck(object, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type))
 }
 
 /// Represents a Python `mappingproxy`.
@@ -35,7 +22,7 @@ pub struct PyMappingProxy(PyAny);
 
 pyobject_native_type_core!(
     PyMappingProxy,
-    ffi::PyDictProxy_Type,
+    pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
     #checkfunction=PyDictProxy_Check
 );
 
@@ -94,7 +81,7 @@ impl PyMappingProxy {
     pub fn keys(&self) -> &PyList {
         unsafe {
             PySequence::try_from_unchecked(self.call_method0("keys").unwrap())
-                .list()
+                .to_list()
                 .unwrap()
         }
     }
@@ -105,7 +92,7 @@ impl PyMappingProxy {
     pub fn values(&self) -> &PyList {
         unsafe {
             PySequence::try_from_unchecked(self.call_method0("values").unwrap())
-                .list()
+                .to_list()
                 .unwrap()
         }
     }
@@ -116,7 +103,7 @@ impl PyMappingProxy {
     pub fn items(&self) -> &PyList {
         unsafe {
             PySequence::try_from_unchecked(self.call_method0("items").unwrap())
-                .list()
+                .to_list()
                 .unwrap()
         }
     }
@@ -156,7 +143,7 @@ impl<'a> std::iter::IntoIterator for &'a PyMappingProxy {
 
     fn into_iter(self) -> Self::IntoIter {
         PyMappingProxyIterator {
-            iterator: PyIterator::from_object(self.py(), self).unwrap(),
+            iterator: PyIterator::from_object(self).unwrap(),
             mappingproxy: self,
         }
     }
