@@ -3,17 +3,8 @@
 use super::PyMapping;
 use crate::err::PyResult;
 use crate::types::dict::{IntoPyDict, PyDictItem};
-#[cfg(all(test, not(PyPy)))]
-use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
 use crate::types::{PyAny, PyIterator, PyList, PySequence};
-#[cfg(not(PyPy))]
 use crate::{ffi, AsPyPointer, PyErr, PyTryFrom, Python, ToPyObject};
-use std::os::raw::c_int;
-
-#[allow(non_snake_case)]
-unsafe fn PyDictProxy_Check(object: *mut crate::ffi::PyObject) -> c_int {
-    ffi::PyObject_TypeCheck(object, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type))
-}
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
@@ -22,7 +13,7 @@ pub struct PyMappingProxy(PyAny);
 pyobject_native_type_core!(
     PyMappingProxy,
     pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
-    #checkfunction=PyDictProxy_Check
+    #checkfunction=ffi::PyDictProxy_Check
 );
 
 impl PyMappingProxy {
@@ -155,12 +146,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::type_object::PyTypeInfo;
+    use crate::Python;
     use crate::{
         exceptions::PyKeyError,
-        types::{PyInt, PyString, PyTuple},
+        types::{PyDictItems, PyDictKeys, PyDictValues, PyInt, PyString, PyTuple},
     };
-    #[cfg(not(PyPy))]
-    use crate::{PyTypeInfo, Python};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -268,7 +259,7 @@ mod tests {
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for el in mappingproxy.items().iter() {
+            for el in mappingproxy.items() {
                 let tuple = el.downcast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
@@ -297,7 +288,7 @@ mod tests {
             let mappingproxy = v.into_py_mappingproxy(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
-            for el in mappingproxy.keys().iter() {
+            for el in mappingproxy.keys() {
                 key_sum += el.extract::<i32>().unwrap();
             }
             assert_eq!(7 + 8 + 9, key_sum);
@@ -314,7 +305,7 @@ mod tests {
             let mappingproxy = v.into_py_mappingproxy(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
-            for el in mappingproxy.values().iter() {
+            for el in mappingproxy.values() {
                 values_sum += el.extract::<i32>().unwrap();
             }
             assert_eq!(32 + 42 + 123, values_sum);
@@ -331,7 +322,7 @@ mod tests {
             let mappingproxy = v.into_py_mappingproxy(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
-            for (key, value) in mappingproxy.iter() {
+            for (key, value) in mappingproxy {
                 key_sum += key.extract::<i32>().unwrap();
                 value_sum += value.extract::<i32>().unwrap();
             }
@@ -593,7 +584,7 @@ mod tests {
                 .unwrap();
 
             let mut sum = 0;
-            for (k, _v) in mappingproxy.iter() {
+            for (k, _v) in mappingproxy {
                 let i: u64 = k.extract().unwrap();
                 sum += i;
             }
