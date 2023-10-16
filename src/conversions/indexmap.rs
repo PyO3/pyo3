@@ -261,12 +261,18 @@ mod test_indexmap {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let mappingproxy = map.into_py_mappingproxy(py).unwrap();
+            let mappingproxy = map.clone().into_py_mappingproxy(py).unwrap();
 
             assert_eq!(mappingproxy.len().unwrap(), 1);
             assert_eq!(
                 mappingproxy.get_item(1).unwrap().extract::<i32>().unwrap(),
                 1
+            );
+            assert_eq!(
+                map,
+                mappingproxy
+                    .extract::<indexmap::IndexMap<i32, i32>>()
+                    .unwrap()
             );
         });
     }
