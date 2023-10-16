@@ -119,6 +119,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::IntoPyMappingProxy;
 
     #[test]
     fn test_hashbrown_hashmap_to_python() {
@@ -202,6 +203,22 @@ mod tests {
             let hso: PyObject = hs.clone().into_py(py);
 
             assert_eq!(hs, hso.extract(py).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_hashbrown_hashmap_into_mapping_proxy() {
+        Python::with_gil(|py| {
+            let mut map = hashbrown::HashMap::<i32, i32>::new();
+            map.insert(1, 1);
+
+            let mappingproxy = map.into_py_mappingproxy(py).unwrap();
+
+            assert_eq!(mappingproxy.len().unwrap(), 1);
+            assert_eq!(
+                mappingproxy.get_item(1).unwrap().extract::<i32>().unwrap(),
+                1
+            );
         });
     }
 }

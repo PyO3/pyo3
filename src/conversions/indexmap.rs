@@ -254,4 +254,20 @@ mod test_indexmap {
             }
         });
     }
+
+    #[test]
+    fn test_indexmap_indexmap_into_mappingproxy() {
+        Python::with_gil(|py| {
+            let mut map = indexmap::IndexMap::<i32, i32>::new();
+            map.insert(1, 1);
+
+            let mappingproxy = map.into_py_mappingproxy(py).unwrap();
+
+            assert_eq!(mappingproxy.len().unwrap(), 1);
+            assert_eq!(
+                mappingproxy.get_item(1).unwrap().extract::<i32>().unwrap(),
+                1
+            );
+        });
+    }
 }
