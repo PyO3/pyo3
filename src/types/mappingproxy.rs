@@ -2,11 +2,10 @@
 
 use super::PyMapping;
 use crate::err::PyResult;
-use crate::types::dict::PyDictItem;
+use crate::types::dict::{IntoPyDict, PyDictItem};
 #[cfg(all(test, not(PyPy)))]
 use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
-use crate::types::{IntoPyDict, PyAny, PyDict, PyIterator, PyList, PySequence};
-use crate::PyObject;
+use crate::types::{PyAny, PyDict, PyIterator, PyList, PySequence};
 #[cfg(not(PyPy))]
 use crate::{ffi, AsPyPointer, PyErr, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
@@ -28,25 +27,10 @@ pyobject_native_type_core!(
 
 impl PyMappingProxy {
     /// Creates a mappingproxy from an object.
-    pub fn new(py: Python<'_>, elements: impl IntoPyDict) -> PyResult<&'_ PyMappingProxy> {
+    pub fn new<'py>(py: Python<'py>, elements: &'py PyMapping) -> PyResult<&'py PyMappingProxy> {
         unsafe {
-            let dict = elements.into_py_dict(py);
-            let proxy = ffi::PyDictProxy_New(dict.as_ptr());
+            let proxy = ffi::PyDictProxy_New(elements.as_ptr());
             py.from_owned_ptr_or_err::<PyMappingProxy>(proxy)
-        }
-    }
-
-    /// Creates a new mappingproxy from the sequence given.
-    ///
-    /// The sequence must consist of `(PyObject, PyObject)`.
-    ///
-    /// Returns an error on invalid input. In the case of key collisions,
-    /// this keeps the last entry seen.
-    #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<&PyMappingProxy> {
-        unsafe {
-            let dict = py.from_owned_ptr::<PyDict>(PyDict::from_sequence(py, seq)?.as_ptr());
-            py.from_owned_ptr_or_err(ffi::PyDictProxy_New(dict.as_ptr()))
         }
     }
 
@@ -151,19 +135,20 @@ impl<'a> std::iter::IntoIterator for &'a PyMappingProxy {
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyMappingProxy`
 /// Primary use case for this trait is `call` and `call_method` methods as keywords argument.
-pub trait IntoPyMappingProxy {
+pub trait IntoPyMappingProxy<'py> {
     /// Converts self into a `PyMappingProxy` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_mappingproxy(self, py: Python<'_>) -> PyResult<&PyMappingProxy>;
+    fn into_py_mappingproxy(self, py: Python<'py>) -> PyResult<&'py PyMappingProxy>;
 }
 
-impl<T, I> IntoPyMappingProxy for I
+impl<'py, T, I> IntoPyMappingProxy<'py> for I
 where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_mappingproxy(self, py: Python<'_>) -> PyResult<&PyMappingProxy> {
-        PyMappingProxy::new(py, self)
+    fn into_py_mappingproxy(self, py: Python<'py>) -> PyResult<&'py PyMappingProxy> {
+        let dict = self.into_py_dict(py);
+        PyMappingProxy::new(py, dict.as_mapping())
     }
 }
 
@@ -171,8 +156,7 @@ where
 mod tests {
     use super::*;
     #[cfg(not(PyPy))]
-    use crate::{types::PyList, PyTypeInfo};
-    use crate::{types::PyTuple, Python, ToPyObject};
+    use crate::{types::PyTuple, PyTypeInfo, Python};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -196,44 +180,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(PyPy))]
-    fn test_from_sequence() {
-        Python::with_gil(|py| {
-            let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
-            let mappingproxy = PyMappingProxy::from_sequence(py, items.to_object(py)).unwrap();
-            assert_eq!(
-                1,
-                mappingproxy
-                    .get_item("a")
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
-            );
-            assert_eq!(
-                2,
-                mappingproxy
-                    .get_item("b")
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
-            );
-            let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
-            assert_eq!(map, mappingproxy.extract().unwrap());
-            let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
-            assert_eq!(map, mappingproxy.extract().unwrap());
-        });
-    }
-
-    #[test]
-    #[cfg(not(PyPy))]
-    fn test_from_sequence_err() {
-        Python::with_gil(|py| {
-            let items = PyList::new(py, &vec!["a", "b"]);
-            assert!(PyMappingProxy::from_sequence(py, items.to_object(py)).is_err());
-        });
-    }
-
-    #[test]
     fn test_copy() {
         Python::with_gil(|py| {
             let mappingproxy = [(7, 32)].into_py_mappingproxy(py).unwrap();
@@ -241,9 +187,15 @@ mod tests {
             let new_dict = mappingproxy.copy().unwrap();
             assert_eq!(
                 32,
-                new_dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
+                new_dict
+                    .get_item(7i32)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
             );
-            assert!(new_dict.get_item(8i32).is_none());
+            assert!(new_dict.get_item(8i32).unwrap().is_none());
+            assert!(new_dict.get_item(8i32).unwrap().is_none());
         });
     }
 
@@ -316,7 +268,7 @@ mod tests {
             let mut key_sum = 0;
             let mut value_sum = 0;
             for el in mappingproxy.items().iter() {
-                let tuple = el.cast_as::<PyTuple>().unwrap();
+                let tuple = el.downcast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }

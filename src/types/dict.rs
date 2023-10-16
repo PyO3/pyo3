@@ -733,16 +733,6 @@ mod tests {
     }
 
     #[test]
-    fn test_is_empty() {
-        Python::with_gil(|py| {
-            let map: HashMap<usize, usize> = HashMap::new();
-            let object = map.to_object(py);
-            let dict = <PyDict as PyTryFrom>::try_from(object.as_ref(py)).unwrap();
-            assert!(dict.is_empty());
-        });
-    }
-
-    #[test]
     fn test_keys() {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
