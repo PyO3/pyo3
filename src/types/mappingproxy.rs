@@ -146,11 +146,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::type_object::PyTypeInfo;
     use crate::Python;
     use crate::{
         exceptions::PyKeyError,
-        types::{PyDictItems, PyDictKeys, PyDictValues, PyInt, PyString, PyTuple},
+        type_object::PyTypeInfo,
+        types::dict::{PyDictItems, PyDictKeys, PyDictValues},
+        types::{PyInt, PyString, PyTuple},
     };
     use std::collections::{BTreeMap, HashMap};
 
