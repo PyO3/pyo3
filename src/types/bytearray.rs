@@ -71,6 +71,24 @@ impl PyByteArray {
         }
     }
 
+    /// Creates a new Python bytearray object from a raw pointer and length.
+    ///
+    /// Panics if out of memory.
+    ///
+    /// # Safety
+    ///
+    /// This function dereferences the raw pointer `ptr` as the
+    /// leading pointer of a slice of length `len`. [As with
+    /// `std::slice::from_raw_parts`, this is
+    /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
+    /// If `ptr` is null, the contents of the bytearray object are uninitialized.
+    pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyByteArray {
+        py.from_owned_ptr(ffi::PyByteArray_FromStringAndSize(
+            ptr as *const _,
+            len as isize,
+        ))
+    }
+
     /// Gets the length of the bytearray.
     #[inline]
     pub fn len(&self) -> usize {
