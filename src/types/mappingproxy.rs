@@ -5,7 +5,7 @@ use crate::err::PyResult;
 use crate::types::dict::{IntoPyDict, PyDictItem};
 #[cfg(all(test, not(PyPy)))]
 use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
-use crate::types::{PyAny, PyDict, PyIterator, PyList, PySequence};
+use crate::types::{PyAny, PyIterator, PyList, PySequence};
 #[cfg(not(PyPy))]
 use crate::{ffi, AsPyPointer, PyErr, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
@@ -37,9 +37,9 @@ impl PyMappingProxy {
     /// Returns a new mappingproxy that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.
-    pub fn copy(&self) -> PyResult<&PyDict> {
+    pub fn copy(&self) -> PyResult<&PyMapping> {
         self.call_method0("copy")
-            .and_then(|object| object.downcast().map_err(PyErr::from))
+            .and_then(|object| object.downcast::<PyMapping>().map_err(PyErr::from))
     }
 
     /// Checks if the mappingproxy is empty, i.e. `len(self) == 0`.
@@ -155,7 +155,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyInt, PyString, PyTuple};
+    use crate::{
+        exceptions::PyKeyError,
+        types::{PyInt, PyString, PyTuple},
+    };
     #[cfg(not(PyPy))]
     use crate::{PyTypeInfo, Python};
     use std::collections::{BTreeMap, HashMap};
@@ -188,15 +191,12 @@ mod tests {
             let new_dict = mappingproxy.copy().unwrap();
             assert_eq!(
                 32,
-                new_dict
-                    .get_item(7i32)
-                    .unwrap()
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
+                new_dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
             );
-            assert!(new_dict.get_item(8i32).unwrap().is_none());
-            assert!(new_dict.get_item(8i32).unwrap().is_none());
+            assert!(new_dict
+                .get_item(8i32)
+                .unwrap_err()
+                .is_instance_of::<PyKeyError>(py));
         });
     }
 
