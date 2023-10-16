@@ -18,7 +18,7 @@
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
     types::set::new_from_iter,
-    types::{IntoPyDict, PyDict, PySet},
+    types::{IntoPyDict, PyDict, PyMappingProxy, PySet},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
