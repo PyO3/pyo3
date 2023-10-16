@@ -55,12 +55,30 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
-        let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        match ob.downcast::<PyDict>() {
+            Ok(dict) => {
+                let mut ret =
+                    hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
+                for (k, v) in dict {
+                    ret.insert(K::extract(k)?, V::extract(v)?);
+                }
+                Ok(ret)
+            }
+            Err(msg) => {
+                if let Ok(mappingproxy) = ob.downcast::<PyMappingProxy>() {
+                    let mut ret = hashbrown::HashMap::with_capacity_and_hasher(
+                        mappingproxy.len(),
+                        S::default(),
+                    );
+                    for (k, v) in mappingproxy {
+                        ret.insert(K::extract(k)?, V::extract(v)?);
+                    }
+                    Ok(ret)
+                } else {
+                    Err(PyErr::from(msg))
+                }
+            }
         }
-        Ok(ret)
     }
 }
 

@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    types::{IntoPyDict, PyDict},
+    types::{IntoPyDict, PyDict, PyMappingProxy},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
@@ -72,12 +72,30 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
-        let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        match ob.downcast::<PyDict>() {
+            Ok(dict) => {
+                let mut ret =
+                    collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
+                for (k, v) in dict {
+                    ret.insert(K::extract(k)?, V::extract(v)?);
+                }
+                Ok(ret)
+            }
+            Err(msg) => {
+                if let Ok(mappingproxy) = ob.downcast::<PyMappingProxy>() {
+                    let mut ret = collections::HashMap::with_capacity_and_hasher(
+                        mappingproxy.len()?,
+                        S::default(),
+                    );
+                    for (k, v) in mappingproxy {
+                        ret.insert(K::extract(k)?, V::extract(v)?);
+                    }
+                    Ok(ret)
+                } else {
+                    Err(PyErr::from(msg))
+                }
+            }
         }
-        Ok(ret)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -92,12 +110,26 @@ where
     V: FromPyObject<'source>,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
-        let mut ret = collections::BTreeMap::new();
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        match ob.downcast::<PyDict>() {
+            Ok(dict) => {
+                let mut ret = collections::BTreeMap::new();
+                for (k, v) in dict {
+                    ret.insert(K::extract(k)?, V::extract(v)?);
+                }
+                Ok(ret)
+            }
+            Err(msg) => {
+                if let Ok(mappingproxy) = ob.downcast::<PyMappingProxy>() {
+                    let mut ret = collections::BTreeMap::new();
+                    for (k, v) in mappingproxy {
+                        ret.insert(K::extract(k)?, V::extract(v)?);
+                    }
+                    Ok(ret)
+                } else {
+                    Err(PyErr::from(msg))
+                }
+            }
         }
-        Ok(ret)
     }
 
     #[cfg(feature = "experimental-inspect")]
