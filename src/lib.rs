@@ -505,7 +505,6 @@ pub mod doc_test {
         "guide/src/performance.md" => guide_performance_md,
         "guide/src/python_from_rust.md" => guide_python_from_rust_md,
         "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
-        "guide/src/rust_cpython.md" => guide_rust_cpython_md,
         "guide/src/trait_bounds.md" => guide_trait_bounds_md,
         "guide/src/types.md" => guide_types_md,
     }
