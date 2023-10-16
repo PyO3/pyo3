@@ -1,10 +1,7 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
-use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyAny, PyErr, PyNativeType, PyResult, Python};
-#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+use crate::{ffi, AsPyPointer, Py, Py2, PyAny, PyErr, PyNativeType, PyResult, Python};
 use crate::{PyDowncastError, PyTryFrom};
+
+use super::any::PyAnyMethods;
 
 /// A Python iterator object.
 ///
@@ -29,18 +26,25 @@ use crate::{PyDowncastError, PyTryFrom};
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
 pyobject_native_type_named!(PyIterator);
-#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
     /// Constructs a `PyIterator` from a Python iterable object.
     ///
     /// Equivalent to Python's built-in `iter` function.
-    pub fn from_object<'p, T>(py: Python<'p>, obj: &T) -> PyResult<&'p PyIterator>
-    where
-        T: AsPyPointer,
-    {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr())) }
+    pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
+        Self::from_object2(Py2::borrowed_from_gil_ref(&obj)).map(|py2| {
+            // Can't use into_gil_ref here because T: PyTypeInfo bound is not satisfied
+            // Safety: into_ptr produces a valid pointer to PyIterator object
+            unsafe { obj.py().from_owned_ptr(py2.into_ptr()) }
+        })
+    }
+
+    pub(crate) fn from_object2<'py>(obj: &Py2<'py, PyAny>) -> PyResult<Py2<'py, PyIterator>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(obj.py(), ffi::PyObject_GetIter(obj.as_ptr()))
+                .map(|any| any.downcast_into_unchecked())
+        }
     }
 }
 
@@ -61,16 +65,21 @@ impl<'p> Iterator for &'p PyIterator {
             None => PyErr::take(py).map(Err),
         }
     }
+
+    #[cfg(not(Py_LIMITED_API))]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let hint = unsafe { ffi::PyObject_LengthHint(self.0.as_ptr(), 0) };
+        (hint.max(0) as usize, None)
+    }
 }
 
 // PyIter_Check does not exist in the limited API until 3.8
-#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 impl<'v> PyTryFrom<'v> for PyIterator {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
         let value = value.into();
         unsafe {
             if ffi::PyIter_Check(value.as_ptr()) != 0 {
-                Ok(<PyIterator as PyTryFrom>::try_from_unchecked(value))
+                Ok(value.downcast_unchecked())
             } else {
                 Err(PyDowncastError::new(value, "Iterator"))
             }
@@ -78,7 +87,7 @@ impl<'v> PyTryFrom<'v> for PyIterator {
     }
 
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        <PyIterator as PyTryFrom>::try_from(value)
+        value.into().downcast()
     }
 
     #[inline]
@@ -110,8 +119,6 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
-    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-    use crate::PyTryFrom;
     use crate::{Py, PyAny, Python, ToPyObject};
 
     #[test]
@@ -120,8 +127,14 @@ mod tests {
             let obj = vec![10, 20].to_object(py);
             let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
-            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
-            assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
+            assert_eq!(
+                10_i32,
+                it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+            );
+            assert_eq!(
+                20_i32,
+                it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+            );
             assert!(it.next().is_none());
         });
     }
@@ -138,7 +151,10 @@ mod tests {
             let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 
-            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
+            assert_eq!(
+                10_i32,
+                it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+            );
         });
 
         Python::with_gil(|py| {
@@ -149,28 +165,30 @@ mod tests {
     #[test]
     fn iter_item_refcnt() {
         Python::with_gil(|py| {
-            let obj;
-            let none;
             let count;
-            {
+            let obj = py.eval("object()", None, None).unwrap();
+            let list = {
                 let _pool = unsafe { GILPool::new() };
-                let l = PyList::empty(py);
-                none = py.None();
-                l.append(10).unwrap();
-                l.append(&none).unwrap();
-                count = none.get_refcnt(py);
-                obj = l.to_object(py);
-            }
+                let list = PyList::empty(py);
+                list.append(10).unwrap();
+                list.append(obj).unwrap();
+                count = obj.get_refcnt();
+                list.to_object(py)
+            };
 
             {
                 let _pool = unsafe { GILPool::new() };
-                let inst = obj.as_ref(py);
+                let inst = list.as_ref(py);
                 let mut it = inst.iter().unwrap();
 
-                assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
-                assert!(it.next().unwrap().unwrap().is_none());
+                assert_eq!(
+                    10_i32,
+                    it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+                );
+                assert!(it.next().unwrap().unwrap().is(obj));
+                assert!(it.next().is_none());
             }
-            assert_eq!(count, none.get_refcnt(py));
+            assert_eq!(count, obj.get_refcnt());
         });
     }
 
@@ -201,19 +219,18 @@ def fibonacci(target):
     fn int_not_iterable() {
         Python::with_gil(|py| {
             let x = 5.to_object(py);
-            let err = PyIterator::from_object(py, &x).unwrap_err();
+            let err = PyIterator::from_object(x.as_ref(py)).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
         });
     }
 
     #[test]
-    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+
     fn iterator_try_from() {
         Python::with_gil(|py| {
             let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-            let iter: &PyIterator =
-                <PyIterator as PyTryFrom<'_>>::try_from(obj.as_ref(py)).unwrap();
+            let iter: &PyIterator = obj.downcast(py).unwrap();
             assert!(obj.is(iter));
         });
     }
@@ -238,5 +255,88 @@ def fibonacci(target):
             assert!(iter_ref.next().is_none());
             assert_eq!(iter_ref.get_refcnt(), 2);
         })
+    }
+
+    #[test]
+    #[cfg(feature = "macros")]
+    fn python_class_not_iterator() {
+        use crate::PyErr;
+
+        #[crate::pyclass(crate = "crate")]
+        struct Downcaster {
+            failed: Option<PyErr>,
+        }
+
+        #[crate::pymethods(crate = "crate")]
+        impl Downcaster {
+            fn downcast_iterator(&mut self, obj: &PyAny) {
+                self.failed = Some(obj.downcast::<PyIterator>().unwrap_err().into());
+            }
+        }
+
+        // Regression test for 2913
+        Python::with_gil(|py| {
+            let downcaster = Py::new(py, Downcaster { failed: None }).unwrap();
+            crate::py_run!(
+                py,
+                downcaster,
+                r#"
+                    from collections.abc import Sequence
+
+                    class MySequence(Sequence):
+                        def __init__(self):
+                            self._data = [1, 2, 3]
+
+                        def __getitem__(self, index):
+                            return self._data[index]
+
+                        def __len__(self):
+                            return len(self._data)
+
+                    downcaster.downcast_iterator(MySequence())
+                "#
+            );
+
+            assert_eq!(
+                downcaster.borrow_mut(py).failed.take().unwrap().to_string(),
+                "TypeError: 'MySequence' object cannot be converted to 'Iterator'"
+            );
+        });
+    }
+
+    #[test]
+    #[cfg(feature = "macros")]
+    fn python_class_iterator() {
+        #[crate::pyfunction(crate = "crate")]
+        fn assert_iterator(obj: &PyAny) {
+            assert!(obj.downcast::<PyIterator>().is_ok())
+        }
+
+        // Regression test for 2913
+        Python::with_gil(|py| {
+            let assert_iterator = crate::wrap_pyfunction!(assert_iterator, py).unwrap();
+            crate::py_run!(
+                py,
+                assert_iterator,
+                r#"
+                    class MyIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                    assert_iterator(MyIter())
+                "#
+            );
+        });
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn length_hint_becomes_size_hint_lower_bound() {
+        Python::with_gil(|py| {
+            let list = py.eval("[1, 2, 3]", None, None).unwrap();
+            let iter = list.iter().unwrap();
+            let hint = iter.size_hint();
+            assert_eq!(hint, (3, None));
+        });
     }
 }

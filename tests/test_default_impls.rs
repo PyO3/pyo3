@@ -2,6 +2,7 @@
 
 use pyo3::prelude::*;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 // Test default generated __repr__.

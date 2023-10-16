@@ -1,0 +1,23 @@
+error: `set_all` on an unit struct does nothing, because unit structs have no fields
+ --> tests/ui/get_set_all.rs:3:11
+  |
+3 | #[pyclass(set_all)]
+  |           ^^^^^^^
+
+error: useless `set` - the struct is already annotated with `set_all`
+ --> tests/ui/get_set_all.rs:8:12
+  |
+8 |     #[pyo3(set)]
+  |            ^^^
+
+error: `get_all` on an unit struct does nothing, because unit structs have no fields
+  --> tests/ui/get_set_all.rs:12:11
+   |
+12 | #[pyclass(get_all)]
+   |           ^^^^^^^
+
+error: useless `get` - the struct is already annotated with `get_all`
+  --> tests/ui/get_set_all.rs:17:12
+   |
+17 |     #[pyo3(get)]
+   |            ^^^

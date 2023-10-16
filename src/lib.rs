@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 #![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(
@@ -64,16 +65,13 @@
 //!
 //! # Feature flags
 //!
-//! PyO3 uses [feature flags] to enable you to opt-in to additional functionality.For a detailed
+//! PyO3 uses [feature flags] to enable you to opt-in to additional functionality. For a detailed
 //! description, see the [Features chapter of the guide].
 //!
 //! ## Default feature flags
 //!
 //! The following features are turned on by default:
-//! - `macros`: Enables various macros, including all the attribute macros excluding the deprecated
-//! `#[pyproto]` attribute.
-//! - `pyproto`: Adds the deprecated `#[pyproto]` attribute macro. Likely to become optional and
-//! then removed in the future.
+//! - `macros`: Enables various macros, including all the attribute macros.
 //!
 //! ## Optional feature flags
 //!
@@ -81,8 +79,8 @@
 //!
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed by
 //! [PEP 384] to be forward-compatible with future Python versions.
-//! - `auto-initialize`: Changes [`Python::with_gil`] and [`Python::acquire_gil`] to automatically
-//! initialize the Python interpreter if needed.
+//! - `auto-initialize`: Changes [`Python::with_gil`] to automatically initialize the Python
+//! interpreter if needed.
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
 //! building an extension module.
@@ -92,14 +90,18 @@
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
+//! - [`chrono`]: Enables a conversion from [chrono]'s structures to the equivalent Python ones.
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
+//! - [`smallvec`][smallvec]: Enables conversions between Python list and [smallvec]'s [`SmallVec`].
 //! - [`indexmap`][indexmap_feature]: Enables conversions between Python dictionary and [indexmap]'s [`IndexMap`].
 //! - [`num-bigint`]: Enables conversions between Python objects and [num-bigint]'s [`BigInt`] and
 //! [`BigUint`] types.
 //! - [`num-complex`]: Enables conversions between Python objects and [num-complex]'s [`Complex`]
 //!  type.
+//! - [`rust_decimal`]: Enables conversions between Python's decimal.Decimal and [rust_decimal]'s
+//! [`Decimal`] type.
 //! - [`serde`]: Allows implementing [serde]'s [`Serialize`] and [`Deserialize`] traits for
 //! [`Py`]`<T>` for all `T` that implement [`Serialize`] and [`Deserialize`].
 //!
@@ -121,7 +123,7 @@
 //!
 //! PyO3 supports the following software versions:
 //!   - Python 3.7 and up (CPython and PyPy)
-//!   - Rust 1.48 and up
+//!   - Rust 1.56 and up
 //!
 //! # Example: Building a native Python module
 //!
@@ -138,7 +140,7 @@
 //! [package]
 //! name = "string-sum"
 //! version = "0.1.0"
-//! edition = "2018"
+//! edition = "2021"
 //!
 //! [lib]
 //! name = "string_sum"
@@ -150,9 +152,7 @@
 //! crate-type = ["cdylib"]
 //!
 //! [dependencies.pyo3]
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
-#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
+#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! features = ["extension-module"]
 //! ```
 //!
@@ -213,9 +213,7 @@
 //! Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
 //! ```toml
 //! [dependencies.pyo3]
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
-#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
+#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! # this is necessary to automatically initialize the Python interpreter
 //! features = ["auto-initialize"]
 //! ```
@@ -259,12 +257,15 @@
 //! [inventory]: https://docs.rs/inventory
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
+//! [`SmallVec`]: https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html
 //! [`IndexMap`]: https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html
 //! [`BigInt`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html
 //! [`BigUint`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html
 //! [`Complex`]: https://docs.rs/num-complex/latest/num_complex/struct.Complex.html
 //! [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 //! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
+//! [chrono]: https://docs.rs/chrono/ "Date and Time for Rust."
+//! [`chrono`]: ./chrono/index.html "Documentation about the `chrono` feature."
 //! [eyre]: https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications."
 //! [`Report`]: https://docs.rs/eyre/latest/eyre/struct.Report.html
 //! [`eyre`]: ./eyre/index.html "Documentation about the `eyre` feature."
@@ -274,12 +275,16 @@
 //! [`num-bigint`]: ./num_bigint/index.html "Documentation about the `num-bigint` feature."
 //! [`num-complex`]: ./num_complex/index.html "Documentation about the `num-complex` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
+//! [rust_decimal]: https://docs.rs/rust_decimal
+//! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
+//! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
 //! [calling_rust]: https://pyo3.rs/latest/python_from_rust.html "Calling Python from Rust - PyO3 user guide"
 //! [examples subdirectory]: https://github.com/PyO3/pyo3/tree/main/examples
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
+//! [smallvec]: https://docs.rs/smallvec
 //! [indexmap]: https://docs.rs/indexmap
 //! [manual_builds]: https://pyo3.rs/latest/building_and_distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
 //! [num-bigint]: https://docs.rs/num-bigint
@@ -294,16 +299,13 @@
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-#[allow(deprecated)]
-pub use crate::conversion::ToBorrowedObject;
 pub use crate::conversion::{
-    AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
-    ToPyObject,
+    AsPyPointer, FromPyObject, FromPyPointer, IntoPy, PyTryFrom, PyTryInto, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
+pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
@@ -313,8 +315,16 @@ pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
 
-// Old directory layout, to be rethought?
-#[cfg(not(feature = "pyproto"))]
+// Expected to become public API in 0.21 under a different name
+pub(crate) use crate::instance::Py2;
+
+/// Old module which contained some implementation details of the `#[pyproto]` module.
+///
+/// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead
+/// of `use pyo3::class::basic::CompareOp`.
+///
+/// For compatibility reasons this has not yet been removed, however will be done so
+/// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
     #[doc(hidden)]
     pub use crate::impl_::pymethods as methods;
@@ -326,20 +336,48 @@ pub mod class {
         PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
     };
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead
+    /// of `use pyo3::class::basic::CompareOp`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod basic {
         pub use crate::pyclass::CompareOp;
     }
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterANextOutput` instead
+    /// of `use pyo3::class::pyasync::IterANextOutput`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod pyasync {
         pub use crate::pyclass::{IterANextOutput, PyIterANextOutput};
     }
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterNextOutput` instead
+    /// of `use pyo3::class::pyasync::IterNextOutput`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod iter {
         pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
     }
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::PyTraverseError` instead
+    /// of `use pyo3::class::gc::PyTraverseError`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod gc {
-        pub use crate::impl_::pymethods::{PyTraverseError, PyVisit};
+        pub use crate::pyclass::{PyTraverseError, PyVisit};
     }
 }
 
@@ -354,14 +392,18 @@ pub use {
 #[doc(hidden)]
 pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.
 
+/// Tests and helpers which reside inside PyO3's main library. Declared first so that macros
+/// are available in unit tests.
+#[cfg(test)]
+#[macro_use]
+mod tests;
+
 #[macro_use]
 mod internal_tricks;
 
 pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
-#[cfg(feature = "pyproto")]
-pub mod class;
 pub mod conversion;
 mod conversions;
 #[macro_use]
@@ -377,7 +419,7 @@ mod instance;
 pub mod marker;
 pub mod marshal;
 #[macro_use]
-pub mod once_cell;
+pub mod sync;
 pub mod panic;
 pub mod prelude;
 pub mod pycell;
@@ -388,47 +430,47 @@ pub mod type_object;
 pub mod types;
 mod version;
 
-pub use crate::conversions::*;
-
 #[doc(hidden)]
-#[deprecated(
-    since = "0.15.0",
-    note = "please import this with `use pyo3::...` or from the prelude instead"
-)]
-#[cfg(feature = "macros")]
-pub mod proc_macro {
-    #[cfg(feature = "pyproto")]
-    pub use pyo3_macros::pyproto;
-    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule};
+#[deprecated(since = "0.19.0", note = "Please use the `sync` module instead.")]
+pub mod once_cell {
+    // FIXME: We want to deprecate these,
+    // but that does not yet work for re-exports,
+    // c.f. https://github.com/rust-lang/rust/issues/30827
+    pub use crate::sync::{GILOnceCell, Interned};
 }
 
-#[cfg(all(feature = "macros", feature = "pyproto"))]
-pub use pyo3_macros::pyproto;
+pub use crate::conversions::*;
+
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
+pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
+
+/// A proc macro used to expose Rust structs and fieldless enums as Python objects.
+///
+#[doc = include_str!("../guide/pyclass_parameters.md")]
+///
+/// For more on creating Python classes,
+/// see the [class section of the guide][1].
+///
+/// [1]: https://pyo3.rs/latest/class.html
+#[cfg(feature = "macros")]
+pub use pyo3_macros::pyclass;
 
 #[cfg(feature = "macros")]
 #[macro_use]
 mod macros;
 
-/// Test macro hygiene - this is in the crate since we won't have
-/// `pyo3` available in the crate root.
-#[cfg(all(test, feature = "macros"))]
-mod test_hygiene;
+#[cfg(feature = "experimental-inspect")]
+pub mod inspect;
 
 /// Test readme and user guide
 #[cfg(doctest)]
 pub mod doc_test {
-    macro_rules! doctest_impl {
-        ($doc:expr, $mod:ident) => {
-            #[doc = $doc]
-            mod $mod {}
-        };
-    }
-
     macro_rules! doctests {
         ($($path:expr => $mod:ident),* $(,)?) => {
-            $(doctest_impl!(include_str!(concat!("../", $path)), $mod);)*
+            $(
+                #[doc = include_str!(concat!("../", $path))]
+                mod $mod{}
+            )*
         };
     }
 
@@ -454,10 +496,13 @@ pub mod doc_test {
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
         "guide/src/function.md" => guide_function_md,
+        "guide/src/function/error_handling.md" => guide_function_error_handling_md,
+        "guide/src/function/signature.md" => guide_function_signature_md,
         "guide/src/memory.md" => guide_memory_md,
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,
         "guide/src/parallelism.md" => guide_parallelism_md,
+        "guide/src/performance.md" => guide_performance_md,
         "guide/src/python_from_rust.md" => guide_python_from_rust_md,
         "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
         "guide/src/rust_cpython.md" => guide_rust_cpython_md,

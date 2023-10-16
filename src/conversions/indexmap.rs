@@ -18,12 +18,7 @@
 //! [dependencies]
 //! # change * to the latest versions
 //! indexmap = "*"
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"indexmap\"] }")))]
-#![cfg_attr(
-    not(docsrs),
-    doc = "pyo3 = { version = \"*\", features = [\"indexmap\"] }"
-)]
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"indexmap\"] }")]
 //! ```
 //!
 //! Note that you must use compatible versions of indexmap and PyO3.
@@ -68,7 +63,7 @@
 //!
 //! #[pyfunction]
 //! fn calculate_statistics(data: Vec<i32>) -> IndexMap<&'static str, f32> {
-//!     indexmap!{
+//!     indexmap! {
 //!        "median" => median(&data),
 //!        "mean" => mean(&data),
 //!        "mode" => mode(&data),
@@ -93,7 +88,7 @@
 //! ```
 
 use crate::types::*;
-use crate::{FromPyObject, IntoPy, PyErr, PyObject, PyTryFrom, Python, ToPyObject};
+use crate::{FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
@@ -128,9 +123,9 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+        let dict: &PyDict = ob.downcast()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(K::extract(k)?, V::extract(v)?);
         }
         Ok(ret)
@@ -141,7 +136,7 @@ where
 mod test_indexmap {
 
     use crate::types::*;
-    use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{IntoPy, PyObject, Python, ToPyObject};
 
     #[test]
     fn test_indexmap_indexmap_to_python() {
@@ -150,10 +145,18 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
-            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+                    == 1
+            );
             assert_eq!(
                 map,
                 py_map.extract::<indexmap::IndexMap::<i32, i32>>().unwrap()
@@ -168,10 +171,18 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
-            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+                    == 1
+            );
         });
     }
 
@@ -184,7 +195,15 @@ mod test_indexmap {
             let py_map = map.into_py_dict(py);
 
             assert_eq!(py_map.len(), 1);
-            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(
+                py_map
+                    .get_item(1)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
         });
     }
 

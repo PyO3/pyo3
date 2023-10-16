@@ -17,3 +17,22 @@ error: `async fn` is not yet supported for Python functions.
    |
 10 | async fn async_function() {}
    | ^^^^^
+
+error: wildcard argument names are not supported
+  --> tests/ui/invalid_pyfunctions.rs:13:22
+   |
+13 | fn wildcard_argument(_: i32) {}
+   |                      ^
+
+error: destructuring in arguments is not supported
+  --> tests/ui/invalid_pyfunctions.rs:16:26
+   |
+16 | fn destructured_argument((a, b): (i32, i32)) {}
+   |                          ^^^^^^
+
+error: required arguments after an `Option<_>` argument are ambiguous
+       = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters
+  --> tests/ui/invalid_pyfunctions.rs:19:63
+   |
+19 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
+   |                                                               ^^^

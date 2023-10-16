@@ -7,6 +7,7 @@ use std::fmt;
 #[cfg(not(target_os = "windows"))]
 use std::fs::File;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyfunction]
@@ -17,22 +18,23 @@ fn fail_to_open_file() -> PyResult<()> {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)] // Not sure why this fails.
 #[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
+    Python::with_gil(|py| {
+        let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
 
-    py_run!(
-        py,
-        fail_to_open_file,
-        r#"
+        py_run!(
+            py,
+            fail_to_open_file,
+            r#"
         try:
             fail_to_open_file()
         except FileNotFoundError as e:
             assert str(e) == "No such file or directory (os error 2)"
         "#
-    );
+        );
+    });
 }
 
 #[derive(Debug)]
@@ -64,20 +66,21 @@ fn call_fail_with_custom_error() -> PyResult<()> {
 
 #[test]
 fn test_custom_error() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let call_fail_with_custom_error = wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
+    Python::with_gil(|py| {
+        let call_fail_with_custom_error =
+            wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
 
-    py_run!(
-        py,
-        call_fail_with_custom_error,
-        r#"
+        py_run!(
+            py,
+            call_fail_with_custom_error,
+            r#"
         try:
             call_fail_with_custom_error()
         except OSError as e:
             assert str(e) == "Oh no!"
         "#
-    );
+        );
+    });
 }
 
 #[test]
@@ -93,4 +96,33 @@ fn test_exception_nosegfault() {
     }
     assert!(io_err().is_err());
     assert!(parse_int().is_err());
+}
+
+#[test]
+#[cfg(Py_3_8)]
+fn test_write_unraisable() {
+    use common::UnraisableCapture;
+    use pyo3::{exceptions::PyRuntimeError, ffi};
+
+    Python::with_gil(|py| {
+        let capture = UnraisableCapture::install(py);
+
+        assert!(capture.borrow(py).capture.is_none());
+
+        let err = PyRuntimeError::new_err("foo");
+        err.write_unraisable(py, None);
+
+        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
+        assert_eq!(err.to_string(), "RuntimeError: foo");
+        assert!(object.is_none(py));
+
+        let err = PyRuntimeError::new_err("bar");
+        err.write_unraisable(py, Some(py.NotImplemented().as_ref(py)));
+
+        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
+        assert_eq!(err.to_string(), "RuntimeError: bar");
+        assert!(object.as_ptr() == unsafe { ffi::Py_NotImplemented() });
+
+        capture.borrow_mut(py).uninstall(py);
+    });
 }

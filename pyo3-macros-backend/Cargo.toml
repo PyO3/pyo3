@@ -1,14 +1,14 @@
 [package]
 name = "pyo3-macros-backend"
-version = "0.16.5"
+version = "0.20.0"
 description = "Code generation for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
-license = "Apache-2.0"
-edition = "2018"
+license = "MIT OR Apache-2.0"
+edition = "2021"
 
 # Note: we use default-features = false for proc-macro related crates
 # not to depend on proc-macro itself.
@@ -16,12 +16,12 @@ edition = "2018"
 [dependencies]
 quote = { version = "1", default-features = false }
 proc-macro2 = { version = "1", default-features = false }
+heck = "0.4"
 
 [dependencies.syn]
-version = "1.0.56"
+version = "2"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
 
 [features]
-pyproto = []
 abi3 = []

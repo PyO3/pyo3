@@ -1,11 +1,13 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::pyclass::MutablePyClass;
-use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
+use crate::{ffi, Py, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
-    pycell::{PyCellContents, PyClassBorrowChecker, PyClassMutability},
+    pycell::{
+        impl_::{PyClassBorrowChecker, PyClassMutability},
+        PyCellContents,
+    },
     type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{
@@ -38,43 +40,46 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
         py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        let type_object = T::type_object_raw(py);
+        unsafe fn inner(
+            py: Python<'_>,
+            type_object: *mut PyTypeObject,
+            subtype: *mut PyTypeObject,
+        ) -> PyResult<*mut ffi::PyObject> {
+            // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
+            let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
+            if is_base_object {
+                let alloc = get_tp_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
+                let obj = alloc(subtype, 0);
+                return if obj.is_null() {
+                    Err(PyErr::fetch(py))
+                } else {
+                    Ok(obj)
+                };
+            }
 
-        // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
-        #[cfg(addr_of)]
-        let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
-        #[cfg(not(addr_of))]
-        let is_base_object = type_object == &mut ffi::PyBaseObject_Type as _;
-        if is_base_object {
-            let alloc = get_tp_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
-            let obj = alloc(subtype, 0);
-            return if obj.is_null() {
-                Err(PyErr::fetch(py))
-            } else {
-                Ok(obj)
-            };
-        }
+            #[cfg(Py_LIMITED_API)]
+            unreachable!("subclassing native types is not possible with the `abi3` feature");
 
-        #[cfg(Py_LIMITED_API)]
-        unreachable!("subclassing native types is not possible with the `abi3` feature");
-
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            match (*type_object).tp_new {
-                // FIXME: Call __new__ with actual arguments
-                Some(newfunc) => {
-                    let obj = newfunc(subtype, std::ptr::null_mut(), std::ptr::null_mut());
-                    if obj.is_null() {
-                        Err(PyErr::fetch(py))
-                    } else {
-                        Ok(obj)
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                match (*type_object).tp_new {
+                    // FIXME: Call __new__ with actual arguments
+                    Some(newfunc) => {
+                        let obj = newfunc(subtype, std::ptr::null_mut(), std::ptr::null_mut());
+                        if obj.is_null() {
+                            Err(PyErr::fetch(py))
+                        } else {
+                            Ok(obj)
+                        }
                     }
+                    None => Err(crate::exceptions::PyTypeError::new_err(
+                        "base type without tp_new",
+                    )),
                 }
-                None => Err(crate::exceptions::PyTypeError::new_err(
-                    "base type without tp_new",
-                )),
             }
         }
+        let type_object = T::type_object_raw(py);
+        inner(py, type_object, subtype)
     }
 
     private_impl! {}
@@ -129,9 +134,14 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///     );
 /// });
 /// ```
-pub struct PyClassInitializer<T: PyClass> {
-    init: T,
-    super_init: <T::BaseType as PyClassBaseType>::Initializer,
+pub struct PyClassInitializer<T: PyClass>(PyClassInitializerImpl<T>);
+
+enum PyClassInitializerImpl<T: PyClass> {
+    Existing(Py<T>),
+    New {
+        init: T,
+        super_init: <T::BaseType as PyClassBaseType>::Initializer,
+    },
 }
 
 impl<T: PyClass> PyClassInitializer<T> {
@@ -139,7 +149,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///
     /// It is recommended to use `add_subclass` instead of this method for most usage.
     pub fn new(init: T, super_init: <T::BaseType as PyClassBaseType>::Initializer) -> Self {
-        Self { init, super_init }
+        Self(PyClassInitializerImpl::New { init, super_init })
     }
 
     /// Constructs a new initializer from an initializer for the base class.
@@ -237,7 +247,11 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
             contents: MaybeUninit<PyCellContents<T>>,
         }
 
-        let Self { init, super_init } = self;
+        let (init, super_init) = match self.0 {
+            PyClassInitializerImpl::Existing(value) => return Ok(value.into_ptr()),
+            PyClassInitializerImpl::New { init, super_init } => (init, super_init),
+        };
+
         let obj = super_init.into_new_object(py, subtype)?;
 
         let cell: *mut PartiallyInitializedPyCell<T> = obj as _;
@@ -247,8 +261,8 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
                 value: ManuallyDrop::new(UnsafeCell::new(init)),
                 borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
                 thread_checker: T::ThreadChecker::new(),
-                dict: T::Dict::new(),
-                weakref: T::WeakRef::new(),
+                dict: T::Dict::INIT,
+                weakref: T::WeakRef::INIT,
             },
         );
         Ok(obj)
@@ -270,13 +284,20 @@ where
 
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
-    S: MutablePyClass<BaseType = B>,
-    B: MutablePyClass,
+    S: PyClass<BaseType = B>,
+    B: PyClass,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
         PyClassInitializer::from(base).add_subclass(sub)
+    }
+}
+
+impl<T: PyClass> From<Py<T>> for PyClassInitializer<T> {
+    #[inline]
+    fn from(value: Py<T>) -> PyClassInitializer<T> {
+        PyClassInitializer(PyClassInitializerImpl::Existing(value))
     }
 }
 

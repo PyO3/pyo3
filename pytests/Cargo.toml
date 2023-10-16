@@ -3,7 +3,8 @@ authors = ["PyO3 Authors"]
 name = "pyo3-pytests"
 version = "0.1.0"
 description = "Python-based tests for PyO3"
-edition = "2018"
+edition = "2021"
+publish = false
 
 [dependencies]
 pyo3 = { path = "../", features = ["extension-module"] }
@@ -14,14 +15,3 @@ pyo3-build-config = { path = "../pyo3-build-config" }
 [lib]
 name = "pyo3_pytests"
 crate-type = ["cdylib"]
-
-[package.metadata.maturin]
-classifier=[
-    "License :: OSI Approved :: MIT License",
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python",
-    "Programming Language :: Rust",
-    "Operating System :: POSIX",
-    "Operating System :: MacOS :: MacOS X",
-]

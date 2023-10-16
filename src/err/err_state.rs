@@ -2,25 +2,73 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     types::{PyTraceback, PyType},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, PyTypeInfo, Python,
+    IntoPy, Py, PyAny, PyObject, PyTypeInfo, Python,
 };
 
 #[derive(Clone)]
 pub(crate) struct PyErrStateNormalized {
-    pub ptype: Py<PyType>,
+    #[cfg(not(Py_3_12))]
+    ptype: Py<PyType>,
     pub pvalue: Py<PyBaseException>,
-    pub ptraceback: Option<Py<PyTraceback>>,
+    #[cfg(not(Py_3_12))]
+    ptraceback: Option<Py<PyTraceback>>,
 }
 
+impl PyErrStateNormalized {
+    #[cfg(not(Py_3_12))]
+    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> &'py PyType {
+        self.ptype.as_ref(py)
+    }
+
+    #[cfg(Py_3_12)]
+    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> &'py PyType {
+        self.pvalue.as_ref(py).get_type()
+    }
+
+    #[cfg(not(Py_3_12))]
+    pub(crate) fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
+        self.ptraceback
+            .as_ref()
+            .map(|traceback| traceback.as_ref(py))
+    }
+
+    #[cfg(Py_3_12)]
+    pub(crate) fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
+        unsafe { py.from_owned_ptr_or_opt(ffi::PyException_GetTraceback(self.pvalue.as_ptr())) }
+    }
+
+    #[cfg(Py_3_12)]
+    pub(crate) fn take(py: Python<'_>) -> Option<PyErrStateNormalized> {
+        unsafe { Py::from_owned_ptr_or_opt(py, ffi::PyErr_GetRaisedException()) }
+            .map(|pvalue| PyErrStateNormalized { pvalue })
+    }
+
+    #[cfg(not(Py_3_12))]
+    unsafe fn from_normalized_ffi_tuple(
+        py: Python<'_>,
+        ptype: *mut ffi::PyObject,
+        pvalue: *mut ffi::PyObject,
+        ptraceback: *mut ffi::PyObject,
+    ) -> Self {
+        PyErrStateNormalized {
+            ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
+            pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
+            ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
+        }
+    }
+}
+
+pub(crate) struct PyErrStateLazyFnOutput {
+    pub(crate) ptype: PyObject,
+    pub(crate) pvalue: PyObject,
+}
+
+pub(crate) type PyErrStateLazyFn =
+    dyn for<'py> FnOnce(Python<'py>) -> PyErrStateLazyFnOutput + Send + Sync;
+
 pub(crate) enum PyErrState {
-    LazyTypeAndValue {
-        ptype: for<'py> fn(Python<'py>) -> &PyType,
-        pvalue: Box<dyn for<'py> FnOnce(Python<'py>) -> PyObject + Send + Sync>,
-    },
-    LazyValue {
-        ptype: Py<PyType>,
-        pvalue: Box<dyn for<'py> FnOnce(Python<'py>) -> PyObject + Send + Sync>,
-    },
+    Lazy(Box<PyErrStateLazyFn>),
+    #[cfg(not(Py_3_12))]
     FfiTuple {
         ptype: PyObject,
         pvalue: Option<PyObject>,
@@ -44,53 +92,139 @@ where
     }
 }
 
-pub(crate) fn boxed_args(
-    args: impl PyErrArguments + 'static,
-) -> Box<dyn for<'py> FnOnce(Python<'py>) -> PyObject + Send + Sync> {
-    Box::new(|py| args.arguments(py))
-}
-
 impl PyErrState {
-    pub(crate) fn into_ffi_tuple(
-        self,
-        py: Python<'_>,
-    ) -> (*mut ffi::PyObject, *mut ffi::PyObject, *mut ffi::PyObject) {
+    pub(crate) fn lazy(ptype: &PyAny, args: impl PyErrArguments + 'static) -> Self {
+        let ptype = ptype.into();
+        PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
+            ptype,
+            pvalue: args.arguments(py),
+        }))
+    }
+
+    pub(crate) fn normalized(pvalue: &PyBaseException) -> Self {
+        Self::Normalized(PyErrStateNormalized {
+            #[cfg(not(Py_3_12))]
+            ptype: pvalue.get_type().into(),
+            pvalue: pvalue.into(),
+            #[cfg(not(Py_3_12))]
+            ptraceback: unsafe {
+                Py::from_owned_ptr_or_opt(
+                    pvalue.py(),
+                    ffi::PyException_GetTraceback(pvalue.as_ptr()),
+                )
+            },
+        })
+    }
+
+    pub(crate) fn normalize(self, py: Python<'_>) -> PyErrStateNormalized {
         match self {
-            PyErrState::LazyTypeAndValue { ptype, pvalue } => {
-                let ty = ptype(py);
-                if unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } == 0 {
-                    Self::exceptions_must_derive_from_base_exception(py).into_ffi_tuple(py)
-                } else {
-                    (
-                        ptype(py).into_ptr(),
-                        pvalue(py).into_ptr(),
-                        std::ptr::null_mut(),
-                    )
+            #[cfg(not(Py_3_12))]
+            PyErrState::Lazy(lazy) => {
+                let (ptype, pvalue, ptraceback) = lazy_into_normalized_ffi_tuple(py, lazy);
+                unsafe {
+                    PyErrStateNormalized::from_normalized_ffi_tuple(py, ptype, pvalue, ptraceback)
                 }
             }
-            PyErrState::LazyValue { ptype, pvalue } => (
-                ptype.into_ptr(),
-                pvalue(py).into_ptr(),
-                std::ptr::null_mut(),
-            ),
+            #[cfg(Py_3_12)]
+            PyErrState::Lazy(lazy) => {
+                // To keep the implementation simple, just write the exception into the interpreter,
+                // which will cause it to be normalized
+                raise_lazy(py, lazy);
+                PyErrStateNormalized::take(py)
+                    .expect("exception missing after writing to the interpreter")
+            }
+            #[cfg(not(Py_3_12))]
             PyErrState::FfiTuple {
                 ptype,
                 pvalue,
                 ptraceback,
-            } => (ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr()),
+            } => {
+                let mut ptype = ptype.into_ptr();
+                let mut pvalue = pvalue.map_or(std::ptr::null_mut(), Py::into_ptr);
+                let mut ptraceback = ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr);
+                unsafe {
+                    ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
+                    PyErrStateNormalized::from_normalized_ffi_tuple(py, ptype, pvalue, ptraceback)
+                }
+            }
+            PyErrState::Normalized(normalized) => normalized,
+        }
+    }
+
+    #[cfg(not(Py_3_12))]
+    pub(crate) fn restore(self, py: Python<'_>) {
+        let (ptype, pvalue, ptraceback) = match self {
+            PyErrState::Lazy(lazy) => lazy_into_normalized_ffi_tuple(py, lazy),
+            PyErrState::FfiTuple {
+                ptype,
+                pvalue,
+                ptraceback,
+            } => (
+                ptype.into_ptr(),
+                pvalue.map_or(std::ptr::null_mut(), Py::into_ptr),
+                ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr),
+            ),
             PyErrState::Normalized(PyErrStateNormalized {
                 ptype,
                 pvalue,
                 ptraceback,
-            }) => (ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr()),
-        }
+            }) => (
+                ptype.into_ptr(),
+                pvalue.into_ptr(),
+                ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr),
+            ),
+        };
+        unsafe { ffi::PyErr_Restore(ptype, pvalue, ptraceback) }
     }
 
-    #[inline]
-    pub(crate) fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> Self {
-        PyErrState::LazyValue {
-            ptype: PyTypeError::type_object(py).into(),
-            pvalue: boxed_args("exceptions must derive from BaseException"),
+    #[cfg(Py_3_12)]
+    pub(crate) fn restore(self, py: Python<'_>) {
+        match self {
+            PyErrState::Lazy(lazy) => raise_lazy(py, lazy),
+            PyErrState::Normalized(PyErrStateNormalized { pvalue }) => unsafe {
+                ffi::PyErr_SetRaisedException(pvalue.into_ptr())
+            },
+        }
+    }
+}
+
+#[cfg(not(Py_3_12))]
+fn lazy_into_normalized_ffi_tuple(
+    py: Python<'_>,
+    lazy: Box<PyErrStateLazyFn>,
+) -> (*mut ffi::PyObject, *mut ffi::PyObject, *mut ffi::PyObject) {
+    // To be consistent with 3.12 logic, go via raise_lazy, but also then normalize
+    // the resulting exception
+    raise_lazy(py, lazy);
+    let mut ptype = std::ptr::null_mut();
+    let mut pvalue = std::ptr::null_mut();
+    let mut ptraceback = std::ptr::null_mut();
+    unsafe {
+        ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
+        ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
+    }
+    (ptype, pvalue, ptraceback)
+}
+
+/// Raises a "lazy" exception state into the Python interpreter.
+///
+/// In principle this could be split in two; first a function to create an exception
+/// in a normalized state, and then a call to `PyErr_SetRaisedException` to raise it.
+///
+/// This would require either moving some logic from C to Rust, or requesting a new
+/// API in CPython.
+fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
+    let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
+    unsafe {
+        if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
+            ffi::PyErr_SetString(
+                PyTypeError::type_object_raw(py).cast(),
+                "exceptions must derive from BaseException\0"
+                    .as_ptr()
+                    .cast(),
+            )
+        } else {
+            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
         }
     }
 }

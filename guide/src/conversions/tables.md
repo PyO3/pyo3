@@ -13,29 +13,35 @@ The table below contains the Python type and the corresponding function argument
 | Python        | Rust                            | Rust (Python-native) |
 | ------------- |:-------------------------------:|:--------------------:|
 | `object`      | -                               | `&PyAny`             |
-| `str`         | `String`, `Cow<str>`, `&str`, `OsString`, `PathBuf` | `&PyUnicode` |
-| `bytes`       | `Vec<u8>`, `&[u8]`              | `&PyBytes`           |
+| `str`         | `String`, `Cow<str>`, `&str`, `OsString`, `PathBuf`, `Path` | `&PyString`, `&PyUnicode` |
+| `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `&PyBytes`           |
 | `bool`        | `bool`                          | `&PyBool`            |
-| `int`         | Any integer type (`i32`, `u32`, `usize`, etc) | `&PyLong` |
+| `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `&PyLong` |
 | `float`       | `f32`, `f64`                    | `&PyFloat`           |
-| `complex`     | `num_complex::Complex`[^1]      | `&PyComplex`         |
+| `complex`     | `num_complex::Complex`[^2]      | `&PyComplex`         |
 | `list[T]`     | `Vec<T>`                        | `&PyList`            |
-| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^2], `indexmap::IndexMap<K, V>`[^3] | `&PyDict` |
+| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `&PyDict` |
 | `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `&PyTuple`           |
-| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^2] | `&PySet` |
-| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^2] | `&PyFrozenSet` |
-| `bytearray`   | `Vec<u8>`                       | `&PyByteArray`       |
+| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `&PySet` |
+| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `&PyFrozenSet` |
+| `bytearray`   | `Vec<u8>`, `Cow<[u8]>`          | `&PyByteArray`       |
 | `slice`       | -                               | `&PySlice`           |
 | `type`        | -                               | `&PyType`            |
 | `module`      | -                               | `&PyModule`          |
+| `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |
 | `datetime.datetime` | -                         | `&PyDateTime`        |
 | `datetime.date` | -                             | `&PyDate`            |
 | `datetime.time` | -                             | `&PyTime`            |
 | `datetime.tzinfo` | -                           | `&PyTzInfo`          |
 | `datetime.timedelta` | -                        | `&PyDelta`           |
+| `decimal.Decimal` | `rust_decimal::Decimal`[^5] | -                    |
+| `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
+| `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
+| `os.PathLike ` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
+| `pathlib.Path` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `&PySequence`        |
-| `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^2], `indexmap::IndexMap<K, V>`[^3] | `&PyMapping` |
+| `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `&PyMapping` |
 | `typing.Iterator[Any]` | -                      | `&PyIterator`        |
 | `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.html#deriving-a-hrefhttpsdocsrspyo3latestpyo3conversiontraitfrompyobjecthtmlfrompyobjecta-for-enums) | - |
 
@@ -84,6 +90,7 @@ Finally, the following Rust types are also able to convert to Python as return v
 | `Option<T>`   | `Optional[T]`                   |
 | `(T, U)`      | `Tuple[T, U]`                   |
 | `Vec<T>`      | `List[T]`                       |
+| `Cow<[u8]>`   | `bytes`                         |
 | `HashMap<K, V>` | `Dict[K, V]`                  |
 | `BTreeMap<K, V>` | `Dict[K, V]`                 |
 | `HashSet<T>`  | `Set[T]`                        |
@@ -92,8 +99,12 @@ Finally, the following Rust types are also able to convert to Python as return v
 | `PyRef<T: PyClass>` | `T`                       |
 | `PyRefMut<T: PyClass>` | `T`                    |
 
-[^1]: Requires the `num-complex` optional feature.
+[^1]: Requires the `num-bigint` optional feature.
 
-[^2]: Requires the `hashbrown` optional feature.
+[^2]: Requires the `num-complex` optional feature.
 
-[^3]: Requires the `indexmap` optional feature.
+[^3]: Requires the `hashbrown` optional feature.
+
+[^4]: Requires the `indexmap` optional feature.
+
+[^5]: Requires the `rust_decimal` optional feature.

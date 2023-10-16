@@ -1,0 +1,22 @@
+[package]
+name = "pyo3-ffi-check"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+pyo3-ffi-check-macro = { path = "./macro" }
+memoffset = "0.9.0"
+
+[dependencies.pyo3-ffi]
+path = "../pyo3-ffi"
+features = ["extension-module"]  # A lazy way of skipping linking in most cases (as we don't use any runtime symbols)
+
+[build-dependencies]
+bindgen = "0.66.1"
+pyo3-build-config = { path = "../pyo3-build-config" }
+
+[workspace]
+members = [
+    "macro"
+]

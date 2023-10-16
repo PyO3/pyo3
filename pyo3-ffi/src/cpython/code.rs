@@ -2,17 +2,105 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[allow(unused_imports)]
-use std::os::raw::{c_char, c_int, c_uchar, c_void};
-
-// skipped _Py_CODEUNIT
-// skipped _Py_OPCODE
-// skipped _Py_OPARG
+use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
+#[cfg(not(PyPy))]
+use std::ptr::addr_of_mut;
 
 #[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
-#[cfg(all(not(PyPy), not(Py_3_8)))]
+#[cfg(Py_3_12)]
+pub const _PY_MONITORING_LOCAL_EVENTS: usize = 10;
+#[cfg(Py_3_12)]
+pub const _PY_MONITORING_UNGROUPED_EVENTS: usize = 15;
+#[cfg(Py_3_12)]
+pub const _PY_MONITORING_EVENTS: usize = 17;
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct _Py_LocalMonitors {
+    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
+}
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct _Py_GlobalMonitors {
+    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
+}
+
+// skipped _Py_CODEUNIT
+
+// skipped _Py_OPCODE
+// skipped _Py_OPARG
+
+// skipped _py_make_codeunit
+
+// skipped _py_set_opcode
+
+// skipped _Py_MAKE_CODEUNIT
+// skipped _Py_SET_OPCODE
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _PyCoCached {
+    pub _co_code: *mut PyObject,
+    pub _co_varnames: *mut PyObject,
+    pub _co_cellvars: *mut PyObject,
+    pub _co_freevars: *mut PyObject,
+}
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _PyCoLineInstrumentationData {
+    pub original_opcode: u8,
+    pub line_delta: i8,
+}
+
+#[cfg(Py_3_12)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _PyCoMonitoringData {
+    pub local_monitors: _Py_LocalMonitors,
+    pub active_monitors: _Py_LocalMonitors,
+    pub tools: *mut u8,
+    pub lines: *mut _PyCoLineInstrumentationData,
+    pub line_tools: *mut u8,
+    pub per_instruction_opcodes: *mut u8,
+    pub per_instruction_tools: *mut u8,
+}
+
+#[cfg(all(not(PyPy), not(Py_3_7)))]
 opaque_struct!(PyCodeObject);
+
+#[cfg(all(not(PyPy), Py_3_7, not(Py_3_8)))]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyCodeObject {
+    pub ob_base: PyObject,
+    pub co_argcount: c_int,
+    pub co_kwonlyargcount: c_int,
+    pub co_nlocals: c_int,
+    pub co_stacksize: c_int,
+    pub co_flags: c_int,
+    pub co_firstlineno: c_int,
+    pub co_code: *mut PyObject,
+    pub co_consts: *mut PyObject,
+    pub co_names: *mut PyObject,
+    pub co_varnames: *mut PyObject,
+    pub co_freevars: *mut PyObject,
+    pub co_cellvars: *mut PyObject,
+    pub co_cell2arg: *mut Py_ssize_t,
+    pub co_filename: *mut PyObject,
+    pub co_name: *mut PyObject,
+    pub co_lnotab: *mut PyObject,
+    pub co_zombieframe: *mut c_void,
+    pub co_weakreflist: *mut PyObject,
+    pub co_extra: *mut c_void,
+}
 
 #[cfg(all(not(PyPy), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
@@ -57,17 +145,26 @@ pub struct PyCodeObject {
     pub co_names: *mut PyObject,
     pub co_exceptiontable: *mut PyObject,
     pub co_flags: c_int,
+    #[cfg(not(Py_3_12))]
     pub co_warmup: c_int,
+
     pub co_argcount: c_int,
     pub co_posonlyargcount: c_int,
     pub co_kwonlyargcount: c_int,
     pub co_stacksize: c_int,
     pub co_firstlineno: c_int,
+
     pub co_nlocalsplus: c_int,
+    #[cfg(Py_3_12)]
+    pub co_framesize: c_int,
     pub co_nlocals: c_int,
+    #[cfg(not(Py_3_12))]
     pub co_nplaincellvars: c_int,
     pub co_ncellvars: c_int,
     pub co_nfreevars: c_int,
+    #[cfg(Py_3_12)]
+    pub co_version: u32,
+
     pub co_localsplusnames: *mut PyObject,
     pub co_localspluskinds: *mut PyObject,
     pub co_filename: *mut PyObject,
@@ -75,6 +172,17 @@ pub struct PyCodeObject {
     pub co_qualname: *mut PyObject,
     pub co_linetable: *mut PyObject,
     pub co_weakreflist: *mut PyObject,
+    #[cfg(not(Py_3_12))]
+    pub _co_code: *mut PyObject,
+    #[cfg(not(Py_3_12))]
+    pub _co_linearray: *mut c_char,
+    #[cfg(Py_3_12)]
+    pub _co_cached: *mut _PyCoCached,
+    #[cfg(Py_3_12)]
+    pub _co_instrumentation_version: u64,
+    #[cfg(Py_3_12)]
+    pub _co_monitoring: *mut _PyCoMonitoringData,
+    pub _co_firsttraceable: c_int,
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],
 }
@@ -130,7 +238,7 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyCode_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
 }
 
 #[inline]

@@ -2,16 +2,23 @@
 
 use std::cell::UnsafeCell;
 
-use crate::{
-    callback::panic_result_into_callback_output, ffi, types::PyModule, GILPool, IntoPyPointer, Py,
-    PyObject, PyResult, Python,
-};
+#[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+use std::sync::atomic::{AtomicI64, Ordering};
+
+#[cfg(not(PyPy))]
+use crate::exceptions::PyImportError;
+use crate::{ffi, sync::GILOnceCell, types::PyModule, Py, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     initializer: ModuleInitializer,
+    /// Interpreter ID where module was initialized (not applicable on PyPy).
+    #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+    interpreter: AtomicI64,
+    /// Initialized module object, cached to avoid reinitialization.
+    module: GILOnceCell<Py<PyModule>>,
 }
 
 /// Wrapper to enable initializer to be used in const fns.
@@ -50,45 +57,78 @@ impl ModuleDef {
         ModuleDef {
             ffi_def,
             initializer,
+            // -1 is never expected to be a valid interpreter ID
+            #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+            interpreter: AtomicI64::new(-1),
+            module: GILOnceCell::new(),
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
-    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<PyObject> {
-        let module = unsafe {
-            Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
-        };
-        (self.initializer.0)(py, module.as_ref(py))?;
-        Ok(module.into())
-    }
-    /// Implementation of `PyInit_foo` functions generated in [`#[pymodule]`][crate::pymodule]..
-    ///
-    /// # Safety
-    /// The Python GIL must be held.
-    pub unsafe fn module_init(&'static self) -> *mut ffi::PyObject {
-        let pool = GILPool::new();
-        let py = pool.python();
-        let unwind_safe_self = std::panic::AssertUnwindSafe(self);
-        panic_result_into_callback_output(
-            py,
-            std::panic::catch_unwind(move || -> PyResult<_> {
-                #[cfg(all(PyPy, not(Py_3_8)))]
-                {
-                    const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
-                    let version = py
-                        .import("sys")?
-                        .getattr("implementation")?
-                        .getattr("version")?;
-                    if version.lt(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))? {
-                        let warn = py.import("warnings")?.getattr("warn")?;
-                        warn.call1((
-                            "PyPy 3.7 versions older than 7.3.8 are known to have binary \
-                             compatibility issues which may cause segfaults. Please upgrade.",
-                        ))?;
+    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
+        #[cfg(all(PyPy, not(Py_3_8)))]
+        {
+            const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
+            let version = py
+                .import("sys")?
+                .getattr("implementation")?
+                .getattr("version")?;
+            if version.lt(crate::types::PyTuple::new(py, PYPY_GOOD_VERSION))? {
+                let warn = py.import("warnings")?.getattr("warn")?;
+                warn.call1((
+                    "PyPy 3.7 versions older than 7.3.8 are known to have binary \
+                        compatibility issues which may cause segfaults. Please upgrade.",
+                ))?;
+            }
+        }
+        // Check the interpreter ID has not changed, since we currently have no way to guarantee
+        // that static data is not reused across interpreters.
+        //
+        // PyPy does not have subinterpreters, so no need to check interpreter ID.
+        #[cfg(not(PyPy))]
+        {
+            // PyInterpreterState_Get is only available on 3.9 and later, but is missing
+            // from python3.dll for Windows stable API on 3.9
+            #[cfg(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+            {
+                let current_interpreter =
+                    unsafe { ffi::PyInterpreterState_GetID(ffi::PyInterpreterState_Get()) };
+                crate::err::error_on_minusone(py, current_interpreter)?;
+                if let Err(initialized_interpreter) = self.interpreter.compare_exchange(
+                    -1,
+                    current_interpreter,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                ) {
+                    if initialized_interpreter != current_interpreter {
+                        return Err(PyImportError::new_err(
+                            "PyO3 modules do not yet support subinterpreters, see https://github.com/PyO3/pyo3/issues/576",
+                        ));
                     }
                 }
-                Ok(unwind_safe_self.make_module(py)?.into_ptr())
-            }),
-        )
+            }
+            #[cfg(not(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10))))))]
+            {
+                // CPython before 3.9 does not have APIs to check the interpreter ID, so best that can be
+                // done to guard against subinterpreters is fail if the module is initialized twice
+                if self.module.get(py).is_some() {
+                    return Err(PyImportError::new_err(
+                        "PyO3 modules compiled for CPython 3.8 or older may only be initialized once per interpreter process"
+                    ));
+                }
+            }
+        }
+        self.module
+            .get_or_try_init(py, || {
+                let module = unsafe {
+                    Py::<PyModule>::from_owned_ptr_or_err(
+                        py,
+                        ffi::PyModule_Create(self.ffi_def.get()),
+                    )?
+                };
+                (self.initializer.0)(py, module.as_ref(py))?;
+                Ok(module)
+            })
+            .map(|py_module| py_module.clone_ref(py))
     }
 }
 
@@ -102,46 +142,43 @@ mod tests {
 
     #[test]
     fn module_init() {
-        unsafe {
-            static MODULE_DEF: ModuleDef = unsafe {
-                ModuleDef::new(
-                    "test_module\0",
-                    "some doc\0",
-                    ModuleInitializer(|_, m| {
-                        m.add("SOME_CONSTANT", 42)?;
-                        Ok(())
-                    }),
-                )
-            };
-            Python::with_gil(|py| {
-                let module = MODULE_DEF.module_init();
-                let pymodule: &PyModule = py.from_owned_ptr(module);
-                assert_eq!(
-                    pymodule
-                        .getattr("__name__")
-                        .unwrap()
-                        .extract::<&str>()
-                        .unwrap(),
-                    "test_module",
-                );
-                assert_eq!(
-                    pymodule
-                        .getattr("__doc__")
-                        .unwrap()
-                        .extract::<&str>()
-                        .unwrap(),
-                    "some doc",
-                );
-                assert_eq!(
-                    pymodule
-                        .getattr("SOME_CONSTANT")
-                        .unwrap()
-                        .extract::<u8>()
-                        .unwrap(),
-                    42,
-                );
-            })
-        }
+        static MODULE_DEF: ModuleDef = unsafe {
+            ModuleDef::new(
+                "test_module\0",
+                "some doc\0",
+                ModuleInitializer(|_, m| {
+                    m.add("SOME_CONSTANT", 42)?;
+                    Ok(())
+                }),
+            )
+        };
+        Python::with_gil(|py| {
+            let module = MODULE_DEF.make_module(py).unwrap().into_ref(py);
+            assert_eq!(
+                module
+                    .getattr("__name__")
+                    .unwrap()
+                    .extract::<&str>()
+                    .unwrap(),
+                "test_module",
+            );
+            assert_eq!(
+                module
+                    .getattr("__doc__")
+                    .unwrap()
+                    .extract::<&str>()
+                    .unwrap(),
+                "some doc",
+            );
+            assert_eq!(
+                module
+                    .getattr("SOME_CONSTANT")
+                    .unwrap()
+                    .extract::<u8>()
+                    .unwrap(),
+                42,
+            );
+        })
     }
 
     #[test]

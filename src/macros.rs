@@ -20,7 +20,7 @@
 /// You can use this macro to test pyfunctions or pyclasses quickly.
 ///
 /// ```
-/// use pyo3::{prelude::*, py_run, PyCell};
+/// use pyo3::{prelude::*, py_run};
 ///
 /// #[pyclass]
 /// #[derive(Debug)]
@@ -125,12 +125,12 @@ macro_rules! wrap_pyfunction {
     ($function:path) => {
         &|py_or_module| {
             use $function as wrapped_pyfunction;
-            $crate::impl_::pyfunction::wrap_pyfunction(&wrapped_pyfunction::DEF, py_or_module)
+            $crate::impl_::pyfunction::_wrap_pyfunction(&wrapped_pyfunction::DEF, py_or_module)
         }
     };
     ($function:path, $py_or_module:expr) => {{
         use $function as wrapped_pyfunction;
-        $crate::impl_::pyfunction::wrap_pyfunction(&wrapped_pyfunction::DEF, $py_or_module)
+        $crate::impl_::pyfunction::_wrap_pyfunction(&wrapped_pyfunction::DEF, $py_or_module)
     }};
 }
 

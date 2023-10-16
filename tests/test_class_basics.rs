@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{py_run, PyClass};
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]
@@ -11,13 +12,13 @@ struct EmptyClass {}
 
 #[test]
 fn empty_class() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<EmptyClass>();
-    // By default, don't allow creating instances from python.
-    assert!(typeobj.call((), None).is_err());
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<EmptyClass>();
+        // By default, don't allow creating instances from python.
+        assert!(typeobj.call((), None).is_err());
 
-    py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
+        py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
+    });
 }
 
 #[pyclass]
@@ -56,9 +57,7 @@ struct ClassWithDocs {
 
 #[test]
 fn class_with_docstr() {
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    Python::with_gil(|py| {
         let typeobj = py.get_type::<ClassWithDocs>();
         py_run!(
             py,
@@ -80,7 +79,7 @@ fn class_with_docstr() {
             typeobj,
             "assert typeobj.writeonly.__doc__ == 'Write-only property field'"
         );
-    }
+    });
 }
 
 #[pyclass(name = "CustomName")]
@@ -104,24 +103,24 @@ impl EmptyClass2 {
 
 #[test]
 fn custom_names() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<EmptyClass2>();
-    py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
-    py_assert!(py, typeobj, "typeobj.custom_fn.__name__ == 'custom_fn'");
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.custom_static.__name__ == 'custom_static'"
-    );
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.custom_getter.__name__ == 'custom_getter'"
-    );
-    py_assert!(py, typeobj, "not hasattr(typeobj, 'bar')");
-    py_assert!(py, typeobj, "not hasattr(typeobj, 'bar_static')");
-    py_assert!(py, typeobj, "not hasattr(typeobj, 'foo')");
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<EmptyClass2>();
+        py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
+        py_assert!(py, typeobj, "typeobj.custom_fn.__name__ == 'custom_fn'");
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.custom_static.__name__ == 'custom_static'"
+        );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.custom_getter.__name__ == 'custom_getter'"
+        );
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'bar')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'bar_static')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'foo')");
+    });
 }
 
 #[pyclass]
@@ -137,12 +136,12 @@ impl RawIdents {
 
 #[test]
 fn test_raw_idents() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<RawIdents>();
-    py_assert!(py, typeobj, "not hasattr(typeobj, 'r#fn')");
-    py_assert!(py, typeobj, "hasattr(typeobj, 'fn')");
-    py_assert!(py, typeobj, "hasattr(typeobj, 'type')");
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<RawIdents>();
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'r#fn')");
+        py_assert!(py, typeobj, "hasattr(typeobj, 'fn')");
+        py_assert!(py, typeobj, "hasattr(typeobj, 'type')");
+    });
 }
 
 #[pyclass]
@@ -150,27 +149,27 @@ struct EmptyClassInModule {}
 
 // Ignored because heap types do not show up as being in builtins, instead they
 // raise AttributeError:
-// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L544-L573
+// https://github.com/python/cpython/blob/v3.11.1/Objects/typeobject.c#L541-L570
 #[test]
 #[ignore]
 fn empty_class_in_module() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let module = PyModule::new(py, "test_module.nested").unwrap();
-    module.add_class::<EmptyClassInModule>().unwrap();
+    Python::with_gil(|py| {
+        let module = PyModule::new(py, "test_module.nested").unwrap();
+        module.add_class::<EmptyClassInModule>().unwrap();
 
-    let ty = module.getattr("EmptyClassInModule").unwrap();
-    assert_eq!(
-        ty.getattr("__name__").unwrap().extract::<String>().unwrap(),
-        "EmptyClassInModule"
-    );
+        let ty = module.getattr("EmptyClassInModule").unwrap();
+        assert_eq!(
+            ty.getattr("__name__").unwrap().extract::<String>().unwrap(),
+            "EmptyClassInModule"
+        );
 
-    let module: String = ty.getattr("__module__").unwrap().extract().unwrap();
+        let module: String = ty.getattr("__module__").unwrap().extract().unwrap();
 
-    // Rationale: The class can be added to many modules, but will only be initialized once.
-    // We currently have no way of determining a canonical module, so builtins is better
-    // than using whatever calls init first.
-    assert_eq!(module, "builtins");
+        // Rationale: The class can be added to many modules, but will only be initialized once.
+        // We currently have no way of determining a canonical module, so builtins is better
+        // than using whatever calls init first.
+        assert_eq!(module, "builtins");
+    });
 }
 
 #[pyclass]
@@ -191,11 +190,11 @@ impl ClassWithObjectField {
 
 #[test]
 fn class_with_object_field() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let ty = py.get_type::<ClassWithObjectField>();
-    py_assert!(py, ty, "ty(5).value == 5");
-    py_assert!(py, ty, "ty(None).value == None");
+    Python::with_gil(|py| {
+        let ty = py.get_type::<ClassWithObjectField>();
+        py_assert!(py, ty, "ty(5).value == 5");
+        py_assert!(py, ty, "ty(None).value == None");
+    });
 }
 
 #[pyclass(unsendable, subclass)]
@@ -230,45 +229,56 @@ impl UnsendableChild {
 }
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
-    let obj = std::thread::spawn(|| -> PyResult<_> {
+    let obj = Python::with_gil(|py| -> PyResult<_> {
+        let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
+
+        // Accessing the value inside this thread should not panic
+        let caught_panic =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> PyResult<_> {
+                assert_eq!(obj.as_ref(py).getattr("value")?.extract::<usize>()?, 5);
+                Ok(())
+            }))
+            .is_err();
+
+        assert!(!caught_panic);
+        Ok(obj)
+    })?;
+
+    let keep_obj_here = obj.clone();
+
+    let caught_panic = std::thread::spawn(move || {
+        // This access must panic
         Python::with_gil(|py| {
-            let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
-
-            // Accessing the value inside this thread should not panic
-            let caught_panic =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> PyResult<_> {
-                    assert_eq!(obj.as_ref(py).getattr("value")?.extract::<usize>()?, 5);
-                    Ok(())
-                }))
-                .is_err();
-
-            assert!(!caught_panic);
-            Ok(obj)
-        })
+            obj.borrow(py);
+        });
     })
-    .join()
-    .unwrap()?;
+    .join();
 
-    // This access must panic
-    Python::with_gil(|py| {
-        obj.borrow(py);
-    });
+    Python::with_gil(|_py| drop(keep_obj_here));
 
-    panic!("Borrowing unsendable from receiving thread did not panic.");
+    if let Err(err) = caught_panic {
+        if let Some(msg) = err.downcast_ref::<String>() {
+            panic!("{}", msg);
+        }
+    }
+
+    Ok(())
 }
 
 /// If a class is marked as `unsendable`, it panics when accessed by another thread.
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[should_panic(
-    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread!"
+    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread"
 )]
 fn panic_unsendable_base() {
     test_unsendable::<UnsendableBase>().unwrap();
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[should_panic(
-    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread!"
+    expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread"
 )]
 fn panic_unsendable_child() {
     test_unsendable::<UnsendableChild>().unwrap();
@@ -345,39 +355,54 @@ fn test_tuple_struct_class() {
 }
 
 #[pyclass(dict, subclass)]
-struct DunderDictSupport {}
+struct DunderDictSupport {
+    // Make sure that dict_offset runs with non-zero sized Self
+    _pad: [u8; 32],
+}
 
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        r#"
+    Python::with_gil(|py| {
+        let inst = PyCell::new(
+            py,
+            DunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+        py_run!(
+            py,
+            inst,
+            r#"
         inst.a = 1
         assert inst.a == 1
     "#
-    );
+        );
+    });
 }
 
 // Accessing inst.__dict__ only supported in limited API from Python 3.10
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn access_dunder_dict() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        r#"
+    Python::with_gil(|py| {
+        let inst = PyCell::new(
+            py,
+            DunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+        py_run!(
+            py,
+            inst,
+            r#"
         inst.a = 1
         assert inst.__dict__ == {'a': 1}
     "#
-    );
+        );
+    });
 }
 
 // If the base class has dict support, child class also has dict
@@ -389,49 +414,75 @@ struct InheritDict {
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn inherited_dict() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, (InheritDict { _value: 0 }, DunderDictSupport {})).unwrap();
-    py_run!(
-        py,
-        inst,
-        r#"
+    Python::with_gil(|py| {
+        let inst = PyCell::new(
+            py,
+            (
+                InheritDict { _value: 0 },
+                DunderDictSupport {
+                    _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+                },
+            ),
+        )
+        .unwrap();
+        py_run!(
+            py,
+            inst,
+            r#"
         inst.a = 1
         assert inst.a == 1
     "#
-    );
+        );
+    });
 }
 
 #[pyclass(weakref, dict)]
-struct WeakRefDunderDictSupport {}
+struct WeakRefDunderDictSupport {
+    // Make sure that weaklist_offset runs with non-zero sized Self
+    _pad: [u8; 32],
+}
 
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, WeakRefDunderDictSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
-    );
+    Python::with_gil(|py| {
+        let inst = PyCell::new(
+            py,
+            WeakRefDunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+        py_run!(
+            py,
+            inst,
+            "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
+        );
+    });
 }
 
 #[pyclass(weakref, subclass)]
-struct WeakRefSupport {}
+struct WeakRefSupport {
+    _pad: [u8; 32],
+}
 
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, WeakRefSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        "import weakref; assert weakref.ref(inst)() is inst"
-    );
+    Python::with_gil(|py| {
+        let inst = PyCell::new(
+            py,
+            WeakRefSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+        py_run!(
+            py,
+            inst,
+            "import weakref; assert weakref.ref(inst)() is inst"
+        );
+    });
 }
 
 // If the base class has weakref support, child class also has weakref.
@@ -443,12 +494,100 @@ struct InheritWeakRef {
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn inherited_weakref() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, (InheritWeakRef { _value: 0 }, WeakRefSupport {})).unwrap();
-    py_run!(
-        py,
-        inst,
-        "import weakref; assert weakref.ref(inst)() is inst"
-    );
+    Python::with_gil(|py| {
+        let inst = PyCell::new(
+            py,
+            (
+                InheritWeakRef { _value: 0 },
+                WeakRefSupport {
+                    _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+                },
+            ),
+        )
+        .unwrap();
+        py_run!(
+            py,
+            inst,
+            "import weakref; assert weakref.ref(inst)() is inst"
+        );
+    });
+}
+
+#[test]
+fn access_frozen_class_without_gil() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[pyclass(frozen)]
+    struct FrozenCounter {
+        value: AtomicUsize,
+    }
+
+    let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+        let counter = FrozenCounter {
+            value: AtomicUsize::new(0),
+        };
+
+        let cell = PyCell::new(py, counter).unwrap();
+
+        cell.get().value.fetch_add(1, Ordering::Relaxed);
+
+        cell.into()
+    });
+
+    assert_eq!(py_counter.get().value.load(Ordering::Relaxed), 1);
+}
+
+#[test]
+#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
+#[cfg_attr(target_arch = "wasm32", ignore)]
+fn drop_unsendable_elsewhere() {
+    use common::UnraisableCapture;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread::spawn;
+
+    #[pyclass(unsendable)]
+    struct Unsendable {
+        dropped: Arc<AtomicBool>,
+    }
+
+    impl Drop for Unsendable {
+        fn drop(&mut self) {
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    Python::with_gil(|py| {
+        let capture = UnraisableCapture::install(py);
+
+        let dropped = Arc::new(AtomicBool::new(false));
+
+        let unsendable = Py::new(
+            py,
+            Unsendable {
+                dropped: dropped.clone(),
+            },
+        )
+        .unwrap();
+
+        py.allow_threads(|| {
+            spawn(move || {
+                Python::with_gil(move |_py| {
+                    drop(unsendable);
+                });
+            })
+            .join()
+            .unwrap();
+        });
+
+        assert!(!dropped.load(Ordering::SeqCst));
+
+        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
+        assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread");
+        assert!(object.is_none(py));
+
+        capture.borrow_mut(py).uninstall(py);
+    });
 }

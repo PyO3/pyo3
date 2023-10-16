@@ -6,15 +6,15 @@ use std::os::raw::{c_char, c_int};
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyStructSequence_Field {
-    pub name: *mut c_char,
-    pub doc: *mut c_char,
+    pub name: *const c_char,
+    pub doc: *const c_char,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyStructSequence_Desc {
-    pub name: *mut c_char,
-    pub doc: *mut c_char,
+    pub name: *const c_char,
+    pub doc: *const c_char,
     pub fields: *mut PyStructSequence_Field,
     pub n_in_sequence: c_int,
 }

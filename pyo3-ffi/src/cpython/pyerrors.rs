@@ -10,6 +10,8 @@ pub struct PyBaseExceptionObject {
     pub dict: *mut PyObject,
     #[cfg(not(PyPy))]
     pub args: *mut PyObject,
+    #[cfg(all(Py_3_11, not(PyPy)))]
+    pub notes: *mut PyObject,
     #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
     #[cfg(not(PyPy))]
@@ -27,6 +29,8 @@ pub struct PySyntaxErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -51,6 +55,8 @@ pub struct PyImportErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -59,6 +65,8 @@ pub struct PyImportErrorObject {
     pub msg: *mut PyObject,
     pub name: *mut PyObject,
     pub path: *mut PyObject,
+    #[cfg(Py_3_12)]
+    pub name_from: *mut PyObject,
 }
 
 #[cfg(not(PyPy))]
@@ -68,6 +76,8 @@ pub struct PyUnicodeErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -87,6 +97,8 @@ pub struct PySystemExitObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -102,6 +114,8 @@ pub struct PyOSErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -124,6 +138,8 @@ pub struct PyStopIterationObject {
     pub dict: *mut PyObject,
     #[cfg(not(PyPy))]
     pub args: *mut PyObject,
+    #[cfg(all(Py_3_11, not(PyPy)))]
+    pub notes: *mut PyObject,
     #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
     #[cfg(not(PyPy))]
@@ -136,6 +152,11 @@ pub struct PyStopIterationObject {
     pub value: *mut PyObject,
 }
 
+extern "C" {
+    #[cfg(not(PyPy))]
+    pub fn _PyErr_ChainExceptions(typ: *mut PyObject, val: *mut PyObject, tb: *mut PyObject);
+}
+
 // skipped PyNameErrorObject
 // skipped PyAttributeErrorObject
 
@@ -145,8 +166,6 @@ pub struct PyStopIterationObject {
 // skipped _PyErr_SetKeyError
 // skipped _PyErr_GetTopmostException
 // skipped _PyErr_GetExcInfo
-
-// skipped _PyErr_ChainExceptions
 
 // skipped PyErr_SetFromErrnoWithUnicodeFilename
 

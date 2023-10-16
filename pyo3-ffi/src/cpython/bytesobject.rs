@@ -1,6 +1,8 @@
 use crate::object::*;
 use crate::Py_ssize_t;
-use std::os::raw::{c_char, c_int};
+#[cfg(not(any(PyPy, Py_LIMITED_API)))]
+use std::os::raw::c_char;
+use std::os::raw::c_int;
 
 #[cfg(not(any(PyPy, Py_LIMITED_API)))]
 #[repr(C)]
@@ -15,5 +17,6 @@ pub struct PyBytesObject {
 opaque_struct!(PyBytesObject);
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "_PyPyBytes_Resize")]
     pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
 }

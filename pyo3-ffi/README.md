@@ -14,7 +14,7 @@ Manual][capi] for up-to-date documentation.
 
 PyO3 supports the following software versions:
   - Python 3.7 and up (CPython and PyPy)
-  - Rust 1.48 and up
+  - Rust 1.56 and up
 
 # Example: Building Python Native modules
 
@@ -49,64 +49,40 @@ use std::ptr;
 
 use pyo3_ffi::*;
 
+static mut MODULE_DEF: PyModuleDef = PyModuleDef {
+    m_base: PyModuleDef_HEAD_INIT,
+    m_name: "string_sum\0".as_ptr().cast::<c_char>(),
+    m_doc: "A Python module written in Rust.\0"
+        .as_ptr()
+        .cast::<c_char>(),
+    m_size: 0,
+    m_methods: unsafe { METHODS.as_mut_ptr().cast() },
+    m_slots: std::ptr::null_mut(),
+    m_traverse: None,
+    m_clear: None,
+    m_free: None,
+};
+
+static mut METHODS: [PyMethodDef; 2] = [
+    PyMethodDef {
+        ml_name: "sum_as_string\0".as_ptr().cast::<c_char>(),
+        ml_meth: PyMethodDefPointer {
+            _PyCFunctionFast: sum_as_string,
+        },
+        ml_flags: METH_FASTCALL,
+        ml_doc: "returns the sum of two integers as a string\0"
+            .as_ptr()
+            .cast::<c_char>(),
+    },
+    // A zeroed PyMethodDef to mark the end of the array.
+    PyMethodDef::zeroed()
+];
+
+// The module initialization function, which must be named `PyInit_<your_module>`.
 #[allow(non_snake_case)]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-    let init = PyModuleDef {
-        m_base: PyModuleDef_HEAD_INIT,
-        m_name: "string_sum\0".as_ptr() as *const c_char,
-        m_doc: std::ptr::null(),
-        m_size: 0,
-        m_methods: std::ptr::null_mut(),
-        m_slots: std::ptr::null_mut(),
-        m_traverse: None,
-        m_clear: None,
-        m_free: None,
-    };
-
-    let mptr = PyModule_Create(Box::into_raw(Box::new(init)));
-    let version = env!("CARGO_PKG_VERSION");
-    PyModule_AddObject(
-        mptr,
-        "__version__\0".as_ptr() as *const c_char,
-        PyUnicode_FromStringAndSize(version.as_ptr() as *const c_char, version.len() as isize),
-    );
-
-    let wrapped_sum_as_string = PyMethodDef {
-        ml_name: "sum_as_string\0".as_ptr() as *const c_char,
-        ml_meth: PyMethodDefPointer {
-            _PyCFunctionFast: sum_as_string
-        },
-        ml_flags: METH_FASTCALL,
-        ml_doc: "returns the sum of two integers as a string\0".as_ptr() as *const c_char,
-    };
-
-    // PyModule_AddObject can technically fail.
-    // For more involved applications error checking may be necessary
-    PyModule_AddObject(
-        mptr,
-        "sum_as_string\0".as_ptr() as *const c_char,
-        PyCFunction_NewEx(
-            Box::into_raw(Box::new(wrapped_sum_as_string)),
-            std::ptr::null_mut(),
-            PyUnicode_InternFromString("string_sum\0".as_ptr() as *const c_char),
-        ),
-    );
-
-    let all = ["__all__\0", "__version__\0", "sum_as_string\0"];
-
-    let pyall = PyTuple_New(all.len() as isize);
-    for (i, obj) in all.iter().enumerate() {
-        PyTuple_SET_ITEM(
-            pyall,
-            i as isize,
-            PyUnicode_InternFromString(obj.as_ptr() as *const c_char),
-        )
-    }
-
-    PyModule_AddObject(mptr, "__all__\0".as_ptr() as *const c_char, pyall);
-
-    mptr
+    PyModule_Create(ptr::addr_of_mut!(MODULE_DEF))
 }
 
 pub unsafe extern "C" fn sum_as_string(
@@ -115,45 +91,60 @@ pub unsafe extern "C" fn sum_as_string(
     nargs: Py_ssize_t,
 ) -> *mut PyObject {
     if nargs != 2 {
-        return raise_type_error("sum_as_string() expected 2 positional arguments");
+        PyErr_SetString(
+            PyExc_TypeError,
+            "sum_as_string() expected 2 positional arguments\0"
+                .as_ptr()
+                .cast::<c_char>(),
+        );
+        return std::ptr::null_mut();
     }
 
     let arg1 = *args;
     if PyLong_Check(arg1) == 0 {
-        return raise_type_error("sum_as_string() expected an int for positional argument 1");
+        PyErr_SetString(
+            PyExc_TypeError,
+            "sum_as_string() expected an int for positional argument 1\0"
+                .as_ptr()
+                .cast::<c_char>(),
+        );
+        return std::ptr::null_mut();
     }
 
     let arg1 = PyLong_AsLong(arg1);
     if !PyErr_Occurred().is_null() {
-        return ptr::null_mut()
+        return ptr::null_mut();
     }
 
     let arg2 = *args.add(1);
     if PyLong_Check(arg2) == 0 {
-        return raise_type_error("sum_as_string() expected an int for positional argument 2");
+        PyErr_SetString(
+            PyExc_TypeError,
+            "sum_as_string() expected an int for positional argument 2\0"
+                .as_ptr()
+                .cast::<c_char>(),
+        );
+        return std::ptr::null_mut();
     }
 
     let arg2 = PyLong_AsLong(arg2);
     if !PyErr_Occurred().is_null() {
-        return ptr::null_mut()
+        return ptr::null_mut();
     }
 
-
-
-    let res = (arg1 + arg2).to_string();
-    PyUnicode_FromStringAndSize(res.as_ptr() as *const c_char, res.len() as isize)
-}
-
-#[cold]
-#[inline(never)]
-fn raise_type_error(msg: &str) -> *mut PyObject {
-    unsafe {
-        let err_msg =
-            PyUnicode_FromStringAndSize(msg.as_ptr() as *const c_char, msg.len() as isize);
-        PyErr_SetObject(PyExc_TypeError, err_msg);
-        Py_DECREF(err_msg);
-    };
-    std::ptr::null_mut()
+    match arg1.checked_add(arg2) {
+        Some(sum) => {
+            let string = sum.to_string();
+            PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as isize)
+        }
+        None => {
+            PyErr_SetString(
+                PyExc_OverflowError,
+                "arguments too large to add\0".as_ptr().cast::<c_char>(),
+            );
+            std::ptr::null_mut()
+        }
+    }
 }
 ```
 

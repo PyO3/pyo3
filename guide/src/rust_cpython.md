@@ -4,7 +4,7 @@ PyO3 began as fork of [rust-cpython](https://github.com/dgrunwald/rust-cpython) 
 
 ## Macros
 
-While rust-cpython has a `macro_rules!` based dsl for declaring modules and classes, PyO3 uses proc macros. PyO3 also doesn't change your struct and functions so you can still use them as normal Rust functions.
+While rust-cpython has a `macro_rules!` based DSL for declaring modules and classes, PyO3 uses proc macros. PyO3 also doesn't change your struct and functions so you can still use them as normal Rust functions.
 
 **rust-cpython**
 
@@ -20,14 +20,14 @@ py_class!(class MyClass |py| {
 });
 ```
 
-**pyo3**
+**PyO3**
 
 ```rust
 use pyo3::prelude::*;
 
 #[pyclass]
 struct MyClass {
-   num: u32,
+    num: u32,
 }
 
 #[pymethods]
@@ -45,8 +45,8 @@ impl MyClass {
 
 ## Ownership and lifetimes
 
-While in rust-cpython you always own python objects, PyO3 allows efficient *borrowed objects*
-and most APIs are available with references.
+While in rust-cpython you always own Python objects, PyO3 allows efficient *borrowed objects*
+and most APIs work with references.
 
 Here is an example of the PyList API:
 
@@ -61,7 +61,7 @@ impl PyList {
 }
 ```
 
-**pyo3**
+**PyO3**
 
 ```rust,ignore
 impl PyList {
@@ -73,7 +73,7 @@ impl PyList {
 ```
 
 In PyO3, all object references are bounded by the GIL lifetime.
-So the owned Python object is not required, and it is safe to have functions like `fn py<'p>(&'p self) -> Python<'p> {}`.
+So owned Python objects are not required, and it is safe to have functions like `fn py<'p>(&'p self) -> Python<'p> {}`.
 
 ## Error handling
 

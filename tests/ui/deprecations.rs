@@ -3,17 +3,15 @@
 use pyo3::prelude::*;
 
 #[pyclass]
-struct DeprecatedCall;
+#[pyo3(text_signature = "()")]
+struct MyClass;
 
 #[pymethods]
-impl DeprecatedCall {
-    #[call]
-    fn deprecated_call(&self) {}
+impl MyClass {
+    #[__new__]
+    fn new() -> Self {
+        Self
+    }
 }
 
-#[pyclass(gc)]
-struct DeprecatedGc;
-
-fn main() {
-
-}
+fn main() {}

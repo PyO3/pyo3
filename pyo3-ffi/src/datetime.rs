@@ -574,8 +574,17 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
 // skipped non-limited PyTime_FromTime
 // skipped non-limited PyTime_FromTimeAndFold
 // skipped non-limited PyDelta_FromDSU
-// skipped non-limited PyTimeZone_FromOffset
-// skipped non-limited PyTimeZone_FromOffsetAndName
+
+pub unsafe fn PyTimeZone_FromOffset(offset: *mut PyObject) -> *mut PyObject {
+    ((*PyDateTimeAPI()).TimeZone_FromTimeZone)(offset, std::ptr::null_mut())
+}
+
+pub unsafe fn PyTimeZone_FromOffsetAndName(
+    offset: *mut PyObject,
+    name: *mut PyObject,
+) -> *mut PyObject {
+    ((*PyDateTimeAPI()).TimeZone_FromTimeZone)(offset, name)
+}
 
 #[cfg(not(PyPy))]
 pub unsafe fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject {

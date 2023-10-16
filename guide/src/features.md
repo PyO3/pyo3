@@ -1,6 +1,6 @@
-# Features Reference
+# Features reference
 
-PyO3 provides a number of Cargo features to customise functionality. This chapter of the guide provides detail on each of them.
+PyO3 provides a number of Cargo features to customize functionality. This chapter of the guide provides detail on each of them.
 
 By default, only the `macros` feature is enabled.
 
@@ -24,7 +24,7 @@ See the [building and distribution](building_and_distribution.md#py_limited_apia
 
 ### The `abi3-pyXY` features
 
-(`abi3-py37`, `abi3-py38`, `abi3-py39`, and `abi3-py310`)
+(`abi3-py37`, `abi3-py38`, `abi3-py39`, `abi3-py310` and `abi3-py311`)
 
 These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
@@ -45,11 +45,17 @@ section for further detail.
 
 ### `auto-initialize`
 
-This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.with_gil) and [`Python::acquire_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.acquire_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
+This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.with_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
 
 If you do not enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
 
 ## Advanced Features
+
+### `experimental-inspect`
+
+This feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` and `FromPyObject::type_input` APIs to produce Python type "annotations" for Rust types.
+
+This is a first step towards adding first-class support for generating type annotations automatically in PyO3, however work is needed to finish this off. All feedback and offers of help welcome on [issue #2454](https://github.com/PyO3/pyo3/issues/2454).
 
 ### `macros`
 
@@ -69,19 +75,15 @@ These macros require a number of dependencies which may not be needed by users w
 
 ### `multiple-pymethods`
 
-This feature enables a dependency on `inventory`, which enables each `#[pyclass]` to have more than one `#[pymethods]` block.
+This feature enables a dependency on `inventory`, which enables each `#[pyclass]` to have more than one `#[pymethods]` block. This feature also requires a minimum Rust version of 1.62 due to limitations in the `inventory` crate.
 
 Most users should only need a single `#[pymethods]` per `#[pyclass]`. In addition, not all platforms (e.g. Wasm) are supported by `inventory`. For this reason this feature is not enabled by default, meaning fewer dependencies and faster compilation for the majority of users.
 
 See [the `#[pyclass]` implementation details](class.md#implementation-details) for more information.
 
-### `pyproto`
-
-This feature enables the `#[pyproto]` macro, which is a deprecated alternative to `#[pymethods]` for defining magic methods such as `__eq__`.
-
 ### `nightly`
 
-The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the auto_traits and negative_impls features to fix the `Python::allow_threads` function.
+The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::allow_threads` function.
 
 ### `resolve-config`
 
@@ -95,11 +97,21 @@ These features enable conversions between Python types and types from other Rust
 
 ### `anyhow`
 
-Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
+Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html), for easy error handling.
+
+### `chrono`
+
+Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
+- [Duration](https://docs.rs/chrono/latest/chrono/struct.Duration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [FixedOffset](https://docs.rs/chrono/latest/chrono/offset/struct.FixedOffset.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [Utc](https://docs.rs/chrono/latest/chrono/offset/struct.Utc.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
+- [NaiveDate](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveDate.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
+- [NaiveTime](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveTime.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
+- [DateTime](https://docs.rs/chrono/latest/chrono/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
 
 ### `eyre`
 
-Adds a dependency on [eyre](https://docs.rs/eyre). Enables a conversion from [eyre](https://docs.rs/eyre)’s [`Report`](https://docs.rs/eyre/latest/eyre/struct.Report.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
+Adds a dependency on [eyre](https://docs.rs/eyre). Enables a conversion from [eyre](https://docs.rs/eyre)’s [`Report`](https://docs.rs/eyre/latest/eyre/struct.Report.html) type to [`PyErr`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html), for easy error handling.
 
 ### `hashbrown`
 
@@ -117,9 +129,13 @@ Adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conver
 
 Adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conversions into its [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
 
+### `rust_decimal`
+
+Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables conversions into its [`Decimal`](https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html) type.
+
 ### `serde`
 
-Enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
+Enables (de)serialization of `Py<T>` objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
 ```rust
@@ -132,14 +148,14 @@ This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.
 #[pyclass]
 #[derive(Serialize, Deserialize)]
 struct Permission {
-    name: String
+    name: String,
 }
 
 #[pyclass]
 #[derive(Serialize, Deserialize)]
 struct User {
     username: String,
-    permissions: Vec<Py<Permission>>
+    permissions: Vec<Py<Permission>>,
 }
 # }
 ```

@@ -4,30 +4,21 @@ use pyo3_build_config::pyo3_build_script_impl::{cargo_env_var, errors::Result};
 use pyo3_build_config::{bail, print_feature_cfgs, InterpreterConfig};
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
-    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
-        if !interpreter_config.shared {
-            bail!(
-                "The `auto-initialize` feature is enabled, but your python installation only supports \
-                embedding the Python interpreter statically. If you are attempting to run tests, or a \
-                binary which is okay to link dynamically, install a Python distribution which ships \
-                with the Python shared library.\n\
-                \n\
-                Embedding the Python interpreter statically does not yet have first-class support in \
-                PyO3. If you are sure you intend to do this, disable the `auto-initialize` feature.\n\
-                \n\
-                For more information, see \
-                https://pyo3.rs/v{pyo3_version}/\
-                    building_and_distribution.html#embedding-python-in-rust",
-                pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
-            );
-        }
-
-        // TODO: PYO3_CI env is a hack to workaround CI with PyPy, where the `dev-dependencies`
-        // currently cause `auto-initialize` to be enabled in CI.
-        // Once MSRV is 1.51 or higher, use cargo's `resolver = "2"` instead.
-        if interpreter_config.implementation.is_pypy() && env::var_os("PYO3_CI").is_none() {
-            bail!("the `auto-initialize` feature is not supported with PyPy");
-        }
+    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared {
+        bail!(
+            "The `auto-initialize` feature is enabled, but your python installation only supports \
+            embedding the Python interpreter statically. If you are attempting to run tests, or a \
+            binary which is okay to link dynamically, install a Python distribution which ships \
+            with the Python shared library.\n\
+            \n\
+            Embedding the Python interpreter statically does not yet have first-class support in \
+            PyO3. If you are sure you intend to do this, disable the `auto-initialize` feature.\n\
+            \n\
+            For more information, see \
+            https://pyo3.rs/v{pyo3_version}/\
+                building_and_distribution.html#embedding-python-in-rust",
+            pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
+        );
     }
     Ok(())
 }
@@ -46,7 +37,7 @@ fn configure_pyo3() -> Result<()> {
 
     ensure_auto_initialize_ok(interpreter_config)?;
 
-    // Emit cfgs like `addr_of` and `min_const_generics`
+    // Emit cfgs like `thread_local_const_init`
     print_feature_cfgs();
 
     Ok(())

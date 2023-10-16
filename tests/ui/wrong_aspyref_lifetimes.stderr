@@ -1,10 +1,8 @@
-error[E0505]: cannot move out of `gil` because it is borrowed
- --> tests/ui/wrong_aspyref_lifetimes.rs:7:10
+error: lifetime may not live long enough
+ --> tests/ui/wrong_aspyref_lifetimes.rs:7:47
   |
-6 |     let dict: &PyDict = dict.as_ref(gil.python());
-  |                                     ------------ borrow of `gil` occurs here
-7 |     drop(gil);
-  |          ^^^ move out of `gil` occurs here
-8 |
-9 |     let _py: Python = dict.py(); // Obtain a Python<'p> without GIL.
-  |                       --------- borrow later used here
+7 |     let dict: &PyDict = Python::with_gil(|py| dict.as_ref(py));
+  |                                           --- ^^^^^^^^^^^^^^^ returning this value requires that `'1` must outlive `'2`
+  |                                           | |
+  |                                           | return type of closure is &'2 PyDict
+  |                                           has type `pyo3::Python<'1>`

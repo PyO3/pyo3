@@ -2,15 +2,15 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote_spanned, ToTokens};
 
 pub enum Deprecation {
-    CallAttribute,
-    PyClassGcOption,
+    PyClassTextSignature,
+    PyMethodsNewDeprecatedForm,
 }
 
 impl Deprecation {
     fn ident(&self, span: Span) -> syn::Ident {
         let string = match self {
-            Deprecation::CallAttribute => "CALL_ATTRIBUTE",
-            Deprecation::PyClassGcOption => "PYCLASS_GC_OPTION",
+            Deprecation::PyClassTextSignature => "PYCLASS_TEXT_SIGNATURE",
+            Deprecation::PyMethodsNewDeprecatedForm => "PYMETHODS_NEW_DEPRECATED_FORM",
         };
         syn::Ident::new(string, span)
     }

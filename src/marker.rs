@@ -1,7 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
 //! Fundamental properties of objects tied to the Python interpreter.
 //!
 //! The Python interpreter is not threadsafe. To protect the Python interpreter in multithreaded
@@ -110,7 +106,7 @@
 //! impl !Ungil for ffi::PyObject {}
 //!
 //! // `Py` wraps it in  a safe api, so this is OK
-//! unsafe impl <T> Ungil for Py<T> {}
+//! unsafe impl<T> Ungil for Py<T> {}
 //! # }
 //! ```
 //!
@@ -120,14 +116,13 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::gil::{self, GILGuard, GILPool};
+use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
-use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
-use crate::version::PythonVersionInfo;
-use crate::{
-    ffi, AsPyPointer, FromPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
-    PyTypeInfo,
+use crate::types::{
+    PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
+use crate::version::PythonVersionInfo;
+use crate::{ffi, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTryFrom, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -140,6 +135,48 @@ use std::os::raw::c_int;
 /// the GIL is not held.
 ///
 /// See the [module-level documentation](self) for more information.
+///
+/// # Examples
+///
+/// This tracking is currently imprecise as it relies on the [`Send`] auto trait on stable Rust.
+/// For example, an `Rc` smart pointer should be usable without the GIL, but we currently prevent that:
+///
+/// ```compile_fail
+/// # use pyo3::prelude::*;
+/// use std::rc::Rc;
+///
+/// Python::with_gil(|py| {
+///     let rc = Rc::new(42);
+///
+///     py.allow_threads(|| {
+///         println!("{:?}", rc);
+///     });
+/// });
+/// ```
+///
+/// This also implies that the interplay between `with_gil` and `allow_threads` is unsound, for example
+/// one can circumvent this protection using the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
+///
+/// ```no_run
+/// # use pyo3::prelude::*;
+/// # use pyo3::types::PyString;
+/// use send_wrapper::SendWrapper;
+///
+/// Python::with_gil(|py| {
+///     let string = PyString::new(py, "foo");
+///
+///     let wrapped = SendWrapper::new(string);
+///
+///     py.allow_threads(|| {
+///         let sneaky: &PyString = *wrapped;
+///
+///         println!("{:?}", sneaky);
+///     });
+/// });
+/// ```
+///
+/// Fixing this loophole on stable Rust has significant ergonomic issues, but it is fixed when using
+/// nightly Rust and the `nightly` feature, c.f. [#2141](https://github.com/PyO3/pyo3/issues/2141).
 #[cfg_attr(docsrs, doc(cfg(all())))] // Hide the cfg flag
 #[cfg(not(feature = "nightly"))]
 pub unsafe trait Ungil {}
@@ -148,20 +185,87 @@ pub unsafe trait Ungil {}
 #[cfg(not(feature = "nightly"))]
 unsafe impl<T: Send> Ungil for T {}
 
-/// Types that are safe to access while the GIL is not held.
-///
-/// # Safety
-///
-/// The type must not carry borrowed Python references or, if it does, not allow access to them if
-/// the GIL is not held.
-///
-/// See the [module-level documentation](self) for more information.
 #[cfg(feature = "nightly")]
-pub unsafe auto trait Ungil {}
+mod nightly {
+    macro_rules! define {
+        ($($tt:tt)*) => { $($tt)* }
+    }
 
-#[cfg(feature = "nightly")]
-mod negative_impls {
-    use super::Ungil;
+    define! {
+        /// Types that are safe to access while the GIL is not held.
+        ///
+        /// # Safety
+        ///
+        /// The type must not carry borrowed Python references or, if it does, not allow access to them if
+        /// the GIL is not held.
+        ///
+        /// See the [module-level documentation](self) for more information.
+        ///
+        /// # Examples
+        ///
+        /// Types which are `Ungil` cannot be used in contexts where the GIL was released, e.g.
+        ///
+        /// ```compile_fail
+        /// # use pyo3::prelude::*;
+        /// # use pyo3::types::PyString;
+        /// Python::with_gil(|py| {
+        ///     let string = PyString::new(py, "foo");
+        ///
+        ///     py.allow_threads(|| {
+        ///         println!("{:?}", string);
+        ///     });
+        /// });
+        /// ```
+        ///
+        /// This applies to the GIL token `Python` itself as well, e.g.
+        ///
+        /// ```compile_fail
+        /// # use pyo3::prelude::*;
+        /// Python::with_gil(|py| {
+        ///     py.allow_threads(|| {
+        ///         drop(py);
+        ///     });
+        /// });
+        /// ```
+        ///
+        /// On nightly Rust, this is not based on the [`Send`] auto trait and hence we are able
+        /// to prevent incorrectly circumventing it using e.g. the [`send_wrapper`](https://docs.rs/send_wrapper/) crate:
+        ///
+        /// ```compile_fail
+        /// # use pyo3::prelude::*;
+        /// # use pyo3::types::PyString;
+        /// use send_wrapper::SendWrapper;
+        ///
+        /// Python::with_gil(|py| {
+        ///     let string = PyString::new(py, "foo");
+        ///
+        ///     let wrapped = SendWrapper::new(string);
+        ///
+        ///     py.allow_threads(|| {
+        ///         let sneaky: &PyString = *wrapped;
+        ///
+        ///         println!("{:?}", sneaky);
+        ///     });
+        /// });
+        /// ```
+        ///
+        /// This also enables using non-[`Send`] types in `allow_threads`,
+        /// at least if they are not also bound to the GIL:
+        ///
+        /// ```rust
+        /// # use pyo3::prelude::*;
+        /// use std::rc::Rc;
+        ///
+        /// Python::with_gil(|py| {
+        ///     let rc = Rc::new(42);
+        ///
+        ///     py.allow_threads(|| {
+        ///         println!("{:?}", rc);
+        ///     });
+        /// });
+        /// ```
+        pub unsafe auto trait Ungil {}
+    }
 
     impl !Ungil for crate::Python<'_> {}
 
@@ -187,6 +291,9 @@ mod negative_impls {
     #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
     impl !Ungil for crate::ffi::PyArena {}
 }
+
+#[cfg(feature = "nightly")]
+pub use nightly::Ungil;
 
 /// A marker token that represents holding the GIL.
 ///
@@ -279,6 +386,10 @@ impl Python<'_> {
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
     /// provided closure `F` will be executed with the acquired `Python` marker token.
     ///
+    /// If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),
+    /// declare `py: Python` as an argument. PyO3 will pass in the token to grant access to the GIL
+    /// context in which the function is running, avoiding the need to call `with_gil`.
+    ///
     /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
     /// initialized, this function will initialize it. See
     #[cfg_attr(
@@ -287,6 +398,10 @@ impl Python<'_> {
     )]
     #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
     /// for details.
+    ///
+    /// If the current thread does not yet have a Python "thread state" associated with it,
+    /// a new one will be automatically created before `F` is executed and destroyed after `F`
+    /// completes.
     ///
     /// # Panics
     ///
@@ -313,7 +428,10 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        f(unsafe { gil::ensure_gil().python() })
+        let _guard = GILGuard::acquire();
+
+        // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
+        f(unsafe { Python::assume_gil_acquired() })
     }
 
     /// Like [`Python::with_gil`] except Python interpreter state checking is skipped.
@@ -344,48 +462,14 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        f(gil::ensure_gil_unchecked().python())
+        let _guard = GILGuard::acquire_unchecked();
+
+        // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
+        f(Python::assume_gil_acquired())
     }
 }
 
 impl<'py> Python<'py> {
-    /// Acquires the global interpreter lock, allowing access to the Python interpreter.
-    ///
-    /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
-    /// initialized, this function will initialize it. See
-    #[cfg_attr(
-        not(PyPy),
-        doc = "[`prepare_freethreaded_python`](crate::prepare_freethreaded_python)"
-    )]
-    #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
-    /// for details.
-    ///
-    /// Most users should not need to use this API directly, and should prefer one of two options:
-    /// 1. If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),  declare `py: Python` as an argument.
-    /// PyO3 will pass in the token to grant access to the GIL context in which the function is running.
-    /// 2. Use [`Python::with_gil`] to run a closure with the GIL, acquiring only if needed.
-    ///
-    /// # Panics
-    ///
-    /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
-    /// initialized.
-    /// - If multiple [`GILGuard`]s are not dropped in in the reverse order of acquisition, PyO3
-    /// may panic. It is recommended to use [`Python::with_gil`] instead to avoid this.
-    ///
-    /// # Notes
-    ///
-    /// The return type from this function, [`GILGuard`], is implemented as a RAII guard
-    /// around [`PyGILState_Ensure`]. This means that multiple `acquire_gil()` calls are
-    /// allowed, and will not deadlock. However, [`GILGuard`]s must be dropped in the reverse order
-    /// to acquisition. If PyO3 detects this order is not maintained, it will panic when the out-of-order drop occurs.
-    ///
-    /// [`PyGILState_Ensure`]: crate::ffi::PyGILState_Ensure
-    /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
-    #[inline]
-    pub fn acquire_gil() -> GILGuard {
-        GILGuard::acquire()
-    }
-
     /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
     /// reacquired when `F`'s scope ends.
     ///
@@ -452,29 +536,11 @@ impl<'py> Python<'py> {
         F: Ungil + FnOnce() -> T,
         T: Ungil,
     {
-        // Use a guard pattern to handle reacquiring the GIL, so that the GIL will be reacquired
-        // even if `f` panics.
-
-        struct RestoreGuard {
-            count: usize,
-            tstate: *mut ffi::PyThreadState,
-        }
-
-        impl Drop for RestoreGuard {
-            fn drop(&mut self) {
-                gil::GIL_COUNT.with(|c| c.set(self.count));
-                unsafe {
-                    ffi::PyEval_RestoreThread(self.tstate);
-                }
-            }
-        }
-
+        // Use a guard pattern to handle reacquiring the GIL,
+        // so that the GIL will be reacquired even if `f` panics.
         // The `Send` bound on the closure prevents the user from
         // transferring the `Python` token into the closure.
-        let count = gil::GIL_COUNT.with(|c| c.replace(0));
-        let tstate = unsafe { ffi::PyEval_SaveThread() };
-
-        let _guard = RestoreGuard { count, tstate };
+        let _guard = unsafe { SuspendGIL::new() };
         f()
     }
 
@@ -482,6 +548,9 @@ impl<'py> Python<'py> {
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
+    ///
+    /// If `globals` doesn't contain `__builtins__`, default `__builtins__`
+    /// will be added automatically.
     ///
     /// # Examples
     ///
@@ -507,6 +576,9 @@ impl<'py> Python<'py> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     ///
+    /// If `globals` doesn't contain `__builtins__`, default `__builtins__`
+    /// will be added automatically.
+    ///
     /// # Examples
     /// ```
     /// use pyo3::{
@@ -525,7 +597,7 @@ impl<'py> Python<'py> {
     ///         Some(locals),
     ///     )
     ///     .unwrap();
-    ///     let ret = locals.get_item("ret").unwrap();
+    ///     let ret = locals.get_item("ret").unwrap().unwrap();
     ///     let b64: &PyBytes = ret.downcast().unwrap();
     ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// });
@@ -567,9 +639,32 @@ impl<'py> Python<'py> {
             }
 
             let globals = globals
-                .map(AsPyPointer::as_ptr)
+                .map(|dict| dict.as_ptr())
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
+            let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
+
+            // If `globals` don't provide `__builtins__`, most of the code will fail if Python
+            // version is <3.10. That's probably not what user intended, so insert `__builtins__`
+            // for them.
+            //
+            // See also:
+            // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
+            // - https://github.com/PyO3/pyo3/issues/3370
+            let builtins_s = crate::intern!(self, "__builtins__").as_ptr();
+            let has_builtins = ffi::PyDict_Contains(globals, builtins_s);
+            if has_builtins == -1 {
+                return Err(PyErr::fetch(self));
+            }
+            if has_builtins == 0 {
+                // Inherit current builtins.
+                let builtins = ffi::PyEval_GetBuiltins();
+
+                // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
+                // seems to return a borrowed reference, so no leak here.
+                if ffi::PyDict_SetItem(globals, builtins_s, builtins) == -1 {
+                    return Err(PyErr::fetch(self));
+                }
+            }
 
             let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
             if code_obj.is_null() {
@@ -583,6 +678,7 @@ impl<'py> Python<'py> {
     }
 
     /// Gets the Python type object for type `T`.
+    #[inline]
     pub fn get_type<T>(self) -> &'py PyType
     where
         T: PyTypeInfo,
@@ -602,14 +698,21 @@ impl<'py> Python<'py> {
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn None(self) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
+        PyNone::get(self).into()
+    }
+
+    /// Gets the Python builtin value `Ellipsis`, or `...`.
+    #[allow(non_snake_case)] // the Python keyword starts with uppercase
+    #[inline]
+    pub fn Ellipsis(self) -> PyObject {
+        PyEllipsis::get(self).into()
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn NotImplemented(self) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
+        PyNotImplemented::get(self).into()
     }
 
     /// Gets the running Python interpreter version as a string.
@@ -782,7 +885,7 @@ impl<'py> Python<'py> {
     /// # #![allow(dead_code)] // this example is quite impractical to test
     /// use pyo3::prelude::*;
     ///
-    /// # fn main(){
+    /// # fn main() {
     /// #[pyfunction]
     /// fn loop_forever(py: Python<'_>) -> PyResult<()> {
     ///     loop {
@@ -807,8 +910,7 @@ impl<'py> Python<'py> {
     /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
     /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
-        let v = unsafe { ffi::PyErr_CheckSignals() };
-        err::error_on_minusone(self, v)
+        err::error_on_minusone(self, unsafe { ffi::PyErr_CheckSignals() })
     }
 
     /// Create a new pool for managing PyO3's owned references.
@@ -817,8 +919,8 @@ impl<'py> Python<'py> {
     /// all have their Python reference counts decremented, potentially allowing Python to drop
     /// the corresponding Python objects.
     ///
-    /// Typical usage of PyO3 will not need this API, as [`Python::with_gil`] and
-    /// [`Python::acquire_gil`] automatically create a `GILPool` where appropriate.
+    /// Typical usage of PyO3 will not need this API, as [`Python::with_gil`] automatically creates
+    /// a `GILPool` where appropriate.
     ///
     /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
     /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
@@ -871,6 +973,72 @@ impl<'py> Python<'py> {
     }
 }
 
+impl Python<'_> {
+    /// Creates a scope using a new pool for managing PyO3's owned references.
+    ///
+    /// This is a safe alterantive to [`new_pool`][Self::new_pool] as
+    /// it limits the closure to using the new GIL token at the cost of
+    /// being unable to capture existing GIL-bound references.
+    ///
+    /// Note that on stable Rust, this API suffers from the same the `SendWrapper` loophole
+    /// as [`allow_threads`][Self::allow_threads], c.f. the documentation of the [`Ungil`] trait,
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// Python::with_gil(|py| {
+    ///     // Some long-running process like a webserver, which never releases the GIL.
+    ///     loop {
+    ///         // Create a new scope, so that PyO3 can clear memory at the end of the loop.
+    ///         py.with_pool(|py| {
+    ///             // do stuff...
+    ///         });
+    /// #       break;  // Exit the loop so that doctest terminates!
+    ///     }
+    /// });
+    /// ```
+    ///
+    /// The `Ungil` bound on the closure does prevent hanging on to existing GIL-bound references
+    ///
+    /// ```compile_fail
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyString;
+    ///
+    /// Python::with_gil(|py| {
+    ///     let old_str = PyString::new(py, "a message from the past");
+    ///
+    ///     py.with_pool(|_py| {
+    ///         print!("{:?}", old_str);
+    ///     });
+    /// });
+    /// ```
+    ///
+    /// or continuing to use the old GIL token
+    ///
+    /// ```compile_fail
+    /// # use pyo3::prelude::*;
+    ///
+    /// Python::with_gil(|old_py| {
+    ///     old_py.with_pool(|_new_py| {
+    ///         let _none = old_py.None();
+    ///     });
+    /// });
+    /// ```
+    #[inline]
+    pub fn with_pool<F, R>(&self, f: F) -> R
+    where
+        F: for<'py> FnOnce(Python<'py>) -> R + Ungil,
+    {
+        // SAFETY: The closure is `Ungil`,
+        // i.e. it does not capture any GIL-bound references
+        // and accesses only the newly created GIL token.
+        let pool = unsafe { GILPool::new() };
+
+        f(pool.python())
+    }
+}
+
 impl<'unbound> Python<'unbound> {
     /// Unsafely creates a Python token with an unbounded lifetime.
     ///
@@ -897,7 +1065,7 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{IntoPyDict, PyList};
+    use crate::types::{IntoPyDict, PyDict, PyList};
     use crate::Py;
     use std::sync::Arc;
 
@@ -907,7 +1075,7 @@ mod tests {
             // Make sure builtin names are accessible
             let v: i32 = py
                 .eval("min(1, 2)", None, None)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -942,6 +1110,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_allow_threads_releases_and_acquires_gil() {
         Python::with_gil(|py| {
             let b = std::sync::Arc::new(std::sync::Barrier::new(2));
@@ -979,7 +1148,7 @@ mod tests {
 
             // If allow_threads is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
-            let list = PyList::new(py, &[1, 2, 3, 4]);
+            let list = PyList::new(py, [1, 2, 3, 4]);
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
         });
     }
@@ -1009,15 +1178,37 @@ mod tests {
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
 
-        {
-            let gil = Python::acquire_gil();
-            let _py = gil.python();
+        Python::with_gil(|_| {
             let state = unsafe { crate::ffi::PyGILState_Check() };
             assert_eq!(state, GIL_HELD);
-            drop(gil);
-        }
+        });
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
+    }
+
+    #[test]
+    fn test_ellipsis() {
+        Python::with_gil(|py| {
+            assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
+
+            let v = py
+                .eval("...", None, None)
+                .map_err(|e| e.display(py))
+                .unwrap();
+
+            assert!(v.eq(py.Ellipsis()).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_py_run_inserts_globals() {
+        Python::with_gil(|py| {
+            let namespace = PyDict::new(py);
+            py.run("class Foo: pass", Some(namespace), Some(namespace))
+                .unwrap();
+            assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
+            assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
+        })
     }
 }

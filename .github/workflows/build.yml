@@ -1,0 +1,203 @@
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      python-version:
+        required: true
+        type: string
+      python-architecture:
+        required: true
+        type: string
+      rust:
+        required: true
+        type: string
+      rust-target:
+        required: true
+        type: string
+      msrv:
+        required: false
+        type: string
+      extra-features:
+        required: true
+        type: string
+
+jobs:
+  build:
+    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) }}
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+          architecture: ${{ inputs.python-architecture }}
+
+      - name: Install nox
+        run: python -m pip install --upgrade pip && pip install nox
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.rust }}
+          targets: ${{ inputs.rust-target }}
+          # needed to correctly format errors, see #1865
+          components: rust-src
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cargo-${{ inputs.python-architecture }}-${{ inputs.os }}-${{ inputs.msrv }}
+        continue-on-error: true
+
+      - if: inputs.os == 'ubuntu-latest'
+        name: Prepare LD_LIBRARY_PATH (Ubuntu only)
+        run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
+
+      - if: inputs.msrv == 'MSRV'
+        name: Prepare minimal package versions (MSRV only)
+        run: nox -s set-minimal-package-versions
+
+      - if: inputs.rust == 'nightly' || inputs.msrv == 'MSRV'
+        name: Ignore changed error messages when using trybuild
+        run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
+
+      - name: Build docs
+        run: cargo doc --no-deps --no-default-features --features "full ${{ inputs.extra-features }}"
+
+      - name: Build (no features)
+        run: cargo build --lib --tests --no-default-features
+
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Build pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo build --no-default-features
+
+      # Run tests (except on PyPy, because no embedding API).
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+        name: Test (no features)
+        run: cargo test --no-default-features --lib --tests
+
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Test pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo test --no-default-features
+
+      - name: Build (all additive features)
+        run: cargo build --lib --tests --no-default-features --features "full ${{ inputs.extra-features }}"
+
+      - if: ${{ startsWith(inputs.python-version, 'pypy') }}
+        name: Build PyPy (abi3-py37)
+        run: cargo build --lib --tests --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
+
+      # Run tests (except on PyPy, because no embedding API).
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+        name: Test
+        run: cargo test --no-default-features --features "full ${{ inputs.extra-features }}"
+
+      # Run tests again, but in abi3 mode
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+        name: Test (abi3)
+        run: cargo test --no-default-features --features "abi3 full ${{ inputs.extra-features }}"
+
+      # Run tests again, for abi3-py37 (the minimal Python version)
+      - if: ${{ (!startsWith(inputs.python-version, 'pypy')) && (inputs.python-version != '3.7') }}
+        name: Test (abi3-py37)
+        run: cargo test --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
+
+      - name: Test proc-macro code
+        run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
+
+      - name: Test build config
+        run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
+
+      - name: Test python examples and tests
+        shell: bash
+        run: nox -s test-py
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+
+      - uses: dorny/paths-filter@v2
+        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
+        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
+        id: ffi-changes
+        with:
+          base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
+          filters: |
+            changed:
+              - 'pyo3-ffi/**'
+              - 'pyo3-ffi-check/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/build.yml'
+
+      - name: Run pyo3-ffi-check
+        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here, nor
+        # is pypy 3.9 on windows
+        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
+        run: nox -s ffi-check
+
+
+      - name: Test cross compilation
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
+        with:
+          target: aarch64-unknown-linux-gnu
+          manylinux: auto
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
+
+      - run: sudo rm -rf examples/maturin-starter/target
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
+      - name: Test cross compile to same architecture
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
+        with:
+          target: x86_64-unknown-linux-gnu
+          manylinux: auto
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
+
+      - name: Test cross compilation
+        if: ${{ inputs.os == 'macos-latest' && inputs.python-version == '3.9' }}
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarch64-apple-darwin
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
+
+      - name: Test cross compile to Windows
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
+        env:
+          XWIN_ARCH: x86_64
+        run: |
+          set -ex
+          sudo apt-get install -y mingw-w64 llvm
+          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
+          pip install cargo-xwin
+          # abi3
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
+          # non-abi3
+          export PYO3_CROSS_PYTHON_VERSION=3.9
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
+
+      - name: Test cross compile to Windows with maturin
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64-pc-windows-gnu
+          args: -i python3.8 -m examples/maturin-starter/Cargo.toml --features abi3
+
+    env:
+      CARGO_TERM_VERBOSE: true
+      CARGO_BUILD_TARGET: ${{ inputs.rust-target }}
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings"
+      RUSTDOCFLAGS: "-D warnings"

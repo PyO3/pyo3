@@ -6,7 +6,7 @@ an overview of their intended meaning, with examples when each type is best
 used.
 
 
-## Mutability and Rust types
+## The Python GIL, mutability, and Rust types
 
 Since Python has no concept of ownership, and works solely with boxed objects,
 any Python object can be referenced any number of times, and mutation is allowed
@@ -37,12 +37,15 @@ mutable Rust reference for mutating operations such as
 be created through `Python<'_>` with a GIL lifetime) is sufficient.
 
 However, Rust structs wrapped as Python objects (called `pyclass` types) usually
-*do* need `&mut` access.  Due to the GIL, PyO3 *can* guarantee thread-safe acces
+*do* need `&mut` access.  Due to the GIL, PyO3 *can* guarantee thread-safe access
 to them, but it cannot statically guarantee uniqueness of `&mut` references once
 an object's ownership has been passed to the Python interpreter, ensuring
 references is done at runtime using `PyCell`, a scheme very similar to
 `std::cell::RefCell`.
 
+### Accessing the Python GIL
+
+To get hold of a `Python<'py>` token to prove the GIL is held, consult [PyO3's documentation][obtaining-py].
 
 ## Object types
 
@@ -86,10 +89,9 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::{Py, Python, PyAny, PyResult};
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let obj: &PyAny = Py::new(py, MyClass { })?.into_ref(py);
+let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
 
 // To &PyCell<MyClass> with PyAny::downcast
 let _: &PyCell<MyClass> = obj.downcast()?;
@@ -227,7 +229,7 @@ wrapped in a Python object.  The cell part is an analog to stdlib's
 taking `&SomeType` or `&mut SomeType`) while maintaining the aliasing rules of
 Rust references.
 
-Like pyo3's Python native types, `PyCell<T>` implements `Deref<Target = PyAny>`,
+Like PyO3's Python native types, `PyCell<T>` implements `Deref<Target = PyAny>`,
 so it also exposes all of the methods on `PyAny`.
 
 **Conversions:**
@@ -238,7 +240,7 @@ so it also exposes all of the methods on `PyAny`.
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
+let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // To PyRef<T> with .borrow() or .try_borrow()
 let py_ref: PyRef<'_, MyClass> = cell.try_borrow()?;
@@ -258,7 +260,7 @@ let _: &mut MyClass = &mut *py_ref_mut;
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
+let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // Use methods from PyAny on PyCell<T> with Deref implementation
 let _ = cell.repr()?;
@@ -293,9 +295,10 @@ usually defined using the `#[pyclass]` macro.
 This trait marks structs that mirror native Python types, such as `PyList`.
 
 
-[eval]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.eval
+[eval]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval
 [clone_ref]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.clone_ref
 [pyo3::types]: {{#PYO3_DOCS_URL}}/pyo3/types/index.html
 [PyAny]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
 [PyList_append]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+[obtaining-py]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#obtaining-a-python-token

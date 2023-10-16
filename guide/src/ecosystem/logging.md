@@ -57,11 +57,42 @@ possible to satisfy, read the documentation about [caching].
 
 ## The Python to Rust direction
 
-To best of our knowledge nobody implemented the reverse direction yet, though it
-should be possible. If interested, the `pyo3` community would be happy to
-provide guidance.
+To have python logs be handled by Rust, one need only register a rust function to handle logs emitted from the core python logging module.
+
+This has been implemented within the [pyo3-pylogger] crate.
+
+```rust
+use log::{info, warn};
+use pyo3::prelude::*;
+
+fn main() -> PyResult<()> {
+    // register the host handler with python logger, providing a logger target
+    // set the name here to something appropriate for your application
+    pyo3_pylogger::register("example_application_py_logger");
+
+    // initialize up a logger
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("trace")).init();
+
+    // Log some messages from Rust.
+    info!("Just some normal information!");
+    warn!("Something spooky happened!");
+
+    // Log some messages from Python
+    Python::with_gil(|py| {
+        py.run(
+            "
+import logging
+logging.error('Something bad happened')
+",
+            None,
+            None,
+        )
+    })
+}
+```
 
 [logging]: https://docs.python.org/3/library/logging.html
 [pyo3-log]: https://crates.io/crates/pyo3-log
 [init]: https://docs.rs/pyo3-log/*/pyo3_log/fn.init.html
 [caching]: https://docs.rs/pyo3-log/*/pyo3_log/#performance-filtering-and-caching
+[pyo3-pylogger]: https://crates.io/crates/pyo3-pylogger

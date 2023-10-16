@@ -1,0 +1,6 @@
+This is a Rust reimplementation of the CPython public header files as necessary
+for binary compatibility, with additional metadata to support PyPy.
+
+For original implementations please see:
+ - https://github.com/python/cpython
+ - https://foss.heptapod.net/pypy/pypy

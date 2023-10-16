@@ -14,12 +14,7 @@
 //! [dependencies]
 //! # change * to the latest versions
 //! num-complex = "*"
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"num-complex\"] }")))]
-#![cfg_attr(
-    not(docsrs),
-    doc = "pyo3 = { version = \"*\", features = [\"num-complex\"] }"
-)]
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"num-complex\"] }")]
 //! ```
 //!
 //! Note that you must use compatible versions of num-complex and PyO3.
@@ -99,8 +94,7 @@
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
 use crate::{
-    ffi, types::PyComplex, AsPyPointer, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
-    ToPyObject,
+    ffi, types::PyComplex, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
@@ -152,6 +146,18 @@ macro_rules! complex_conversion {
 
                 #[cfg(any(Py_LIMITED_API, PyPy))]
                 unsafe {
+                    let obj = if obj.is_instance_of::<PyComplex>() {
+                        obj
+                    } else if let Some(method) =
+                        obj.lookup_special(crate::intern!(obj.py(), "__complex__"))?
+                    {
+                        method.call0()?
+                    } else {
+                        // `obj` might still implement `__float__` or `__index__`, which will be
+                        // handled by `PyComplex_{Real,Imag}AsDouble`, including propagating any
+                        // errors if those methods don't exist / raise exceptions.
+                        obj
+                    };
                     let ptr = obj.as_ptr();
                     let real = ffi::PyComplex_RealAsDouble(ptr);
                     if real == -1.0 {
@@ -172,6 +178,7 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::PyModule;
 
     #[test]
     fn from_complex() {
@@ -196,5 +203,132 @@ mod tests {
             let obj = vec![1].to_object(py);
             assert!(obj.extract::<Complex<f64>>(py).is_err());
         });
+    }
+    #[test]
+    fn from_python_magic() {
+        Python::with_gil(|py| {
+            let module = PyModule::from_code(
+                py,
+                r#"
+class A:
+    def __complex__(self): return 3.0+1.2j
+class B:
+    def __float__(self): return 3.0
+class C:
+    def __index__(self): return 3
+                "#,
+                "test.py",
+                "test",
+            )
+            .unwrap();
+            let from_complex = module.getattr("A").unwrap().call0().unwrap();
+            assert_eq!(
+                from_complex.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 1.2)
+            );
+            let from_float = module.getattr("B").unwrap().call0().unwrap();
+            assert_eq!(
+                from_float.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 0.0)
+            );
+            // Before Python 3.8, `__index__` wasn't tried by `float`/`complex`.
+            #[cfg(Py_3_8)]
+            {
+                let from_index = module.getattr("C").unwrap().call0().unwrap();
+                assert_eq!(
+                    from_index.extract::<Complex<f64>>().unwrap(),
+                    Complex::new(3.0, 0.0)
+                );
+            }
+        })
+    }
+    #[test]
+    fn from_python_inherited_magic() {
+        Python::with_gil(|py| {
+            let module = PyModule::from_code(
+                py,
+                r#"
+class First: pass
+class ComplexMixin:
+    def __complex__(self): return 3.0+1.2j
+class FloatMixin:
+    def __float__(self): return 3.0
+class IndexMixin:
+    def __index__(self): return 3
+class A(First, ComplexMixin): pass
+class B(First, FloatMixin): pass
+class C(First, IndexMixin): pass
+                "#,
+                "test.py",
+                "test",
+            )
+            .unwrap();
+            let from_complex = module.getattr("A").unwrap().call0().unwrap();
+            assert_eq!(
+                from_complex.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 1.2)
+            );
+            let from_float = module.getattr("B").unwrap().call0().unwrap();
+            assert_eq!(
+                from_float.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 0.0)
+            );
+            #[cfg(Py_3_8)]
+            {
+                let from_index = module.getattr("C").unwrap().call0().unwrap();
+                assert_eq!(
+                    from_index.extract::<Complex<f64>>().unwrap(),
+                    Complex::new(3.0, 0.0)
+                );
+            }
+        })
+    }
+    #[test]
+    fn from_python_noncallable_descriptor_magic() {
+        // Functions and lambdas implement the descriptor protocol in a way that makes
+        // `type(inst).attr(inst)` equivalent to `inst.attr()` for methods, but this isn't the only
+        // way the descriptor protocol might be implemented.
+        Python::with_gil(|py| {
+            let module = PyModule::from_code(
+                py,
+                r#"
+class A:
+    @property
+    def __complex__(self):
+        return lambda: 3.0+1.2j
+                "#,
+                "test.py",
+                "test",
+            )
+            .unwrap();
+            let obj = module.getattr("A").unwrap().call0().unwrap();
+            assert_eq!(
+                obj.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 1.2)
+            );
+        })
+    }
+    #[test]
+    fn from_python_nondescriptor_magic() {
+        // Magic methods don't need to implement the descriptor protocol, if they're callable.
+        Python::with_gil(|py| {
+            let module = PyModule::from_code(
+                py,
+                r#"
+class MyComplex:
+    def __call__(self): return 3.0+1.2j
+class A:
+    __complex__ = MyComplex()
+                "#,
+                "test.py",
+                "test",
+            )
+            .unwrap();
+            let obj = module.getattr("A").unwrap().call0().unwrap();
+            assert_eq!(
+                obj.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 1.2)
+            );
+        })
     }
 }

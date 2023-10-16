@@ -1,0 +1,23 @@
+error: __traverse__ may not take `Python`. Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
+  --> tests/ui/traverse.rs:18:32
+   |
+18 |     fn __traverse__(&self, py: Python<'_>, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+   |                                ^^^^^^^^^^
+
+error[E0308]: mismatched types
+  --> tests/ui/traverse.rs:9:6
+   |
+8  |   #[pymethods]
+   |   ------------ arguments to this function are incorrect
+9  |   impl TraverseTriesToTakePyRef {
+   |  ______^
+10 | |     fn __traverse__(slf: PyRef<Self>, visit: PyVisit) {}
+   | |___________________^ expected fn pointer, found fn item
+   |
+   = note: expected fn pointer `for<'a, 'b> fn(&'a TraverseTriesToTakePyRef, PyVisit<'b>) -> Result<(), PyTraverseError>`
+                 found fn item `for<'a, 'b> fn(pyo3::PyRef<'a, TraverseTriesToTakePyRef>, PyVisit<'b>) {TraverseTriesToTakePyRef::__traverse__}`
+note: function defined here
+  --> src/impl_/pymethods.rs
+   |
+   | pub unsafe fn _call_traverse<T>(
+   |               ^^^^^^^^^^^^^^

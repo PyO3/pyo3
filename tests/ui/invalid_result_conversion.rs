@@ -24,7 +24,7 @@ fn should_not_work() -> Result<(), MyError> {
 }
 
 fn main() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    wrap_pyfunction!(should_not_work)(py);
+    Python::with_gil(|py|{
+        wrap_pyfunction!(should_not_work)(py);
+    });
 }

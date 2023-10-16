@@ -1,8 +1,6 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
+use crate::{PyAny, PyObject, Python, ToPyObject};
 use std::os::raw::c_long;
 
 /// Represents a Python `slice`.
@@ -14,19 +12,25 @@ pub struct PySlice(PyAny);
 pyobject_native_type!(
     PySlice,
     ffi::PySliceObject,
-    ffi::PySlice_Type,
+    pyobject_native_static_type_object!(ffi::PySlice_Type),
     #checkfunction=ffi::PySlice_Check
 );
 
-/// Represents Python `slice` indices.
+/// Return value from [`PySlice::indices`].
+#[derive(Debug, Eq, PartialEq)]
 pub struct PySliceIndices {
+    /// Start of the slice
     pub start: isize,
+    /// End of the slice
     pub stop: isize,
+    /// Increment to use when iterating the slice from `start` to `stop`.
     pub step: isize,
+    /// The length of the slice calculated from the original input sequence.
     pub slicelength: isize,
 }
 
 impl PySliceIndices {
+    /// Creates a new `PySliceIndices`.
     pub fn new(start: isize, stop: isize, step: isize) -> PySliceIndices {
         PySliceIndices {
             start,
@@ -42,10 +46,18 @@ impl PySlice {
     pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
         unsafe {
             let ptr = ffi::PySlice_New(
-                ffi::PyLong_FromLong(start as c_long),
-                ffi::PyLong_FromLong(stop as c_long),
-                ffi::PyLong_FromLong(step as c_long),
+                ffi::PyLong_FromSsize_t(start),
+                ffi::PyLong_FromSsize_t(stop),
+                ffi::PyLong_FromSsize_t(step),
             );
+            py.from_owned_ptr(ptr)
+        }
+    }
+
+    /// Constructs a new full slice that is equivalent to `::`.
+    pub fn full(py: Python<'_>) -> &PySlice {
+        unsafe {
+            let ptr = ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None());
             py.from_owned_ptr(ptr)
         }
     }
@@ -86,5 +98,112 @@ impl PySlice {
 impl ToPyObject for PySliceIndices {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         PySlice::new(py, self.start, self.stop, self.step).into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_py_slice_new() {
+        Python::with_gil(|py| {
+            let slice = PySlice::new(py, isize::MIN, isize::MAX, 1);
+            assert_eq!(
+                slice.getattr("start").unwrap().extract::<isize>().unwrap(),
+                isize::MIN
+            );
+            assert_eq!(
+                slice.getattr("stop").unwrap().extract::<isize>().unwrap(),
+                isize::MAX
+            );
+            assert_eq!(
+                slice.getattr("step").unwrap().extract::<isize>().unwrap(),
+                1
+            );
+        });
+    }
+
+    #[test]
+    fn test_py_slice_full() {
+        Python::with_gil(|py| {
+            let slice = PySlice::full(py);
+            assert!(slice.getattr("start").unwrap().is_none(),);
+            assert!(slice.getattr("stop").unwrap().is_none(),);
+            assert!(slice.getattr("step").unwrap().is_none(),);
+            assert_eq!(
+                slice.indices(0).unwrap(),
+                PySliceIndices {
+                    start: 0,
+                    stop: 0,
+                    step: 1,
+                    slicelength: 0,
+                },
+            );
+            assert_eq!(
+                slice.indices(42).unwrap(),
+                PySliceIndices {
+                    start: 0,
+                    stop: 42,
+                    step: 1,
+                    slicelength: 42,
+                },
+            );
+        });
+    }
+
+    #[test]
+    fn test_py_slice_indices_new() {
+        let start = 0;
+        let stop = 0;
+        let step = 0;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
+
+        let start = 0;
+        let stop = 100;
+        let step = 10;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
+
+        let start = 0;
+        let stop = -10;
+        let step = -1;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
+
+        let start = 0;
+        let stop = -10;
+        let step = 20;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
     }
 }

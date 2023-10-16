@@ -1,11 +1,12 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
-use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyList};
+use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
+use pyo3::{ffi, prelude::*};
 
 use pyo3::py_run;
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]
@@ -113,141 +114,135 @@ fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
 
 #[test]
 fn test_getitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let d = seq_dict(py);
+    Python::with_gil(|py| {
+        let d = seq_dict(py);
 
-    py_assert!(py, *d, "s[0] == 1");
-    py_assert!(py, *d, "s[1] == 2");
-    py_assert!(py, *d, "s[2] == 3");
-    py_expect_exception!(py, *d, "print(s[-4])", PyIndexError);
-    py_expect_exception!(py, *d, "print(s[4])", PyIndexError);
+        py_assert!(py, *d, "s[0] == 1");
+        py_assert!(py, *d, "s[1] == 2");
+        py_assert!(py, *d, "s[2] == 3");
+        py_expect_exception!(py, *d, "print(s[-4])", PyIndexError);
+        py_expect_exception!(py, *d, "print(s[4])", PyIndexError);
+    });
 }
 
 #[test]
 fn test_setitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let d = seq_dict(py);
+    Python::with_gil(|py| {
+        let d = seq_dict(py);
 
-    py_run!(py, *d, "s[0] = 4; assert list(s) == [4, 2, 3]");
-    py_expect_exception!(py, *d, "s[0] = 'hello'", PyTypeError);
+        py_run!(py, *d, "s[0] = 4; assert list(s) == [4, 2, 3]");
+        py_expect_exception!(py, *d, "s[0] = 'hello'", PyTypeError);
+    });
 }
 
 #[test]
 fn test_delitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
 
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-
-    py_run!(
-        py,
-        *d,
-        "s = ByteSequence([1, 2, 3]); del s[0]; assert list(s) == [2, 3]"
-    );
-    py_run!(
-        py,
-        *d,
-        "s = ByteSequence([1, 2, 3]); del s[1]; assert list(s) == [1, 3]"
-    );
-    py_run!(
-        py,
-        *d,
-        "s = ByteSequence([1, 2, 3]); del s[-1]; assert list(s) == [1, 2]"
-    );
-    py_run!(
-        py,
-        *d,
-        "s = ByteSequence([1, 2, 3]); del s[-2]; assert list(s) == [1, 3]"
-    );
-    py_expect_exception!(
-        py,
-        *d,
-        "s = ByteSequence([1, 2, 3]); del s[-4]; print(list(s))",
-        PyIndexError
-    );
-    py_expect_exception!(
-        py,
-        *d,
-        "s = ByteSequence([1, 2, 3]); del s[4]",
-        PyIndexError
-    );
+        py_run!(
+            py,
+            *d,
+            "s = ByteSequence([1, 2, 3]); del s[0]; assert list(s) == [2, 3]"
+        );
+        py_run!(
+            py,
+            *d,
+            "s = ByteSequence([1, 2, 3]); del s[1]; assert list(s) == [1, 3]"
+        );
+        py_run!(
+            py,
+            *d,
+            "s = ByteSequence([1, 2, 3]); del s[-1]; assert list(s) == [1, 2]"
+        );
+        py_run!(
+            py,
+            *d,
+            "s = ByteSequence([1, 2, 3]); del s[-2]; assert list(s) == [1, 3]"
+        );
+        py_expect_exception!(
+            py,
+            *d,
+            "s = ByteSequence([1, 2, 3]); del s[-4]; print(list(s))",
+            PyIndexError
+        );
+        py_expect_exception!(
+            py,
+            *d,
+            "s = ByteSequence([1, 2, 3]); del s[4]",
+            PyIndexError
+        );
+    });
 }
 
 #[test]
 fn test_contains() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = seq_dict(py);
 
-    let d = seq_dict(py);
-
-    py_assert!(py, *d, "1 in s");
-    py_assert!(py, *d, "2 in s");
-    py_assert!(py, *d, "3 in s");
-    py_assert!(py, *d, "4 not in s");
-    py_assert!(py, *d, "'hello' not in s");
+        py_assert!(py, *d, "1 in s");
+        py_assert!(py, *d, "2 in s");
+        py_assert!(py, *d, "3 in s");
+        py_assert!(py, *d, "4 not in s");
+        py_assert!(py, *d, "'hello' not in s");
+    });
 }
 
 #[test]
 fn test_concat() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = seq_dict(py);
 
-    let d = seq_dict(py);
-
-    py_run!(
+        py_run!(
         py,
         *d,
         "s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1 + s2) == [1, 2, 3, 4]"
     );
-    py_expect_exception!(
-        py,
-        *d,
-        "s1 = ByteSequence([1, 2]); s2 = 'hello'; s1 + s2",
-        PyTypeError
-    );
+        py_expect_exception!(
+            py,
+            *d,
+            "s1 = ByteSequence([1, 2]); s2 = 'hello'; s1 + s2",
+            PyTypeError
+        );
+    });
 }
 
 #[test]
 fn test_inplace_concat() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = seq_dict(py);
 
-    let d = seq_dict(py);
-
-    py_run!(
-        py,
-        *d,
-        "s += ByteSequence([4, 5]); assert list(s) == [1, 2, 3, 4, 5]"
-    );
-    py_expect_exception!(py, *d, "s += 'hello'", PyTypeError);
+        py_run!(
+            py,
+            *d,
+            "s += ByteSequence([4, 5]); assert list(s) == [1, 2, 3, 4, 5]"
+        );
+        py_expect_exception!(py, *d, "s += 'hello'", PyTypeError);
+    });
 }
 
 #[test]
 fn test_repeat() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = seq_dict(py);
 
-    let d = seq_dict(py);
-
-    py_run!(py, *d, "s2 = s * 2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
-    py_expect_exception!(py, *d, "s2 = s * -1", PyValueError);
+        py_run!(py, *d, "s2 = s * 2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
+        py_expect_exception!(py, *d, "s2 = s * -1", PyValueError);
+    });
 }
 
 #[test]
 fn test_inplace_repeat() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
 
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-
-    py_run!(
-        py,
-        *d,
-        "s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]"
-    );
-    py_expect_exception!(py, *d, "s = ByteSequence([1, 2]); s *= -1", PyValueError);
+        py_run!(
+            py,
+            *d,
+            "s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]"
+        );
+        py_expect_exception!(py, *d, "s = ByteSequence([1, 2]); s *= -1", PyValueError);
+    });
 }
 
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
@@ -260,34 +255,32 @@ struct GenericList {
 
 #[test]
 fn test_generic_list_get() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let list: PyObject = GenericList {
+            items: [1, 2, 3].iter().map(|i| i.to_object(py)).collect(),
+        }
+        .into_py(py);
 
-    let list: PyObject = GenericList {
-        items: [1, 2, 3].iter().map(|i| i.to_object(py)).collect(),
-    }
-    .into_py(py);
-
-    py_assert!(py, list, "list.items == [1, 2, 3]");
+        py_assert!(py, list, "list.items == [1, 2, 3]");
+    });
 }
 
 #[test]
 fn test_generic_list_set() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
 
-    let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
-
-    py_run!(py, list, "list.items = [1, 2, 3]");
-    assert!(list
-        .borrow()
-        .items
-        .iter()
-        .zip(&[1u32, 2, 3])
-        .all(|(a, b)| a.as_ref(py).eq(&b.into_py(py)).unwrap()));
+        py_run!(py, list, "list.items = [1, 2, 3]");
+        assert!(list
+            .borrow()
+            .items
+            .iter()
+            .zip(&[1u32, 2, 3])
+            .all(|(a, b)| a.as_ref(py).eq(&b.into_py(py)).unwrap()));
+    });
 }
 
-#[pyclass]
+#[pyclass(sequence)]
 struct OptionList {
     #[pyo3(get, set)]
     items: Vec<Option<i64>>,
@@ -295,6 +288,10 @@ struct OptionList {
 
 #[pymethods]
 impl OptionList {
+    fn __len__(&self) -> usize {
+        self.items.len()
+    }
+
     fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
         match self.items.get(idx as usize) {
             Some(x) => Ok(*x),
@@ -306,18 +303,54 @@ impl OptionList {
 #[test]
 fn test_option_list_get() {
     // Regression test for #798
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let list = PyCell::new(
+            py,
+            OptionList {
+                items: vec![Some(1), None],
+            },
+        )
+        .unwrap();
 
-    let list = PyCell::new(
-        py,
-        OptionList {
-            items: vec![Some(1), None],
-        },
-    )
-    .unwrap();
+        py_assert!(py, list, "list[0] == 1");
+        py_assert!(py, list, "list[1] == None");
+        py_expect_exception!(py, list, "list[2]", PyIndexError);
+    });
+}
 
-    py_assert!(py, list, "list[0] == 1");
-    py_assert!(py, list, "list[1] == None");
-    py_expect_exception!(py, list, "list[2]", PyIndexError);
+#[test]
+fn sequence_is_not_mapping() {
+    Python::with_gil(|py| {
+        let list = PyCell::new(
+            py,
+            OptionList {
+                items: vec![Some(1), None],
+            },
+        )
+        .unwrap();
+
+        PySequence::register::<OptionList>(py).unwrap();
+
+        assert!(list.as_ref().downcast::<PyMapping>().is_err());
+        assert!(list.as_ref().downcast::<PySequence>().is_ok());
+    })
+}
+
+#[test]
+fn sequence_length() {
+    Python::with_gil(|py| {
+        let list = PyCell::new(
+            py,
+            OptionList {
+                items: vec![Some(1), None],
+            },
+        )
+        .unwrap();
+
+        assert_eq!(list.len().unwrap(), 2);
+        assert_eq!(unsafe { ffi::PySequence_Length(list.as_ptr()) }, 2);
+
+        assert_eq!(unsafe { ffi::PyMapping_Length(list.as_ptr()) }, -1);
+        unsafe { ffi::PyErr_Clear() };
+    })
 }

@@ -1,0 +1,34 @@
+error: Expected 1 arguments, got 0
+  --> tests/ui/invalid_proto_pymethods.rs:19:8
+   |
+19 |     fn truediv_expects_one_argument(&self) -> PyResult<()> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: Expected 1 arguments, got 0
+  --> tests/ui/invalid_proto_pymethods.rs:27:8
+   |
+27 |     fn truediv_expects_one_argument_py(&self, _py: Python<'_>) -> PyResult<()> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `signature` cannot be used with magic method `__bool__`
+  --> tests/ui/invalid_proto_pymethods.rs:38:31
+   |
+38 |     #[pyo3(name = "__bool__", signature = ())]
+   |                               ^^^^^^^^^
+
+error: `text_signature` cannot be used with magic method `__bool__`
+  --> tests/ui/invalid_proto_pymethods.rs:46:31
+   |
+46 |     #[pyo3(name = "__bool__", text_signature = "")]
+   |                               ^^^^^^^^^^^^^^
+
+error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
+  --> tests/ui/invalid_proto_pymethods.rs:55:1
+   |
+55 | #[pymethods]
+   | ^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `__pymethod___richcmp____`
+   | other definition for `__pymethod___richcmp____`
+   |
+   = note: this error originates in the macro `_pyo3::impl_::pyclass::generate_pyclass_richcompare_slot` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -26,4 +26,17 @@ impl TestClass {
     fn new(&self) -> Self { Self { num: 0 } }
 }
 
+#[pymethods]
+impl TestClass {
+    #[getter(1)]
+    fn get_one(&self) -> Self { Self { num: 0 } }
+}
+
+#[pymethods]
+impl TestClass {
+    #[getter = 1]
+    fn get_two(&self) -> Self { Self { num: 0 } }
+}
+
+
 fn main() {}

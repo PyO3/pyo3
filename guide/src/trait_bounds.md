@@ -25,13 +25,13 @@ The argument of the function can be any model that implements the `Model` trait 
 ```rust
 # #![allow(dead_code)]
 pub trait Model {
-  fn set_variables(&mut self, inputs: &Vec<f64>);
-  fn compute(&mut self);
-  fn get_results(&self) -> Vec<f64>;
+    fn set_variables(&mut self, inputs: &Vec<f64>);
+    fn compute(&mut self);
+    fn get_results(&self) -> Vec<f64>;
 }
 
 pub fn solve<T: Model>(model: &mut T) {
-  println!("Magic solver that mutates the model into a resolved state");
+    println!("Magic solver that mutates the model into a resolved state");
 }
 ```
 Let's assume we have the following constraints:
@@ -65,7 +65,6 @@ The following wrapper will call the Python model from Rust, using a struct to ho
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -125,7 +124,6 @@ Let's add the PyO3 annotations and add a constructor:
 #   fn get_results(&self) -> Vec<f64>;
 # }
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 
 #[pyclass]
 struct UserModel {
@@ -152,7 +150,7 @@ Now we add the PyO3 annotations to the trait implementation:
 ```rust,ignore
 #[pymethods]
 impl Model for UserModel {
-  // the previous trait implementation
+    // the previous trait implementation
 }
 ```
 
@@ -165,7 +163,6 @@ This wrapper will also perform the type conversions between Python and Rust.
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -334,7 +331,6 @@ We used in our `get_results` method the following call that performs the type co
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -387,7 +383,6 @@ Let's break it down in order to perform better error handling:
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyAny;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -411,7 +406,10 @@ impl Model for UserModel {
                 .unwrap();
 
             if py_result.get_type().name().unwrap() != "list" {
-                panic!("Expected a list for the get_results() method signature, got {}", py_result.get_type().name().unwrap());
+                panic!(
+                    "Expected a list for the get_results() method signature, got {}",
+                    py_result.get_type().name().unwrap()
+                );
             }
             py_result.extract()
         })
@@ -463,7 +461,6 @@ It is also required to make the struct public.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 
 pub trait Model {
     fn set_variables(&mut self, var: &Vec<f64>);
@@ -472,7 +469,7 @@ pub trait Model {
 }
 
 pub fn solve<T: Model>(model: &mut T) {
-  println!("Magic solver that mutates the model into a resolved state");
+    println!("Magic solver that mutates the model into a resolved state");
 }
 
 #[pyfunction]
@@ -538,7 +535,10 @@ impl Model for UserModel {
                 .unwrap();
 
             if py_result.get_type().name().unwrap() != "list" {
-                panic!("Expected a list for the get_results() method signature, got {}", py_result.get_type().name().unwrap());
+                panic!(
+                    "Expected a list for the get_results() method signature, got {}",
+                    py_result.get_type().name().unwrap()
+                );
             }
             py_result.extract()
         })

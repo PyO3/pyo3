@@ -22,7 +22,7 @@ use std::{
 
 pub use target_lexicon::Triple;
 
-use target_lexicon::{Architecture, BinaryFormat, Environment, OperatingSystem, Vendor};
+use target_lexicon::{Environment, OperatingSystem};
 
 use crate::{
     bail, ensure,
@@ -34,7 +34,7 @@ use crate::{
 const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
 
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-const ABI3_MAX_MINOR: u8 = 10;
+const ABI3_MAX_MINOR: u8 = 11;
 
 /// Gets an environment variable owned by cargo.
 ///
@@ -69,7 +69,7 @@ pub fn target_triple_from_env() -> Triple {
 ///
 /// When the `PYO3_NO_PYTHON` variable is set, or during cross compile situations, then alternative
 /// strategies are used to populate this type.
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct InterpreterConfig {
     /// The Python implementation flavor.
     ///
@@ -230,6 +230,7 @@ print_if_set("base_prefix", base_prefix)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 print("mingw", get_platform().startswith("mingw"))
+print("ext_suffix", get_config_var("EXT_SUFFIX"))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
@@ -261,6 +262,10 @@ print("mingw", get_platform().startswith("mingw"))
                 implementation,
                 abi3,
                 map["mingw"].as_str() == "True",
+                // This is the best heuristic currently available to detect debug build
+                // on Windows from sysconfig - e.g. ext_suffix may be
+                // `_d.cp312-win_amd64.pyd` for 3.12 debug build
+                map["ext_suffix"].starts_with("_d."),
             )
         } else {
             default_lib_name_unix(
@@ -295,7 +300,7 @@ print("mingw", get_platform().startswith("mingw"))
             lib_dir,
             executable: map.get("executable").cloned(),
             pointer_width: Some(calcsize_pointer * 8),
-            build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version),
+            build_flags: BuildFlags::from_interpreter(interpreter)?,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         })
@@ -344,7 +349,7 @@ print("mingw", get_platform().startswith("mingw"))
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
             .map(|bytes_width: u32| bytes_width * 8)
             .ok();
-        let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata).fixup(version);
+        let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
         Ok(InterpreterConfig {
             implementation,
@@ -433,7 +438,7 @@ print("mingw", get_platform().startswith("mingw"))
                 "extra_build_script_line" => {
                     extra_build_script_lines.push(value.to_string());
                 }
-                unknown => bail!("unknown config key `{}`", unknown),
+                unknown => warn!("unknown config key `{}`", unknown),
             }
         }
 
@@ -471,7 +476,8 @@ print("mingw", get_platform().startswith("mingw"))
         if self.lib_dir.is_none() {
             let target = target_triple_from_env();
             let py_version = if self.abi3 { None } else { Some(self.version) };
-            self.lib_dir = import_lib::generate_import_lib(&target, py_version)?;
+            self.lib_dir =
+                import_lib::generate_import_lib(&target, self.implementation, py_version)?;
         }
         Ok(())
     }
@@ -634,7 +640,7 @@ impl FromStr for PythonVersion {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PythonImplementation {
     CPython,
     PyPy,
@@ -742,7 +748,7 @@ fn require_libdir_for_target(target: &Triple) -> bool {
 ///
 /// Usually this is collected from the environment (i.e. `PYO3_CROSS_*` and `CARGO_CFG_TARGET_*`)
 /// when a cross-compilation configuration is detected.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CrossCompileConfig {
     /// The directory containing the Python library to link against.
     pub lib_dir: Option<PathBuf>,
@@ -920,57 +926,6 @@ impl CrossCompileEnvVars {
 ///   `PYO3_CROSS_LIB_DIR`.
 ///
 /// See the [PyO3 User Guide](https://pyo3.rs/) for more info on cross-compiling.
-#[deprecated(
-    since = "0.16.3",
-    note = "please use cross_compiling_from_to() instead"
-)]
-pub fn cross_compiling(
-    host: &str,
-    target_arch: &str,
-    target_vendor: &str,
-    target_os: &str,
-) -> Result<Option<CrossCompileConfig>> {
-    let host: Triple = host.parse().map_err(|_| "bad host triple")?;
-
-    let architecture: Architecture = target_arch.parse().map_err(|_| "bad target arch")?;
-    let vendor: Vendor = target_vendor.parse().map_err(|_| "bad target vendor")?;
-    let operating_system: OperatingSystem = target_os.parse().map_err(|_| "bad target os")?;
-
-    // FIXME: This is a very bad approximation that only works
-    // for the current `CrossCompileConfig` implementation.
-    let environment = match operating_system {
-        OperatingSystem::Windows => Environment::Msvc,
-        _ => Environment::Gnu,
-    };
-
-    // FIXME: This field is currently unused.
-    let binary_format = BinaryFormat::Elf;
-
-    let target = Triple {
-        architecture,
-        vendor,
-        operating_system,
-        environment,
-        binary_format,
-    };
-
-    cross_compiling_from_to(&host, &target)
-}
-
-/// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
-///
-/// This function relies on PyO3 cross-compiling environment variables:
-///
-///   * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
-///   * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
-///   the target's libpython DSO and the associated `_sysconfigdata*.py` file for
-///   Unix-like targets, or the Python DLL import libraries for the Windows target.
-///   * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
-///   installation. This variable is only needed if PyO3 cannnot determine the version to target
-///   from `abi3-py3*` features, or if there are multiple versions of Python present in
-///   `PYO3_CROSS_LIB_DIR`.
-///
-/// See the [PyO3 User Guide](https://pyo3.rs/) for more info on cross-compiling.
 pub fn cross_compiling_from_to(
     host: &Triple,
     target: &Triple,
@@ -1036,7 +991,7 @@ impl FromStr for BuildFlag {
 /// is the equivalent of `#ifdef {varname}` in C.
 ///
 /// see Misc/SpecialBuilds.txt in the python source for what these mean.
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 #[derive(Clone, Default)]
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
@@ -1064,6 +1019,7 @@ impl BuildFlags {
                 })
                 .collect(),
         )
+        .fixup()
     }
 
     /// Examine python's compile flags to pass to cfg by launching
@@ -1080,7 +1036,8 @@ impl BuildFlags {
         script.push_str("config = sysconfig.get_config_vars()\n");
 
         for k in &BuildFlags::ALL {
-            script.push_str(&format!("print(config.get('{}', '0'))\n", k));
+            use std::fmt::Write;
+            writeln!(&mut script, "print(config.get('{}', '0'))", k).unwrap();
         }
 
         let stdout = run_python_script(interpreter.as_ref(), &script)?;
@@ -1097,16 +1054,12 @@ impl BuildFlags {
             .map(|(flag, _)| flag.clone())
             .collect();
 
-        Ok(Self(flags))
+        Ok(Self(flags).fixup())
     }
 
-    fn fixup(mut self, version: PythonVersion) -> Self {
+    fn fixup(mut self) -> Self {
         if self.0.contains(&BuildFlag::Py_DEBUG) {
             self.0.insert(BuildFlag::Py_REF_DEBUG);
-            if version <= PythonVersion::PY37 {
-                // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
-                self.0.insert(BuildFlag::Py_TRACE_REFS);
-            }
         }
 
         self
@@ -1176,11 +1129,11 @@ impl Sysconfigdata {
 /// The sysconfigdata is simply a dictionary containing all the build time variables used for the
 /// python executable and library. This function necessitates a python interpreter on the host
 /// machine to work. Here it is read into a `Sysconfigdata` (hash map), which can be turned into an
-/// [`InterpreterConfig`](InterpreterConfig) using
+/// [`InterpreterConfig`] using
 /// [`from_sysconfigdata`](InterpreterConfig::from_sysconfigdata).
 pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Sysconfigdata> {
     let sysconfigdata_path = sysconfigdata_path.as_ref();
-    let mut script = fs::read_to_string(&sysconfigdata_path).with_context(|| {
+    let mut script = fs::read_to_string(sysconfigdata_path).with_context(|| {
         format!(
             "failed to read config from {}",
             sysconfigdata_path.display()
@@ -1213,10 +1166,7 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
     let mut sysconfig_paths = find_all_sysconfigdata(cross);
     if sysconfig_paths.is_empty() {
         if let Some(lib_dir) = cross.lib_dir.as_ref() {
-            bail!(
-                "Could not find either libpython.so or _sysconfigdata*.py in {}",
-                lib_dir.display()
-            );
+            bail!("Could not find _sysconfigdata*.py in {}", lib_dir.display());
         } else {
             // Continue with the default configuration when PYO3_CROSS_LIB_DIR is not set.
             return Ok(None);
@@ -1229,7 +1179,8 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
             sysconfigdata files found:",
         );
         for path in sysconfig_paths {
-            error_msg += &format!("\n\t{}", path.display());
+            use std::fmt::Write;
+            write!(&mut error_msg, "\n\t{}", path.display()).unwrap();
         }
         bail!("{}\n", error_msg);
     }
@@ -1425,7 +1376,13 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     #[cfg(feature = "python3-dll-a")]
     if lib_dir.is_none() {
         let py_version = if abi3 { None } else { Some(version) };
-        lib_dir = self::import_lib::generate_import_lib(&cross_compile_config.target, py_version)?;
+        lib_dir = self::import_lib::generate_import_lib(
+            &cross_compile_config.target,
+            cross_compile_config
+                .implementation
+                .unwrap_or(PythonImplementation::CPython),
+            py_version,
+        )?;
     }
 
     Ok(InterpreterConfig {
@@ -1462,6 +1419,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> InterpreterConf
             version,
             implementation,
             abi3,
+            false,
             false,
         ))
     } else {
@@ -1538,6 +1496,7 @@ fn default_lib_name_for_target(
             implementation,
             abi3,
             false,
+            false,
         ))
     } else if is_linking_libpython_for_target(target) {
         Some(default_lib_name_unix(version, implementation, None))
@@ -1551,8 +1510,13 @@ fn default_lib_name_windows(
     implementation: PythonImplementation,
     abi3: bool,
     mingw: bool,
+    debug: bool,
 ) -> String {
-    if abi3 && !implementation.is_pypy() {
+    if debug {
+        // CPython bug: linking against python3_d.dll raises error
+        // https://github.com/python/cpython/issues/101614
+        format!("python{}{}_d", version.major, version.minor)
+    } else if abi3 && !implementation.is_pypy() {
         WINDOWS_ABI3_LIB_NAME.to_owned()
     } else if mingw {
         // https://packages.msys2.org/base/mingw-w64-python
@@ -1675,6 +1639,10 @@ fn get_env_interpreter() -> Option<PathBuf> {
 ///   3. `python`, if this is functional a Python 3.x interpreter
 ///   4. `python3`, as above
 pub fn find_interpreter() -> Result<PathBuf> {
+    // Trigger rebuilds when `PYO3_ENVIRONMENT_SIGNATURE` env var value changes
+    // See https://github.com/PyO3/pyo3/issues/2724
+    println!("cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE");
+
     if let Some(exe) = env_var("PYO3_PYTHON") {
         Ok(exe.into())
     } else if let Some(env_interpreter) = get_env_interpreter() {
@@ -1763,7 +1731,11 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         } else {
             Some(interpreter_config.version)
         };
-        interpreter_config.lib_dir = self::import_lib::generate_import_lib(&host, py_version)?;
+        interpreter_config.lib_dir = self::import_lib::generate_import_lib(
+            &host,
+            interpreter_config.implementation,
+            py_version,
+        )?;
     }
 
     Ok(interpreter_config)
@@ -1903,6 +1875,28 @@ mod tests {
     }
 
     #[test]
+    fn test_config_file_unknown_keys() {
+        // ext_suffix is unknown to pyo3-build-config, but it shouldn't error
+        assert_eq!(
+            InterpreterConfig::from_reader("version=3.7\next_suffix=.python37.so".as_bytes())
+                .unwrap(),
+            InterpreterConfig {
+                version: PythonVersion { major: 3, minor: 7 },
+                implementation: PythonImplementation::CPython,
+                shared: true,
+                abi3: false,
+                lib_name: None,
+                lib_dir: None,
+                executable: None,
+                pointer_width: None,
+                build_flags: BuildFlags::default(),
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        )
+    }
+
+    #[test]
     fn build_flags_default() {
         assert_eq!(BuildFlags::default(), BuildFlags::new());
     }
@@ -1938,25 +1932,17 @@ mod tests {
     }
 
     #[test]
-    fn build_flags_fixup_py37_debug() {
+    fn build_flags_fixup() {
         let mut build_flags = BuildFlags::new();
+
+        build_flags = build_flags.fixup();
+        assert!(build_flags.0.is_empty());
+
         build_flags.0.insert(BuildFlag::Py_DEBUG);
 
-        build_flags = build_flags.fixup(PythonVersion { major: 3, minor: 7 });
+        build_flags = build_flags.fixup();
 
-        // On 3.7, Py_DEBUG implies Py_REF_DEBUG and Py_TRACE_REFS
-        assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
-        assert!(build_flags.0.contains(&BuildFlag::Py_TRACE_REFS));
-    }
-
-    #[test]
-    fn build_flags_fixup_py38_debug() {
-        let mut build_flags = BuildFlags::new();
-        build_flags.0.insert(BuildFlag::Py_DEBUG);
-
-        build_flags = build_flags.fixup(PythonVersion { major: 3, minor: 8 });
-
-        // On 3.8, Py_DEBUG implies Py_REF_DEBUG
+        // Py_DEBUG implies Py_REF_DEBUG
         assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
     }
 
@@ -2259,7 +2245,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 false,
-                false
+                false,
+                false,
             ),
             "python37",
         );
@@ -2268,7 +2255,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 true,
-                false
+                false,
+                false,
             ),
             "python3",
         );
@@ -2277,7 +2265,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 false,
-                true
+                true,
+                false,
             ),
             "python3.7",
         );
@@ -2286,7 +2275,8 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
                 true,
-                true
+                true,
+                false,
             ),
             "python3",
         );
@@ -2295,9 +2285,32 @@ mod tests {
                 PythonVersion { major: 3, minor: 7 },
                 PyPy,
                 true,
-                false
+                false,
+                false,
             ),
             "python37",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 7 },
+                CPython,
+                false,
+                false,
+                true,
+            ),
+            "python37_d",
+        );
+        // abi3 debug builds on windows use version-specific lib
+        // to workaround https://github.com/python/cpython/issues/101614
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 7 },
+                CPython,
+                true,
+                false,
+                true,
+            ),
+            "python37_d",
         );
     }
 
@@ -2496,26 +2509,6 @@ mod tests {
         assert_eq!(
             conda_env_interpreter(base, false),
             PathBuf::from_iter(&["base", "bin", "python"])
-        );
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_not_cross_compiling() {
-        assert!(
-            cross_compiling("aarch64-apple-darwin", "x86_64", "apple", "darwin")
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            cross_compiling("x86_64-apple-darwin", "aarch64", "apple", "darwin")
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            cross_compiling("x86_64-unknown-linux-gnu", "x86_64", "unknown", "linux")
-                .unwrap()
-                .is_none()
         );
     }
 

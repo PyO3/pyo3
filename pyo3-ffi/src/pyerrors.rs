@@ -13,12 +13,14 @@ extern "C" {
     pub fn PyErr_Occurred() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyErr_Clear")]
     pub fn PyErr_Clear();
+    #[cfg_attr(Py_3_12, deprecated(note = "Use PyErr_GetRaisedException() instead."))]
     #[cfg_attr(PyPy, link_name = "PyPyErr_Fetch")]
     pub fn PyErr_Fetch(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
     );
+    #[cfg_attr(Py_3_12, deprecated(note = "Use PyErr_SetRaisedException() instead."))]
     #[cfg_attr(PyPy, link_name = "PyPyErr_Restore")]
     pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_GetExcInfo")]
@@ -35,12 +37,22 @@ extern "C" {
     pub fn PyErr_GivenExceptionMatches(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_ExceptionMatches")]
     pub fn PyErr_ExceptionMatches(arg1: *mut PyObject) -> c_int;
+    #[cfg_attr(
+        Py_3_12,
+        deprecated(
+            note = "Use PyErr_GetRaisedException() instead, to avoid any possible de-normalization."
+        )
+    )]
     #[cfg_attr(PyPy, link_name = "PyPyErr_NormalizeException")]
     pub fn PyErr_NormalizeException(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
     );
+    #[cfg(Py_3_12)]
+    pub fn PyErr_GetRaisedException() -> *mut PyObject;
+    #[cfg(Py_3_12)]
+    pub fn PyErr_SetRaisedException(exc: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyException_SetTraceback")]
     pub fn PyException_SetTraceback(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyException_GetTraceback")]
@@ -85,18 +97,17 @@ pub unsafe fn PyUnicodeDecodeError_Create(
     length: Py_ssize_t,
     start: Py_ssize_t,
     end: Py_ssize_t,
-    _reason: *const c_char,
+    reason: *const c_char,
 ) -> *mut PyObject {
-    crate::PyObject_CallFunction(
+    crate::_PyObject_CallFunction_SizeT(
         PyExc_UnicodeDecodeError,
-        std::ffi::CStr::from_bytes_with_nul(b"sy#nns\0")
-            .unwrap()
-            .as_ptr(),
+        b"sy#nns\0".as_ptr().cast::<c_char>(),
         encoding,
         object,
         length,
         start,
         end,
+        reason,
     )
 }
 
@@ -104,6 +115,8 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyExc_BaseException")]
     pub static mut PyExc_BaseException: *mut PyObject;
+    #[cfg(Py_3_11)]
+    pub static mut PyExc_BaseExceptionGroup: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_Exception")]
     pub static mut PyExc_Exception: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_StopAsyncIteration")]
@@ -245,6 +258,9 @@ extern "C" {
     pub static mut PyExc_BytesWarning: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_ResourceWarning")]
     pub static mut PyExc_ResourceWarning: *mut PyObject;
+    #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyExc_EncodingWarning")]
+    pub static mut PyExc_EncodingWarning: *mut PyObject;
 }
 
 extern "C" {
@@ -304,9 +320,13 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterrupt")]
     pub fn PyErr_SetInterrupt();
     #[cfg(Py_3_10)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterruptEx")]
     pub fn PyErr_SetInterruptEx(signum: c_int);
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SyntaxLocation")]
     pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int);
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SyntaxLocationEx")]
     pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int);
+    #[cfg_attr(PyPy, link_name = "PyPyErr_ProgramText")]
     pub fn PyErr_ProgramText(filename: *const c_char, lineno: c_int) -> *mut PyObject;
     #[cfg(not(PyPy))]
     pub fn PyUnicodeDecodeError_Create(

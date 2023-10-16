@@ -15,23 +15,26 @@ pub fn failed_to_extract_enum(
         error_names.join(" | ")
     );
     for ((variant_name, error_name), error) in variant_names.iter().zip(error_names).zip(errors) {
-        err_msg.push('\n');
-        err_msg.push_str(&format!(
-            "- variant {variant_name} ({error_name}): {error_msg}",
+        use std::fmt::Write;
+        write!(
+            &mut err_msg,
+            "\n- variant {variant_name} ({error_name}): {error_msg}",
             variant_name = variant_name,
             error_name = error_name,
             error_msg = extract_traceback(py, error.clone_ref(py)),
-        ));
+        )
+        .unwrap();
     }
     PyTypeError::new_err(err_msg)
 }
 
 /// Flattens a chain of errors into a single string.
 fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
+    use std::fmt::Write;
+
     let mut error_msg = error.to_string();
     while let Some(cause) = error.cause(py) {
-        error_msg.push_str(", caused by ");
-        error_msg.push_str(&cause.to_string());
+        write!(&mut error_msg, ", caused by {}", cause).unwrap();
         error = cause
     }
     error_msg
@@ -46,7 +49,7 @@ where
     T: FromPyObject<'py>,
 {
     match obj.extract() {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_struct_field(
             obj.py(),
             err,
@@ -63,7 +66,7 @@ pub fn extract_struct_field_with<'py, T>(
     field_name: &str,
 ) -> PyResult<T> {
     match extractor(obj) {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_struct_field(
             obj.py(),
             err,
@@ -97,7 +100,7 @@ where
     T: FromPyObject<'py>,
 {
     match obj.extract() {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_tuple_struct_field(
             obj.py(),
             err,
@@ -114,7 +117,7 @@ pub fn extract_tuple_struct_field_with<'py, T>(
     index: usize,
 ) -> PyResult<T> {
     match extractor(obj) {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_tuple_struct_field(
             obj.py(),
             err,

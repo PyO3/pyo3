@@ -1,21 +1,22 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 use std::borrow::Cow;
 
+use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute,
+    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, TextSignatureAttribute,
+    TextSignatureAttributeValue,
 };
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::FnSpec;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
-    impl_py_getter_def, impl_py_setter_def, PropertyType, SlotDef, __INT__, __REPR__, __RICHCMP__,
+    impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
+    SlotDef, __INT__, __REPR__, __RICHCMP__,
 };
-use crate::utils::{self, get_pyo3_crate, PythonDoc};
+use crate::utils::{self, apply_renaming_rule, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
@@ -59,11 +60,15 @@ pub struct PyClassPyO3Options {
     pub krate: Option<CrateAttribute>,
     pub dict: Option<kw::dict>,
     pub extends: Option<ExtendsAttribute>,
+    pub get_all: Option<kw::get_all>,
     pub freelist: Option<FreelistAttribute>,
-    pub immutable: Option<kw::immutable>,
+    pub frozen: Option<kw::frozen>,
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
+    pub rename_all: Option<RenameAllAttribute>,
+    pub sequence: Option<kw::sequence>,
+    pub set_all: Option<kw::set_all>,
     pub subclass: Option<kw::subclass>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub unsendable: Option<kw::unsendable>,
@@ -77,16 +82,18 @@ enum PyClassPyO3Option {
     Dict(kw::dict),
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
-    Immutable(kw::immutable),
+    Frozen(kw::frozen),
+    GetAll(kw::get_all),
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
+    RenameAll(RenameAllAttribute),
+    Sequence(kw::sequence),
+    SetAll(kw::set_all),
     Subclass(kw::subclass),
     TextSignature(TextSignatureAttribute),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
-
-    DeprecatedGC(kw::gc),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -100,14 +107,22 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Extends)
         } else if lookahead.peek(attributes::kw::freelist) {
             input.parse().map(PyClassPyO3Option::Freelist)
-        } else if lookahead.peek(attributes::kw::immutable) {
-            input.parse().map(PyClassPyO3Option::Immutable)
+        } else if lookahead.peek(attributes::kw::frozen) {
+            input.parse().map(PyClassPyO3Option::Frozen)
+        } else if lookahead.peek(attributes::kw::get_all) {
+            input.parse().map(PyClassPyO3Option::GetAll)
         } else if lookahead.peek(attributes::kw::mapping) {
             input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
             input.parse().map(PyClassPyO3Option::Name)
+        } else if lookahead.peek(kw::rename_all) {
+            input.parse().map(PyClassPyO3Option::RenameAll)
+        } else if lookahead.peek(attributes::kw::sequence) {
+            input.parse().map(PyClassPyO3Option::Sequence)
+        } else if lookahead.peek(attributes::kw::set_all) {
+            input.parse().map(PyClassPyO3Option::SetAll)
         } else if lookahead.peek(attributes::kw::subclass) {
             input.parse().map(PyClassPyO3Option::Subclass)
         } else if lookahead.peek(attributes::kw::text_signature) {
@@ -116,8 +131,6 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Unsendable)
         } else if lookahead.peek(attributes::kw::weakref) {
             input.parse().map(PyClassPyO3Option::Weakref)
-        } else if lookahead.peek(attributes::kw::gc) {
-            input.parse().map(PyClassPyO3Option::DeprecatedGC)
         } else {
             Err(lookahead.error())
         }
@@ -159,18 +172,22 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Dict(dict) => set_option!(dict),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
-            PyClassPyO3Option::Immutable(immutable) => set_option!(immutable),
+            PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
+            PyClassPyO3Option::GetAll(get_all) => set_option!(get_all),
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
+            PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
+            PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
+            PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
-            PyClassPyO3Option::TextSignature(text_signature) => set_option!(text_signature),
+            PyClassPyO3Option::TextSignature(text_signature) => {
+                self.deprecations
+                    .push(Deprecation::PyClassTextSignature, text_signature.span());
+                set_option!(text_signature)
+            }
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
-
-            PyClassPyO3Option::DeprecatedGC(gc) => self
-                .deprecations
-                .push(Deprecation::PyClassGcOption, gc.span()),
         }
         Ok(())
     }
@@ -182,21 +199,25 @@ pub fn build_py_class(
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut class.attrs)?;
-    let doc = utils::get_doc(
-        &class.attrs,
-        args.options
-            .text_signature
-            .as_ref()
-            .map(|attr| (get_class_python_name(&class.ident, &args), attr)),
-    );
+    let doc = utils::get_doc(&class.attrs, None);
     let krate = get_pyo3_crate(&args.options.krate);
+
+    if let Some(lt) = class.generics.lifetimes().next() {
+        bail_spanned!(
+            lt.span() =>
+            "#[pyclass] cannot have lifetime parameters. \
+            For an explanation, see https://pyo3.rs/latest/class.html#no-lifetime-parameters"
+        );
+    }
 
     ensure_spanned!(
         class.generics.params.is_empty(),
-        class.generics.span() => "#[pyclass] cannot have generic parameters"
+        class.generics.span() =>
+            "#[pyclass] cannot have generic parameters. \
+            For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
     );
 
-    let field_options = match &mut class.fields {
+    let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
         syn::Fields::Named(fields) => fields
             .named
             .iter_mut()
@@ -214,18 +235,54 @@ pub fn build_py_class(
             })
             .collect::<Result<_>>()?,
         syn::Fields::Unit => {
+            if let Some(attr) = args.options.set_all {
+                return Err(syn::Error::new_spanned(attr, UNIT_SET));
+            };
+            if let Some(attr) = args.options.get_all {
+                return Err(syn::Error::new_spanned(attr, UNIT_GET));
+            };
             // No fields for unit struct
             Vec::new()
         }
     };
 
+    if let Some(attr) = args.options.get_all {
+        for (_, FieldPyO3Options { get, .. }) in &mut field_options {
+            if let Some(old_get) = get.replace(Annotated::Struct(attr)) {
+                return Err(syn::Error::new(old_get.span(), DUPE_GET));
+            }
+        }
+    }
+
+    if let Some(attr) = args.options.set_all {
+        for (_, FieldPyO3Options { set, .. }) in &mut field_options {
+            if let Some(old_set) = set.replace(Annotated::Struct(attr)) {
+                return Err(syn::Error::new(old_set.span(), DUPE_SET));
+            }
+        }
+    }
+
     impl_class(&class.ident, &args, doc, field_options, methods_type, krate)
+}
+
+enum Annotated<X, Y> {
+    Field(X),
+    Struct(Y),
+}
+
+impl<X: Spanned, Y: Spanned> Annotated<X, Y> {
+    fn span(&self) -> Span {
+        match self {
+            Self::Field(x) => x.span(),
+            Self::Struct(y) => y.span(),
+        }
+    }
 }
 
 /// `#[pyo3()]` options for pyclass fields
 struct FieldPyO3Options {
-    get: bool,
-    set: bool,
+    get: Option<Annotated<kw::get, kw::get_all>>,
+    set: Option<Annotated<kw::set, kw::set_all>>,
     name: Option<NameAttribute>,
 }
 
@@ -253,33 +310,27 @@ impl Parse for FieldPyO3Option {
 impl FieldPyO3Options {
     fn take_pyo3_options(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
         let mut options = FieldPyO3Options {
-            get: false,
-            set: false,
+            get: None,
+            set: None,
             name: None,
         };
 
         for option in take_pyo3_options(attrs)? {
             match option {
                 FieldPyO3Option::Get(kw) => {
-                    ensure_spanned!(
-                        !options.get,
-                        kw.span() => "`get` may only be specified once"
-                    );
-                    options.get = true;
+                    if options.get.replace(Annotated::Field(kw)).is_some() {
+                        return Err(syn::Error::new(kw.span(), UNIQUE_GET));
+                    }
                 }
                 FieldPyO3Option::Set(kw) => {
-                    ensure_spanned!(
-                        !options.set,
-                        kw.span() => "`set` may only be specified once"
-                    );
-                    options.set = true;
+                    if options.set.replace(Annotated::Field(kw)).is_some() {
+                        return Err(syn::Error::new(kw.span(), UNIQUE_SET));
+                    }
                 }
                 FieldPyO3Option::Name(name) => {
-                    ensure_spanned!(
-                        options.name.is_none(),
-                        name.span() => "`name` may only be specified once"
-                    );
-                    options.name = Some(name);
+                    if options.name.replace(name).is_some() {
+                        return Err(syn::Error::new(options.name.span(), UNIQUE_NAME));
+                    }
                 }
             }
         }
@@ -310,11 +361,16 @@ fn impl_class(
         cls,
         args,
         methods_type,
-        descriptors_to_items(cls, field_options)?,
+        descriptors_to_items(
+            cls,
+            args.options.rename_all.as_ref(),
+            args.options.frozen,
+            field_options,
+        )?,
         vec![],
     )
     .doc(doc)
-    .impl_all();
+    .impl_all()?;
 
     Ok(quote! {
         const _: () = {
@@ -329,7 +385,25 @@ fn impl_class(
 
 struct PyClassEnumVariant<'a> {
     ident: &'a syn::Ident,
-    /* currently have no more options */
+    options: EnumVariantPyO3Options,
+}
+
+impl<'a> PyClassEnumVariant<'a> {
+    fn python_name(&self, args: &PyClassArgs) -> Cow<'_, syn::Ident> {
+        self.options
+            .name
+            .as_ref()
+            .map(|name_attr| Cow::Borrowed(&name_attr.value.0))
+            .unwrap_or_else(|| {
+                let name = self.ident.unraw();
+                if let Some(attr) = &args.options.rename_all {
+                    let new_name = apply_renaming_rule(attr.value.rule, &name.to_string());
+                    Cow::Owned(Ident::new(&new_name, Span::call_site()))
+                } else {
+                    Cow::Owned(name)
+                }
+            })
+    }
 }
 
 struct PyClassEnum<'a> {
@@ -341,7 +415,7 @@ struct PyClassEnum<'a> {
 }
 
 impl<'a> PyClassEnum<'a> {
-    fn new(enum_: &'a syn::ItemEnum) -> syn::Result<Self> {
+    fn new(enum_: &'a mut syn::ItemEnum) -> syn::Result<Self> {
         fn is_numeric_type(t: &syn::Ident) -> bool {
             [
                 "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "usize",
@@ -355,7 +429,7 @@ impl<'a> PyClassEnum<'a> {
         // "Under the default representation, the specified discriminant is interpreted as an isize
         // value", so `isize` should be enough by default.
         let mut repr_type = syn::Ident::new("isize", proc_macro2::Span::call_site());
-        if let Some(attr) = enum_.attrs.iter().find(|attr| attr.path.is_ident("repr")) {
+        if let Some(attr) = enum_.attrs.iter().find(|attr| attr.path().is_ident("repr")) {
             let args =
                 attr.parse_args_with(Punctuated::<TokenStream, Token![!]>::parse_terminated)?;
             if let Some(ident) = args
@@ -369,7 +443,7 @@ impl<'a> PyClassEnum<'a> {
 
         let variants = enum_
             .variants
-            .iter()
+            .iter_mut()
             .map(extract_variant_data)
             .collect::<syn::Result<_>>()?;
         Ok(Self {
@@ -392,18 +466,52 @@ pub fn build_py_enum(
     } else if let Some(subclass) = &args.options.subclass {
         bail_spanned!(subclass.span() => "enums can't be inherited by other classes");
     } else if enum_.variants.is_empty() {
-        bail_spanned!(enum_.brace_token.span => "#[pyclass] can't be used on enums without any variants");
+        bail_spanned!(enum_.brace_token.span.join() => "#[pyclass] can't be used on enums without any variants");
     }
 
-    let doc = utils::get_doc(
-        &enum_.attrs,
-        args.options
-            .text_signature
-            .as_ref()
-            .map(|attr| (get_class_python_name(&enum_.ident, &args), attr)),
-    );
+    let doc = utils::get_doc(&enum_.attrs, None);
     let enum_ = PyClassEnum::new(enum_)?;
-    Ok(impl_enum(enum_, &args, doc, method_type))
+    impl_enum(enum_, &args, doc, method_type)
+}
+
+/// `#[pyo3()]` options for pyclass enum variants
+struct EnumVariantPyO3Options {
+    name: Option<NameAttribute>,
+}
+
+enum EnumVariantPyO3Option {
+    Name(NameAttribute),
+}
+
+impl Parse for EnumVariantPyO3Option {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::name) {
+            input.parse().map(EnumVariantPyO3Option::Name)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl EnumVariantPyO3Options {
+    fn take_pyo3_options(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
+        let mut options = EnumVariantPyO3Options { name: None };
+
+        for option in take_pyo3_options(attrs)? {
+            match option {
+                EnumVariantPyO3Option::Name(name) => {
+                    ensure_spanned!(
+                        options.name.is_none(),
+                        name.span() => "`name` may only be specified once"
+                    );
+                    options.name = Some(name);
+                }
+            }
+        }
+
+        Ok(options)
+    }
 }
 
 fn impl_enum(
@@ -411,18 +519,8 @@ fn impl_enum(
     args: &PyClassArgs,
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let krate = get_pyo3_crate(&args.options.krate);
-    impl_enum_class(enum_, args, doc, methods_type, krate)
-}
-
-fn impl_enum_class(
-    enum_: PyClassEnum<'_>,
-    args: &PyClassArgs,
-    doc: PythonDoc,
-    methods_type: PyClassMethodsType,
-    krate: syn::Path,
-) -> TokenStream {
     let cls = enum_.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = enum_.variants;
@@ -432,10 +530,14 @@ fn impl_enum_class(
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
             // Assuming all variants are unit variants because they are the only type we support.
-            let repr = format!("{}.{}", cls, variant_name);
+            let repr = format!(
+                "{}.{}",
+                get_class_python_name(cls, args),
+                variant.python_name(args),
+            );
             quote! { #cls::#variant_name => #repr, }
         });
-        let mut repr_impl: syn::ImplItemMethod = syn::parse_quote! {
+        let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__repr__(&self) -> &'static str {
                 match self {
                     #(#variants_repr)*
@@ -454,7 +556,7 @@ fn impl_enum_class(
             let variant_name = variant.ident;
             quote! { #cls::#variant_name => #cls::#variant_name as #repr_type, }
         });
-        let mut int_impl: syn::ImplItemMethod = syn::parse_quote! {
+        let mut int_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__int__(&self) -> #repr_type {
                 match self {
                     #(#variants_to_int)*
@@ -466,14 +568,7 @@ fn impl_enum_class(
     };
 
     let (default_richcmp, default_richcmp_slot) = {
-        let variants_eq = variants.iter().map(|variant| {
-            let variant_name = variant.ident;
-            quote! {
-                (#cls::#variant_name, #cls::#variant_name) =>
-                    Ok(true.to_object(py)),
-            }
-        });
-        let mut richcmp_impl: syn::ImplItemMethod = syn::parse_quote! {
+        let mut richcmp_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__richcmp__(
                 &self,
                 py: _pyo3::Python,
@@ -484,16 +579,26 @@ fn impl_enum_class(
                 use ::core::result::Result::*;
                 match op {
                     _pyo3::basic::CompareOp::Eq => {
+                        let self_val = self.__pyo3__int__();
                         if let Ok(i) = other.extract::<#repr_type>() {
-                            let self_val = self.__pyo3__int__();
                             return Ok((self_val == i).to_object(py));
                         }
-                        let other = other.extract::<_pyo3::PyRef<Self>>()?;
-                        let other = &*other;
-                        match (self, other) {
-                            #(#variants_eq)*
-                            _ => Ok(false.to_object(py)),
+                        if let Ok(other) = other.extract::<_pyo3::PyRef<Self>>() {
+                            return Ok((self_val == other.__pyo3__int__()).to_object(py));
                         }
+
+                        return Ok(py.NotImplemented());
+                    }
+                    _pyo3::basic::CompareOp::Ne => {
+                        let self_val = self.__pyo3__int__();
+                        if let Ok(i) = other.extract::<#repr_type>() {
+                            return Ok((self_val != i).to_object(py));
+                        }
+                        if let Ok(other) = other.extract::<_pyo3::PyRef<Self>>() {
+                            return Ok((self_val != other.__pyo3__int__()).to_object(py));
+                        }
+
+                        return Ok(py.NotImplemented());
                     }
                     _ => Ok(py.NotImplemented()),
                 }
@@ -510,13 +615,13 @@ fn impl_enum_class(
         cls,
         args,
         methods_type,
-        enum_default_methods(cls, variants.iter().map(|v| v.ident)),
+        enum_default_methods(cls, variants.iter().map(|v| (v.ident, v.python_name(args)))),
         default_slots,
     )
     .doc(doc)
-    .impl_all();
+    .impl_all()?;
 
-    quote! {
+    Ok(quote! {
         const _: () = {
             use #krate as _pyo3;
 
@@ -532,14 +637,14 @@ fn impl_enum_class(
                 #default_richcmp
             }
         };
-    }
+    })
 }
 
 fn generate_default_protocol_slot(
     cls: &syn::Type,
-    method: &mut syn::ImplItemMethod,
+    method: &mut syn::ImplItemFn,
     slot: &SlotDef,
-) -> syn::Result<TokenStream> {
+) -> syn::Result<MethodAndSlotDef> {
     let spec = FnSpec::parse(
         &mut method.sig,
         &mut Vec::new(),
@@ -556,73 +661,82 @@ fn generate_default_protocol_slot(
 
 fn enum_default_methods<'a>(
     cls: &'a syn::Ident,
-    unit_variant_names: impl IntoIterator<Item = &'a syn::Ident>,
-) -> Vec<TokenStream> {
+    unit_variant_names: impl IntoIterator<Item = (&'a syn::Ident, Cow<'a, syn::Ident>)>,
+) -> Vec<MethodAndMethodDef> {
     let cls_type = syn::parse_quote!(#cls);
-    let variant_to_attribute = |ident: &syn::Ident| ConstSpec {
-        rust_ident: ident.clone(),
+    let variant_to_attribute = |var_ident: &syn::Ident, py_ident: &syn::Ident| ConstSpec {
+        rust_ident: var_ident.clone(),
         attributes: ConstAttributes {
             is_class_attr: true,
             name: Some(NameAttribute {
                 kw: syn::parse_quote! { name },
-                value: NameLitStr(ident.clone()),
+                value: NameLitStr(py_ident.clone()),
             }),
             deprecations: Default::default(),
         },
     };
     unit_variant_names
         .into_iter()
-        .map(|var| gen_py_const(&cls_type, &variant_to_attribute(var)))
+        .map(|(var, py_name)| gen_py_const(&cls_type, &variant_to_attribute(var, &py_name)))
         .collect()
 }
 
-fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVariant<'_>> {
+fn extract_variant_data(variant: &mut syn::Variant) -> syn::Result<PyClassEnumVariant<'_>> {
     use syn::Fields;
     let ident = match variant.fields {
         Fields::Unit => &variant.ident,
         _ => bail_spanned!(variant.span() => "Currently only support unit variants."),
     };
-    Ok(PyClassEnumVariant { ident })
+    let options = EnumVariantPyO3Options::take_pyo3_options(&mut variant.attrs)?;
+    Ok(PyClassEnumVariant { ident, options })
 }
 
 fn descriptors_to_items(
     cls: &syn::Ident,
+    rename_all: Option<&RenameAllAttribute>,
+    frozen: Option<frozen>,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
-) -> syn::Result<Vec<TokenStream>> {
+) -> syn::Result<Vec<MethodAndMethodDef>> {
     let ty = syn::parse_quote!(#cls);
-    field_options
-        .into_iter()
-        .enumerate()
-        .flat_map(|(field_index, (field, options))| {
-            let name_err = if options.name.is_some() && !options.get && !options.set {
-                Some(Err(err_spanned!(options.name.as_ref().unwrap().span() => "`name` is useless without `get` or `set`")))
-            } else {
-                None
-            };
+    let mut items = Vec::new();
+    for (field_index, (field, options)) in field_options.into_iter().enumerate() {
+        if let FieldPyO3Options {
+            name: Some(name),
+            get: None,
+            set: None,
+        } = options
+        {
+            return Err(syn::Error::new_spanned(name, USELESS_NAME));
+        }
 
-            let getter = if options.get {
-                Some(impl_py_getter_def(&ty, PropertyType::Descriptor {
+        if options.get.is_some() {
+            let getter = impl_py_getter_def(
+                &ty,
+                PropertyType::Descriptor {
                     field_index,
                     field,
-                    python_name: options.name.as_ref()
-                }))
-            } else {
-                None
-            };
+                    python_name: options.name.as_ref(),
+                    renaming_rule: rename_all.map(|rename_all| rename_all.value.rule),
+                },
+            )?;
+            items.push(getter);
+        }
 
-            let setter = if options.set {
-                Some(impl_py_setter_def(&ty, PropertyType::Descriptor {
+        if let Some(set) = options.set {
+            ensure_spanned!(frozen.is_none(), set.span() => "cannot use `#[pyo3(set)]` on a `frozen` class");
+            let setter = impl_py_setter_def(
+                &ty,
+                PropertyType::Descriptor {
                     field_index,
                     field,
-                    python_name: options.name.as_ref()
-                }))
-            } else {
-                None
-            };
-
-            name_err.into_iter().chain(getter).chain(setter)
-        })
-        .collect::<syn::Result<_>>()
+                    python_name: options.name.as_ref(),
+                    renaming_rule: rename_all.map(|rename_all| rename_all.value.rule),
+                },
+            )?;
+            items.push(setter);
+        };
+    }
+    Ok(items)
 }
 
 fn impl_pytypeinfo(
@@ -649,9 +763,9 @@ fn impl_pytypeinfo(
             fn type_object_raw(py: _pyo3::Python<'_>) -> *mut _pyo3::ffi::PyTypeObject {
                 #deprecations
 
-                use _pyo3::type_object::LazyStaticType;
-                static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
-                TYPE_OBJECT.get_or_init::<Self>(py)
+                <#cls as _pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
+                    .get_or_init(py)
+                    .as_type_ptr()
             }
         }
     }
@@ -666,8 +780,8 @@ struct PyClassImplsBuilder<'a> {
     cls: &'a syn::Ident,
     attr: &'a PyClassArgs,
     methods_type: PyClassMethodsType,
-    default_methods: Vec<TokenStream>,
-    default_slots: Vec<TokenStream>,
+    default_methods: Vec<MethodAndMethodDef>,
+    default_slots: Vec<MethodAndSlotDef>,
     doc: Option<PythonDoc>,
 }
 
@@ -676,8 +790,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         cls: &'a syn::Ident,
         attr: &'a PyClassArgs,
         methods_type: PyClassMethodsType,
-        default_methods: Vec<TokenStream>,
-        default_slots: Vec<TokenStream>,
+        default_methods: Vec<MethodAndMethodDef>,
+        default_slots: Vec<MethodAndSlotDef>,
     ) -> Self {
         Self {
             cls,
@@ -696,44 +810,68 @@ impl<'a> PyClassImplsBuilder<'a> {
         }
     }
 
-    fn impl_all(&self) -> TokenStream {
-        vec![
+    fn impl_all(&self) -> Result<TokenStream> {
+        let tokens = vec![
             self.impl_pyclass(),
             self.impl_extractext(),
             self.impl_into_py(),
-            self.impl_pyclassimpl(),
+            self.impl_pyclassimpl()?,
             self.impl_freelist(),
         ]
         .into_iter()
-        .collect()
+        .collect();
+        Ok(tokens)
     }
 
     fn impl_pyclass(&self) -> TokenStream {
         let cls = self.cls;
 
+        let frozen = if self.attr.options.frozen.is_some() {
+            quote! { _pyo3::pyclass::boolean_struct::True }
+        } else {
+            quote! { _pyo3::pyclass::boolean_struct::False }
+        };
+
         quote! {
-            impl _pyo3::PyClass for #cls { }
+            impl _pyo3::PyClass for #cls {
+                type Frozen = #frozen;
+            }
         }
     }
     fn impl_extractext(&self) -> TokenStream {
         let cls = self.cls;
-        if self.attr.options.immutable.is_some() {
+        if self.attr.options.frozen.is_some() {
             quote! {
-                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                impl<'a, 'py> _pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a #cls
                 {
-                    type Target = _pyo3::PyRef<'a, #cls>;
+                    type Holder = ::std::option::Option<_pyo3::PyRef<'py, #cls>>;
+
+                    #[inline]
+                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                        _pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
+                    }
                 }
             }
         } else {
             quote! {
-                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                impl<'a, 'py> _pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a #cls
                 {
-                    type Target = _pyo3::PyRef<'a, #cls>;
+                    type Holder = ::std::option::Option<_pyo3::PyRef<'py, #cls>>;
+
+                    #[inline]
+                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                        _pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
+                    }
                 }
 
-                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+                impl<'a, 'py> _pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut #cls
                 {
-                    type Target = _pyo3::PyRefMut<'a, #cls>;
+                    type Holder = ::std::option::Option<_pyo3::PyRefMut<'py, #cls>>;
+
+                    #[inline]
+                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                        _pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
+                    }
                 }
             }
         }
@@ -755,9 +893,21 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {}
         }
     }
-    fn impl_pyclassimpl(&self) -> TokenStream {
+    fn impl_pyclassimpl(&self) -> Result<TokenStream> {
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
+        let deprecated_text_signature = match self
+            .attr
+            .options
+            .text_signature
+            .as_ref()
+            .map(|attr| &attr.value)
+        {
+            Some(TextSignatureAttributeValue::Str(s)) => quote!(::std::option::Option::Some(#s)),
+            Some(TextSignatureAttributeValue::Disabled(_)) | None => {
+                quote!(::std::option::Option::None)
+            }
+        };
         let is_basetype = self.attr.options.subclass.is_some();
         let base = self
             .attr
@@ -768,6 +918,12 @@ impl<'a> PyClassImplsBuilder<'a> {
             .unwrap_or_else(|| parse_quote! { _pyo3::PyAny });
         let is_subclass = self.attr.options.extends.is_some();
         let is_mapping: bool = self.attr.options.mapping.is_some();
+        let is_sequence: bool = self.attr.options.sequence.is_some();
+
+        ensure_spanned!(
+            !(is_mapping && is_sequence),
+            self.cls.span() => "a `#[pyclass]` cannot be both a `mapping` and a `sequence`"
+        );
 
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
@@ -791,19 +947,13 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         let thread_checker = if self.attr.options.unsendable.is_some() {
-            quote! { _pyo3::impl_::pyclass::ThreadCheckerImpl<#cls> }
-        } else if self.attr.options.extends.is_some() {
-            quote! {
-                _pyo3::impl_::pyclass::ThreadCheckerInherited<#cls, <#cls as _pyo3::impl_::pyclass::PyClassImpl>::BaseType>
-            }
+            quote! { _pyo3::impl_::pyclass::ThreadCheckerImpl }
         } else {
-            quote! { _pyo3::impl_::pyclass::ThreadCheckerStub<#cls> }
+            quote! { _pyo3::impl_::pyclass::SendablePyClass<#cls> }
         };
 
         let (pymethods_items, inventory, inventory_class) = match self.methods_type {
-            PyClassMethodsType::Specialization => {
-                (quote! { visitor(collector.py_methods()); }, None, None)
-            }
+            PyClassMethodsType::Specialization => (quote! { collector.py_methods() }, None, None),
             PyClassMethodsType::Inventory => {
                 // To allow multiple #[pymethods] block, we define inventory types.
                 let inventory_class_name = syn::Ident::new(
@@ -812,9 +962,12 @@ impl<'a> PyClassImplsBuilder<'a> {
                 );
                 (
                     quote! {
-                        for inventory in _pyo3::inventory::iter::<<Self as _pyo3::impl_::pyclass::PyClassImpl>::Inventory>() {
-                            visitor(_pyo3::impl_::pyclass::PyClassInventory::items(inventory));
-                        }
+                        ::std::boxed::Box::new(
+                            ::std::iter::Iterator::map(
+                                _pyo3::inventory::iter::<<Self as _pyo3::impl_::pyclass::PyClassImpl>::Inventory>(),
+                                _pyo3::impl_::pyclass::PyClassInventory::items
+                            )
+                        )
                     },
                     Some(quote! { type Inventory = #inventory_class_name; }),
                     Some(define_inventory_class(&inventory_class_name)),
@@ -822,39 +975,23 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         };
 
-        let pyproto_items = if cfg!(feature = "pyproto") {
-            Some(quote! {
-                visitor(collector.object_protocol_items());
-                visitor(collector.number_protocol_items());
-                visitor(collector.iter_protocol_items());
-                visitor(collector.gc_protocol_items());
-                visitor(collector.descr_protocol_items());
-                visitor(collector.mapping_protocol_items());
-                visitor(collector.sequence_protocol_items());
-                visitor(collector.async_protocol_items());
-                visitor(collector.buffer_protocol_items());
-            })
-        } else {
-            None
-        };
+        let default_methods = self
+            .default_methods
+            .iter()
+            .map(|meth| &meth.associated_method)
+            .chain(
+                self.default_slots
+                    .iter()
+                    .map(|meth| &meth.associated_method),
+            );
 
-        let default_methods = &self.default_methods;
-        let default_slots = &self.default_slots;
+        let default_method_defs = self.default_methods.iter().map(|meth| &meth.method_def);
+        let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);
         let freelist_slots = self.freelist_slots();
 
         let deprecations = &self.attr.deprecations;
 
-        let mutability = if self.attr.options.immutable.is_some() {
-            quote! {
-                 _pyo3::pycell::Immutable
-            }
-        } else {
-            quote! {
-                _pyo3::pycell::Mutable
-            }
-        };
-
-        let class_mutability = if self.attr.options.immutable.is_some() {
+        let class_mutability = if self.attr.options.frozen.is_some() {
             quote! {
                 ImmutableChild
             }
@@ -885,43 +1022,60 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! { _pyo3::PyAny }
         };
 
-        quote! {
+        Ok(quote! {
             impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
-                const DOC: &'static str = #doc;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
                 const IS_MAPPING: bool = #is_mapping;
+                const IS_SEQUENCE: bool = #is_sequence;
 
-                type Layout = _pyo3::PyCell<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
                 #inventory
-                type Mutability = #mutability;
-                type PyClassMutability = <<#base as _pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as _pyo3::pycell::PyClassMutability>::#class_mutability;
+                type PyClassMutability = <<#base as _pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as _pyo3::impl_::pycell::PyClassMutability>::#class_mutability;
                 type Dict = #dict;
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
 
-                fn for_all_items(visitor: &mut dyn ::std::ops::FnMut(& _pyo3::impl_::pyclass::PyClassItems)) {
+                fn items_iter() -> _pyo3::impl_::pyclass::PyClassItemsIter {
                     use _pyo3::impl_::pyclass::*;
                     let collector = PyClassImplCollector::<Self>::new();
                     #deprecations;
                     static INTRINSIC_ITEMS: PyClassItems = PyClassItems {
-                        methods: &[#(#default_methods),*],
-                        slots: &[#(#default_slots),* #(#freelist_slots),*],
+                        methods: &[#(#default_method_defs),*],
+                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
                     };
-                    visitor(&INTRINSIC_ITEMS);
-                    #pymethods_items
-                    #pyproto_items
+                    PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
+                }
+
+                fn doc(py: _pyo3::Python<'_>) -> _pyo3::PyResult<&'static ::std::ffi::CStr>  {
+                    use _pyo3::impl_::pyclass::*;
+                    static DOC: _pyo3::once_cell::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = _pyo3::once_cell::GILOnceCell::new();
+                    DOC.get_or_try_init(py, || {
+                        let collector = PyClassImplCollector::<Self>::new();
+                        build_pyclass_doc(<#cls as _pyo3::PyTypeInfo>::NAME, #doc, #deprecated_text_signature.or_else(|| collector.new_text_signature()))
+                    }).map(::std::ops::Deref::deref)
                 }
 
                 #dict_offset
 
                 #weaklist_offset
+
+                fn lazy_type_object() -> &'static _pyo3::impl_::pyclass::LazyTypeObject<Self> {
+                    use _pyo3::impl_::pyclass::LazyTypeObject;
+                    static TYPE_OBJECT: LazyTypeObject<#cls> = LazyTypeObject::new();
+                    &TYPE_OBJECT
+                }
+            }
+
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            impl #cls {
+                #(#default_methods)*
             }
 
             #inventory_class
-        }
+        })
     }
 
     fn impl_freelist(&self) -> TokenStream {
@@ -932,7 +1086,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl _pyo3::impl_::pyclass::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(_py: _pyo3::Python<'_>) -> &mut _pyo3::impl_::freelist::FreeList<*mut _pyo3::ffi::PyObject> {
+                    fn get_free_list(py: _pyo3::Python<'_>) -> &mut _pyo3::impl_::freelist::FreeList<*mut _pyo3::ffi::PyObject> {
                         static mut FREELIST: *mut _pyo3::impl_::freelist::FreeList<*mut _pyo3::ffi::PyObject> = 0 as *mut _;
                         unsafe {
                             if FREELIST.is_null() {
@@ -992,3 +1146,16 @@ fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
         _pyo3::inventory::collect!(#inventory_class_name);
     }
 }
+
+const UNIQUE_GET: &str = "`get` may only be specified once";
+const UNIQUE_SET: &str = "`set` may only be specified once";
+const UNIQUE_NAME: &str = "`name` may only be specified once";
+
+const DUPE_SET: &str = "useless `set` - the struct is already annotated with `set_all`";
+const DUPE_GET: &str = "useless `get` - the struct is already annotated with `get_all`";
+const UNIT_GET: &str =
+    "`get_all` on an unit struct does nothing, because unit structs have no fields";
+const UNIT_SET: &str =
+    "`set_all` on an unit struct does nothing, because unit structs have no fields";
+
+const USELESS_NAME: &str = "`name` is useless without `get` or `set`";

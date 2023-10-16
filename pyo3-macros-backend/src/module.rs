@@ -1,10 +1,7 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 use crate::{
-    attributes::{
-        self, is_attribute_ident, take_attributes, take_pyo3_options, CrateAttribute, NameAttribute,
-    },
+    attributes::{self, take_attributes, take_pyo3_options, CrateAttribute, NameAttribute},
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
     utils::{get_pyo3_crate, PythonDoc},
 };
@@ -84,7 +81,7 @@ pub fn pymodule_impl(
             /// the module.
             #[export_name = #pyinit_symbol]
             pub unsafe extern "C" fn init() -> *mut #krate::ffi::PyObject {
-                DEF.module_init()
+                #krate::impl_::trampoline::module_init(|py| DEF.make_module(py))
             }
         }
 
@@ -122,7 +119,7 @@ pub fn process_functions_in_module(
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.add_function(#krate::impl_::pyfunction::wrap_pyfunction(&#name::DEF, #module_name)?)?;
+                    #module_name.add_function(#krate::impl_::pyfunction::_wrap_pyfunction(&#name::DEF, #module_name)?)?;
                 };
                 stmts.extend(statements);
             }
@@ -166,7 +163,7 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
     let mut pyfn_args: Option<PyFnArgs> = None;
 
     take_attributes(attrs, |attr| {
-        if is_attribute_ident(attr, "pyfn") {
+        if attr.path().is_ident("pyfn") {
             ensure_spanned!(
                 pyfn_args.is_none(),
                 attr.span() => "`#[pyfn] may only be specified once"

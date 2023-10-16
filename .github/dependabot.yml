@@ -9,3 +9,14 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      # dependabot default labels
+      - "dependencies"
+      - "github-actions"
+      # additional labels
+      - "CI-skip-changelog"

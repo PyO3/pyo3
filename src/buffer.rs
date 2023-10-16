@@ -18,9 +18,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! `PyBuffer` implementation
-use crate::{
-    err, exceptions::PyBufferError, ffi, AsPyPointer, FromPyObject, PyAny, PyResult, Python,
-};
+use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
 use std::marker::PhantomData;
 use std::os::raw;
 use std::pin::Pin;
@@ -56,28 +54,38 @@ impl<T> Debug for PyBuffer<T> {
 }
 
 /// Represents the type of a Python buffer element.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ElementType {
-    /// A signed integer type and its width in bytes.
-    SignedInteger { bytes: usize },
-    /// An unsigned integer type and its width in bytes.
-    UnsignedInteger { bytes: usize },
+    /// A signed integer type.
+    SignedInteger {
+        /// The width of the signed integer in bytes.
+        bytes: usize,
+    },
+    /// An unsigned integer type.
+    UnsignedInteger {
+        /// The width of the unsigned integer in bytes.
+        bytes: usize,
+    },
     /// A boolean type.
     Bool,
-    /// A float type and its width in bytes.
-    Float { bytes: usize },
+    /// A float type.
+    Float {
+        /// The width of the float in bytes.
+        bytes: usize,
+    },
     /// An unknown type. This may occur when parsing has failed.
     Unknown,
 }
 
 impl ElementType {
     /// Determines the `ElementType` from a Python `struct` module format string.
+    ///
+    /// See <https://docs.python.org/3/library/struct.html#format-strings> for more information
+    /// about struct format strings.
     pub fn from_format(format: &CStr) -> ElementType {
         match format.to_bytes() {
-            [char] | [b'@', char] => native_element_type_from_type_char(*char),
-            [modifier, char] if matches!(modifier, b'=' | b'<' | b'>' | b'!') => {
-                standard_element_type_from_type_char(*char)
-            }
+            [size] | [b'@', size] => native_element_type_from_type_char(*size),
+            [b'=' | b'<' | b'>' | b'!', size] => standard_element_type_from_type_char(*size),
             _ => ElementType::Unknown,
         }
     }
@@ -180,18 +188,17 @@ impl<'source, T: Element> FromPyObject<'source> for PyBuffer<T> {
 }
 
 impl<T: Element> PyBuffer<T> {
-    /// Get the underlying buffer from the specified python object.
+    /// Gets the underlying buffer from the specified python object.
     pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
         // TODO: use nightly API Box::new_uninit() once stable
         let mut buf = Box::new(mem::MaybeUninit::uninit());
-        let buf: Box<ffi::Py_buffer> = unsafe {
-            err::error_on_minusone(
-                obj.py(),
-                ffi::PyObject_GetBuffer(obj.as_ptr(), buf.as_mut_ptr(), ffi::PyBUF_FULL_RO),
-            )?;
+        let buf: Box<ffi::Py_buffer> = {
+            err::error_on_minusone(obj.py(), unsafe {
+                ffi::PyObject_GetBuffer(obj.as_ptr(), buf.as_mut_ptr(), ffi::PyBUF_FULL_RO)
+            })?;
             // Safety: buf is initialized by PyObject_GetBuffer.
             // TODO: use nightly API Box::assume_init() once stable
-            mem::transmute(buf)
+            unsafe { mem::transmute(buf) }
         };
         // Create PyBuffer immediately so that if validation checks fail, the PyBuffer::drop code
         // will call PyBuffer_Release (thus avoiding any leaks).
@@ -460,7 +467,7 @@ impl<T: Element> PyBuffer<T> {
     /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_to_slice(&self, py: Python<'_>, target: &mut [T]) -> PyResult<()> {
-        self.copy_to_slice_impl(py, target, b'C')
+        self._copy_to_slice(py, target, b'C')
     }
 
     /// Copies the buffer elements to the specified slice.
@@ -473,10 +480,10 @@ impl<T: Element> PyBuffer<T> {
     /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_to_fortran_slice(&self, py: Python<'_>, target: &mut [T]) -> PyResult<()> {
-        self.copy_to_slice_impl(py, target, b'F')
+        self._copy_to_slice(py, target, b'F')
     }
 
-    fn copy_to_slice_impl(&self, py: Python<'_>, target: &mut [T], fort: u8) -> PyResult<()> {
+    fn _copy_to_slice(&self, py: Python<'_>, target: &mut [T], fort: u8) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
             return Err(PyBufferError::new_err(format!(
                 "slice to copy to (of length {}) does not match buffer length of {}",
@@ -484,22 +491,20 @@ impl<T: Element> PyBuffer<T> {
                 self.item_count()
             )));
         }
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyBuffer_ToContiguous(
-                    target.as_ptr() as *mut raw::c_void,
-                    #[cfg(Py_3_11)]
-                    &*self.0,
-                    #[cfg(not(Py_3_11))]
-                    {
-                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                    },
-                    self.0.len,
-                    fort as std::os::raw::c_char,
-                ),
+
+        err::error_on_minusone(py, unsafe {
+            ffi::PyBuffer_ToContiguous(
+                target.as_mut_ptr().cast(),
+                #[cfg(Py_3_11)]
+                &*self.0,
+                #[cfg(not(Py_3_11))]
+                {
+                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                },
+                self.0.len,
+                fort as std::os::raw::c_char,
             )
-        }
+        })
     }
 
     /// Copies the buffer elements to a newly allocated vector.
@@ -507,7 +512,7 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// Fails if the buffer format is not compatible with type `T`.
     pub fn to_vec(&self, py: Python<'_>) -> PyResult<Vec<T>> {
-        self.to_vec_impl(py, b'C')
+        self._to_vec(py, b'C')
     }
 
     /// Copies the buffer elements to a newly allocated vector.
@@ -515,32 +520,30 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// Fails if the buffer format is not compatible with type `T`.
     pub fn to_fortran_vec(&self, py: Python<'_>) -> PyResult<Vec<T>> {
-        self.to_vec_impl(py, b'F')
+        self._to_vec(py, b'F')
     }
 
-    fn to_vec_impl(&self, py: Python<'_>, fort: u8) -> PyResult<Vec<T>> {
+    fn _to_vec(&self, py: Python<'_>, fort: u8) -> PyResult<Vec<T>> {
         let item_count = self.item_count();
         let mut vec: Vec<T> = Vec::with_capacity(item_count);
-        unsafe {
-            // Copy the buffer into the uninitialized space in the vector.
-            // Due to T:Copy, we don't need to be concerned with Drop impls.
-            err::error_on_minusone(
-                py,
-                ffi::PyBuffer_ToContiguous(
-                    vec.as_ptr() as *mut raw::c_void,
-                    #[cfg(Py_3_11)]
-                    &*self.0,
-                    #[cfg(not(Py_3_11))]
-                    {
-                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                    },
-                    self.0.len,
-                    fort as std::os::raw::c_char,
-                ),
-            )?;
-            // set vector length to mark the now-initialized space as usable
-            vec.set_len(item_count);
-        }
+
+        // Copy the buffer into the uninitialized space in the vector.
+        // Due to T:Copy, we don't need to be concerned with Drop impls.
+        err::error_on_minusone(py, unsafe {
+            ffi::PyBuffer_ToContiguous(
+                vec.as_ptr() as *mut raw::c_void,
+                #[cfg(Py_3_11)]
+                &*self.0,
+                #[cfg(not(Py_3_11))]
+                {
+                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                },
+                self.0.len,
+                fort as std::os::raw::c_char,
+            )
+        })?;
+        // set vector length to mark the now-initialized space as usable
+        unsafe { vec.set_len(item_count) };
         Ok(vec)
     }
 
@@ -555,7 +558,7 @@ impl<T: Element> PyBuffer<T> {
     /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_from_slice(&self, py: Python<'_>, source: &[T]) -> PyResult<()> {
-        self.copy_from_slice_impl(py, source, b'C')
+        self._copy_from_slice(py, source, b'C')
     }
 
     /// Copies the specified slice into the buffer.
@@ -569,10 +572,10 @@ impl<T: Element> PyBuffer<T> {
     /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_from_fortran_slice(&self, py: Python<'_>, source: &[T]) -> PyResult<()> {
-        self.copy_from_slice_impl(py, source, b'F')
+        self._copy_from_slice(py, source, b'F')
     }
 
-    fn copy_from_slice_impl(&self, py: Python<'_>, source: &[T], fort: u8) -> PyResult<()> {
+    fn _copy_from_slice(&self, py: Python<'_>, source: &[T], fort: u8) -> PyResult<()> {
         if self.readonly() {
             return Err(PyBufferError::new_err("cannot write to read-only buffer"));
         } else if mem::size_of_val(source) != self.len_bytes() {
@@ -582,31 +585,33 @@ impl<T: Element> PyBuffer<T> {
                 self.item_count()
             )));
         }
-        unsafe {
-            err::error_on_minusone(
-                py,
-                ffi::PyBuffer_FromContiguous(
-                    #[cfg(Py_3_11)]
-                    &*self.0,
-                    #[cfg(not(Py_3_11))]
-                    {
-                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                    },
-                    #[cfg(Py_3_11)]
-                    {
-                        source.as_ptr() as *const raw::c_void
-                    },
-                    #[cfg(not(Py_3_11))]
-                    {
-                        source.as_ptr() as *mut raw::c_void
-                    },
-                    self.0.len,
-                    fort as std::os::raw::c_char,
-                ),
+
+        err::error_on_minusone(py, unsafe {
+            ffi::PyBuffer_FromContiguous(
+                #[cfg(Py_3_11)]
+                &*self.0,
+                #[cfg(not(Py_3_11))]
+                {
+                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                },
+                #[cfg(Py_3_11)]
+                {
+                    source.as_ptr() as *const raw::c_void
+                },
+                #[cfg(not(Py_3_11))]
+                {
+                    source.as_ptr() as *mut raw::c_void
+                },
+                self.0.len,
+                fort as std::os::raw::c_char,
             )
-        }
+        })
     }
 
+    /// Releases the buffer object, freeing the reference to the Python object
+    /// which owns the buffer.
+    ///
+    /// This will automatically be called on drop.
     pub fn release(self, _py: Python<'_>) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
         // never be called. (It would acquire the GIL and call PyBuffer_Release
@@ -686,6 +691,160 @@ mod tests {
     use crate::Python;
 
     #[test]
+    fn test_debug() {
+        Python::with_gil(|py| {
+            let bytes = py.eval("b'abcde'", None, None).unwrap();
+            let buffer: PyBuffer<u8> = PyBuffer::get(bytes).unwrap();
+            let expected = format!(
+                concat!(
+                    "PyBuffer {{ buf: {:?}, obj: {:?}, ",
+                    "len: 5, itemsize: 1, readonly: 1, ",
+                    "ndim: 1, format: {:?}, shape: {:?}, ",
+                    "strides: {:?}, suboffsets: {:?}, internal: {:?} }}",
+                ),
+                buffer.0.buf,
+                buffer.0.obj,
+                buffer.0.format,
+                buffer.0.shape,
+                buffer.0.strides,
+                buffer.0.suboffsets,
+                buffer.0.internal
+            );
+            let debug_repr = format!("{:?}", buffer);
+            assert_eq!(debug_repr, expected);
+        });
+    }
+
+    #[test]
+    fn test_element_type_from_format() {
+        use super::ElementType;
+        use super::ElementType::*;
+        use std::ffi::CStr;
+        use std::mem::size_of;
+        use std::os::raw;
+
+        for (cstr, expected) in &[
+            // @ prefix goes to native_element_type_from_type_char
+            (
+                "@b\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_schar>(),
+                },
+            ),
+            (
+                "@c\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_char>(),
+                },
+            ),
+            (
+                "@b\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_schar>(),
+                },
+            ),
+            (
+                "@B\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_uchar>(),
+                },
+            ),
+            ("@?\0", Bool),
+            (
+                "@h\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_short>(),
+                },
+            ),
+            (
+                "@H\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_ushort>(),
+                },
+            ),
+            (
+                "@i\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_int>(),
+                },
+            ),
+            (
+                "@I\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_uint>(),
+                },
+            ),
+            (
+                "@l\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_long>(),
+                },
+            ),
+            (
+                "@L\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_ulong>(),
+                },
+            ),
+            (
+                "@q\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_longlong>(),
+                },
+            ),
+            (
+                "@Q\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_ulonglong>(),
+                },
+            ),
+            (
+                "@n\0",
+                SignedInteger {
+                    bytes: size_of::<libc::ssize_t>(),
+                },
+            ),
+            (
+                "@N\0",
+                UnsignedInteger {
+                    bytes: size_of::<libc::size_t>(),
+                },
+            ),
+            ("@e\0", Float { bytes: 2 }),
+            ("@f\0", Float { bytes: 4 }),
+            ("@d\0", Float { bytes: 8 }),
+            ("@z\0", Unknown),
+            // = prefix goes to standard_element_type_from_type_char
+            ("=b\0", SignedInteger { bytes: 1 }),
+            ("=c\0", UnsignedInteger { bytes: 1 }),
+            ("=B\0", UnsignedInteger { bytes: 1 }),
+            ("=?\0", Bool),
+            ("=h\0", SignedInteger { bytes: 2 }),
+            ("=H\0", UnsignedInteger { bytes: 2 }),
+            ("=l\0", SignedInteger { bytes: 4 }),
+            ("=l\0", SignedInteger { bytes: 4 }),
+            ("=I\0", UnsignedInteger { bytes: 4 }),
+            ("=L\0", UnsignedInteger { bytes: 4 }),
+            ("=q\0", SignedInteger { bytes: 8 }),
+            ("=Q\0", UnsignedInteger { bytes: 8 }),
+            ("=e\0", Float { bytes: 2 }),
+            ("=f\0", Float { bytes: 4 }),
+            ("=d\0", Float { bytes: 8 }),
+            ("=z\0", Unknown),
+            ("=0\0", Unknown),
+            // unknown prefix -> Unknown
+            (":b\0", Unknown),
+        ] {
+            assert_eq!(
+                ElementType::from_format(CStr::from_bytes_with_nul(cstr.as_bytes()).unwrap()),
+                *expected,
+                "element from format &Cstr: {:?}",
+                cstr,
+            );
+        }
+    }
+
+    #[test]
     fn test_compatible_size() {
         // for the cast in PyBuffer::shape()
         assert_eq!(
@@ -714,6 +873,8 @@ mod tests {
 
             assert_eq!(unsafe { *(buffer.get_ptr(&[1]) as *mut u8) }, b'b');
 
+            assert!(buffer.as_mut_slice(py).is_none());
+
             assert!(buffer.copy_to_slice(py, &mut [0u8]).is_err());
             let mut arr = [0; 5];
             buffer.copy_to_slice(py, &mut arr).unwrap();
@@ -738,6 +899,11 @@ mod tests {
             assert_eq!(buffer.format().to_str().unwrap(), "f");
             assert_eq!(buffer.shape(), [4]);
 
+            // array creates a 1D contiguious buffer, so it's both C and F contiguous.  This would
+            // be more interesting if we can come up with a 2D buffer but I think it would need a
+            // third-party lib or a custom class.
+
+            // C-contiguous fns
             let slice = buffer.as_slice(py).unwrap();
             assert_eq!(slice.len(), 4);
             assert_eq!(slice[0].get(), 1.0);
@@ -755,6 +921,25 @@ mod tests {
             assert_eq!(slice[2].get(), 12.0);
 
             assert_eq!(buffer.to_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
+
+            // F-contiguous fns
+            let buffer = PyBuffer::get(array).unwrap();
+            let slice = buffer.as_fortran_slice(py).unwrap();
+            assert_eq!(slice.len(), 4);
+            assert_eq!(slice[1].get(), 11.0);
+
+            let mut_slice = buffer.as_fortran_mut_slice(py).unwrap();
+            assert_eq!(mut_slice.len(), 4);
+            assert_eq!(mut_slice[2].get(), 12.0);
+            mut_slice[3].set(2.75);
+            assert_eq!(slice[3].get(), 2.75);
+
+            buffer
+                .copy_from_fortran_slice(py, &[10.0f32, 11.0, 12.0, 13.0])
+                .unwrap();
+            assert_eq!(slice[2].get(), 12.0);
+
+            assert_eq!(buffer.to_fortran_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
         });
     }
 }

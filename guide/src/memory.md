@@ -1,4 +1,4 @@
-# Memory Management
+# Memory management
 
 Rust and Python have very different notions of memory management.  Rust has
 a strict memory model with concepts of ownership, borrowing, and lifetimes,
@@ -13,7 +13,7 @@ PyO3 bridges the Rust and Python memory models with two different strategies for
 accessing memory allocated on Python's heap from inside Rust.  These are
 GIL-bound, or "owned" references, and GIL-independent `Py<Any>` smart pointers.
 
-## GIL-bound Memory
+## GIL-bound memory
 
 PyO3's GIL-bound, "owned references" (`&PyAny` etc.) make PyO3 more ergonomic to
 use by ensuring that their lifetime can never be longer than the duration the
@@ -35,10 +35,9 @@ Python::with_gil(|py| -> PyResult<()> {
 # }
 ```
 
-Internally, calling `Python::with_gil()` or `Python::acquire_gil()` creates a
-`GILPool` which owns the memory pointed to by the reference.  In the example
-above, the lifetime of the reference `hello` is bound to the `GILPool`.  When
-the `with_gil()` closure ends or the `GILGuard` from `acquire_gil()` is dropped,
+Internally, calling `Python::with_gil()` creates a `GILPool` which owns the
+memory pointed to by the reference.  In the example above, the lifetime of the
+reference `hello` is bound to the `GILPool`.  When the `with_gil()` closure ends
 the `GILPool` is also dropped and the Python reference counts of the variables
 it owns are decreased, releasing them to the Python garbage collector.  Most
 of the time we don't have to think about this, but consider the following:
@@ -119,14 +118,23 @@ dropped you do not retain access to any owned references created after the
 [documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Python.html#method.new_pool)
 for more information on safety.
 
-## GIL-independent Memory
+This memory management can also be applicable when writing extension modules.
+`#[pyfunction]` and `#[pymethods]` will create a `GILPool` which lasts the entire
+function call, releasing objects when the function returns. Most functions only create
+a few objects, meaning this doesn't have a significant impact. Occasionally functions
+with long complex loops may need to use `Python::new_pool` as shown above.
+
+This behavior may change in future, see [issue #1056](https://github.com/PyO3/pyo3/issues/1056).
+
+## GIL-independent memory
 
 Sometimes we need a reference to memory on Python's heap that can outlive the
-GIL.  Python's `Py<PyAny>` is analogous to `Rc<T>`, but for variables whose
+GIL.  Python's `Py<PyAny>` is analogous to `Arc<T>`, but for variables whose
 memory is allocated on Python's heap.  Cloning a `Py<PyAny>` increases its
-internal reference count just like cloning `Rc<T>`.  The smart pointer can
-outlive the GIL from which it was created.  It isn't magic, though.  We need to
-reacquire the GIL to access the memory pointed to by the `Py<PyAny>`.
+internal reference count just like cloning `Arc<T>`.  The smart pointer can
+outlive the "GIL is held" period in which it was created.  It isn't magic,
+though.  We need to reacquire the GIL to access the memory pointed to by the
+`Py<PyAny>`.
 
 What happens to the memory when the last `Py<PyAny>` is dropped and its
 reference count reaches zero?  It depends whether or not we are holding the GIL.
@@ -188,9 +196,8 @@ We can avoid the delay in releasing memory if we are careful to drop the
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract()
-})?;
+let hello: Py<PyString> =
+    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {
@@ -211,9 +218,8 @@ until the GIL is dropped.
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract()
-})?;
+let hello: Py<PyString> =
+    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {

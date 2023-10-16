@@ -1,5 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
 pub use self::any::PyAny;
@@ -12,26 +10,36 @@ pub use self::code::PyCode;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
-    PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
-    PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
+    PyTzInfo, PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict};
+#[cfg(not(PyPy))]
+pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
+pub use self::ellipsis::PyEllipsis;
 pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
-pub use self::frozenset::PyFrozenSet;
-pub use self::function::{PyCFunction, PyFunction};
+pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder};
+pub use self::function::PyCFunction;
+#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::mapping::PyMapping;
 pub use self::mappingproxy::{IntoPyMappingProxy, PyMappingProxy};
+pub use self::memoryview::PyMemoryView;
 pub use self::module::PyModule;
+pub use self::none::PyNone;
+pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
+#[cfg(not(PyPy))]
+pub use self::pysuper::PySuper;
 pub use self::sequence::PySequence;
 pub use self::set::PySet;
 pub use self::slice::{PySlice, PySliceIndices};
-#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+#[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
 pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::traceback::PyTraceback;
@@ -52,7 +60,7 @@ pub use self::typeobject::PyType;
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.cast_as()?;
+///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast()?;
 ///
 ///     for (key, value) in dict {
 ///         println!("key: {}, value: {}", key, value);
@@ -72,6 +80,7 @@ pub mod iter {
     pub use super::dict::PyDictIterator;
     pub use super::frozenset::PyFrozenSetIterator;
     pub use super::set::PySetIterator;
+    pub use super::tuple::PyTupleIterator;
 }
 
 // Implementations core to all native types
@@ -94,8 +103,15 @@ macro_rules! pyobject_native_type_base(
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.str().or(::std::result::Result::Err(::std::fmt::Error))?;
-                f.write_str(&s.to_string_lossy())
+                match self.str() {
+                    ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
+                    ::std::result::Result::Err(err) => err.write_unraisable(self.py(), ::std::option::Option::Some(self)),
+                }
+
+                match self.get_type().name() {
+                    ::std::result::Result::Ok(name) => ::std::write!(f, "<unprintable {} object>", name),
+                    ::std::result::Result::Err(_err) => f.write_str("<unprintable object>"),
+                }
             }
         }
 
@@ -103,7 +119,6 @@ macro_rules! pyobject_native_type_base(
         {
             #[inline]
             fn to_object(&self, py: $crate::Python<'_>) -> $crate::PyObject {
-                use $crate::AsPyPointer;
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -134,7 +149,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($generics,)*> $crate::AsPyPointer for $name {
+        unsafe impl<$($generics,)*> $crate::AsPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
@@ -145,7 +160,6 @@ macro_rules! pyobject_native_type_named (
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
             fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
-                use $crate::AsPyPointer;
                 unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -153,7 +167,6 @@ macro_rules! pyobject_native_type_named (
         impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
-                use $crate::AsPyPointer;
                 use $crate::PyNativeType;
                 unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
             }
@@ -169,6 +182,14 @@ macro_rules! pyobject_native_type_named (
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! pyobject_native_static_type_object(
+    ($typeobject:expr) => {
+        |_py| unsafe { ::std::ptr::addr_of_mut!($typeobject) }
+    };
+);
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
@@ -178,20 +199,14 @@ macro_rules! pyobject_native_type_info(
             const MODULE: ::std::option::Option<&'static str> = $module;
 
             #[inline]
-            fn type_object_raw(_py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                // Create a very short lived mutable reference and directly
-                // cast it to a pointer: no mutable references can be aliasing
-                // because we hold the GIL.
-                #[cfg(not(addr_of))]
-                unsafe { &mut $typeobject }
-
-                #[cfg(addr_of)]
-                unsafe { ::std::ptr::addr_of_mut!($typeobject) }
+            #[allow(clippy::redundant_closure_call)]
+            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
+                $typeobject(py)
             }
 
             $(
+                #[inline]
                 fn is_type_of(ptr: &$crate::PyAny) -> bool {
-                    use $crate::AsPyPointer;
                     #[allow(unused_unsafe)]
                     unsafe { $checkfunction(ptr.as_ptr()) > 0 }
                 }
@@ -208,7 +223,7 @@ macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
-                $crate::PyTryFrom::try_from(obj).map_err(::std::convert::Into::into)
+                obj.downcast().map_err(::std::convert::Into::into)
             }
         }
     }
@@ -237,9 +252,8 @@ macro_rules! pyobject_native_type_sized {
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
             type LayoutAsBase = $crate::pycell::PyCellBase<$layout>;
             type BaseNativeType = $name;
-            type ThreadChecker = $crate::impl_::pyclass::ThreadCheckerStub<$crate::PyObject>;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
-            type PyClassMutability = $crate::pycell::ImmutableClass;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
         }
     }
 }
@@ -257,7 +271,7 @@ macro_rules! pyobject_native_type {
     };
 }
 
-mod any;
+pub(crate) mod any;
 mod boolobject;
 mod bytearray;
 mod bytes;
@@ -268,19 +282,25 @@ mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;
 mod dict;
+mod ellipsis;
 mod floatob;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 mod frame;
 mod frozenset;
 mod function;
 mod iterator;
-mod list;
+pub(crate) mod list;
 mod mapping;
 mod mappingproxy;
+mod memoryview;
 mod module;
+mod none;
+mod notimplemented;
 mod num;
+#[cfg(not(PyPy))]
+mod pysuper;
 mod sequence;
-mod set;
+pub(crate) mod set;
 mod slice;
 mod string;
 mod traceback;

@@ -26,7 +26,7 @@ You first need to install a debug build of Python, otherwise Valgrind won't prod
 
 Activate an environment with the debug interpreter and recompile. If you're on Linux, use `ldd` with the name of your binary and check that you're linking e.g. `libpython3.7d.so.1.0` instead of `libpython3.7.so.1.0`.
 
-[Download the suppressions file for cpython](https://raw.githubusercontent.com/python/cpython/master/Misc/valgrind-python.supp).
+[Download the suppressions file for CPython](https://raw.githubusercontent.com/python/cpython/master/Misc/valgrind-python.supp).
 
 Run Valgrind with `valgrind --suppressions=valgrind-python.supp ./my-command --with-options`
 

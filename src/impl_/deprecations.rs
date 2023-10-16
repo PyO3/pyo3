@@ -1,10 +1,10 @@
 //! Symbols used to denote deprecated usages of PyO3's proc macros.
 
-#[deprecated(since = "0.15.0", note = "use `fn __call__` instead of `#[call]`")]
-pub const CALL_ATTRIBUTE: () = ();
-
 #[deprecated(
-    since = "0.16.0",
-    note = "implement a `__traverse__` `#[pymethod]` instead of using `gc` option"
+    since = "0.19.0",
+    note = "put `text_signature` on `#[new]` instead of `#[pyclass]`"
 )]
-pub const PYCLASS_GC_OPTION: () = ();
+pub const PYCLASS_TEXT_SIGNATURE: () = ();
+
+#[deprecated(since = "0.20.0", note = "use `#[new]` instead of `#[__new__]`")]
+pub const PYMETHODS_NEW_DEPRECATED_FORM: () = ();

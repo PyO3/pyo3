@@ -19,6 +19,9 @@ macro_rules! warn {
     ($msg: literal) => {
         println!(concat!("cargo:warning=", $msg))
     };
+    ($fmt: expr, $($args: tt)+) => {
+        println!("cargo:warning={}", format_args!($fmt, $($args)+))
+    };
 }
 
 /// A simple error implementation which allows chaining of errors, inspired somewhat by anyhow.
@@ -84,8 +87,8 @@ impl From<&'_ str> for Error {
 }
 
 impl From<std::convert::Infallible> for Error {
-    fn from(_: std::convert::Infallible) -> Self {
-        unreachable!()
+    fn from(value: std::convert::Infallible) -> Self {
+        match value {}
     }
 }
 

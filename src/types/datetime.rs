@@ -21,7 +21,7 @@ use crate::ffi::{
 };
 use crate::instance::PyNativeType;
 use crate::types::PyTuple;
-use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
+use crate::{IntoPy, Py, PyAny, Python};
 use std::os::raw::c_int;
 
 fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {
@@ -173,7 +173,7 @@ pub struct PyDate(PyAny);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
-    *ensure_datetime_api(Python::assume_gil_acquired()).DateType,
+    |py| ensure_datetime_api(py).DateType,
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
@@ -196,7 +196,7 @@ impl PyDate {
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
     pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
-        let time_tuple = PyTuple::new(py, &[timestamp]);
+        let time_tuple = PyTuple::new(py, [timestamp]);
 
         // safety ensure that the API is loaded
         let _api = ensure_datetime_api(py);
@@ -210,7 +210,7 @@ impl PyDate {
 
 impl PyDateAccess for PyDate {
     fn get_year(&self) -> i32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
     }
 
     fn get_month(&self) -> u8 {
@@ -228,12 +228,13 @@ pub struct PyDateTime(PyAny);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
-    *ensure_datetime_api(Python::assume_gil_acquired()).DateType,
+    |py| ensure_datetime_api(py).DateTimeType,
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
 
 impl PyDateTime {
+    /// Creates a new `datetime.datetime` object.
     #[allow(clippy::too_many_arguments)]
     pub fn new<'p>(
         py: Python<'p>,
@@ -244,7 +245,7 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyDateTime> {
         let api = ensure_datetime_api(py);
         unsafe {
@@ -256,7 +257,7 @@ impl PyDateTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 api.DateTimeType,
             );
             py.from_owned_ptr_or_err(ptr)
@@ -280,7 +281,7 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
         fold: bool,
     ) -> PyResult<&'p PyDateTime> {
         let api = ensure_datetime_api(py);
@@ -293,7 +294,7 @@ impl PyDateTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 c_int::from(fold),
                 api.DateTimeType,
             );
@@ -303,20 +304,13 @@ impl PyDateTime {
 
     /// Construct a `datetime` object from a POSIX timestamp
     ///
-    /// This is equivalent to `datetime.datetime.from_timestamp`
+    /// This is equivalent to `datetime.datetime.fromtimestamp`
     pub fn from_timestamp<'p>(
         py: Python<'p>,
         timestamp: f64,
-        time_zone_info: Option<&PyTzInfo>,
+        tzinfo: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyDateTime> {
-        let timestamp: PyObject = timestamp.to_object(py);
-
-        let time_zone_info: PyObject = match time_zone_info {
-            Some(time_zone_info) => time_zone_info.to_object(py),
-            None => py.None(),
-        };
-
-        let args = PyTuple::new(py, &[timestamp, time_zone_info]);
+        let args: Py<PyTuple> = (timestamp, tzinfo).into_py(py);
 
         // safety ensure API is loaded
         let _api = ensure_datetime_api(py);
@@ -330,7 +324,7 @@ impl PyDateTime {
 
 impl PyDateAccess for PyDateTime {
     fn get_year(&self) -> i32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
     }
 
     fn get_month(&self) -> u8 {
@@ -383,7 +377,7 @@ pub struct PyTime(PyAny);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
-    *ensure_datetime_api(Python::assume_gil_acquired()).TimeType,
+    |py| ensure_datetime_api(py).TimeType,
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
@@ -396,7 +390,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyTime> {
         let api = ensure_datetime_api(py);
         unsafe {
@@ -405,7 +399,7 @@ impl PyTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 api.TimeType,
             );
             py.from_owned_ptr_or_err(ptr)
@@ -419,7 +413,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
         fold: bool,
     ) -> PyResult<&'p PyTime> {
         let api = ensure_datetime_api(py);
@@ -429,7 +423,7 @@ impl PyTime {
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
-                opt_to_pyobj(py, tzinfo),
+                opt_to_pyobj(tzinfo),
                 fold as c_int,
                 api.TimeType,
             );
@@ -473,18 +467,25 @@ impl PyTzInfoAccess for PyTime {
     }
 }
 
-/// Bindings for `datetime.tzinfo`
+/// Bindings for `datetime.tzinfo`.
 ///
-/// This is an abstract base class and should not be constructed directly.
+/// This is an abstract base class and cannot be constructed directly.
+/// For concrete time zone implementations, see [`timezone_utc`] and
+/// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
 #[repr(transparent)]
 pub struct PyTzInfo(PyAny);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
-    *ensure_datetime_api(Python::assume_gil_acquired()).TZInfoType,
+    |py| ensure_datetime_api(py).TZInfoType,
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
+
+/// Equivalent to `datetime.timezone.utc`
+pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
+    unsafe { &*(ensure_datetime_api(py).TimeZone_UTC as *const PyTzInfo) }
+}
 
 /// Bindings for `datetime.timedelta`
 #[repr(transparent)]
@@ -492,7 +493,7 @@ pub struct PyDelta(PyAny);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
-    *ensure_datetime_api(Python::assume_gil_acquired()).DeltaType,
+    |py| ensure_datetime_api(py).DeltaType,
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
@@ -522,34 +523,72 @@ impl PyDelta {
 
 impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
     }
 
     fn get_seconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) }
     }
 
     fn get_microseconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) }
     }
 }
 
-// Utility function
-fn opt_to_pyobj(py: Python<'_>, opt: Option<&PyObject>) -> *mut ffi::PyObject {
-    // Convenience function for unpacking Options to either an Object or None
+// Utility function which returns a borrowed reference to either
+// the underlying tzinfo or None.
+fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
     match opt {
         Some(tzi) => tzi.as_ptr(),
-        None => py.None().as_ptr(),
+        None => unsafe { ffi::Py_None() },
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_new_with_fold() {
-        crate::Python::with_gil(|py| {
-            use crate::types::{PyDateTime, PyTimeAccess};
+    use super::*;
+    #[cfg(feature = "macros")]
+    use crate::py_run;
 
+    #[test]
+    #[cfg(feature = "macros")]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+    fn test_datetime_fromtimestamp() {
+        Python::with_gil(|py| {
+            let dt = PyDateTime::from_timestamp(py, 100.0, None).unwrap();
+            py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
+            );
+
+            let dt = PyDateTime::from_timestamp(py, 100.0, Some(timezone_utc(py))).unwrap();
+            py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.datetime.fromtimestamp(100, datetime.timezone.utc)"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(feature = "macros")]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+    fn test_date_fromtimestamp() {
+        Python::with_gil(|py| {
+            let dt = PyDate::from_timestamp(py, 100).unwrap();
+            py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.date.fromtimestamp(100)"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+    fn test_new_with_fold() {
+        Python::with_gil(|py| {
             let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
             let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
@@ -558,28 +597,23 @@ mod tests {
         });
     }
 
-    #[cfg(not(PyPy))]
     #[test]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
-            use crate::conversion::ToPyObject;
-            use crate::types::{PyDateTime, PyTime, PyTzInfoAccess};
+            let utc = timezone_utc(py);
 
-            let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
-            let timezone = datetime.getattr("timezone").unwrap();
-            let utc = timezone.getattr("utc").unwrap().to_object(py);
+            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
-            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
-
-            assert!(dt.get_tzinfo().unwrap().eq(&utc).unwrap());
+            assert!(dt.get_tzinfo().unwrap().eq(utc).unwrap());
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
             assert!(dt.get_tzinfo().is_none());
 
-            let t = PyTime::new(py, 0, 0, 0, 0, Some(&utc)).unwrap();
+            let t = PyTime::new(py, 0, 0, 0, 0, Some(utc)).unwrap();
 
-            assert!(t.get_tzinfo().unwrap().eq(&utc).unwrap());
+            assert!(t.get_tzinfo().unwrap().eq(utc).unwrap());
 
             let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
 

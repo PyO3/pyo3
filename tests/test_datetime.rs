@@ -1,7 +1,7 @@
 #![cfg(not(Py_LIMITED_API))]
 
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use pyo3::types::{timezone_utc, IntoPyDict, PyDate, PyDateTime, PyTime};
 use pyo3_ffi::PyDateTime_IMPORT;
 
 fn _get_subclasses<'p>(
@@ -36,7 +36,7 @@ fn _get_subclasses<'p>(
 macro_rules! assert_check_exact {
     ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
         unsafe {
-            use pyo3::{ffi::*, AsPyPointer};
+            use pyo3::ffi::*;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!($check_func_exact(($obj).as_ptr()) != 0);
         }
@@ -46,7 +46,7 @@ macro_rules! assert_check_exact {
 macro_rules! assert_check_only {
     ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
         unsafe {
-            use pyo3::{ffi::*, AsPyPointer};
+            use pyo3::ffi::*;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!($check_func_exact(($obj).as_ptr()) == 0);
         }
@@ -55,52 +55,61 @@ macro_rules! assert_check_only {
 
 #[test]
 fn test_date_check() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
-    unsafe { PyDateTime_IMPORT() }
-    assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
-    assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_obj);
-    assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_sub_obj);
+    Python::with_gil(|py| {
+        let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
+        unsafe { PyDateTime_IMPORT() }
+        assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
+        assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_obj);
+        assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_sub_obj);
+        assert!(obj.is_instance_of::<PyDate>());
+        assert!(!obj.is_instance_of::<PyTime>());
+        assert!(!obj.is_instance_of::<PyDateTime>());
+    });
 }
 
 #[test]
 fn test_time_check() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
-    unsafe { PyDateTime_IMPORT() }
+    Python::with_gil(|py| {
+        let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
+        unsafe { PyDateTime_IMPORT() }
 
-    assert_check_exact!(PyTime_Check, PyTime_CheckExact, obj);
-    assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_obj);
-    assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_sub_obj);
+        assert_check_exact!(PyTime_Check, PyTime_CheckExact, obj);
+        assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_obj);
+        assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_sub_obj);
+        assert!(!obj.is_instance_of::<PyDate>());
+        assert!(obj.is_instance_of::<PyTime>());
+        assert!(!obj.is_instance_of::<PyDateTime>());
+    });
 }
 
 #[test]
 fn test_datetime_check() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
-        .map_err(|e| e.print(py))
-        .unwrap();
-    unsafe { PyDateTime_IMPORT() }
+    Python::with_gil(|py| {
+        let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
+            .map_err(|e| e.display(py))
+            .unwrap();
+        unsafe { PyDateTime_IMPORT() }
 
-    assert_check_only!(PyDate_Check, PyDate_CheckExact, obj);
-    assert_check_exact!(PyDateTime_Check, PyDateTime_CheckExact, obj);
-    assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_obj);
-    assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_sub_obj);
+        assert_check_only!(PyDate_Check, PyDate_CheckExact, obj);
+        assert_check_exact!(PyDateTime_Check, PyDateTime_CheckExact, obj);
+        assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_obj);
+        assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_sub_obj);
+        assert!(obj.is_instance_of::<PyDate>());
+        assert!(!obj.is_instance_of::<PyTime>());
+        assert!(obj.is_instance_of::<PyDateTime>());
+    });
 }
 
 #[test]
 fn test_delta_check() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
-    unsafe { PyDateTime_IMPORT() }
+    Python::with_gil(|py| {
+        let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
+        unsafe { PyDateTime_IMPORT() }
 
-    assert_check_exact!(PyDelta_Check, PyDelta_CheckExact, obj);
-    assert_check_only!(PyDelta_Check, PyDelta_CheckExact, sub_obj);
-    assert_check_only!(PyDelta_Check, PyDelta_CheckExact, sub_sub_obj);
+        assert_check_exact!(PyDelta_Check, PyDelta_CheckExact, obj);
+        assert_check_only!(PyDelta_Check, PyDelta_CheckExact, sub_obj);
+        assert_check_only!(PyDelta_Check, PyDelta_CheckExact, sub_sub_obj);
+    });
 }
 
 #[test]
@@ -108,22 +117,20 @@ fn test_datetime_utc() {
     use assert_approx_eq::assert_approx_eq;
     use pyo3::types::PyDateTime;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
-    let timezone = datetime.getattr("timezone").unwrap();
-    let utc = timezone.getattr("utc").unwrap().to_object(py);
+    Python::with_gil(|py| {
+        let utc = timezone_utc(py);
 
-    let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
-    let locals = [("dt", dt)].into_py_dict(py);
+        let locals = [("dt", dt)].into_py_dict(py);
 
-    let offset: f32 = py
-        .eval("dt.utcoffset().total_seconds()", None, Some(locals))
-        .unwrap()
-        .extract()
-        .unwrap();
-    assert_approx_eq!(offset, 0f32);
+        let offset: f32 = py
+            .eval("dt.utcoffset().total_seconds()", None, Some(locals))
+            .unwrap()
+            .extract()
+            .unwrap();
+        assert_approx_eq!(offset, 0f32);
+    });
 }
 
 static INVALID_DATES: &[(i32, u8, u8)] = &[
@@ -145,26 +152,26 @@ static INVALID_TIMES: &[(u8, u8, u8, u32)] =
 fn test_pydate_out_of_bounds() {
     use pyo3::types::PyDate;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    for val in INVALID_DATES {
-        let (year, month, day) = val;
-        let dt = PyDate::new(py, *year, *month, *day);
-        dt.unwrap_err();
-    }
+    Python::with_gil(|py| {
+        for val in INVALID_DATES {
+            let (year, month, day) = val;
+            let dt = PyDate::new(py, *year, *month, *day);
+            dt.unwrap_err();
+        }
+    });
 }
 
 #[test]
 fn test_pytime_out_of_bounds() {
     use pyo3::types::PyTime;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    for val in INVALID_TIMES {
-        let (hour, minute, second, microsecond) = val;
-        let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
-        dt.unwrap_err();
-    }
+    Python::with_gil(|py| {
+        for val in INVALID_TIMES {
+            let (hour, minute, second, microsecond) = val;
+            let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
+            dt.unwrap_err();
+        }
+    });
 }
 
 #[test]
@@ -172,31 +179,31 @@ fn test_pydatetime_out_of_bounds() {
     use pyo3::types::PyDateTime;
     use std::iter;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let valid_time = (0, 0, 0, 0);
-    let valid_date = (2018, 1, 1);
+    Python::with_gil(|py| {
+        let valid_time = (0, 0, 0, 0);
+        let valid_date = (2018, 1, 1);
 
-    let invalid_dates = INVALID_DATES.iter().zip(iter::repeat(&valid_time));
-    let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.iter());
+        let invalid_dates = INVALID_DATES.iter().zip(iter::repeat(&valid_time));
+        let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.iter());
 
-    let vals = invalid_dates.chain(invalid_times);
+        let vals = invalid_dates.chain(invalid_times);
 
-    for val in vals {
-        let (date, time) = val;
-        let (year, month, day) = date;
-        let (hour, minute, second, microsecond) = time;
-        let dt = PyDateTime::new(
-            py,
-            *year,
-            *month,
-            *day,
-            *hour,
-            *minute,
-            *second,
-            *microsecond,
-            None,
-        );
-        dt.unwrap_err();
-    }
+        for val in vals {
+            let (date, time) = val;
+            let (year, month, day) = date;
+            let (hour, minute, second, microsecond) = time;
+            let dt = PyDateTime::new(
+                py,
+                *year,
+                *month,
+                *day,
+                *hour,
+                *minute,
+                *second,
+                *microsecond,
+                None,
+            );
+            dt.unwrap_err();
+        }
+    });
 }

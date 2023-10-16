@@ -62,7 +62,7 @@ struct RustyStruct {
 #             "",
 #             "",
 #         )?;
-# 
+#
 #         let class = module.getattr("Foo")?;
 #         let instance = class.call0()?;
 #         let rustystruct: RustyStruct = instance.extract()?;
@@ -77,7 +77,6 @@ By setting the `#[pyo3(item)]` attribute on the field, PyO3 will attempt to extr
 ```rust
 use pyo3::prelude::*;
 
-
 #[derive(FromPyObject)]
 struct RustyStruct {
     #[pyo3(item)]
@@ -89,7 +88,7 @@ struct RustyStruct {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let dict = PyDict::new(py);
 #         dict.set_item("my_string", "test")?;
-# 
+#
 #         let rustystruct: RustyStruct = dict.extract()?;
 #         assert_eq!(rustystruct.my_string, "test");
 #         Ok(())
@@ -109,7 +108,7 @@ struct RustyStruct {
     #[pyo3(attribute("name"))]
     string_attr: String,
 }
-# 
+#
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let module = PyModule::from_code(
@@ -121,13 +120,13 @@ struct RustyStruct {
 #             "",
 #             "",
 #         )?;
-# 
+#
 #         let class = module.getattr("Foo")?;
 #         let instance = class.call0()?;
 #         let rustystruct: RustyStruct = instance.extract()?;
 # 		assert_eq!(rustystruct.string_attr, "test");
 #         assert_eq!(rustystruct.string_in_mapping, "test2");
-# 
+#
 #         Ok(())
 #     })
 # }
@@ -137,6 +136,35 @@ This tries to extract `string_attr` from the attribute `name` and `string_in_map
 from a mapping with the key `"key"`. The arguments for `attribute` are restricted to
 non-empty string literals while `item` can take any valid literal that implements
 `ToBorrowedObject`.
+
+You can use `#[pyo3(from_item_all)]` on a struct to extract every field with `get_item` method.
+In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field.
+However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
+
+```rust
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+#[pyo3(from_item_all)]
+struct RustyStruct {
+    foo: String,
+    bar: String,
+    #[pyo3(item("foobar"))]
+    baz: String,
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| -> PyResult<()> {
+#         let py_dict = py.eval("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
+#         let rustystruct: RustyStruct = py_dict.extract()?;
+# 		  assert_eq!(rustystruct.foo, "foo");
+#         assert_eq!(rustystruct.bar, "bar");
+#         assert_eq!(rustystruct.baz, "foobar");
+#
+#         Ok(())
+#     })
+# }
+```
 
 #### Deriving [`FromPyObject`] for tuple structs
 
@@ -154,11 +182,11 @@ struct RustyTuple(String, String);
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let tuple = PyTuple::new(py, vec!["test", "test2"]);
-# 
+#
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!(rustytuple.0, "test");
 #         assert_eq!(rustytuple.1, "test2");
-# 
+#
 #         Ok(())
 #     })
 # }
@@ -177,10 +205,10 @@ struct RustyTuple((String,));
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let tuple = PyTuple::new(py, vec!["test"]);
-# 
+#
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!((rustytuple.0).0, "test");
-# 
+#
 #         Ok(())
 #     })
 # }
@@ -209,13 +237,13 @@ struct RustyTransparentStruct {
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let s = PyString::new(py, "test");
-# 
+#
 #         let tup: RustyTransparentTupleStruct = s.extract()?;
 #         assert_eq!(tup.0, "test");
-# 
+#
 #         let stru: RustyTransparentStruct = s.extract()?;
 #         assert_eq!(stru.inner, "test");
-# 
+#
 #         Ok(())
 #     })
 # }
@@ -238,16 +266,18 @@ use pyo3::prelude::*;
 #[derive(FromPyObject)]
 # #[derive(Debug)]
 enum RustyEnum<'a> {
-    Int(usize), // input is a positive int
-    String(String), // input is a string
-    IntTuple(usize, usize), // input is a 2-tuple with positive ints
+    Int(usize),                    // input is a positive int
+    String(String),                // input is a string
+    IntTuple(usize, usize),        // input is a 2-tuple with positive ints
     StringIntTuple(String, usize), // input is a 2-tuple with String and int
-    Coordinates3d { // needs to be in front of 2d
+    Coordinates3d {
+        // needs to be in front of 2d
         x: usize,
         y: usize,
         z: usize,
     },
-    Coordinates2d { // only gets checked if the input did not have `z`
+    Coordinates2d {
+        // only gets checked if the input did not have `z`
         #[pyo3(attribute("x"))]
         a: usize,
         #[pyo3(attribute("y"))]
@@ -256,14 +286,14 @@ enum RustyEnum<'a> {
     #[pyo3(transparent)]
     CatchAll(&'a PyAny), // This extraction never fails
 }
-# 
+#
 # use pyo3::types::{PyBytes, PyString};
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         {
 #             let thing = 42_u8.to_object(py);
 #             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
-# 
+#
 #             assert_eq!(
 #                 42,
 #                 match rust_thing {
@@ -275,7 +305,7 @@ enum RustyEnum<'a> {
 #         {
 #             let thing = PyString::new(py, "text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
-# 
+#
 #             assert_eq!(
 #                 "text",
 #                 match rust_thing {
@@ -287,7 +317,7 @@ enum RustyEnum<'a> {
 #         {
 #             let thing = (32_u8, 73_u8).to_object(py);
 #             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
-# 
+#
 #             assert_eq!(
 #                 (32, 73),
 #                 match rust_thing {
@@ -299,7 +329,7 @@ enum RustyEnum<'a> {
 #         {
 #             let thing = ("foo", 73_u8).to_object(py);
 #             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
-# 
+#
 #             assert_eq!(
 #                 (String::from("foo"), 73),
 #                 match rust_thing {
@@ -319,11 +349,11 @@ enum RustyEnum<'a> {
 #                 "",
 #                 "",
 #             )?;
-# 
+#
 #             let class = module.getattr("Foo")?;
 #             let instance = class.call0()?;
 #             let rust_thing: RustyEnum<'_> = instance.extract()?;
-# 
+#
 #             assert_eq!(
 #                 (0, 1, 2),
 #                 match rust_thing {
@@ -332,7 +362,7 @@ enum RustyEnum<'a> {
 #                 }
 #             );
 #         }
-# 
+#
 #         {
 #             let module = PyModule::from_code(
 #                 py,
@@ -343,11 +373,11 @@ enum RustyEnum<'a> {
 #                 "",
 #                 "",
 #             )?;
-# 
+#
 #             let class = module.getattr("Foo")?;
 #             let instance = class.call0()?;
 #             let rust_thing: RustyEnum<'_> = instance.extract()?;
-# 
+#
 #             assert_eq!(
 #                 (3, 4),
 #                 match rust_thing {
@@ -356,11 +386,11 @@ enum RustyEnum<'a> {
 #                 }
 #             );
 #         }
-# 
+#
 #         {
 #             let thing = PyBytes::new(py, b"text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
-# 
+#
 #             assert_eq!(
 #                 b"text",
 #                 match rust_thing {
@@ -396,7 +426,7 @@ enum RustyEnum {
 #         {
 #             let thing = 42_u8.to_object(py);
 #             let rust_thing: RustyEnum = thing.extract(py)?;
-# 
+#
 #             assert_eq!(
 #                 42,
 #                 match rust_thing {
@@ -405,11 +435,11 @@ enum RustyEnum {
 #                 }
 #             );
 #         }
-# 
+#
 #         {
 #             let thing = "foo".to_object(py);
 #             let rust_thing: RustyEnum = thing.extract(py)?;
-# 
+#
 #             assert_eq!(
 #                 "foo",
 #                 match rust_thing {
@@ -418,13 +448,13 @@ enum RustyEnum {
 #                 }
 #             );
 #         }
-# 
+#
 #         {
 #             let thing = b"foo".to_object(py);
 #             let error = thing.extract::<RustyEnum>(py).unwrap_err();
 #             assert!(error.is_instance_of::<pyo3::exceptions::PyTypeError>(py));
 #         }
-# 
+#
 #         Ok(())
 #     })
 # }

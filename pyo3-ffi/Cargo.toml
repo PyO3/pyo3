@@ -1,14 +1,14 @@
 [package]
 name = "pyo3-ffi"
-version = "0.16.5"
+version = "0.20.0"
 description = "Python-API bindings for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
-license = "Apache-2.0"
-edition = "2018"
+license = "MIT OR Apache-2.0"
+edition = "2021"
 links = "python"
 
 [dependencies]
@@ -30,13 +30,12 @@ abi3 = ["pyo3-build-config/abi3"]
 abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37"]
 abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
-abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310"]
+abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310"]
+abi3-py311 = ["abi3", "pyo3-build-config/abi3-py311"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
 generate-import-lib = ["pyo3-build-config/python3-dll-a"]
-# Deprecated, replaced by `generate-import-lib`
-generate-abi3-import-lib = ["generate-import-lib"]
 
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.16.5", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.20.0", features = ["resolve-config"] }

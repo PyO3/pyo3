@@ -55,6 +55,10 @@ pub struct _frozen {
     pub name: *const c_char,
     pub code: *const c_uchar,
     pub size: c_int,
+    #[cfg(Py_3_11)]
+    pub is_package: c_int,
+    #[cfg(Py_3_11)]
+    pub get_code: Option<unsafe extern "C" fn() -> *mut PyObject>,
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

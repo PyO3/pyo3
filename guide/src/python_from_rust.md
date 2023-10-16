@@ -10,13 +10,13 @@ Any Python-native object reference (such as `&PyAny`, `&PyList`, or `&PyCell<MyC
 
 PyO3 offers two APIs to make function calls:
 
-* [`call`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call) - call any callable Python object.
-* [`call_method`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method) - call a method on the Python object.
+* [`call`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.call) - call any callable Python object.
+* [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.call_method) - call a method on the Python object.
 
 Both of these APIs take `args` and `kwargs` arguments (for positional and keyword arguments respectively). There are variants for less complex calls:
 
-* [`call1`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call1) and [`call_method1`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method1) to call only with positional `args`.
-* [`call0`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call0) and [`call_method0`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method0) to call with no arguments.
+* [`call1`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.call_method1) to call only with positional `args`.
+* [`call0`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.call_method0) to call with no arguments.
 
 For convenience the [`Py<T>`](types.html#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
 
@@ -43,9 +43,11 @@ fn main() -> PyResult<()> {
                     print('called with no arguments')",
             "",
             "",
-        )?.getattr("example")?.into();
+        )?
+        .getattr("example")?
+        .into();
 
-        // call object without empty arguments
+        // call object without any arguments
         fun.call0(py)?;
 
         // call object with PyTuple
@@ -87,8 +89,9 @@ fn main() -> PyResult<()> {
                     print('called with no arguments')",
             "",
             "",
-        )?.getattr("example")?.into();
-
+        )?
+        .getattr("example")?
+        .into();
 
         // call object with PyDict
         let kwargs = [(key1, val1)].into_py_dict(py);
@@ -104,7 +107,7 @@ fn main() -> PyResult<()> {
         fun.call(py, (), Some(kwargs.into_py_dict(py)))?;
 
         Ok(())
-   })
+    })
 }
 ```
 
@@ -124,7 +127,10 @@ use pyo3::prelude::*;
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         let builtins = PyModule::import(py, "builtins")?;
-        let total: i32 = builtins.getattr("sum")?.call1((vec![1, 2, 3],))?.extract()?;
+        let total: i32 = builtins
+            .getattr("sum")?
+            .call1((vec![1, 2, 3],))?
+            .extract()?;
         assert_eq!(total, 6);
         Ok(())
     })
@@ -133,7 +139,7 @@ fn main() -> PyResult<()> {
 
 ### Want to run just an expression? Then use `eval`.
 
-[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.eval) is
+[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
 and return the evaluated value as a `&PyAny` object.
 
@@ -142,9 +148,11 @@ use pyo3::prelude::*;
 
 # fn main() -> Result<(), ()> {
 Python::with_gil(|py| {
-    let result = py.eval("[i * 10 for i in range(5)]", None, None).map_err(|e| {
-        e.print_and_set_sys_last_vars(py);
-    })?;
+    let result = py
+        .eval("[i * 10 for i in range(5)]", None, None)
+        .map_err(|e| {
+            e.print_and_set_sys_last_vars(py);
+        })?;
     let res: Vec<i64> = result.extract().unwrap();
     assert_eq!(res, vec![0, 10, 20, 30, 40]);
     Ok(())
@@ -202,7 +210,7 @@ assert userdata.as_tuple() == userdata_as_tuple
 
 ## You have a Python file or code snippet? Then use `PyModule::from_code`.
 
-[PyModule::from_code]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
+[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 
@@ -210,30 +218,104 @@ can be used to generate a Python module which can then be used just as if it was
 to this function!
 
 ```rust
-use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyModule},
+};
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let activators = PyModule::from_code(py, r#"
+    let activators = PyModule::from_code(
+        py,
+        r#"
 def relu(x):
     """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
-    "#, "activators.py", "activators")?;
+    "#,
+        "activators.py",
+        "activators",
+    )?;
 
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
     let kwargs = [("slope", 0.2)].into_py_dict(py);
     let lrelu_result: f64 = activators
-        .getattr("leaky_relu")?.call((-1.0,), Some(kwargs))?
+        .getattr("leaky_relu")?
+        .call((-1.0,), Some(kwargs))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())
 })
 # }
+```
+
+### Want to embed Python in Rust with additional modules?
+
+Python maintains the `sys.modules` dict as a cache of all imported modules.
+An import in Python will first attempt to lookup the module from this dict,
+and if not present will use various strategies to attempt to locate and load
+the module.
+
+The [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html)
+macro can be used to add additional `#[pymodule]` modules to an embedded
+Python interpreter. The macro **must** be invoked _before_ initializing Python.
+
+As an example, the below adds the module `foo` to the embedded interpreter:
+
+```rust
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn add_one(x: i64) -> i64 {
+    x + 1
+}
+
+#[pymodule]
+fn foo(_py: Python<'_>, foo_module: &PyModule) -> PyResult<()> {
+    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+    Ok(())
+}
+
+fn main() -> PyResult<()> {
+    pyo3::append_to_inittab!(foo);
+    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
+}
+```
+
+If `append_to_inittab` cannot be used due to constraints in the program,
+an alternative is to create a module using [`PyModule::new`]
+and insert it manually into `sys.modules`:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+#[pyfunction]
+pub fn add_one(x: i64) -> i64 {
+    x + 1
+}
+
+fn main() -> PyResult<()> {
+    Python::with_gil(|py| {
+        // Create new module
+        let foo_module = PyModule::new(py, "foo")?;
+        foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+
+        // Import and get sys.modules
+        let sys = PyModule::import(py, "sys")?;
+        let py_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+
+        // Insert foo into sys.modules
+        py_modules.set_item("foo", foo_module)?;
+
+        // Now we can import + run our python code
+        Python::run(py, "import foo; foo.add_one(6)", None, None)
+    })
+}
 ```
 
 ### Include multiple Python files
@@ -253,9 +335,9 @@ Example directory structure:
 ├── Cargo.lock
 ├── Cargo.toml
 ├── python_app
-│   ├── app.py
-│   └── utils
-│       └── foo.py
+│   ├── app.py
+│   └── utils
+│       └── foo.py
 └── src
     └── main.rs
 ```
@@ -281,11 +363,14 @@ The example below shows:
   imported from `utils/foo.py`
 
 `src/main.rs`:
-```ignore
+```rust,ignore
 use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
-    let py_foo = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/utils/foo.py"));
+    let py_foo = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/python_app/utils/foo.py"
+    ));
     let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
@@ -311,7 +396,7 @@ from anywhere as long as your `app.py` is in the expected directory (in this exa
 that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
-```no_run
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use std::fs;
@@ -321,7 +406,7 @@ fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = fs::read_to_string(path.join("app.py"))?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        let syspath: &PyList = py.import("sys")?.getattr("path")?.downcast::<PyList>()?;
+        let syspath: &PyList = py.import("sys")?.getattr("path")?.downcast()?;
         syspath.insert(0, &path)?;
         let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
             .getattr("run")?
@@ -348,7 +433,9 @@ use pyo3::types::PyModule;
 
 fn main() {
     Python::with_gil(|py| {
-        let custom_manager = PyModule::from_code(py, r#"
+        let custom_manager = PyModule::from_code(
+            py,
+            r#"
 class House(object):
     def __init__(self, address):
         self.address = address
@@ -360,7 +447,11 @@ class House(object):
         else:
             print(f"Thank you for visiting {self.address}, come again soon!")
 
-        "#, "house.py", "house").unwrap();
+        "#,
+            "house.py",
+            "house",
+        )
+        .unwrap();
 
         let house_class = custom_manager.getattr("House").unwrap();
         let house = house_class.call1(("123 Main Street",)).unwrap();
@@ -374,15 +465,19 @@ class House(object):
         match result {
             Ok(_) => {
                 let none = py.None();
-                house.call_method1("__exit__", (&none, &none, &none)).unwrap();
-            },
+                house
+                    .call_method1("__exit__", (&none, &none, &none))
+                    .unwrap();
+            }
             Err(e) => {
-                house.call_method1(
-                    "__exit__",
-                    (e.get_type(py), e.value(py), e.traceback(py))
-                ).unwrap();
+                house
+                    .call_method1("__exit__", (e.get_type(py), e.value(py), e.traceback(py)))
+                    .unwrap();
             }
         }
     })
 }
 ```
+
+
+[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new

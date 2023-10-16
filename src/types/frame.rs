@@ -1,5 +1,3 @@
-// Copyright (c) 2022-present PyO3 Project and Contributors
-
 use crate::ffi;
 use crate::PyAny;
 
@@ -9,6 +7,6 @@ pub struct PyFrame(PyAny);
 
 pyobject_native_type_core!(
     PyFrame,
-    ffi::PyFrame_Type,
+    pyobject_native_static_type_object!(ffi::PyFrame_Type),
     #checkfunction=ffi::PyFrame_Check
 );

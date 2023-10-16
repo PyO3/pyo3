@@ -9,27 +9,33 @@ use syn::{
 };
 
 pub mod kw {
+    syn::custom_keyword!(args);
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
     syn::custom_keyword!(dict);
     syn::custom_keyword!(extends);
     syn::custom_keyword!(freelist);
     syn::custom_keyword!(from_py_with);
+    syn::custom_keyword!(frozen);
     syn::custom_keyword!(gc);
     syn::custom_keyword!(get);
+    syn::custom_keyword!(get_all);
     syn::custom_keyword!(item);
+    syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
     syn::custom_keyword!(name);
     syn::custom_keyword!(pass_module);
+    syn::custom_keyword!(rename_all);
+    syn::custom_keyword!(sequence);
     syn::custom_keyword!(set);
+    syn::custom_keyword!(set_all);
     syn::custom_keyword!(signature);
     syn::custom_keyword!(subclass);
     syn::custom_keyword!(text_signature);
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
-    syn::custom_keyword!(immutable);
 }
 
 #[derive(Clone, Debug)]
@@ -39,8 +45,8 @@ pub struct KeywordAttribute<K, V> {
 }
 
 /// A helper type which parses the inner type via a literal string
-/// e.g. LitStrValue<Path> -> parses "some::path" in quotes.
-#[derive(Clone, Debug, PartialEq)]
+/// e.g. `LitStrValue<Path>` -> parses "some::path" in quotes.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LitStrValue<T>(pub T);
 
 impl<T: Parse> Parse for LitStrValue<T> {
@@ -57,7 +63,7 @@ impl<T: ToTokens> ToTokens for LitStrValue<T> {
 }
 
 /// A helper type which parses a name via a literal string
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NameLitStr(pub Ident);
 
 impl Parse for NameLitStr {
@@ -77,11 +83,96 @@ impl ToTokens for NameLitStr {
     }
 }
 
+/// Available renaming rules
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RenamingRule {
+    CamelCase,
+    KebabCase,
+    Lowercase,
+    PascalCase,
+    ScreamingKebabCase,
+    ScreamingSnakeCase,
+    SnakeCase,
+    Uppercase,
+}
+
+/// A helper type which parses a renaming rule via a literal string
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RenamingRuleLitStr {
+    pub lit: LitStr,
+    pub rule: RenamingRule,
+}
+
+impl Parse for RenamingRuleLitStr {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let string_literal: LitStr = input.parse()?;
+        let rule = match string_literal.value().as_ref() {
+            "camelCase" => RenamingRule::CamelCase,
+            "kebab-case" => RenamingRule::KebabCase,
+            "lowercase" => RenamingRule::Lowercase,
+            "PascalCase" => RenamingRule::PascalCase,
+            "SCREAMING-KEBAB-CASE" => RenamingRule::ScreamingKebabCase,
+            "SCREAMING_SNAKE_CASE" => RenamingRule::ScreamingSnakeCase,
+            "snake_case" => RenamingRule::SnakeCase,
+            "UPPERCASE" => RenamingRule::Uppercase,
+            _ => {
+                bail_spanned!(string_literal.span() => "expected a valid renaming rule, possible values are: \"camelCase\", \"kebab-case\", \"lowercase\", \"PascalCase\", \"SCREAMING-KEBAB-CASE\", \"SCREAMING_SNAKE_CASE\", \"snake_case\", \"UPPERCASE\"")
+            }
+        };
+        Ok(Self {
+            lit: string_literal,
+            rule,
+        })
+    }
+}
+
+impl ToTokens for RenamingRuleLitStr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.lit.to_tokens(tokens)
+    }
+}
+
+/// Text signatue can be either a literal string or opt-in/out
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TextSignatureAttributeValue {
+    Str(LitStr),
+    // `None` ident to disable automatic text signature generation
+    Disabled(Ident),
+}
+
+impl Parse for TextSignatureAttributeValue {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        if let Ok(lit_str) = input.parse::<LitStr>() {
+            return Ok(TextSignatureAttributeValue::Str(lit_str));
+        }
+
+        let err_span = match input.parse::<Ident>() {
+            Ok(ident) if ident == "None" => {
+                return Ok(TextSignatureAttributeValue::Disabled(ident));
+            }
+            Ok(other_ident) => other_ident.span(),
+            Err(e) => e.span(),
+        };
+
+        Err(err_spanned!(err_span => "expected a string literal or `None`"))
+    }
+}
+
+impl ToTokens for TextSignatureAttributeValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            TextSignatureAttributeValue::Str(s) => s.to_tokens(tokens),
+            TextSignatureAttributeValue::Disabled(b) => b.to_tokens(tokens),
+        }
+    }
+}
+
 pub type ExtendsAttribute = KeywordAttribute<kw::extends, Path>;
 pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
 pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
 pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
-pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, LitStr>;
+pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitStr>;
+pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
@@ -106,18 +197,10 @@ pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, LitStrValue<Ex
 pub type CrateAttribute = KeywordAttribute<Token![crate], LitStrValue<Path>>;
 
 pub fn get_pyo3_options<T: Parse>(attr: &syn::Attribute) -> Result<Option<Punctuated<T, Comma>>> {
-    if is_attribute_ident(attr, "pyo3") {
+    if attr.path().is_ident("pyo3") {
         attr.parse_args_with(Punctuated::parse_terminated).map(Some)
     } else {
         Ok(None)
-    }
-}
-
-pub fn is_attribute_ident(attr: &syn::Attribute, name: &str) -> bool {
-    if let Some(path_segment) = attr.path.segments.last() {
-        attr.path.segments.len() == 1 && path_segment.ident == name
-    } else {
-        false
     }
 }
 
@@ -147,7 +230,7 @@ pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Ve
     let mut out = Vec::new();
     take_attributes(attrs, |attr| {
         if let Some(options) = get_pyo3_options(attr)? {
-            out.extend(options.into_iter());
+            out.extend(options);
             Ok(true)
         } else {
             Ok(false)

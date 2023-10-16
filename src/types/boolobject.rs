@@ -1,14 +1,12 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
-};
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::types::TypeInfo;
+use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
-pyobject_native_type!(PyBool, ffi::PyObject, ffi::PyBool_Type, #checkfunction=ffi::PyBool_Check);
+pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), #checkfunction=ffi::PyBool_Check);
 
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.
@@ -46,6 +44,11 @@ impl IntoPy<PyObject> for bool {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyBool::new(py, self).into()
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
+    }
 }
 
 /// Converts a Python `bool` to a Rust `bool`.
@@ -53,7 +56,12 @@ impl IntoPy<PyObject> for bool {
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl<'source> FromPyObject<'source> for bool {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
-        Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
+        Ok(obj.downcast::<PyBool>()?.is_true())
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        Self::type_output()
     }
 }
 

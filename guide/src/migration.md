@@ -3,8 +3,376 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.19.* to 0.20
+
+### Drop support for older technologies
+
+PyO3 0.20 has increased minimum Rust version to 1.56. This enables use of newer language features and simplifies maintenance of the project.
+
+### `PyDict::get_item` now returns a `Result`
+
+`PyDict::get_item` in PyO3 0.19 and older was implemented using a Python API which would suppress all exceptions and return `None` in those cases. This included errors in `__hash__` and `__eq__` implementations of the key being looked up.
+
+Newer recommendations by the Python core developers advise against using these APIs which suppress exceptions, instead allowing exceptions to bubble upwards. `PyDict::get_item_with_error` already implemented this recommended behavior, so that API has been renamed to `PyDict::get_item`.
+
+Before:
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::exceptions::PyTypeError;
+use pyo3::types::{PyDict, IntoPyDict};
+
+# fn main() {
+# let _ =
+Python::with_gil(|py| {
+    let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    // `a` is in the dictionary, with value 1
+    assert!(dict.get_item("a").map_or(Ok(false), |x| x.eq(1))?);
+    // `b` is not in the dictionary
+    assert!(dict.get_item("b").is_none());
+    // `dict` is not hashable, so this fails with a `TypeError`
+    assert!(dict.get_item_with_error(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+});
+# }
+```
+
+After:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::exceptions::PyTypeError;
+use pyo3::types::{PyDict, IntoPyDict};
+
+# fn main() {
+# let _ =
+Python::with_gil(|py| -> PyResult<()> {
+    let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    // `a` is in the dictionary, with value 1
+    assert!(dict.get_item("a")?.map_or(Ok(false), |x| x.eq(1))?);
+    // `b` is not in the dictionary
+    assert!(dict.get_item("b")?.is_none());
+    // `dict` is not hashable, so this fails with a `TypeError`
+    assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+
+    Ok(())
+});
+# }
+```
+
+### Required arguments are no longer accepted after optional arguments
+
+[Trailing `Option<T>` arguments](./function/signature.md#trailing-optional-arguments) have an automatic default of `None`. To avoid unwanted changes when modifying function signatures, in PyO3 0.18 it was deprecated to have a required argument after an `Option<T>` argument without using `#[pyo3(signature = (...))]` to specify the intended defaults. In PyO3 0.20, this becomes a hard error.
+
+Before:
+
+```rust,ignore
+#[pyfunction]
+fn x_or_y(x: Option<u64>, y: u64) -> u64 {
+    x.unwrap_or(y)
+}
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyfunction]
+#[pyo3(signature = (x, y))] // both x and y have no defaults and are required
+fn x_or_y(x: Option<u64>, y: u64) -> u64 {
+    x.unwrap_or(y)
+}
+```
+
+### Remove deprecated function forms
+
+In PyO3 0.18 the `#[args]` attribute for `#[pymethods]`, and directly specifying the function signature in `#[pyfunction]`, was deprecated. This functionality has been removed in PyO3 0.20.
+
+Before:
+
+```rust,ignore
+#[pyfunction]
+#[pyo3(a, b = "0", "/")]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyfunction]
+#[pyo3(signature = (a, b=0, /))]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+```
+
+### `IntoPyPointer` trait removed
+
+The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed. `into_ptr` is now available as an inherent method on all types that previously implemented this trait.
+
+### `AsPyPointer` now `unsafe` trait
+
+The trait `AsPyPointer` is now `unsafe trait`, meaning any external implementation of it must be marked as `unsafe impl`, and ensure that they uphold the invariant of returning valid pointers.
+
+## from 0.18.* to 0.19
+
+### Access to `Python` inside `__traverse__` implementations are now forbidden
+
+During `__traverse__` implementations for Python's Garbage Collection it is forbidden to do anything other than visit the members of the `#[pyclass]` being traversed. This means making Python function calls or other API calls are forbidden.
+
+Previous versions of PyO3 would allow access to `Python` (e.g. via `Python::with_gil`), which could cause the Python interpreter to crash or otherwise confuse the garbage collection algorithm.
+
+Attempts to acquire the GIL will now panic. See [#3165](https://github.com/PyO3/pyo3/issues/3165) for more detail.
+
+```rust,ignore
+# use pyo3::prelude::*;
+
+#[pyclass]
+struct SomeClass {}
+
+impl SomeClass {
+    fn __traverse__(&self, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>` {
+        Python::with_gil(|| { /*...*/ })  // ERROR: this will panic
+    }
+}
+```
+
+### Smarter `anyhow::Error` / `eyre::Report` conversion when inner error is "simple" `PyErr`
+
+When converting from `anyhow::Error` or `eyre::Report` to `PyErr`, if the inner error is a "simple" `PyErr` (with no source error), then the inner error will be used directly as the `PyErr` instead of wrapping it in a new `PyRuntimeError` with the original information converted into a string.
+
+```rust
+# #[cfg(feature = "anyhow")]
+# #[allow(dead_code)]
+# mod anyhow_only {
+# use pyo3::prelude::*;
+# use pyo3::exceptions::PyValueError;
+#[pyfunction]
+fn raise_err() -> anyhow::Result<()> {
+    Err(PyValueError::new_err("original error message").into())
+}
+
+fn main() {
+    Python::with_gil(|py| {
+        let rs_func = wrap_pyfunction!(raise_err, py).unwrap();
+        pyo3::py_run!(
+            py,
+            rs_func,
+            r"
+        try:
+            rs_func()
+        except Exception as e:
+            print(repr(e))
+        "
+        );
+    })
+}
+# }
+```
+
+Before, the above code would have printed `RuntimeError('ValueError: original error message')`, which might be confusing.
+
+After, the same code will print `ValueError: original error message`, which is more straightforward.
+
+However, if the `anyhow::Error` or `eyre::Report` has a source, then the original exception will still be wrapped in a `PyRuntimeError`.
+
+### The deprecated `Python::acquire_gil` was removed and `Python::with_gil` must be used instead
+
+While the API provided by [`Python::acquire_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.acquire_gil) seems convenient, it is somewhat brittle as the design of the GIL token [`Python`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html) relies on proper nesting and panics if not used correctly, e.g.
+
+```rust,ignore
+# #![allow(dead_code, deprecated)]
+# use pyo3::prelude::*;
+
+#[pyclass]
+struct SomeClass {}
+
+struct ObjectAndGuard {
+    object: Py<SomeClass>,
+    guard: GILGuard,
+}
+
+impl ObjectAndGuard {
+    fn new() -> Self {
+        let guard = Python::acquire_gil();
+        let object = Py::new(guard.python(), SomeClass {}).unwrap();
+
+        Self { object, guard }
+    }
+}
+
+let first = ObjectAndGuard::new();
+let second = ObjectAndGuard::new();
+// Panics because the guard within `second` is still alive.
+drop(first);
+drop(second);
+```
+
+The replacement is [`Python::with_gil`]() which is more cumbersome but enforces the proper nesting by design, e.g.
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyclass]
+struct SomeClass {}
+
+struct Object {
+    object: Py<SomeClass>,
+}
+
+impl Object {
+    fn new(py: Python<'_>) -> Self {
+        let object = Py::new(py, SomeClass {}).unwrap();
+
+        Self { object }
+    }
+}
+
+// It either forces us to release the GIL before aquiring it again.
+let first = Python::with_gil(|py| Object::new(py));
+let second = Python::with_gil(|py| Object::new(py));
+drop(first);
+drop(second);
+
+// Or it ensure releasing the inner lock before the outer one.
+Python::with_gil(|py| {
+    let first = Object::new(py);
+    let second = Python::with_gil(|py| Object::new(py));
+    drop(first);
+    drop(second);
+});
+```
+
+Furthermore, `Python::acquire_gil` provides ownership of a `GILGuard` which can be freely stored and passed around. This is usually not helpful as it may keep the lock held for a long time thereby blocking progress in other parts of the program. Due to the generative lifetime attached to the GIL token supplied by `Python::with_gil`, the problem is avoided as the GIL token can only be passed down the call chain. Often, this issue can also be avoided entirely as any GIL-bound reference `&'py PyAny` implies access to a GIL token `Python<'py>` via the [`PyAny::py`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html#method.py) method.
+
+## from 0.17.* to 0.18
+
+### Required arguments after `Option<_>` arguments will no longer be automatically inferred
+
+In `#[pyfunction]` and `#[pymethods]`, if a "required" function input such as `i32` came after an `Option<_>` input, then the `Option<_>` would be implicitly treated as required. (All trailing `Option<_>` arguments were treated as optional with a default value of `None`).
+
+Starting with PyO3 0.18, this is deprecated and a future PyO3 version will require a [`#[pyo3(signature = (...))]` option](./function/signature.md) to explicitly declare the programmer's intention.
+
+Before, x in the below example would be required to be passed from Python code:
+
+```rust,compile_fail
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+#[pyfunction]
+fn required_argument_after_option(x: Option<i32>, y: i32) {}
+```
+
+After, specify the intended Python signature explicitly:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+
+// If x really was intended to be required
+#[pyfunction(signature = (x, y))]
+fn required_argument_after_option_a(x: Option<i32>, y: i32) {}
+
+// If x was intended to be optional, y needs a default too
+#[pyfunction(signature = (x=None, y=0))]
+fn required_argument_after_option_b(x: Option<i32>, y: i32) {}
+```
+
+### `__text_signature__` is now automatically generated for `#[pyfunction]` and `#[pymethods]`
+
+The [`#[pyo3(text_signature = "...")]` option](./function/signature.md#making-the-function-signature-available-to-python) was previously the only supported way to set the `__text_signature__` attribute on generated Python functions.
+
+PyO3 is now able to automatically populate `__text_signature__` for all functions automatically based on their Rust signature (or the [new `#[pyo3(signature = (...))]` option](./function/signature.md)). These automatically-generated `__text_signature__` values will currently only render `...` for all default values. Many `#[pyo3(text_signature = "...")]` options can be removed from functions when updating to PyO3 0.18, however in cases with default values a manual implementation may still be preferred for now.
+
+As examples:
+
+```rust
+# use pyo3::prelude::*;
+
+// The `text_signature` option here is no longer necessary, as PyO3 will automatically
+// generate exactly the same value.
+#[pyfunction(text_signature = "(a, b, c)")]
+fn simple_function(a: i32, b: i32, c: i32) {}
+
+// The `text_signature` still provides value here as of PyO3 0.18, because the automatically
+// generated signature would be "(a, b=..., c=...)".
+#[pyfunction(signature = (a, b = 1, c = 2), text_signature = "(a, b=1, c=2)")]
+fn function_with_defaults(a: i32, b: i32, c: i32) {}
+
+# fn main() {
+#     Python::with_gil(|py| {
+#         let simple = wrap_pyfunction!(simple_function, py).unwrap();
+#         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
+#         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
+#         assert_eq!(defaulted.getattr("__text_signature__").unwrap().to_string(), "(a, b=1, c=2)");
+#     })
+# }
+```
+
 ## from 0.16.* to 0.17
 
+### Type checks have been changed for `PyMapping` and `PySequence` types
+
+Previously the type checks for `PyMapping` and `PySequence` (implemented in `PyTryFrom`)
+used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
+Unfortunately these functions are not sufficient for distinguishing such types,
+leading to inconsistent behavior (see
+[pyo3/pyo3#2072](https://github.com/PyO3/pyo3/issues/2072)).
+
+PyO3 0.17 changes these downcast checks to explicitly test if the type is a
+subclass of the corresponding abstract base class `collections.abc.Mapping` or
+`collections.abc.Sequence`. Note this requires calling into Python, which may
+incur a performance penalty over the previous method. If this performance
+penalty is a problem, you may be able to perform your own checks and use
+`try_from_unchecked` (unsafe).
+
+Another side-effect is that a pyclass defined in Rust with PyO3 will need to
+be _registered_ with the corresponding Python abstract base class for
+downcasting to succeed. `PySequence::register` and `PyMapping:register` have
+been added to make it easy to do this from Rust code. These are equivalent to
+calling `collections.abc.Mapping.register(MappingPyClass)` or
+`collections.abc.Sequence.register(SequencePyClass)` from Python.
+
+For example, for a mapping class defined in Rust:
+```rust,compile_fail
+use pyo3::prelude::*;
+use std::collections::HashMap;
+
+#[pyclass(mapping)]
+struct Mapping {
+    index: HashMap<String, usize>,
+}
+
+#[pymethods]
+impl Mapping {
+    #[new]
+    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    // ...
+    // truncated implementation of this mapping pyclass - basically a wrapper around a HashMap
+}
+```
+
+You must register the class with `collections.abc.Mapping` before the downcast will work:
+```rust,compile_fail
+let m = Py::new(py, Mapping { index }).unwrap();
+assert!(m.as_ref(py).downcast::<PyMapping>().is_err());
+PyMapping::register::<Mapping>(py).unwrap();
+assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
+```
+
+Note that this requirement may go away in the future when a pyclass is able to inherit from the abstract base class directly (see [pyo3/pyo3#991](https://github.com/PyO3/pyo3/issues/991)).
+
+### The `multiple-pymethods` feature now requires Rust 1.62
+
+Due to limitations in the `inventory` crate which the `multiple-pymethods` feature depends on, this feature now
+requires Rust 1.62. For more information see [dtolnay/inventory#32](https://github.com/dtolnay/inventory/issues/32).
 
 ### Added `impl IntoPy<Py<PyString>> for &str`
 
@@ -73,6 +441,10 @@ fn get_type_object<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
 
 If this leads to errors, simply implement `IntoPy`. Because pyclasses already implement `IntoPy`, you probably don't need to worry about this.
 
+### Each `#[pymodule]` can now only be initialized once per process
+
+To make PyO3 modules sound in the presence of Python sub-interpreters, for now it has been necessary to explicitly disable the ability to initialize a `#[pymodule]` more than once in the same process. Attempting to do this will now raise an `ImportError`.
+
 ## from 0.15.* to 0.16
 
 ### Drop support for older technologies
@@ -91,14 +463,14 @@ Before:
 
 ```rust,compile_fail
 use pyo3::prelude::*;
-use pyo3::class::{PyBasicProtocol, PyIterProtocol};
+use pyo3::class::{PyObjectProtocol, PyIterProtocol};
 use pyo3::types::PyString;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pyproto]
-impl PyBasicProtocol for MyClass {
+impl PyObjectProtocol for MyClass {
     fn __str__(&self) -> &'static [u8] {
         b"hello, world"
     }
@@ -119,7 +491,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pymethods]
 impl MyClass {
@@ -170,9 +542,9 @@ class ExampleContainer:
 
 This class implements a Python [sequence](https://docs.python.org/3/glossary.html#term-sequence).
 
-The `__len__` and `__getitem__` methods are also used to implement a Python [mapping](https://docs.python.org/3/glossary.html#term-mapping). In the Python C-API, these methods are not shared: the sequence `__len__` and `__getitem__` are defined by the `sq_len` and `sq_item` slots, and the mapping equivalents are `mp_len` and `mp_subscript`. There are similar distinctions for `__setitem__` and `__delitem__`.
+The `__len__` and `__getitem__` methods are also used to implement a Python [mapping](https://docs.python.org/3/glossary.html#term-mapping). In the Python C-API, these methods are not shared: the sequence `__len__` and `__getitem__` are defined by the `sq_length` and `sq_item` slots, and the mapping equivalents are `mp_length` and `mp_subscript`. There are similar distinctions for `__setitem__` and `__delitem__`.
 
-Because there is no such distinction from Python, implementing these methods will fill the mapping and sequence slots simultaneously. A Python class with `__len__` implemented, for example, will have both the `sq_len` and `mp_len` slots filled.
+Because there is no such distinction from Python, implementing these methods will fill the mapping and sequence slots simultaneously. A Python class with `__len__` implemented, for example, will have both the `sq_length` and `mp_length` slots filled.
 
 The PyO3 behavior in 0.16 has been changed to be closer to this Python behavior by default.
 
@@ -270,9 +642,9 @@ The limitation of the new default implementation is that it cannot support multi
 
 ### Deprecated `#[pyproto]` methods
 
-Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyBasicProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`. This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
+Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyObjectProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`. This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
 
-In the interest of having onle one way to do things, the `#[pyproto]` forms of these methods have been deprecated.
+In the interest of having only one way to do things, the `#[pyproto]` forms of these methods have been deprecated.
 
 To migrate just move the affected methods from a `#[pyproto]` to a `#[pymethods]` block.
 
@@ -280,13 +652,13 @@ Before:
 
 ```rust,compile_fail
 use pyo3::prelude::*;
-use pyo3::class::basic::PyBasicProtocol;
+use pyo3::class::basic::PyObjectProtocol;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pyproto]
-impl PyBasicProtocol for MyClass {
+impl PyObjectProtocol for MyClass {
     fn __bytes__(&self) -> &'static [u8] {
         b"hello, world"
     }
@@ -299,7 +671,7 @@ After:
 use pyo3::prelude::*;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pymethods]
 impl MyClass {
@@ -313,7 +685,7 @@ impl MyClass {
 
 ### Minimum Rust version increased to Rust 1.45
 
-PyO3 `0.13` makes use of new Rust language features stabilised between Rust 1.40 and Rust 1.45. If you are using a Rust compiler older than Rust 1.45, you will need to update your toolchain to be able to continue using PyO3.
+PyO3 `0.13` makes use of new Rust language features stabilized between Rust 1.40 and Rust 1.45. If you are using a Rust compiler older than Rust 1.45, you will need to update your toolchain to be able to continue using PyO3.
 
 ### Runtime changes to support the CPython limited API
 
@@ -397,7 +769,10 @@ assert_eq!(err.to_string(), "TypeError: error message");
 
 // Now possible to interact with exception instances, new for PyO3 0.12
 let instance: &PyBaseException = err.instance(py);
-assert_eq!(instance.getattr("__class__")?, PyTypeError::type_object(py).as_ref());
+assert_eq!(
+    instance.getattr("__class__")?,
+    PyTypeError::type_object(py).as_ref()
+);
 # Ok(())
 # }).unwrap();
 ```
@@ -508,7 +883,7 @@ There can be two fixes:
    #[pyclass]
    struct NotThreadSafe {
        shared_bools: Rc<RefCell<Vec<bool>>>,
-       closure: Box<dyn Fn()>
+       closure: Box<dyn Fn()>,
    }
    ```
 
@@ -521,14 +896,14 @@ There can be two fixes:
    #[pyclass]
    struct ThreadSafe {
        shared_bools: Arc<Mutex<Vec<bool>>>,
-       closure: Box<dyn Fn() + Send>
+       closure: Box<dyn Fn() + Send>,
    }
    ```
 
    In situations where you cannot change your `#[pyclass]` to automatically implement `Send`
    (e.g., when it contains a raw pointer), you can use `unsafe impl Send`.
    In such cases, care should be taken to ensure the struct is actually thread safe.
-   See [the Rustnomicon](https://doc.rust-lang.org/nomicon/send-and-sync.html) for more.
+   See [the Rustonomicon](https://doc.rust-lang.org/nomicon/send-and-sync.html) for more.
 
 2. If you think that your `#[pyclass]` should not be accessed by another thread, you can use
    `unsendable` flag. A class marked with `unsendable` panics when accessed by another thread,
@@ -619,10 +994,10 @@ struct MyClass {}
 
 #[pymethods]
 impl MyClass {
-   #[new]
-   fn new(obj: &PyRawObject) {
-       obj.init(MyClass { })
-   }
+    #[new]
+    fn new(obj: &PyRawObject) {
+        obj.init(MyClass {})
+    }
 }
 ```
 
@@ -634,10 +1009,10 @@ struct MyClass {}
 
 #[pymethods]
 impl MyClass {
-   #[new]
-   fn new() -> Self {
-       MyClass {}
-   }
+    #[new]
+    fn new() -> Self {
+        MyClass {}
+    }
 }
 ```
 
@@ -660,7 +1035,7 @@ Here is an example.
 
 #[pyclass]
 struct Names {
-    names: Vec<String>
+    names: Vec<String>,
 }
 
 #[pymethods]
@@ -779,10 +1154,7 @@ impl PySequenceProtocol for ByteSequence {
 ```
 
 After:
-```rust
-# #[allow(deprecated)]
-# #[cfg(feature = "pyproto")]
-# {
+```rust,compile_fail
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]
@@ -796,7 +1168,6 @@ impl PySequenceProtocol for ByteSequence {
         elements.extend_from_slice(&other.elements);
         Ok(Self { elements })
     }
-}
 }
 ```
 

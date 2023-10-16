@@ -1,0 +1,13 @@
+[package]
+name = "string_sum"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "string_sum"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3-ffi = { path = "../../pyo3-ffi", features = ["extension-module"] }
+
+[workspace]

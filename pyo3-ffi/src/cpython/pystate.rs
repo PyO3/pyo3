@@ -31,8 +31,10 @@ pub const PyTrace_OPCODE: c_int = 7;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _PyErr_StackItem {
+    #[cfg(not(Py_3_11))]
     pub exc_type: *mut PyObject,
     pub exc_value: *mut PyObject,
+    #[cfg(not(Py_3_11))]
     pub exc_traceback: *mut PyObject,
     pub previous_item: *mut _PyErr_StackItem,
 }
@@ -67,10 +69,17 @@ extern "C" {
     pub fn PyThreadState_DeleteCurrent();
 }
 
-#[cfg(Py_3_9)]
+#[cfg(all(Py_3_9, not(Py_3_11)))]
 pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::PyThreadState,
     *mut crate::PyFrameObject,
+    c_int,
+) -> *mut crate::object::PyObject;
+
+#[cfg(Py_3_11)]
+pub type _PyFrameEvalFunction = extern "C" fn(
+    *mut crate::PyThreadState,
+    *mut crate::_PyInterpreterFrame,
     c_int,
 ) -> *mut crate::object::PyObject;
 

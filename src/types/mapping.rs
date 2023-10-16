@@ -1,8 +1,8 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
-use crate::err::{PyDowncastError, PyErr, PyResult};
-use crate::types::{PyAny, PySequence};
-use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
+use crate::err::{PyDowncastError, PyResult};
+use crate::sync::GILOnceCell;
+use crate::type_object::PyTypeInfo;
+use crate::types::{PyAny, PyDict, PySequence, PyType};
+use crate::{ffi, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -17,11 +17,8 @@ impl PyMapping {
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyMapping_Size(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v as usize)
-        }
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v as usize)
     }
 
     /// Returns whether the mapping is empty.
@@ -102,23 +99,51 @@ impl PyMapping {
                 .from_owned_ptr_or_err(ffi::PyMapping_Items(self.as_ptr()))
         }
     }
+
+    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
+    /// library). This is equvalent to `collections.abc.Mapping.register(T)` in Python.
+    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
+    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+        let ty = T::type_object(py);
+        get_mapping_abc(py)?.call_method1("register", (ty,))?;
+        Ok(())
+    }
+}
+
+static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+fn get_mapping_abc(py: Python<'_>) -> PyResult<&PyType> {
+    MAPPING_ABC
+        .get_or_try_init(py, || {
+            py.import("collections.abc")?.getattr("Mapping")?.extract()
+        })
+        .map(|ty| ty.as_ref(py))
 }
 
 impl<'v> PyTryFrom<'v> for PyMapping {
+    /// Downcasting to `PyMapping` requires the concrete class to be a subclass (or registered
+    /// subclass) of `collections.abc.Mapping` (from the Python standard library) - i.e.
+    /// `isinstance(<class>, collections.abc.Mapping) == True`.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
-        unsafe {
-            if ffi::PyMapping_Check(value.as_ptr()) != 0 {
-                Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value))
-            } else {
-                Err(PyDowncastError::new(value, "Mapping"))
-            }
+
+        // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
+        // optimized case dict as a well-known mapping
+        if PyDict::is_type_of(value)
+            || get_mapping_abc(value.py())
+                .and_then(|abc| value.is_instance(abc))
+                // TODO: surface errors in this chain to the user
+                .unwrap_or(false)
+        {
+            unsafe { return Ok(value.downcast_unchecked()) }
         }
+
+        Err(PyDowncastError::new(value, "Mapping"))
     }
 
     #[inline]
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
-        <PyMapping as PyTryFrom>::try_from(value)
+        value.into().downcast()
     }
 
     #[inline]
@@ -161,13 +186,13 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             assert_eq!(0, mapping.len().unwrap());
             assert!(mapping.is_empty().unwrap());
 
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping2 = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping2: &PyMapping = ob.downcast(py).unwrap();
             assert_eq!(1, mapping2.len().unwrap());
             assert!(!mapping2.is_empty().unwrap());
         });
@@ -179,7 +204,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert("key0", 1234);
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             mapping.set_item("key1", "foo").unwrap();
 
             assert!(mapping.contains("key0").unwrap());
@@ -194,7 +219,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             assert_eq!(
                 32,
                 mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
@@ -212,7 +237,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             assert!(mapping.set_item(7i32, 42i32).is_ok()); // change
             assert!(mapping.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
@@ -232,7 +257,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             assert!(mapping.del_item(7i32).is_ok());
             assert_eq!(0, mapping.len().unwrap());
             assert!(mapping
@@ -250,12 +275,12 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
             for el in mapping.items().unwrap().iter().unwrap() {
-                let tuple = el.unwrap().cast_as::<PyTuple>().unwrap();
+                let tuple = el.unwrap().downcast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }
@@ -272,7 +297,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             for el in mapping.keys().unwrap().iter().unwrap() {
@@ -290,7 +315,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mapping: &PyMapping = ob.downcast(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
             for el in mapping.values().unwrap().iter().unwrap() {

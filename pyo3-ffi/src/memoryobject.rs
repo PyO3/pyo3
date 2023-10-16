@@ -1,6 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
+use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -13,7 +14,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyMemoryView_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyMemoryView_Type)) as c_int
 }
 
 // skipped non-limited PyMemoryView_GET_BUFFER
@@ -28,7 +29,10 @@ extern "C" {
         size: Py_ssize_t,
         flags: c_int,
     ) -> *mut PyObject;
-    // skipped non-limited PyMemoryView_FromBuffer
+    #[cfg(any(Py_3_11, not(Py_LIMITED_API)))]
+    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromBuffer")]
+    pub fn PyMemoryView_FromBuffer(view: *const crate::Py_buffer) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_GetContiguous")]
     pub fn PyMemoryView_GetContiguous(
         base: *mut PyObject,
         buffertype: c_int,

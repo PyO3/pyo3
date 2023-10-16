@@ -21,17 +21,14 @@ jobs:
     outputs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          profile: minimal
+      - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
-          mdbook-version: "0.4.10"
+          mdbook-version: "0.4.19"
 
       - name: Prepare tag
         id: prepare_tag
@@ -39,71 +36,22 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "::set-output name=tag_name::${TAG_NAME}"
 
-      # Build some internal docs and inject a banner on top of it.
-      - name: Build the internal docs
-        run: |
-          mkdir target
-          mkdir -p gh-pages-build/internal
-          echo "<div class='internal-banner' style='position:fixed; z-index: 99999; color:red;border:3px solid red;margin-left: auto; margin-right: auto; width: 430px;left:0;right: 0;'><div style='display: flex; align-items: center; justify-content: center;'> ⚠️ Internal Docs ⚠️ Not Public API 👉 <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>Official Docs Here</a></div></div>" > target/banner.html
-          cargo xtask doc --internal
-          cp -r target/doc gh-pages-build/internal
-        env:
-          RUSTDOCFLAGS: "--cfg docsrs --Z unstable-options --document-hidden-items --html-before-content target/banner.html"
-
-      - name: Deploy internal docs
-        if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./gh-pages-build/internal
-          destination_dir: internal
-          full_commit_message: "Upload internal documentation"
-
-      - name: Clear the extra artefacts created earlier
-        run: rm -rf target
-
-      # This builds the book in gh-pages-build. See https://github.com/rust-lang-nursery/mdBook/issues/698
+      # This builds the book in target/guide.
       - name: Build the guide
-        run: mdbook build -d ../gh-pages-build guide
+        run: |
+          python -m pip install --upgrade pip && pip install nox
+          nox -s build-guide
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
 
-        # This adds the docs to gh-pages-build/doc
-      - name: Build the doc
-        run: |
-          cargo xtask doc
-          cp -r target/doc gh-pages-build/doc
-          echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > gh-pages-build/doc/index.html
-
       - name: Deploy docs and the guide
-        if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
+        if: ${{ github.event_name == 'release' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./gh-pages-build/
+          publish_dir: ./target/guide/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
           full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
-
-  guide-release:
-    needs: guide-build
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' }}
-    steps:
-      - name: Create latest tag redirects
-        env:
-          TAG_NAME: ${{ needs.build.outputs.tag_name }}
-        run: |
-          mkdir public
-          echo "<meta http-equiv=refresh content=0;url='$TAG_NAME/'>" > public/index.html
-          ln -sfT $TAG_NAME public/latest
-
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public/
-          full_commit_message: "Release ${{ needs.build.outputs.tag_name }}"
-          keep_files: true
 
   cargo-benchmark:
     if: ${{ github.ref_name == 'main' }}
@@ -111,15 +59,11 @@ jobs:
     needs: guide-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+      - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -130,13 +74,15 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          for bench in call dict gil list pyclass pyobject set tuple; do
-            cargo bench --features hashbrown --bench "bench_$bench" -- --output-format bencher | tee -a output.txt
+          python -m pip install --upgrade pip && pip install nox
+          for bench in pyo3-benches/benches/*.rs; do
+            bench_name=$(basename "$bench" .rs)
+            nox -s bench -- --bench "$bench_name" -- --output-format bencher | tee -a output.txt
           done
 
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
@@ -160,15 +106,11 @@ jobs:
     needs: cargo-benchmark
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+      - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -178,14 +120,14 @@ jobs:
         continue-on-error: true
 
       - name: Download previous benchmark data
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ./cache
           key: ${{ runner.os }}-pytest-benchmark
 
       - name: Run benchmarks
         run: |
-          pip install nox
+          python -m pip install --upgrade pip && pip install nox
           nox -f pytests/noxfile.py -s bench -- --benchmark-json $(pwd)/output.json
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1

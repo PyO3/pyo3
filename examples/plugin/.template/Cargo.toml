@@ -1,0 +1,9 @@
+[package]
+authors = ["{{authors}}"]
+name = "{{project-name}}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pyo3 = "{{PYO3_VERSION}}"
+plugin_api = { path = "plugin_api" }

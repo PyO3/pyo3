@@ -3,10 +3,11 @@
 use pyo3::prelude::*;
 use pyo3::{py_run, wrap_pyfunction};
 
+#[path = "../src/tests/common.rs"]
 mod common;
 
 #[pyclass]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MyEnum {
     Variant,
     OtherVariant,
@@ -28,12 +29,12 @@ fn return_enum() -> MyEnum {
 
 #[test]
 fn test_return_enum() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let f = wrap_pyfunction!(return_enum)(py).unwrap();
-    let mynum = py.get_type::<MyEnum>();
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(return_enum)(py).unwrap();
+        let mynum = py.get_type::<MyEnum>();
 
-    py_run!(py, f mynum, "assert f() == mynum.Variant")
+        py_run!(py, f mynum, "assert f() == mynum.Variant")
+    });
 }
 
 #[pyfunction]
@@ -52,23 +53,23 @@ fn test_enum_arg() {
 }
 
 #[test]
-fn test_enum_eq() {
+fn test_enum_eq_enum() {
     Python::with_gil(|py| {
         let var1 = Py::new(py, MyEnum::Variant).unwrap();
         let var2 = Py::new(py, MyEnum::Variant).unwrap();
         let other_var = Py::new(py, MyEnum::OtherVariant).unwrap();
         py_assert!(py, var1 var2, "var1 == var2");
         py_assert!(py, var1 other_var, "var1 != other_var");
+        py_assert!(py, var1 var2, "(var1 != var2) == False");
     })
 }
 
 #[test]
-fn test_default_repr_correct() {
+fn test_enum_eq_incomparable() {
     Python::with_gil(|py| {
         let var1 = Py::new(py, MyEnum::Variant).unwrap();
-        let var2 = Py::new(py, MyEnum::OtherVariant).unwrap();
-        py_assert!(py, var1, "repr(var1) == 'MyEnum.Variant'");
-        py_assert!(py, var2, "repr(var2) == 'MyEnum.OtherVariant'");
+        py_assert!(py, var1, "(var1 == 'foo') == False");
+        py_assert!(py, var1, "(var1 != 'foo') == True");
     })
 }
 
@@ -160,4 +161,56 @@ enum TestReprParse {
 #[test]
 fn test_repr_parse() {
     assert_eq!(std::mem::align_of::<TestReprParse>(), 8);
+}
+
+#[pyclass(name = "MyEnum")]
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum RenameEnum {
+    Variant,
+}
+
+#[test]
+fn test_rename_enum_repr_correct() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, RenameEnum::Variant).unwrap();
+        py_assert!(py, var1, "repr(var1) == 'MyEnum.Variant'");
+    })
+}
+
+#[pyclass]
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum RenameVariantEnum {
+    #[pyo3(name = "VARIANT")]
+    Variant,
+}
+
+#[test]
+fn test_rename_variant_repr_correct() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, RenameVariantEnum::Variant).unwrap();
+        py_assert!(py, var1, "repr(var1) == 'RenameVariantEnum.VARIANT'");
+    })
+}
+
+#[pyclass(rename_all = "SCREAMING_SNAKE_CASE")]
+#[allow(clippy::enum_variant_names)]
+enum RenameAllVariantsEnum {
+    VariantOne,
+    VariantTwo,
+    #[pyo3(name = "VariantThree")]
+    VariantFour,
+}
+
+#[test]
+fn test_renaming_all_enum_variants() {
+    Python::with_gil(|py| {
+        let enum_obj = py.get_type::<RenameAllVariantsEnum>();
+        py_assert!(py, enum_obj, "enum_obj.VARIANT_ONE == enum_obj.VARIANT_ONE");
+        py_assert!(py, enum_obj, "enum_obj.VARIANT_TWO == enum_obj.VARIANT_TWO");
+        py_assert!(
+            py,
+            enum_obj,
+            "enum_obj.VariantThree == enum_obj.VariantThree"
+        );
+    });
 }

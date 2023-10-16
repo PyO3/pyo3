@@ -1,52 +1,61 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
-#[pyfunction]
+#[pyfunction(signature = ())]
 fn none() {}
 
-#[pyfunction(b = "\"bar\"", "*", c = "None")]
-fn simple<'a>(a: i32, b: &'a str, c: Option<&'a PyDict>) -> (i32, &'a str, Option<&'a PyDict>) {
+#[pyfunction(signature = (a, b = None, *, c = None))]
+fn simple<'a>(
+    a: &'a PyAny,
+    b: Option<&'a PyAny>,
+    c: Option<&'a PyAny>,
+) -> (&'a PyAny, Option<&'a PyAny>, Option<&'a PyAny>) {
     (a, b, c)
 }
 
-#[pyfunction(b = "\"bar\"", args = "*", c = "None")]
+#[pyfunction(signature = (a, b = None, *args, c = None))]
 fn simple_args<'a>(
-    a: i32,
-    b: &'a str,
-    c: Option<&'a PyDict>,
+    a: &'a PyAny,
+    b: Option<&'a PyAny>,
     args: &'a PyTuple,
-) -> (i32, &'a str, &'a PyTuple, Option<&'a PyDict>) {
+    c: Option<&'a PyAny>,
+) -> (&'a PyAny, Option<&'a PyAny>, &'a PyTuple, Option<&'a PyAny>) {
     (a, b, args, c)
 }
 
-#[pyfunction(b = "\"bar\"", c = "None", kwargs = "**")]
+#[pyfunction(signature = (a, b = None, c = None, **kwargs))]
 fn simple_kwargs<'a>(
-    a: i32,
-    b: &'a str,
-    c: Option<&'a PyDict>,
+    a: &'a PyAny,
+    b: Option<&'a PyAny>,
+    c: Option<&'a PyAny>,
     kwargs: Option<&'a PyDict>,
-) -> (i32, &'a str, Option<&'a PyDict>, Option<&'a PyDict>) {
+) -> (
+    &'a PyAny,
+    Option<&'a PyAny>,
+    Option<&'a PyAny>,
+    Option<&'a PyDict>,
+) {
     (a, b, c, kwargs)
 }
 
-#[pyfunction(a, b = "\"bar\"", args = "*", c = "None", kwargs = "**")]
+#[pyfunction(signature = (a, b = None, *args, c = None, **kwargs))]
 fn simple_args_kwargs<'a>(
-    a: i32,
-    b: &'a str,
+    a: &'a PyAny,
+    b: Option<&'a PyAny>,
     args: &'a PyTuple,
-    c: Option<&'a PyDict>,
+    c: Option<&'a PyAny>,
     kwargs: Option<&'a PyDict>,
 ) -> (
-    i32,
-    &'a str,
+    &'a PyAny,
+    Option<&'a PyAny>,
     &'a PyTuple,
-    Option<&'a PyDict>,
+    Option<&'a PyAny>,
     Option<&'a PyDict>,
 ) {
     (a, b, args, c, kwargs)
 }
 
-#[pyfunction(args = "*", kwargs = "**")]
+#[pyfunction(signature = (*args, **kwargs))]
 fn args_kwargs<'a>(
     args: &'a PyTuple,
     kwargs: Option<&'a PyDict>,

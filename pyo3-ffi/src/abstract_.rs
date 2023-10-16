@@ -23,8 +23,9 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
 extern "C" {
     #[cfg(all(
         not(PyPy),
-        any(not(Py_LIMITED_API), Py_3_9) // Added to limited API in 3.9
+        any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // Added to python in 3.9 but to limited API in 3.10
     ))]
+    #[cfg_attr(PyPy, link_name = "PyPyObject_CallNoArgs")]
     pub fn PyObject_CallNoArgs(func: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Call")]
     pub fn PyObject_Call(
@@ -51,8 +52,21 @@ extern "C" {
         ...
     ) -> *mut PyObject;
 
-    // skipped _PyObject_CallFunction_SizeT
-    // skipped _PyObject_CallMethod_SizeT
+    #[cfg(not(Py_3_13))]
+    #[cfg_attr(PyPy, link_name = "_PyPyObject_CallFunction_SizeT")]
+    pub fn _PyObject_CallFunction_SizeT(
+        callable_object: *mut PyObject,
+        format: *const c_char,
+        ...
+    ) -> *mut PyObject;
+    #[cfg(not(Py_3_13))]
+    #[cfg_attr(PyPy, link_name = "_PyPyObject_CallMethod_SizeT")]
+    pub fn _PyObject_CallMethod_SizeT(
+        o: *mut PyObject,
+        method: *const c_char,
+        format: *const c_char,
+        ...
+    ) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunctionObjArgs")]
     pub fn PyObject_CallFunctionObjArgs(callable: *mut PyObject, ...) -> *mut PyObject;
@@ -91,27 +105,29 @@ extern "C" {
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 }
 
-// Defined as this macro in Python limited API, but relies on
-// non-limited PyTypeObject. Don't expose this since it cannot be used.
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+// Before 3.8 PyIter_Check was defined in CPython as a macro,
+// but the implementation of that in PyO3 did not work, see
+// https://github.com/PyO3/pyo3/pull/2914
+//
+// This is a slow implementation which should function equivalently.
+#[cfg(not(any(Py_3_8, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    (match (*crate::Py_TYPE(o)).tp_iternext {
-        Some(tp_iternext) => {
-            tp_iternext as *const std::os::raw::c_void != crate::_PyObject_NextNotImplemented as _
-        }
-        None => false,
-    }) as c_int
+    crate::PyObject_HasAttrString(
+        crate::Py_TYPE(o).cast(),
+        "__next__\0".as_ptr() as *const c_char,
+    )
 }
 
 extern "C" {
-    #[cfg(any(all(Py_3_8, Py_LIMITED_API), PyPy))]
+    #[cfg(any(Py_3_8, PyPy))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
     pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(all(not(PyPy), Py_3_10))]
+    #[cfg_attr(PyPy, link_name = "PyPyIter_Send")]
     pub fn PyIter_Send(iter: *mut PyObject, arg: *mut PyObject, presult: *mut *mut PyObject);
 
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]

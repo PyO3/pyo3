@@ -1,14 +1,10 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
-use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
+use crate::{IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 
@@ -22,7 +18,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
-pyobject_native_type_core!(PyModule, ffi::PyModule_Type, #checkfunction=ffi::PyModule_Check);
+pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), #checkfunction=ffi::PyModule_Check);
 
 impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to `name`.
@@ -32,8 +28,8 @@ impl PyModule {
     /// ``` rust
     /// use pyo3::prelude::*;
     ///
-    /// # fn main() -> PyResult<()>{
-    /// Python::with_gil(|py| -> PyResult<()>{
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::new(py, "my_module")?;
     ///
     ///     assert_eq!(module.name()?, "my_module");
@@ -52,7 +48,7 @@ impl PyModule {
     /// # Examples
     ///
     /// ```no_run
-    /// # fn main(){
+    /// # fn main() {
     /// use pyo3::prelude::*;
     ///
     /// Python::with_gil(|py| {
@@ -90,9 +86,9 @@ impl PyModule {
     /// Returns `PyErr` if:
     /// - `code` is not syntactically correct Python.
     /// - Any Python exceptions are raised while initializing the module.
-    /// - Any of the arguments cannot be converted to [`CString`](std::ffi::CString)s.
+    /// - Any of the arguments cannot be converted to [`CString`]s.
     ///
-    /// # Example: bundle in a file at compile time with [`include_str!`][1]:
+    /// # Example: bundle in a file at compile time with [`include_str!`][std::include_str]:
     ///
     /// ```rust
     /// use pyo3::prelude::*;
@@ -102,14 +98,14 @@ impl PyModule {
     /// let code = include_str!("../../assets/script.py");
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, code, "example", "example")?;
+    ///     PyModule::from_code(py, code, "example.py", "example")?;
     ///     Ok(())
     /// })?;
     /// # Ok(())
     /// # }
     /// ```
     ///
-    /// # Example: Load a file at runtime with [`std::fs::read_to_string`][2].
+    /// # Example: Load a file at runtime with [`std::fs::read_to_string`].
     ///
     /// ```rust
     /// use pyo3::prelude::*;
@@ -121,15 +117,12 @@ impl PyModule {
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, &code, "example", "example")?;
+    ///     PyModule::from_code(py, &code, "example.py", "example")?;
     ///     Ok(())
     /// })?;
     /// Ok(())
     /// # }
     /// ```
-    ///
-    /// [1]: std::include_str
-    /// [2]: std::fs::read_to_string
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,
@@ -203,7 +196,7 @@ impl PyModule {
     /// Returns the filename (the `__file__` attribute) of the module.
     ///
     /// May fail if the module does not have a `__file__` attribute.
-    #[cfg(not(all(windows, PyPy)))]
+    #[cfg(not(PyPy))]
     pub fn filename(&self) -> PyResult<&str> {
         unsafe {
             self.py()
@@ -294,7 +287,8 @@ impl PyModule {
     where
         T: PyClass,
     {
-        self.add(T::NAME, T::type_object(self.py()))
+        let py = self.py();
+        self.add(T::NAME, T::lazy_type_object().get_or_try_init(py)?)
     }
 
     /// Adds a function or a (sub)module to a module, using the functions name as name.

@@ -1,12 +1,13 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-
-//! Exception types defined by Python.
+//! Exception and warning types defined by Python.
 //!
-//! The structs in this module represent Python's built-in exceptions, while the modules comprise
-//! structs representing errors defined in Python code.
+//! The structs in this module represent Python's built-in exceptions and
+//! warnings, while the modules comprise structs representing errors defined in
+//! Python code.
 //!
-//! The latter are created with the [`import_exception`](crate::import_exception) macro, which you
-//! can use yourself to import Python exceptions.
+//! The latter are created with the
+//! [`import_exception`](crate::import_exception) macro, which you can use
+//! yourself to import Python classes that are ultimately derived from
+//! `BaseException`.
 
 use crate::{ffi, PyResult, Python};
 use std::ffi::CStr;
@@ -41,7 +42,6 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
                 unsafe {
-                    use $crate::AsPyPointer;
                     let cause: &$crate::exceptions::PyBaseException = self
                         .py()
                         .from_owned_ptr_or_opt($crate::ffi::PyException_GetCause(self.as_ptr()))?;
@@ -93,14 +93,13 @@ macro_rules! import_exception {
 
         $crate::pyobject_native_type_core!(
             $name,
-            *$name::type_object_raw($crate::Python::assume_gil_acquired()),
+            $name::type_object_raw,
             #module=::std::option::Option::Some(stringify!($module))
         );
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::once_cell::GILOnceCell;
-                use $crate::AsPyPointer;
+                use $crate::sync::GILOnceCell;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 
@@ -108,7 +107,13 @@ macro_rules! import_exception {
                     .get_or_init(py, || {
                         let imp = py
                             .import(stringify!($module))
-                            .expect(concat!("Can not import module: ", stringify!($module)));
+                            .unwrap_or_else(|err| {
+                                let traceback = err
+                                    .traceback(py)
+                                    .map(|tb| tb.format().expect("raised exception will have a traceback"))
+                                    .unwrap_or_default();
+                                ::std::panic!("Can not import module {}: {}\n{}", stringify!($module), err, traceback);
+                            });
                         let cls = imp.getattr(stringify!($name)).expect(concat!(
                             "Can not load exception class: {}.{}",
                             stringify!($module),
@@ -145,7 +150,7 @@ macro_rules! import_exception {
 /// create_exception!(my_module, MyError, PyException, "Some description.");
 ///
 /// #[pyfunction]
-/// fn raise_myerror() -> PyResult<()>{
+/// fn raise_myerror() -> PyResult<()> {
 ///     let err = MyError::new_err("Some error happened.");
 ///     Err(err)
 /// }
@@ -192,7 +197,7 @@ macro_rules! import_exception {
 ///
 #[macro_export]
 macro_rules! create_exception {
-    ($module: ident, $name: ident, $base: ty) => {
+    ($module: expr, $name: ident, $base: ty) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name($crate::PyAny);
@@ -201,7 +206,7 @@ macro_rules! create_exception {
 
         $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
     };
-    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
+    ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         #[doc = $doc]
@@ -223,17 +228,16 @@ macro_rules! create_exception {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_object {
-    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
+    ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
-            *$name::type_object_raw($crate::Python::assume_gil_acquired()),
+            $name::type_object_raw,
             #module=::std::option::Option::Some(stringify!($module))
         );
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::once_cell::GILOnceCell;
-                use $crate::AsPyPointer;
+                use $crate::sync::GILOnceCell;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 
@@ -253,13 +257,13 @@ macro_rules! create_exception_type_object {
 }
 
 macro_rules! impl_native_exception (
-    ($name:ident, $exc_name:ident, $doc:expr, $layout:path) => (
+    ($name:ident, $exc_name:ident, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
         #[doc = $doc]
         #[allow(clippy::upper_case_acronyms)]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, *($crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject));
+        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject } $(, #checkfunction=$checkfunction)?);
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
@@ -275,7 +279,7 @@ macro_rules! impl_windows_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, *($crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject));
+        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject });
     );
     ($name:ident, $exc_name:ident, $doc:expr) => (
         impl_windows_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
@@ -352,7 +356,9 @@ Python::with_gil(|py| {
 impl_native_exception!(
     PyBaseException,
     PyExc_BaseException,
-    native_doc!("BaseException")
+    native_doc!("BaseException"),
+    ffi::PyBaseExceptionObject,
+    #checkfunction=ffi::PyExceptionInstance_Check
 );
 impl_native_exception!(PyException, PyExc_Exception, native_doc!("Exception"));
 impl_native_exception!(
@@ -484,7 +490,7 @@ impl_native_exception!(
     PyExc_UnicodeError,
     native_doc!("UnicodeError")
 );
-// these three errors need arguments, so they're too annoying to write tests for using macros...
+// these four errors need arguments, so they're too annoying to write tests for using macros...
 impl_native_exception!(
     PyUnicodeDecodeError,
     PyExc_UnicodeDecodeError,
@@ -499,6 +505,12 @@ impl_native_exception!(
     PyUnicodeTranslateError,
     PyExc_UnicodeTranslateError,
     native_doc!("UnicodeTranslateError", "")
+);
+#[cfg(Py_3_11)]
+impl_native_exception!(
+    PyBaseExceptionGroup,
+    PyExc_BaseExceptionGroup,
+    native_doc!("BaseExceptionGroup", "")
 );
 impl_native_exception!(PyValueError, PyExc_ValueError, native_doc!("ValueError"));
 impl_native_exception!(
@@ -623,11 +635,12 @@ impl PyUnicodeDecodeError {
     /// # Examples
     ///
     /// ```
+    /// #![cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
     /// use pyo3::prelude::*;
     /// use pyo3::exceptions::PyUnicodeDecodeError;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py|{
+    /// Python::with_gil(|py| {
     ///     let invalid_utf8 = b"fo\xd8o";
     ///     let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
     ///     let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)?;
@@ -654,9 +667,64 @@ impl PyUnicodeDecodeError {
     }
 }
 
+impl_native_exception!(PyWarning, PyExc_Warning, native_doc!("Warning"));
+impl_native_exception!(PyUserWarning, PyExc_UserWarning, native_doc!("UserWarning"));
+impl_native_exception!(
+    PyDeprecationWarning,
+    PyExc_DeprecationWarning,
+    native_doc!("DeprecationWarning")
+);
+impl_native_exception!(
+    PyPendingDeprecationWarning,
+    PyExc_PendingDeprecationWarning,
+    native_doc!("PendingDeprecationWarning")
+);
+impl_native_exception!(
+    PySyntaxWarning,
+    PyExc_SyntaxWarning,
+    native_doc!("SyntaxWarning")
+);
+impl_native_exception!(
+    PyRuntimeWarning,
+    PyExc_RuntimeWarning,
+    native_doc!("RuntimeWarning")
+);
+impl_native_exception!(
+    PyFutureWarning,
+    PyExc_FutureWarning,
+    native_doc!("FutureWarning")
+);
+impl_native_exception!(
+    PyImportWarning,
+    PyExc_ImportWarning,
+    native_doc!("ImportWarning")
+);
+impl_native_exception!(
+    PyUnicodeWarning,
+    PyExc_UnicodeWarning,
+    native_doc!("UnicodeWarning")
+);
+impl_native_exception!(
+    PyBytesWarning,
+    PyExc_BytesWarning,
+    native_doc!("BytesWarning")
+);
+impl_native_exception!(
+    PyResourceWarning,
+    PyExc_ResourceWarning,
+    native_doc!("ResourceWarning")
+);
+
+#[cfg(Py_3_10)]
+impl_native_exception!(
+    PyEncodingWarning,
+    PyExc_EncodingWarning,
+    native_doc!("EncodingWarning")
+);
+
 #[cfg(test)]
 macro_rules! test_exception {
-    ($exc_ty:ident $(, $constructor:expr)?) => {
+    ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
         #[allow(non_snake_case)]
         #[test]
         fn $exc_ty () {
@@ -667,7 +735,7 @@ macro_rules! test_exception {
                 let err: $crate::PyErr = {
                     None
                     $(
-                        .or(Some($constructor(py)))
+                        .or(Some({ let $py = py; $constructor }))
                     )?
                         .unwrap_or($exc_ty::new_err("a test exception"))
                 };
@@ -702,12 +770,12 @@ pub mod asyncio {
         test_exception!(CancelledError);
         test_exception!(InvalidStateError);
         test_exception!(TimeoutError);
-        test_exception!(IncompleteReadError, |_| {
-            IncompleteReadError::new_err(("partial", "expected"))
-        });
-        test_exception!(LimitOverrunError, |_| {
-            LimitOverrunError::new_err(("message", "consumed"))
-        });
+        test_exception!(IncompleteReadError, |_| IncompleteReadError::new_err((
+            "partial", "expected"
+        )));
+        test_exception!(LimitOverrunError, |_| LimitOverrunError::new_err((
+            "message", "consumed"
+        )));
         test_exception!(QueueEmpty);
         test_exception!(QueueFull);
     }
@@ -743,20 +811,20 @@ mod tests {
             let err: PyErr = gaierror::new_err(());
             let socket = py
                 .import("socket")
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
             let d = PyDict::new(py);
             d.set_item("socket", socket)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
             d.set_item("exc", err)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
             py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("assertion failed");
         });
     }
@@ -767,15 +835,15 @@ mod tests {
             let err: PyErr = MessageError::new_err(());
             let email = py
                 .import("email")
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not import email");
 
             let d = PyDict::new(py);
             d.set_item("email", email)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
             d.set_item("exc", err)
-                .map_err(|e| e.print(py))
+                .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
             py.run(
@@ -783,7 +851,7 @@ mod tests {
                 None,
                 Some(d),
             )
-            .map_err(|e| e.print(py))
+            .map_err(|e| e.display(py))
             .expect("assertion failed");
         });
     }
@@ -809,6 +877,24 @@ mod tests {
             .unwrap();
             py.run("assert CustomError.__doc__ is None", None, Some(ctx))
                 .unwrap();
+        });
+    }
+
+    #[test]
+    fn custom_exception_dotted_module() {
+        create_exception!(mymodule.exceptions, CustomError, PyException);
+        Python::with_gil(|py| {
+            let error_type = py.get_type::<CustomError>();
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let type_description: String = py
+                .eval("str(CustomError)", None, Some(ctx))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(
+                type_description,
+                "<class 'mymodule.exceptions.CustomError'>"
+            );
         });
     }
 
@@ -928,6 +1014,7 @@ mod tests {
     #[test]
     fn unicode_decode_error() {
         let invalid_utf8 = b"fo\xd8o";
+        #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         Python::with_gil(|py| {
             let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
@@ -946,7 +1033,11 @@ mod tests {
             );
         });
     }
-
+    #[cfg(Py_3_11)]
+    test_exception!(PyBaseExceptionGroup, |_| PyBaseExceptionGroup::new_err((
+        "msg",
+        vec![PyValueError::new_err("err")]
+    )));
     test_exception!(PyBaseException);
     test_exception!(PyException);
     test_exception!(PyStopAsyncIteration);
@@ -980,13 +1071,13 @@ mod tests {
     test_exception!(PyUnicodeError);
     test_exception!(PyUnicodeDecodeError, |py| {
         let invalid_utf8 = b"fo\xd8o";
+        #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
     });
-    test_exception!(PyUnicodeEncodeError, |py: Python<'_>| {
-        py.eval("chr(40960).encode('ascii')", None, None)
-            .unwrap_err()
-    });
+    test_exception!(PyUnicodeEncodeError, |py| py
+        .eval("chr(40960).encode('ascii')", None, None)
+        .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
         PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))
     });
@@ -1011,4 +1102,17 @@ mod tests {
     test_exception!(PyIOError);
     #[cfg(windows)]
     test_exception!(PyWindowsError);
+
+    test_exception!(PyWarning);
+    test_exception!(PyUserWarning);
+    test_exception!(PyDeprecationWarning);
+    test_exception!(PyPendingDeprecationWarning);
+    test_exception!(PySyntaxWarning);
+    test_exception!(PyRuntimeWarning);
+    test_exception!(PyFutureWarning);
+    test_exception!(PyImportWarning);
+    test_exception!(PyUnicodeWarning);
+    test_exception!(PyBytesWarning);
+    #[cfg(Py_3_10)]
+    test_exception!(PyEncodingWarning);
 }

@@ -1,4 +1,4 @@
-# Python Functions
+# Python functions
 
 The `#[pyfunction]` attribute is used to define a Python function from a Rust function. Once defined, the function needs to be added to a [module](./module.md) using the `wrap_pyfunction!` macro.
 
@@ -19,16 +19,20 @@ fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 }
 ```
 
-This chapter of the guide explains full usage of the `#[pyfunction]` attribute. The following topics are covered:
+This chapter of the guide explains full usage of the `#[pyfunction]` attribute. In this first section, the following topics are covered:
 
 - [Function options](#function-options)
   - [`#[pyo3(name = "...")]`](#name)
+  - [`#[pyo3(signature = (...))]`](#signature)
   - [`#[pyo3(text_signature = "...")]`](#text_signature)
   - [`#[pyo3(pass_module)]`](#pass_module)
-- [Argument parsing](#argument-parsing)
-  - [`#[pyo3(from_py_with = "...")]`](#from_py_with)
+- [Per-argument options](#per-argument-options)
 - [Advanced function patterns](#advanced-function-patterns)
 - [`#[pyfn]` shorthand](#pyfn-shorthand)
+
+There are also additional sections on the following topics:
+
+- [Function Signatures](./function/signature.md)
 
 ## Function options
 
@@ -46,7 +50,9 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
     #[pyfunction]
     #[pyo3(name = "no_args")]
-    fn no_args_py() -> usize { 42 }
+    fn no_args_py() -> usize {
+        42
+    }
 
     #[pymodule]
     fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -61,41 +67,13 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     # });
     ```
 
+  - <a name="signature"></a> `#[pyo3(signature = (...))]`
+
+    Defines the function signature in Python. See [Function Signatures](./function/signature.md).
+
   - <a name="text_signature"></a> `#[pyo3(text_signature = "...")]`
 
-    Sets the function signature visible in Python tooling (such as via [`inspect.signature`]).
-
-    The example below creates a function `add` which has a signature describing two positional-only
-    arguments `a` and `b`.
-
-    ```rust
-    use pyo3::prelude::*;
-
-    /// This function adds two unsigned 64-bit integers.
-    #[pyfunction]
-    #[pyo3(text_signature = "(a, b, /)")]
-    fn add(a: u64, b: u64) -> u64 {
-        a + b
-    }
-    #
-    # fn main() -> PyResult<()> {
-    #     Python::with_gil(|py| {
-    #         let fun = pyo3::wrap_pyfunction!(add, py)?;
-    #
-    #         let doc: String = fun.getattr("__doc__")?.extract()?;
-    #         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
-    #
-    #         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
-    #         let sig: String = inspect
-    #             .call1((fun,))?
-    #             .call_method0("__str__")?
-    #             .extract()?;
-    #         assert_eq!(sig, "(a, b, /)");
-    #
-    #         Ok(())
-    #     })
-    # }
-    ```
+    Overrides the PyO3-generated function signature visible in Python tooling (such as via [`inspect.signature`]). See the [corresponding topic in the Function Signatures subchapter](./function/signature.md#making-the-function-signature-available-to-python).
 
   - <a name="pass_module" ></a> `#[pyo3(pass_module)]`
 
@@ -118,27 +96,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     }
     ```
 
-## Argument parsing
-
-The `#[pyfunction]` attribute supports specifying details of argument parsing. The details are given in the section ["Method arguments" of the Classes chapter](class.md#method-arguments).  Here is an example for a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
-
-```rust
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
-
-#[pyfunction(kwds="**")]
-fn num_kwds(kwds: Option<&PyDict>) -> usize {
-    kwds.map_or(0, |dict| dict.len())
-}
-
-#[pymodule]
-fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?).unwrap();
-    Ok(())
-}
-```
-
-### Per-argument options
+## Per-argument options
 
 The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
 
@@ -157,9 +115,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     }
 
     #[pyfunction]
-    fn object_length(
-        #[pyo3(from_py_with = "get_length")] argument: usize
-    ) -> usize {
+    fn object_length(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
         argument
     }
 
@@ -170,55 +126,6 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     ```
 
 ## Advanced function patterns
-
-### Making the function signature available to Python (old method)
-
-Alternatively, simply make sure the first line of your docstring is
-formatted like in the following example. Please note that the newline after the
-`--` is mandatory. The `/` signifies the end of positional-only arguments.
-
-`#[pyo3(text_signature)]` should be preferred, since it will override automatically
-generated signatures when those are added in a future version of PyO3.
-
-```rust
-# #![allow(dead_code)]
-use pyo3::prelude::*;
-
-/// add(a, b, /)
-/// --
-///
-/// This function adds two unsigned 64-bit integers.
-#[pyfunction]
-fn add(a: u64, b: u64) -> u64 {
-    a + b
-}
-
-// a function with a signature but without docs. Both blank lines after the `--` are mandatory.
-
-/// sub(a, b, /)
-/// --
-///
-///
-#[pyfunction]
-fn sub(a: u64, b: u64) -> u64 {
-    a - b
-}
-```
-
-When annotated like this, signatures are also correctly displayed in IPython.
-
-```text
->>> pyo3_test.add?
-Signature: pyo3_test.add(a, b, /)
-Docstring: This function adds two unsigned 64-bit integers.
-Type:      builtin_function_or_method
-```
-
-### Closures
-
-Currently, there are no conversions between `Fn`s in Rust and callables in Python. This would
-definitely be possible and very useful, so contributions are welcome. In the meantime, you can do
-the following:
 
 ### Calling Python functions in Rust
 
@@ -234,13 +141,12 @@ with only positional args.
 
 ### Calling Rust functions in Python
 
-If you have a static function, you can expose it with `#[pyfunction]` and use [`wrap_pyfunction!`]
-to get the corresponding [`PyCFunction`]. For dynamic functions, e.g. lambdas and functions that
-were passed as arguments, you must put them in some kind of owned container, e.g. a `Box`.
-(A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can
-then use a `#[pyclass]` struct with that container as a field as a way to pass the function over
-the FFI barrier. You can even make that class callable with `__call__` so it looks like a function
-in Python code.
+The ways to convert a Rust function into a Python object vary depending on the function:
+
+- Named functions, e.g. `fn foo()`: add `#[pyfunction]` and then use [`wrap_pyfunction!`] to get the corresponding [`PyCFunction`].
+- Anonymous functions (or closures), e.g. `foo: fn()` either:
+  - use a `#[pyclass]` struct which stores the function as a field and implement `__call__` to call the stored function.
+  - use `PyCFunction::new_closure` to create an object directly from the function.
 
 [`PyAny::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.is_callable
 [`PyAny::call`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call
@@ -274,7 +180,6 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-
     #[pyfn(m)]
     fn double(x: usize) -> usize {
         x * 2
@@ -292,7 +197,6 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-
     #[pyfunction]
     fn double(x: usize) -> usize {
         x * 2

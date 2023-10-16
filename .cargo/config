@@ -1,8 +1,6 @@
-[alias]
-xtask = "run --package xtask --"
-
 [target.'cfg(feature = "cargo-clippy")']
 rustflags = [
+    # Lints to enforce in CI
     "-Dclippy::checked_conversions",
     "-Dclippy::dbg_macro",
     "-Dclippy::explicit_into_iter_loop",
@@ -15,6 +13,7 @@ rustflags = [
     "-Dclippy::todo",
     "-Dclippy::unnecessary_wraps",
     "-Dclippy::useless_transmute",
+    "-Dclippy::used_underscore_binding",
     "-Delided_lifetimes_in_paths",
     "-Dunused_lifetimes",
     "-Drust_2021_prelude_collisions"

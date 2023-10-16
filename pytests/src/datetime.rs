@@ -13,10 +13,7 @@ fn make_date(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate>
 
 #[pyfunction]
 fn get_date_tuple<'p>(py: Python<'p>, d: &PyDate) -> &'p PyTuple {
-    PyTuple::new(
-        py,
-        &[d.get_year(), d.get_month() as i32, d.get_day() as i32],
-    )
+    PyTuple::new(py, [d.get_year(), d.get_month() as i32, d.get_day() as i32])
 }
 
 #[pyfunction]
@@ -33,17 +30,11 @@ fn make_time<'p>(
     microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
 ) -> PyResult<&'p PyTime> {
-    PyTime::new(
-        py,
-        hour,
-        minute,
-        second,
-        microsecond,
-        tzinfo.map(|o| o.to_object(py)).as_ref(),
-    )
+    PyTime::new(py, hour, minute, second, microsecond, tzinfo)
 }
 
 #[pyfunction]
+#[pyo3(signature = (hour, minute, second, microsecond, tzinfo, fold))]
 fn time_with_fold<'p>(
     py: Python<'p>,
     hour: u8,
@@ -53,22 +44,14 @@ fn time_with_fold<'p>(
     tzinfo: Option<&PyTzInfo>,
     fold: bool,
 ) -> PyResult<&'p PyTime> {
-    PyTime::new_with_fold(
-        py,
-        hour,
-        minute,
-        second,
-        microsecond,
-        tzinfo.map(|o| o.to_object(py)).as_ref(),
-        fold,
-    )
+    PyTime::new_with_fold(py, hour, minute, second, microsecond, tzinfo, fold)
 }
 
 #[pyfunction]
 fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     PyTuple::new(
         py,
-        &[
+        [
             dt.get_hour() as u32,
             dt.get_minute() as u32,
             dt.get_second() as u32,
@@ -81,7 +64,7 @@ fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
 fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     PyTuple::new(
         py,
-        &[
+        [
             dt.get_hour() as u32,
             dt.get_minute() as u32,
             dt.get_second() as u32,
@@ -100,7 +83,7 @@ fn make_delta(py: Python<'_>, days: i32, seconds: i32, microseconds: i32) -> PyR
 fn get_delta_tuple<'p>(py: Python<'p>, delta: &PyDelta) -> &'p PyTuple {
     PyTuple::new(
         py,
-        &[
+        [
             delta.get_days(),
             delta.get_seconds(),
             delta.get_microseconds(),
@@ -130,7 +113,7 @@ fn make_datetime<'p>(
         minute,
         second,
         microsecond,
-        tzinfo.map(|o| (o.to_object(py))).as_ref(),
+        tzinfo,
     )
 }
 
@@ -138,7 +121,7 @@ fn make_datetime<'p>(
 fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     PyTuple::new(
         py,
-        &[
+        [
             dt.get_year(),
             dt.get_month() as i32,
             dt.get_day() as i32,
@@ -154,7 +137,7 @@ fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
 fn get_datetime_tuple_fold<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     PyTuple::new(
         py,
-        &[
+        [
             dt.get_year(),
             dt.get_month() as i32,
             dt.get_day() as i32,

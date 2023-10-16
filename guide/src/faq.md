@@ -1,4 +1,4 @@
-# Frequently Asked Questions / Troubleshooting
+# Frequently Asked Questions and troubleshooting
 
 ## I'm experiencing deadlocks using PyO3 with lazy_static or once_cell!
 
@@ -13,11 +13,23 @@
 
 PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` but relies solely on the Python GIL for thread safety. This means it can be used in place of `lazy_static` or `once_cell` where you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] for an example how to use it.
 
-[`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/once_cell/struct.GILOnceCell.html
+[`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/sync/struct.GILOnceCell.html
 
-## I can't run `cargo test`: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
+## I can't run `cargo test`; or I can't build in a Cargo workspace: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
-Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
+Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. Linking errors can also happen when building in a cargo workspace where a different crate also uses PyO3 (see [#2521](https://github.com/PyO3/pyo3/issues/2521)). For now, there are three ways we can work around these issues.
+
+1. Make the `extension-module` feature optional. Build with `maturin develop --features "extension-module"`
+
+```toml
+[dependencies.pyo3]
+{{#PYO3_CRATE_VERSION}}
+
+[features]
+extension-module = ["pyo3/extension-module"]
+```
+
+2. Make the `extension-module` feature optional and default. Run tests with `cargo test --no-default-features`:
 
 ```toml
 [dependencies.pyo3]
@@ -26,6 +38,15 @@ Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` t
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
+```
+
+3. If you are using a [`pyproject.toml`](https://maturin.rs/metadata.html) file to control maturin settings, add the following section:
+
+```toml
+[tool.maturin]
+features = ["pyo3/extension-module"]
+# Or for maturin 0.12:
+# cargo-extra-args = ["--features", "pyo3/extension-module"]
 ```
 
 ## I can't run `cargo test`: my crate cannot be found for tests in `tests/` directory!
@@ -65,7 +86,7 @@ You may have a nested struct similar to this:
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
-struct Inner { /* fields omitted */ }
+struct Inner {/* fields omitted */}
 
 #[pyclass]
 struct Outer {
@@ -105,7 +126,7 @@ If you don't want that cloning to happen, a workaround is to allocate the field 
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
-struct Inner { /* fields omitted */ }
+struct Inner {/* fields omitted */}
 
 #[pyclass]
 struct Outer {
@@ -159,3 +180,20 @@ done with the `crate` attribute:
 #[pyo3(crate = "reexported::pyo3")]
 struct MyClass;
 ```
+
+## I'm trying to call Python from Rust but I get `STATUS_DLL_NOT_FOUND` or `STATUS_ENTRYPOINT_NOT_FOUND`!
+
+This happens on Windows when linking to the python DLL fails or the wrong one is linked. The Python DLL on Windows will usually be called something like: 
+- `python3X.dll` for Python 3.X, e.g. `python310.dll` for Python 3.10
+- `python3.dll` when using PyO3's `abi3` feature
+
+The DLL needs to be locatable using the [Windows DLL search order](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order#standard-search-order-for-unpackaged-apps). Some ways to achieve this are:
+- Put the Python DLL in the same folder as your build artifacts
+- Add the directory containing the Python DLL to your `PATH` environment variable, for example `C:\Users\<You>\AppData\Local\Programs\Python\Python310`
+- If this happens when you are *distributing* your program, consider using [PyOxidizer](https://github.com/indygreg/PyOxidizer) to package it with your binary.
+
+If the wrong DLL is linked it is possible that this happened because another program added itself and its own Python DLLs to `PATH`. Rearrange your `PATH` variables to give the correct DLL priority.
+
+> **Note**: Changes to `PATH` (or any other environment variable) are not visible to existing shells. Restart it for changes to take effect.
+
+For advanced troubleshooting, [Dependency Walker](https://www.dependencywalker.com/) can be used to diagnose linking errors.

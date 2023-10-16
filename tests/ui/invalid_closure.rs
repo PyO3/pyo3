@@ -10,7 +10,7 @@ fn main() {
             println!("This is five: {:?}", ref_.len());
             Ok(())
         };
-        PyCFunction::new_closure(closure_fn, py).unwrap().into()
+        PyCFunction::new_closure(py, None, None, closure_fn).unwrap().into()
     });
 
     Python::with_gil(|py| {

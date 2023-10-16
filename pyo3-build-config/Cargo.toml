@@ -1,22 +1,22 @@
 [package]
 name = "pyo3-build-config"
-version = "0.16.5"
+version = "0.20.0"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
-license = "Apache-2.0"
-edition = "2018"
+license = "MIT OR Apache-2.0"
+edition = "2021"
 
 [dependencies]
 once_cell = "1"
-python3-dll-a = { version = "0.2.2", optional = true }
+python3-dll-a = { version = "0.2.6", optional = true }
 target-lexicon = "0.12"
 
 [build-dependencies]
-python3-dll-a = { version = "0.2.2", optional = true }
+python3-dll-a = { version = "0.2.6", optional = true }
 target-lexicon = "0.12"
 
 [features]
@@ -34,7 +34,8 @@ abi3 = []
 abi3-py37 = ["abi3-py38"]
 abi3-py38 = ["abi3-py39"]
 abi3-py39 = ["abi3-py310"]
-abi3-py310 = ["abi3"]
+abi3-py310 = ["abi3-py311"]
+abi3-py311 = ["abi3"]
 
 [package.metadata.docs.rs]
 features = ["resolve-config"]

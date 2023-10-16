@@ -4,10 +4,10 @@ use std::env;
 use std::path::PathBuf;
 
 use python3_dll_a::ImportLibraryGenerator;
+use target_lexicon::{Architecture, OperatingSystem, Triple};
 
+use super::{PythonImplementation, PythonVersion};
 use crate::errors::{Context, Result};
-
-use super::{Architecture, OperatingSystem, PythonVersion, Triple};
 
 /// Generates the `python3.dll` or `pythonXY.dll` import library for Windows targets.
 ///
@@ -17,6 +17,7 @@ use super::{Architecture, OperatingSystem, PythonVersion, Triple};
 /// Does nothing if the target OS is not Windows.
 pub(super) fn generate_import_lib(
     target: &Triple,
+    py_impl: PythonImplementation,
     py_version: Option<PythonVersion>,
 ) -> Result<Option<String>> {
     if target.operating_system != OperatingSystem::Windows {
@@ -38,9 +39,14 @@ pub(super) fn generate_import_lib(
     };
 
     let env = target.environment.to_string();
+    let implementation = match py_impl {
+        PythonImplementation::CPython => python3_dll_a::PythonImplementation::CPython,
+        PythonImplementation::PyPy => python3_dll_a::PythonImplementation::PyPy,
+    };
 
     ImportLibraryGenerator::new(&arch, &env)
         .version(py_version.map(|v| (v.major, v.minor)))
+        .implementation(implementation)
         .generate(&out_lib_dir)
         .context("failed to generate python3.dll import library")?;
 

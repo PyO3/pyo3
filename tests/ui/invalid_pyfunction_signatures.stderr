@@ -1,0 +1,59 @@
+error: missing signature entry for argument `_x`
+ --> tests/ui/invalid_pyfunction_signatures.rs:5:8
+  |
+5 | #[pyo3(signature = ())]
+  |        ^^^^^^^^^
+
+error: signature entry does not have a corresponding function argument
+ --> tests/ui/invalid_pyfunction_signatures.rs:9:21
+  |
+9 | #[pyo3(signature = (x))]
+  |                     ^
+
+error: expected argument from function definition `y` but got argument `x`
+  --> tests/ui/invalid_pyfunction_signatures.rs:13:21
+   |
+13 | #[pyo3(signature = (x))]
+   |                     ^
+
+error: expected one of: `name`, `pass_module`, `signature`, `text_signature`, `crate`
+  --> tests/ui/invalid_pyfunction_signatures.rs:18:14
+   |
+18 | #[pyfunction(x)]
+   |              ^
+
+error: `*args` not allowed after `*`
+  --> tests/ui/invalid_pyfunction_signatures.rs:25:24
+   |
+25 | #[pyo3(signature = (*, *args))]
+   |                        ^
+
+error: `*` not allowed after `*`
+  --> tests/ui/invalid_pyfunction_signatures.rs:31:24
+   |
+31 | #[pyo3(signature = (*, *))]
+   |                        ^
+
+error: `*args` not allowed after `**kwargs`
+  --> tests/ui/invalid_pyfunction_signatures.rs:35:31
+   |
+35 | #[pyo3(signature = (**kwargs, *args))]
+   |                               ^
+
+error: `**kwargs_b` not allowed after `**kwargs_a`
+  --> tests/ui/invalid_pyfunction_signatures.rs:41:33
+   |
+41 | #[pyo3(signature = (**kwargs_a, **kwargs_b))]
+   |                                 ^
+
+error: arguments of type `Python` must not be part of the signature
+  --> tests/ui/invalid_pyfunction_signatures.rs:47:27
+   |
+47 | #[pyfunction(signature = (py))]
+   |                           ^^
+
+error: cannot find attribute `args` in this scope
+  --> tests/ui/invalid_pyfunction_signatures.rs:57:7
+   |
+57 |     #[args(x)]
+   |       ^^^^

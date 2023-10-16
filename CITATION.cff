@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: PyO3
+message: >-
+  If you use this software as part of a publication and wish to cite
+  it, please use the metadata from this file.
+type: software
+authors:
+  - name: PyO3 Project and Contributors
+    website: https://github.com/PyO3
+license:
+  - Apache-2.0
+  - MIT

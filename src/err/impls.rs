@@ -2,15 +2,46 @@ use crate::{err::PyErrArguments, exceptions, IntoPy, PyErr, PyObject, Python};
 use std::io;
 
 /// Convert `PyErr` to `io::Error`
-impl std::convert::From<PyErr> for io::Error {
+impl From<PyErr> for io::Error {
     fn from(err: PyErr) -> Self {
-        io::Error::new(io::ErrorKind::Other, format!("Python exception: {}", err))
+        let kind = Python::with_gil(|py| {
+            if err.is_instance_of::<exceptions::PyBrokenPipeError>(py) {
+                io::ErrorKind::BrokenPipe
+            } else if err.is_instance_of::<exceptions::PyConnectionRefusedError>(py) {
+                io::ErrorKind::ConnectionRefused
+            } else if err.is_instance_of::<exceptions::PyConnectionAbortedError>(py) {
+                io::ErrorKind::ConnectionAborted
+            } else if err.is_instance_of::<exceptions::PyConnectionResetError>(py) {
+                io::ErrorKind::ConnectionReset
+            } else if err.is_instance_of::<exceptions::PyInterruptedError>(py) {
+                io::ErrorKind::Interrupted
+            } else if err.is_instance_of::<exceptions::PyFileNotFoundError>(py) {
+                io::ErrorKind::NotFound
+            } else if err.is_instance_of::<exceptions::PyPermissionError>(py) {
+                io::ErrorKind::PermissionDenied
+            } else if err.is_instance_of::<exceptions::PyFileExistsError>(py) {
+                io::ErrorKind::AlreadyExists
+            } else if err.is_instance_of::<exceptions::PyBlockingIOError>(py) {
+                io::ErrorKind::WouldBlock
+            } else if err.is_instance_of::<exceptions::PyTimeoutError>(py) {
+                io::ErrorKind::TimedOut
+            } else {
+                io::ErrorKind::Other
+            }
+        });
+        io::Error::new(kind, err)
     }
 }
 
-/// Create `OSError` from `io::Error`
-impl std::convert::From<io::Error> for PyErr {
+/// Create `PyErr` from `io::Error`
+/// (`OSError` except if the `io::Error` is wrapping a Python exception,
+/// in this case the exception is returned)
+impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
+        // If the error wraps a Python error we return it
+        if err.get_ref().map_or(false, |e| e.is::<PyErr>()) {
+            return *err.into_inner().unwrap().downcast().unwrap();
+        }
         match err.kind() {
             io::ErrorKind::BrokenPipe => exceptions::PyBrokenPipeError::new_err(err),
             io::ErrorKind::ConnectionRefused => exceptions::PyConnectionRefusedError::new_err(err),
@@ -33,21 +64,19 @@ impl PyErrArguments for io::Error {
     }
 }
 
-impl<W: 'static + Send + Sync + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>>
-    for PyErr
-{
-    fn from(err: std::io::IntoInnerError<W>) -> PyErr {
-        exceptions::PyOSError::new_err(err)
+impl<W> From<io::IntoInnerError<W>> for PyErr {
+    fn from(err: io::IntoInnerError<W>) -> PyErr {
+        err.into_error().into()
     }
 }
 
-impl<W: Send + Sync + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
+impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     fn arguments(self, py: Python<'_>) -> PyObject {
-        self.to_string().into_py(py)
+        self.into_error().arguments(py)
     }
 }
 
-impl std::convert::From<std::convert::Infallible> for PyErr {
+impl From<std::convert::Infallible> for PyErr {
     fn from(_: std::convert::Infallible) -> PyErr {
         unreachable!()
     }
@@ -90,18 +119,29 @@ impl_to_pyerr!(std::net::AddrParseError, exceptions::PyValueError);
 
 #[cfg(test)]
 mod tests {
-    use crate::PyErr;
+    use crate::{PyErr, Python};
     use std::io;
 
     #[test]
     fn io_errors() {
         let check_err = |kind, expected_ty| {
-            let py_err: PyErr = io::Error::new(kind, "some error msg").into();
-            let err_msg = format!("{}: some error msg", expected_ty);
-            assert_eq!(py_err.to_string(), err_msg);
+            Python::with_gil(|py| {
+                let rust_err = io::Error::new(kind, "some error msg");
 
-            let os_err: io::Error = py_err.into();
-            assert_eq!(os_err.to_string(), format!("Python exception: {}", err_msg));
+                let py_err: PyErr = rust_err.into();
+                let py_err_msg = format!("{}: some error msg", expected_ty);
+                assert_eq!(py_err.to_string(), py_err_msg);
+                let py_error_clone = py_err.clone_ref(py);
+
+                let rust_err_from_py_err: io::Error = py_err.into();
+                assert_eq!(rust_err_from_py_err.to_string(), py_err_msg);
+                assert_eq!(rust_err_from_py_err.kind(), kind);
+
+                let py_err_recovered_from_rust_err: PyErr = rust_err_from_py_err.into();
+                assert!(py_err_recovered_from_rust_err
+                    .value(py)
+                    .is(py_error_clone.value(py))); // It should be the same exception
+            })
         };
 
         check_err(io::ErrorKind::BrokenPipe, "BrokenPipeError");

@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.16.5"
+version = "0.20.0"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -9,62 +9,68 @@ homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3"
 documentation = "https://docs.rs/crate/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
-license = "Apache-2.0"
-exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py"]
-edition = "2018"
+license = "MIT OR Apache-2.0"
+exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py", "/.github", "/tests/test_compile_error.rs", "/tests/ui"]
+edition = "2021"
+rust-version = "1.56"
 
 [dependencies]
 cfg-if = "1.0"
 libc = "0.2.62"
 parking_lot = ">= 0.11, < 0.13"
+memoffset = "0.9"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.16.5" }
+pyo3-ffi = { path = "pyo3-ffi", version = "=0.20.0" }
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.16.5", optional = true }
-indoc = { version = "1.0.3", optional = true }
-unindent = { version = "0.1.4", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.20.0", optional = true }
+indoc = { version = "2.0.1", optional = true }
+unindent = { version = "0.2.1", optional = true }
 
 # support crate for multiple-pymethods feature
-inventory = { version = "0.2.0", optional = true }
+inventory = { version = "0.3.0", optional = true }
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
+chrono = { version = "0.4.25", default-features = false, optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
-hashbrown = { version = ">= 0.9, < 0.13", optional = true }
-indexmap = { version = ">= 1.6, < 1.8", optional = true }
+hashbrown = { version = ">= 0.9, < 0.15", optional = true }
+indexmap = { version = ">= 1.6, < 3", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-complex = { version = ">= 0.2, < 0.5", optional = true }
+rust_decimal = { version = "1.0.0", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
+smallvec = { version = "1.0", optional = true }
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-criterion = "0.3.5"
-trybuild = "1.0.49"
-rustversion = "1.0"
-# 1.0.0 requires Rust 1.50
-proptest = { version = "0.10.1", default-features = false, features = ["std"] }
-send_wrapper = "0.5"
+chrono = { version = "0.4.25" }
+# Required for "and $N others" normalization
+trybuild = ">=1.0.70"
+proptest = { version = "1.0", default-features = false, features = ["std"] }
+send_wrapper = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 rayon = "1.0.2"
+rust_decimal = { version = "1.8.0", features = ["std"] }
 widestring = "0.5.1"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.16.5", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "0.20.0", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
+
+# Enables pyo3::inspect module and additional type information on FromPyObject
+# and IntoPy traits
+experimental-inspect = []
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
 
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
-
-# Enables deprecated #[pyproto] macro
-pyproto = ["pyo3-macros/pyproto"]
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
@@ -78,15 +84,13 @@ abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3", "pyo3-macros/abi3"]
 abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37", "pyo3-ffi/abi3-py37"]
 abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38", "pyo3-ffi/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39", "pyo3-ffi/abi3-py39"]
-abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
+abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
+abi3-py311 = ["abi3", "pyo3-build-config/abi3-py311", "pyo3-ffi/abi3-py311"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
-# Deprecated, replaced by `generate-import-lib`
-generate-abi3-import-lib = ["generate-import-lib"]
 
-# Changes `Python::with_gil` and `Python::acquire_gil` to automatically initialize the
-# Python interpreter if needed.
+# Changes `Python::with_gil` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
 
 # Optimizes PyObject to Vec conversion and so on.
@@ -96,62 +100,19 @@ nightly = []
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
     "macros",
-    "pyproto",
-    "multiple-pymethods",
+    # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
+    "chrono",
     "num-bigint",
     "num-complex",
     "hashbrown",
+    "smallvec",
     "serde",
     "indexmap",
     "eyre",
     "anyhow",
+    "experimental-inspect",
+    "rust_decimal",
 ]
-
-[[bench]]
-name = "bench_call"
-harness = false
-
-[[bench]]
-name = "bench_err"
-harness = false
-
-[[bench]]
-name = "bench_dict"
-harness = false
-
-[[bench]]
-name = "bench_frompyobject"
-harness = false
-required-features = ["macros"]
-
-[[bench]]
-name = "bench_gil"
-harness = false
-
-[[bench]]
-name = "bench_list"
-harness = false
-
-[[bench]]
-name = "bench_pyclass"
-harness = false
-required-features = ["macros"]
-
-[[bench]]
-name = "bench_pyobject"
-harness = false
-
-[[bench]]
-name = "bench_set"
-harness = false
-
-[[bench]]
-name = "bench_tuple"
-harness = false
-
-[[bench]]
-name = "bench_intern"
-harness = false
 
 [workspace]
 members = [
@@ -161,10 +122,9 @@ members = [
     "pyo3-macros-backend",
     "pytests",
     "examples",
-    "xtask"
 ]
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre"]
+features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre", "chrono", "rust_decimal"]
 rustdoc-args = ["--cfg", "docsrs"]

@@ -1,6 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
+use std::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -15,7 +16,7 @@ pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyDict_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyDict_Type)) as c_int
 }
 
 extern "C" {
@@ -23,6 +24,7 @@ extern "C" {
     pub fn PyDict_New() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
     pub fn PyDict_GetItem(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyDict_GetItemWithError")]
     pub fn PyDict_GetItemWithError(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_SetItem")]
     pub fn PyDict_SetItem(mp: *mut PyObject, key: *mut PyObject, item: *mut PyObject) -> c_int;
@@ -76,17 +78,17 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyDictKeys_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyDictKeys_Type)) as c_int
 }
 
 #[inline]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyDictValues_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyDictValues_Type)) as c_int
 }
 
 #[inline]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyDictItems_Type)) as c_int
+    (Py_TYPE(op) == addr_of_mut!(PyDictItems_Type)) as c_int
 }
 
 #[inline]

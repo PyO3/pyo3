@@ -7,10 +7,8 @@ opaque_struct!(PyDictKeysObject);
 #[cfg(Py_3_11)]
 opaque_struct!(PyDictValues);
 
-#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug)]
-// Not moved because dict.rs uses PyDictObject extensively.
 pub struct PyDictObject {
     pub ob_base: PyObject,
     pub ma_used: Py_ssize_t,
@@ -20,15 +18,6 @@ pub struct PyDictObject {
     pub ma_values: *mut *mut PyObject,
     #[cfg(Py_3_11)]
     pub ma_values: *mut PyDictValues,
-}
-
-#[cfg(PyPy)]
-#[repr(C)]
-#[derive(Debug)]
-pub struct PyDictObject {
-    pub ob_base: PyObject,
-    // a private place to put keys during PyDict_Next
-    _tmpkeys: *mut PyObject,
 }
 
 extern "C" {
@@ -53,7 +42,6 @@ extern "C" {
         hash: *mut crate::Py_hash_t,
     ) -> c_int;
     // skipped PyDict_GET_SIZE
-    // skipped _PyDict_Contains_KnownHash
     // skipped _PyDict_ContainsId
     pub fn _PyDict_NewPresized(minused: Py_ssize_t) -> *mut PyObject;
     // skipped _PyDict_MaybeUntrack
@@ -74,6 +62,14 @@ extern "C" {
     // skipped _PyDictViewObject
     // skipped _PyDictView_New
     // skipped _PyDictView_Intersect
+
+    #[cfg(Py_3_10)]
+    pub fn _PyDict_Contains_KnownHash(
+        op: *mut PyObject,
+        key: *mut PyObject,
+        hash: crate::Py_hash_t,
+    ) -> c_int;
+
     #[cfg(not(Py_3_10))]
     pub fn _PyDict_Contains(mp: *mut PyObject, key: *mut PyObject, hash: Py_ssize_t) -> c_int;
 }

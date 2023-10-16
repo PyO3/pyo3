@@ -1,0 +1,15 @@
+name: changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled, edited]
+
+jobs:
+  check:
+    name: Check changelog entry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+      - run: python -m pip install --upgrade pip && pip install nox
+      - run: nox -s check-changelog
