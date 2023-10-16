@@ -135,7 +135,7 @@ where
             Err(msg) => {
                 if let Ok(mappingproxy) = ob.downcast::<PyMappingProxy>() {
                     let mut ret = indexmap::IndexMap::with_capacity_and_hasher(
-                        mappingproxy.len(),
+                        mappingproxy.len().unwrap_or_default(),
                         S::default(),
                     );
                     for (k, v) in mappingproxy {

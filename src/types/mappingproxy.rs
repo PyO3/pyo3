@@ -44,7 +44,7 @@ impl PyMappingProxy {
 
     /// Checks if the mappingproxy is empty, i.e. `len(self) == 0`.
     pub fn is_empty(&self) -> bool {
-        self.len().unwrap() == 0
+        self.len().unwrap_or_default() == 0
     }
 
     /// Gets an item from the mappingproxy.
