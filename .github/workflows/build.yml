@@ -16,16 +16,13 @@ on:
       rust-target:
         required: true
         type: string
-      msrv:
-        required: false
-        type: string
       extra-features:
         required: true
         type: string
 
 jobs:
   build:
-    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) }}
+    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) || inputs.rust == 'beta' }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v4
@@ -49,18 +46,18 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-${{ inputs.python-architecture }}-${{ inputs.os }}-${{ inputs.msrv }}
+          key: cargo-${{ inputs.python-architecture }}
         continue-on-error: true
 
       - if: inputs.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-      - if: inputs.msrv == 'MSRV'
+      - if: inputs.rust == '1.56.0'
         name: Prepare minimal package versions (MSRV only)
         run: nox -s set-minimal-package-versions
 
-      - if: inputs.rust == 'nightly' || inputs.msrv == 'MSRV'
+      - if: inputs.rust != 'stable'
         name: Ignore changed error messages when using trybuild
         run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
 
