@@ -135,7 +135,6 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
-      msrv: ${{ matrix.msrv }}
       extra-features: ${{ matrix.platform.extra-features }}
     secrets: inherit
     strategy:
@@ -179,7 +178,6 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
-      msrv: ${{ matrix.msrv }}
       extra-features: ${{ matrix.platform.extra-features }}
     secrets: inherit
     strategy:
@@ -228,7 +226,6 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
-            msrv: "MSRV"
             extra-features: ""
 
           # Test the `nightly` feature
@@ -241,6 +238,17 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
             extra-features: "nightly multiple-pymethods"
+
+          # Run rust beta to help catch toolchain regressions
+          - rust: beta
+            python-version: "3.12"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+            extra-features: "multiple-pymethods"
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
