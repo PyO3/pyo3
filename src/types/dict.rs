@@ -65,7 +65,8 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<&PyDict> {
+    pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
+        let py = seq.py();
         let dict = Self::new(py);
         err::error_on_minusone(py, unsafe {
             ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1)
@@ -505,7 +506,7 @@ mod tests {
     fn test_from_sequence() {
         Python::with_gil(|py| {
             let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
-            let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
+            let dict = PyDict::from_sequence(items).unwrap();
             assert_eq!(
                 1,
                 dict.get_item("a")
@@ -534,7 +535,7 @@ mod tests {
     fn test_from_sequence_err() {
         Python::with_gil(|py| {
             let items = PyList::new(py, &vec!["a", "b"]);
-            assert!(PyDict::from_sequence(py, items.to_object(py)).is_err());
+            assert!(PyDict::from_sequence(items).is_err());
         });
     }
 
