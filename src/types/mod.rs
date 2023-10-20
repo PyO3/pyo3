@@ -280,7 +280,7 @@ mod code;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;
-mod dict;
+pub(crate) mod dict;
 mod ellipsis;
 mod floatob;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
