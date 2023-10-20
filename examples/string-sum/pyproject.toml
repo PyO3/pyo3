@@ -3,7 +3,7 @@ requires = ["maturin>=1,<2"]
 build-backend = "maturin"
 
 [project]
-name = "string sum"
+name = "string_sum"
 version = "0.1.0"
 classifiers = [
     "License :: OSI Approved :: MIT License",
@@ -14,3 +14,6 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest"]
