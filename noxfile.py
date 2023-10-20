@@ -137,6 +137,19 @@ def bench(session: nox.Session) -> bool:
     _run_cargo(session, "bench", _BENCHES, *session.posargs)
 
 
+@nox.session()
+def codspeed(session: nox.Session) -> bool:
+    # rust benchmarks
+    os.chdir(PYO3_DIR / "pyo3-benches")
+    _run_cargo(session, "codspeed", "build")
+    _run_cargo(session, "codspeed", "run")
+    # python benchmarks
+    os.chdir(PYO3_DIR / "pytests")
+    session.install("-r", "requirements-dev.txt", "pytest-codspeed")
+    session.install(".")
+    _run(session, "pytest", "--codspeed", external=True)
+
+
 @nox.session(name="clippy-all", venv_backend="none")
 def clippy_all(session: nox.Session) -> None:
     success = True
