@@ -214,6 +214,7 @@ about this topic.
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
 - [tzfpy](http://github.com/ringsaturn/tzfpy) _A fast package to convert longitude/latitude to timezone name._
+- [utiles](https://github.com/jessekrubin/utiles) _Fast Python web-map tile utilities_
 - [wasmer-python](https://github.com/wasmerio/wasmer-python) _Python library to run WebAssembly binaries._
 
 ## Articles and other media
