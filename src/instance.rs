@@ -214,6 +214,60 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
     }
 }
 
+/// A borrowed equivalent to `Py2`.
+///
+/// The advantage of this over `&Py2` is that it avoids the need to have a pointer-to-pointer, as Py2
+/// is already a pointer to a PyObject.
+#[repr(transparent)]
+pub(crate) struct Py2Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py2<'py, T>>); // TODO is it useful to have the generic form?
+
+impl<'a, 'py> Py2Borrowed<'a, 'py, PyAny> {
+    /// # Safety
+    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// the caller and it's the caller's responsibility to ensure that the reference this is
+    /// derived from is valid for the lifetime `'a`.
+    pub(crate) unsafe fn from_ptr_or_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        NonNull::new(ptr).map_or_else(|| Err(PyErr::fetch(py)), |ptr| Ok(Self(ptr, PhantomData)))
+    }
+
+    /// # Safety
+    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// the caller and it's the caller's responsibility to ensure that the reference this is
+    /// derived from is valid for the lifetime `'a`.
+    pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self(NonNull::new_unchecked(ptr), PhantomData)
+    }
+}
+
+impl<'py, T> Py2Borrowed<'py, 'py, T>
+where
+    T: PyTypeInfo,
+{
+    pub(crate) fn from_gil_ref(gil_ref: &'py T::AsRefTarget) -> Self {
+        // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
+        // so &'py T::AsRefTarget has the same layout as Self.
+        unsafe { std::mem::transmute(gil_ref) }
+    }
+
+    pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
+        // Safety: self is a borrow over `'py`.
+        unsafe { self.py().from_borrowed_ptr(self.0.as_ptr()) }
+    }
+}
+
+impl<'py, T> Deref for Py2Borrowed<'_, 'py, T> {
+    type Target = Py2<'py, T>;
+
+    #[inline]
+    fn deref(&self) -> &Py2<'py, T> {
+        // safety: Py2 has the same layout as NonNull<ffi::PyObject>
+        unsafe { &*(&self.0 as *const _ as *const Py2<'py, T>) }
+    }
+}
+
 /// A GIL-independent reference to an object allocated on the Python heap.
 ///
 /// This type does not auto-dereference to the inner object because you must prove you hold the GIL to access it.

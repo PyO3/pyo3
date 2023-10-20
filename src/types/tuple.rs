@@ -4,7 +4,9 @@ use std::iter::FusedIterator;
 use crate::ffi::{self, Py_ssize_t};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::instance::Py2Borrowed;
 use crate::internal_tricks::get_ssize_index;
+use crate::prelude::*;
 use crate::types::PyList;
 use crate::types::PySequence;
 use crate::{
@@ -225,6 +227,182 @@ impl PyTuple {
 
 index_impls!(PyTuple, "tuple", PyTuple::len, PyTuple::get_slice);
 
+/// Implementation of functionality for [`PyTuple`].
+///
+/// These methods are defined for the `Py2<'py, PyTuple>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PyTuple")]
+pub(crate) trait PyTupleMethods<'py> {
+    /// Gets the length of the tuple.
+    fn len(&self) -> usize;
+
+    /// Checks if the tuple is empty.
+    fn is_empty(&self) -> bool;
+
+    /// Returns `self` cast as a `PySequence`.
+    fn as_sequence(&self) -> &Py2<'py, PySequence>;
+
+    /// Takes the slice `self[low:high]` and returns it as a new tuple.
+    ///
+    /// Indices must be nonnegative, and out-of-range indices are clipped to
+    /// `self.len()`.
+    fn get_slice(&self, low: usize, high: usize) -> Py2<'py, PyTuple>;
+
+    /// Gets the tuple item at the specified index.
+    /// # Example
+    /// ```
+    /// use pyo3::{prelude::*, types::PyTuple};
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let ob = (1, 2, 3).to_object(py);
+    ///     let tuple: &PyTuple = ob.downcast(py).unwrap();
+    ///     let obj = tuple.get_item(0);
+    ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    fn get_item<'a>(&'a self, index: usize) -> PyResult<Py2Borrowed<'a, 'py, PyAny>>;
+
+    /// Gets the tuple item at the specified index. Undefined behavior on bad index. Use with caution.
+    ///
+    /// # Safety
+    ///
+    /// Caller must verify that the index is within the bounds of the tuple.
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    fn get_item_unchecked<'a>(&'a self, index: usize) -> Py2Borrowed<'a, 'py, PyAny>;
+
+    /// Returns `self` as a slice of objects.
+    #[cfg(not(Py_LIMITED_API))]
+    fn as_slice(&self) -> &[Py2<'py, PyAny>];
+
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
+    fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToPyObject;
+
+    /// Returns the first index `i` for which `self[i] == value`.
+    ///
+    /// This is equivalent to the Python expression `self.index(value)`.
+    fn index<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToPyObject;
+
+    /// Returns an iterator over the tuple items.
+    fn iter<'a>(&'a self) -> PyTupleIter<'a, 'py>;
+
+    /// Returns an iterator over the tuple items.
+    fn into_iter(self) -> PyTupleIntoIter<'py>;
+
+    /// Return a new list containing the contents of this tuple; equivalent to the Python expression `list(tuple)`.
+    ///
+    /// This method is equivalent to `self.as_sequence().to_list()` and faster than `PyList::new(py, self)`.
+    fn to_list(&self) -> Py2<'py, PyList>;
+}
+
+impl<'py> PyTupleMethods<'py> for Py2<'py, PyTuple> {
+    fn len(&self) -> usize {
+        unsafe {
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            let size = ffi::PyTuple_GET_SIZE(self.as_ptr());
+            #[cfg(any(Py_LIMITED_API, PyPy))]
+            let size = ffi::PyTuple_Size(self.as_ptr());
+            // non-negative Py_ssize_t should always fit into Rust uint
+            size as usize
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn as_sequence(&self) -> &Py2<'py, PySequence> {
+        unsafe { self.downcast_unchecked() }
+    }
+
+    fn get_slice(&self, low: usize, high: usize) -> Py2<'py, PyTuple> {
+        unsafe {
+            Py2::from_owned_ptr(
+                self.py(),
+                ffi::PyTuple_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high)),
+            )
+            .downcast_into_unchecked()
+        }
+    }
+
+    fn get_item<'a>(&'a self, index: usize) -> PyResult<Py2Borrowed<'a, 'py, PyAny>> {
+        unsafe {
+            Py2Borrowed::from_ptr_or_err(
+                self.py(),
+                ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t),
+            )
+        }
+    }
+
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    fn get_item_unchecked<'a>(&'a self, index: usize) -> Py2Borrowed<'a, 'py, PyAny> {
+        unsafe {
+            Py2Borrowed::from_ptr_unchecked(
+                self.py(),
+                ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t),
+            )
+        }
+    }
+
+    #[cfg(not(Py_LIMITED_API))]
+    fn as_slice(&self) -> &[Py2<'py, PyAny>] {
+        // This is safe because Py2<'py, PyAny> has the same memory layout as *mut ffi::PyObject,
+        // and because tuples are immutable.
+        unsafe {
+            let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
+            let slice = std::slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
+            &*(slice as *const [*mut ffi::PyObject] as *const [Py2<'py, PyAny>])
+        }
+    }
+
+    #[inline]
+    fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToPyObject,
+    {
+        self.as_sequence().contains(value)
+    }
+
+    #[inline]
+    fn index<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToPyObject,
+    {
+        self.as_sequence().index(value)
+    }
+
+    fn iter<'a>(&'a self) -> PyTupleIter<'a, 'py> {
+        PyTupleIterator {
+            tuple: self,
+            index: 0,
+            length: self.len(),
+        }
+    }
+
+    fn into_iter(self) -> PyTupleIntoIter<'py> {
+        PyTupleIterator {
+            tuple: self,
+            index: 0,
+            length: self.len(),
+        }
+    }
+
+    fn to_list(&self) -> &PyList {
+        self.as_sequence()
+            .to_list()
+            .expect("failed to convert tuple to list")
+    }
+}
+
 /// Used by `PyTuple::iter()`.
 pub struct PyTupleIterator<'a> {
     tuple: &'a PyTuple,
@@ -287,6 +465,142 @@ impl FusedIterator for PyTupleIterator<'_> {}
 impl<'a> IntoIterator for &'a PyTuple {
     type Item = &'a PyAny;
     type IntoIter = PyTupleIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+/// Used by `PyTuple::iter()`.
+pub(crate) struct PyTupleIter<'a, 'py> {
+    tuple: &'a Py2<'py, PyTuple>,
+    index: usize,
+    length: usize,
+}
+
+impl<'a, 'py> PyTupleIter<'a, 'py> {
+    unsafe fn get_item(&self, index: usize) -> &'a PyAny {
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        let item = self.tuple.get_item(index).expect("tuple.get failed");
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        let item = self.tuple.get_item_unchecked(index);
+        item
+    }
+}
+
+impl<'a, 'py> Iterator for PyTupleIter<'a, 'py> {
+    type Item = Py2Borrowed<'a, 'py, PyAny>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let item = unsafe { self.get_item(self.index) };
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<'a, 'py> DoubleEndedIterator for PyTupleIter<'a, 'py> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let item = unsafe { self.get_item(self.length - 1) };
+            self.length -= 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, 'py> ExactSizeIterator for PyTupleIter<'a, 'py> {
+    fn len(&self) -> usize {
+        self.length.saturating_sub(self.index)
+    }
+}
+
+impl FusedIterator for PyTupleIter<'_, '_> {}
+
+impl<'a, 'py> IntoIterator for &'a Py2<'py, PyTuple> {
+    type Item = Py2Borrowed<'a, 'py, PyAny>;
+    type IntoIter = PyTupleIter<'a, 'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+/// Used by `PyTuple::into_iter()`.
+pub(crate) struct PyTupleIntoIter<'py> {
+    tuple: &'py PyTuple,
+    index: usize,
+    length: usize,
+}
+
+impl<'py> PyTupleIntoIter<'py> {
+    unsafe fn get_item(&self, index: usize) -> &'py PyAny {
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        let item = self.tuple.get_item(index).expect("tuple.get failed");
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        let item = self.tuple.get_item_unchecked(index);
+        item
+    }
+}
+
+impl<'py> Iterator for PyTupleIntoIter<'py> {
+    type Item = Py2<'py, PyAny>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let item = unsafe { self.get_item(self.index) };
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<'py> DoubleEndedIterator for PyTupleIntoIter<'py> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let item = unsafe { self.get_item(self.length - 1) };
+            self.length -= 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'py> ExactSizeIterator for PyTupleIntoIter<'py> {
+    fn len(&self) -> usize {
+        self.length.saturating_sub(self.index)
+    }
+}
+
+impl FusedIterator for PyTupleIntoIter<'_> {}
+
+impl<'py> IntoIterator for Py2<'py, PyTuple> {
+    type Item = Py2<'py, PyAny>;
+    type IntoIter = PyTupleIntoIter<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

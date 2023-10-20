@@ -302,5 +302,5 @@ pub(crate) mod set;
 mod slice;
 mod string;
 mod traceback;
-mod tuple;
+pub(crate) mod tuple;
 mod typeobject;
