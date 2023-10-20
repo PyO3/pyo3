@@ -296,7 +296,7 @@ mod notimplemented;
 mod num;
 #[cfg(not(PyPy))]
 mod pysuper;
-mod sequence;
+pub(crate) mod sequence;
 pub(crate) mod set;
 mod slice;
 mod string;

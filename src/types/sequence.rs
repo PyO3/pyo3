@@ -3,10 +3,11 @@ use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
+use crate::prelude::*;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, FromPyObject, Py, PyNativeType, PyObject, PyTypeCheck, Python, ToPyObject};
+use crate::{ffi, FromPyObject, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -20,15 +21,13 @@ impl PySequence {
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
-        let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
-        crate::err::error_on_minusone(self.py(), v)?;
-        Ok(v as usize)
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).len()
     }
 
     /// Returns whether the sequence is empty.
     #[inline]
     pub fn is_empty(&self) -> PyResult<bool> {
-        self.len().map(|l| l == 0)
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).is_empty()
     }
 
     /// Returns the concatenation of `self` and `other`.
@@ -36,10 +35,9 @@ impl PySequence {
     /// This is equivalent to the Python expression `self + other`.
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
-        unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .concat(Py2::<PySequence>::borrowed_from_gil_ref(&other))
+            .map(Py2::into_gil_ref)
     }
 
     /// Returns the result of repeating a sequence object `count` times.
@@ -47,12 +45,9 @@ impl PySequence {
     /// This is equivalent to the Python expression `self * count`.
     #[inline]
     pub fn repeat(&self, count: usize) -> PyResult<&PySequence> {
-        unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PySequence_Repeat(
-                self.as_ptr(),
-                get_ssize_index(count),
-            ))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .repeat(count)
+            .map(Py2::into_gil_ref)
     }
 
     /// Concatenates `self` and `other`, in place if possible.
@@ -64,10 +59,9 @@ impl PySequence {
     /// possible, but create and return a new object if not.
     #[inline]
     pub fn in_place_concat(&self, other: &PySequence) -> PyResult<&PySequence> {
-        unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr()))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .in_place_concat(Py2::<PySequence>::borrowed_from_gil_ref(&other))
+            .map(Py2::into_gil_ref)
     }
 
     /// Repeats the sequence object `count` times and updates `self`, if possible.
@@ -79,13 +73,9 @@ impl PySequence {
     /// possible, but create and return a new object if not.
     #[inline]
     pub fn in_place_repeat(&self, count: usize) -> PyResult<&PySequence> {
-        unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PySequence_InPlaceRepeat(
-                    self.as_ptr(),
-                    get_ssize_index(count),
-                ))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .in_place_repeat(count)
+            .map(Py2::into_gil_ref)
     }
 
     /// Returns the `index`th element of the Sequence.
@@ -93,12 +83,9 @@ impl PySequence {
     /// This is equivalent to the Python expression `self[index]` without support of negative indices.
     #[inline]
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
-        unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PySequence_GetItem(
-                self.as_ptr(),
-                get_ssize_index(index),
-            ))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .get_item(index)
+            .map(|py2| py2.into_gil_ref())
     }
 
     /// Returns the slice of sequence object between `begin` and `end`.
@@ -106,13 +93,9 @@ impl PySequence {
     /// This is equivalent to the Python expression `self[begin:end]`.
     #[inline]
     pub fn get_slice(&self, begin: usize, end: usize) -> PyResult<&PySequence> {
-        unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PySequence_GetSlice(
-                self.as_ptr(),
-                get_ssize_index(begin),
-                get_ssize_index(end),
-            ))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .get_slice(begin, end)
+            .map(Py2::into_gil_ref)
     }
 
     /// Assigns object `item` to the `i`th element of self.
@@ -123,13 +106,7 @@ impl PySequence {
     where
         I: ToPyObject,
     {
-        fn inner(seq: &PySequence, i: usize, item: PyObject) -> PyResult<()> {
-            err::error_on_minusone(seq.py(), unsafe {
-                ffi::PySequence_SetItem(seq.as_ptr(), get_ssize_index(i), item.as_ptr())
-            })
-        }
-
-        inner(self, i, item.to_object(self.py()))
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).set_item(i, item)
     }
 
     /// Deletes the `i`th element of self.
@@ -137,9 +114,7 @@ impl PySequence {
     /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
     pub fn del_item(&self, i: usize) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
-            ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i))
-        })
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).del_item(i)
     }
 
     /// Assigns the sequence `v` to the slice of `self` from `i1` to `i2`.
@@ -147,14 +122,11 @@ impl PySequence {
     /// This is equivalent to the Python statement `self[i1:i2] = v`.
     #[inline]
     pub fn set_slice(&self, i1: usize, i2: usize, v: &PyAny) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
-            ffi::PySequence_SetSlice(
-                self.as_ptr(),
-                get_ssize_index(i1),
-                get_ssize_index(i2),
-                v.as_ptr(),
-            )
-        })
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).set_slice(
+            i1,
+            i2,
+            Py2::borrowed_from_gil_ref(&v),
+        )
     }
 
     /// Deletes the slice from `i1` to `i2` from `self`.
@@ -162,9 +134,7 @@ impl PySequence {
     /// This is equivalent to the Python statement `del self[i1:i2]`.
     #[inline]
     pub fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
-            ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2))
-        })
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).del_slice(i1, i2)
     }
 
     /// Returns the number of occurrences of `value` in self, that is, return the
@@ -175,13 +145,7 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        fn inner(seq: &PySequence, value: PyObject) -> PyResult<usize> {
-            let r = unsafe { ffi::PySequence_Count(seq.as_ptr(), value.as_ptr()) };
-            crate::err::error_on_minusone(seq.py(), r)?;
-            Ok(r as usize)
-        }
-
-        inner(self, value.to_object(self.py()))
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).count(value)
     }
 
     /// Determines if self contains `value`.
@@ -192,16 +156,7 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        fn inner(seq: &PySequence, value: PyObject) -> PyResult<bool> {
-            let r = unsafe { ffi::PySequence_Contains(seq.as_ptr(), value.as_ptr()) };
-            match r {
-                0 => Ok(false),
-                1 => Ok(true),
-                _ => Err(PyErr::fetch(seq.py())),
-            }
-        }
-
-        inner(self, value.to_object(self.py()))
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).contains(value)
     }
 
     /// Returns the first index `i` for which `self[i] == value`.
@@ -212,31 +167,23 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        fn inner(seq: &PySequence, value: PyObject) -> PyResult<usize> {
-            let r = unsafe { ffi::PySequence_Index(seq.as_ptr(), value.as_ptr()) };
-            crate::err::error_on_minusone(seq.py(), r)?;
-            Ok(r as usize)
-        }
-
-        inner(self, value.to_object(self.py()))
+        Py2::<PySequence>::borrowed_from_gil_ref(&self).index(value)
     }
 
     /// Returns a fresh list based on the Sequence.
     #[inline]
     pub fn to_list(&self) -> PyResult<&PyList> {
-        unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .to_list()
+            .map(|py2| py2.into_gil_ref())
     }
 
     /// Returns a fresh tuple based on the Sequence.
     #[inline]
     pub fn to_tuple(&self) -> PyResult<&PyTuple> {
-        unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
-        }
+        Py2::<PySequence>::borrowed_from_gil_ref(&self)
+            .to_tuple()
+            .map(|py2| py2.into_gil_ref())
     }
 
     /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
@@ -246,6 +193,298 @@ impl PySequence {
         let ty = T::type_object(py);
         get_sequence_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
+    }
+}
+
+/// Implementation of functionality for [`PySequence`].
+///
+/// These methods are defined for the `Py2<'py, PySequence>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PySequence")]
+pub(crate) trait PySequenceMethods<'py> {
+    /// Returns the number of objects in sequence.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
+    fn len(&self) -> PyResult<usize>;
+
+    /// Returns whether the sequence is empty.
+    fn is_empty(&self) -> PyResult<bool>;
+
+    /// Returns the concatenation of `self` and `other`.
+    ///
+    /// This is equivalent to the Python expression `self + other`.
+    fn concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>>;
+
+    /// Returns the result of repeating a sequence object `count` times.
+    ///
+    /// This is equivalent to the Python expression `self * count`.
+    fn repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>>;
+
+    /// Concatenates `self` and `other`, in place if possible.
+    ///
+    /// This is equivalent to the Python expression `self.__iadd__(other)`.
+    ///
+    /// The Python statement `self += other` is syntactic sugar for `self =
+    /// self.__iadd__(other)`.  `__iadd__` should modify and return `self` if
+    /// possible, but create and return a new object if not.
+    fn in_place_concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>>;
+
+    /// Repeats the sequence object `count` times and updates `self`, if possible.
+    ///
+    /// This is equivalent to the Python expression `self.__imul__(other)`.
+    ///
+    /// The Python statement `self *= other` is syntactic sugar for `self =
+    /// self.__imul__(other)`.  `__imul__` should modify and return `self` if
+    /// possible, but create and return a new object if not.
+    fn in_place_repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>>;
+
+    /// Returns the `index`th element of the Sequence.
+    ///
+    /// This is equivalent to the Python expression `self[index]` without support of negative indices.
+    fn get_item(&self, index: usize) -> PyResult<Py2<'py, PyAny>>;
+
+    /// Returns the slice of sequence object between `begin` and `end`.
+    ///
+    /// This is equivalent to the Python expression `self[begin:end]`.
+    fn get_slice(&self, begin: usize, end: usize) -> PyResult<Py2<'py, PySequence>>;
+
+    /// Assigns object `item` to the `i`th element of self.
+    ///
+    /// This is equivalent to the Python statement `self[i] = v`.
+    fn set_item<I>(&self, i: usize, item: I) -> PyResult<()>
+    where
+        I: ToPyObject;
+
+    /// Deletes the `i`th element of self.
+    ///
+    /// This is equivalent to the Python statement `del self[i]`.
+    fn del_item(&self, i: usize) -> PyResult<()>;
+
+    /// Assigns the sequence `v` to the slice of `self` from `i1` to `i2`.
+    ///
+    /// This is equivalent to the Python statement `self[i1:i2] = v`.
+    fn set_slice(&self, i1: usize, i2: usize, v: &Py2<'_, PyAny>) -> PyResult<()>;
+
+    /// Deletes the slice from `i1` to `i2` from `self`.
+    ///
+    /// This is equivalent to the Python statement `del self[i1:i2]`.
+    fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()>;
+
+    /// Returns the number of occurrences of `value` in self, that is, return the
+    /// number of keys for which `self[key] == value`.
+    #[cfg(not(PyPy))]
+    fn count<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToPyObject;
+
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
+    fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToPyObject;
+
+    /// Returns the first index `i` for which `self[i] == value`.
+    ///
+    /// This is equivalent to the Python expression `self.index(value)`.
+    fn index<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToPyObject;
+
+    /// Returns a fresh list based on the Sequence.
+    fn to_list(&self) -> PyResult<Py2<'py, PyList>>;
+
+    /// Returns a fresh tuple based on the Sequence.
+    fn to_tuple(&self) -> PyResult<Py2<'py, PyTuple>>;
+}
+
+impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
+    #[inline]
+    fn len(&self) -> PyResult<usize> {
+        let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
+        crate::err::error_on_minusone(self.py(), v)?;
+        Ok(v as usize)
+    }
+
+    #[inline]
+    fn is_empty(&self) -> PyResult<bool> {
+        self.len().map(|l| l == 0)
+    }
+
+    #[inline]
+    fn concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()),
+            )
+            .map(|py2| py2.downcast_into_unchecked())
+        }
+    }
+
+    #[inline]
+    fn repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PySequence_Repeat(self.as_ptr(), get_ssize_index(count)),
+            )
+            .map(|py2| py2.downcast_into_unchecked())
+        }
+    }
+
+    #[inline]
+    fn in_place_concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr()),
+            )
+            .map(|py2| py2.downcast_into_unchecked())
+        }
+    }
+
+    #[inline]
+    fn in_place_repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PySequence_InPlaceRepeat(self.as_ptr(), get_ssize_index(count)),
+            )
+            .map(|py2| py2.downcast_into_unchecked())
+        }
+    }
+
+    #[inline]
+    fn get_item(&self, index: usize) -> PyResult<Py2<'py, PyAny>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PySequence_GetItem(self.as_ptr(), get_ssize_index(index)),
+            )
+        }
+    }
+
+    #[inline]
+    fn get_slice(&self, begin: usize, end: usize) -> PyResult<Py2<'py, PySequence>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(
+                self.py(),
+                ffi::PySequence_GetSlice(
+                    self.as_ptr(),
+                    get_ssize_index(begin),
+                    get_ssize_index(end),
+                ),
+            )
+            .map(|py2| py2.downcast_into_unchecked())
+        }
+    }
+
+    #[inline]
+    fn set_item<I>(&self, i: usize, item: I) -> PyResult<()>
+    where
+        I: ToPyObject,
+    {
+        fn inner(seq: &Py2<'_, PySequence>, i: usize, item: Py2<'_, PyAny>) -> PyResult<()> {
+            err::error_on_minusone(seq.py(), unsafe {
+                ffi::PySequence_SetItem(seq.as_ptr(), get_ssize_index(i), item.as_ptr())
+            })
+        }
+
+        let py = self.py();
+        inner(self, i, item.to_object(py).attach_into(py))
+    }
+
+    #[inline]
+    fn del_item(&self, i: usize) -> PyResult<()> {
+        err::error_on_minusone(self.py(), unsafe {
+            ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i))
+        })
+    }
+
+    #[inline]
+    fn set_slice(&self, i1: usize, i2: usize, v: &Py2<'_, PyAny>) -> PyResult<()> {
+        err::error_on_minusone(self.py(), unsafe {
+            ffi::PySequence_SetSlice(
+                self.as_ptr(),
+                get_ssize_index(i1),
+                get_ssize_index(i2),
+                v.as_ptr(),
+            )
+        })
+    }
+
+    #[inline]
+    fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
+        err::error_on_minusone(self.py(), unsafe {
+            ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2))
+        })
+    }
+
+    #[inline]
+    #[cfg(not(PyPy))]
+    fn count<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToPyObject,
+    {
+        fn inner(seq: &Py2<'_, PySequence>, value: Py2<'_, PyAny>) -> PyResult<usize> {
+            let r = unsafe { ffi::PySequence_Count(seq.as_ptr(), value.as_ptr()) };
+            crate::err::error_on_minusone(seq.py(), r)?;
+            Ok(r as usize)
+        }
+
+        let py = self.py();
+        inner(self, value.to_object(py).attach_into(py))
+    }
+
+    #[inline]
+    fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToPyObject,
+    {
+        fn inner(seq: &Py2<'_, PySequence>, value: Py2<'_, PyAny>) -> PyResult<bool> {
+            let r = unsafe { ffi::PySequence_Contains(seq.as_ptr(), value.as_ptr()) };
+            match r {
+                0 => Ok(false),
+                1 => Ok(true),
+                _ => Err(PyErr::fetch(seq.py())),
+            }
+        }
+
+        let py = self.py();
+        inner(self, value.to_object(py).attach_into(py))
+    }
+
+    #[inline]
+    fn index<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToPyObject,
+    {
+        fn inner(seq: &Py2<'_, PySequence>, value: Py2<'_, PyAny>) -> PyResult<usize> {
+            let r = unsafe { ffi::PySequence_Index(seq.as_ptr(), value.as_ptr()) };
+            crate::err::error_on_minusone(seq.py(), r)?;
+            Ok(r as usize)
+        }
+
+        let py = self.py();
+        inner(self, value.to_object(self.py()).attach_into(py))
+    }
+
+    #[inline]
+    fn to_list(&self) -> PyResult<Py2<'py, PyList>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(self.py(), ffi::PySequence_List(self.as_ptr()))
+                .map(|py2| py2.downcast_into_unchecked())
+        }
+    }
+
+    #[inline]
+    fn to_tuple(&self) -> PyResult<Py2<'py, PyTuple>> {
+        unsafe {
+            Py2::from_owned_ptr_or_err(self.py(), ffi::PySequence_Tuple(self.as_ptr()))
+                .map(|py2| py2.downcast_into_unchecked())
+        }
     }
 }
 
