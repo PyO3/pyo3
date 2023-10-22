@@ -93,7 +93,9 @@ fn configure_pyo3() -> Result<()> {
         emit_link_config(&interpreter_config)?;
     }
 
-    interpreter_config.emit_pyo3_cfgs();
+    for cfg in interpreter_config.build_script_outputs() {
+        println!("{}", cfg)
+    }
 
     // Extra lines come last, to support last write wins.
     for line in &interpreter_config.extra_build_script_lines {
@@ -109,7 +111,7 @@ fn configure_pyo3() -> Result<()> {
 fn print_config_and_exit(config: &InterpreterConfig) {
     println!("\n-- PYO3_PRINT_CONFIG=1 is set, printing configuration and halting compile --");
     config
-        .to_writer(&mut std::io::stdout())
+        .to_writer(std::io::stdout())
         .expect("failed to print config to stdout");
     println!("\nnote: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config");
     std::process::exit(101);

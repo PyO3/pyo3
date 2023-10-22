@@ -12,15 +12,21 @@ macro_rules! ensure {
     ($condition:expr, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
 }
 
-/// Show warning. If needed, please extend this macro to support arguments.
+/// Show warning.
 #[macro_export]
 #[doc(hidden)]
 macro_rules! warn {
-    ($msg: literal) => {
-        println!(concat!("cargo:warning=", $msg))
+    ($($args: tt)+) => {
+        println!("{}", $crate::format_warn!($($args)+))
     };
-    ($fmt: expr, $($args: tt)+) => {
-        println!("cargo:warning={}", format_args!($fmt, $($args)+))
+}
+
+/// Format warning into string.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! format_warn {
+    ($($args: tt)+) => {
+        format!("cargo:warning={}", format_args!($($args)+))
     };
 }
 
