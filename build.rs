@@ -33,9 +33,11 @@ fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<(
 fn configure_pyo3() -> Result<()> {
     let interpreter_config = pyo3_build_config::get();
 
-    interpreter_config.emit_pyo3_cfgs();
-
     ensure_auto_initialize_ok(interpreter_config)?;
+
+    for cfg in interpreter_config.build_script_outputs() {
+        println!("{}", cfg)
+    }
 
     // Emit cfgs like `thread_local_const_init`
     print_feature_cfgs();
