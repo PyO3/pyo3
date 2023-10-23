@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{punctuated::Punctuated, spanned::Spanned, Token};
+use syn::{punctuated::Punctuated, Token};
 
 use crate::attributes::{CrateAttribute, RenamingRule};
 
@@ -135,17 +135,6 @@ impl quote::ToTokens for PythonDoc {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens)
     }
-}
-
-pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
-    if let Some(asyncness) = &sig.asyncness {
-        bail_spanned!(
-            asyncness.span() => "`async fn` is not yet supported for Python functions.\n\n\
-            Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and \
-            Python. For more information, see https://github.com/PyO3/pyo3/issues/1632"
-        );
-    };
-    Ok(())
 }
 
 pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {

@@ -10,29 +10,21 @@ error: Python functions cannot have `impl Trait` arguments
 7 | fn impl_trait_function(impl_trait: impl AsRef<PyAny>) {}
   |                                    ^^^^
 
-error: `async fn` is not yet supported for Python functions.
-
-       Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and Python. For more information, see https://github.com/PyO3/pyo3/issues/1632
-  --> tests/ui/invalid_pyfunctions.rs:10:1
-   |
-10 | async fn async_function() {}
-   | ^^^^^
-
 error: wildcard argument names are not supported
-  --> tests/ui/invalid_pyfunctions.rs:13:22
+  --> tests/ui/invalid_pyfunctions.rs:10:22
    |
-13 | fn wildcard_argument(_: i32) {}
+10 | fn wildcard_argument(_: i32) {}
    |                      ^
 
 error: destructuring in arguments is not supported
-  --> tests/ui/invalid_pyfunctions.rs:16:26
+  --> tests/ui/invalid_pyfunctions.rs:13:26
    |
-16 | fn destructured_argument((a, b): (i32, i32)) {}
+13 | fn destructured_argument((a, b): (i32, i32)) {}
    |                          ^^^^^^
 
 error: required arguments after an `Option<_>` argument are ambiguous
        = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters
-  --> tests/ui/invalid_pyfunctions.rs:19:63
+  --> tests/ui/invalid_pyfunctions.rs:16:63
    |
-19 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
+16 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
    |                                                               ^^^

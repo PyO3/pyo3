@@ -1,0 +1,97 @@
+use crate::sync::GILOnceCell;
+use crate::types::PyCFunction;
+use crate::{intern, wrap_pyfunction, Py, PyAny, PyObject, PyResult, Python};
+use futures_util::task::ArcWake;
+use pyo3_macros::pyfunction;
+use std::sync::Arc;
+
+/// Lazy `asyncio.Future` wrapper, implementing [`ArcWake`] by calling `Future.set_result`.
+///
+/// asyncio future is let uninitialized until [`initialize_future`][1] is called.
+/// If [`wake`][2] is called before future initialization (during Rust future polling),
+/// [`initialize_future`][1] will return `None` (it is roughly equivalent to `asyncio.sleep(0)`)
+///
+/// [1]: AsyncioWaker::initialize_future
+/// [2]: AsyncioWaker::wake
+pub struct AsyncioWaker(GILOnceCell<Option<LoopAndFuture>>);
+
+impl AsyncioWaker {
+    pub(super) fn new() -> Self {
+        Self(GILOnceCell::new())
+    }
+
+    pub(super) fn reset(&mut self) {
+        self.0.take();
+    }
+
+    pub(super) fn initialize_future<'a>(&'a self, py: Python<'a>) -> PyResult<Option<&'a PyAny>> {
+        let init = || LoopAndFuture::new(py).map(Some);
+        let loop_and_future = self.0.get_or_try_init(py, init)?.as_ref();
+        Ok(loop_and_future.map(|LoopAndFuture { future, .. }| future.as_ref(py)))
+    }
+}
+
+impl ArcWake for AsyncioWaker {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        Python::with_gil(|gil| {
+            if let Some(loop_and_future) = arc_self.0.get_or_init(gil, || None) {
+                loop_and_future
+                    .set_result(gil)
+                    .expect("unexpected error in coroutine waker");
+            }
+        });
+    }
+}
+
+struct LoopAndFuture {
+    event_loop: PyObject,
+    future: PyObject,
+}
+
+impl LoopAndFuture {
+    fn new(py: Python<'_>) -> PyResult<Self> {
+        static GET_RUNNING_LOOP: GILOnceCell<PyObject> = GILOnceCell::new();
+        let import = || -> PyResult<_> {
+            let module = py.import("asyncio")?;
+            Ok(module.getattr("get_running_loop")?.into())
+        };
+        let event_loop = GET_RUNNING_LOOP.get_or_try_init(py, import)?.call0(py)?;
+        let future = event_loop.call_method0(py, "create_future")?;
+        Ok(Self { event_loop, future })
+    }
+
+    fn set_result(&self, py: Python<'_>) -> PyResult<()> {
+        static RELEASE_WAITER: GILOnceCell<Py<PyCFunction>> = GILOnceCell::new();
+        let release_waiter = RELEASE_WAITER
+            .get_or_try_init(py, || wrap_pyfunction!(release_waiter, py).map(Into::into))?;
+        // `Future.set_result` must be called in event loop thread,
+        // so it requires `call_soon_threadsafe`
+        let call_soon_threadsafe = self.event_loop.call_method1(
+            py,
+            intern!(py, "call_soon_threadsafe"),
+            (release_waiter, self.future.as_ref(py)),
+        );
+        if let Err(err) = call_soon_threadsafe {
+            // `call_soon_threadsafe` will raise if the event loop is closed;
+            // instead of catching an unspecific `RuntimeError`, check directly if it's closed.
+            let is_closed = self.event_loop.call_method0(py, "is_closed")?;
+            if !is_closed.extract(py)? {
+                return Err(err);
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Call `future.set_result` if the future is not done.
+///
+/// Future can be cancelled by the event loop before being waken.
+/// See <https://github.com/python/cpython/blob/main/Lib/asyncio/tasks.py#L452C5-L452C5>
+#[pyfunction(crate = "crate")]
+fn release_waiter(future: &PyAny) -> PyResult<()> {
+    let done = future.call_method0(intern!(future.py(), "done"))?;
+    if !done.extract::<bool>()? {
+        future.call_method1(intern!(future.py(), "set_result"), (future.py().None(),))?;
+    }
+    Ok(())
+}

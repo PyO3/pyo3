@@ -397,6 +397,8 @@ pub mod buffer;
 pub mod callback;
 pub mod conversion;
 mod conversions;
+#[cfg(feature = "macros")]
+pub mod coroutine;
 #[macro_use]
 #[doc(hidden)]
 pub mod derive_utils;
@@ -469,6 +471,7 @@ pub mod doc_test {
     doctests! {
         "README.md" => readme_md,
         "guide/src/advanced.md" => guide_advanced_md,
+        "guide/src/async-await.md" => guide_async_await_md,
         "guide/src/building_and_distribution.md" => guide_building_and_distribution_md,
         "guide/src/building_and_distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
         "guide/src/class.md" => guide_class_md,

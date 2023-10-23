@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::utils::{ensure_not_async_fn, PythonDoc};
+use crate::utils::PythonDoc;
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -188,7 +188,6 @@ pub fn gen_py_method(
     options: PyFunctionOptions,
 ) -> Result<GeneratedPyMethod> {
     check_generic(sig)?;
-    ensure_not_async_fn(sig)?;
     ensure_function_options_valid(&options)?;
     let method = PyMethod::parse(sig, meth_attrs, options)?;
     let spec = &method.spec;
