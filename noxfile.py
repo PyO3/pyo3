@@ -485,8 +485,8 @@ def set_minimal_package_versions(session: nox.Session):
     min_pkg_versions = {
         "rust_decimal": "1.26.1",
         "csv": "1.1.6",
-        "indexmap": "1.9.3",
-        "hashbrown": "0.12.3",
+        "indexmap": "1.6.2",
+        "hashbrown": "0.9.1",
         "log": "0.4.17",
         "once_cell": "1.17.2",
         "rayon": "1.6.1",
