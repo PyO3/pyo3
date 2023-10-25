@@ -165,8 +165,20 @@ jobs:
               os: "windows-latest",
               python-architecture: "x86",
               rust-target: "i686-pc-windows-msvc",
-            }
+            },
           ]
+        include:
+          # Test nightly Rust on PRs so that PR authors have a chance to fix nightly
+          # failures, as nightly does not block merge.
+          - rust: nightly
+            python-version: "3.12"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+            extra-features: "nightly multiple-pymethods"
   build-full:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
