@@ -27,7 +27,7 @@ use target_lexicon::{Environment, OperatingSystem};
 use crate::{
     bail, ensure,
     errors::{Context, Error, Result},
-    warn,
+    format_warn, warn,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -154,31 +154,35 @@ pub struct InterpreterConfig {
 
 impl InterpreterConfig {
     #[doc(hidden)]
-    pub fn emit_pyo3_cfgs(&self) {
+    pub fn build_script_outputs(&self) -> Vec<String> {
         // This should have been checked during pyo3-build-config build time.
         assert!(self.version >= MINIMUM_SUPPORTED_VERSION);
+
+        let mut out = vec![];
 
         // pyo3-build-config was released when Python 3.6 was supported, so minimum flag to emit is
         // Py_3_6 (to avoid silently breaking users who depend on this cfg).
         for i in 6..=self.version.minor {
-            println!("cargo:rustc-cfg=Py_3_{}", i);
+            out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
         }
 
         if self.implementation.is_pypy() {
-            println!("cargo:rustc-cfg=PyPy");
+            out.push("cargo:rustc-cfg=PyPy".to_owned());
             if self.abi3 {
-                warn!(
+                out.push(format_warn!(
                     "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
                     See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
-                );
+                ));
             }
         } else if self.abi3 {
-            println!("cargo:rustc-cfg=Py_LIMITED_API");
+            out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
         for flag in &self.build_flags.0 {
-            println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag);
+            out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag));
         }
+
+        out
     }
 
     #[doc(hidden)]
@@ -1011,12 +1015,12 @@ impl BuildFlags {
         Self(
             BuildFlags::ALL
                 .iter()
-                .cloned()
                 .filter(|flag| {
                     config_map
                         .get_value(&flag.to_string())
                         .map_or(false, |value| value == "1")
                 })
+                .cloned()
                 .collect(),
         )
         .fixup()
@@ -2580,5 +2584,115 @@ mod tests {
             )
             .expect("failed to run Python script");
         assert_eq!(out.trim_end(), "42");
+    }
+
+    #[test]
+    fn test_build_script_outputs_base() {
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion { major: 3, minor: 8 },
+            shared: true,
+            abi3: false,
+            lib_name: Some("python3".into()),
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+        };
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_6".to_owned(),
+                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
+            ]
+        );
+
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::PyPy,
+            ..interpreter_config
+        };
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_6".to_owned(),
+                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=PyPy".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_build_script_outputs_abi3() {
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion { major: 3, minor: 7 },
+            shared: true,
+            abi3: true,
+            lib_name: Some("python3".into()),
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+        };
+
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_6".to_owned(),
+                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
+            ]
+        );
+
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::PyPy,
+            ..interpreter_config
+        };
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_6".to_owned(),
+                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=PyPy".to_owned(),
+                "cargo:warning=PyPy does not yet support abi3 so the build artifacts \
+            will be version-specific. See https://foss.heptapod.net/pypy/pypy/-/issues/3397 \
+            for more information."
+                    .to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_build_script_outputs_debug() {
+        let mut build_flags = BuildFlags::default();
+        build_flags.0.insert(BuildFlag::Py_DEBUG);
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion { major: 3, minor: 7 },
+            shared: true,
+            abi3: false,
+            lib_name: Some("python3".into()),
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags,
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+        };
+
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_6".to_owned(),
+                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
+            ]
+        );
     }
 }
