@@ -436,6 +436,7 @@ pub mod once_cell {
     pub use crate::sync::{GILOnceCell, Interned};
 }
 
+#[allow(unused_imports)] // with no features enabled this module has no public exports
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
