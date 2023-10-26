@@ -45,7 +45,7 @@ def test_discussion_2598():
     @Counter
     def say_hello():
         if say_hello.count < 2:
-            print(f"hello from decorator")
+            print("hello from decorator")
 
     say_hello()
     say_hello()
