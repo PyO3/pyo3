@@ -339,7 +339,7 @@ impl SubSubClass {
     }
 
     #[staticmethod]
-    fn dynamic_type(py: Python<'_>, val: usize) -> PyResult<PyObject> {
+    fn factory_method(py: Python<'_>, val: usize) -> PyResult<PyObject> {
         let base = PyClassInitializer::from(BaseClass::new());
         let sub = base.add_subclass(SubClass { val2: val });
         if val % 2 == 0 {
