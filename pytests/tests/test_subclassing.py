@@ -1,5 +1,3 @@
-import platform
-
 from pyo3_pytests.subclassing import Subclassable
 
 

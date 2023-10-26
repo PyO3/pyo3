@@ -1,8 +1,6 @@
 import gc
-import platform
 import sys
 
-import pytest
 from pyo3_pytests.objstore import ObjStore
 
 

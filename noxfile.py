@@ -66,22 +66,17 @@ def coverage(session: nox.Session) -> None:
     )
 
 
-@nox.session
-def fmt(session: nox.Session):
-    fmt_rust(session)
-    fmt_py(session)
-
-
-@nox.session(name="fmt-rust", venv_backend="none")
-def fmt_rust(session: nox.Session):
+@nox.session(venv_backend="none")
+def rustfmt(session: nox.Session):
     _run_cargo(session, "fmt", "--all", "--check")
     _run_cargo(session, "fmt", _FFI_CHECK, "--all", "--check")
 
 
-@nox.session(name="fmt-py")
-def fmt_py(session: nox.Session):
-    session.install("black==22.3.0")
-    _run(session, "black", ".", "--check")
+@nox.session(name="ruff")
+def ruff(session: nox.Session):
+    session.install("ruff")
+    _run(session, "ruff", "format", ".", "--check")
+    _run(session, "ruff", "check", ".")
 
 
 @nox.session(name="clippy", venv_backend="none")
@@ -221,7 +216,7 @@ def contributors(session: nox.Session) -> None:
         for commit in body["commits"]:
             try:
                 authors.add(commit["author"]["login"])
-            except:
+            except Exception:
                 continue
 
         if "next" in resp.links:

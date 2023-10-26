@@ -27,10 +27,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - name: Check python formatting (black)
-        run: nox -s fmt-py
+      - name: Check python formatting and lints (ruff)
+        run: nox -s ruff
       - name: Check rust formatting (rustfmt)
-        run: nox -s fmt-rust
+        run: nox -s rustfmt
 
   check-msrv:
     needs: [fmt]
