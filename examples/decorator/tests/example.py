@@ -1,3 +1,6 @@
+from decorator import Counter
+
+
 @Counter
 def say_hello():
     print("hello")
