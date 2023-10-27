@@ -353,8 +353,8 @@ impl SubSubClass {
 # Python::with_gil(|py| {
 #     let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
 #     pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000");
-#     let subsub = SubSubClass::dynamic_type(py, 2).unwrap();
-#     let subsubsub = SubSubClass::dynamic_type(py, 3).unwrap();
+#     let subsub = SubSubClass::factory_method(py, 2).unwrap();
+#     let subsubsub = SubSubClass::factory_method(py, 3).unwrap();
 #     let cls = py.get_type::<SubSubClass>();
 #     pyo3::py_run!(py, subsub cls, "assert not isinstance(subsub, cls)");
 #     pyo3::py_run!(py, subsubsub cls, "assert isinstance(subsubsub, cls)");
