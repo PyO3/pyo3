@@ -167,6 +167,20 @@ impl<T> GILOnceCell<T> {
         *inner = Some(value);
         Ok(())
     }
+
+    /// Takes the value out of the cell, moving it back to an uninitialized state.
+    ///
+    /// Has no effect and returns None if the cell has not yet been written.
+    pub fn take(&mut self) -> Option<T> {
+        self.0.get_mut().take()
+    }
+
+    /// Consumes the cell, returning the wrapped value.
+    ///
+    /// Returns None if the cell has not yet been written.
+    pub fn into_inner(self) -> Option<T> {
+        self.0.into_inner()
+    }
 }
 
 impl GILOnceCell<Py<PyType>> {
@@ -278,7 +292,7 @@ mod tests {
     #[test]
     fn test_once_cell() {
         Python::with_gil(|py| {
-            let cell = GILOnceCell::new();
+            let mut cell = GILOnceCell::new();
 
             assert!(cell.get(py).is_none());
 
@@ -289,6 +303,9 @@ mod tests {
             assert_eq!(cell.get(py), Some(&2));
 
             assert_eq!(cell.get_or_try_init(py, || Err(5)), Ok(&2));
+
+            assert_eq!(cell.take(), Some(2));
+            assert_eq!(cell.into_inner(), None)
         })
     }
 }
