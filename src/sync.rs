@@ -149,8 +149,7 @@ impl<T> GILOnceCell<T> {
     /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
     /// unique.
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        // Safe because we have &mut self
-        unsafe { &mut *self.0.get() }.as_mut()
+        self.0.get_mut().as_mut()
     }
 
     /// Set the value in the cell.
