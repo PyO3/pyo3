@@ -1361,9 +1361,13 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let version = cross_compile_config
         .version
         .or_else(get_abi3_version)
-        .ok_or(
-            "PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified \
-            when cross-compiling and PYO3_CROSS_LIB_DIR is not set.",
+        .ok_or_else(||
+            format!(
+                "PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified \
+                when cross-compiling and PYO3_CROSS_LIB_DIR is not set.\n\
+                = help: see the PyO3 user guide for more information: https://pyo3.rs/v{}/building_and_distribution.html#cross-compiling",
+                env!("CARGO_PKG_VERSION")
+            )
         )?;
 
     let abi3 = is_abi3();
