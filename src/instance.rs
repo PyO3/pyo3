@@ -14,6 +14,9 @@ use std::mem::{self, ManuallyDrop};
 use std::ops::Deref;
 use std::ptr::NonNull;
 
+pub(crate) mod ffi_call;
+pub(crate) use ffi_call::FromFfiCallResult;
+
 /// Types that are built into the Python interpreter.
 ///
 /// PyO3 is designed in a way that all references to those types are bound
@@ -63,6 +66,18 @@ impl<'py> Py2<'py, PyAny> {
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
+
+    /// Internal helper to make an ffi call which produces an owned reference or
+    /// NULL on error, doing an unchecked downcast to the result type T.
+    pub(crate) unsafe fn do_ffi_call<R, T>(
+        &self,
+        call: impl FnOnce(*mut ffi::PyObject) -> R,
+    ) -> PyResult<T>
+    where
+        T: FromFfiCallResult<'py, R>,
+    {
+        T::from_ffi_call_result(self.py(), call(self.as_ptr()))
     }
 }
 

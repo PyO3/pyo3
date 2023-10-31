@@ -1,15 +1,13 @@
-use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::err::{PyDowncastError, PyResult};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::instance::ffi_call::positive_isize_as_usize;
 use crate::internal_tricks::get_ssize_index;
-use crate::prelude::*;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, PyNativeType, ToPyObject};
-use crate::{FromPyObject, PyTryFrom};
-use crate::{Py, Python};
+use crate::{ffi, FromPyObject, Py, Py2, PyNativeType, PyTryFrom, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -328,9 +326,10 @@ pub(crate) trait PySequenceMethods<'py> {
 impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
     #[inline]
     fn len(&self) -> PyResult<usize> {
-        let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
-        crate::err::error_on_minusone(self.py(), v)?;
-        Ok(v as usize)
+        unsafe {
+            self.do_ffi_call(|ptr| ffi::PySequence_Length(ptr))
+                .map(positive_isize_as_usize)
+        }
     }
 
     #[inline]
@@ -340,70 +339,37 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
 
     #[inline]
     fn concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>> {
-        unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
-        }
+        unsafe { self.do_ffi_call(|ptr| ffi::PySequence_Concat(ptr, other.as_ptr())) }
     }
 
     #[inline]
     fn repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>> {
-        unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_Repeat(self.as_ptr(), get_ssize_index(count)),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
-        }
+        unsafe { self.do_ffi_call(|ptr| ffi::PySequence_Repeat(ptr, get_ssize_index(count))) }
     }
 
     #[inline]
     fn in_place_concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>> {
-        unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr()),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
-        }
+        unsafe { self.do_ffi_call(|ptr| ffi::PySequence_InPlaceConcat(ptr, other.as_ptr())) }
     }
 
     #[inline]
     fn in_place_repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_InPlaceRepeat(self.as_ptr(), get_ssize_index(count)),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
+            self.do_ffi_call(|ptr| ffi::PySequence_InPlaceRepeat(ptr, get_ssize_index(count)))
         }
     }
 
     #[inline]
     fn get_item(&self, index: usize) -> PyResult<Py2<'py, PyAny>> {
-        unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_GetItem(self.as_ptr(), get_ssize_index(index)),
-            )
-        }
+        unsafe { self.do_ffi_call(|ptr| ffi::PySequence_GetItem(ptr, get_ssize_index(index))) }
     }
 
     #[inline]
     fn get_slice(&self, begin: usize, end: usize) -> PyResult<Py2<'py, PySequence>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_GetSlice(
-                    self.as_ptr(),
-                    get_ssize_index(begin),
-                    get_ssize_index(end),
-                ),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
+            self.do_ffi_call(|ptr| {
+                ffi::PySequence_GetSlice(ptr, get_ssize_index(begin), get_ssize_index(end))
+            })
         }
     }
 
@@ -413,9 +379,11 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
         I: ToPyObject,
     {
         fn inner(seq: &Py2<'_, PySequence>, i: usize, item: Py2<'_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(seq.py(), unsafe {
-                ffi::PySequence_SetItem(seq.as_ptr(), get_ssize_index(i), item.as_ptr())
-            })
+            unsafe {
+                seq.do_ffi_call(|ptr| {
+                    ffi::PySequence_SetItem(ptr, get_ssize_index(i), item.as_ptr())
+                })
+            }
         }
 
         let py = self.py();
@@ -424,28 +392,25 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
 
     #[inline]
     fn del_item(&self, i: usize) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
-            ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i))
-        })
+        unsafe { self.do_ffi_call(|ptr| ffi::PySequence_DelItem(ptr, get_ssize_index(i))) }
     }
 
     #[inline]
     fn set_slice(&self, i1: usize, i2: usize, v: &Py2<'_, PyAny>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
-            ffi::PySequence_SetSlice(
-                self.as_ptr(),
-                get_ssize_index(i1),
-                get_ssize_index(i2),
-                v.as_ptr(),
-            )
-        })
+        unsafe {
+            self.do_ffi_call(|ptr| {
+                ffi::PySequence_SetSlice(ptr, get_ssize_index(i1), get_ssize_index(i2), v.as_ptr())
+            })
+        }
     }
 
     #[inline]
     fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
-            ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2))
-        })
+        unsafe {
+            self.do_ffi_call(|ptr| {
+                ffi::PySequence_DelSlice(ptr, get_ssize_index(i1), get_ssize_index(i2))
+            })
+        }
     }
 
     #[inline]
@@ -455,9 +420,10 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
         V: ToPyObject,
     {
         fn inner(seq: &Py2<'_, PySequence>, value: Py2<'_, PyAny>) -> PyResult<usize> {
-            let r = unsafe { ffi::PySequence_Count(seq.as_ptr(), value.as_ptr()) };
-            crate::err::error_on_minusone(seq.py(), r)?;
-            Ok(r as usize)
+            unsafe {
+                seq.do_ffi_call(|ptr| ffi::PySequence_Count(ptr, value.as_ptr()))
+                    .map(positive_isize_as_usize)
+            }
         }
 
         let py = self.py();
@@ -470,12 +436,7 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
         V: ToPyObject,
     {
         fn inner(seq: &Py2<'_, PySequence>, value: Py2<'_, PyAny>) -> PyResult<bool> {
-            let r = unsafe { ffi::PySequence_Contains(seq.as_ptr(), value.as_ptr()) };
-            match r {
-                0 => Ok(false),
-                1 => Ok(true),
-                _ => Err(PyErr::fetch(seq.py())),
-            }
+            unsafe { seq.do_ffi_call(|ptr| ffi::PySequence_Contains(ptr, value.as_ptr())) }
         }
 
         let py = self.py();
@@ -488,9 +449,10 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
         V: ToPyObject,
     {
         fn inner(seq: &Py2<'_, PySequence>, value: Py2<'_, PyAny>) -> PyResult<usize> {
-            let r = unsafe { ffi::PySequence_Index(seq.as_ptr(), value.as_ptr()) };
-            crate::err::error_on_minusone(seq.py(), r)?;
-            Ok(r as usize)
+            unsafe {
+                seq.do_ffi_call(|ptr| ffi::PySequence_Index(ptr, value.as_ptr()))
+                    .map(positive_isize_as_usize)
+            }
         }
 
         let py = self.py();
@@ -499,18 +461,12 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
 
     #[inline]
     fn to_list(&self) -> PyResult<Py2<'py, PyList>> {
-        unsafe {
-            Py2::from_owned_ptr_or_err(self.py(), ffi::PySequence_List(self.as_ptr()))
-                .map(|py2| py2.downcast_into_unchecked())
-        }
+        unsafe { self.do_ffi_call(|ptr| ffi::PySequence_List(ptr)) }
     }
 
     #[inline]
     fn to_tuple(&self) -> PyResult<Py2<'py, PyTuple>> {
-        unsafe {
-            Py2::from_owned_ptr_or_err(self.py(), ffi::PySequence_Tuple(self.as_ptr()))
-                .map(|py2| py2.downcast_into_unchecked())
-        }
+        unsafe { self.do_ffi_call(|ptr| ffi::PySequence_Tuple(ptr)) }
     }
 }
 
