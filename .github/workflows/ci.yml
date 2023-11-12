@@ -17,6 +17,25 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  rustup-repro:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check rust-src
+        run: ls -l /home/runner/.rustup/toolchains/*/lib/rustlib/src/rust
+        continue-on-error: true
+      - name: Check rustup components
+        run: rustup component list --installed
+      - name: Check rust-src (2)
+        run: ls -l /home/runner/.rustup/toolchains/*/lib/rustlib/src/rust
+        continue-on-error: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check rust-src (3)
+        run: ls -l /home/runner/.rustup/toolchains/*/lib/rustlib/src/rust
+        continue-on-error: true
+
   fmt:
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -24,11 +43,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
       - run: python -m pip install --upgrade pip && pip install nox
+      - name: Check rust-src
+        run: ls -l /home/runner/.rustup/toolchains/*/lib/rustlib/src/rust
+        continue-on-error: true
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - name: Check python formatting and lints (ruff)
         run: nox -s ruff
+      - name: Check rust-src again
+        run: ls -l /home/runner/.rustup/toolchains/*/lib/rustlib/src/rust
+        continue-on-error: true
       - name: Check rust formatting (rustfmt)
         run: nox -s rustfmt
 

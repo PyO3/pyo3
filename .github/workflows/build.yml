@@ -36,6 +36,10 @@ jobs:
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox
 
+      - name: Check rust-src
+        run: ls -l /home/runner/.rustup/toolchains/*/lib/rustlib/src/rust
+        continue-on-error: true
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
