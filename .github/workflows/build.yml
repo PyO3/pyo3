@@ -40,6 +40,9 @@ jobs:
         run: ls -l /home/runner/.rustup/toolchains/*/lib/rustlib/src/rust
         continue-on-error: true
 
+      - name: Check rustup components
+        run: rustup component list --installed
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
