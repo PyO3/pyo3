@@ -127,3 +127,7 @@ members = [
 no-default-features = true
 features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre", "chrono", "rust_decimal"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+# workaround for issue installing rust-src on GitHub actions, see https://github.com/dtolnay/trybuild/pull/247
+[patch.crates-io]
+trybuild = { git = "https://github.com/davidhewitt/trybuild", branch = "strip-rust-src" }

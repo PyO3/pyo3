@@ -9,9 +9,6 @@ error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safe
   = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
 note: required because it appears within the type `PhantomData<*mut Python<'static>>`
  --> $RUST/core/src/marker.rs
-  |
-  | pub struct PhantomData<T: ?Sized>;
-  |            ^^^^^^^^^^^
 note: required because it appears within the type `NotSend`
  --> src/impl_/not_send.rs
   |
@@ -20,9 +17,6 @@ note: required because it appears within the type `NotSend`
   = note: required because it appears within the type `(&GILGuard, NotSend)`
 note: required because it appears within the type `PhantomData<(&GILGuard, NotSend)>`
  --> $RUST/core/src/marker.rs
-  |
-  | pub struct PhantomData<T: ?Sized>;
-  |            ^^^^^^^^^^^
 note: required because it appears within the type `Python<'_>`
  --> src/marker.rs
   |
