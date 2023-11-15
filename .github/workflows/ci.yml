@@ -338,7 +338,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: steps.should-skip.outputs.skip != 'true'
         with:
-          components: llvm-tools-preview
+          components: llvm-tools-preview,rust-src
       - name: Install cargo-llvm-cov
         if: steps.should-skip.outputs.skip != 'true'
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -367,6 +367,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-emscripten
+          components: rust-src
       - uses: actions/setup-node@v4
         with:
           node-version: 14
