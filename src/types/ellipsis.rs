@@ -1,4 +1,4 @@
-use crate::{ffi, PyAny, PyDowncastError, PyTryFrom, Python};
+use crate::{ffi, PyAny, PyTypeInfo, Python};
 
 /// Represents the Python `Ellipsis` object.
 #[repr(transparent)]
@@ -15,39 +15,48 @@ impl PyEllipsis {
     }
 }
 
-impl<'v> PyTryFrom<'v> for PyEllipsis {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, crate::PyDowncastError<'v>> {
-        let value: &PyAny = value.into();
-        if unsafe { ffi::Py_Ellipsis() == value.as_ptr() } {
-            return unsafe { Ok(value.downcast_unchecked()) };
-        }
-        Err(PyDowncastError::new(value, "ellipsis"))
+unsafe impl PyTypeInfo for PyEllipsis {
+    const NAME: &'static str = "ellipsis";
+
+    const MODULE: Option<&'static str> = None;
+
+    type AsRefTarget = PyEllipsis;
+
+    fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+        unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(
-        value: V,
-    ) -> Result<&'v Self, crate::PyDowncastError<'v>> {
-        value.into().downcast()
+    #[inline]
+    fn is_type_of(object: &PyAny) -> bool {
+        // ellipsis is not usable as a base type
+        Self::is_exact_type_of(object)
     }
 
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
-        let ptr = value.into() as *const _ as *const PyEllipsis;
-        &*ptr
+    #[inline]
+    fn is_exact_type_of(object: &PyAny) -> bool {
+        object.is(Self::get(object.py()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::types::{PyDict, PyEllipsis};
-    use crate::Python;
+    use crate::{PyTypeInfo, Python};
 
     #[test]
     fn test_ellipsis_is_itself() {
         Python::with_gil(|py| {
+            assert!(PyEllipsis::get(py).is_instance_of::<PyEllipsis>());
+            assert!(PyEllipsis::get(py).is_exact_instance_of::<PyEllipsis>());
+        })
+    }
+
+    #[test]
+    fn test_ellipsis_type_object_consistent() {
+        Python::with_gil(|py| {
             assert!(PyEllipsis::get(py)
-                .downcast::<PyEllipsis>()
-                .unwrap()
-                .is_ellipsis());
+                .get_type()
+                .is(PyEllipsis::type_object(py)));
         })
     }
 

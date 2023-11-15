@@ -1,4 +1,4 @@
-use crate::{ffi, PyAny, PyDowncastError, PyTryFrom, Python};
+use crate::{ffi, PyAny, PyTypeInfo, Python};
 
 /// Represents the Python `NotImplemented` object.
 #[repr(transparent)]
@@ -15,39 +15,48 @@ impl PyNotImplemented {
     }
 }
 
-impl<'v> PyTryFrom<'v> for PyNotImplemented {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, crate::PyDowncastError<'v>> {
-        let value: &PyAny = value.into();
-        if unsafe { ffi::Py_NotImplemented() == value.as_ptr() } {
-            return unsafe { Ok(value.downcast_unchecked()) };
-        }
-        Err(PyDowncastError::new(value, "NotImplementedType"))
+unsafe impl PyTypeInfo for PyNotImplemented {
+    const NAME: &'static str = "NotImplementedType";
+
+    const MODULE: Option<&'static str> = None;
+
+    type AsRefTarget = PyNotImplemented;
+
+    fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+        unsafe { ffi::Py_TYPE(ffi::Py_NotImplemented()) }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(
-        value: V,
-    ) -> Result<&'v Self, crate::PyDowncastError<'v>> {
-        value.into().downcast()
+    #[inline]
+    fn is_type_of(object: &PyAny) -> bool {
+        // NotImplementedType is not usable as a base type
+        Self::is_exact_type_of(object)
     }
 
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
-        let ptr = value.into() as *const _ as *const PyNotImplemented;
-        &*ptr
+    #[inline]
+    fn is_exact_type_of(object: &PyAny) -> bool {
+        object.is(Self::get(object.py()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::types::{PyDict, PyNotImplemented};
-    use crate::Python;
+    use crate::{PyTypeInfo, Python};
 
     #[test]
     fn test_notimplemented_is_itself() {
         Python::with_gil(|py| {
+            assert!(PyNotImplemented::get(py).is_instance_of::<PyNotImplemented>());
+            assert!(PyNotImplemented::get(py).is_exact_instance_of::<PyNotImplemented>());
+        })
+    }
+
+    #[test]
+    fn test_notimplemented_type_object_consistent() {
+        Python::with_gil(|py| {
             assert!(PyNotImplemented::get(py)
-                .downcast::<PyNotImplemented>()
-                .unwrap()
-                .is(py.NotImplemented()));
+                .get_type()
+                .is(PyNotImplemented::type_object(py)));
         })
     }
 
