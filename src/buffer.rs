@@ -641,19 +641,37 @@ impl<T> Drop for PyBuffer<T> {
 ///  The data cannot be modified through the reference, but other references may
 ///  be modifying the data.
 #[repr(transparent)]
-pub struct ReadOnlyCell<T: Element>(cell::UnsafeCell<T>);
+pub struct ReadOnlyCell<T: ?Sized>(cell::UnsafeCell<T>);
 
-impl<T: Element> ReadOnlyCell<T> {
-    /// Returns a copy of the current value.
-    #[inline]
-    pub fn get(&self) -> T {
-        unsafe { *self.0.get() }
-    }
-
+impl<T: ?Sized> ReadOnlyCell<T> {
     /// Returns a pointer to the current value.
     #[inline]
     pub fn as_ptr(&self) -> *const T {
         self.0.get()
+    }
+
+    /// Converts `&T` to `&ReadOnlyCell<T>`.
+    #[inline]
+    pub fn from_ref(t: &T) -> &ReadOnlyCell<T> {
+        // Safety: ReadOnlyCell is repr(transparent), and &ReadOnlyCell<T> is strictly less capable
+        // than &T.
+        unsafe { &*(t as *const T as *const ReadOnlyCell<T>) }
+    }
+
+    /// Converts `&Cell<T>` to `&ReadOnlyCell<T>`.
+    #[inline]
+    pub fn from_cell(t: &cell::Cell<T>) -> &ReadOnlyCell<T> {
+        // Safety: Cell and ReadOnlyCell are both repr(transparent), and &ReadOnlyCell<T> is
+        // strictly less capable than &Cell<T>.
+        unsafe { &*(t as *const cell::Cell<T> as *const ReadOnlyCell<T>) }
+    }
+}
+
+impl<T: Copy> ReadOnlyCell<T> {
+    /// Returns a copy of the current value.
+    #[inline]
+    pub fn get(&self) -> T {
+        unsafe { *self.0.get() }
     }
 }
 
@@ -686,7 +704,7 @@ impl_element!(f64, Float);
 
 #[cfg(test)]
 mod tests {
-    use super::PyBuffer;
+    use super::{PyBuffer, ReadOnlyCell};
     use crate::ffi;
     use crate::Python;
 
@@ -941,5 +959,26 @@ mod tests {
 
             assert_eq!(buffer.to_fortran_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
         });
+    }
+
+    #[test]
+    fn test_read_only_cell_conversions() {
+        let mut x = 42;
+        let x_ref_mut = &mut x;
+
+        let x_ref = &*x_ref_mut;
+        let x_rocell1 = ReadOnlyCell::from_ref(x_ref);
+        let x_rocell2 = ReadOnlyCell::from_ref(x_ref);
+        assert_eq!(x_rocell1.get(), x_rocell2.get());
+        assert_eq!(x_rocell1.get(), 42);
+
+        let x_cell = std::cell::Cell::from_mut(x_ref_mut);
+        let x_rocell3 = ReadOnlyCell::from_cell(x_cell);
+        let x_rocell4 = ReadOnlyCell::from_cell(x_cell);
+        assert_eq!(x_rocell3.get(), x_rocell4.get());
+        assert_eq!(x_rocell3.get(), 42);
+
+        // Importantly, this doesn't compile, because x_ref and x_cell cannot coexist.
+        // _ = *x_ref;
     }
 }
