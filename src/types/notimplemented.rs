@@ -47,7 +47,7 @@ mod tests {
             assert!(PyNotImplemented::get(py)
                 .downcast::<PyNotImplemented>()
                 .unwrap()
-                .is(&py.NotImplemented()));
+                .is(py.NotImplemented()));
         })
     }
 
