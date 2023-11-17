@@ -2,8 +2,6 @@
 //! must not contain any other public items.
 
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-extern crate proc_macro;
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{

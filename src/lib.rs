@@ -1,15 +1,6 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![cfg_attr(
-    docsrs, // rustdoc:: is not supported on msrv
-    deny(
-        invalid_doc_attributes,
-        rustdoc::broken_intra_doc_links,
-        rustdoc::bare_urls
-    )
-)]
-#![warn(rust_2018_idioms, unused_lifetimes)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(

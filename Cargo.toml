@@ -127,3 +127,32 @@ members = [
 no-default-features = true
 features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre", "chrono", "rust_decimal"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+[workspace.lints.clippy]
+checked_conversions = "warn"
+dbg_macro = "warn"
+explicit_into_iter_loop = "warn"
+explicit_iter_loop = "warn"
+filter_map_next = "warn"
+flat_map_option = "warn"
+let_unit_value = "warn"
+manual_assert = "warn"
+manual_ok_or = "warn"
+todo = "warn"
+unnecessary_wraps = "warn"
+useless_transmute = "warn"
+used_underscore_binding = "warn"
+
+[workspace.lints.rust]
+elided_lifetimes_in_paths = "warn"
+invalid_doc_attributes = "warn"
+rust_2018_idioms = "warn"
+rust_2021_prelude_collisions = "warn"
+unused_lifetimes = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "warn"
+bare_urls = "warn"
+
+[lints]
+workspace = true
