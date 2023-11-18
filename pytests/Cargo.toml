@@ -15,3 +15,6 @@ pyo3-build-config = { path = "../pyo3-build-config" }
 [lib]
 name = "pyo3_pytests"
 crate-type = ["cdylib"]
+
+[lints]
+workspace = true
