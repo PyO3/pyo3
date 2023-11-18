@@ -32,6 +32,15 @@ jobs:
       - name: Check rust formatting (rustfmt)
         run: nox -s rustfmt
 
+  semver-checks:
+    if: github.ref != 'refs/heads/main'
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+
   check-msrv:
     needs: [fmt]
     runs-on: ubuntu-latest
