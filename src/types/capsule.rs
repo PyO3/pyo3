@@ -123,8 +123,9 @@ impl PyCapsule {
 
     /// Imports an existing capsule.
     ///
-    /// The `name` should match the path to the module attribute exactly in the form
-    /// of `"module.attribute"`, which should be the same as the name within the capsule.
+    /// If this capsule represents a module attribute, the `name` should match the path
+    /// to the module attribute exactly in the form of `"module.attribute"`, which should
+    /// be the same as the name within the capsule.
     ///
     /// # Safety
     ///
@@ -139,9 +140,6 @@ impl PyCapsule {
     }
 
     /// Imports an existing capsule, returning a mutable reference to the value.
-    ///
-    /// The `name` should match the path to the module attribute exactly in the form
-    /// of `"module.attribute"`, which should be the same as the name within the capsule.
     ///
     /// # Safety
     ///
