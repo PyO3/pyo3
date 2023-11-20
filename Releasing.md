@@ -6,14 +6,16 @@ This is notes for the current process of releasing a new PyO3 version. Replace `
 
 Follow the process below to update all required pieces to bump the version. All these changes are done in a single commit because it makes it clear to git readers what happened to bump the version. It also makes it easy to cherry-pick the version bump onto the `main` branch when tidying up branch history at the end of the release process.
 
-1. Replace all instances of the PyO3 current version with the new version to be released. Places to check:
+1. Replace all instances of the PyO3 current version and the with the new version to be released. Places to check:
    - `Cargo.toml` for all PyO3 crates in the repository.
    - Examples in `README.md`
    - PyO3 version embedded into documentation like the README.
    - `pre-script.rhai` templates for the examples.
    - `[towncrier]` section in `pyproject.toml`.
 
-   Make sure not to modify the CHANGELOG during this step!
+   Some of the above locations may already have the new version with a `-dev` suffix, which needs to be removed.
+
+   **Make sure not to modify the CHANGELOG during this step!**
 
 2. Run `towncrier build` to generate the CHANGELOG. The version used by `towncrier` should automatically be correct because of the update to `pyproject.toml` in step 1.
 
