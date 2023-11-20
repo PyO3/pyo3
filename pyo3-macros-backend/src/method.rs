@@ -113,12 +113,14 @@ impl FnType {
             }
             FnType::FnClass | FnType::FnNewClass => {
                 quote! {
-                    _pyo3::types::PyType::from_type_ptr(py, _slf as *mut _pyo3::ffi::PyTypeObject),
+                    #[allow(clippy::useless_conversion)]
+                    ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(py, _slf as *mut _pyo3::ffi::PyTypeObject)),
                 }
             }
             FnType::FnModule => {
                 quote! {
-                    py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf),
+                    #[allow(clippy::useless_conversion)]
+                    ::std::convert::Into::into(py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf)),
                 }
             }
         }
