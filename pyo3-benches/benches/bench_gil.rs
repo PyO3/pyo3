@@ -16,7 +16,7 @@ fn bench_clean_acquire_gil(b: &mut Bencher<'_>) {
 }
 
 fn bench_dirty_acquire_gil(b: &mut Bencher<'_>) {
-    let obj = Python::with_gil(|py| py.None());
+    let obj: PyObject = Python::with_gil(|py| py.None().into());
     b.iter_batched(
         || {
             // Clone and drop an object so that the GILPool has work to do.

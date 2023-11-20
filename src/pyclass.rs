@@ -161,7 +161,7 @@ where
     fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
             Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
-            None => Ok(PyIterNextOutput::Return(py.None())),
+            None => Ok(PyIterNextOutput::Return(py.None().into())),
         }
     }
 }
@@ -210,7 +210,7 @@ where
     fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
             Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
-            None => Ok(PyIterANextOutput::Return(py.None())),
+            None => Ok(PyIterANextOutput::Return(py.None().into())),
         }
     }
 }

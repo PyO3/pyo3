@@ -481,7 +481,7 @@ mod tests {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
         Python::with_gil(|py| {
-            let none = py.None().into_ref(py);
+            let none = py.None();
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
                 "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"

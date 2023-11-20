@@ -314,15 +314,15 @@ fn test_inc_dec_ref_immortal() {
     Python::with_gil(|py| {
         let obj = py.None();
 
-        let ref_count = obj.get_refcnt(py);
+        let ref_count = obj.get_refcnt();
         let ptr = obj.as_ptr();
 
         unsafe { Py_INCREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(py), ref_count);
+        assert_eq!(obj.get_refcnt(), ref_count);
 
         unsafe { Py_DECREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(py), ref_count);
+        assert_eq!(obj.get_refcnt(), ref_count);
     })
 }

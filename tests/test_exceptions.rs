@@ -117,7 +117,7 @@ fn test_write_unraisable() {
         assert!(object.is_none(py));
 
         let err = PyRuntimeError::new_err("bar");
-        err.write_unraisable(py, Some(py.NotImplemented().as_ref(py)));
+        err.write_unraisable(py, Some(py.NotImplemented()));
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: bar");

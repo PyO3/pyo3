@@ -103,7 +103,7 @@ given signatures should be interpreted as follows:
             match op {
                 CompareOp::Eq => (self.0 == other.0).into_py(py),
                 CompareOp::Ne => (self.0 != other.0).into_py(py),
-                _ => py.NotImplemented(),
+                _ => py.NotImplemented().into(),
             }
         }
     }

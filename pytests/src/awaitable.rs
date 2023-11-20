@@ -36,7 +36,7 @@ impl IterAwaitable {
                 Ok(v) => Ok(IterNextOutput::Return(v)),
                 Err(err) => Err(err),
             },
-            _ => Ok(IterNextOutput::Yield(py.None())),
+            _ => Ok(IterNextOutput::Yield(py.None().into())),
         }
     }
 }

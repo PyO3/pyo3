@@ -697,22 +697,22 @@ impl<'py> Python<'py> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyObject {
-        PyNone::get(self).into()
+    pub fn None(self) -> &'py PyNone {
+        PyNone::get(self)
     }
 
     /// Gets the Python builtin value `Ellipsis`, or `...`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn Ellipsis(self) -> PyObject {
-        PyEllipsis::get(self).into()
+    pub fn Ellipsis(self) -> &'py PyEllipsis {
+        PyEllipsis::get(self)
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyObject {
-        PyNotImplemented::get(self).into()
+    pub fn NotImplemented(self) -> &'py PyNotImplemented {
+        PyNotImplemented::get(self)
     }
 
     /// Gets the running Python interpreter version as a string.

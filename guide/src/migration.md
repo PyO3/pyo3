@@ -3,6 +3,42 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.20.* to 0.21
+
+### `py.None()`, `py.NotImplemented()` and `py.Ellipsis()` now return typed singletons
+
+Previously `py.None()`, `py.NotImplemented()` and `py.Ellipsis()` would return `PyObject`. This had a few downsides:
+ - `PyObject` does not carry static type information
+ - `PyObject` takes ownership of a reference to the singletons, adding refcounting performance overhead
+ - `PyObject` is not gil-bound, meaning follow up method calls might again need `py`, causing repetition
+
+To avoid these downsides, these methods now return typed gil-bound references to the singletons, e.g. `py.None()` returns `&PyNone`. These typed singletons all implement `Into<PyObject>`, so migration is straightforward.
+
+Before:
+
+```rust,compile_fail
+# use pyo3::prelude::*;
+Python::with_gil(|py| {
+    let a: PyObject = py.None();
+
+    let b: &PyAny = py.None().as_ref(py);  // or into_ref(py)
+});
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+Python::with_gil(|py| {
+    // For uses needing a PyObject, add `.into()`
+    let a: PyObject = py.None().into();
+
+    // For uses needing &PyAny, remove `.as_ref(py)`
+    let b: &PyAny = py.None();
+});
+```
+
+
 ## from 0.19.* to 0.20
 
 ### Drop support for older technologies
@@ -158,7 +194,7 @@ fn raise_err() -> anyhow::Result<()> {
     Err(PyValueError::new_err("original error message").into())
 }
 
-fn main() {
+# fn main() {
     Python::with_gil(|py| {
         let rs_func = wrap_pyfunction!(raise_err, py).unwrap();
         pyo3::py_run!(
@@ -936,14 +972,14 @@ ensure that the Python GIL was held by the current thread). Technically, this wa
 To migrate, just pass a `py` argument to any calls to these methods.
 
 Before:
-```rust,compile_fail
+```rust,ignore
 # pyo3::Python::with_gil(|py| {
 py.None().get_refcnt();
 # })
 ```
 
 After:
-```rust
+```rust,compile_fail
 # pyo3::Python::with_gil(|py| {
 py.None().get_refcnt(py);
 # })
