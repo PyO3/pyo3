@@ -1,8 +1,10 @@
 #![cfg(feature = "macros")]
 #![cfg(not(target_arch = "wasm32"))]
+use std::ops::Deref;
 use std::{task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn};
+use pyo3::types::{IntoPyDict, PyType};
 use pyo3::{prelude::*, py_run};
 
 #[path = "../src/tests/common.rs"]
@@ -27,6 +29,44 @@ fn noop_coroutine() {
         let noop = wrap_pyfunction!(noop, gil).unwrap();
         let test = "import asyncio; assert asyncio.run(noop()) == 42";
         py_run!(gil, noop, &handle_windows(test));
+    })
+}
+
+#[test]
+fn test_coroutine_qualname() {
+    #[pyfunction]
+    async fn my_fn() {}
+    #[pyclass]
+    struct MyClass;
+    #[pymethods]
+    impl MyClass {
+        #[new]
+        fn new() -> Self {
+            Self
+        }
+        // TODO use &self when possible
+        async fn my_method(_self: Py<Self>) {}
+        #[classmethod]
+        async fn my_classmethod(_cls: Py<PyType>) {}
+        #[staticmethod]
+        async fn my_staticmethod() {}
+    }
+    Python::with_gil(|gil| {
+        let test = r#"
+        for coro, name, qualname in [
+            (my_fn(), "my_fn", "my_fn"),
+            (MyClass().my_method(), "my_method", "MyClass.my_method"),
+            #(MyClass().my_classmethod(), "my_classmethod", "MyClass.my_classmethod"),
+            (MyClass.my_staticmethod(), "my_staticmethod", "MyClass.my_staticmethod"),
+        ]:
+            assert coro.__name__ == name and coro.__qualname__ == qualname
+        "#;
+        let locals = [
+            ("my_fn", wrap_pyfunction!(my_fn, gil).unwrap().deref()),
+            ("MyClass", gil.get_type::<MyClass>()),
+        ]
+        .into_py_dict(gil);
+        py_run!(gil, *locals, &handle_windows(test));
     })
 }
 
