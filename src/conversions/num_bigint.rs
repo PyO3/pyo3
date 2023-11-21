@@ -264,7 +264,10 @@ mod tests {
     use self::{any::PyAnyMethods, dict::PyDictMethods};
 
     use super::*;
-    use crate::types::{PyDict, PyModule};
+    use crate::{
+        types::{PyDict, PyModule},
+        Bound,
+    };
     use indoc::indoc;
 
     fn rust_fib<T>() -> impl Iterator<Item = T>
@@ -325,7 +328,7 @@ mod tests {
         });
     }
 
-    fn python_index_class(py: Python<'_>) -> &PyModule {
+    fn python_index_class(py: Python<'_>) -> Bound<'_, PyModule> {
         let index_code = indoc!(
             r#"
                 class C:
@@ -335,7 +338,7 @@ mod tests {
                         return self.x
                 "#
         );
-        PyModule::from_code(py, index_code, "index.py", "index").unwrap()
+        PyModule::from_code_bound(py, index_code, "index.py", "index").unwrap()
     }
 
     #[test]

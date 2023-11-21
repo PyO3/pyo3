@@ -133,8 +133,10 @@ impl PickleSupport {
     }
 }
 
-fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
-    py.import_bound("sys")?
+fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
+    module
+        .py()
+        .import_bound("sys")?
         .dict()
         .get_item("modules")
         .unwrap()
@@ -147,9 +149,9 @@ fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_pickle() {
     Python::with_gil(|py| {
-        let module = PyModule::new(py, "test_module").unwrap();
+        let module = PyModule::new_bound(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
-        add_module(py, module).unwrap();
+        add_module(module).unwrap();
         let inst = PyCell::new(py, PickleSupport {}).unwrap();
         py_run!(
             py,

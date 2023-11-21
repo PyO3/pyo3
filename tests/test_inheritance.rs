@@ -354,7 +354,7 @@ fn module_add_class_inherit_bool_fails() {
     struct ExtendsBool;
 
     Python::with_gil(|py| {
-        let m = PyModule::new(py, "test_module").unwrap();
+        let m = PyModule::new_bound(py, "test_module").unwrap();
 
         let err = m.add_class::<ExtendsBool>().unwrap_err();
         assert_eq!(

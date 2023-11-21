@@ -764,6 +764,7 @@ impl<'py> Python<'py> {
     where
         N: IntoPy<Py<PyString>>,
     {
+        #[allow(deprecated)]
         PyModule::import(self, name)
     }
 
@@ -772,11 +773,7 @@ impl<'py> Python<'py> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        // FIXME: This should be replaced by `PyModule::import_bound` once thats
-        // implemented.
-        PyModule::import(self, name)
-            .map(PyNativeType::as_borrowed)
-            .map(crate::Borrowed::to_owned)
+        PyModule::import_bound(self, name)
     }
 
     /// Gets the Python builtin value `None`.

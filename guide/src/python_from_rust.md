@@ -32,7 +32,7 @@ fn main() -> PyResult<()> {
     let arg3 = "arg3";
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code(
+        let fun: Py<PyAny> = PyModule::from_code_bound(
             py,
             "def example(*args, **kwargs):
                 if args != ():
@@ -78,7 +78,7 @@ fn main() -> PyResult<()> {
     let val2 = 2;
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code(
+        let fun: Py<PyAny> = PyModule::from_code_bound(
             py,
             "def example(*args, **kwargs):
                 if args != ():
@@ -134,7 +134,7 @@ use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let builtins = PyModule::import(py, "builtins")?;
+        let builtins = PyModule::import_bound(py, "builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
             .call1((vec![1, 2, 3],))?
@@ -233,7 +233,7 @@ use pyo3::{
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let activators = PyModule::from_code(
+    let activators = PyModule::from_code_bound(
         py,
         r#"
 def relu(x):
@@ -253,7 +253,7 @@ def leaky_relu(x, slope=0.01):
     let kwargs = [("slope", 0.2)].into_py_dict_bound(py);
     let lrelu_result: f64 = activators
         .getattr("leaky_relu")?
-        .call((-1.0,), Some(kwargs.as_gil_ref()))?
+        .call((-1.0,), Some(&kwargs))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())
@@ -310,12 +310,12 @@ pub fn add_one(x: i64) -> i64 {
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // Create new module
-        let foo_module = PyModule::new(py, "foo")?;
-        foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+        let foo_module = PyModule::new_bound(py, "foo")?;
+        foo_module.add_function(&wrap_pyfunction!(add_one, foo_module.as_gil_ref())?.as_borrowed())?;
 
         // Import and get sys.modules
-        let sys = PyModule::import(py, "sys")?;
-        let py_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+        let sys = PyModule::import_bound(py, "sys")?;
+        let py_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
 
         // Insert foo into sys.modules
         py_modules.set_item("foo", foo_module)?;
@@ -381,8 +381,8 @@ fn main() -> PyResult<()> {
     ));
     let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
+        PyModule::from_code_bound(py, py_foo, "utils.foo", "utils.foo")?;
+        let app: Py<PyAny> = PyModule::from_code_bound(py, py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -416,7 +416,7 @@ fn main() -> PyResult<()> {
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         let syspath = py.import_bound("sys")?.getattr("path")?.downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
-        let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
+        let app: Py<PyAny> = PyModule::from_code_bound(py, &py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -441,7 +441,7 @@ use pyo3::types::PyModule;
 
 fn main() {
     Python::with_gil(|py| {
-        let custom_manager = PyModule::from_code(
+        let custom_manager = PyModule::from_code_bound(
             py,
             r#"
 class House(object):
