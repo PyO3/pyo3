@@ -1,5 +1,8 @@
 use crate::err::{self, PyResult};
-use crate::{ffi, PyAny, PyTypeInfo, Python};
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::instance::Borrowed;
+use crate::types::any::PyAnyMethods;
+use crate::{ffi, Bound, PyAny, PyNativeType, PyTypeInfo, Python};
 use std::borrow::Cow;
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use std::ffi::CStr;
@@ -20,7 +23,7 @@ impl PyType {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        self.as_ptr() as *mut ffi::PyTypeObject
+        self.as_borrowed().as_type_ptr()
     }
 
     /// Retrieves the `PyType` instance for the given FFI pointer.
@@ -35,14 +38,81 @@ impl PyType {
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
     pub fn qualname(&self) -> PyResult<String> {
+        self.as_borrowed().qualname()
+    }
+
+    /// Gets the full name, which includes the module, of the `PyType`.
+    pub fn name(&self) -> PyResult<Cow<'_, str>> {
+        self.as_borrowed().name()
+    }
+
+    /// Checks whether `self` is a subclass of `other`.
+    ///
+    /// Equivalent to the Python expression `issubclass(self, other)`.
+    pub fn is_subclass(&self, other: &PyAny) -> PyResult<bool> {
+        self.as_borrowed().is_subclass(&other.as_borrowed())
+    }
+
+    /// Checks whether `self` is a subclass of type `T`.
+    ///
+    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
+    /// `T` is known at compile time.
+    pub fn is_subclass_of<T>(&self) -> PyResult<bool>
+    where
+        T: PyTypeInfo,
+    {
+        self.as_borrowed().is_subclass_of::<T>()
+    }
+}
+
+/// Implementation of functionality for [`PyType`].
+///
+/// These methods are defined for the `Bound<'py, PyType>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PyType")]
+pub trait PyTypeMethods<'py> {
+    /// Retrieves the underlying FFI pointer associated with this Python object.
+    fn as_type_ptr(&self) -> *mut ffi::PyTypeObject;
+
+    /// Gets the full name, which includes the module, of the `PyType`.
+    fn name(&self) -> PyResult<Cow<'_, str>>;
+
+    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
+    fn qualname(&self) -> PyResult<String>;
+
+    /// Checks whether `self` is a subclass of `other`.
+    ///
+    /// Equivalent to the Python expression `issubclass(self, other)`.
+    fn is_subclass(&self, other: &Bound<'_, PyAny>) -> PyResult<bool>;
+
+    /// Checks whether `self` is a subclass of type `T`.
+    ///
+    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
+    /// `T` is known at compile time.
+    fn is_subclass_of<T>(&self) -> PyResult<bool>
+    where
+        T: PyTypeInfo;
+}
+
+impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
+    /// Retrieves the underlying FFI pointer associated with this Python object.
+    #[inline]
+    fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
+        self.as_ptr() as *mut ffi::PyTypeObject
+    }
+
+    /// Gets the name of the `PyType`.
+    fn name(&self) -> PyResult<Cow<'_, str>> {
+        Borrowed::from(self).name()
+    }
+
+    fn qualname(&self) -> PyResult<String> {
         #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
         let name = self.getattr(intern!(self.py(), "__qualname__"))?.extract();
 
         #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
         let name = {
-            use crate::ffi_ptr_ext::FfiPtrExt;
-            use crate::types::any::PyAnyMethods;
-
             let obj = unsafe {
                 ffi::PyType_GetQualName(self.as_type_ptr()).assume_owned_or_err(self.py())?
             };
@@ -53,8 +123,29 @@ impl PyType {
         name
     }
 
-    /// Gets the full name, which includes the module, of the `PyType`.
-    pub fn name(&self) -> PyResult<Cow<'_, str>> {
+    /// Checks whether `self` is a subclass of `other`.
+    ///
+    /// Equivalent to the Python expression `issubclass(self, other)`.
+    fn is_subclass(&self, other: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
+        err::error_on_minusone(self.py(), result)?;
+        Ok(result == 1)
+    }
+
+    /// Checks whether `self` is a subclass of type `T`.
+    ///
+    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
+    /// `T` is known at compile time.
+    fn is_subclass_of<T>(&self) -> PyResult<bool>
+    where
+        T: PyTypeInfo,
+    {
+        self.is_subclass(&T::type_object_bound(self.py()))
+    }
+}
+
+impl<'a> Borrowed<'a, '_, PyType> {
+    fn name(self) -> PyResult<Cow<'a, str>> {
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         {
             let ptr = self.as_type_ptr();
@@ -78,33 +169,11 @@ impl PyType {
 
             #[cfg(Py_3_11)]
             let name = {
-                use crate::ffi_ptr_ext::FfiPtrExt;
-
                 unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? }
             };
 
             Ok(Cow::Owned(format!("{}.{}", module, name)))
         }
-    }
-
-    /// Checks whether `self` is a subclass of `other`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, other)`.
-    pub fn is_subclass(&self, other: &PyAny) -> PyResult<bool> {
-        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
-        err::error_on_minusone(self.py(), result)?;
-        Ok(result == 1)
-    }
-
-    /// Checks whether `self` is a subclass of type `T`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
-    /// `T` is known at compile time.
-    pub fn is_subclass_of<T>(&self) -> PyResult<bool>
-    where
-        T: PyTypeInfo,
-    {
-        self.is_subclass(T::type_object_bound(self.py()).as_gil_ref())
     }
 }
 
