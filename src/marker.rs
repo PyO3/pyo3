@@ -72,7 +72,7 @@
 //! use send_wrapper::SendWrapper;
 //!
 //! Python::with_gil(|py| {
-//!     let string = PyString::new(py, "foo");
+//!     let string = PyString::new_bound(py, "foo");
 //!
 //!     let wrapped = SendWrapper::new(string);
 //!
@@ -80,7 +80,7 @@
 //! # #[cfg(not(feature = "nightly"))]
 //! # {
 //!         // 💥 Unsound! 💥
-//!         let smuggled: &PyString = *wrapped;
+//!         let smuggled: &Bound<'_, PyString> = &*wrapped;
 //!         println!("{:?}", smuggled);
 //! # }
 //!     });
@@ -164,12 +164,12 @@ use std::os::raw::c_int;
 /// use send_wrapper::SendWrapper;
 ///
 /// Python::with_gil(|py| {
-///     let string = PyString::new(py, "foo");
+///     let string = PyString::new_bound(py, "foo");
 ///
 ///     let wrapped = SendWrapper::new(string);
 ///
 ///     py.allow_threads(|| {
-///         let sneaky: &PyString = *wrapped;
+///         let sneaky: &Bound<'_, PyString> = &*wrapped;
 ///
 ///         println!("{:?}", sneaky);
 ///     });
@@ -210,7 +210,7 @@ mod nightly {
         /// # use pyo3::prelude::*;
         /// # use pyo3::types::PyString;
         /// Python::with_gil(|py| {
-        ///     let string = PyString::new(py, "foo");
+        ///     let string = PyString::new_bound(py, "foo");
         ///
         ///     py.allow_threads(|| {
         ///         println!("{:?}", string);
@@ -238,7 +238,7 @@ mod nightly {
         /// use send_wrapper::SendWrapper;
         ///
         /// Python::with_gil(|py| {
-        ///     let string = PyString::new(py, "foo");
+        ///     let string = PyString::new_bound(py, "foo");
         ///
         ///     let wrapped = SendWrapper::new(string);
         ///
@@ -521,7 +521,7 @@ impl<'py> Python<'py> {
     /// use pyo3::types::PyString;
     ///
     /// fn parallel_print(py: Python<'_>) {
-    ///     let s = PyString::new(py, "This object cannot be accessed without holding the GIL >_<");
+    ///     let s = PyString::new_bound(py, "This object cannot be accessed without holding the GIL >_<");
     ///     py.allow_threads(move || {
     ///         println!("{:?}", s); // This causes a compile error.
     ///     });
@@ -1004,6 +1004,7 @@ impl Python<'_> {
     /// The `Ungil` bound on the closure does prevent hanging on to existing GIL-bound references
     ///
     /// ```compile_fail
+    /// # #![allow(deprecated)]
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyString;
     ///

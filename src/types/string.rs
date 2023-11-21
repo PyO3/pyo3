@@ -134,13 +134,29 @@ pub struct PyString(PyAny);
 pyobject_native_type_core!(PyString, pyobject_native_static_type_object!(ffi::PyUnicode_Type), #checkfunction=ffi::PyUnicode_Check);
 
 impl PyString {
+    /// Deprecated form of [`PyString::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyString::new` will be replaced by `PyString::new_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn new<'py>(py: Python<'py>, s: &str) -> &'py Self {
+        Self::new_bound(py, s).into_gil_ref()
+    }
+
     /// Creates a new Python string object.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, s: &str) -> &'p PyString {
+    pub fn new_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { py.from_owned_ptr(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
+        unsafe {
+            ffi::PyUnicode_FromStringAndSize(ptr, len)
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Intern the given string
@@ -452,6 +468,7 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
     use crate::Python;

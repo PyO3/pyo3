@@ -11,14 +11,14 @@ use crate::{
 impl ToPyObject for str {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -30,7 +30,7 @@ impl<'a> IntoPy<PyObject> for &'a str {
 impl<'a> IntoPy<Py<PyString>> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -44,7 +44,7 @@ impl<'a> IntoPy<Py<PyString>> for &'a str {
 impl ToPyObject for Cow<'_, str> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 }
 
@@ -65,7 +65,7 @@ impl IntoPy<PyObject> for Cow<'_, str> {
 impl ToPyObject for String {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 }
 
@@ -78,7 +78,7 @@ impl ToPyObject for char {
 impl IntoPy<PyObject> for char {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let mut bytes = [0u8; 4];
-        PyString::new(py, self.encode_utf8(&mut bytes)).into()
+        PyString::new_bound(py, self.encode_utf8(&mut bytes)).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -89,7 +89,7 @@ impl IntoPy<PyObject> for char {
 
 impl IntoPy<PyObject> for String {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, &self).into()
+        PyString::new_bound(py, &self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -101,7 +101,7 @@ impl IntoPy<PyObject> for String {
 impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]

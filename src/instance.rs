@@ -1624,7 +1624,7 @@ a = A()
             assert!(instance
                 .getattr(py, "foo")?
                 .as_ref(py)
-                .eq(PyString::new(py, "bar"))?);
+                .eq(PyString::new_bound(py, "bar"))?);
 
             instance.getattr(py, "foo")?;
             Ok(())

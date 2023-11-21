@@ -219,7 +219,7 @@ impl PyAny {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let a = PyFloat::new_bound(py, 0_f64);
-    ///     let b = PyString::new(py, "zero");
+    ///     let b = PyString::new_bound(py, "zero");
     ///     assert!(a.compare(b).is_err());
     ///     Ok(())
     /// })?;
@@ -1075,7 +1075,7 @@ pub trait PyAnyMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let a = PyFloat::new_bound(py, 0_f64);
-    ///     let b = PyString::new(py, "zero");
+    ///     let b = PyString::new_bound(py, "zero");
     ///     assert!(a.compare(b).is_err());
     ///     Ok(())
     /// })?;
