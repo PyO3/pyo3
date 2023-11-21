@@ -34,6 +34,7 @@ pub use crate::types::float::PyFloatMethods;
 pub use crate::types::frozenset::PyFrozenSetMethods;
 pub use crate::types::list::PyListMethods;
 pub use crate::types::mapping::PyMappingMethods;
+pub use crate::types::module::PyModuleMethods;
 pub use crate::types::sequence::PySequenceMethods;
 pub use crate::types::set::PySetMethods;
 pub use crate::types::string::PyStringMethods;
