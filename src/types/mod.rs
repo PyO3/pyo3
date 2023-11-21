@@ -79,7 +79,7 @@ pub mod iter {
     pub use super::dict::{BoundDictIterator, PyDictIterator};
     pub use super::frozenset::PyFrozenSetIterator;
     pub use super::list::{BoundListIterator, PyListIterator};
-    pub use super::set::PySetIterator;
+    pub use super::set::{BoundSetIterator, PySetIterator};
     pub use super::tuple::PyTupleIterator;
 }
 
