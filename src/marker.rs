@@ -744,6 +744,14 @@ impl<'py> Python<'py> {
         PyModule::import(self, name)
     }
 
+    /// Imports the Python module with the specified name.
+    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        PyModule::import_bound(self, name)
+    }
+
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]

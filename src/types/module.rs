@@ -1,6 +1,7 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
@@ -39,9 +40,33 @@ impl PyModule {
     /// # Ok(())}
     ///  ```
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+        Self::new_bound(py, name).map(Bound::into_gil_ref)
+    }
+
+    /// Creates a new module object with the `__name__` attribute set to `name`.
+    ///
+    /// # Examples
+    ///
+    /// ``` rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let module = PyModule::new(py, "my_module")?;
+    ///
+    ///     assert_eq!(module.name()?, "my_module");
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
+    ///  ```
+    pub fn new_bound<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
         // Could use PyModule_NewObject, but it doesn't exist on PyPy.
         let name = CString::new(name)?;
-        unsafe { py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr())) }
+        unsafe {
+            ffi::PyModule_New(name.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Imports the Python module with the specified name.
@@ -66,8 +91,37 @@ impl PyModule {
     where
         N: IntoPy<Py<PyString>>,
     {
+        Self::import_bound(py, name).map(Bound::into_gil_ref)
+    }
+
+    /// Imports the Python module with the specified name.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() {
+    /// use pyo3::prelude::*;
+    ///
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::import(py, "antigravity").expect("No flying for you.");
+    /// });
+    /// # }
+    ///  ```
+    ///
+    /// This is equivalent to the following Python expression:
+    /// ```python
+    /// import antigravity
+    /// ```
+    pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
         let name: Py<PyString> = name.into_py(py);
-        unsafe { py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr())) }
+        unsafe {
+            ffi::PyImport_Import(name.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Creates and loads a module named `module_name`,
@@ -573,8 +627,6 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     fn name(&self) -> PyResult<Bound<'py, PyString>> {
         #[cfg(not(PyPy))]
         {
-            use crate::py_result_ext::PyResultExt;
-
             unsafe {
                 ffi::PyModule_GetNameObject(self.as_ptr())
                     .assume_owned_or_err(self.py())
@@ -594,8 +646,6 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     #[cfg(not(PyPy))]
     fn filename(&self) -> PyResult<Bound<'py, PyString>> {
-        use crate::py_result_ext::PyResultExt;
-
         unsafe {
             ffi::PyModule_GetFilenameObject(self.as_ptr())
                 .assume_owned_or_err(self.py())
