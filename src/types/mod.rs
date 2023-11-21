@@ -290,7 +290,7 @@ mod frozenset;
 mod function;
 mod iterator;
 pub(crate) mod list;
-mod mapping;
+pub(crate) mod mapping;
 mod memoryview;
 mod module;
 mod none;
