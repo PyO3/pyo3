@@ -39,3 +39,4 @@ pub use crate::types::sequence::PySequenceMethods;
 pub use crate::types::set::PySetMethods;
 pub use crate::types::string::PyStringMethods;
 pub use crate::types::tuple::PyTupleMethods;
+pub use crate::types::typeobject::PyTypeMethods;
