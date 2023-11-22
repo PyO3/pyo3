@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import nox
 
-nox.options.sessions = ["test", "clippy", "fmt", "docs"]
+nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
 
 
 PYO3_DIR = Path(__file__).parent
