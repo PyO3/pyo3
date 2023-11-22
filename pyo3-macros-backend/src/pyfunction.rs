@@ -6,7 +6,7 @@ use crate::{
     deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
-    utils::{ensure_not_async_fn, get_pyo3_crate},
+    utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -179,8 +179,6 @@ pub fn impl_wrap_pyfunction(
     options: PyFunctionOptions,
 ) -> syn::Result<TokenStream> {
     check_generic(&func.sig)?;
-    ensure_not_async_fn(&func.sig)?;
-
     let PyFunctionOptions {
         pass_module,
         name,
@@ -231,6 +229,7 @@ pub fn impl_wrap_pyfunction(
         signature,
         output: ty,
         text_signature,
+        asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
         deprecations: Deprecations::new(),
     };

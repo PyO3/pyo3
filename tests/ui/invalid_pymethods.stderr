@@ -153,38 +153,30 @@ error: Python functions cannot have `impl Trait` arguments
 161 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
     |                                                        ^^^^
 
-error: `async fn` is not yet supported for Python functions.
-
-       Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and Python. For more information, see https://github.com/PyO3/pyo3/issues/1632
-   --> tests/ui/invalid_pymethods.rs:166:5
-    |
-166 |     async fn async_method(&self) {}
-    |     ^^^^^
-
 error: `pass_module` cannot be used on Python methods
-   --> tests/ui/invalid_pymethods.rs:171:12
+   --> tests/ui/invalid_pymethods.rs:166:12
     |
-171 |     #[pyo3(pass_module)]
+166 |     #[pyo3(pass_module)]
     |            ^^^^^^^^^^^
 
 error: Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
        Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.
-   --> tests/ui/invalid_pymethods.rs:177:29
+   --> tests/ui/invalid_pymethods.rs:172:29
     |
-177 |     fn method_self_by_value(self) {}
+172 |     fn method_self_by_value(self) {}
     |                             ^^^^
 
 error: macros cannot be used as items in `#[pymethods]` impl blocks
        = note: this was previously accepted and ignored
-   --> tests/ui/invalid_pymethods.rs:212:5
+   --> tests/ui/invalid_pymethods.rs:207:5
     |
-212 |     macro_invocation!();
+207 |     macro_invocation!();
     |     ^^^^^^^^^^^^^^^^
 
 error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyClassNewTextSignature<TwoNew>` for type `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
-   --> tests/ui/invalid_pymethods.rs:182:1
+   --> tests/ui/invalid_pymethods.rs:177:1
     |
-182 | #[pymethods]
+177 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | first implementation here
@@ -193,9 +185,9 @@ error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyClas
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod___new____`
-   --> tests/ui/invalid_pymethods.rs:182:1
+   --> tests/ui/invalid_pymethods.rs:177:1
     |
-182 | #[pymethods]
+177 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | duplicate definitions for `__pymethod___new____`
@@ -204,9 +196,9 @@ error[E0592]: duplicate definitions with name `__pymethod___new____`
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod_func__`
-   --> tests/ui/invalid_pymethods.rs:197:1
+   --> tests/ui/invalid_pymethods.rs:192:1
     |
-197 | #[pymethods]
+192 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | duplicate definitions for `__pymethod_func__`

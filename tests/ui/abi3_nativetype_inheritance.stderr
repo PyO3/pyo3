@@ -4,6 +4,8 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
 5 | #[pyclass(extends=PyDict)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
   |
-  = help: the trait `PyClass` is implemented for `TestClass`
+  = help: the following other types implement trait `PyClass`:
+            TestClass
+            Coroutine
   = note: required for `PyDict` to implement `PyClassBaseType`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

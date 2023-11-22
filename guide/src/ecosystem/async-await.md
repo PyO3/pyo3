@@ -1,5 +1,7 @@
 # Using `async` and `await`
 
+*`async`/`await` support is currently being integrated in PyO3. See the [dedicated documentation](../async-await.md)*
+
 If you are working with a Python library that makes use of async functions or wish to provide
 Python bindings for an async Rust library, [`pyo3-asyncio`](https://github.com/awestlake87/pyo3-asyncio)
 likely has the tools you need. It provides conversions between async functions in both Python and
