@@ -81,7 +81,7 @@ pub enum FnType {
     FnNewClass,
     FnClass,
     FnStatic,
-    FnModule,
+    FnModule(Span),
     ClassAttribute,
 }
 
@@ -93,7 +93,7 @@ impl FnType {
             | FnType::Fn(_)
             | FnType::FnClass
             | FnType::FnNewClass
-            | FnType::FnModule => true,
+            | FnType::FnModule(_) => true,
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => false,
         }
     }
@@ -117,8 +117,8 @@ impl FnType {
                     ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(py, _slf as *mut _pyo3::ffi::PyTypeObject)),
                 }
             }
-            FnType::FnModule => {
-                quote! {
+            FnType::FnModule(span) => {
+                quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf)),
                 }
@@ -633,7 +633,7 @@ impl<'a> FnSpec<'a> {
             // Getters / Setters / ClassAttribute are not callables on the Python side
             FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => return None,
             FnType::Fn(_) => Some("self"),
-            FnType::FnModule => Some("module"),
+            FnType::FnModule(_) => Some("module"),
             FnType::FnClass | FnType::FnNewClass => Some("cls"),
             FnType::FnStatic | FnType::FnNew => None,
         };
