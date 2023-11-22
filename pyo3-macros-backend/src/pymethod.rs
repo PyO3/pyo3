@@ -258,7 +258,7 @@ pub fn gen_py_method(
                 doc: spec.get_doc(meth_attrs),
             },
         )?),
-        (_, FnType::FnModule) => {
+        (_, FnType::FnModule(_)) => {
             unreachable!("methods cannot be FnModule")
         }
     })
