@@ -22,186 +22,174 @@ error: unexpected receiver
 26 |     fn staticmethod_with_receiver(&self) {}
    |                                   ^
 
-error: Expected `cls: &PyType` as the first argument to `#[classmethod]`
-  --> tests/ui/invalid_pymethods.rs:32:34
+error: Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`
+  --> tests/ui/invalid_pymethods.rs:32:33
    |
 32 |     fn classmethod_with_receiver(&self) {}
-   |                                  ^
+   |                                 ^^^^^^^
+
+error: Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`
+  --> tests/ui/invalid_pymethods.rs:38:36
+   |
+38 |     fn classmethod_missing_argument() -> Self {
+   |                                    ^^
 
 error: expected receiver for `#[getter]`
-  --> tests/ui/invalid_pymethods.rs:38:5
+  --> tests/ui/invalid_pymethods.rs:54:5
    |
-38 |     fn getter_without_receiver() {}
+54 |     fn getter_without_receiver() {}
    |     ^^
 
 error: expected receiver for `#[setter]`
-  --> tests/ui/invalid_pymethods.rs:44:5
+  --> tests/ui/invalid_pymethods.rs:60:5
    |
-44 |     fn setter_without_receiver() {}
+60 |     fn setter_without_receiver() {}
    |     ^^
 
 error: static method needs #[staticmethod] attribute
-  --> tests/ui/invalid_pymethods.rs:50:5
+  --> tests/ui/invalid_pymethods.rs:66:5
    |
-50 |     fn text_signature_on_call() {}
+66 |     fn text_signature_on_call() {}
    |     ^^
 
 error: `text_signature` not allowed with `getter`
-  --> tests/ui/invalid_pymethods.rs:56:12
+  --> tests/ui/invalid_pymethods.rs:72:12
    |
-56 |     #[pyo3(text_signature = "()")]
+72 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: `text_signature` not allowed with `setter`
-  --> tests/ui/invalid_pymethods.rs:63:12
+  --> tests/ui/invalid_pymethods.rs:79:12
    |
-63 |     #[pyo3(text_signature = "()")]
+79 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: `text_signature` not allowed with `classattr`
-  --> tests/ui/invalid_pymethods.rs:70:12
+  --> tests/ui/invalid_pymethods.rs:86:12
    |
-70 |     #[pyo3(text_signature = "()")]
+86 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: expected a string literal or `None`
-  --> tests/ui/invalid_pymethods.rs:76:30
+  --> tests/ui/invalid_pymethods.rs:92:30
    |
-76 |     #[pyo3(text_signature = 1)]
+92 |     #[pyo3(text_signature = 1)]
    |                              ^
 
 error: `text_signature` may only be specified once
-  --> tests/ui/invalid_pymethods.rs:83:12
+  --> tests/ui/invalid_pymethods.rs:99:12
    |
-83 |     #[pyo3(text_signature = None)]
+99 |     #[pyo3(text_signature = None)]
    |            ^^^^^^^^^^^^^^
 
 error: `signature` not allowed with `getter`
-  --> tests/ui/invalid_pymethods.rs:90:12
-   |
-90 |     #[pyo3(signature = ())]
-   |            ^^^^^^^^^
+   --> tests/ui/invalid_pymethods.rs:106:12
+    |
+106 |     #[pyo3(signature = ())]
+    |            ^^^^^^^^^
 
 error: `signature` not allowed with `setter`
-  --> tests/ui/invalid_pymethods.rs:97:12
-   |
-97 |     #[pyo3(signature = ())]
-   |            ^^^^^^^^^
+   --> tests/ui/invalid_pymethods.rs:113:12
+    |
+113 |     #[pyo3(signature = ())]
+    |            ^^^^^^^^^
 
 error: `signature` not allowed with `classattr`
-   --> tests/ui/invalid_pymethods.rs:104:12
+   --> tests/ui/invalid_pymethods.rs:120:12
     |
-104 |     #[pyo3(signature = ())]
+120 |     #[pyo3(signature = ())]
     |            ^^^^^^^^^
 
 error: `#[new]` may not be combined with `#[classmethod]` `#[staticmethod]`, `#[classattr]`, `#[getter]`, and `#[setter]`
-   --> tests/ui/invalid_pymethods.rs:110:7
+   --> tests/ui/invalid_pymethods.rs:126:7
     |
-110 |     #[new]
+126 |     #[new]
     |       ^^^
 
 error: `#[new]` does not take any arguments
        = help: did you mean `#[new] #[pyo3(signature = ())]`?
-   --> tests/ui/invalid_pymethods.rs:121:7
+   --> tests/ui/invalid_pymethods.rs:137:7
     |
-121 |     #[new(signature = ())]
+137 |     #[new(signature = ())]
     |       ^^^
 
 error: `#[new]` does not take any arguments
        = note: this was previously accepted and ignored
-   --> tests/ui/invalid_pymethods.rs:127:11
+   --> tests/ui/invalid_pymethods.rs:143:11
     |
-127 |     #[new = ()] // in this form there's no suggestion to move arguments to `#[pyo3()]` attribute
+143 |     #[new = ()] // in this form there's no suggestion to move arguments to `#[pyo3()]` attribute
     |           ^
 
 error: `#[classmethod]` does not take any arguments
        = help: did you mean `#[classmethod] #[pyo3(signature = ())]`?
-   --> tests/ui/invalid_pymethods.rs:133:7
+   --> tests/ui/invalid_pymethods.rs:149:7
     |
-133 |     #[classmethod(signature = ())]
+149 |     #[classmethod(signature = ())]
     |       ^^^^^^^^^^^
 
 error: `#[staticmethod]` does not take any arguments
        = help: did you mean `#[staticmethod] #[pyo3(signature = ())]`?
-   --> tests/ui/invalid_pymethods.rs:139:7
+   --> tests/ui/invalid_pymethods.rs:155:7
     |
-139 |     #[staticmethod(signature = ())]
+155 |     #[staticmethod(signature = ())]
     |       ^^^^^^^^^^^^
 
 error: `#[classattr]` does not take any arguments
        = help: did you mean `#[classattr] #[pyo3(signature = ())]`?
-   --> tests/ui/invalid_pymethods.rs:145:7
+   --> tests/ui/invalid_pymethods.rs:161:7
     |
-145 |     #[classattr(signature = ())]
+161 |     #[classattr(signature = ())]
     |       ^^^^^^^^^
 
 error: Python functions cannot have generic type parameters
-   --> tests/ui/invalid_pymethods.rs:151:23
+   --> tests/ui/invalid_pymethods.rs:167:23
     |
-151 |     fn generic_method<T>(value: T) {}
+167 |     fn generic_method<T>(value: T) {}
     |                       ^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:156:48
+   --> tests/ui/invalid_pymethods.rs:172:48
     |
-156 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
+172 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
     |                                                ^^^^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:161:56
+   --> tests/ui/invalid_pymethods.rs:177:56
     |
-161 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
+177 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
     |                                                        ^^^^
 
 error: `pass_module` cannot be used on Python methods
-   --> tests/ui/invalid_pymethods.rs:166:12
+   --> tests/ui/invalid_pymethods.rs:182:12
     |
-166 |     #[pyo3(pass_module)]
+182 |     #[pyo3(pass_module)]
     |            ^^^^^^^^^^^
 
 error: Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
        Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.
-   --> tests/ui/invalid_pymethods.rs:172:29
+   --> tests/ui/invalid_pymethods.rs:188:29
     |
-172 |     fn method_self_by_value(self) {}
+188 |     fn method_self_by_value(self) {}
     |                             ^^^^
 
 error: macros cannot be used as items in `#[pymethods]` impl blocks
        = note: this was previously accepted and ignored
-   --> tests/ui/invalid_pymethods.rs:207:5
+   --> tests/ui/invalid_pymethods.rs:197:5
     |
-207 |     macro_invocation!();
+197 |     macro_invocation!();
     |     ^^^^^^^^^^^^^^^^
 
-error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyClassNewTextSignature<TwoNew>` for type `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
-   --> tests/ui/invalid_pymethods.rs:177:1
-    |
-177 | #[pymethods]
-    | ^^^^^^^^^^^^
-    | |
-    | first implementation here
-    | conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<TwoNew>`
-    |
-    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0592]: duplicate definitions with name `__pymethod___new____`
-   --> tests/ui/invalid_pymethods.rs:177:1
-    |
-177 | #[pymethods]
-    | ^^^^^^^^^^^^
-    | |
-    | duplicate definitions for `__pymethod___new____`
-    | other definition for `__pymethod___new____`
-    |
-    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0592]: duplicate definitions with name `__pymethod_func__`
-   --> tests/ui/invalid_pymethods.rs:192:1
-    |
-192 | #[pymethods]
-    | ^^^^^^^^^^^^
-    | |
-    | duplicate definitions for `__pymethod_func__`
-    | other definition for `__pymethod_func__`
-    |
-    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+error[E0277]: the trait bound `i32: From<&PyType>` is not satisfied
+  --> tests/ui/invalid_pymethods.rs:46:45
+   |
+46 |     fn classmethod_wrong_first_argument(_x: i32) -> Self {
+   |                                             ^^^ the trait `From<&PyType>` is not implemented for `i32`
+   |
+   = help: the following other types implement trait `From<T>`:
+             <i32 as From<bool>>
+             <i32 as From<i8>>
+             <i32 as From<i16>>
+             <i32 as From<u8>>
+             <i32 as From<u16>>
+             <i32 as From<NonZeroI32>>
+   = note: required for `&PyType` to implement `Into<i32>`
