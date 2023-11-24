@@ -189,29 +189,29 @@ pub fn impl_wrap_pyfunction(
 
     let python_name = name.map_or_else(|| func.sig.ident.unraw(), |name| name.value.0);
 
-    let mut arguments = func
-        .sig
-        .inputs
-        .iter_mut()
-        .map(FnArg::parse)
-        .collect::<syn::Result<Vec<_>>>()?;
-
     let tp = if pass_module.is_some() {
-        const PASS_MODULE_ERR: &str =
-            "expected &PyModule or Py<PyModule> as first argument with `pass_module`";
-        ensure_spanned!(
-            !arguments.is_empty(),
-            func.span() => PASS_MODULE_ERR
-        );
-        let arg = arguments.remove(0);
-        ensure_spanned!(
-            type_is_pymodule(arg.ty),
-            arg.ty.span() => PASS_MODULE_ERR
-        );
-        method::FnType::FnModule
+        let span = match func.sig.inputs.first() {
+            Some(syn::FnArg::Typed(first_arg)) => first_arg.ty.span(),
+            Some(syn::FnArg::Receiver(_)) | None => bail_spanned!(
+                func.sig.paren_token.span.join() => "expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`"
+            ),
+        };
+        method::FnType::FnModule(span)
     } else {
         method::FnType::FnStatic
     };
+
+    let arguments = func
+        .sig
+        .inputs
+        .iter_mut()
+        .skip(if tp.skip_first_rust_argument_in_python_signature() {
+            1
+        } else {
+            0
+        })
+        .map(FnArg::parse)
+        .collect::<syn::Result<Vec<_>>>()?;
 
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
@@ -268,35 +268,4 @@ pub fn impl_wrap_pyfunction(
         };
     };
     Ok(wrapped_pyfunction)
-}
-
-fn type_is_pymodule(ty: &syn::Type) -> bool {
-    let is_pymodule = |typath: &syn::TypePath| {
-        typath
-            .path
-            .segments
-            .last()
-            .map_or(false, |seg| seg.ident == "PyModule")
-    };
-    match ty {
-        syn::Type::Reference(tyref) => {
-            if let syn::Type::Path(typath) = tyref.elem.as_ref() {
-                return is_pymodule(typath);
-            }
-        }
-        syn::Type::Path(typath) => {
-            if let Some(syn::PathSegment {
-                arguments: syn::PathArguments::AngleBracketed(args),
-                ..
-            }) = typath.path.segments.last()
-            {
-                if args.args.len() != 1 {
-                    return false;
-                }
-                return matches!(args.args.first().unwrap(), syn::GenericArgument::Type(syn::Type::Path(typath)) if is_pymodule(typath));
-            }
-        }
-        _ => {}
-    }
-    false
 }

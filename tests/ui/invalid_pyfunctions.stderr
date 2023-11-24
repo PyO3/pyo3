@@ -28,3 +28,24 @@ error: required arguments after an `Option<_>` argument are ambiguous
    |
 16 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
    |                                                               ^^^
+
+error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`
+  --> tests/ui/invalid_pyfunctions.rs:19:37
+   |
+19 | fn pass_module_but_no_arguments<'py>() {}
+   |                                     ^^
+
+error[E0277]: the trait bound `&str: From<&pyo3::prelude::PyModule>` is not satisfied
+  --> tests/ui/invalid_pyfunctions.rs:22:43
+   |
+22 | fn first_argument_not_module<'py>(string: &str, module: &'py PyModule) -> PyResult<&'py str> {
+   |                                           ^ the trait `From<&pyo3::prelude::PyModule>` is not implemented for `&str`
+   |
+   = help: the following other types implement trait `From<T>`:
+             <String as From<char>>
+             <String as From<Box<str>>>
+             <String as From<Cow<'a, str>>>
+             <String as From<&str>>
+             <String as From<&mut str>>
+             <String as From<&String>>
+   = note: required for `&pyo3::prelude::PyModule` to implement `Into<&str>`
