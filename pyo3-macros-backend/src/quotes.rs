@@ -9,13 +9,13 @@ pub(crate) fn some_wrap(obj: TokenStream) -> TokenStream {
 
 pub(crate) fn ok_wrap(obj: TokenStream) -> TokenStream {
     quote! {
-        _pyo3::impl_::wrap::OkWrap::wrap(#obj, py)
+        _pyo3::impl_::wrap::OkWrap::wrap(#obj)
             .map_err(::core::convert::Into::<_pyo3::PyErr>::into)
     }
 }
 
 pub(crate) fn map_result_into_ptr(result: TokenStream) -> TokenStream {
     quote! {
-        #result.map(_pyo3::PyObject::into_ptr)
+        _pyo3::impl_::wrap::map_result_into_ptr(py, #result)
     }
 }
