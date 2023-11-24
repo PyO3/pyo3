@@ -163,3 +163,7 @@ struct User {
 }
 # }
 ```
+
+### `smallvec`
+
+Adds a dependency on [smallvec](https://docs.rs/smallvec) and enables conversions into its [`SmallVec`](https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html) type.
