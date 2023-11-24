@@ -78,8 +78,8 @@ pub enum FnType {
     Setter(SelfType),
     Fn(SelfType),
     FnNew,
-    FnNewClass,
-    FnClass,
+    FnNewClass(Span),
+    FnClass(Span),
     FnStatic,
     FnModule(Span),
     ClassAttribute,
@@ -91,8 +91,8 @@ impl FnType {
             FnType::Getter(_)
             | FnType::Setter(_)
             | FnType::Fn(_)
-            | FnType::FnClass
-            | FnType::FnNewClass
+            | FnType::FnClass(_)
+            | FnType::FnNewClass(_)
             | FnType::FnModule(_) => true,
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => false,
         }
@@ -111,10 +111,12 @@ impl FnType {
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
                 quote!()
             }
-            FnType::FnClass | FnType::FnNewClass => {
-                quote! {
+            FnType::FnClass(span) | FnType::FnNewClass(span) => {
+                let py = syn::Ident::new("py", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
+                quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(py, _slf as *mut _pyo3::ffi::PyTypeObject)),
+                    ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(#py, #slf.cast())),
                 }
             }
             FnType::FnModule(span) => {
@@ -305,7 +307,7 @@ impl<'a> FnSpec<'a> {
             FunctionSignature::from_arguments(arguments)?
         };
 
-        let convention = if matches!(fn_type, FnType::FnNew | FnType::FnNewClass) {
+        let convention = if matches!(fn_type, FnType::FnNew | FnType::FnNewClass(_)) {
             CallingConvention::TpNew
         } else {
             CallingConvention::from_signature(&signature)
@@ -353,36 +355,40 @@ impl<'a> FnSpec<'a> {
                 .map(|stripped| syn::Ident::new(stripped, name.span()))
         };
 
+        let mut set_name_to_new = || {
+            if let Some(name) = &python_name {
+                bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
+            }
+            *python_name = Some(syn::Ident::new("__new__", Span::call_site()));
+            Ok(())
+        };
+
         let fn_type = match method_attributes.as_mut_slice() {
             [] => FnType::Fn(parse_receiver(
                 "static method needs #[staticmethod] attribute",
             )?),
             [MethodTypeAttribute::StaticMethod(_)] => FnType::FnStatic,
             [MethodTypeAttribute::ClassAttribute(_)] => FnType::ClassAttribute,
-            [MethodTypeAttribute::New(_)]
-            | [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(_)]
-            | [MethodTypeAttribute::ClassMethod(_), MethodTypeAttribute::New(_)] => {
-                if let Some(name) = &python_name {
-                    bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
-                }
-                *python_name = Some(syn::Ident::new("__new__", Span::call_site()));
-                if matches!(method_attributes.as_slice(), [MethodTypeAttribute::New(_)]) {
-                    FnType::FnNew
-                } else {
-                    FnType::FnNewClass
-                }
+            [MethodTypeAttribute::New(_)] => {
+                set_name_to_new()?;
+                FnType::FnNew
+            }
+            [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(span)]
+            | [MethodTypeAttribute::ClassMethod(span), MethodTypeAttribute::New(_)] => {
+                set_name_to_new()?;
+                FnType::FnNewClass(*span)
             }
             [MethodTypeAttribute::ClassMethod(_)] => {
                 // Add a helpful hint if the classmethod doesn't look like a classmethod
-                match sig.inputs.first() {
+                let span = match sig.inputs.first() {
                     // Don't actually bother checking the type of the first argument, the compiler
                     // will error on incorrect type.
-                    Some(syn::FnArg::Typed(_)) => {}
+                    Some(syn::FnArg::Typed(first_arg)) => first_arg.ty.span(),
                     Some(syn::FnArg::Receiver(_)) | None => bail_spanned!(
-                        sig.inputs.span() => "Expected `cls: &PyType` as the first argument to `#[classmethod]`"
+                        sig.paren_token.span.join() => "Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`"
                     ),
-                }
-                FnType::FnClass
+                };
+                FnType::FnClass(span)
             }
             [MethodTypeAttribute::Getter(_, name)] => {
                 if let Some(name) = name.take() {
@@ -510,17 +516,12 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::TpNew => {
                 let (arg_convert, args) = impl_arg_params(self, cls, false)?;
-                let call = match &self.tp {
-                    FnType::FnNew => quote! { #rust_name(#(#args),*) },
-                    FnType::FnNewClass => {
-                        quote! { #rust_name(_pyo3::types::PyType::from_type_ptr(py, subtype), #(#args),*) }
-                    }
-                    x => panic!("Only `FnNew` or `FnNewClass` may use the `TpNew` calling convention. Got: {:?}", x),
-                };
+                let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise);
+                let call = quote! { #rust_name(#self_arg #(#args),*) };
                 quote! {
                     unsafe fn #ident(
                         py: _pyo3::Python<'_>,
-                        subtype: *mut _pyo3::ffi::PyTypeObject,
+                        _slf: *mut _pyo3::ffi::PyTypeObject,
                         _args: *mut _pyo3::ffi::PyObject,
                         _kwargs: *mut _pyo3::ffi::PyObject
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
@@ -529,7 +530,7 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         let result = #call;
                         let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(py)?;
-                        let cell = initializer.create_cell_from_subtype(py, subtype)?;
+                        let cell = initializer.create_cell_from_subtype(py, _slf)?;
                         ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)
                     }
                 }
@@ -628,7 +629,7 @@ impl<'a> FnSpec<'a> {
             FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => return None,
             FnType::Fn(_) => Some("self"),
             FnType::FnModule(_) => Some("module"),
-            FnType::FnClass | FnType::FnNewClass => Some("cls"),
+            FnType::FnClass(_) | FnType::FnNewClass(_) => Some("cls"),
             FnType::FnStatic | FnType::FnNew => None,
         };
 

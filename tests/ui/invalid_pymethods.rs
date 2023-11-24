@@ -34,6 +34,22 @@ impl MyClass {
 
 #[pymethods]
 impl MyClass {
+    #[classmethod]
+    fn classmethod_missing_argument() -> Self {
+        Self {}
+    }
+}
+
+#[pymethods]
+impl MyClass {
+    #[classmethod]
+    fn classmethod_wrong_first_argument(_x: i32) -> Self {
+        Self {}
+    }
+}
+
+#[pymethods]
+impl MyClass {
     #[getter(x)]
     fn getter_without_receiver() {}
 }
@@ -175,32 +191,6 @@ impl MyClass {
 #[pymethods]
 impl MyClass {
     fn method_self_by_value(self) {}
-}
-
-struct TwoNew {}
-
-#[pymethods]
-impl TwoNew {
-    #[new]
-    fn new_1() -> Self {
-        Self {}
-    }
-
-    #[new]
-    fn new_2() -> Self {
-        Self {}
-    }
-}
-
-struct DuplicateMethod {}
-
-#[pymethods]
-impl DuplicateMethod {
-    #[pyo3(name = "func")]
-    fn func_a(&self) {}
-
-    #[pyo3(name = "func")]
-    fn func_b(&self) {}
 }
 
 macro_rules! macro_invocation {

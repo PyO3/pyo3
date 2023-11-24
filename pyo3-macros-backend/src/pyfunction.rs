@@ -195,7 +195,7 @@ pub fn impl_wrap_pyfunction(
         let span = match func.sig.inputs.first() {
             Some(syn::FnArg::Typed(first_arg)) => first_arg.ty.span(),
             Some(syn::FnArg::Receiver(_)) | None => bail_spanned!(
-                func.span() => "expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`"
+                func.sig.paren_token.span.join() => "expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`"
             ),
         };
         method::FnType::FnModule(span)

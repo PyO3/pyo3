@@ -225,7 +225,7 @@ pub fn gen_py_method(
             &spec.get_doc(meth_attrs),
             None,
         )?),
-        (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
+        (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
             &spec.get_doc(meth_attrs),
@@ -238,7 +238,7 @@ pub fn gen_py_method(
             Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
-        (_, FnType::FnNew) | (_, FnType::FnNewClass) => {
+        (_, FnType::FnNew) | (_, FnType::FnNewClass(_)) => {
             GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?)
         }
 
@@ -312,7 +312,7 @@ pub fn impl_py_method_def(
     let add_flags = flags.map(|flags| quote!(.flags(#flags)));
     let methoddef_type = match spec.tp {
         FnType::FnStatic => quote!(Static),
-        FnType::FnClass => quote!(Class),
+        FnType::FnClass(_) => quote!(Class),
         _ => quote!(Method),
     };
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc);
