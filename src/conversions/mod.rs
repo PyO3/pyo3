@@ -2,6 +2,7 @@
 
 pub mod anyhow;
 pub mod chrono;
+pub mod either;
 pub mod eyre;
 pub mod hashbrown;
 pub mod indexmap;
