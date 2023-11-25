@@ -33,7 +33,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
     t.compile_fail("tests/ui/missing_intopy.rs");
     // adding extra error conversion impls changes the output
-    #[cfg(all(target_os = "linux", not(any(feature = "eyre", feature = "anyhow"))))]
+    #[cfg(not(any(windows, feature = "eyre", feature = "anyhow")))]
     t.compile_fail("tests/ui/invalid_result_conversion.rs");
     t.compile_fail("tests/ui/not_send.rs");
     t.compile_fail("tests/ui/not_send2.rs");

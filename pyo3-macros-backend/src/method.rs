@@ -455,11 +455,13 @@ impl<'a> FnSpec<'a> {
         let func_name = &self.name;
 
         let rust_call = |args: Vec<TokenStream>| {
-            let mut call = quote! { function(#self_arg #(#args),*) };
-            if self.asyncness.is_some() {
-                call = quote! { _pyo3::impl_::coroutine::wrap_future(#call) };
-            }
-            quotes::map_result_into_ptr(quotes::ok_wrap(call))
+            let call = quote! { function(#self_arg #(#args),*) };
+            let wrapped_call = if self.asyncness.is_some() {
+                quote! { _pyo3::PyResult::Ok(_pyo3::impl_::wrap::wrap_future(#call)) }
+            } else {
+                quotes::ok_wrap(call)
+            };
+            quotes::map_result_into_ptr(wrapped_call)
         };
 
         let rust_name = if let Some(cls) = cls {
