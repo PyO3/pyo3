@@ -1,4 +1,4 @@
-use crate::{ffi, IntoPy, PyAny, PyDowncastError, PyObject, PyTryFrom, Python, ToPyObject};
+use crate::{ffi, IntoPy, PyAny, PyObject, PyTypeInfo, Python, ToPyObject};
 
 /// Represents the Python `None` object.
 #[repr(transparent)]
@@ -15,24 +15,26 @@ impl PyNone {
     }
 }
 
-impl<'v> PyTryFrom<'v> for PyNone {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, crate::PyDowncastError<'v>> {
-        let value: &PyAny = value.into();
-        if value.is_none() {
-            return unsafe { Ok(value.downcast_unchecked()) };
-        }
-        Err(PyDowncastError::new(value, "NoneType"))
+unsafe impl PyTypeInfo for PyNone {
+    const NAME: &'static str = "NoneType";
+
+    const MODULE: Option<&'static str> = None;
+
+    type AsRefTarget = PyNone;
+
+    fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+        unsafe { ffi::Py_TYPE(ffi::Py_None()) }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(
-        value: V,
-    ) -> Result<&'v Self, crate::PyDowncastError<'v>> {
-        value.into().downcast()
+    #[inline]
+    fn is_type_of(object: &PyAny) -> bool {
+        // NoneType is not usable as a base type
+        Self::is_exact_type_of(object)
     }
 
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
-        let ptr = value.into() as *const _ as *const PyNone;
-        &*ptr
+    #[inline]
+    fn is_exact_type_of(object: &PyAny) -> bool {
+        object.is(Self::get(object.py()))
     }
 }
 
@@ -53,7 +55,22 @@ impl IntoPy<PyObject> for () {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyDict, PyNone};
-    use crate::{IntoPy, PyObject, Python, ToPyObject};
+    use crate::{IntoPy, PyObject, PyTypeInfo, Python, ToPyObject};
+
+    #[test]
+    fn test_none_is_itself() {
+        Python::with_gil(|py| {
+            assert!(PyNone::get(py).is_instance_of::<PyNone>());
+            assert!(PyNone::get(py).is_exact_instance_of::<PyNone>());
+        })
+    }
+
+    #[test]
+    fn test_none_type_object_consistent() {
+        Python::with_gil(|py| {
+            assert!(PyNone::get(py).get_type().is(PyNone::type_object(py)));
+        })
+    }
 
     #[test]
     fn test_none_is_none() {

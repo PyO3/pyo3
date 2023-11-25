@@ -776,6 +776,7 @@ impl<T> Py<T> {
     /// Returns whether the object is Ellipsis, e.g. `...`.
     ///
     /// This is equivalent to the Python expression `self is ...`.
+    #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
     pub fn is_ellipsis(&self) -> bool {
         unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
     }
@@ -1474,6 +1475,7 @@ a = A()
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py
