@@ -3,7 +3,8 @@
 use std::ops::Deref;
 use std::{task::Poll, thread, time::Duration};
 
-use futures::{channel::oneshot, future::poll_fn};
+use futures::{channel::oneshot, future::poll_fn, FutureExt};
+use pyo3::coroutine::CancelHandle;
 use pyo3::types::{IntoPyDict, PyType};
 use pyo3::{prelude::*, py_run};
 
@@ -134,5 +135,71 @@ fn cancelled_coroutine() {
             )
             .unwrap_err();
         assert_eq!(err.value(gil).get_type().name().unwrap(), "CancelledError");
+    })
+}
+
+#[test]
+fn coroutine_cancel_handle() {
+    #[pyfunction]
+    async fn cancellable_sleep(
+        seconds: f64,
+        #[pyo3(cancel_handle)] mut cancel: CancelHandle,
+    ) -> usize {
+        futures::select! {
+            _ = sleep(seconds).fuse() => 42,
+            _ = cancel.cancelled().fuse() => 0,
+        }
+    }
+    Python::with_gil(|gil| {
+        let cancellable_sleep = wrap_pyfunction!(cancellable_sleep, gil).unwrap();
+        let test = r#"
+        import asyncio;
+        async def main():
+            task = asyncio.create_task(cancellable_sleep(1))
+            await asyncio.sleep(0)
+            task.cancel()
+            return await task
+        assert asyncio.run(main()) == 0
+        "#;
+        let globals = gil.import("__main__").unwrap().dict();
+        globals
+            .set_item("cancellable_sleep", cancellable_sleep)
+            .unwrap();
+        gil.run(
+            &pyo3::unindent::unindent(&handle_windows(test)),
+            Some(globals),
+            None,
+        )
+        .unwrap();
+    })
+}
+
+#[test]
+fn coroutine_is_cancelled() {
+    #[pyfunction]
+    async fn sleep_loop(#[pyo3(cancel_handle)] cancel: CancelHandle) {
+        while !cancel.is_cancelled() {
+            sleep(0.001).await;
+        }
+    }
+    Python::with_gil(|gil| {
+        let sleep_loop = wrap_pyfunction!(sleep_loop, gil).unwrap();
+        let test = r#"
+        import asyncio;
+        async def main():
+            task = asyncio.create_task(sleep_loop())
+            await asyncio.sleep(0)
+            task.cancel()
+            await task
+        asyncio.run(main())
+        "#;
+        let globals = gil.import("__main__").unwrap().dict();
+        globals.set_item("sleep_loop", sleep_loop).unwrap();
+        gil.run(
+            &pyo3::unindent::unindent(&handle_windows(test)),
+            Some(globals),
+            None,
+        )
+        .unwrap();
     })
 }

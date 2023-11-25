@@ -1,10 +1,12 @@
 use std::future::Future;
 
+use crate::coroutine::cancel::ThrowCallback;
 use crate::{coroutine::Coroutine, types::PyString, IntoPy, PyErr, PyObject};
 
 pub fn new_coroutine<F, T, E>(
     name: &PyString,
     qualname_prefix: Option<&'static str>,
+    throw_callback: Option<ThrowCallback>,
     future: F,
 ) -> Coroutine
 where
@@ -12,5 +14,5 @@ where
     T: IntoPy<PyObject>,
     E: Into<PyErr>,
 {
-    Coroutine::new(Some(name.into()), qualname_prefix, future)
+    Coroutine::new(Some(name.into()), qualname_prefix, throw_callback, future)
 }

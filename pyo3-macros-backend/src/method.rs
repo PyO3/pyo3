@@ -24,6 +24,7 @@ pub struct FnArg<'a> {
     pub attrs: PyFunctionArgPyO3Attributes,
     pub is_varargs: bool,
     pub is_kwargs: bool,
+    pub is_cancel_handle: bool,
 }
 
 impl<'a> FnArg<'a> {
@@ -44,6 +45,8 @@ impl<'a> FnArg<'a> {
                     other => return Err(handle_argument_error(other)),
                 };
 
+                let is_cancel_handle = arg_attrs.cancel_handle.is_some();
+
                 Ok(FnArg {
                     name: ident,
                     ty: &cap.ty,
@@ -53,6 +56,7 @@ impl<'a> FnArg<'a> {
                     attrs: arg_attrs,
                     is_varargs: false,
                     is_kwargs: false,
+                    is_cancel_handle,
                 })
             }
         }
@@ -455,9 +459,27 @@ impl<'a> FnSpec<'a> {
         let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise);
         let func_name = &self.name;
 
+        let mut cancel_handle_iter = self
+            .signature
+            .arguments
+            .iter()
+            .filter(|arg| arg.is_cancel_handle);
+        let cancel_handle = cancel_handle_iter.next();
+        if let Some(arg) = cancel_handle {
+            ensure_spanned!(self.asyncness.is_some(), arg.name.span() => "`cancel_handle` attribute can only be used with `async fn`");
+            if let Some(arg2) = cancel_handle_iter.next() {
+                bail_spanned!(arg2.name.span() => "`cancel_handle` may only be specified once");
+            }
+        }
+
         let rust_call = |args: Vec<TokenStream>| {
             let mut call = quote! { function(#self_arg #(#args),*) };
             if self.asyncness.is_some() {
+                let throw_callback = if cancel_handle.is_some() {
+                    quote! { Some(__throw_callback) }
+                } else {
+                    quote! { None }
+                };
                 let python_name = &self.python_name;
                 let qualname_prefix = match cls {
                     Some(cls) => quote!(Some(<#cls as _pyo3::PyTypeInfo>::NAME)),
@@ -468,9 +490,17 @@ impl<'a> FnSpec<'a> {
                     _pyo3::impl_::coroutine::new_coroutine(
                         _pyo3::intern!(py, stringify!(#python_name)),
                         #qualname_prefix,
-                        async move { _pyo3::impl_::wrap::OkWrap::wrap(future.await) }
+                        #throw_callback,
+                        async move { _pyo3::impl_::wrap::OkWrap::wrap(future.await) },
                     )
                 }};
+                if cancel_handle.is_some() {
+                    call = quote! {{
+                        let __cancel_handle = _pyo3::coroutine::CancelHandle::new();
+                        let __throw_callback = __cancel_handle.throw_callback();
+                        #call
+                    }};
+                }
             }
             quotes::map_result_into_ptr(quotes::ok_wrap(call))
         };
@@ -483,12 +513,21 @@ impl<'a> FnSpec<'a> {
 
         Ok(match self.convention {
             CallingConvention::Noargs => {
-                let call = if !self.signature.arguments.is_empty() {
-                    // Only `py` arg can be here
-                    rust_call(vec![quote!(py)])
-                } else {
-                    rust_call(vec![])
-                };
+                let args = self
+                    .signature
+                    .arguments
+                    .iter()
+                    .map(|arg| {
+                        if arg.py {
+                            quote!(py)
+                        } else if arg.is_cancel_handle {
+                            quote!(__cancel_handle)
+                        } else {
+                            unreachable!()
+                        }
+                    })
+                    .collect();
+                let call = rust_call(args);
 
                 quote! {
                     unsafe fn #ident<'py>(
