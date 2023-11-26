@@ -67,20 +67,6 @@ pub fn map_result_into_py<T: IntoPy<PyObject>>(
     result.map(|err| err.into_py(py))
 }
 
-/// Used to wrap the result of async `#[pyfunction]` and `#[pymethods]`.
-#[cfg(feature = "macros")]
-pub fn wrap_future<F, R, T>(future: F) -> crate::coroutine::Coroutine
-where
-    F: std::future::Future<Output = R> + Send + 'static,
-    R: OkWrap<T>,
-    T: IntoPy<PyObject>,
-    crate::PyErr: From<R::Error>,
-{
-    crate::coroutine::Coroutine::from_future::<_, T, crate::PyErr>(async move {
-        OkWrap::wrap(future.await).map_err(Into::into)
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

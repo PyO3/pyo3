@@ -14,10 +14,10 @@ use pyo3_macros::{pyclass, pymethods};
 
 use crate::{
     coroutine::waker::AsyncioWaker,
-    exceptions::{PyRuntimeError, PyStopIteration},
+    exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     pyclass::IterNextOutput,
-    types::PyIterator,
+    types::{PyIterator, PyString},
     IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
@@ -30,6 +30,8 @@ type FutureOutput = Result<PyResult<PyObject>, Box<dyn Any + Send>>;
 /// Python coroutine wrapping a [`Future`].
 #[pyclass(crate = "crate")]
 pub struct Coroutine {
+    name: Option<Py<PyString>>,
+    qualname_prefix: Option<&'static str>,
     future: Option<Pin<Box<dyn Future<Output = FutureOutput> + Send>>>,
     waker: Option<Arc<AsyncioWaker>>,
 }
@@ -41,18 +43,24 @@ impl Coroutine {
     /// (should always be `None` anyway).
     ///
     /// `Coroutine `throw` drop the wrapped future and reraise the exception passed
-    pub(crate) fn from_future<F, T, E>(future: F) -> Self
+    pub(crate) fn new<F, T, E>(
+        name: Option<Py<PyString>>,
+        qualname_prefix: Option<&'static str>,
+        future: F,
+    ) -> Self
     where
         F: Future<Output = Result<T, E>> + Send + 'static,
         T: IntoPy<PyObject>,
-        PyErr: From<E>,
+        E: Into<PyErr>,
     {
         let wrap = async move {
-            let obj = future.await?;
+            let obj = future.await.map_err(Into::into)?;
             // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
             Ok(obj.into_py(unsafe { Python::assume_gil_acquired() }))
         };
         Self {
+            name,
+            qualname_prefix,
             future: Some(Box::pin(panic::AssertUnwindSafe(wrap).catch_unwind())),
             waker: None,
         }
@@ -113,6 +121,25 @@ pub(crate) fn iter_result(result: IterNextOutput<PyObject, PyObject>) -> PyResul
 
 #[pymethods(crate = "crate")]
 impl Coroutine {
+    #[getter]
+    fn __name__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
+        match &self.name {
+            Some(name) => Ok(name.clone_ref(py)),
+            None => Err(PyAttributeError::new_err("__name__")),
+        }
+    }
+
+    #[getter]
+    fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
+        match (&self.name, &self.qualname_prefix) {
+            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.as_ref(py).to_str()?)
+                .as_str()
+                .into_py(py)),
+            (Some(name), None) => Ok(name.clone_ref(py)),
+            (None, _) => Err(PyAttributeError::new_err("__qualname__")),
+        }
+    }
+
     fn send(&mut self, py: Python<'_>, _value: &PyAny) -> PyResult<PyObject> {
         iter_result(self.poll(py, None)?)
     }
