@@ -1,0 +1,12 @@
+[package]
+authors = ["{{authors}}"]
+name = "{{project-name}}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "sequential"
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+pyo3-ffi = { version = "{{PYO3_VERSION}}", features = ["extension-module"] }
