@@ -113,7 +113,17 @@ jobs:
             rust-target: "i686-pc-windows-msvc",
           },
         ]
+        include:
+          # Run beta clippy as a way to detect any incoming lints which may affect downstream users
+          - rust: beta
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
     name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
+    continue-on-error: ${{ matrix.platform.rust != 'stable' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
