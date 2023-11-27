@@ -77,7 +77,7 @@ pub use self::typeobject::PyType;
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
     pub use super::dict::{BoundDictIterator, PyDictIterator};
-    pub use super::frozenset::PyFrozenSetIterator;
+    pub use super::frozenset::{BoundFrozenSetIterator, PyFrozenSetIterator};
     pub use super::list::{BoundListIterator, PyListIterator};
     pub use super::set::{BoundSetIterator, PySetIterator};
     pub use super::tuple::PyTupleIterator;
@@ -288,7 +288,7 @@ mod ellipsis;
 pub(crate) mod float;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 mod frame;
-mod frozenset;
+pub(crate) mod frozenset;
 mod function;
 mod iterator;
 pub(crate) mod list;
