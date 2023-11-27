@@ -6,7 +6,7 @@ use crate::attributes::{
     ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, TextSignatureAttribute,
     TextSignatureAttributeValue,
 };
-use crate::deprecations::{Deprecation, Deprecations};
+use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::FnSpec;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
@@ -34,7 +34,6 @@ pub enum PyClassKind {
 pub struct PyClassArgs {
     pub class_kind: PyClassKind,
     pub options: PyClassPyO3Options,
-    pub deprecations: Deprecations,
 }
 
 impl PyClassArgs {
@@ -42,7 +41,6 @@ impl PyClassArgs {
         Ok(PyClassArgs {
             class_kind: kind,
             options: PyClassPyO3Options::parse(input)?,
-            deprecations: Deprecations::new(),
         })
     }
 
@@ -73,8 +71,6 @@ pub struct PyClassPyO3Options {
     pub text_signature: Option<TextSignatureAttribute>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
-
-    pub deprecations: Deprecations,
 }
 
 enum PyClassPyO3Option {
@@ -91,7 +87,6 @@ enum PyClassPyO3Option {
     Sequence(kw::sequence),
     SetAll(kw::set_all),
     Subclass(kw::subclass),
-    TextSignature(TextSignatureAttribute),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
 }
@@ -125,8 +120,6 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::SetAll)
         } else if lookahead.peek(attributes::kw::subclass) {
             input.parse().map(PyClassPyO3Option::Subclass)
-        } else if lookahead.peek(attributes::kw::text_signature) {
-            input.parse().map(PyClassPyO3Option::TextSignature)
         } else if lookahead.peek(attributes::kw::unsendable) {
             input.parse().map(PyClassPyO3Option::Unsendable)
         } else if lookahead.peek(attributes::kw::weakref) {
@@ -181,11 +174,6 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
-            PyClassPyO3Option::TextSignature(text_signature) => {
-                self.deprecations
-                    .push(Deprecation::PyClassTextSignature, text_signature.span());
-                set_option!(text_signature)
-            }
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
         }
@@ -355,7 +343,7 @@ fn impl_class(
     methods_type: PyClassMethodsType,
     krate: syn::Path,
 ) -> syn::Result<TokenStream> {
-    let pytypeinfo_impl = impl_pytypeinfo(cls, args, Some(&args.options.deprecations));
+    let pytypeinfo_impl = impl_pytypeinfo(cls, args, None);
 
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
@@ -989,8 +977,6 @@ impl<'a> PyClassImplsBuilder<'a> {
         let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);
         let freelist_slots = self.freelist_slots();
 
-        let deprecations = &self.attr.deprecations;
-
         let class_mutability = if self.attr.options.frozen.is_some() {
             quote! {
                 ImmutableChild
@@ -1040,7 +1026,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 fn items_iter() -> _pyo3::impl_::pyclass::PyClassItemsIter {
                     use _pyo3::impl_::pyclass::*;
                     let collector = PyClassImplCollector::<Self>::new();
-                    #deprecations;
                     static INTRINSIC_ITEMS: PyClassItems = PyClassItems {
                         methods: &[#(#default_method_defs),*],
                         slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
@@ -1050,7 +1035,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
                 fn doc(py: _pyo3::Python<'_>) -> _pyo3::PyResult<&'static ::std::ffi::CStr>  {
                     use _pyo3::impl_::pyclass::*;
-                    static DOC: _pyo3::once_cell::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = _pyo3::once_cell::GILOnceCell::new();
+                    static DOC: _pyo3::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = _pyo3::sync::GILOnceCell::new();
                     DOC.get_or_try_init(py, || {
                         let collector = PyClassImplCollector::<Self>::new();
                         build_pyclass_doc(<#cls as _pyo3::PyTypeInfo>::NAME, #doc, #deprecated_text_signature.or_else(|| collector.new_text_signature()))

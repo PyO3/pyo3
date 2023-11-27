@@ -427,15 +427,6 @@ pub mod type_object;
 pub mod types;
 mod version;
 
-#[doc(hidden)]
-#[deprecated(since = "0.19.0", note = "Please use the `sync` module instead.")]
-pub mod once_cell {
-    // FIXME: We want to deprecate these,
-    // but that does not yet work for re-exports,
-    // c.f. https://github.com/rust-lang/rust/issues/30827
-    pub use crate::sync::{GILOnceCell, Interned};
-}
-
 #[allow(unused_imports)] // with no features enabled this module has no public exports
 pub use crate::conversions::*;
 

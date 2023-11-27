@@ -232,13 +232,6 @@ impl PySequence {
         }
     }
 
-    /// Returns a fresh list based on the Sequence.
-    #[inline]
-    #[deprecated(since = "0.19.0", note = "renamed to .to_list()")]
-    pub fn list(&self) -> PyResult<&PyList> {
-        self.to_list()
-    }
-
     /// Returns a fresh tuple based on the Sequence.
     #[inline]
     pub fn to_tuple(&self) -> PyResult<&PyTuple> {
@@ -246,13 +239,6 @@ impl PySequence {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
         }
-    }
-
-    /// Returns a fresh tuple based on the Sequence.
-    #[inline]
-    #[deprecated(since = "0.19.0", note = "renamed to .to_tuple()")]
-    pub fn tuple(&self) -> PyResult<&PyTuple> {
-        self.to_tuple()
     }
 
     /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
@@ -803,10 +789,6 @@ mod tests {
             let ob = v.to_object(py);
             let seq = ob.downcast::<PySequence>(py).unwrap();
             assert!(seq.to_list().unwrap().eq(PyList::new(py, &v)).unwrap());
-            #[allow(deprecated)]
-            {
-                assert!(seq.list().is_ok());
-            }
         });
     }
 
@@ -821,10 +803,6 @@ mod tests {
                 .unwrap()
                 .eq(PyList::new(py, ["f", "o", "o"]))
                 .unwrap());
-            #[allow(deprecated)]
-            {
-                assert!(seq.list().is_ok());
-            }
         });
     }
 
@@ -839,10 +817,6 @@ mod tests {
                 .unwrap()
                 .eq(PyTuple::new(py, ["foo", "bar"]))
                 .unwrap());
-            #[allow(deprecated)]
-            {
-                assert!(seq.tuple().is_ok());
-            }
         });
     }
 
@@ -853,10 +827,6 @@ mod tests {
             let ob = v.to_object(py);
             let seq = ob.downcast::<PySequence>(py).unwrap();
             assert!(seq.to_tuple().unwrap().eq(PyTuple::new(py, &v)).unwrap());
-            #[allow(deprecated)]
-            {
-                assert!(seq.tuple().is_ok());
-            }
         });
     }
 
