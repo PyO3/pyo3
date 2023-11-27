@@ -45,6 +45,8 @@ use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::sync::GILOnceCell;
 #[cfg(not(Py_LIMITED_API))]
+use crate::types::any::PyAnyMethods;
+#[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
