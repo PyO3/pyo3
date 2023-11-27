@@ -207,7 +207,7 @@ use crate::{
     type_object::get_tp_free,
     PyTypeInfo,
 };
-use crate::{ffi, IntoPy, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::{ffi, IntoPy, PyErr, PyNativeType, PyObject, PyResult, PyTypeCheck, Python};
 use std::cell::UnsafeCell;
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -526,6 +526,17 @@ impl<T: PyClassImpl> PyCell<T> {
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyCell<T> {}
 impl<T: PyClass> PySizedLayout<T> for PyCell<T> {}
+
+impl<T> PyTypeCheck for PyCell<T>
+where
+    T: PyClass,
+{
+    const NAME: &'static str = <T as PyTypeCheck>::NAME;
+
+    fn type_check(object: &PyAny) -> bool {
+        <T as PyTypeCheck>::type_check(object)
+    }
+}
 
 unsafe impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {

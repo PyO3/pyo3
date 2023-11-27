@@ -192,8 +192,6 @@ macro_rules! pyobject_native_static_type_object(
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
-            type AsRefTarget = Self;
-
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
 
@@ -221,6 +219,7 @@ macro_rules! pyobject_native_type_info(
 macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
+            #[inline]
             fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
                 obj.downcast().map_err(::std::convert::Into::into)
             }

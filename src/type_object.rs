@@ -19,6 +19,27 @@ pub unsafe trait PyLayout<T> {}
 /// In addition, that `T` is a concrete representation of `U`.
 pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 
+/// Specifies that this type has a "GIL-bound Reference" form.
+///
+/// This is expected to be deprecated in the near future, see <https://github.com/PyO3/pyo3/issues/3382>
+///
+///
+/// # Safety
+///
+/// - `Py<Self>::as_ref` will hand out references to `Self::AsRefTarget`.
+/// - `Self::AsRefTarget` must have the same layout as `UnsafeCell<ffi::PyAny>`.
+pub unsafe trait HasPyGilRef {
+    /// Utility type to make Py::as_ref work.
+    type AsRefTarget: PyNativeType;
+}
+
+unsafe impl<T> HasPyGilRef for T
+where
+    T: PyNativeType,
+{
+    type AsRefTarget = Self;
+}
+
 /// Python type information.
 /// All Python native types (e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
 ///
@@ -32,15 +53,12 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
 /// non-null pointer to the corresponding Python type object.
-pub unsafe trait PyTypeInfo: Sized {
+pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     /// Class name.
     const NAME: &'static str;
 
     /// Module name, if any.
     const MODULE: Option<&'static str>;
-
-    /// Utility type to make Py::as_ref work.
-    type AsRefTarget: PyNativeType;
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
@@ -61,6 +79,29 @@ pub unsafe trait PyTypeInfo: Sized {
     #[inline]
     fn is_exact_type_of(object: &PyAny) -> bool {
         unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
+    }
+}
+
+/// Implemented by types which can be used as a concrete Python type inside `Py<T>` smart pointers.
+pub trait PyTypeCheck: HasPyGilRef {
+    /// Name of self. This is used in error messages, for example.
+    const NAME: &'static str;
+
+    /// Checks if `object` is an instance of `Self`, which may include a subtype.
+    ///
+    /// This should be equivalent to the Python expression `isinstance(object, Self)`.
+    fn type_check(object: &PyAny) -> bool;
+}
+
+impl<T> PyTypeCheck for T
+where
+    T: PyTypeInfo,
+{
+    const NAME: &'static str = <T as PyTypeInfo>::NAME;
+
+    #[inline]
+    fn type_check(object: &PyAny) -> bool {
+        <T as PyTypeInfo>::is_type_of(object)
     }
 }
 

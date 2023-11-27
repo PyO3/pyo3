@@ -1,14 +1,14 @@
-use crate::conversion::PyTryFrom;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
+use crate::type_object::HasPyGilRef;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
     PyTypeInfo, Python, ToPyObject,
 };
+use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
 use std::mem::{self, ManuallyDrop};
 use std::ops::Deref;
@@ -185,7 +185,7 @@ impl<'py, T> Py2<'py, T> {
     #[doc(hidden)] // public and doc(hidden) to use in examples and tests for now
     pub fn as_gil_ref(&'py self) -> &'py T::AsRefTarget
     where
-        T: PyTypeInfo,
+        T: HasPyGilRef,
     {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
@@ -194,7 +194,7 @@ impl<'py, T> Py2<'py, T> {
     #[doc(hidden)] // public but hidden, to use for tests for now
     pub fn into_gil_ref(self) -> &'py T::AsRefTarget
     where
-        T: PyTypeInfo,
+        T: HasPyGilRef,
     {
         unsafe { self.py().from_owned_ptr(self.into_ptr()) }
     }
@@ -437,7 +437,7 @@ where
 
 impl<T> Py<T>
 where
-    T: PyTypeInfo,
+    T: HasPyGilRef,
 {
     /// Borrows a GIL-bound reference to the contained `T`.
     ///
@@ -1314,11 +1314,11 @@ impl PyObject {
     /// # }
     /// ```
     #[inline]
-    pub fn downcast<'p, T>(&'p self, py: Python<'p>) -> Result<&T, PyDowncastError<'_>>
+    pub fn downcast<'py, T>(&'py self, py: Python<'py>) -> Result<&'py T, PyDowncastError<'py>>
     where
-        T: PyTryFrom<'p>,
+        T: PyTypeCheck<AsRefTarget = T>,
     {
-        <T as PyTryFrom<'_>>::try_from(self.as_ref(py))
+        self.as_ref(py).downcast()
     }
 
     /// Casts the PyObject to a concrete Python object type without checking validity.
@@ -1329,9 +1329,9 @@ impl PyObject {
     #[inline]
     pub unsafe fn downcast_unchecked<'p, T>(&'p self, py: Python<'p>) -> &T
     where
-        T: PyTryFrom<'p>,
+        T: HasPyGilRef<AsRefTarget = T>,
     {
-        <T as PyTryFrom<'_>>::try_from_unchecked(self.as_ref(py))
+        self.as_ref(py).downcast_unchecked()
     }
 }
 
@@ -1509,6 +1509,8 @@ a = A()
 
     #[cfg(feature = "macros")]
     mod using_macros {
+        use crate::{PyCell, PyTryInto};
+
         use super::*;
 
         #[crate::pyclass]
@@ -1531,6 +1533,16 @@ a = A()
                 assert_eq!(instance.try_borrow(py).unwrap().0, 123);
                 assert_eq!(instance.borrow_mut(py).0, 123);
                 assert_eq!(instance.try_borrow_mut(py).unwrap().0, 123);
+            })
+        }
+
+        #[test]
+        fn cell_tryfrom() {
+            // More detailed tests of the underlying semantics in pycell.rs
+            Python::with_gil(|py| {
+                let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);
+                let _: &PyCell<SomeClass> = PyTryInto::try_into(instance).unwrap();
+                let _: &PyCell<SomeClass> = PyTryInto::try_into_exact(instance).unwrap();
             })
         }
     }

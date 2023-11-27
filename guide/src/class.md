@@ -1108,8 +1108,10 @@ struct MyClass {
     # #[allow(dead_code)]
     num: i32,
 }
-unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
+unsafe impl pyo3::type_object::HasPyGilRef for MyClass {
     type AsRefTarget = pyo3::PyCell<Self>;
+}
+unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]

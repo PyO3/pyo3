@@ -20,8 +20,6 @@ unsafe impl PyTypeInfo for PyEllipsis {
 
     const MODULE: Option<&'static str> = None;
 
-    type AsRefTarget = PyEllipsis;
-
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) }
     }

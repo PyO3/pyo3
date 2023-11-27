@@ -5,6 +5,42 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.20.* to 0.21
 
+### `PyTypeInfo` and `PyTryFrom` have been adjusted
+
+The `PyTryFrom` trait has aged poorly, its [`try_from`] method now conflicts with `try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
+
+To tighten up the PyO3 traits ahead of [a proposed upcoming API change](https://github.com/PyO3/pyo3/issues/3382) the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
+
+To migrate, switch all type casts to use `obj.downcast()` instead of `try_from(obj)` (and similar for `downcast_exact`).
+
+Before:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::{PyInt, PyList};
+# fn main() -> PyResult<()> {
+Python::with_gil(|py| {
+    let list = PyList::new(py, 0..5);
+    let b = <PyInt as PyTryFrom>::try_from(list.get_item(0).unwrap())?;
+    Ok(())
+})
+# }
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::{PyInt, PyList};
+# fn main() -> PyResult<()> {
+Python::with_gil(|py| {
+    let list = PyList::new(py, 0..5);
+    let b = list.get_item(0).unwrap().downcast::<PyInt>()?;
+    Ok(())
+})
+# }
+```
+
 ### `py.None()`, `py.NotImplemented()` and `py.Ellipsis()` now return typed singletons
 
 Previously `py.None()`, `py.NotImplemented()` and `py.Ellipsis()` would return `PyObject`. This had a few downsides:
