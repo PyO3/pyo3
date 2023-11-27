@@ -52,9 +52,7 @@ use crate::types::{
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
-use crate::{
-    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
@@ -81,7 +79,7 @@ impl ToPyObject for Duration {
             // We pass true as the `normalize` parameter since we'd need to do several checks here to
             // avoid that, and it shouldn't have a big performance impact.
             // The seconds and microseconds cast should never overflow since it's at most the number of seconds per day
-            PyDelta::new(
+            PyDelta::new_bound(
                 py,
                 days.try_into().unwrap_or(i32::MAX),
                 secs.try_into().unwrap(),
@@ -144,7 +142,7 @@ impl ToPyObject for NaiveDate {
         let DateArgs { year, month, day } = self.into();
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDate::new(py, year, month, day)
+            PyDate::new_bound(py, year, month, day)
                 .expect("failed to construct date")
                 .into()
         }
@@ -189,15 +187,16 @@ impl ToPyObject for NaiveTime {
             truncated_leap_second,
         } = self.into();
         #[cfg(not(Py_LIMITED_API))]
-        let time = PyTime::new(py, hour, min, sec, micro, None).expect("Failed to construct time");
+        let time =
+            PyTime::new_bound(py, hour, min, sec, micro, None).expect("Failed to construct time");
         #[cfg(Py_LIMITED_API)]
         let time = DatetimeTypes::get(py)
             .time
-            .as_ref(py)
+            .bind(py)
             .call1((hour, min, sec, micro))
             .expect("failed to construct datetime.time");
         if truncated_leap_second {
-            warn_truncated_leap_second(time);
+            warn_truncated_leap_second(&time);
         }
         time.into()
     }
@@ -264,7 +263,7 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
         // FIXME: convert to better timezone representation here than just convert to fixed offset
         // See https://github.com/PyO3/pyo3/issues/3266
         let tz = self.offset().fix().to_object(py);
-        let tz = tz.downcast(py).unwrap();
+        let tz = tz.bind(py).downcast().unwrap();
         naive_datetime_to_py_datetime(py, &self.naive_local(), Some(tz))
     }
 }
@@ -310,9 +309,9 @@ impl ToPyObject for FixedOffset {
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            let td = PyDelta::new(py, 0, seconds_offset, 0, true)
+            let td = PyDelta::new_bound(py, 0, seconds_offset, 0, true)
                 .expect("failed to construct timedelta");
-            timezone_from_offset(py, td)
+            timezone_from_offset(&td)
                 .expect("Failed to construct PyTimezone")
                 .into()
         }
@@ -430,8 +429,8 @@ impl From<&NaiveTime> for TimeArgs {
 fn naive_datetime_to_py_datetime(
     py: Python<'_>,
     naive_datetime: &NaiveDateTime,
-    #[cfg(not(Py_LIMITED_API))] tzinfo: Option<&PyTzInfo>,
-    #[cfg(Py_LIMITED_API)] tzinfo: Option<&PyAny>,
+    #[cfg(not(Py_LIMITED_API))] tzinfo: Option<&Bound<'_, PyTzInfo>>,
+    #[cfg(Py_LIMITED_API)] tzinfo: Option<&Bound<'_, PyAny>>,
 ) -> PyObject {
     let DateArgs { year, month, day } = (&naive_datetime.date()).into();
     let TimeArgs {
@@ -442,21 +441,21 @@ fn naive_datetime_to_py_datetime(
         truncated_leap_second,
     } = (&naive_datetime.time()).into();
     #[cfg(not(Py_LIMITED_API))]
-    let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, tzinfo)
+    let datetime = PyDateTime::new_bound(py, year, month, day, hour, min, sec, micro, tzinfo)
         .expect("failed to construct datetime");
     #[cfg(Py_LIMITED_API)]
     let datetime = DatetimeTypes::get(py)
         .datetime
-        .as_ref(py)
+        .bind(py)
         .call1((year, month, day, hour, min, sec, micro, tzinfo))
         .expect("failed to construct datetime.datetime");
     if truncated_leap_second {
-        warn_truncated_leap_second(datetime);
+        warn_truncated_leap_second(&datetime);
     }
     datetime.into()
 }
 
-fn warn_truncated_leap_second(obj: &PyAny) {
+fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
     if let Err(e) = PyErr::warn(
         py,
