@@ -355,11 +355,20 @@ where
 /// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
 ///
 /// This trait is similar to `std::convert::TryFrom`
+#[deprecated(since = "0.21.0")]
 pub trait PyTryFrom<'v>: Sized + PyNativeType {
     /// Cast from a concrete Python object type to PyObject.
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `value.downcast::<T>()` instead of `T::try_from(value)`"
+    )]
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `value.downcast_exact::<T>()` instead of `T::try_from_exact(value)`"
+    )]
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>>;
 
     /// Cast a PyAny to a specific type of PyObject. The caller must
@@ -368,19 +377,33 @@ pub trait PyTryFrom<'v>: Sized + PyNativeType {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `value.downcast_unchecked::<T>()` instead of `T::try_from_unchecked(value)`"
+    )]
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryInto`
+#[deprecated(since = "0.21.0")]
 pub trait PyTryInto<T>: Sized {
     /// Cast from PyObject to a concrete Python object type.
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `value.downcast()` instead of `value.try_into()`"
+    )]
     fn try_into(&self) -> Result<&T, PyDowncastError<'_>>;
 
     /// Cast from PyObject to a concrete Python object type. With exact type check.
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `value.downcast()` instead of `value.try_into_exact()`"
+    )]
     fn try_into_exact(&self) -> Result<&T, PyDowncastError<'_>>;
 }
 
+#[allow(deprecated)]
 mod implementations {
     use super::*;
 
@@ -555,47 +578,50 @@ mod test_no_clone {}
 
 #[cfg(test)]
 mod tests {
-    use crate::PyObject;
+    use crate::{PyObject, Python};
 
-    use super::super::PyTryFrom;
-    use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
-    use crate::{Python, ToPyObject};
+    #[allow(deprecated)]
+    mod deprecated {
+        use super::super::PyTryFrom;
+        use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
+        use crate::{Python, ToPyObject};
 
-    #[test]
-    fn test_try_from() {
-        Python::with_gil(|py| {
-            let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-            let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
+        #[test]
+        fn test_try_from() {
+            Python::with_gil(|py| {
+                let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
+                let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
 
-            assert!(<PyList as PyTryFrom<'_>>::try_from(list).is_ok());
-            assert!(<PyDict as PyTryFrom<'_>>::try_from(dict).is_ok());
+                assert!(<PyList as PyTryFrom<'_>>::try_from(list).is_ok());
+                assert!(<PyDict as PyTryFrom<'_>>::try_from(dict).is_ok());
 
-            assert!(<PyAny as PyTryFrom<'_>>::try_from(list).is_ok());
-            assert!(<PyAny as PyTryFrom<'_>>::try_from(dict).is_ok());
-        });
-    }
+                assert!(<PyAny as PyTryFrom<'_>>::try_from(list).is_ok());
+                assert!(<PyAny as PyTryFrom<'_>>::try_from(dict).is_ok());
+            });
+        }
 
-    #[test]
-    fn test_try_from_exact() {
-        Python::with_gil(|py| {
-            let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-            let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
+        #[test]
+        fn test_try_from_exact() {
+            Python::with_gil(|py| {
+                let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
+                let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
 
-            assert!(PyList::try_from_exact(list).is_ok());
-            assert!(PyDict::try_from_exact(dict).is_ok());
+                assert!(PyList::try_from_exact(list).is_ok());
+                assert!(PyDict::try_from_exact(dict).is_ok());
 
-            assert!(PyAny::try_from_exact(list).is_err());
-            assert!(PyAny::try_from_exact(dict).is_err());
-        });
-    }
+                assert!(PyAny::try_from_exact(list).is_err());
+                assert!(PyAny::try_from_exact(dict).is_err());
+            });
+        }
 
-    #[test]
-    fn test_try_from_unchecked() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [1, 2, 3]);
-            let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-            assert!(list.is(val));
-        });
+        #[test]
+        fn test_try_from_unchecked() {
+            Python::with_gil(|py| {
+                let list = PyList::new(py, [1, 2, 3]);
+                let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
+                assert!(list.is(val));
+            });
+        }
     }
 
     #[test]
