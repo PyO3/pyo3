@@ -1175,7 +1175,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 
     fn doc(py: Python<'_>) -> pyo3::PyResult<&'static ::std::ffi::CStr> {
         use pyo3::impl_::pyclass::*;
-        static DOC: pyo3::once_cell::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = pyo3::once_cell::GILOnceCell::new();
+        static DOC: pyo3::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = pyo3::sync::GILOnceCell::new();
         DOC.get_or_try_init(py, || {
             let collector = PyClassImplCollector::<Self>::new();
             build_pyclass_doc(<MyClass as pyo3::PyTypeInfo>::NAME, "", None.or_else(|| collector.new_text_signature()))

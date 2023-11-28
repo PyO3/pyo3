@@ -10,8 +10,6 @@ where
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe {
-            #[allow(deprecated)] // we're not on edition 2021 yet
-            let elements = std::array::IntoIter::new(self);
             let len = N as ffi::Py_ssize_t;
 
             let ptr = ffi::PyList_New(len);
@@ -21,7 +19,7 @@ where
             // - its Drop cleans up the list if user code panics.
             let list: Py<PyAny> = Py::from_owned_ptr(py, ptr);
 
-            for (i, obj) in (0..len).zip(elements) {
+            for (i, obj) in (0..len).zip(self) {
                 let obj = obj.into_py(py).into_ptr();
 
                 #[cfg(not(Py_LIMITED_API))]

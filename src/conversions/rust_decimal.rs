@@ -50,7 +50,7 @@
 //! ```
 
 use crate::exceptions::PyValueError;
-use crate::once_cell::GILOnceCell;
+use crate::sync::GILOnceCell;
 use crate::types::PyType;
 use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
 use rust_decimal::Decimal;
