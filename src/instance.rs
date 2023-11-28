@@ -96,14 +96,6 @@ impl<'py> Bound<'py, PyAny> {
     }
 }
 
-impl<'py, T> Bound<'py, T> {
-    /// Helper to cast to Bound<'py, PyAny>
-    pub(crate) fn as_any(&self) -> &Bound<'py, PyAny> {
-        // Safety: all Bound<T> have the same memory layout, and all Bound<T> are valid Bound<PyAny>
-        unsafe { std::mem::transmute(self) }
-    }
-}
-
 impl<'py, T> std::fmt::Debug for Bound<'py, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let any = self.as_any();
@@ -195,6 +187,22 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
         self.into_non_null().as_ptr()
+    }
+
+    /// Helper to cast to `Bound<'py, PyAny>`.
+    pub fn as_any(&self) -> &Bound<'py, PyAny> {
+        // Safety: all Bound<T> have the same memory layout, and all Bound<T> are valid
+        // Bound<PyAny>, so pointer casting is valid.
+        unsafe { &*(self as *const Self).cast::<Bound<'py, PyAny>>() }
+    }
+
+    /// Helper to cast to `Bound<'py, PyAny>`, transferring ownership.
+    pub fn into_any(self) -> Bound<'py, PyAny> {
+        // Safety: all Bound<T> are valid Bound<PyAny>
+        Bound(
+            self.0,
+            ManuallyDrop::new(unsafe { Py::from_non_null(self.into_non_null()) }),
+        )
     }
 
     /// Casts this `Bound<T>` to a `Borrowed<T>` smart pointer.
@@ -1292,7 +1300,7 @@ impl<T> IntoPy<PyObject> for Bound<'_, T> {
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_non_null(self.into_non_null()) }
+        self.into_any().unbind()
     }
 }
 
@@ -1721,6 +1729,24 @@ a = A()
         Python::with_gil(|py| {
             let obj = "hello world".to_object(py).into_bound(py);
             assert_eq!(format!("{}", obj), "hello world");
+        });
+    }
+
+    #[test]
+    fn test_bound_as_any() {
+        Python::with_gil(|py| {
+            let obj = PyString::new_bound(py, "hello world");
+            let any = obj.as_any();
+            assert_eq!(any.as_ptr(), obj.as_ptr());
+        });
+    }
+
+    #[test]
+    fn test_bound_into_any() {
+        Python::with_gil(|py| {
+            let obj = PyString::new_bound(py, "hello world");
+            let any = obj.clone().into_any();
+            assert_eq!(any.as_ptr(), obj.as_ptr());
         });
     }
 
