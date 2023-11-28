@@ -2,7 +2,7 @@ use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyTraceback, PyType};
+use crate::types::{typeobject::PyTypeMethods, PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,

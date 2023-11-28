@@ -36,6 +36,21 @@ impl PyType {
         py.from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 
+    /// Retrieves the `PyType` instance for the given FFI pointer.
+    ///
+    /// # Safety
+    /// - The pointer must be non-null.
+    #[inline]
+    pub unsafe fn from_type_ptr_bound(
+        py: Python<'_>,
+        p: *mut ffi::PyTypeObject,
+    ) -> Bound<'_, PyType> {
+        p.cast::<ffi::PyObject>()
+            .assume_borrowed(py)
+            .downcast_unchecked()
+            .clone()
+    }
+
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
     pub fn qualname(&self) -> PyResult<String> {
         self.as_borrowed().qualname()
