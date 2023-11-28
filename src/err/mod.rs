@@ -2,7 +2,7 @@ use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyTraceback, PyType};
+use crate::types::{typeobject::PyTypeMethods, PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -202,7 +202,7 @@ impl PyErr {
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
-    ///     let err = PyErr::from_value(PyType::new::<PyTypeError>(py));
+    ///     let err = PyErr::from_value(PyType::new_bound::<PyTypeError>(py).as_gil_ref());
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
@@ -233,7 +233,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.get_type(py).is(PyType::new::<PyTypeError>(py)));
+    ///     assert!(err.get_type(py).is(&PyType::new_bound::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type<'py>(&'py self, py: Python<'py>) -> &'py PyType {

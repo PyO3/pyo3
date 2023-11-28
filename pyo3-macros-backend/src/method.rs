@@ -125,8 +125,14 @@ impl FnType {
             FnType::FnClass(span) | FnType::FnNewClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
+                let allow_deprecated = if cfg!(feature = "gil-refs") {
+                    quote!()
+                } else {
+                    quote!(#[allow(deprecated)])
+                };
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
+                    #allow_deprecated
                     ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(#py, #slf.cast())),
                 }
             }

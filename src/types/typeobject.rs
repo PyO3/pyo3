@@ -14,10 +14,23 @@ pub struct PyType(PyAny);
 pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), #checkfunction=ffi::PyType_Check);
 
 impl PyType {
-    /// Creates a new type object.
+    /// Deprecated form of [`PyType::new_bound`].
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`new` will be replaced by `new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
         T::type_object(py)
+    }
+
+    /// Creates a new type object.
+    #[inline]
+    pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
+        T::type_object(py).as_borrowed().to_owned()
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
@@ -26,14 +39,37 @@ impl PyType {
         self.as_borrowed().as_type_ptr()
     }
 
+    /// Deprecated form of [`PyType::from_type_ptr_borrowed`].
+    ///
+    /// # Safety
+    ///
+    /// See [`PyType::from_type_ptr_borrowed`].
+    #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`from_type_ptr` will be replaced by `from_type_ptr_borrowed` in a future PyO3 version"
+        )
+    )]
+    pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
+        Self::from_type_ptr_borrowed(py, p).into_gil_ref()
+    }
+
     /// Retrieves the `PyType` instance for the given FFI pointer.
     ///
     /// # Safety
     /// - The pointer must be non-null.
-    /// - The pointer must be valid for the entire of the lifetime for which the reference is used.
+    /// - The pointer must be valid for the entire of the lifetime 'a for which the reference is used,
+    ///   as with `std::slice::from_raw_parts`.
     #[inline]
-    pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
-        py.from_borrowed_ptr(p as *mut ffi::PyObject)
+    pub unsafe fn from_type_ptr_borrowed<'a>(
+        py: Python<'_>,
+        p: *mut ffi::PyTypeObject,
+    ) -> Borrowed<'a, '_, PyType> {
+        (p as *mut ffi::PyObject)
+            .assume_borrowed_unchecked(py)
+            .downcast_into_unchecked()
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.

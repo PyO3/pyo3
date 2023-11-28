@@ -2,8 +2,7 @@ use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
-use crate::types::any::PyAnyMethods;
-use crate::types::string::PyStringMethods;
+use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
@@ -311,6 +310,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// derived from is valid for the lifetime `'a`.
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
+    }
+
+    pub(crate) unsafe fn downcast_into_unchecked<T>(self) -> Borrowed<'a, 'py, T> {
+        Borrowed(self.0, PhantomData, self.py())
     }
 }
 

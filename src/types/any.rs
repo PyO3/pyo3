@@ -712,7 +712,7 @@ impl PyAny {
 
     /// Returns the Python type object for this object's type.
     pub fn get_type(&self) -> &PyType {
-        self.as_borrowed().get_type()
+        self.as_borrowed().get_type().into_gil_ref()
     }
 
     /// Returns the Python type pointer for this object.
@@ -1542,7 +1542,7 @@ pub trait PyAnyMethods<'py> {
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Returns the Python type object for this object's type.
-    fn get_type(&self) -> &'py PyType;
+    fn get_type(&self) -> Bound<'py, PyType>;
 
     /// Returns the Python type pointer for this object.
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
@@ -2129,8 +2129,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         PyIterator::from_bound_object(self)
     }
 
-    fn get_type(&self) -> &'py PyType {
-        unsafe { PyType::from_type_ptr(self.py(), ffi::Py_TYPE(self.as_ptr())) }
+    fn get_type(&self) -> Bound<'py, PyType> {
+        unsafe { PyType::from_type_ptr_borrowed(self.py(), ffi::Py_TYPE(self.as_ptr())) }.to_owned()
     }
 
     #[inline]
@@ -2287,7 +2287,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[cfg(not(PyPy))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
-        PySuper::new_bound(&self.get_type().as_borrowed(), self)
+        PySuper::new_bound(&self.get_type(), self)
     }
 }
 

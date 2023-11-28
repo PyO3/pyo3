@@ -25,6 +25,7 @@ features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-trait
 
 [features]
 abi3 = []
+gil-refs = []
 
 [lints]
 workspace = true

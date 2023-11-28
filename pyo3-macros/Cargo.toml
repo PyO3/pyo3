@@ -17,6 +17,7 @@ proc-macro = true
 multiple-pymethods = []
 
 abi3 = ["pyo3-macros-backend/abi3"]
+gil-refs = ["pyo3-macros-backend/gil-refs"]
 
 [dependencies]
 proc-macro2 = { version = "1", default-features = false }
