@@ -66,7 +66,7 @@ mod test_serde {
         assert_eq!(user.username, "danya");
         assert!(user.group.is_none());
         assert_eq!(user.friends.len(), 1usize);
-        let friend = user.friends.get(0).unwrap();
+        let friend = user.friends.first().unwrap();
 
         Python::with_gil(|py| {
             assert_eq!(friend.borrow(py).username, "friend");
