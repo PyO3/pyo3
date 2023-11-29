@@ -1,8 +1,11 @@
+use crate::instance::Bound;
+use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
-use crate::{exceptions, PyErr};
 use crate::{
-    ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, Python, ToPyObject,
+    err::DowncastError, ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
 };
+use crate::{exceptions, PyErr};
 
 impl<T, const N: usize> IntoPy<PyObject> for [T; N]
 where
@@ -46,29 +49,29 @@ impl<'a, T, const N: usize> FromPyObject<'a> for [T; N]
 where
     T: FromPyObject<'a>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'a, PyAny>) -> PyResult<Self> {
         create_array_from_obj(obj)
     }
 }
 
-fn create_array_from_obj<'s, T, const N: usize>(obj: &'s PyAny) -> PyResult<[T; N]>
+fn create_array_from_obj<'s, T, const N: usize>(obj: &Bound<'s, PyAny>) -> PyResult<[T; N]>
 where
     T: FromPyObject<'s>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq: &PySequence = unsafe {
+    let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked()
+            obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(PyDowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new(obj, "Sequence").into());
         }
     };
     let seq_len = seq.len()?;
     if seq_len != N {
         return Err(invalid_sequence_length(N, seq_len));
     }
-    array_try_from_fn(|idx| seq.get_item(idx).and_then(PyAny::extract))
+    array_try_from_fn(|idx| seq.get_item(idx).and_then(|any| any.extract()))
 }
 
 // TODO use std::array::try_from_fn, if that stabilises:

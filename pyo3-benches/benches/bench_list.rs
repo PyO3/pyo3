@@ -1,3 +1,5 @@
+use std::hint::black_box;
+
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
@@ -56,11 +58,8 @@ fn list_get_item_unchecked(b: &mut Bencher<'_>) {
 fn sequence_from_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let list = PyList::new_bound(py, 0..LEN).to_object(py);
-        b.iter(|| {
-            let seq: &PySequence = list.extract(py).unwrap();
-            seq
-        });
+        let list = &PyList::new_bound(py, 0..LEN);
+        b.iter(|| black_box(list).downcast::<PySequence>().unwrap());
     });
 }
 

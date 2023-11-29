@@ -35,8 +35,11 @@
 //! ```
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+};
 use chrono_tz::Tz;
 use std::str::FromStr;
 
@@ -59,7 +62,7 @@ impl IntoPy<PyObject> for Tz {
 }
 
 impl FromPyObject<'_> for Tz {
-    fn extract(ob: &PyAny) -> PyResult<Tz> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Tz> {
         Tz::from_str(ob.getattr(intern!(ob.py(), "key"))?.extract()?)
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }

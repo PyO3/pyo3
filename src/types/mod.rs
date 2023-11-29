@@ -224,8 +224,8 @@ macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             #[inline]
-            fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
-                obj.downcast().map_err(::std::convert::Into::into)
+            fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {
+                ::std::clone::Clone::clone(obj).into_gil_ref().downcast().map_err(::std::convert::Into::into)
             }
         }
     }

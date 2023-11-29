@@ -87,8 +87,10 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
+use crate::types::any::PyAnyMethods;
+use crate::types::dict::PyDictMethods;
 use crate::types::*;
-use crate::{FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
+use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
@@ -122,11 +124,11 @@ where
     V: FromPyObject<'source>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        for (k, v) in dict.iter() {
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }

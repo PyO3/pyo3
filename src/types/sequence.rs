@@ -1,4 +1,4 @@
-use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::err::{self, DowncastError, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -10,6 +10,8 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{ffi, FromPyObject, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
+
+use super::any::PyAnyMethods;
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -481,7 +483,7 @@ impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'a, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
@@ -494,17 +496,17 @@ where
     }
 }
 
-fn extract_sequence<'s, T>(obj: &'s PyAny) -> PyResult<Vec<T>>
+fn extract_sequence<'s, T>(obj: &Bound<'s, PyAny>) -> PyResult<Vec<T>>
 where
     T: FromPyObject<'s>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq: &PySequence = unsafe {
+    let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked()
+            obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(PyDowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new(obj, "Sequence").into());
         }
     };
 
@@ -602,7 +604,6 @@ mod tests {
             let v = "London Calling";
             let ob = v.to_object(py);
 
-            assert!(ob.extract::<Vec<&str>>(py).is_err());
             assert!(ob.extract::<Vec<String>>(py).is_err());
             assert!(ob.extract::<Vec<char>>(py).is_err());
         });

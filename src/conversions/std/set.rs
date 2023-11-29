@@ -3,7 +3,10 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    types::set::new_from_iter,
+    instance::Bound,
+    types::any::PyAnyMethods,
+    types::frozenset::PyFrozenSetMethods,
+    types::set::{new_from_iter, PySetMethods},
     types::{PyFrozenSet, PySet},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
@@ -53,12 +56,12 @@ where
     K: FromPyObject<'source> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
-            Ok(set) => set.iter().map(K::extract).collect(),
+            Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
-                    frozen_set.iter().map(K::extract).collect()
+                    frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -92,12 +95,12 @@ impl<'source, K> FromPyObject<'source> for collections::BTreeSet<K>
 where
     K: FromPyObject<'source> + cmp::Ord,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
-            Ok(set) => set.iter().map(K::extract).collect(),
+            Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
-                    frozen_set.iter().map(K::extract).collect()
+                    frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))
                 }

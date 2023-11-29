@@ -47,8 +47,13 @@
 //! assert n + 1 == value
 //! ```
 
+#[cfg(Py_LIMITED_API)]
+use crate::types::bytes::PyBytesMethods;
 use crate::{
-    ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    ffi,
+    instance::Bound,
+    types::{any::PyAnyMethods, *},
+    FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -107,7 +112,7 @@ bigint_conversion!(BigInt, 1, BigInt::to_signed_bytes_le);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'source> FromPyObject<'source> for BigInt {
-    fn extract(ob: &'source PyAny) -> PyResult<BigInt> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<BigInt> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyLong>;
@@ -115,7 +120,7 @@ impl<'source> FromPyObject<'source> for BigInt {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.as_ref(py)
+            num_owned.bind(py)
         };
         let n_bits = int_n_bits(num)?;
         if n_bits == 0 {
@@ -155,7 +160,7 @@ impl<'source> FromPyObject<'source> for BigInt {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'source> FromPyObject<'source> for BigUint {
-    fn extract(ob: &'source PyAny) -> PyResult<BigUint> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<BigUint> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyLong>;
@@ -163,7 +168,7 @@ impl<'source> FromPyObject<'source> for BigUint {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.as_ref(py)
+            num_owned.bind(py)
         };
         let n_bits = int_n_bits(num)?;
         if n_bits == 0 {
@@ -184,7 +189,11 @@ impl<'source> FromPyObject<'source> for BigUint {
 
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
-fn int_to_u32_vec(long: &PyLong, n_digits: usize, is_signed: bool) -> PyResult<Vec<u32>> {
+fn int_to_u32_vec(
+    long: &Bound<'_, PyLong>,
+    n_digits: usize,
+    is_signed: bool,
+) -> PyResult<Vec<u32>> {
     let mut buffer = Vec::with_capacity(n_digits);
     unsafe {
         crate::err::error_on_minusone(
@@ -207,11 +216,15 @@ fn int_to_u32_vec(long: &PyLong, n_digits: usize, is_signed: bool) -> PyResult<V
 }
 
 #[cfg(Py_LIMITED_API)]
-fn int_to_py_bytes(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<&PyBytes> {
+fn int_to_py_bytes<'py>(
+    long: &Bound<'py, PyLong>,
+    n_bytes: usize,
+    is_signed: bool,
+) -> PyResult<Bound<'py, PyBytes>> {
     use crate::intern;
     let py = long.py();
     let kwargs = if is_signed {
-        let kwargs = PyDict::new(py);
+        let kwargs = PyDict::new_bound(py);
         kwargs.set_item(intern!(py, "signed"), true)?;
         Some(kwargs)
     } else {
@@ -220,13 +233,13 @@ fn int_to_py_bytes(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<&
     let bytes = long.call_method(
         intern!(py, "to_bytes"),
         (n_bytes, intern!(py, "little")),
-        kwargs,
+        kwargs.as_ref(),
     )?;
-    Ok(bytes.downcast()?)
+    Ok(bytes.downcast_into()?)
 }
 
 #[inline]
-fn int_n_bits(long: &PyLong) -> PyResult<usize> {
+fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
     let py = long.py();
     #[cfg(not(Py_LIMITED_API))]
     {
@@ -242,7 +255,7 @@ fn int_n_bits(long: &PyLong) -> PyResult<usize> {
     {
         // slow path
         long.call_method0(crate::intern!(py, "bit_length"))
-            .and_then(PyAny::extract)
+            .and_then(|any| any.extract())
     }
 }
 
@@ -330,7 +343,7 @@ mod tests {
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
             let ob = py.eval("index.C(10)", None, Some(locals)).unwrap();
-            let _: BigInt = FromPyObject::extract(ob).unwrap();
+            let _: BigInt = ob.extract().unwrap();
         });
     }
 

@@ -46,7 +46,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPy, PyAny,
+    PyObject, PyResult, Python, ToPyObject,
 };
 use either::Either;
 
@@ -87,7 +88,7 @@ where
     R: FromPyObject<'source>,
 {
     #[inline]
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(l) = obj.extract::<L>() {
             Ok(Either::Left(l))
         } else if let Ok(r) = obj.extract::<R>() {

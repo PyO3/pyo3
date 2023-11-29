@@ -5,7 +5,7 @@ use crate::pyclass::PyClass;
 use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
-use crate::{exceptions, ffi, Bound, IntoPy, Py, PyNativeType, PyObject, Python};
+use crate::{exceptions, ffi, Bound, FromPyObject, IntoPy, Py, PyNativeType, PyObject, Python};
 use std::ffi::CString;
 use std::str;
 
@@ -146,7 +146,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
-            <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            <&PyModule as FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
 

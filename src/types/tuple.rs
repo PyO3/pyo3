@@ -629,7 +629,7 @@ impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
 }
 
 #[cold]
-fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
         "expected tuple of length {}, but got tuple of length {}",
         expected_length,
@@ -667,7 +667,7 @@ fn type_output() -> TypeInfo {
     }
 
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyAny) -> PyResult<Self>
+        fn extract_bound(obj: &Bound<'s, PyAny>) -> PyResult<Self>
         {
             let t = obj.downcast::<PyTuple>()?;
             if t.len() == $length {

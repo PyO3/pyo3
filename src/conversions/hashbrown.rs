@@ -17,9 +17,12 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
-    types::set::new_from_iter,
+    types::any::PyAnyMethods,
+    types::dict::PyDictMethods,
+    types::frozenset::PyFrozenSetMethods,
+    types::set::{new_from_iter, PySetMethods},
     types::{IntoPyDict, PyDict, PyFrozenSet, PySet},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
 
@@ -54,11 +57,11 @@ where
     V: FromPyObject<'source>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        for (k, v) in dict.iter() {
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
@@ -92,12 +95,12 @@ where
     K: FromPyObject<'source> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
-            Ok(set) => set.iter().map(K::extract).collect(),
+            Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
-                    frozen_set.iter().map(K::extract).collect()
+                    frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))
                 }

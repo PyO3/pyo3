@@ -18,10 +18,12 @@
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::types::any::PyAnyMethods;
 use crate::types::list::new_from_iter;
 use crate::types::{PySequence, PyString};
 use crate::{
-    ffi, FromPyObject, IntoPy, PyAny, PyDowncastError, PyObject, PyResult, Python, ToPyObject,
+    err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use smallvec::{Array, SmallVec};
 
@@ -57,7 +59,7 @@ where
     A: Array,
     A::Item: FromPyObject<'a>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'a, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `SmallVec`"));
         }
@@ -70,18 +72,18 @@ where
     }
 }
 
-fn extract_sequence<'s, A>(obj: &'s PyAny) -> PyResult<SmallVec<A>>
+fn extract_sequence<'s, A>(obj: &Bound<'s, PyAny>) -> PyResult<SmallVec<A>>
 where
     A: Array,
     A::Item: FromPyObject<'s>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq: &PySequence = unsafe {
+    let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked()
+            obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(PyDowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new(obj, "Sequence").into());
         }
     };
 

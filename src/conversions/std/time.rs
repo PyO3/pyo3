@@ -1,21 +1,24 @@
 use crate::exceptions::{PyOverflowError, PyValueError};
 use crate::sync::GILOnceCell;
+use crate::types::any::PyAnyMethods;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyType;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
-use crate::{intern, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    intern, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
 impl FromPyObject<'_> for Duration {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
-            let delta: &PyDelta = obj.downcast()?;
+            let delta = obj.downcast::<PyDelta>()?;
             (
                 delta.get_days(),
                 delta.get_seconds(),
@@ -93,7 +96,7 @@ impl IntoPy<PyObject> for Duration {
 // TODO: it might be nice to investigate using timestamps anyway, at least when the datetime is a safe range.
 
 impl FromPyObject<'_> for SystemTime {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let duration_since_unix_epoch: Duration = obj
             .call_method1(intern!(obj.py(), "__sub__"), (unix_epoch_py(obj.py()),))?
             .extract()?;

@@ -3,7 +3,9 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    types::{IntoPyDict, PyDict},
+    instance::Bound,
+    types::dict::PyDictMethods,
+    types::{any::PyAnyMethods, IntoPyDict, PyDict},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
@@ -71,11 +73,11 @@ where
     V: FromPyObject<'source>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        for (k, v) in dict.iter() {
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
@@ -91,11 +93,11 @@ where
     K: FromPyObject<'source> + cmp::Ord,
     V: FromPyObject<'source>,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        for (k, v) in dict.iter() {
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
