@@ -290,7 +290,7 @@ where
         unsafe { &*cell.get_ptr() }
     }
 
-    fn get_cell(&'py self) -> &'py PyCell<T> {
+    pub(crate) fn get_cell(&'py self) -> &'py PyCell<T> {
         let cell = self.as_ptr().cast::<PyCell<T>>();
         // SAFETY: Bound<T> is known to contain an object which is laid out in memory as a
         // PyCell<T>.
