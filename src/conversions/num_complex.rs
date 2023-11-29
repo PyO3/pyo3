@@ -151,7 +151,7 @@ macro_rules! complex_conversion {
                 unsafe {
                     let complex;
                     let obj = if obj.is_instance_of::<PyComplex>() {
-                        obj
+                        obj.clone()
                     } else if let Some(method) =
                         obj.lookup_special(crate::intern!(obj.py(), "__complex__"))?
                     {
@@ -161,7 +161,7 @@ macro_rules! complex_conversion {
                         // `obj` might still implement `__float__` or `__index__`, which will be
                         // handled by `PyComplex_{Real,Imag}AsDouble`, including propagating any
                         // errors if those methods don't exist / raise exceptions.
-                        obj
+                        obj.clone()
                     };
                     let ptr = obj.as_ptr();
                     let real = ffi::PyComplex_RealAsDouble(ptr);

@@ -2,11 +2,13 @@
 use crate::err::{self, PyDowncastError, PyResult};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::instance::Bound;
 use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{
-    ffi, gil, Bound, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
 };
 use std::cell::Cell;
 use std::ptr::NonNull;
@@ -309,8 +311,8 @@ impl<T: Copy + IntoPy<PyObject>> IntoPy<PyObject> for Cell<T> {
 }
 
 impl<'py, T: FromPyObject<'py>> FromPyObject<'py> for Cell<T> {
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
-        T::extract(ob).map(Cell::new)
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        obj.extract().map(Cell::new)
     }
 }
 
@@ -357,11 +359,11 @@ impl<'py, T> FromPyObject<'py> for Option<T>
 where
     T: FromPyObject<'py>,
 {
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        if obj.as_ptr() == unsafe { ffi::Py_None() } {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        if obj.is_none() {
             Ok(None)
         } else {
-            T::extract(obj).map(Some)
+            obj.extract().map(Some)
         }
     }
 }

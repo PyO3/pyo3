@@ -304,7 +304,7 @@ impl<T: PyClass> PyCell<T> {
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     pub fn borrow(&self) -> PyRef<'_, T> {
-        self.try_borrow().expect("Already mutably borrowed")
+        PyRef::borrow(&self.as_borrowed())
     }
 
     /// Mutably borrows the value `T`. This borrow lasts as long as the returned `PyRefMut` exists.
@@ -317,7 +317,7 @@ impl<T: PyClass> PyCell<T> {
     where
         T: PyClass<Frozen = False>,
     {
-        self.try_borrow_mut().expect("Already borrowed")
+        PyRefMut::borrow_mut(&self.as_borrowed())
     }
 
     /// Immutably borrows the value `T`, returning an error if the value is currently
@@ -348,10 +348,7 @@ impl<T: PyClass> PyCell<T> {
     /// });
     /// ```
     pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
-        self.ensure_threadsafe();
-        self.borrow_checker().try_borrow().map(|_| PyRef {
-            inner: self.as_borrowed().to_owned(),
-        })
+        PyRef::try_borrow(&self.as_borrowed())
     }
 
     /// Variant of [`try_borrow`][Self::try_borrow] which fails instead of panicking if called from the wrong thread
@@ -387,10 +384,7 @@ impl<T: PyClass> PyCell<T> {
     where
         T: PyClass<Frozen = False>,
     {
-        self.ensure_threadsafe();
-        self.borrow_checker().try_borrow_mut().map(|_| PyRefMut {
-            inner: self.as_borrowed().to_owned(),
-        })
+        PyRefMut::try_borrow_mut(&self.as_borrowed())
     }
 
     /// Immutably borrows the value `T`, returning an error if the value is
@@ -694,6 +688,18 @@ impl<'p, T: PyClass> PyRef<'p, T> {
     pub fn into_ptr(self) -> *mut ffi::PyObject {
         self.inner.clone().into_ptr()
     }
+
+    pub(crate) fn borrow(obj: &Bound<'p, T>) -> Self {
+        Self::try_borrow(obj).expect("Already mutably borrowed")
+    }
+
+    pub(crate) fn try_borrow(obj: &Bound<'p, T>) -> Result<Self, PyBorrowError> {
+        obj.as_gil_ref().ensure_threadsafe();
+        obj.as_gil_ref()
+            .borrow_checker()
+            .try_borrow()
+            .map(|_| Self { inner: obj.clone() })
+    }
 }
 
 impl<'p, T, U> PyRef<'p, T>
@@ -862,6 +868,18 @@ impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
         self.inner.clone().into_ptr()
+    }
+
+    pub(crate) fn borrow_mut(obj: &Bound<'p, T>) -> Self {
+        Self::try_borrow_mut(obj).expect("Already borrowed")
+    }
+
+    pub(crate) fn try_borrow_mut(obj: &Bound<'p, T>) -> Result<Self, PyBorrowMutError> {
+        obj.as_gil_ref().ensure_threadsafe();
+        obj.as_gil_ref()
+            .borrow_checker()
+            .try_borrow_mut()
+            .map(|_| Self { inner: obj.clone() })
     }
 }
 

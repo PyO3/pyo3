@@ -25,7 +25,7 @@ impl Mapping {
         if let Some(pylist) = elements {
             let mut elems = HashMap::with_capacity(pylist.len());
             for (i, pyelem) in pylist.into_iter().enumerate() {
-                let elem = String::extract(pyelem)?;
+                let elem = pyelem.extract()?;
                 elems.insert(elem, i);
             }
             Ok(Self { index: elems })

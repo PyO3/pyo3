@@ -48,7 +48,7 @@ impl PyType {
         p.cast::<ffi::PyObject>()
             .assume_borrowed(py)
             .downcast_unchecked()
-            .clone()
+            .to_owned()
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.

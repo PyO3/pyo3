@@ -137,6 +137,18 @@ impl<'py> Bound<'py, PyAny> {
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
+
+    /// Constructs a new Bound from a borrowed pointer, incrementing the reference count.
+    /// Returns None if ptr is null.
+    ///
+    /// # Safety
+    /// ptr must be a valid pointer to a Python object, or NULL.
+    pub unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<Self> {
+        Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
 }
 
 impl<'py, T> Bound<'py, T>
@@ -1194,7 +1206,7 @@ impl<T> Py<T> {
     where
         D: FromPyObject<'py>,
     {
-        FromPyObject::extract(unsafe { py.from_borrowed_ptr(self.as_ptr()) })
+        self.bind(py).as_any().extract()
     }
 
     /// Retrieves an attribute value.

@@ -1,11 +1,11 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::types::any::PyAnyMethods;
+use crate::types::typeobject::PyTypeMethods;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject,
     IntoPy, PyAny, PyNativeType, PyObject, PyResult, Python, ToPyObject,
 };
-
-use super::any::PyAnyMethods;
 
 /// Represents a Python `bool`.
 #[repr(transparent)]

@@ -21,7 +21,7 @@ impl ByteSequence {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
             for pyelem in pylist {
-                let elem = u8::extract(pyelem)?;
+                let elem = pyelem.extract()?;
                 elems.push(elem);
             }
             Ok(Self { elements: elems })
@@ -61,7 +61,7 @@ impl ByteSequence {
     }
 
     fn __contains__(&self, other: &PyAny) -> bool {
-        match u8::extract(other) {
+        match other.extract::<u8>() {
             Ok(x) => self.elements.contains(&x),
             Err(_) => false,
         }

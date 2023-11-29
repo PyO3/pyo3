@@ -2286,7 +2286,7 @@ impl<'py> Bound<'py, PyAny> {
         N: IntoPy<Py<PyString>>,
     {
         let py = self.py();
-        let self_type = self.get_type().as_borrowed();
+        let self_type = self.get_type();
         let attr = if let Ok(attr) = self_type.getattr(attr_name) {
             attr
         } else {
@@ -2308,11 +2308,7 @@ impl<'py> Bound<'py, PyAny> {
                 let ret = descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr());
                 ret.assume_owned_or_err(py).map(Some)
             }
-        } else if let Ok(descr_get) = attr
-            .get_type()
-            .as_borrowed()
-            .getattr(crate::intern!(py, "__get__"))
-        {
+        } else if let Ok(descr_get) = attr.get_type().getattr(crate::intern!(py, "__get__")) {
             descr_get.call1((attr, self, self_type)).map(Some)
         } else {
             Ok(Some(attr))
