@@ -33,17 +33,34 @@ pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObjec
 where
     T: PyClass,
 {
-    unsafe {
+    // Written this way to monomorphize the majority of the logic.
+    #[allow(clippy::too_many_arguments)]
+    unsafe fn inner(
+        py: Python<'_>,
+        base: *mut ffi::PyTypeObject,
+        dealloc: unsafe extern "C" fn(*mut ffi::PyObject),
+        dealloc_with_gc: unsafe extern "C" fn(*mut ffi::PyObject),
+        is_mapping: bool,
+        is_sequence: bool,
+        doc: &'static CStr,
+        dict_offset: Option<ffi::Py_ssize_t>,
+        weaklist_offset: Option<ffi::Py_ssize_t>,
+        is_basetype: bool,
+        items_iter: PyClassItemsIter,
+        name: &'static str,
+        module: Option<&'static str>,
+        size_of: usize,
+    ) -> PyResult<PyClassTypeObject> {
         PyTypeBuilder {
             slots: Vec::new(),
             method_defs: Vec::new(),
             getset_builders: HashMap::new(),
             cleanup: Vec::new(),
-            tp_base: T::BaseType::type_object_raw(py),
-            tp_dealloc: tp_dealloc::<T>,
-            tp_dealloc_with_gc: tp_dealloc_with_gc::<T>,
-            is_mapping: T::IS_MAPPING,
-            is_sequence: T::IS_SEQUENCE,
+            tp_base: base,
+            tp_dealloc: dealloc,
+            tp_dealloc_with_gc: dealloc_with_gc,
+            is_mapping,
+            is_sequence,
             has_new: false,
             has_dealloc: false,
             has_getitem: false,
@@ -55,11 +72,30 @@ where
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             buffer_procs: Default::default(),
         }
-        .type_doc(T::doc(py)?)
-        .offsets(T::dict_offset(), T::weaklist_offset())
-        .set_is_basetype(T::IS_BASETYPE)
-        .class_items(T::items_iter())
-        .build(py, T::NAME, T::MODULE, std::mem::size_of::<PyCell<T>>())
+        .type_doc(doc)
+        .offsets(dict_offset, weaklist_offset)
+        .set_is_basetype(is_basetype)
+        .class_items(items_iter)
+        .build(py, name, module, size_of)
+    }
+
+    unsafe {
+        inner(
+            py,
+            T::BaseType::type_object_raw(py),
+            tp_dealloc::<T>,
+            tp_dealloc_with_gc::<T>,
+            T::IS_MAPPING,
+            T::IS_SEQUENCE,
+            T::doc(py)?,
+            T::dict_offset(),
+            T::weaklist_offset(),
+            T::IS_BASETYPE,
+            T::items_iter(),
+            T::NAME,
+            T::MODULE,
+            std::mem::size_of::<PyCell<T>>(),
+        )
     }
 }
 
