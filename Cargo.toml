@@ -31,9 +31,6 @@ unindent = { version = "0.2.1", optional = true }
 # support crate for multiple-pymethods feature
 inventory = { version = "0.3.0", optional = true }
 
-# support crate for experimental async feature
-scoped-tls-hkt = { version = "0.1", optional = true }
-
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0.1", optional = true }
 chrono = { version = "0.4.25", default-features = false, optional = true }
@@ -75,7 +72,7 @@ pyo3-build-config = { path = "pyo3-build-config", version = "=0.23.3", features 
 default = ["macros"]
 
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
-experimental-async = ["macros", "pyo3-macros/experimental-async", "scoped-tls-hkt"]
+experimental-async = ["macros", "pyo3-macros/experimental-async"]
 
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
