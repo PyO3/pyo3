@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    coroutine::{cancel::ThrowCallback, Coroutine},
+    coroutine::{Coroutine, ThrowCallback},
     instance::Bound,
     marker::Ungil,
     pycell::impl_::PyClassBorrowChecker,

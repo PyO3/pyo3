@@ -11,20 +11,29 @@ use std::{
 use pyo3_macros::{pyclass, pymethods};
 
 use crate::{
-    coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
-    exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
+    coroutine::waker::CoroutineWaker,
+    exceptions::{PyAttributeError, PyGeneratorExit, PyRuntimeError, PyStopIteration},
+    marker::Ungil,
     panic::PanicException,
-    types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    types::{string::PyStringMethods, PyString},
+    IntoPy, Py, PyErr, PyObject, PyResult, Python,
 };
 
-pub(crate) mod cancel;
+mod asyncio;
+mod awaitable;
+mod cancel;
 mod waker;
 
-use crate::marker::Ungil;
-pub use cancel::CancelHandle;
+pub use awaitable::await_in_coroutine;
+pub use cancel::{CancelHandle, ThrowCallback};
 
 const COROUTINE_REUSED_ERROR: &str = "cannot reuse already awaited coroutine";
+
+pub(crate) enum CoroOp {
+    Send(PyObject),
+    Throw(PyObject),
+    Close,
+}
 
 trait CoroutineFuture: Send {
     fn poll(self: Pin<&mut Self>, py: Python<'_>, waker: &Waker) -> Poll<PyResult<PyObject>>;
@@ -69,7 +78,7 @@ pub struct Coroutine {
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     future: Option<Pin<Box<dyn CoroutineFuture>>>,
-    waker: Option<Arc<AsyncioWaker>>,
+    waker: Option<Arc<CoroutineWaker>>,
 }
 
 impl Coroutine {
@@ -104,58 +113,55 @@ impl Coroutine {
         }
     }
 
-    fn poll(&mut self, py: Python<'_>, throw: Option<PyObject>) -> PyResult<PyObject> {
+    fn poll_inner(&mut self, py: Python<'_>, mut op: CoroOp) -> PyResult<PyObject> {
         // raise if the coroutine has already been run to completion
         let future_rs = match self.future {
             Some(ref mut fut) => fut,
             None => return Err(PyRuntimeError::new_err(COROUTINE_REUSED_ERROR)),
         };
-        // reraise thrown exception it
-        match (throw, &self.throw_callback) {
-            (Some(exc), Some(cb)) => cb.throw(exc),
-            (Some(exc), None) => {
-                self.close();
-                return Err(PyErr::from_value_bound(exc.into_bound(py)));
-            }
-            (None, _) => {}
+        // if the future is not pending on a Python awaitable,
+        // execute throw callback or complete on close
+        if !matches!(self.waker, Some(ref w) if w.is_delegated(py)) {
+            match op {
+                send @ CoroOp::Send(_) => op = send,
+                CoroOp::Throw(exc) => match &self.throw_callback {
+                    Some(cb) => {
+                        cb.throw(exc.clone_ref(py));
+                        op = CoroOp::Send(py.None());
+                    }
+                    None => return Err(PyErr::from_value_bound(exc.into_bound(py))),
+                },
+                CoroOp::Close => return Err(PyGeneratorExit::new_err(py.None())),
+            };
         }
         // create a new waker, or try to reset it in place
         if let Some(waker) = self.waker.as_mut().and_then(Arc::get_mut) {
-            waker.reset();
+            waker.reset(op);
         } else {
-            self.waker = Some(Arc::new(AsyncioWaker::new()));
+            self.waker = Some(Arc::new(CoroutineWaker::new(op)));
         }
-        // poll the future and forward its results if ready
+        // poll the future and forward its results if ready; otherwise, yield from waker
         // polling is UnwindSafe because the future is dropped in case of panic
         let waker = Waker::from(self.waker.clone().unwrap());
         let poll = || future_rs.as_mut().poll(py, &waker);
         match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
-            Ok(Poll::Ready(res)) => {
-                self.close();
-                return Err(PyStopIteration::new_err(res?));
-            }
-            Err(err) => {
-                self.close();
-                return Err(PanicException::from_panic_payload(err));
-            }
-            _ => {}
+            Err(err) => Err(PanicException::from_panic_payload(err)),
+            Ok(Poll::Ready(res)) => Err(PyStopIteration::new_err(res?)),
+            Ok(Poll::Pending) => match self.waker.as_ref().unwrap().yield_(py) {
+                Ok(to_yield) => Ok(to_yield),
+                Err(err) => Err(err),
+            },
         }
-        // otherwise, initialize the waker `asyncio.Future`
-        if let Some(future) = self.waker.as_ref().unwrap().initialize_future(py)? {
-            // `asyncio.Future` must be awaited; fortunately, it implements `__iter__ = __await__`
-            // and will yield itself if its result has not been set in polling above
-            if let Some(future) = PyIterator::from_bound_object(&future.as_borrowed())
-                .unwrap()
-                .next()
-            {
-                // future has not been leaked into Python for now, and Rust code can only call
-                // `set_result(None)` in `Wake` implementation, so it's safe to unwrap
-                return Ok(future.unwrap().into());
-            }
+    }
+
+    fn poll(&mut self, py: Python<'_>, op: CoroOp) -> PyResult<PyObject> {
+        let result = self.poll_inner(py, op);
+        if result.is_err() {
+            // the Rust future is dropped, and the field set to `None`
+            // to indicate the coroutine has been run to completion
+            drop(self.future.take());
         }
-        // if waker has been waken during future polling, this is roughly equivalent to
-        // `await asyncio.sleep(0)`, so just yield `None`.
-        Ok(py.None().into_py(py))
+        result
     }
 }
 
@@ -180,18 +186,20 @@ impl Coroutine {
         }
     }
 
-    fn send(&mut self, py: Python<'_>, _value: &Bound<'_, PyAny>) -> PyResult<PyObject> {
-        self.poll(py, None)
+    fn send(&mut self, py: Python<'_>, value: PyObject) -> PyResult<PyObject> {
+        self.poll(py, CoroOp::Send(value))
     }
 
     fn throw(&mut self, py: Python<'_>, exc: PyObject) -> PyResult<PyObject> {
-        self.poll(py, Some(exc))
+        self.poll(py, CoroOp::Throw(exc))
     }
 
-    fn close(&mut self) {
-        // the Rust future is dropped, and the field set to `None`
-        // to indicate the coroutine has been run to completion
-        drop(self.future.take());
+    fn close(&mut self, py: Python<'_>) -> PyResult<()> {
+        match self.poll(py, CoroOp::Close) {
+            Ok(_) => Ok(()),
+            Err(err) if err.is_instance_of::<PyGeneratorExit>(py) => Ok(()),
+            Err(err) => Err(err),
+        }
     }
 
     fn __await__(self_: Py<Self>) -> Py<Self> {
@@ -199,6 +207,6 @@ impl Coroutine {
     }
 
     fn __next__(&mut self, py: Python<'_>) -> PyResult<PyObject> {
-        self.poll(py, None)
+        self.poll(py, CoroOp::Send(py.None()))
     }
 }

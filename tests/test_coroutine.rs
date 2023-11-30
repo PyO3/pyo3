@@ -14,15 +14,6 @@ use pyo3::{
 #[path = "../src/tests/common.rs"]
 mod common;
 
-fn handle_windows(test: &str) -> String {
-    let set_event_loop_policy = r#"
-    import asyncio, sys
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    "#;
-    pyo3::unindent::unindent(set_event_loop_policy) + &pyo3::unindent::unindent(test)
-}
-
 #[test]
 fn noop_coroutine() {
     #[pyfunction]
@@ -32,7 +23,7 @@ fn noop_coroutine() {
     Python::with_gil(|gil| {
         let noop = wrap_pyfunction_bound!(noop, gil).unwrap();
         let test = "import asyncio; assert asyncio.run(noop()) == 42";
-        py_run!(gil, noop, &handle_windows(test));
+        py_run!(gil, noop, &common::asyncio_windows(test));
     })
 }
 
@@ -76,7 +67,7 @@ fn test_coroutine_qualname() {
             ("MyClass", gil.get_type_bound::<MyClass>().as_any()),
         ]
         .into_py_dict_bound(gil);
-        py_run!(gil, *locals, &handle_windows(test));
+        py_run!(gil, *locals, &common::asyncio_windows(test));
     })
 }
 
@@ -98,7 +89,7 @@ fn sleep_0_like_coroutine() {
     Python::with_gil(|gil| {
         let sleep_0 = wrap_pyfunction_bound!(sleep_0, gil).unwrap();
         let test = "import asyncio; assert asyncio.run(sleep_0()) == 42";
-        py_run!(gil, sleep_0, &handle_windows(test));
+        py_run!(gil, sleep_0, &common::asyncio_windows(test));
     })
 }
 
@@ -117,7 +108,7 @@ fn sleep_coroutine() {
     Python::with_gil(|gil| {
         let sleep = wrap_pyfunction_bound!(sleep, gil).unwrap();
         let test = r#"import asyncio; assert asyncio.run(sleep(0.1)) == 42"#;
-        py_run!(gil, sleep, &handle_windows(test));
+        py_run!(gil, sleep, &common::asyncio_windows(test));
     })
 }
 
@@ -137,11 +128,7 @@ fn cancelled_coroutine() {
         let globals = gil.import_bound("__main__").unwrap().dict();
         globals.set_item("sleep", sleep).unwrap();
         let err = gil
-            .run_bound(
-                &pyo3::unindent::unindent(&handle_windows(test)),
-                Some(&globals),
-                None,
-            )
+            .run_bound(&common::asyncio_windows(test), Some(&globals), None)
             .unwrap_err();
         assert_eq!(
             err.value_bound(gil).get_type().qualname().unwrap(),
@@ -177,12 +164,8 @@ fn coroutine_cancel_handle() {
         globals
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
-        gil.run_bound(
-            &pyo3::unindent::unindent(&handle_windows(test)),
-            Some(&globals),
-            None,
-        )
-        .unwrap();
+        gil.run_bound(&common::asyncio_windows(test), Some(&globals), None)
+            .unwrap();
     })
 }
 
@@ -207,12 +190,8 @@ fn coroutine_is_cancelled() {
         "#;
         let globals = gil.import_bound("__main__").unwrap().dict();
         globals.set_item("sleep_loop", sleep_loop).unwrap();
-        gil.run_bound(
-            &pyo3::unindent::unindent(&handle_windows(test)),
-            Some(&globals),
-            None,
-        )
-        .unwrap();
+        gil.run_bound(&common::asyncio_windows(test), Some(&globals), None)
+            .unwrap();
     })
 }
 
@@ -241,7 +220,7 @@ fn coroutine_panic() {
         else:
             assert False;
         "#;
-        py_run!(gil, panic, &handle_windows(test));
+        py_run!(gil, panic, &common::asyncio_windows(test));
     })
 }
 
@@ -338,6 +317,6 @@ fn test_async_method_receiver_with_other_args() {
         assert asyncio.run(v.get_value_plus_with(1, 1)) == 12
         "#;
         let locals = [("Value", gil.get_type_bound::<Value>())].into_py_dict_bound(gil);
-        py_run!(gil, *locals, test);
+        py_run!(gil, *locals, &common::asyncio_windows(test));
     });
 }
