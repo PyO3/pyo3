@@ -11,8 +11,8 @@ use std::{
 use pyo3_macros::{pyclass, pymethods};
 
 use crate::{
-    coroutine::{cancel::ThrowCallback, waker::CoroutineWaker},
-    exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
+    coroutine::waker::CoroutineWaker,
+    exceptions::{PyRuntimeError, PyStopIteration},
     panic::PanicException,
     pyclass::IterNextOutput,
     types::PyString,
@@ -27,7 +27,7 @@ pub(crate) mod cancel;
 mod trio;
 pub(crate) mod waker;
 
-pub use cancel::CancelHandle;
+pub use cancel::{CancelHandle, ThrowCallback};
 
 const COROUTINE_REUSED_ERROR: &str = "cannot reuse already awaited coroutine";
 
@@ -64,11 +64,11 @@ where
 /// Python coroutine wrapping a [`Future`].
 #[pyclass(crate = "crate")]
 pub struct Coroutine {
-    name: Option<Py<PyString>>,
+    future: Option<Pin<Box<dyn CoroutineFuture + Send>>>,
+    name: Py<PyString>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     allow_threads: bool,
-    future: Option<Pin<Box<dyn CoroutineFuture + Send>>>,
     waker: Option<Arc<CoroutineWaker>>,
 }
 
@@ -78,27 +78,42 @@ impl Coroutine {
     /// Coroutine `send` polls the wrapped future, ignoring the value passed
     /// (should always be `None` anyway).
     ///
-    /// `Coroutine `throw` drop the wrapped future and reraise the exception passed
-    pub(crate) fn new<F, T, E>(
-        name: Option<Py<PyString>>,
-        qualname_prefix: Option<&'static str>,
-        throw_callback: Option<ThrowCallback>,
-        allow_threads: bool,
-        future: F,
-    ) -> Self
+    /// `Coroutine `throw` drop the wrapped future and reraise the exception passed.
+    pub fn new<F, T, E>(name: impl Into<Py<PyString>>, future: F) -> Self
     where
         F: Future<Output = Result<T, E>> + Send + 'static,
         T: IntoPy<PyObject> + Send,
         E: Into<PyErr> + Send,
     {
         Self {
-            name,
-            qualname_prefix,
-            throw_callback,
-            allow_threads,
             future: Some(Box::pin(future)),
+            name: name.into(),
+            qualname_prefix: None,
+            throw_callback: None,
+            allow_threads: false,
             waker: None,
         }
+    }
+
+    /// Set a prefix for `__qualname__`, which will be joined with a "."
+    pub fn with_qualname_prefix(mut self, prefix: impl Into<Option<&'static str>>) -> Self {
+        self.qualname_prefix = prefix.into();
+        self
+    }
+
+    /// Register a callback for coroutine `throw` method.
+    ///
+    /// The exception passed to `throw` is then redirected to this callback, notifying the
+    /// associated [`CancelHandle`], without being reraised.
+    pub fn with_throw_callback(mut self, callback: impl Into<Option<ThrowCallback>>) -> Self {
+        self.throw_callback = callback.into();
+        self
+    }
+
+    /// Release the GIL while polling the future wrapped.
+    pub fn with_allow_threads(mut self, allow_threads: bool) -> Self {
+        self.allow_threads = allow_threads;
+        self
     }
 
     fn poll_inner(
@@ -169,22 +184,18 @@ pub(crate) fn iter_result(result: IterNextOutput<PyObject, PyObject>) -> PyResul
 #[pymethods(crate = "crate")]
 impl Coroutine {
     #[getter]
-    fn __name__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
-        match &self.name {
-            Some(name) => Ok(name.clone_ref(py)),
-            None => Err(PyAttributeError::new_err("__name__")),
-        }
+    fn __name__(&self, py: Python<'_>) -> Py<PyString> {
+        self.name.clone_ref(py)
     }
 
     #[getter]
     fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
-        match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.as_ref(py).to_str()?)
+        Ok(match &self.qualname_prefix {
+            Some(prefix) => format!("{}.{}", prefix, self.name.as_ref(py).to_str()?)
                 .as_str()
-                .into_py(py)),
-            (Some(name), None) => Ok(name.clone_ref(py)),
-            (None, _) => Err(PyAttributeError::new_err("__qualname__")),
-        }
+                .into_py(py),
+            None => self.name.clone_ref(py),
+        })
     }
 
     fn send(&mut self, py: Python<'_>, value: PyObject) -> PyResult<PyObject> {

@@ -52,7 +52,7 @@ impl CancelHandle {
         Cancelled(self).await
     }
 
-    #[doc(hidden)]
+    /// Instantiate a [`ThrowCallback`] associated to this cancel handle.
     pub fn throw_callback(&self) -> ThrowCallback {
         ThrowCallback(self.0.clone())
     }
@@ -68,7 +68,7 @@ impl Future for Cancelled<'_> {
     }
 }
 
-#[doc(hidden)]
+/// Callback for coroutine `throw` method, notifying the associated [`CancelHandle`]
 pub struct ThrowCallback(Arc<Mutex<Inner>>);
 
 impl ThrowCallback {

@@ -503,13 +503,13 @@ impl<'a> FnSpec<'a> {
                 };
                 let mut call = quote! {{
                     let future = #future;
-                    _pyo3::impl_::coroutine::new_coroutine(
+                    _pyo3::coroutine::Coroutine::new(
                         _pyo3::intern!(py, stringify!(#python_name)),
-                        #qualname_prefix,
-                        #throw_callback,
-                        #allow_threads,
                         async move { _pyo3::impl_::wrap::OkWrap::wrap(future.await) },
                     )
+                    .with_qualname_prefix(#qualname_prefix)
+                    .with_throw_callback(#throw_callback)
+                    .with_allow_threads(#allow_threads)
                 }};
                 if cancel_handle.is_some() {
                     call = quote! {{

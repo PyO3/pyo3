@@ -96,4 +96,24 @@ To make a Rust future awaitable in Python, PyO3 defines a [`Coroutine`]({{#PYO3_
 
 Each `coroutine.send` call is translated to a `Future::poll` call. If a [`CancelHandle`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html) parameter is declared, the exception passed to `coroutine.throw` call is stored in it and can be retrieved with [`CancelHandle::cancelled`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html#method.cancelled); otherwise, it cancels the Rust future, and the exception is reraised;
 
-*The type does not yet have a public constructor until the design is finalized.*
+Coroutine can also be instantiated directly
+
+```rust
+# # ![allow(dead_code)]
+use pyo3::prelude::*;
+use pyo3::coroutine::{CancelHandle, Coroutine};
+
+#[pyfunction]
+fn new_coroutine(py: Python<'_>) -> Coroutine {
+    let mut cancel = CancelHandle::new();
+    let throw_callback = cancel.throw_callback();
+    let future = async move { 
+        cancel.cancelled().await;
+        PyResult::Ok(())
+    };
+    Coroutine::new(pyo3::intern!(py, "my_coro"), future)
+        .with_qualname_prefix("MyClass")
+        .with_throw_callback(throw_callback)
+        .with_allow_threads(true)
+}
+```
