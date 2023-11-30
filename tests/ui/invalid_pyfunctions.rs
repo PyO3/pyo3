@@ -23,4 +23,7 @@ fn first_argument_not_module<'py>(string: &str, module: &'py PyModule) -> PyResu
     module.name()
 }
 
+#[pyfunction(allow_threads)]
+fn allow_threads_with_gil(py: Python<'_>, obj: &PyAny) {}
+
 fn main() {}
