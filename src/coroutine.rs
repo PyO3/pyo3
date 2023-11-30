@@ -19,8 +19,12 @@ use crate::{
     IntoPy, Py, PyErr, PyObject, PyResult, Python,
 };
 
+#[cfg(feature = "anyio")]
+mod anyio;
 mod asyncio;
 pub(crate) mod cancel;
+#[cfg(feature = "anyio")]
+mod trio;
 pub(crate) mod waker;
 
 pub use cancel::CancelHandle;

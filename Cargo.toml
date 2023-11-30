@@ -64,6 +64,9 @@ pyo3-build-config = { path = "pyo3-build-config", version = "0.21.0-dev", featur
 [features]
 default = ["macros"]
 
+# Switch coroutine implementation to anyio instead of asyncio
+anyio = ["macros"]
+
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
 experimental-inspect = []

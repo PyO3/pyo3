@@ -5,9 +5,17 @@ use std::{
 };
 
 use crate::{
-    coroutine::asyncio::AsyncioWaker, exceptions::PyStopIteration, intern, pyclass::IterNextOutput,
-    sync::GILOnceCell, types::PyFuture, Py, PyNativeType, PyObject, PyResult, Python,
+    exceptions::PyStopIteration, intern, pyclass::IterNextOutput, sync::GILOnceCell,
+    types::PyFuture, Py, PyNativeType, PyObject, PyResult, Python,
 };
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "anyio")] {
+        type WakerImpl = crate::coroutine::anyio::AnyioWaker;
+    } else {
+        type WakerImpl = crate::coroutine::asyncio::AsyncioWaker;
+    }
+}
 
 const MIXED_AWAITABLE_AND_FUTURE_ERROR: &str = "Python awaitable mixed with Rust future";
 
@@ -21,7 +29,7 @@ thread_local! {
 }
 
 enum State {
-    Pending(AsyncioWaker),
+    Pending(WakerImpl),
     Waken,
     Delegated(PyObject),
 }
@@ -49,10 +57,10 @@ impl CoroutineWaker {
     }
 
     pub(super) fn yield_(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let init = || PyResult::Ok(State::Pending(AsyncioWaker::new(py)?));
+        let init = || PyResult::Ok(State::Pending(WakerImpl::new(py)?));
         let state = self.state.get_or_try_init(py, init)?;
         match state {
-            State::Waken => AsyncioWaker::yield_waken(py),
+            State::Waken => WakerImpl::yield_waken(py),
             State::Delegated(obj) => Ok(obj.clone_ref(py)),
             State::Pending(waker) => waker.yield_(py),
         }
