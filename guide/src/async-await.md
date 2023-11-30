@@ -30,8 +30,7 @@ Resulting future of an `async fn` decorated by `#[pyfunction]` must be `Send + '
 
 As a consequence, `async fn` parameters and return types must also be `Send + 'static`, so it is not possible to have a signature like `async fn does_not_compile(arg: &PyAny, py: Python<'_>) -> &PyAny`.
 
-It also means that methods cannot use `&self`/`&mut self`, *but this restriction should be dropped in the future.*
-
+However, there is an exception for method receiver, so async methods can accept `&self`/`&mut self`
 
 ## Implicit GIL holding
 

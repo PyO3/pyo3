@@ -1,18 +1,19 @@
 use std::fmt::Display;
 
-use crate::attributes::{TextSignatureAttribute, TextSignatureAttributeValue};
-use crate::deprecations::{Deprecation, Deprecations};
-use crate::params::impl_arg_params;
-use crate::pyfunction::{FunctionSignature, PyFunctionArgPyO3Attributes};
-use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
-use crate::quotes;
-use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
-use quote::ToTokens;
-use quote::{quote, quote_spanned};
-use syn::ext::IdentExt;
-use syn::spanned::Spanned;
-use syn::{Ident, Result};
+use quote::{quote, quote_spanned, ToTokens};
+use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
+
+use crate::{
+    attributes::{TextSignatureAttribute, TextSignatureAttributeValue},
+    deprecations::{Deprecation, Deprecations},
+    params::impl_arg_params,
+    pyfunction::{
+        FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
+    },
+    quotes,
+    utils::{self, PythonDoc},
+};
 
 #[derive(Clone, Debug)]
 pub struct FnArg<'a> {
@@ -473,8 +474,7 @@ impl<'a> FnSpec<'a> {
         }
 
         let rust_call = |args: Vec<TokenStream>| {
-            let mut call = quote! { function(#self_arg #(#args),*) };
-            if self.asyncness.is_some() {
+            let call = if self.asyncness.is_some() {
                 let throw_callback = if cancel_handle.is_some() {
                     quote! { Some(__throw_callback) }
                 } else {
@@ -485,8 +485,19 @@ impl<'a> FnSpec<'a> {
                     Some(cls) => quote!(Some(<#cls as _pyo3::PyTypeInfo>::NAME)),
                     None => quote!(None),
                 };
-                call = quote! {{
-                    let future = #call;
+                let future = match self.tp {
+                    FnType::Fn(SelfType::Receiver { mutable: false, .. }) => quote! {{
+                        let __guard = _pyo3::impl_::coroutine::RefGuard::<#cls>::new(py.from_borrowed_ptr::<_pyo3::types::PyAny>(_slf))?;
+                        async move { function(&__guard, #(#args),*).await }
+                    }},
+                    FnType::Fn(SelfType::Receiver { mutable: true, .. }) => quote! {{
+                        let mut __guard = _pyo3::impl_::coroutine::RefMutGuard::<#cls>::new(py.from_borrowed_ptr::<_pyo3::types::PyAny>(_slf))?;
+                        async move { function(&mut __guard, #(#args),*).await }
+                    }},
+                    _ => quote! { function(#self_arg #(#args),*) },
+                };
+                let mut call = quote! {{
+                    let future = #future;
                     _pyo3::impl_::coroutine::new_coroutine(
                         _pyo3::intern!(py, stringify!(#python_name)),
                         #qualname_prefix,
@@ -501,7 +512,10 @@ impl<'a> FnSpec<'a> {
                         #call
                     }};
                 }
-            }
+                call
+            } else {
+                quote! { function(#self_arg #(#args),*) }
+            };
             quotes::map_result_into_ptr(quotes::ok_wrap(call))
         };
 
