@@ -20,6 +20,7 @@
 - [Python exceptions](exception.md)
 - [Calling Python from Rust](python_from_rust.md)
 - [Using `async` and `await`](async-await.md)
+  - [Awaiting Python awaitables](async-await/pyfuture.md)
 - [GIL, mutability and object types](types.md)
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)

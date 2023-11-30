@@ -466,6 +466,7 @@ pub mod doc_test {
         "README.md" => readme_md,
         "guide/src/advanced.md" => guide_advanced_md,
         "guide/src/async-await.md" => guide_async_await_md,
+        "guide/src/async-await/pyfuture.md" => guide_async_await_pyfuture_md,
         "guide/src/building_and_distribution.md" => guide_building_and_distribution_md,
         "guide/src/building_and_distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
         "guide/src/class.md" => guide_class_md,
