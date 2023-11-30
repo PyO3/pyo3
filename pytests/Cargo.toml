@@ -7,7 +7,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
-pyo3 = { path = "../", features = ["extension-module"] }
+futures = "0.3.29"
+pyo3 = { path = "../", features = ["extension-module", "anyio"] }
 
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config" }

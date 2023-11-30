@@ -68,6 +68,9 @@ default = ["macros"]
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
 experimental-async = ["macros", "pyo3-macros/experimental-async"]
 
+# Switch coroutine implementation to anyio instead of asyncio
+anyio = ["experimental-async"]
+
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
 experimental-inspect = []
