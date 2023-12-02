@@ -3,7 +3,7 @@
 use std::cell::UnsafeCell;
 
 #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
-use std::sync::atomic::{AtomicI64, Ordering};
+use portable_atomic::{AtomicI64, Ordering};
 
 #[cfg(not(PyPy))]
 use crate::exceptions::PyImportError;
