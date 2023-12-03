@@ -65,4 +65,10 @@ pub struct _frozen {
 extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_FrozenModules: *const _frozen;
+    #[cfg(all(not(PyPy), Py_3_11))]
+    pub static mut _PyImport_FrozenBootstrap: *const _frozen;
+    #[cfg(all(not(PyPy), Py_3_11))]
+    pub static mut _PyImport_FrozenStdlib: *const _frozen;
+    #[cfg(all(not(PyPy), Py_3_11))]
+    pub static mut _PyImport_FrozenTest: *const _frozen;
 }
