@@ -875,15 +875,15 @@ impl PyErrArguments for PyDowncastErrorArguments {
 }
 
 /// Convert `PyDowncastError` to Python `TypeError`.
-impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
+impl std::convert::From<PyDowncastError<'_>> for PyErr {
     fn from(err: PyDowncastError<'_>) -> PyErr {
         PyErr::from(err.0)
     }
 }
 
-impl<'a> std::error::Error for PyDowncastError<'a> {}
+impl std::error::Error for PyDowncastError<'_> {}
 
-impl<'a> std::fmt::Display for PyDowncastError<'a> {
+impl std::fmt::Display for PyDowncastError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         self.0.fmt(f)
     }

@@ -17,6 +17,7 @@ py_dec = decimal.Decimal("0.0")
         )
         .unwrap();
         let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+        let py_dec = &py_dec.as_borrowed();
 
         b.iter(|| {
             let _: Decimal = black_box(&py_dec).extract().unwrap();

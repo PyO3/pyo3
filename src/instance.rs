@@ -149,6 +149,14 @@ impl<'py> Bound<'py, PyAny> {
     ) -> Option<Self> {
         Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
+
+    /// Constructs a new Bound from a borrowed pointer, incrementing the reference count.
+    ///
+    /// # Safety
+    /// ptr must be a valid pointer to a Python object.
+    pub unsafe fn from_borrowed_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_borrowed_ptr_or_opt(py, ptr).unwrap()
+    }
 }
 
 impl<'py, T> Bound<'py, T>
@@ -511,7 +519,8 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     /// the caller and it's the caller's responsibility to ensure that the reference this is
     /// derived from is valid for the lifetime `'a`.
-    pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+    #[doc(hidden)] // Used in macro code.
+    pub unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
     }
 

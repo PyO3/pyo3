@@ -196,7 +196,6 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
 };
-use crate::instance::Bound;
 use crate::pyclass::{
     boolean_struct::{False, True},
     PyClass,

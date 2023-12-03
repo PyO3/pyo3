@@ -62,7 +62,7 @@ fn not_a_list_via_extract_enum(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let any: &Bound<'_, PyAny> = &PyString::new_bound(py, "foobar");
 
-        b.iter(|| match black_box(any).extract::<ListOrNotList<'_>>() {
+        b.iter(|| match black_box(&any).extract::<ListOrNotList<'_>>() {
             Ok(ListOrNotList::List(_list)) => panic!(),
             Ok(ListOrNotList::NotList(any)) => any,
             Err(_) => panic!(),

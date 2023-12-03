@@ -50,7 +50,7 @@ fn extract_str_downcast_fail(bench: &mut Bencher<'_>) {
 fn extract_int_extract_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let int_obj: PyObject = 123.into_py(py);
-        let int = int_obj.as_ref(py);
+        let int = int_obj.bind(py);
 
         bench.iter(|| {
             let v = black_box(int).extract::<i64>().unwrap();
@@ -73,7 +73,7 @@ fn extract_int_extract_fail(bench: &mut Bencher<'_>) {
 fn extract_int_downcast_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let int_obj: PyObject = 123.into_py(py);
-        let int = int_obj.as_ref(py);
+        let int = int_obj.bind(py);
 
         bench.iter(|| {
             let py_int = black_box(int).downcast::<PyInt>().unwrap();
@@ -97,7 +97,7 @@ fn extract_int_downcast_fail(bench: &mut Bencher<'_>) {
 fn extract_float_extract_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let float_obj: PyObject = 23.42.into_py(py);
-        let float = float_obj.as_ref(py);
+        let float = float_obj.bind(py);
 
         bench.iter(|| {
             let v = black_box(float).extract::<f64>().unwrap();
@@ -120,7 +120,7 @@ fn extract_float_extract_fail(bench: &mut Bencher<'_>) {
 fn extract_float_downcast_success(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let float_obj: PyObject = 23.42.into_py(py);
-        let float = float_obj.as_ref(py);
+        let float = float_obj.bind(py);
 
         bench.iter(|| {
             let py_int = black_box(float).downcast::<PyFloat>().unwrap();

@@ -13,6 +13,7 @@ fn bench_call_0(b: &mut Bencher<'_>) {
         let module = test_module!(py, "def foo(): pass");
 
         let foo_module = module.getattr("foo").unwrap();
+        let foo_module = &foo_module.as_borrowed();
 
         b.iter(|| {
             for _ in 0..1000 {
@@ -34,6 +35,7 @@ class Foo:
         );
 
         let foo_module = module.getattr("Foo").unwrap().call0().unwrap();
+        let foo_module = &foo_module.as_borrowed();
 
         b.iter(|| {
             for _ in 0..1000 {
