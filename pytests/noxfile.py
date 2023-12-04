@@ -6,7 +6,7 @@ nox.options.sessions = ["test"]
 
 @nox.session
 def test(session: nox.Session):
-    session.install("-rrequirements-dev.txt")
+    session.install(".[dev]")
     try:
         session.install("--only-binary=numpy", "numpy>=1.16")
     except CommandFailed:
@@ -19,6 +19,5 @@ def test(session: nox.Session):
 
 @nox.session
 def bench(session: nox.Session):
-    session.install("-rrequirements-dev.txt")
-    session.install(".")
+    session.install(".[dev]")
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)

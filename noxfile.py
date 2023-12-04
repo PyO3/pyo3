@@ -140,8 +140,7 @@ def codspeed(session: nox.Session) -> bool:
     _run_cargo(session, "codspeed", "run")
     # python benchmarks
     os.chdir(PYO3_DIR / "pytests")
-    session.install("-r", "requirements-dev.txt", "pytest-codspeed")
-    session.install(".")
+    session.install(".[dev]", "pytest-codspeed")
     _run(session, "pytest", "--codspeed", external=True)
 
 
