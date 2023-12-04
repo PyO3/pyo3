@@ -1,19 +1,17 @@
 //! Python coroutine implementation, used notably when wrapping `async fn`
 //! with `#[pyfunction]`/`#[pymethods]`.
 use std::{
-    any::Any,
     future::Future,
     panic,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
 };
 
-use futures_util::FutureExt;
 use pyo3_macros::{pyclass, pymethods};
 
 use crate::{
-    coroutine::waker::AsyncioWaker,
+    coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     pyclass::IterNextOutput,
@@ -24,12 +22,9 @@ use crate::{
 pub(crate) mod cancel;
 mod waker;
 
-use crate::coroutine::cancel::ThrowCallback;
 pub use cancel::CancelHandle;
 
 const COROUTINE_REUSED_ERROR: &str = "cannot reuse already awaited coroutine";
-
-type FutureOutput = Result<PyResult<PyObject>, Box<dyn Any + Send>>;
 
 /// Python coroutine wrapping a [`Future`].
 #[pyclass(crate = "crate")]
@@ -37,7 +32,7 @@ pub struct Coroutine {
     name: Option<Py<PyString>>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
-    future: Option<Pin<Box<dyn Future<Output = FutureOutput> + Send>>>,
+    future: Option<Pin<Box<dyn Future<Output = PyResult<PyObject>> + Send>>>,
     waker: Option<Arc<AsyncioWaker>>,
 }
 
@@ -68,7 +63,7 @@ impl Coroutine {
             name,
             qualname_prefix,
             throw_callback,
-            future: Some(Box::pin(panic::AssertUnwindSafe(wrap).catch_unwind())),
+            future: Some(Box::pin(wrap)),
             waker: None,
         }
     }
@@ -98,14 +93,20 @@ impl Coroutine {
         } else {
             self.waker = Some(Arc::new(AsyncioWaker::new()));
         }
-        let waker = futures_util::task::waker(self.waker.clone().unwrap());
+        let waker = Waker::from(self.waker.clone().unwrap());
         // poll the Rust future and forward its results if ready
-        if let Poll::Ready(res) = future_rs.as_mut().poll(&mut Context::from_waker(&waker)) {
-            self.close();
-            return match res {
-                Ok(res) => Ok(IterNextOutput::Return(res?)),
-                Err(err) => Err(PanicException::from_panic_payload(err)),
-            };
+        // polling is UnwindSafe because the future is dropped in case of panic
+        let poll = || future_rs.as_mut().poll(&mut Context::from_waker(&waker));
+        match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
+            Ok(Poll::Ready(res)) => {
+                self.close();
+                return Ok(IterNextOutput::Return(res?));
+            }
+            Err(err) => {
+                self.close();
+                return Err(PanicException::from_panic_payload(err));
+            }
+            _ => {}
         }
         // otherwise, initialize the waker `asyncio.Future`
         if let Some(future) = self.waker.as_ref().unwrap().initialize_future(py)? {
@@ -113,7 +114,7 @@ impl Coroutine {
             // and will yield itself if its result has not been set in polling above
             if let Some(future) = PyIterator::from_object(future).unwrap().next() {
                 // future has not been leaked into Python for now, and Rust code can only call
-                // `set_result(None)` in `ArcWake` implementation, so it's safe to unwrap
+                // `set_result(None)` in `Wake` implementation, so it's safe to unwrap
                 return Ok(IterNextOutput::Yield(future.unwrap().into()));
             }
         }

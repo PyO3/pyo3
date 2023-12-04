@@ -1,12 +1,14 @@
 #![cfg(feature = "macros")]
 #![cfg(not(target_arch = "wasm32"))]
-use std::ops::Deref;
-use std::{task::Poll, thread, time::Duration};
+use std::{ops::Deref, task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};
-use pyo3::coroutine::CancelHandle;
-use pyo3::types::{IntoPyDict, PyType};
-use pyo3::{prelude::*, py_run};
+use pyo3::{
+    coroutine::CancelHandle,
+    prelude::*,
+    py_run,
+    types::{IntoPyDict, PyType},
+};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -119,7 +121,7 @@ fn cancelled_coroutine() {
         let test = r#"
         import asyncio
         async def main():
-            task = asyncio.create_task(sleep(1))
+            task = asyncio.create_task(sleep(999))
             await asyncio.sleep(0)
             task.cancel()
             await task
@@ -155,7 +157,7 @@ fn coroutine_cancel_handle() {
         let test = r#"
         import asyncio;
         async def main():
-            task = asyncio.create_task(cancellable_sleep(1))
+            task = asyncio.create_task(cancellable_sleep(999))
             await asyncio.sleep(0)
             task.cancel()
             return await task
@@ -201,5 +203,34 @@ fn coroutine_is_cancelled() {
             None,
         )
         .unwrap();
+    })
+}
+
+#[test]
+fn coroutine_panic() {
+    #[pyfunction]
+    async fn panic() {
+        panic!("test panic");
+    }
+    Python::with_gil(|gil| {
+        let panic = wrap_pyfunction!(panic, gil).unwrap();
+        let test = r#"
+        import asyncio
+        coro = panic()
+        try:
+            asyncio.run(coro)
+        except BaseException as err:
+            assert type(err).__name__ == "PanicException"
+            assert str(err) == "test panic"
+        else:
+            assert False
+        try:
+            coro.send(None)
+        except RuntimeError as err:
+            assert str(err) == "cannot reuse already awaited coroutine"
+        else:
+            assert False;
+        "#;
+        py_run!(gil, panic, &handle_windows(test));
     })
 }

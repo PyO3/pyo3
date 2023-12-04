@@ -1,11 +1,11 @@
 use crate::sync::GILOnceCell;
 use crate::types::PyCFunction;
 use crate::{intern, wrap_pyfunction, Py, PyAny, PyObject, PyResult, Python};
-use futures_util::task::ArcWake;
 use pyo3_macros::pyfunction;
 use std::sync::Arc;
+use std::task::Wake;
 
-/// Lazy `asyncio.Future` wrapper, implementing [`ArcWake`] by calling `Future.set_result`.
+/// Lazy `asyncio.Future` wrapper, implementing [`Wake`] by calling `Future.set_result`.
 ///
 /// asyncio future is let uninitialized until [`initialize_future`][1] is called.
 /// If [`wake`][2] is called before future initialization (during Rust future polling),
@@ -31,10 +31,14 @@ impl AsyncioWaker {
     }
 }
 
-impl ArcWake for AsyncioWaker {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
+impl Wake for AsyncioWaker {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref()
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
         Python::with_gil(|gil| {
-            if let Some(loop_and_future) = arc_self.0.get_or_init(gil, || None) {
+            if let Some(loop_and_future) = self.0.get_or_init(gil, || None) {
                 loop_and_future
                     .set_result(gil)
                     .expect("unexpected error in coroutine waker");
