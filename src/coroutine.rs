@@ -21,7 +21,11 @@ use crate::{
     IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
+pub(crate) mod cancel;
 mod waker;
+
+use crate::coroutine::cancel::ThrowCallback;
+pub use cancel::CancelHandle;
 
 const COROUTINE_REUSED_ERROR: &str = "cannot reuse already awaited coroutine";
 
@@ -32,6 +36,7 @@ type FutureOutput = Result<PyResult<PyObject>, Box<dyn Any + Send>>;
 pub struct Coroutine {
     name: Option<Py<PyString>>,
     qualname_prefix: Option<&'static str>,
+    throw_callback: Option<ThrowCallback>,
     future: Option<Pin<Box<dyn Future<Output = FutureOutput> + Send>>>,
     waker: Option<Arc<AsyncioWaker>>,
 }
@@ -46,6 +51,7 @@ impl Coroutine {
     pub(crate) fn new<F, T, E>(
         name: Option<Py<PyString>>,
         qualname_prefix: Option<&'static str>,
+        throw_callback: Option<ThrowCallback>,
         future: F,
     ) -> Self
     where
@@ -61,6 +67,7 @@ impl Coroutine {
         Self {
             name,
             qualname_prefix,
+            throw_callback,
             future: Some(Box::pin(panic::AssertUnwindSafe(wrap).catch_unwind())),
             waker: None,
         }
@@ -77,9 +84,13 @@ impl Coroutine {
             None => return Err(PyRuntimeError::new_err(COROUTINE_REUSED_ERROR)),
         };
         // reraise thrown exception it
-        if let Some(exc) = throw {
-            self.close();
-            return Err(PyErr::from_value(exc.as_ref(py)));
+        match (throw, &self.throw_callback) {
+            (Some(exc), Some(cb)) => cb.throw(exc.as_ref(py)),
+            (Some(exc), None) => {
+                self.close();
+                return Err(PyErr::from_value(exc.as_ref(py)));
+            }
+            (None, _) => {}
         }
         // create a new waker, or try to reset it in place
         if let Some(waker) = self.waker.as_mut().and_then(Arc::get_mut) {

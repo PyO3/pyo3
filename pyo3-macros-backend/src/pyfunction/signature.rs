@@ -361,6 +361,16 @@ impl<'a> FunctionSignature<'a> {
                     // Otherwise try next argument.
                     continue;
                 }
+                if fn_arg.is_cancel_handle {
+                    // If the user incorrectly tried to include cancel: CoroutineCancel in the
+                    // signature, give a useful error as a hint.
+                    ensure_spanned!(
+                        name != fn_arg.name,
+                        name.span() => "`cancel_handle` argument must not be part of the signature"
+                    );
+                    // Otherwise try next argument.
+                    continue;
+                }
 
                 ensure_spanned!(
                     name == fn_arg.name,
@@ -411,7 +421,7 @@ impl<'a> FunctionSignature<'a> {
         }
 
         // Ensure no non-py arguments remain
-        if let Some(arg) = args_iter.find(|arg| !arg.py) {
+        if let Some(arg) = args_iter.find(|arg| !arg.py && !arg.is_cancel_handle) {
             bail_spanned!(
                 attribute.kw.span() => format!("missing signature entry for argument `{}`", arg.name)
             );
@@ -429,7 +439,7 @@ impl<'a> FunctionSignature<'a> {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
-            if arg.py {
+            if arg.py || arg.is_cancel_handle {
                 continue;
             }
 

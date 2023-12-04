@@ -155,6 +155,10 @@ fn impl_arg_param(
         return Ok(quote! { py });
     }
 
+    if arg.is_cancel_handle {
+        return Ok(quote! { __cancel_handle });
+    }
+
     let name = arg.name;
     let name_str = name.to_string();
 

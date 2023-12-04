@@ -23,16 +23,20 @@ pub use self::signature::{FunctionSignature, SignatureAttribute};
 #[derive(Clone, Debug)]
 pub struct PyFunctionArgPyO3Attributes {
     pub from_py_with: Option<FromPyWithAttribute>,
+    pub cancel_handle: Option<attributes::kw::cancel_handle>,
 }
 
 enum PyFunctionArgPyO3Attribute {
     FromPyWith(FromPyWithAttribute),
+    CancelHandle(attributes::kw::cancel_handle),
 }
 
 impl Parse for PyFunctionArgPyO3Attribute {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
-        if lookahead.peek(attributes::kw::from_py_with) {
+        if lookahead.peek(attributes::kw::cancel_handle) {
+            input.parse().map(PyFunctionArgPyO3Attribute::CancelHandle)
+        } else if lookahead.peek(attributes::kw::from_py_with) {
             input.parse().map(PyFunctionArgPyO3Attribute::FromPyWith)
         } else {
             Err(lookahead.error())
@@ -43,7 +47,10 @@ impl Parse for PyFunctionArgPyO3Attribute {
 impl PyFunctionArgPyO3Attributes {
     /// Parses #[pyo3(from_python_with = "func")]
     pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
-        let mut attributes = PyFunctionArgPyO3Attributes { from_py_with: None };
+        let mut attributes = PyFunctionArgPyO3Attributes {
+            from_py_with: None,
+            cancel_handle: None,
+        };
         take_attributes(attrs, |attr| {
             if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
                 for attr in pyo3_attrs {
@@ -55,7 +62,18 @@ impl PyFunctionArgPyO3Attributes {
                             );
                             attributes.from_py_with = Some(from_py_with);
                         }
+                        PyFunctionArgPyO3Attribute::CancelHandle(cancel_handle) => {
+                            ensure_spanned!(
+                                attributes.cancel_handle.is_none(),
+                                cancel_handle.span() => "`cancel_handle` may only be specified once per argument"
+                            );
+                            attributes.cancel_handle = Some(cancel_handle);
+                        }
                     }
+                    ensure_spanned!(
+                        attributes.from_py_with.is_none() || attributes.cancel_handle.is_none(),
+                        attributes.cancel_handle.unwrap().span() => "`from_py_with` and `cancel_handle` cannot be specified together"
+                    );
                 }
                 Ok(true)
             } else {
