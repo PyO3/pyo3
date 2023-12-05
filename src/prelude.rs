@@ -8,7 +8,8 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use crate::conversion::{FromPyObject, IntoPy, PyTryFrom, PyTryInto, ToPyObject};
+pub use crate::conversion::{FromPyObject, IntoPy, ToPyObject};
+pub use crate::conversion::{PyTryFrom, PyTryInto};
 pub use crate::err::{PyErr, PyResult};
 pub use crate::instance::{Py, PyObject};
 pub use crate::marker::Python;

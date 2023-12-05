@@ -118,11 +118,12 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
+use crate::type_object::HasPyGilRef;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTryFrom, PyTypeInfo};
+use crate::{ffi, FromPyPointer, IntoPy, Py, PyObject, PyTypeCheck, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -759,10 +760,9 @@ impl<'py> Python<'py> {
     /// Registers the object in the release pool, and tries to downcast to specific type.
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
     where
-        T: PyTryFrom<'py>,
+        T: PyTypeCheck<AsRefTarget = T>,
     {
-        let any: &PyAny = unsafe { self.from_owned_ptr(obj.into_ptr()) };
-        <T as PyTryFrom>::try_from(any)
+        obj.into_ref(self).downcast()
     }
 
     /// Registers the object in the release pool, and does an unchecked downcast
@@ -773,10 +773,9 @@ impl<'py> Python<'py> {
     /// Callers must ensure that ensure that the cast is valid.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
     where
-        T: PyNativeType + PyTypeInfo,
+        T: HasPyGilRef<AsRefTarget = T>,
     {
-        let any: &PyAny = self.from_owned_ptr(obj.into_ptr());
-        T::unchecked_downcast(any)
+        obj.into_ref(self).downcast_unchecked()
     }
 
     /// Registers the object pointer in the release pool,

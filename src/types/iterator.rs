@@ -1,5 +1,6 @@
-use crate::{ffi, AsPyPointer, Py, Py2, PyAny, PyErr, PyNativeType, PyResult, Python};
-use crate::{PyDowncastError, PyTryFrom};
+use crate::{
+    ffi, AsPyPointer, Py2, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, PyTypeCheck,
+};
 
 use super::any::PyAnyMethods;
 
@@ -33,11 +34,7 @@ impl PyIterator {
     ///
     /// Equivalent to Python's built-in `iter` function.
     pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_object2(Py2::borrowed_from_gil_ref(&obj)).map(|py2| {
-            // Can't use into_gil_ref here because T: PyTypeInfo bound is not satisfied
-            // Safety: into_ptr produces a valid pointer to PyIterator object
-            unsafe { obj.py().from_owned_ptr(py2.into_ptr()) }
-        })
+        Self::from_object2(Py2::borrowed_from_gil_ref(&obj)).map(Py2::into_gil_ref)
     }
 
     pub(crate) fn from_object2<'py>(obj: &Py2<'py, PyAny>) -> PyResult<Py2<'py, PyIterator>> {
@@ -73,8 +70,15 @@ impl<'p> Iterator for &'p PyIterator {
     }
 }
 
-// PyIter_Check does not exist in the limited API until 3.8
-impl<'v> PyTryFrom<'v> for PyIterator {
+impl PyTypeCheck for PyIterator {
+    const NAME: &'static str = "Iterator";
+
+    fn type_check(object: &PyAny) -> bool {
+        unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
+    }
+}
+
+impl<'v> crate::PyTryFrom<'v> for PyIterator {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
         let value = value.into();
         unsafe {
@@ -94,22 +98,6 @@ impl<'v> PyTryFrom<'v> for PyIterator {
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyIterator {
         let ptr = value.into() as *const _ as *const PyIterator;
         &*ptr
-    }
-}
-
-impl Py<PyIterator> {
-    /// Borrows a GIL-bound reference to the PyIterator. By binding to the GIL lifetime, this
-    /// allows the GIL-bound reference to not require `Python` for any of its methods.
-    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py PyIterator {
-        let any = self.as_ptr() as *const PyAny;
-        unsafe { PyNativeType::unchecked_downcast(&*any) }
-    }
-
-    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
-    /// Python object reference in PyO3's object storage. The reference count for the Python
-    /// object will not be decreased until the GIL lifetime ends.
-    pub fn into_ref(self, py: Python<'_>) -> &PyIterator {
-        unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
 }
 
@@ -233,28 +221,6 @@ def fibonacci(target):
             let iter: &PyIterator = obj.downcast(py).unwrap();
             assert!(obj.is(iter));
         });
-    }
-
-    #[test]
-    fn test_as_ref() {
-        Python::with_gil(|py| {
-            let iter: Py<PyIterator> = PyAny::iter(PyList::empty(py)).unwrap().into();
-            let mut iter_ref: &PyIterator = iter.as_ref(py);
-            assert!(iter_ref.next().is_none());
-        })
-    }
-
-    #[test]
-    fn test_into_ref() {
-        Python::with_gil(|py| {
-            let bare_iter = PyAny::iter(PyList::empty(py)).unwrap();
-            assert_eq!(bare_iter.get_refcnt(), 1);
-            let iter: Py<PyIterator> = bare_iter.into();
-            assert_eq!(bare_iter.get_refcnt(), 2);
-            let mut iter_ref = iter.into_ref(py);
-            assert!(iter_ref.next().is_none());
-            assert_eq!(iter_ref.get_refcnt(), 2);
-        })
     }
 
     #[test]

@@ -741,9 +741,11 @@ fn impl_pytypeinfo(
     };
 
     quote! {
-        unsafe impl _pyo3::type_object::PyTypeInfo for #cls {
+        unsafe impl _pyo3::type_object::HasPyGilRef for #cls {
             type AsRefTarget = _pyo3::PyCell<Self>;
+        }
 
+        unsafe impl _pyo3::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
 

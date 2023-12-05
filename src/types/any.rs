@@ -1,9 +1,9 @@
 use crate::class::basic::CompareOp;
-use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, PyTryFrom, ToPyObject};
+use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::instance::Py2;
-use crate::type_object::PyTypeInfo;
+use crate::type_object::{HasPyGilRef, PyTypeCheck, PyTypeInfo};
 #[cfg(not(PyPy))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
@@ -776,11 +776,16 @@ impl PyAny {
     /// # }
     /// ```
     #[inline]
-    pub fn downcast<'p, T>(&'p self) -> Result<&'p T, PyDowncastError<'_>>
+    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError<'_>>
     where
-        T: PyTryFrom<'p>,
+        T: PyTypeCheck<AsRefTarget = T>,
     {
-        <T as PyTryFrom>::try_from(self)
+        if T::type_check(self) {
+            // Safety: type_check is responsible for ensuring that the type is correct
+            Ok(unsafe { self.downcast_unchecked() })
+        } else {
+            Err(PyDowncastError::new(self, T::NAME))
+        }
     }
 
     /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
@@ -814,11 +819,16 @@ impl PyAny {
     /// });
     /// ```
     #[inline]
-    pub fn downcast_exact<'p, T>(&'p self) -> Result<&'p T, PyDowncastError<'_>>
+    pub fn downcast_exact<T>(&self) -> Result<&T, PyDowncastError<'_>>
     where
-        T: PyTryFrom<'p>,
+        T: PyTypeInfo<AsRefTarget = T>,
     {
-        <T as PyTryFrom>::try_from_exact(self)
+        if T::is_exact_type_of(self) {
+            // Safety: type_check is responsible for ensuring that the type is correct
+            Ok(unsafe { self.downcast_unchecked() })
+        } else {
+            Err(PyDowncastError::new(self, T::NAME))
+        }
     }
 
     /// Converts this `PyAny` to a concrete Python type without checking validity.
@@ -827,16 +837,17 @@ impl PyAny {
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
-    pub unsafe fn downcast_unchecked<'p, T>(&'p self) -> &'p T
+    pub unsafe fn downcast_unchecked<T>(&self) -> &T
     where
-        T: PyTryFrom<'p>,
+        T: HasPyGilRef<AsRefTarget = T>,
     {
-        <T as PyTryFrom>::try_from_unchecked(self)
+        &*(self.as_ptr() as *const T)
     }
 
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around [`FromPyObject::extract()`].
+    #[inline]
     pub fn extract<'a, D>(&'a self) -> PyResult<D>
     where
         D: FromPyObject<'a>,
@@ -1549,12 +1560,12 @@ pub(crate) trait PyAnyMethods<'py> {
     /// ```
     fn downcast<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError<'py>>
     where
-        T: PyTypeInfo;
+        T: PyTypeCheck;
 
     /// Like `downcast` but takes ownership of `self`.
     fn downcast_into<T>(self) -> Result<Py2<'py, T>, PyDowncastError<'py>>
     where
-        T: PyTypeInfo;
+        T: PyTypeCheck;
 
     /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
     ///
@@ -2031,10 +2042,10 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
     #[inline]
     fn downcast<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError<'py>>
     where
-        T: PyTypeInfo,
+        T: PyTypeCheck,
     {
-        if self.is_instance_of::<T>() {
-            // Safety: is_instance_of is responsible for ensuring that the type is correct
+        if T::type_check(self.as_gil_ref()) {
+            // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
             Err(PyDowncastError::new(self.clone().into_gil_ref(), T::NAME))
@@ -2044,10 +2055,10 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
     #[inline]
     fn downcast_into<T>(self) -> Result<Py2<'py, T>, PyDowncastError<'py>>
     where
-        T: PyTypeInfo,
+        T: PyTypeCheck,
     {
-        if self.is_instance_of::<T>() {
-            // Safety: is_instance_of is responsible for ensuring that the type is correct
+        if T::type_check(self.as_gil_ref()) {
+            // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
             Err(PyDowncastError::new(self.clone().into_gil_ref(), T::NAME))

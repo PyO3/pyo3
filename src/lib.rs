@@ -294,9 +294,8 @@
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{
-    AsPyPointer, FromPyObject, FromPyPointer, IntoPy, PyTryFrom, PyTryInto, ToPyObject,
-};
+pub use crate::conversion::{AsPyPointer, FromPyObject, FromPyPointer, IntoPy, ToPyObject};
+pub use crate::conversion::{PyTryFrom, PyTryInto};
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
@@ -306,7 +305,7 @@ pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
-pub use crate::type_object::PyTypeInfo;
+pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
 
