@@ -1,5 +1,5 @@
 //! Synchronization mechanisms based on the Python GIL.
-use crate::{types::PyString, types::PyType, Py, PyErr, Python};
+use crate::{types::PyString, types::PyType, Py, PyErr, PyVisit, Python};
 use std::cell::UnsafeCell;
 
 /// Value with concurrent access protected by the GIL.
@@ -35,6 +35,11 @@ impl<T> GILProtected<T> {
 
     /// Gain access to the inner value by giving proof of having acquired the GIL.
     pub fn get<'py>(&'py self, _py: Python<'py>) -> &'py T {
+        &self.value
+    }
+
+    /// Gain access to the inner value by giving proof that garbage collection is happening.
+    pub fn traverse<'py>(&'py self, _visit: PyVisit<'py>) -> &'py T {
         &self.value
     }
 }
