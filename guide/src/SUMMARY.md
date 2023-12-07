@@ -15,8 +15,8 @@
     - [Emulating numeric types](class/numeric.md)
     - [Emulating callable objects](class/call.md)
 - [Type conversions](conversions.md)
-  - [Mapping of Rust types to Python types](conversions/tables.md)]
-  - [Conversion traits](conversions/traits.md)]
+  - [Mapping of Rust types to Python types](conversions/tables.md)
+  - [Conversion traits](conversions/traits.md)
 - [Python exceptions](exception.md)
 - [Calling Python from Rust](python_from_rust.md)
 - [Using `async` and `await`](async-await.md)
