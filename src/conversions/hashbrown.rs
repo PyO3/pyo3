@@ -18,7 +18,7 @@
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
     types::set::new_from_iter,
-    types::{IntoPyDict, PyDict, PySet},
+    types::{IntoPyDict, PyDict, PyFrozenSet, PySet},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
@@ -93,8 +93,16 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        let set: &PySet = ob.downcast()?;
-        set.iter().map(K::extract).collect()
+        match ob.downcast::<PySet>() {
+            Ok(set) => set.iter().map(K::extract).collect(),
+            Err(err) => {
+                if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
+                    frozen_set.iter().map(K::extract).collect()
+                } else {
+                    Err(PyErr::from(err))
+                }
+            }
+        }
     }
 }
 
@@ -171,6 +179,10 @@ mod tests {
     fn test_extract_hashbrown_hashset() {
         Python::with_gil(|py| {
             let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
+            assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
+
+            let set = PyFrozenSet::new(py, &[1, 2, 3, 4, 5]).unwrap();
             let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
