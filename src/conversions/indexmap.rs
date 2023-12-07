@@ -123,12 +123,30 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
-        let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        match ob.downcast::<PyDict>() {
+            Ok(dict) => {
+                let mut ret =
+                    indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
+                for (k, v) in dict {
+                    ret.insert(K::extract(k)?, V::extract(v)?);
+                }
+                Ok(ret)
+            }
+            Err(msg) => {
+                if let Ok(mappingproxy) = ob.downcast::<PyMappingProxy>() {
+                    let mut ret = indexmap::IndexMap::with_capacity_and_hasher(
+                        mappingproxy.len().unwrap_or_default(),
+                        S::default(),
+                    );
+                    for (k, v) in mappingproxy {
+                        ret.insert(K::extract(k)?, V::extract(v)?);
+                    }
+                    Ok(ret)
+                } else {
+                    Err(PyErr::from(msg))
+                }
+            }
         }
-        Ok(ret)
     }
 }
 
@@ -234,6 +252,28 @@ mod test_indexmap {
                 assert_eq!((k1, v1), (k3, v3));
                 assert_eq!((&k2, &v2), (k3, v3));
             }
+        });
+    }
+
+    #[test]
+    fn test_indexmap_indexmap_into_mappingproxy() {
+        Python::with_gil(|py| {
+            let mut map = indexmap::IndexMap::<i32, i32>::new();
+            map.insert(1, 1);
+
+            let mappingproxy = map.clone().into_py_mappingproxy(py).unwrap();
+
+            assert_eq!(mappingproxy.len().unwrap(), 1);
+            assert_eq!(
+                mappingproxy.get_item(1).unwrap().extract::<i32>().unwrap(),
+                1
+            );
+            assert_eq!(
+                map,
+                mappingproxy
+                    .extract::<indexmap::IndexMap<i32, i32>>()
+                    .unwrap()
+            );
         });
     }
 }
