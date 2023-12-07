@@ -234,3 +234,56 @@ fn coroutine_panic() {
         py_run!(gil, panic, &handle_windows(test));
     })
 }
+
+#[test]
+fn test_async_method_receiver() {
+    #[pyclass]
+    struct Counter(usize);
+    #[pymethods]
+    impl Counter {
+        #[new]
+        fn new() -> Self {
+            Self(0)
+        }
+        async fn get(&self) -> usize {
+            self.0
+        }
+        async fn incr(&mut self) -> usize {
+            self.0 += 1;
+            self.0
+        }
+    }
+    Python::with_gil(|gil| {
+        let test = r#"
+        import asyncio
+        
+        obj = Counter()
+        coro1 = obj.get()
+        coro2 = obj.get()
+        try:
+            obj.incr()  # borrow checking should fail
+        except RuntimeError as err:
+            pass
+        else:
+            assert False
+        assert asyncio.run(coro1) == 0
+        coro2.close()
+        coro3 = obj.incr()
+        try:
+            obj.incr()  # borrow checking should fail
+        except RuntimeError as err:
+            pass
+        else:
+            assert False
+        try:
+            obj.get() # borrow checking should fail
+        except RuntimeError as err:
+            pass
+        else:
+            assert False
+        assert asyncio.run(coro3) == 1
+        "#;
+        let locals = [("Counter", gil.get_type::<Counter>())].into_py_dict(gil);
+        py_run!(gil, *locals, test);
+    })
+}
