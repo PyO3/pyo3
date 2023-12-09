@@ -30,7 +30,7 @@ Resulting future of an `async fn` decorated by `#[pyfunction]` must be `Send + '
 
 As a consequence, `async fn` parameters and return types must also be `Send + 'static`, so it is not possible to have a signature like `async fn does_not_compile(arg: &PyAny, py: Python<'_>) -> &PyAny`.
 
-However, there is an exception for method receiver, so async methods can accept `&self`/`&mut self`.
+However, there is an exception for method receiver, so async methods can accept `&self`/`&mut self`. Note that this means that the class instance is borrowed for as long as the returned future is not completed, even across yield points and while waiting for I/O operations to complete. Hence, other methods cannot obtain exclusive borrows while the future is still being polled. This is the same as how async methods in Rust generally work but it is more problematic for Rust code interfacing with Python code due to pervasive shared mutability. This strongly suggests to prefer shared borrows `&self` to exclusive ones `&mut self` to avoid racy borrow check failures at runtime.
 
 ## Implicit GIL holding
 
