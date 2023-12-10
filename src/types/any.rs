@@ -146,7 +146,6 @@ impl PyAny {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
-    #[allow(dead_code)] // Currently only used with num-complex+abi3, so dead without that.
     pub(crate) fn lookup_special<N>(&self, attr_name: N) -> PyResult<Option<&PyAny>>
     where
         N: IntoPy<Py<PyString>>,
