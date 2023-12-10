@@ -81,12 +81,32 @@ impl<'source> FromPyObject<'source> for bool {
             return Ok(obj.is_true());
         }
 
-        let meth = obj
-            .lookup_special(intern!(obj.py(), "__bool__"))?
-            .ok_or_else(|| PyTypeError::new_err("object has no __bool__ magic method"))?;
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        unsafe {
+            let ptr = obj.as_ptr();
 
-        let obj = meth.call0()?.downcast::<PyBool>()?;
-        Ok(obj.is_true())
+            if let Some(tp_as_number) = (*(*ptr).ob_type).tp_as_number.as_ref() {
+                if let Some(nb_bool) = tp_as_number.nb_bool {
+                    match (nb_bool)(ptr) {
+                        0 => return Ok(false),
+                        1 => return Ok(true),
+                        _ => return Err(crate::PyErr::fetch(obj.py())),
+                    }
+                }
+            }
+
+            Err(PyTypeError::new_err("object has no __bool__ magic method"))
+        }
+
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        {
+            let meth = obj
+                .lookup_special(crate::intern!(obj.py(), "__bool__"))?
+                .ok_or_else(|| PyTypeError::new_err("object has no __bool__ magic method"))?;
+
+            let obj = meth.call0()?.downcast::<PyBool>()?;
+            Ok(obj.is_true())
+        }
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -145,10 +165,11 @@ class D:
             assert!(a.extract::<bool>().unwrap());
 
             let b = module.getattr("B").unwrap().call0().unwrap();
-            assert_eq!(
-                b.extract::<bool>().unwrap_err().to_string(),
-                "TypeError: 'str' object cannot be converted to 'PyBool'",
-            );
+            assert!(matches!(
+                &*b.extract::<bool>().unwrap_err().to_string(),
+                "TypeError: 'str' object cannot be converted to 'PyBool'"
+                    | "TypeError: __bool__ should return bool, returned str"
+            ));
 
             let c = module.getattr("C").unwrap().call0().unwrap();
             assert_eq!(
