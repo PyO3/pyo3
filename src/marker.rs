@@ -53,7 +53,6 @@ use crate::{ffi, FromPyPointer, IntoPy, Py, PyObject, PyTypeCheck, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
-use std::thread;
 
 /// A marker token that represents holding the GIL.
 ///
@@ -316,6 +315,16 @@ impl<'py> Python<'py> {
         F: Send + FnOnce() -> T,
         T: Send,
     {
+        use std::mem::transmute;
+        use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
+        use std::sync::mpsc::{sync_channel, SendError, SyncSender};
+        use std::thread::{Builder, Result};
+        use std::time::Duration;
+
+        use parking_lot::{const_mutex, Mutex};
+
+        use crate::impl_::panic::PanicTrap;
+
         // Use a guard pattern to handle reacquiring the GIL,
         // so that the GIL will be reacquired even if `f` panics.
         // The `Send` bound on the closure prevents the user from
@@ -323,9 +332,81 @@ impl<'py> Python<'py> {
         let _guard = unsafe { SuspendGIL::new() };
 
         // To close soundness loopholes w.r.t. `send_wrapper` or `scoped-tls`,
-        // we run the closure on a newly created thread so that it cannot
+        // we run the closure on a separate thread so that it cannot
         // access thread-local storage from the current thread.
-        thread::scope(|s| s.spawn(f).join().unwrap())
+
+        // 1. Construct a task
+        struct Task(*mut (dyn FnMut() + 'static));
+        unsafe impl Send for Task {}
+
+        let (result_sender, result_receiver) = sync_channel::<Result<T>>(0);
+
+        let mut f = Some(f);
+
+        let mut task = || {
+            let f = f
+                .take()
+                .expect("allow_threads closure called more than once");
+
+            let result = catch_unwind(AssertUnwindSafe(f));
+
+            result_sender
+                .send(result)
+                .expect("allow_threads runtime task was abandoned");
+        };
+
+        // SAFETY: the current thread will block until the closure has returned
+        let mut task = Task(unsafe { transmute(&mut task as &mut (dyn FnMut() + '_)) });
+
+        // 2. Dispatch task to waiting thread, spawn new thread if necessary
+        let trap = PanicTrap::new(
+            "allow_threads panicked while stack data was accessed by another thread, please report this as a bug at https://github.com/PyO3/pyo3/issues",
+        );
+
+        static THREADS: Mutex<Vec<SyncSender<Task>>> = const_mutex(Vec::new());
+
+        let dispatch = move || {
+            while let Some(task_sender) = THREADS.lock().pop() {
+                match task_sender.send(task) {
+                    Ok(()) => return task_sender,
+                    Err(SendError(same_task)) => task = same_task,
+                }
+            }
+
+            let (task_sender, task_receiver) = sync_channel::<Task>(0);
+
+            Builder::new()
+                .name("pyo3 allow_threads runtime".to_owned())
+                .spawn(move || {
+                    let mut next_task = Ok(task);
+
+                    while let Ok(task) = next_task {
+                        // SAFETY: all data accessed by `task` will stay alive until it completes
+                        unsafe { (*task.0)() };
+
+                        next_task = task_receiver.recv_timeout(Duration::from_secs(60));
+                    }
+                })
+                .expect("failed to create allow_threads runtime thread");
+
+            task_sender
+        };
+
+        let task_sender = dispatch();
+
+        // 3. Wait for completion and check result
+        let result = result_receiver
+            .recv()
+            .expect("allow_threads runtime thread died unexpectedly");
+
+        trap.disarm();
+
+        THREADS.lock().push(task_sender);
+
+        match result {
+            Ok(result) => result,
+            Err(payload) => resume_unwind(payload),
+        }
     }
 
     /// An unsafe version of [`allow_threads`][Self::allow_threads]

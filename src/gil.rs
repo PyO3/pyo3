@@ -696,23 +696,25 @@ mod tests {
 
     #[test]
     fn test_allow_threads() {
-        assert!(!gil_is_acquired());
+        for _ in 0..10 {
+            assert!(!gil_is_acquired());
 
-        Python::with_gil(|py| {
-            assert!(gil_is_acquired());
+            Python::with_gil(|py| {
+                assert!(gil_is_acquired());
 
-            py.allow_threads(move || {
-                assert!(!gil_is_acquired());
+                py.allow_threads(move || {
+                    assert!(!gil_is_acquired());
 
-                Python::with_gil(|_| assert!(gil_is_acquired()));
+                    Python::with_gil(|_| assert!(gil_is_acquired()));
 
-                assert!(!gil_is_acquired());
+                    assert!(!gil_is_acquired());
+                });
+
+                assert!(gil_is_acquired());
             });
 
-            assert!(gil_is_acquired());
-        });
-
-        assert!(!gil_is_acquired());
+            assert!(!gil_is_acquired());
+        }
     }
 
     #[test]
