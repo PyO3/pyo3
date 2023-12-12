@@ -37,8 +37,6 @@ pub struct PyErr {
 }
 
 // The inner value is only accessed through ways that require proving the gil is held
-#[cfg(feature = "nightly")]
-unsafe impl crate::marker::Ungil for PyErr {}
 unsafe impl Send for PyErr {}
 unsafe impl Sync for PyErr {}
 

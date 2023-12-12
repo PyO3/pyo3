@@ -96,9 +96,6 @@ generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 # Changes `Python::with_gil` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
 
-# Optimizes PyObject to Vec conversion and so on.
-nightly = []
-
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
