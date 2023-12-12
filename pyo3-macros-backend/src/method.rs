@@ -1,10 +1,11 @@
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::{
+    attributes,
     attributes::{TextSignatureAttribute, TextSignatureAttributeValue},
     deprecations::{Deprecation, Deprecations},
     params::impl_arg_params,
@@ -241,6 +242,7 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub deprecations: Deprecations,
+    pub allow_threads: Option<attributes::kw::allow_threads>,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -284,6 +286,7 @@ impl<'a> FnSpec<'a> {
             text_signature,
             name,
             signature,
+            allow_threads,
             ..
         } = options;
 
@@ -331,6 +334,7 @@ impl<'a> FnSpec<'a> {
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
             deprecations,
+            allow_threads,
         })
     }
 
@@ -474,6 +478,7 @@ impl<'a> FnSpec<'a> {
         }
 
         let rust_call = |args: Vec<TokenStream>| {
+            let allow_threads = self.allow_threads.is_some();
             let call = if self.asyncness.is_some() {
                 let throw_callback = if cancel_handle.is_some() {
                     quote! { Some(__throw_callback) }
@@ -498,12 +503,13 @@ impl<'a> FnSpec<'a> {
                 };
                 let mut call = quote! {{
                     let future = #future;
-                    _pyo3::impl_::coroutine::new_coroutine(
+                    _pyo3::coroutine::Coroutine::new(
                         _pyo3::intern!(py, stringify!(#python_name)),
-                        #qualname_prefix,
-                        #throw_callback,
                         async move { _pyo3::impl_::wrap::OkWrap::wrap(future.await) },
                     )
+                    .with_qualname_prefix(#qualname_prefix)
+                    .with_throw_callback(#throw_callback)
+                    .with_allow_threads(#allow_threads)
                 }};
                 if cancel_handle.is_some() {
                     call = quote! {{
@@ -513,6 +519,25 @@ impl<'a> FnSpec<'a> {
                     }};
                 }
                 call
+            } else if allow_threads {
+                let (self_arg_name, self_arg_decl) = if self_arg.is_empty() {
+                    (quote!(), quote!())
+                } else {
+                    (quote!(__self), quote! { let __self = #self_arg; })
+                };
+                let arg_names: Vec<Ident> = (0..args.len())
+                    .map(|i| format_ident!("__arg{}", i))
+                    .collect();
+                let arg_decls: Vec<TokenStream> = args
+                    .into_iter()
+                    .zip(&arg_names)
+                    .map(|(arg, name)| quote! { let #name = #arg; })
+                    .collect();
+                quote! {{
+                    #self_arg_decl
+                    #(#arg_decls)*
+                    py.allow_threads(|| function(#self_arg_name #(#arg_names),*))
+                }}
             } else {
                 quote! { function(#self_arg #(#args),*) }
             };

@@ -1,29 +1,9 @@
 use std::{
-    future::Future,
     mem,
     ops::{Deref, DerefMut},
 };
 
-use crate::{
-    coroutine::{cancel::ThrowCallback, Coroutine},
-    pyclass::boolean_struct::False,
-    types::PyString,
-    IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, Python,
-};
-
-pub fn new_coroutine<F, T, E>(
-    name: &PyString,
-    qualname_prefix: Option<&'static str>,
-    throw_callback: Option<ThrowCallback>,
-    future: F,
-) -> Coroutine
-where
-    F: Future<Output = Result<T, E>> + Send + 'static,
-    T: IntoPy<PyObject>,
-    E: Into<PyErr>,
-{
-    Coroutine::new(Some(name.into()), qualname_prefix, throw_callback, future)
-}
+use crate::{pyclass::boolean_struct::False, Py, PyAny, PyCell, PyClass, PyResult, Python};
 
 fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {
     // SAFETY: Py<T> can be casted as *const PyCell<T>
