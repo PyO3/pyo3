@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
       - run: python -m pip install --upgrade pip && pip install nox
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
       - uses: obi1kenobi/cargo-semver-checks-action@v2
 
   check-msrv:
@@ -52,7 +52,7 @@ jobs:
           toolchain: 1.56.0
           targets: x86_64-unknown-linux-gnu
           components: rust-src
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           architecture: "x64"
       - uses: Swatinem/rust-cache@v2
@@ -131,7 +131,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.platform.rust-target }}
           components: clippy,rust-src
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
@@ -298,7 +298,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-valgrind
@@ -318,7 +318,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-careful
@@ -347,7 +347,7 @@ jobs:
         run: echo 'skip=true' >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
         if: steps.should-skip.outputs.skip != 'true'
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         if: steps.should-skip.outputs.skip != 'true'
       - uses: Swatinem/rust-cache@v2
         if: steps.should-skip.outputs.skip != 'true'
@@ -377,7 +377,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           # TODO bump emscripten builds to test on 3.12
           python-version: 3.11
