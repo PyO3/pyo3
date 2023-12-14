@@ -64,6 +64,17 @@ impl<'py> Py2<'py, PyAny> {
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
+
+    /// Constructs a new Py2 from a pointer. Does not check for null.
+    pub(crate) unsafe fn from_owned_ptr_unchecked(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Self {
+        Self(
+            py,
+            ManuallyDrop::new(Py(NonNull::new_unchecked(ptr), PhantomData)),
+        )
+    }
 }
 
 impl<'py, T> Py2<'py, T> {
@@ -211,6 +222,123 @@ impl<'py, T> Py2<'py, T> {
 unsafe impl<T> AsPyPointer for Py2<'_, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.1.as_ptr()
+    }
+}
+
+/// A borrowed equivalent to `Py2`.
+///
+/// The advantage of this over `&Py2` is that it avoids the need to have a pointer-to-pointer, as Py2
+/// is already a pointer to a PyObject.
+#[repr(transparent)]
+pub(crate) struct Py2Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py2<'py, T>>); // TODO is it useful to have the generic form?
+
+impl<'a, 'py> Py2Borrowed<'a, 'py, PyAny> {
+    /// # Safety
+    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// the caller and it's the caller's responsibility to ensure that the reference this is
+    /// derived from is valid for the lifetime `'a`.
+    pub(crate) unsafe fn from_ptr_or_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        NonNull::new(ptr).map_or_else(|| Err(PyErr::fetch(py)), |ptr| Ok(Self(ptr, PhantomData)))
+    }
+
+    /// # Safety
+    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// the caller and it's the caller's responsibility to ensure that the reference this is
+    /// derived from is valid for the lifetime `'a`.
+    pub(crate) unsafe fn from_ptr_or_opt(
+        _py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<Self> {
+        NonNull::new(ptr).map(|ptr| Self(ptr, PhantomData))
+    }
+
+    /// # Safety
+    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// the caller and it's the caller's responsibility to ensure that the reference this is
+    /// derived from is valid for the lifetime `'a`.
+    pub(crate) unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self(
+            NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
+            PhantomData,
+        )
+    }
+}
+
+impl<'a, 'py, T> From<&'a Py2<'py, T>> for Py2Borrowed<'a, 'py, PyAny> {
+    /// Create borrow on a Py2
+    fn from(instance: &'a Py2<'py, T>) -> Self {
+        Self(
+            unsafe { NonNull::new_unchecked(instance.as_ptr()) },
+            PhantomData,
+        )
+    }
+}
+
+impl<'py, T> Py2Borrowed<'_, 'py, T> {
+    pub(crate) fn clone_ref(self) -> Py2<'py, T> {
+        unsafe {
+            Py2::from_owned_ptr_unchecked(self.py(), ffi::_Py_NewRef(self.as_ptr()))
+                .downcast_into_unchecked()
+        }
+    }
+}
+
+impl<'py, T> Py2Borrowed<'py, 'py, T>
+where
+    T: HasPyGilRef,
+{
+    pub(crate) fn from_gil_ref(gil_ref: &'py T::AsRefTarget) -> Self {
+        // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
+        // so &'py T::AsRefTarget has the same layout as Self.
+        unsafe { std::mem::transmute(gil_ref) }
+    }
+
+    pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
+        // Safety: self is a borrow over `'py`.
+        unsafe { self.py().from_borrowed_ptr(self.0.as_ptr()) }
+    }
+}
+
+impl<T> Clone for Py2Borrowed<'_, '_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for Py2Borrowed<'_, '_, T> {}
+
+impl<T> std::fmt::Debug for Py2Borrowed<'_, '_, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Py2::fmt(self, f)
+    }
+}
+
+impl<'py, T> Deref for Py2Borrowed<'_, 'py, T> {
+    type Target = Py2<'py, T>;
+
+    #[inline]
+    fn deref(&self) -> &Py2<'py, T> {
+        // safety: Py2 has the same layout as NonNull<ffi::PyObject>
+        unsafe { &*(&self.0 as *const _ as *const Py2<'py, T>) }
+    }
+}
+
+impl<T> ToPyObject for Py2Borrowed<'_, '_, T> {
+    /// Converts `Py` instance -> PyObject.
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<T> IntoPy<PyObject> for Py2Borrowed<'_, '_, T> {
+    /// Converts a `Py` instance to `PyObject`.
+    /// Consumes `self` without calling `Py_DECREF()`.
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.to_object(py)
     }
 }
 
