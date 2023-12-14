@@ -502,6 +502,10 @@ def set_minimal_package_versions(session: nox.Session):
         "proptest": "1.0.0",
         "chrono": "0.4.25",
         "byteorder": "1.4.3",
+        "crossbeam-channel": "0.5.8",
+        "crossbeam-deque": "0.8.3",
+        "crossbeam-epoch": "0.9.15",
+        "crossbeam-utils": "0.8.16",
     }
 
     # run cargo update first to ensure that everything is at highest
