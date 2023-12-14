@@ -1,8 +1,8 @@
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::py_result_ext::PyResultExt;
 use crate::{
     ffi, AsPyPointer, Py2, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, PyTypeCheck,
 };
-
-use super::any::PyAnyMethods;
 
 /// A Python iterator object.
 ///
@@ -39,8 +39,9 @@ impl PyIterator {
 
     pub(crate) fn from_object2<'py>(obj: &Py2<'py, PyAny>) -> PyResult<Py2<'py, PyIterator>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(obj.py(), ffi::PyObject_GetIter(obj.as_ptr()))
-                .map(|any| any.downcast_into_unchecked())
+            ffi::PyObject_GetIter(obj.as_ptr())
+                .assume_owned_or_err(obj.py())
+                .downcast_into_unchecked()
         }
     }
 }

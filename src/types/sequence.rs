@@ -1,9 +1,11 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
+use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::instance::Py2;
 use crate::internal_tricks::get_ssize_index;
-use crate::prelude::*;
+use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
@@ -315,69 +317,53 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
     #[inline]
     fn concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
+            ffi::PySequence_Concat(self.as_ptr(), other.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
     #[inline]
     fn repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_Repeat(self.as_ptr(), get_ssize_index(count)),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
+            ffi::PySequence_Repeat(self.as_ptr(), get_ssize_index(count))
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
     #[inline]
     fn in_place_concat(&self, other: &Py2<'_, PySequence>) -> PyResult<Py2<'py, PySequence>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr()),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
+            ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
     #[inline]
     fn in_place_repeat(&self, count: usize) -> PyResult<Py2<'py, PySequence>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_InPlaceRepeat(self.as_ptr(), get_ssize_index(count)),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
+            ffi::PySequence_InPlaceRepeat(self.as_ptr(), get_ssize_index(count))
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
     #[inline]
     fn get_item(&self, index: usize) -> PyResult<Py2<'py, PyAny>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_GetItem(self.as_ptr(), get_ssize_index(index)),
-            )
+            ffi::PySequence_GetItem(self.as_ptr(), get_ssize_index(index))
+                .assume_owned_or_err(self.py())
         }
     }
 
     #[inline]
     fn get_slice(&self, begin: usize, end: usize) -> PyResult<Py2<'py, PySequence>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(
-                self.py(),
-                ffi::PySequence_GetSlice(
-                    self.as_ptr(),
-                    get_ssize_index(begin),
-                    get_ssize_index(end),
-                ),
-            )
-            .map(|py2| py2.downcast_into_unchecked())
+            ffi::PySequence_GetSlice(self.as_ptr(), get_ssize_index(begin), get_ssize_index(end))
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
@@ -474,16 +460,18 @@ impl<'py> PySequenceMethods<'py> for Py2<'py, PySequence> {
     #[inline]
     fn to_list(&self) -> PyResult<Py2<'py, PyList>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(self.py(), ffi::PySequence_List(self.as_ptr()))
-                .map(|py2| py2.downcast_into_unchecked())
+            ffi::PySequence_List(self.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
     #[inline]
     fn to_tuple(&self) -> PyResult<Py2<'py, PyTuple>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(self.py(), ffi::PySequence_Tuple(self.as_ptr()))
-                .map(|py2| py2.downcast_into_unchecked())
+            ffi::PySequence_Tuple(self.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 }

@@ -2,7 +2,9 @@ use crate::class::basic::CompareOp;
 use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Py2;
+use crate::py_result_ext::PyResultExt;
 use crate::type_object::{HasPyGilRef, PyTypeCheck, PyTypeInfo};
 #[cfg(not(PyPy))]
 use crate::types::PySuper;
@@ -1719,10 +1721,8 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             attr_name: Py2<'_, PyString>,
         ) -> PyResult<Py2<'py, PyAny>> {
             unsafe {
-                Py2::from_owned_ptr_or_err(
-                    any.py(),
-                    ffi::PyObject_GetAttr(any.as_ptr(), attr_name.as_ptr()),
-                )
+                ffi::PyObject_GetAttr(any.as_ptr(), attr_name.as_ptr())
+                    .assume_owned_or_err(any.py())
             }
         }
 
@@ -1772,12 +1772,12 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         O: ToPyObject,
     {
         fn inner(any: &Py2<'_, PyAny>, other: Py2<'_, PyAny>) -> PyResult<Ordering> {
-            let py = any.py();
             let other = other.as_ptr();
             // Almost the same as ffi::PyObject_RichCompareBool, but this one doesn't try self == other.
             // See https://github.com/PyO3/pyo3/issues/985 for more.
             let do_compare = |other, op| unsafe {
-                Py2::from_owned_ptr_or_err(py, ffi::PyObject_RichCompare(any.as_ptr(), other, op))
+                ffi::PyObject_RichCompare(any.as_ptr(), other, op)
+                    .assume_owned_or_err(any.py())
                     .and_then(|obj| obj.is_true())
             };
             if do_compare(other, ffi::Py_EQ)? {
@@ -1807,10 +1807,8 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             compare_op: CompareOp,
         ) -> PyResult<Py2<'py, PyAny>> {
             unsafe {
-                Py2::from_owned_ptr_or_err(
-                    any.py(),
-                    ffi::PyObject_RichCompare(any.as_ptr(), other.as_ptr(), compare_op as c_int),
-                )
+                ffi::PyObject_RichCompare(any.as_ptr(), other.as_ptr(), compare_op as c_int)
+                    .assume_owned_or_err(any.py())
             }
         }
 
@@ -1881,14 +1879,12 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             kwargs: Option<&PyDict>,
         ) -> PyResult<Py2<'py, PyAny>> {
             unsafe {
-                Py2::from_owned_ptr_or_err(
-                    any.py(),
-                    ffi::PyObject_Call(
-                        any.as_ptr(),
-                        args.as_ptr(),
-                        kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr()),
-                    ),
+                ffi::PyObject_Call(
+                    any.as_ptr(),
+                    args.as_ptr(),
+                    kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr()),
                 )
+                .assume_owned_or_err(any.py())
             }
         }
 
@@ -1904,7 +1900,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             ))] {
                 // Optimized path on python 3.9+
                 unsafe {
-                    Py2::from_owned_ptr_or_err(self.py(), ffi::PyObject_CallNoArgs(self.as_ptr()))
+                    ffi::PyObject_CallNoArgs(self.as_ptr()).assume_owned_or_err(self.py())
                 }
             } else {
                 self.call((), None)
@@ -1941,7 +1937,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
                 // Optimized path on python 3.9+
                 unsafe {
                     let name = name.into_py(py).attach_into(py);
-                    Py2::from_owned_ptr_or_err(py, ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()))
+                    ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()).assume_owned_or_err(py)
                 }
             } else {
                 self.call_method(name, (), None)
@@ -1982,10 +1978,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
     {
         fn inner<'py>(any: &Py2<'py, PyAny>, key: Py2<'_, PyAny>) -> PyResult<Py2<'py, PyAny>> {
             unsafe {
-                Py2::from_owned_ptr_or_err(
-                    any.py(),
-                    ffi::PyObject_GetItem(any.as_ptr(), key.as_ptr()),
-                )
+                ffi::PyObject_GetItem(any.as_ptr(), key.as_ptr()).assume_owned_or_err(any.py())
             }
         }
 
@@ -2114,15 +2107,17 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn repr(&self) -> PyResult<Py2<'py, PyString>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(self.py(), ffi::PyObject_Repr(self.as_ptr()))
-                .map(|any| any.downcast_into_unchecked())
+            ffi::PyObject_Repr(self.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
     fn str(&self) -> PyResult<Py2<'py, PyString>> {
         unsafe {
-            Py2::from_owned_ptr_or_err(self.py(), ffi::PyObject_Str(self.as_ptr()))
-                .map(|any| any.downcast_into_unchecked())
+            ffi::PyObject_Str(self.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked()
         }
     }
 
@@ -2140,7 +2135,8 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn dir(&self) -> Py2<'py, PyList> {
         unsafe {
-            Py2::from_owned_ptr(self.py(), ffi::PyObject_Dir(self.as_ptr()))
+            ffi::PyObject_Dir(self.as_ptr())
+                .assume_owned(self.py())
                 .downcast_into_unchecked()
         }
     }
