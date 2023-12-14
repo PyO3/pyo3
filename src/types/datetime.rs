@@ -21,8 +21,10 @@ use crate::ffi::{
 };
 use crate::instance::PyNativeType;
 use crate::types::PyTuple;
-use crate::{IntoPy, Py, PyAny, Python};
+use crate::{AsPyPointer, IntoPy, Py, PyAny, Python};
 use std::os::raw::c_int;
+#[cfg(feature = "chrono")]
+use std::ptr;
 
 fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {
     unsafe {
@@ -487,6 +489,18 @@ pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
     unsafe { &*(ensure_datetime_api(py).TimeZone_UTC as *const PyTzInfo) }
 }
 
+/// Equivalent to `datetime.timezone` constructor
+///
+/// Only used internally
+#[cfg(feature = "chrono")]
+pub fn timezone_from_offset<'a>(py: Python<'a>, offset: &PyDelta) -> PyResult<&'a PyTzInfo> {
+    let api = ensure_datetime_api(py);
+    unsafe {
+        let ptr = (api.TimeZone_FromTimeZone)(offset.as_ptr(), ptr::null_mut());
+        py.from_owned_ptr_or_err(ptr)
+    }
+}
+
 /// Bindings for `datetime.timedelta`
 #[repr(transparent)]
 pub struct PyDelta(PyAny);
@@ -619,5 +633,36 @@ mod tests {
 
             assert!(t.get_tzinfo().is_none());
         });
+    }
+
+    #[test]
+    #[cfg(all(feature = "macros", feature = "chrono"))]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+    fn test_timezone_from_offset() {
+        Python::with_gil(|py| {
+            assert!(
+                timezone_from_offset(py, PyDelta::new(py, 0, -3600, 0, true).unwrap())
+                    .unwrap()
+                    .call_method1("utcoffset", ((),))
+                    .unwrap()
+                    .extract::<&PyDelta>()
+                    .unwrap()
+                    .eq(PyDelta::new(py, 0, -3600, 0, true).unwrap())
+                    .unwrap()
+            );
+
+            assert!(
+                timezone_from_offset(py, PyDelta::new(py, 0, 3600, 0, true).unwrap())
+                    .unwrap()
+                    .call_method1("utcoffset", ((),))
+                    .unwrap()
+                    .extract::<&PyDelta>()
+                    .unwrap()
+                    .eq(PyDelta::new(py, 0, 3600, 0, true).unwrap())
+                    .unwrap()
+            );
+
+            timezone_from_offset(py, PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
+        })
     }
 }
