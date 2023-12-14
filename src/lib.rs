@@ -311,6 +311,8 @@ pub use crate::version::PythonVersionInfo;
 
 // Expected to become public API in 0.21 under a different name
 pub(crate) use crate::instance::Py2;
+pub(crate) mod ffi_ptr_ext;
+pub(crate) mod py_result_ext;
 
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///

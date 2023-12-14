@@ -174,7 +174,7 @@ impl<'py, T> Py2<'py, T> {
     #[doc(hidden)] // public and doc(hidden) to use in examples and tests for now
     pub fn borrowed_from_gil_ref<'a>(gil_ref: &'a &'py T::AsRefTarget) -> &'a Self
     where
-        T: PyTypeInfo,
+        T: HasPyGilRef,
     {
         // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
         // so &'a &'py T::AsRefTarget has the same layout as &'a Py2<'py, T>
