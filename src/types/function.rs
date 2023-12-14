@@ -4,7 +4,7 @@ use crate::prelude::*;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
-    types::{PyCapsule, PyDict, PyTuple},
+    types::{PyCapsule, PyDict, PyString, PyTuple},
 };
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
@@ -108,12 +108,11 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'py>,
     ) -> PyResult<&'py Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
-        let (mod_ptr, module_name) = if let Some(m) = module {
+        let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
-            let name: Py<PyAny> = m.name()?.into_py(py);
-            (mod_ptr, name.as_ptr())
+            (mod_ptr, Some(m.name()?.into_py(py)))
         } else {
-            (std::ptr::null_mut(), std::ptr::null_mut())
+            (std::ptr::null_mut(), None)
         };
         let (def, destructor) = method_def.as_method_def()?;
 
@@ -121,11 +120,15 @@ impl PyCFunction {
         let def = Box::into_raw(Box::new(def));
         std::mem::forget(destructor);
 
+        let module_name_ptr = module_name
+            .as_ref()
+            .map_or(std::ptr::null_mut(), Py::as_ptr);
+
         unsafe {
             py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(
                 def,
                 mod_ptr,
-                module_name,
+                module_name_ptr,
             ))
         }
     }
