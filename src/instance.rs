@@ -24,6 +24,9 @@ use std::ptr::NonNull;
 ///
 /// This trait must only be implemented for types which cannot be accessed without the GIL.
 pub unsafe trait PyNativeType: Sized {
+    /// The form of this which is stored inside a `Py<T>` smart pointer.
+    type AsRefSource: HasPyGilRef<AsRefTarget = Self>;
+
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]
     fn py(&self) -> Python<'_> {
@@ -172,9 +175,9 @@ impl<'py, T> Py2<'py, T> {
     /// Internal helper to convert e.g. &'a &'py PyDict to &'a Py2<'py, PyDict> for
     /// backwards-compatibility during migration to removal of pool.
     #[doc(hidden)] // public and doc(hidden) to use in examples and tests for now
-    pub fn borrowed_from_gil_ref<'a>(gil_ref: &'a &'py T::AsRefTarget) -> &'a Self
+    pub fn borrowed_from_gil_ref<'a, U>(gil_ref: &'a &'py U) -> &'a Self
     where
-        T: HasPyGilRef,
+        U: PyNativeType<AsRefSource = T>,
     {
         // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
         // so &'a &'py T::AsRefTarget has the same layout as &'a Py2<'py, T>

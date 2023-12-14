@@ -87,7 +87,9 @@ pub mod iter {
 #[macro_export]
 macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
-        unsafe impl<$($generics,)*> $crate::PyNativeType for $name {}
+        unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
+            type AsRefSource = Self;
+        }
 
         impl<$($generics,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)

@@ -275,7 +275,9 @@ pub(crate) struct PyCellContents<T: PyClassImpl> {
     pub(crate) weakref: T::WeakRef,
 }
 
-unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}
+unsafe impl<T: PyClass> PyNativeType for PyCell<T> {
+    type AsRefSource = T;
+}
 
 impl<T: PyClass> PyCell<T> {
     /// Makes a new `PyCell` on the Python heap and return the reference to it.
