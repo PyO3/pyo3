@@ -1,3 +1,4 @@
+use crate::instance::Py2;
 use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
@@ -88,6 +89,26 @@ impl PyBytes {
     /// Gets the Python string as a byte slice.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
+        let slice = Py2::borrowed_from_gil_ref(&self).as_bytes();
+        // SAFETY: &self guarantees the reference is alive long enough
+        unsafe { std::slice::from_raw_parts(slice.as_ptr(), slice.len()) }
+    }
+}
+
+/// Implementation of functionality for [`PyBytes`].
+///
+/// These methods are defined for the `Py2<'py, PyBytes>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PyBytes")]
+pub(crate) trait PyBytesMethods<'py> {
+    /// Gets the Python string as a byte slice.
+    fn as_bytes(&self) -> &[u8];
+}
+
+impl<'py> PyBytesMethods<'py> for Py2<'py, PyBytes> {
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
@@ -101,17 +122,11 @@ impl Py<PyBytes> {
     /// Gets the Python bytes as a byte slice. Because Python bytes are
     /// immutable, the result may be used for as long as the reference to
     /// `self` is held, including when the GIL is released.
-    pub fn as_bytes<'a>(&'a self, _py: Python<'_>) -> &'a [u8] {
-        // py is required here because `PyBytes_AsString` and `PyBytes_Size`
-        // can both technically raise exceptions which require the GIL to be
-        // held. The only circumstance in which they raise is if the value
-        // isn't really a `PyBytes`, but better safe than sorry.
-        unsafe {
-            let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
-            let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
-            debug_assert!(!buffer.is_null());
-            std::slice::from_raw_parts(buffer, length)
-        }
+    pub fn as_bytes<'a>(&'a self, py: Python<'_>) -> &'a [u8] {
+        let slice = self.attach(py).as_bytes();
+        // SAFETY: it is safe to access the immutable slice as long as the
+        // reference to `self` is held.
+        unsafe { std::slice::from_raw_parts(slice.as_ptr(), slice.len()) }
     }
 }
 
