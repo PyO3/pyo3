@@ -17,13 +17,13 @@
 //! That API is provided by [`Python::allow_threads`] and enforced via the [`Send`] bound on the
 //! closure and the return type.
 //!
-//! In practice this API works quite well, but it comes with some drawbacks:
+//! In practice this API works quite well, but it comes with a big drawback:
+//! There is no instrinsic reason to prevent `!Send` types like [`Rc`] from crossing the closure.
+//! After all, we release the GIL to let other Python threads run, not necessarily to launch new threads.
 //!
-//! ## Drawbacks
-//!
-//! There is no reason to prevent `!Send` types like [`Rc`] from crossing the closure. After all,
-//! [`Python::allow_threads`] just lets other Python threads run - it does not itself launch a new
-//! thread.
+//! But to isolate the closure from references bound to the current thread holding the GIL
+//! and to close soundness holes implied by thread-local storage hiding such references,
+//! we do need to run the closure on a dedicated runtime thread.
 //!
 //! ```rust, compile_fail
 //! use pyo3::prelude::*;
@@ -33,11 +33,61 @@
 //!     let rc = Rc::new(5);
 //!
 //!     py.allow_threads(|| {
-//!         // This would actually be fine...
+//!         // This could be fine...
 //!         println!("{:?}", *rc);
 //!     });
 //! });
 //! ```
+//!
+//! However, running the closure on a distinct thread is required as otherwise
+//! thread-local storage could be used to "smuggle" GIL-bound data into it
+//! independently of any trait bounds (whether using `Send` or an auto trait
+//! dedicated to handling GIL-bound data):
+//!
+//! ```rust, no_run
+//! use pyo3::prelude::*;
+//! use pyo3::types::PyString;
+//! use scoped_tls::scoped_thread_local;
+//!
+//! scoped_thread_local!(static WRAPPED: PyString);
+//!
+//! fn callback() {
+//!     WRAPPED.with(|smuggled: &PyString| {
+//!         println!("{:?}", smuggled);
+//!     });
+//! }
+//!
+//! Python::with_gil(|py| {
+//!     let string = PyString::new(py, "foo");
+//!
+//!     WRAPPED.set(string, || {
+//!         py.allow_threads(callback);
+//!     });
+//! });
+//! ```
+//!
+//! PyO3 tries to minimize the overhead of using dedicated threads by re-using them,
+//! i.e. after a thread is spawned to execute a closure with the GIL temporarily released,
+//! it is kept around for up to one minute to potentially service subsequent invocations of `allow_threads`.
+//!
+//! Note that PyO3 will however not wait to re-use an existing that is currently blocked by other work,
+//! i.e. to keep latency to a minimum a new thread will be started to immediately run the given closure.
+//!
+//! These long-lived background threads are named `pyo3 allow_threads runtime`
+//! to facilitate diagnosing any performance issues they might cause on the process level.
+//!
+//! One important consequence of this approach is that the state of thread-local storage (TLS)
+//! is essentially undefined: The thread might be newly spawn so that TLS needs to be newly initialized,
+//! but it might also be re-used so that TLS contains values created by previous calls to `allow_threads`.
+//!
+//! If the performance overhead of shunting the closure to another is too high
+//! or code requires access to thread-local storage established by the calling thread,
+//! there is the unsafe escape hatch [`Python::unsafe_allow_threads`]
+//! which executes the closure directly after suspending the GIL.
+//!
+//! However, note establishing the required invariants to soundly call this function
+//! requires highly non-local reasoning as thread-local storage allows "smuggling" GIL-bound references
+//! using what is essentially global state.
 //!
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
@@ -232,16 +282,18 @@ impl<'py> Python<'py> {
     /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
     /// reacquired when `F`'s scope ends.
     ///
-    /// If you don't need to touch the Python
-    /// interpreter for some time and have other Python threads around, this will let you run
-    /// Rust-only code while letting those other Python threads make progress.
+    /// If you don't need to touch the Python interpreter for some time and have other Python threads around,
+    /// this will let you run Rust-only code while letting those other Python threads make progress.
     ///
-    /// Only types that implement [`Send`] can cross the closure. See the
-    /// [module level documentation](self) for more information.
+    /// Only types that implement [`Send`] can cross the closure
+    /// because *it is executed on a dedicated runtime thread*
+    /// to prevent access to GIL-bound references based on thread identity.
     ///
     /// If you need to pass Python objects into the closure you can use [`Py`]`<T>`to create a
     /// reference independent of the GIL lifetime. However, you cannot do much with those without a
     /// [`Python`] token, for which you'd need to reacquire the GIL.
+    ///
+    /// See the [module level documentation](self) for more information.
     ///
     /// # Example: Releasing the GIL while running a computation in Rust-only code
     ///
@@ -411,7 +463,7 @@ impl<'py> Python<'py> {
 
     /// An unsafe version of [`allow_threads`][Self::allow_threads]
     ///
-    /// This version does not run the given closure on a dedicated runtime thread,
+    /// This version does _not_ run the given closure on a dedicated runtime thread,
     /// therefore it is more efficient and has access to thread-local storage
     /// established at the call site.
     ///
@@ -437,6 +489,8 @@ impl<'py> Python<'py> {
     ///     }
     /// });
     /// ```
+    ///
+    /// See the [module level documentation](self) for more information.
     ///
     /// # Safety
     ///

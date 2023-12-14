@@ -506,6 +506,7 @@ def set_minimal_package_versions(session: nox.Session):
         "crossbeam-deque": "0.8.3",
         "crossbeam-epoch": "0.9.15",
         "crossbeam-utils": "0.8.16",
+        "scoped-tls": "1.0.0",
     }
 
     # run cargo update first to ensure that everything is at highest
