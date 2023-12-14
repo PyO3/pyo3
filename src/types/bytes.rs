@@ -1,4 +1,4 @@
-use crate::instance::Py2;
+use crate::instance::{Py2, Py2Borrowed};
 use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
@@ -89,9 +89,7 @@ impl PyBytes {
     /// Gets the Python string as a byte slice.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
-        let slice = Py2::borrowed_from_gil_ref(&self).as_bytes();
-        // SAFETY: &self guarantees the reference is alive long enough
-        unsafe { std::slice::from_raw_parts(slice.as_ptr(), slice.len()) }
+        Py2Borrowed::from_gil_ref(self).as_bytes()
     }
 }
 
@@ -109,6 +107,14 @@ pub(crate) trait PyBytesMethods<'py> {
 impl<'py> PyBytesMethods<'py> for Py2<'py, PyBytes> {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
+        Py2Borrowed::from(self).as_bytes()
+    }
+}
+
+impl<'a> Py2Borrowed<'a, '_, PyBytes> {
+    /// Gets the Python string as a byte slice.
+    #[allow(clippy::wrong_self_convention)]
+    fn as_bytes(self) -> &'a [u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
@@ -123,10 +129,7 @@ impl Py<PyBytes> {
     /// immutable, the result may be used for as long as the reference to
     /// `self` is held, including when the GIL is released.
     pub fn as_bytes<'a>(&'a self, py: Python<'_>) -> &'a [u8] {
-        let slice = self.attach(py).as_bytes();
-        // SAFETY: it is safe to access the immutable slice as long as the
-        // reference to `self` is held.
-        unsafe { std::slice::from_raw_parts(slice.as_ptr(), slice.len()) }
+        self.attach_borrow(py).as_bytes()
     }
 }
 

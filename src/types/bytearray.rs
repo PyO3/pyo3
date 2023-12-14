@@ -1,5 +1,5 @@
 use crate::err::{PyErr, PyResult};
-use crate::instance::Py2;
+use crate::instance::{Py2, Py2Borrowed};
 use crate::{ffi, AsPyPointer, Py, PyAny, Python};
 use std::os::raw::c_char;
 use std::slice;
@@ -188,9 +188,7 @@ impl PyByteArray {
     /// }
     /// ```
     pub unsafe fn as_bytes(&self) -> &[u8] {
-        let slice = Py2::borrowed_from_gil_ref(&self).as_bytes();
-        // SAFETY: &self guarantees the reference is alive long enough
-        unsafe { slice::from_raw_parts(slice.as_ptr(), slice.len()) }
+        Py2Borrowed::from_gil_ref(self).as_bytes()
     }
 
     /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
@@ -202,9 +200,7 @@ impl PyByteArray {
     /// apply to this function as well.
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        let slice = Py2::borrowed_from_gil_ref(&self).as_bytes_mut();
-        // SAFETY: &self guarantees the reference is alive long enough
-        unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr(), slice.len()) }
+        Py2Borrowed::from_gil_ref(self).as_bytes_mut()
     }
 
     /// Copies the contents of the bytearray to a Rust vector.
@@ -404,16 +400,16 @@ impl<'py> PyByteArrayMethods<'py> for Py2<'py, PyByteArray> {
     }
 
     fn data(&self) -> *mut u8 {
-        unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
+        Py2Borrowed::from(self).data()
     }
 
     unsafe fn as_bytes(&self) -> &[u8] {
-        slice::from_raw_parts(self.data(), self.len())
+        Py2Borrowed::from(self).as_bytes()
     }
 
     #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        slice::from_raw_parts_mut(self.data(), self.len())
+        Py2Borrowed::from(self).as_bytes_mut()
     }
 
     fn to_vec(&self) -> Vec<u8> {
@@ -429,6 +425,22 @@ impl<'py> PyByteArrayMethods<'py> for Py2<'py, PyByteArray> {
                 Err(PyErr::fetch(self.py()))
             }
         }
+    }
+}
+
+impl<'a> Py2Borrowed<'a, '_, PyByteArray> {
+    fn data(&self) -> *mut u8 {
+        unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    unsafe fn as_bytes(self) -> &'a [u8] {
+        slice::from_raw_parts(self.data(), self.len())
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
+        slice::from_raw_parts_mut(self.data(), self.len())
     }
 }
 
