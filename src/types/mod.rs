@@ -17,7 +17,7 @@ pub use self::dict::{IntoPyDict, PyDict};
 #[cfg(not(PyPy))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::ellipsis::PyEllipsis;
-pub use self::floatob::PyFloat;
+pub use self::float::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder};
@@ -281,7 +281,7 @@ mod complex;
 mod datetime;
 mod dict;
 mod ellipsis;
-mod floatob;
+pub(crate) mod float;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 mod frame;
 mod frozenset;
