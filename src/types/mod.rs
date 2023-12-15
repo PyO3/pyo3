@@ -279,7 +279,6 @@ mod capsule;
 #[cfg(not(Py_LIMITED_API))]
 mod code;
 mod complex;
-#[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 mod dict;
 mod ellipsis;

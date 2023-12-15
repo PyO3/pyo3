@@ -3,29 +3,30 @@
 //! For more details about these types, see the [Python
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
+#[cfg(not(Py_LIMITED_API))]
 use crate::err::PyResult;
+#[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
-    self, PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
-};
-use crate::ffi::{
-    PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND,
-    PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
-};
-use crate::ffi::{
+    self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
+    PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
+    PyDateTime_FromTimestamp, PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR,
+    PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR,
+    PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
+    PyDate_FromTimestamp,
 };
-use crate::ffi::{PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR};
-use crate::ffi::{
-    PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND,
-    PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
-};
+#[cfg(not(Py_LIMITED_API))]
 use crate::instance::PyNativeType;
+#[cfg(not(Py_LIMITED_API))]
 use crate::types::PyTuple;
+#[cfg(not(Py_LIMITED_API))]
 use crate::{AsPyPointer, IntoPy, Py, PyAny, Python};
+#[cfg(not(Py_LIMITED_API))]
 use std::os::raw::c_int;
-#[cfg(feature = "chrono")]
+#[cfg(all(not(Py_LIMITED_API), feature = "chrono"))]
 use std::ptr;
 
+#[cfg(not(Py_LIMITED_API))]
 fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {
     unsafe {
         if pyo3_ffi::PyDateTimeAPI().is_null() {
@@ -48,6 +49,7 @@ fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {
 //
 // These functions must only be called when the GIL is held!
 
+#[cfg(not(Py_LIMITED_API))]
 macro_rules! ffi_fun_with_autoinit {
     ($(#[$outer:meta] unsafe fn $name: ident($arg: ident: *mut PyObject) -> $ret: ty;)*) => {
         $(
@@ -67,6 +69,7 @@ macro_rules! ffi_fun_with_autoinit {
     };
 }
 
+#[cfg(not(Py_LIMITED_API))]
 ffi_fun_with_autoinit! {
     /// Check if `op` is a `PyDateTimeAPI.DateType` or subtype.
     unsafe fn PyDate_Check(op: *mut PyObject) -> c_int;
@@ -87,6 +90,7 @@ ffi_fun_with_autoinit! {
 // Access traits
 
 /// Trait for accessing the date components of a struct containing a date.
+#[cfg(not(Py_LIMITED_API))]
 pub trait PyDateAccess {
     /// Returns the year, as a positive int.
     ///
@@ -110,6 +114,7 @@ pub trait PyDateAccess {
 /// Note: These access the individual components of a (day, second,
 /// microsecond) representation of the delta, they are *not* intended as
 /// aliases for calculating the total duration in each of these units.
+#[cfg(not(Py_LIMITED_API))]
 pub trait PyDeltaAccess {
     /// Returns the number of days, as an int from -999999999 to 999999999.
     ///
@@ -129,6 +134,7 @@ pub trait PyDeltaAccess {
 }
 
 /// Trait for accessing the time components of a struct containing a time.
+#[cfg(not(Py_LIMITED_API))]
 pub trait PyTimeAccess {
     /// Returns the hour, as an int from 0 through 23.
     ///
@@ -160,6 +166,7 @@ pub trait PyTimeAccess {
 }
 
 /// Trait for accessing the components of a struct containing a tzinfo.
+#[cfg(not(Py_LIMITED_API))]
 pub trait PyTzInfoAccess {
     /// Returns the tzinfo (which may be None).
     ///
@@ -170,8 +177,10 @@ pub trait PyTzInfoAccess {
 }
 
 /// Bindings around `datetime.date`
+#[cfg(not(Py_LIMITED_API))]
 #[repr(transparent)]
 pub struct PyDate(PyAny);
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
@@ -180,6 +189,7 @@ pyobject_native_type!(
     #checkfunction=PyDate_Check
 );
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDate {
     /// Creates a new `datetime.date`.
     pub fn new(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
@@ -210,6 +220,7 @@ impl PyDate {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDateAccess for PyDate {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -225,8 +236,10 @@ impl PyDateAccess for PyDate {
 }
 
 /// Bindings for `datetime.datetime`
+#[cfg(not(Py_LIMITED_API))]
 #[repr(transparent)]
 pub struct PyDateTime(PyAny);
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
@@ -235,6 +248,7 @@ pyobject_native_type!(
     #checkfunction=PyDateTime_Check
 );
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDateTime {
     /// Creates a new `datetime.datetime` object.
     #[allow(clippy::too_many_arguments)]
@@ -324,6 +338,7 @@ impl PyDateTime {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDateAccess for PyDateTime {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -338,6 +353,7 @@ impl PyDateAccess for PyDateTime {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyTimeAccess for PyDateTime {
     fn get_hour(&self) -> u8 {
         unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as u8 }
@@ -360,6 +376,7 @@ impl PyTimeAccess for PyDateTime {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyTzInfoAccess for PyDateTime {
     fn get_tzinfo(&self) -> Option<&PyTzInfo> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
@@ -374,8 +391,10 @@ impl PyTzInfoAccess for PyDateTime {
 }
 
 /// Bindings for `datetime.time`
+#[cfg(not(Py_LIMITED_API))]
 #[repr(transparent)]
 pub struct PyTime(PyAny);
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
@@ -384,6 +403,7 @@ pyobject_native_type!(
     #checkfunction=PyTime_Check
 );
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyTime {
     /// Creates a new `datetime.time` object.
     pub fn new<'p>(
@@ -434,6 +454,7 @@ impl PyTime {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyTimeAccess for PyTime {
     fn get_hour(&self) -> u8 {
         unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u8 }
@@ -456,6 +477,7 @@ impl PyTimeAccess for PyTime {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyTzInfoAccess for PyTime {
     fn get_tzinfo(&self) -> Option<&PyTzInfo> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
@@ -474,8 +496,10 @@ impl PyTzInfoAccess for PyTime {
 /// This is an abstract base class and cannot be constructed directly.
 /// For concrete time zone implementations, see [`timezone_utc`] and
 /// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
+#[cfg(not(Py_LIMITED_API))]
 #[repr(transparent)]
 pub struct PyTzInfo(PyAny);
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
@@ -485,6 +509,7 @@ pyobject_native_type!(
 );
 
 /// Equivalent to `datetime.timezone.utc`
+#[cfg(not(Py_LIMITED_API))]
 pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
     unsafe { &*(ensure_datetime_api(py).TimeZone_UTC as *const PyTzInfo) }
 }
@@ -492,7 +517,7 @@ pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
 /// Equivalent to `datetime.timezone` constructor
 ///
 /// Only used internally
-#[cfg(feature = "chrono")]
+#[cfg(all(not(Py_LIMITED_API), feature = "chrono"))]
 pub fn timezone_from_offset<'a>(py: Python<'a>, offset: &PyDelta) -> PyResult<&'a PyTzInfo> {
     let api = ensure_datetime_api(py);
     unsafe {
@@ -502,8 +527,10 @@ pub fn timezone_from_offset<'a>(py: Python<'a>, offset: &PyDelta) -> PyResult<&'
 }
 
 /// Bindings for `datetime.timedelta`
+#[cfg(not(Py_LIMITED_API))]
 #[repr(transparent)]
 pub struct PyDelta(PyAny);
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
@@ -512,6 +539,7 @@ pyobject_native_type!(
     #checkfunction=PyDelta_Check
 );
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDelta {
     /// Creates a new `timedelta`.
     pub fn new(
@@ -535,6 +563,7 @@ impl PyDelta {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
         unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
@@ -551,6 +580,7 @@ impl PyDeltaAccess for PyDelta {
 
 // Utility function which returns a borrowed reference to either
 // the underlying tzinfo or None.
+#[cfg(not(Py_LIMITED_API))]
 fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
     match opt {
         Some(tzi) => tzi.as_ptr(),
@@ -558,7 +588,7 @@ fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(Py_LIMITED_API)))]
 mod tests {
     use super::*;
     #[cfg(feature = "macros")]
