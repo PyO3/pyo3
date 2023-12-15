@@ -4,8 +4,6 @@
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
 #[cfg(not(Py_LIMITED_API))]
-use crate::err::PyResult;
-#[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
     self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
     PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
@@ -20,7 +18,10 @@ use crate::instance::PyNativeType;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyTuple;
 #[cfg(not(Py_LIMITED_API))]
-use crate::{AsPyPointer, IntoPy, Py, PyAny, Python};
+use crate::{AsPyPointer, IntoPy, Py};
+#[cfg(Py_LIMITED_API)]
+use crate::{FromPyObject, PyDowncastError, PyTryFrom, PyTypeCheck};
+use crate::{PyAny, PyResult, Python};
 #[cfg(not(Py_LIMITED_API))]
 use std::os::raw::c_int;
 #[cfg(all(not(Py_LIMITED_API), feature = "chrono"))]
@@ -114,7 +115,6 @@ pub trait PyDateAccess {
 /// Note: These access the individual components of a (day, second,
 /// microsecond) representation of the delta, they are *not* intended as
 /// aliases for calculating the total duration in each of these units.
-#[cfg(not(Py_LIMITED_API))]
 pub trait PyDeltaAccess {
     /// Returns the number of days, as an int from -999999999 to 999999999.
     ///
@@ -527,7 +527,6 @@ pub fn timezone_from_offset<'a>(py: Python<'a>, offset: &PyDelta) -> PyResult<&'
 }
 
 /// Bindings for `datetime.timedelta`
-#[cfg(not(Py_LIMITED_API))]
 #[repr(transparent)]
 pub struct PyDelta(PyAny);
 #[cfg(not(Py_LIMITED_API))]
@@ -538,8 +537,47 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
+// TODO: convert to a macro
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_named!(PyDelta);
+#[cfg(Py_LIMITED_API)]
+impl PyTypeCheck for PyDelta {
+    const NAME: &'static str = "timedelta";
 
-#[cfg(not(Py_LIMITED_API))]
+    #[inline]
+    fn type_check(object: &PyAny) -> bool {
+        object.is_instance(timedelta(object.py()).unwrap()).unwrap()
+    }
+}
+
+#[cfg(Py_LIMITED_API)]
+impl<'py> FromPyObject<'py> for &'py PyDelta {
+    #[inline]
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
+        Ok(obj.downcast()?)
+    }
+}
+
+#[cfg(Py_LIMITED_API)]
+impl<'v> PyTryFrom<'v> for PyDelta {
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
+        value.into().downcast()
+    }
+
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
+        let value = value.into();
+        if value.get_type().eq(timedelta(value.py()).unwrap()).unwrap() {
+            unsafe { return Ok(value.downcast_unchecked()) }
+        }
+        Err(PyDowncastError::new(value, "timedelta"))
+    }
+
+    #[inline]
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
+        value.into().downcast_unchecked()
+    }
+}
+
 impl PyDelta {
     /// Creates a new `timedelta`.
     pub fn new(
@@ -549,32 +587,71 @@ impl PyDelta {
         microseconds: i32,
         normalize: bool,
     ) -> PyResult<&PyDelta> {
-        let api = ensure_datetime_api(py);
-        unsafe {
-            let ptr = (api.Delta_FromDelta)(
-                days as c_int,
-                seconds as c_int,
-                microseconds as c_int,
-                normalize as c_int,
-                api.DeltaType,
-            );
-            py.from_owned_ptr_or_err(ptr)
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py);
+            unsafe {
+                let ptr = (api.Delta_FromDelta)(
+                    days as c_int,
+                    seconds as c_int,
+                    microseconds as c_int,
+                    normalize as c_int,
+                    api.DeltaType,
+                );
+                py.from_owned_ptr_or_err(ptr)
+            }
+        }
+        #[cfg(Py_LIMITED_API)]
+        {
+            // TODO: normalize is always true in the Python API, warn or fail if false?
+            timedelta(py)?
+                .call1((days, seconds, microseconds))?
+                .extract()
         }
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
+        #[cfg(not(Py_LIMITED_API))]
+        unsafe {
+            PyDateTime_DELTA_GET_DAYS(self.as_ptr())
+        }
+        #[cfg(Py_LIMITED_API)]
+        {
+            self.getattr(intern!(self.py(), "days"))
+                .unwrap()
+                .extract()
+                .unwrap()
+        }
     }
 
     fn get_seconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) }
+        #[cfg(not(Py_LIMITED_API))]
+        unsafe {
+            PyDateTime_DELTA_GET_SECONDS(self.as_ptr())
+        }
+        #[cfg(Py_LIMITED_API)]
+        {
+            self.getattr(intern!(self.py(), "seconds"))
+                .unwrap()
+                .extract()
+                .unwrap()
+        }
     }
 
     fn get_microseconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) }
+        #[cfg(not(Py_LIMITED_API))]
+        unsafe {
+            PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr())
+        }
+        #[cfg(Py_LIMITED_API)]
+        {
+            self.getattr(intern!(self.py(), "microseconds"))
+                .unwrap()
+                .extract()
+                .unwrap()
+        }
     }
 }
 
@@ -588,14 +665,20 @@ fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
     }
 }
 
-#[cfg(all(test, not(Py_LIMITED_API)))]
+#[cfg(Py_LIMITED_API)]
+fn timedelta(py: Python<'_>) -> PyResult<&PyAny> {
+    py.import(intern!(py, "datetime"))?
+        .getattr(intern!(py, "timedelta"))
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "macros")]
+    #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
     use crate::py_run;
 
     #[test]
-    #[cfg(feature = "macros")]
+    #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_datetime_fromtimestamp() {
         Python::with_gil(|py| {
@@ -616,7 +699,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "macros")]
+    #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_date_fromtimestamp() {
         Python::with_gil(|py| {
@@ -630,6 +713,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_new_with_fold() {
         Python::with_gil(|py| {
@@ -642,6 +726,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
@@ -666,7 +751,18 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "macros", feature = "chrono"))]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+    fn test_delta() {
+        Python::with_gil(|py| {
+            let delta = PyDelta::new(py, 1, 2, 3, true).unwrap();
+            assert_eq!(delta.get_days(), 1);
+            assert_eq!(delta.get_seconds(), 2);
+            assert_eq!(delta.get_microseconds(), 3);
+        });
+    }
+
+    #[test]
+    #[cfg(all(feature = "chrono", not(Py_LIMITED_API)))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_timezone_from_offset() {
         Python::with_gil(|py| {
