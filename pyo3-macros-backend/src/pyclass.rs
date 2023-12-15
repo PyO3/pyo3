@@ -875,7 +875,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl _pyo3::IntoPy<_pyo3::PyObject> for #cls {
                     fn into_py(self, py: _pyo3::Python) -> _pyo3::PyObject {
-                        _pyo3::IntoPy::into_py(_pyo3::Py::new(py, self).unwrap(), py)
+                        _pyo3::IntoPy::into_py(_pyo3::PyDetached::new(py, self).unwrap(), py)
                     }
                 }
             }

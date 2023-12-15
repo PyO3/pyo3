@@ -50,7 +50,7 @@ impl ClassWithProperties {
 #[test]
 fn class_with_properties() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, ClassWithProperties { num: 10 }).unwrap();
+        let inst = PyDetached::new(py, ClassWithProperties { num: 10 }).unwrap();
 
         py_run!(py, inst, "assert inst.get_num() == 10");
         py_run!(py, inst, "assert inst.get_num() == inst.DATA");
@@ -87,7 +87,7 @@ impl GetterSetter {
 #[test]
 fn getter_setter_autogen() {
     Python::with_gil(|py| {
-        let inst = Py::new(
+        let inst = PyDetached::new(
             py,
             GetterSetter {
                 num: 10,
@@ -128,7 +128,7 @@ impl RefGetterSetter {
 fn ref_getter_setter() {
     // Regression test for #837
     Python::with_gil(|py| {
-        let inst = Py::new(py, RefGetterSetter { num: 10 }).unwrap();
+        let inst = PyDetached::new(py, RefGetterSetter { num: 10 }).unwrap();
 
         py_run!(py, inst, "assert inst.num == 10");
         py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
@@ -154,7 +154,7 @@ impl TupleClassGetterSetter {
 #[test]
 fn tuple_struct_getter_setter() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, TupleClassGetterSetter(10)).unwrap();
+        let inst = PyDetached::new(py, TupleClassGetterSetter(10)).unwrap();
 
         py_assert!(py, inst, "inst.num == 10");
         py_run!(py, inst, "inst.num = 20");
@@ -170,7 +170,7 @@ struct All {
 #[test]
 fn get_set_all() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, All { num: 10 }).unwrap();
+        let inst = PyDetached::new(py, All { num: 10 }).unwrap();
 
         py_run!(py, inst, "assert inst.num == 10");
         py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
@@ -186,7 +186,7 @@ struct All2 {
 #[test]
 fn get_all_and_set() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, All2 { num: 10 }).unwrap();
+        let inst = PyDetached::new(py, All2 { num: 10 }).unwrap();
 
         py_run!(py, inst, "assert inst.num == 10");
         py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
@@ -205,7 +205,7 @@ fn cell_getter_setter() {
         cell_inner: Cell::new(10),
     };
     Python::with_gil(|py| {
-        let inst = Py::new(py, c).unwrap().to_object(py);
+        let inst = PyDetached::new(py, c).unwrap().to_object(py);
         let cell = Cell::new(20).to_object(py);
 
         py_run!(py, cell, "assert cell == 20");
@@ -232,7 +232,7 @@ fn borrowed_value_with_lifetime_of_self() {
     }
 
     Python::with_gil(|py| {
-        let inst = Py::new(py, BorrowedValue {}).unwrap().to_object(py);
+        let inst = PyDetached::new(py, BorrowedValue {}).unwrap().to_object(py);
 
         py_run!(py, inst, "assert inst.value == 'value'");
     });

@@ -29,7 +29,7 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 /// - `Py<Self>::as_ref` will hand out references to `Self::AsRefTarget`.
 /// - `Self::AsRefTarget` must have the same layout as `UnsafeCell<ffi::PyAny>`.
 pub unsafe trait HasPyGilRef {
-    /// Utility type to make Py::as_ref work.
+    /// Utility type to make PyDetached::as_ref work.
     type AsRefTarget: PyNativeType;
 }
 

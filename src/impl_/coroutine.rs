@@ -8,7 +8,7 @@ use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
     pyclass::boolean_struct::False,
     types::PyString,
-    IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, Python,
+    IntoPy, PyAny, PyCell, PyClass, PyDetached, PyErr, PyObject, PyResult, Python,
 };
 
 pub fn new_coroutine<F, T, E>(
@@ -25,16 +25,16 @@ where
     Coroutine::new(Some(name.into()), qualname_prefix, throw_callback, future)
 }
 
-fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {
-    // SAFETY: Py<T> can be casted as *const PyCell<T>
+fn get_ptr<T: PyClass>(obj: &PyDetached<T>) -> *mut T {
+    // SAFETY: PyDetached<T> can be casted as *const PyCell<T>
     unsafe { &*(obj.as_ptr() as *const PyCell<T>) }.get_ptr()
 }
 
-pub struct RefGuard<T: PyClass>(Py<T>);
+pub struct RefGuard<T: PyClass>(PyDetached<T>);
 
 impl<T: PyClass> RefGuard<T> {
     pub fn new(obj: &PyAny) -> PyResult<Self> {
-        let owned: Py<T> = obj.extract()?;
+        let owned: PyDetached<T> = obj.extract()?;
         mem::forget(owned.try_borrow(obj.py())?);
         Ok(RefGuard(owned))
     }
@@ -54,11 +54,11 @@ impl<T: PyClass> Drop for RefGuard<T> {
     }
 }
 
-pub struct RefMutGuard<T: PyClass<Frozen = False>>(Py<T>);
+pub struct RefMutGuard<T: PyClass<Frozen = False>>(PyDetached<T>);
 
 impl<T: PyClass<Frozen = False>> RefMutGuard<T> {
     pub fn new(obj: &PyAny) -> PyResult<Self> {
-        let owned: Py<T> = obj.extract()?;
+        let owned: PyDetached<T> = obj.extract()?;
         mem::forget(owned.try_borrow_mut(obj.py())?);
         Ok(RefMutGuard(owned))
     }

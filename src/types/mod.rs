@@ -158,18 +158,18 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
+        impl<$($generics,)*> $crate::IntoPy<$crate::PyDetached<$name>> for &'_ $name {
             #[inline]
-            fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
-                unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
+            fn into_py(self, py: $crate::Python<'_>) -> $crate::PyDetached<$name> {
+                unsafe { $crate::PyDetached::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
 
-        impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
+        impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::PyDetached<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
                 use $crate::PyNativeType;
-                unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
+                unsafe { $crate::PyDetached::from_borrowed_ptr(other.py(), other.as_ptr()) }
             }
         }
 

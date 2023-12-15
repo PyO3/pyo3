@@ -77,7 +77,7 @@ fn __call__(
     py: Python<'_>,
     args: &PyTuple,
     kwargs: Option<&PyDict>,
-) -> PyResult<Py<PyAny>> {
+) -> PyResult<PyDetached<PyAny>> {
     self.count += 1;
     let name = self.wraps.getattr(py, "__name__")?;
 

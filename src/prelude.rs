@@ -11,11 +11,14 @@
 pub use crate::conversion::{FromPyObject, IntoPy, ToPyObject};
 pub use crate::conversion::{PyTryFrom, PyTryInto};
 pub use crate::err::{PyErr, PyResult};
-pub use crate::instance::{Py, PyObject};
+pub use crate::instance::{PyDetached, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
+
+#[allow(deprecated)]
+pub use crate::Py;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};

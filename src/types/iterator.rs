@@ -108,7 +108,7 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
-    use crate::{Py, PyAny, Python, ToPyObject};
+    use crate::{PyAny, PyDetached, Python, ToPyObject};
 
     #[test]
     fn vec_iter() {
@@ -218,7 +218,8 @@ def fibonacci(target):
 
     fn iterator_try_from() {
         Python::with_gil(|py| {
-            let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
+            let obj: PyDetached<PyAny> =
+                vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
             let iter: &PyIterator = obj.downcast(py).unwrap();
             assert!(obj.is(iter));
         });
@@ -243,7 +244,7 @@ def fibonacci(target):
 
         // Regression test for 2913
         Python::with_gil(|py| {
-            let downcaster = Py::new(py, Downcaster { failed: None }).unwrap();
+            let downcaster = PyDetached::new(py, Downcaster { failed: None }).unwrap();
             crate::py_run!(
                 py,
                 downcaster,

@@ -309,7 +309,7 @@ mod tests {
     use libc::c_void;
 
     use crate::prelude::PyModule;
-    use crate::{types::PyCapsule, Py, PyResult, Python};
+    use crate::{types::PyCapsule, PyDetached, PyResult, Python};
     use std::ffi::CString;
     use std::sync::mpsc::{channel, Sender};
 
@@ -347,7 +347,7 @@ mod tests {
             x
         }
 
-        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+        let cap: PyDetached<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, foo as fn(u32) -> u32, Some(name)).unwrap();
             cap.into()
@@ -408,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_vec_storage() {
-        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+        let cap: PyDetached<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
 
             let stuff: Vec<u8> = vec![1, 2, 3, 4];
@@ -427,7 +427,7 @@ mod tests {
     fn test_vec_context() {
         let context: Vec<u8> = vec![1, 2, 3, 4];
 
-        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+        let cap: PyDetached<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, 0, Some(name)).unwrap();
             cap.set_context(Box::into_raw(Box::new(&context)) as _)

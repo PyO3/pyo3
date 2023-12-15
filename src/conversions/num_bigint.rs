@@ -48,7 +48,7 @@
 //! ```
 
 use crate::{
-    ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    ffi, types::*, FromPyObject, IntoPy, PyAny, PyDetached, PyObject, PyResult, Python, ToPyObject,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -110,11 +110,12 @@ impl<'source> FromPyObject<'source> for BigInt {
     fn extract(ob: &'source PyAny) -> PyResult<BigInt> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyLong>;
+        let num_owned: PyDetached<PyLong>;
         let num = if let Ok(long) = ob.downcast::<PyLong>() {
             long
         } else {
-            num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
+            num_owned =
+                unsafe { PyDetached::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
             num_owned.as_ref(py)
         };
         let n_bits = int_n_bits(num)?;
@@ -158,11 +159,12 @@ impl<'source> FromPyObject<'source> for BigUint {
     fn extract(ob: &'source PyAny) -> PyResult<BigUint> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyLong>;
+        let num_owned: PyDetached<PyLong>;
         let num = if let Ok(long) = ob.downcast::<PyLong>() {
             long
         } else {
-            num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
+            num_owned =
+                unsafe { PyDetached::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
             num_owned.as_ref(py)
         };
         let n_bits = int_n_bits(num)?;

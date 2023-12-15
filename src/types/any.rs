@@ -9,7 +9,7 @@ use crate::type_object::{HasPyGilRef, PyTypeCheck, PyTypeInfo};
 #[cfg(not(PyPy))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, PyNativeType, Python};
+use crate::{err, ffi, PyDetached, PyNativeType, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -27,8 +27,8 @@ use std::os::raw::c_int;
 /// - It can't be used in situations where the GIL is temporarily released,
 /// such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
 /// - The underlying Python object, if mutable, can be mutated through any reference.
-/// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
-/// allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
+/// - It can be converted to the GIL-independent [`PyDetached`]`<`[`PyAny`]`>`,
+/// allowing it to outlive the GIL scope. However, using [`PyDetached`]`<`[`PyAny`]`>`'s API
 /// *does* require a [`Python<'py>`](crate::Python) token.
 ///
 /// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
@@ -100,7 +100,7 @@ impl PyAny {
     /// ```
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         Py2::borrowed_from_gil_ref(&self).hasattr(attr_name)
     }
@@ -129,7 +129,7 @@ impl PyAny {
     /// ```
     pub fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         Py2::borrowed_from_gil_ref(&self)
             .getattr(attr_name)
@@ -149,7 +149,7 @@ impl PyAny {
     #[allow(dead_code)] // Currently only used with num-complex+abi3, so dead without that.
     pub(crate) fn lookup_special<N>(&self, attr_name: N) -> PyResult<Option<&PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         let py = self.py();
         let self_type = self.get_type();
@@ -205,7 +205,7 @@ impl PyAny {
     /// ```
     pub fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
         V: ToPyObject,
     {
         Py2::borrowed_from_gil_ref(&self).setattr(attr_name, value)
@@ -219,7 +219,7 @@ impl PyAny {
     /// to intern `attr_name`.
     pub fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         Py2::borrowed_from_gil_ref(&self).delattr(attr_name)
     }
@@ -443,7 +443,7 @@ impl PyAny {
     /// ```
     pub fn call(
         &self,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<PyDetached<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny> {
         Py2::borrowed_from_gil_ref(&self)
@@ -504,7 +504,7 @@ impl PyAny {
     /// })
     /// # }
     /// ```
-    pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call1(&self, args: impl IntoPy<PyDetached<PyTuple>>) -> PyResult<&PyAny> {
         Py2::borrowed_from_gil_ref(&self)
             .call1(args)
             .map(Py2::into_gil_ref)
@@ -547,8 +547,8 @@ impl PyAny {
     /// ```
     pub fn call_method<N, A>(&self, name: N, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyAny>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>,
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>,
     {
         Py2::borrowed_from_gil_ref(&self)
             .call_method(name, args, kwargs)
@@ -588,7 +588,7 @@ impl PyAny {
     /// ```
     pub fn call_method0<N>(&self, name: N) -> PyResult<&PyAny>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         Py2::borrowed_from_gil_ref(&self)
             .call_method0(name)
@@ -629,8 +629,8 @@ impl PyAny {
     /// ```
     pub fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<&PyAny>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>,
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>,
     {
         Py2::borrowed_from_gil_ref(&self)
             .call_method1(name, args)
@@ -762,7 +762,7 @@ impl PyAny {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class: &PyAny = PyDetached::new(py, Class { i: 0 }).unwrap().into_ref(py);
     ///
     ///     let class_cell: &PyCell<Class> = class.downcast()?;
     ///
@@ -1021,7 +1021,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// ```
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPy<PyDetached<PyString>>;
 
     /// Retrieves an attribute value.
     ///
@@ -1047,7 +1047,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// ```
     fn getattr<N>(&self, attr_name: N) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPy<PyDetached<PyString>>;
 
     /// Sets an attribute value.
     ///
@@ -1073,7 +1073,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// ```
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
         V: ToPyObject;
 
     /// Deletes an attribute.
@@ -1084,7 +1084,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// to intern `attr_name`.
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPy<PyDetached<PyString>>;
 
     /// Returns an [`Ordering`] between `self` and `other`.
     ///
@@ -1277,7 +1277,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// ```
     fn call(
         &self,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<PyDetached<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py2<'py, PyAny>>;
 
@@ -1330,7 +1330,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// })
     /// # }
     /// ```
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<Py2<'py, PyAny>>;
+    fn call1(&self, args: impl IntoPy<PyDetached<PyTuple>>) -> PyResult<Py2<'py, PyAny>>;
 
     /// Calls a method on the object.
     ///
@@ -1374,8 +1374,8 @@ pub(crate) trait PyAnyMethods<'py> {
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>;
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>;
 
     /// Calls a method on the object without arguments.
     ///
@@ -1410,7 +1410,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// ```
     fn call_method0<N>(&self, name: N) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>;
+        N: IntoPy<PyDetached<PyString>>;
 
     /// Calls a method on the object with only positional arguments.
     ///
@@ -1446,8 +1446,8 @@ pub(crate) trait PyAnyMethods<'py> {
     /// ```
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>;
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>;
 
     /// Returns whether the object is considered to be true.
     ///
@@ -1542,7 +1542,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class: &PyAny = PyDetached::new(py, Class { i: 0 }).unwrap().into_ref(py);
     ///
     ///     let class_cell: &PyCell<Class> = class.downcast()?;
     ///
@@ -1692,7 +1692,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
         // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
@@ -1709,7 +1709,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         fn inner<'py>(
             any: &Py2<'py, PyAny>,
@@ -1727,7 +1727,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
         V: ToPyObject,
     {
         fn inner(
@@ -1750,7 +1750,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         fn inner(any: &Py2<'_, PyAny>, attr_name: Py2<'_, PyString>) -> PyResult<()> {
             err::error_on_minusone(any.py(), unsafe {
@@ -1865,7 +1865,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn call(
         &self,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<PyDetached<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py2<'py, PyAny>> {
         fn inner<'py>(
@@ -1903,7 +1903,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         }
     }
 
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<Py2<'py, PyAny>> {
+    fn call1(&self, args: impl IntoPy<PyDetached<PyTuple>>) -> PyResult<Py2<'py, PyAny>> {
         self.call(args, None)
     }
 
@@ -1914,8 +1914,8 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>,
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>,
     {
         self.getattr(name)
             .and_then(|method| method.call(args, kwargs))
@@ -1923,7 +1923,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn call_method0<N>(&self, name: N) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         cfg_if::cfg_if! {
             if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy))))] {
@@ -1942,8 +1942,8 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
 
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Py2<'py, PyAny>>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>,
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>,
     {
         self.call_method(name, args, None)
     }
@@ -2362,7 +2362,7 @@ class SimpleClass:
         }
 
         Python::with_gil(|py| {
-            let obj = Py::new(py, GetattrFail).unwrap();
+            let obj = PyDetached::new(py, GetattrFail).unwrap();
             let obj = obj.as_ref(py).as_ref();
 
             assert!(obj

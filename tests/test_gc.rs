@@ -17,18 +17,18 @@ struct ClassWithFreelist {}
 #[test]
 fn class_with_freelist() {
     let ptr = Python::with_gil(|py| {
-        let inst = Py::new(py, ClassWithFreelist {}).unwrap();
-        let _inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
+        let inst = PyDetached::new(py, ClassWithFreelist {}).unwrap();
+        let _inst2 = PyDetached::new(py, ClassWithFreelist {}).unwrap();
         let ptr = inst.as_ptr();
         drop(inst);
         ptr
     });
 
     Python::with_gil(|py| {
-        let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
+        let inst3 = PyDetached::new(py, ClassWithFreelist {}).unwrap();
         assert_eq!(ptr, inst3.as_ptr());
 
-        let inst4 = Py::new(py, ClassWithFreelist {}).unwrap();
+        let inst4 = PyDetached::new(py, ClassWithFreelist {}).unwrap();
         assert_ne!(ptr, inst4.as_ptr())
     });
 }
@@ -64,7 +64,7 @@ fn data_is_dropped() {
                 drop_called: Arc::clone(&drop_called2),
             },
         };
-        let inst = Py::new(py, data_is_dropped).unwrap();
+        let inst = PyDetached::new(py, data_is_dropped).unwrap();
         assert!(!drop_called1.load(Ordering::Relaxed));
         assert!(!drop_called2.load(Ordering::Relaxed));
         drop(inst);
@@ -124,8 +124,8 @@ fn gc_integration() {
 
 #[pyclass]
 struct GcNullTraversal {
-    cycle: Option<Py<Self>>,
-    null: Option<Py<Self>>,
+    cycle: Option<PyDetached<Self>>,
+    null: Option<PyDetached<Self>>,
 }
 
 #[pymethods]
@@ -145,7 +145,7 @@ impl GcNullTraversal {
 #[test]
 fn gc_null_traversal() {
     Python::with_gil(|py| {
-        let obj = Py::new(
+        let obj = PyDetached::new(
             py,
             GcNullTraversal {
                 cycle: None,
@@ -309,7 +309,7 @@ fn traverse_partial() {
         let traverse = get_type_traverse(ty).unwrap();
 
         // confirm that traversing errors
-        let obj = Py::new(py, PartialTraverse::new(py)).unwrap();
+        let obj = PyDetached::new(py, PartialTraverse::new(py)).unwrap();
         assert_eq!(
             traverse(obj.as_ptr(), visit_error, std::ptr::null_mut()),
             -1
@@ -346,7 +346,7 @@ fn traverse_panic() {
         let traverse = get_type_traverse(ty).unwrap();
 
         // confirm that traversing errors
-        let obj = Py::new(py, PanickyTraverse::new(py)).unwrap();
+        let obj = PyDetached::new(py, PanickyTraverse::new(py)).unwrap();
         assert_eq!(traverse(obj.as_ptr(), novisit, std::ptr::null_mut()), -1);
     })
 }
@@ -369,7 +369,7 @@ fn tries_gil_in_traverse() {
         let traverse = get_type_traverse(ty).unwrap();
 
         // confirm that traversing panicks
-        let obj = Py::new(py, TriesGILInTraverse {}).unwrap();
+        let obj = PyDetached::new(py, TriesGILInTraverse {}).unwrap();
         assert_eq!(traverse(obj.as_ptr(), novisit, std::ptr::null_mut()), -1);
     })
 }
@@ -431,7 +431,7 @@ fn traverse_cannot_be_hijacked() {
 #[allow(dead_code)]
 #[pyclass]
 struct DropDuringTraversal {
-    cycle: Cell<Option<Py<Self>>>,
+    cycle: Cell<Option<PyDetached<Self>>>,
     dropped: TestDropCall,
 }
 
@@ -453,7 +453,7 @@ fn drop_during_traversal_with_gil() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
     Python::with_gil(|py| {
-        let inst = Py::new(
+        let inst = PyDetached::new(
             py,
             DropDuringTraversal {
                 cycle: Cell::new(None),
@@ -484,7 +484,7 @@ fn drop_during_traversal_without_gil() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
     let inst = Python::with_gil(|py| {
-        let inst = Py::new(
+        let inst = PyDetached::new(
             py,
             DropDuringTraversal {
                 cycle: Cell::new(None),

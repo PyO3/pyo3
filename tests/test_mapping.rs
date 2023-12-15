@@ -119,7 +119,7 @@ fn mapping_is_not_sequence() {
         let mut index = HashMap::new();
         index.insert("Foo".into(), 1);
         index.insert("Bar".into(), 2);
-        let m = Py::new(py, Mapping { index }).unwrap();
+        let m = PyDetached::new(py, Mapping { index }).unwrap();
 
         PyMapping::register::<Mapping>(py).unwrap();
 

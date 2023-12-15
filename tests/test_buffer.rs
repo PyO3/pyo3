@@ -87,7 +87,7 @@ impl TestBufferErrors {
 #[test]
 fn test_get_buffer_errors() {
     Python::with_gil(|py| {
-        let instance = Py::new(
+        let instance = PyDetached::new(
             py,
             TestBufferErrors {
                 buf: vec![0, 1, 2, 3],

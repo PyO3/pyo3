@@ -6,7 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 use crate::{
-    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+    ffi, gil, PyAny, PyCell, PyClass, PyDetached, PyNativeType, PyObject, PyRef, PyRefMut, Python,
 };
 use std::cell::Cell;
 use std::ptr::NonNull;
@@ -24,7 +24,7 @@ use std::ptr::NonNull;
 /// use pyo3::ffi;
 ///
 /// Python::with_gil(|py| {
-///     let s: Py<PyString> = "foo".into_py(py);
+///     let s: PyDetached<PyString> = "foo".into_py(py);
 ///     let ptr = s.as_ptr();
 ///
 ///     let is_really_a_pystring = unsafe { ffi::PyUnicode_CheckExact(ptr) };
@@ -180,7 +180,7 @@ pub trait IntoPy<T>: Sized {
 /// Extract a type from a Python object.
 ///
 ///
-/// Normal usage is through the `extract` methods on [`Py`] and  [`PyAny`], which forward to this trait.
+/// Normal usage is through the `extract` methods on [`PyDetached`] and  [`PyAny`], which forward to this trait.
 ///
 /// # Examples
 ///
@@ -190,7 +190,7 @@ pub trait IntoPy<T>: Sized {
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let obj: Py<PyString> = PyString::new(py, "blah").into();
+///     let obj: PyDetached<PyString> = PyString::new(py, "blah").into();
 ///
 ///     // Straight from an owned reference
 ///     let s: &str = obj.extract(py)?;
@@ -440,8 +440,8 @@ mod implementations {
 }
 
 /// Converts `()` to an empty Python tuple.
-impl IntoPy<Py<PyTuple>> for () {
-    fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
+impl IntoPy<PyDetached<PyTuple>> for () {
+    fn into_py(self, py: Python<'_>) -> PyDetached<PyTuple> {
         PyTuple::empty(py).into()
     }
 }
@@ -547,7 +547,7 @@ where
 /// let t = TestClass { num: 10 };
 ///
 /// Python::with_gil(|py| {
-///     let pyvalue = Py::new(py, t).unwrap().to_object(py);
+///     let pyvalue = PyDetached::new(py, t).unwrap().to_object(py);
 ///     let t: TestClass = pyvalue.extract(py).unwrap();
 /// })
 /// ```

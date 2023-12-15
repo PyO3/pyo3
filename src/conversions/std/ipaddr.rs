@@ -3,7 +3,9 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
 use crate::types::PyType;
-use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    intern, FromPyObject, IntoPy, PyAny, PyDetached, PyObject, PyResult, Python, ToPyObject,
+};
 
 impl FromPyObject<'_> for IpAddr {
     fn extract(obj: &PyAny) -> PyResult<Self> {
@@ -27,7 +29,7 @@ impl FromPyObject<'_> for IpAddr {
 
 impl ToPyObject for Ipv4Addr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        static IPV4_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        static IPV4_ADDRESS: GILOnceCell<PyDetached<PyType>> = GILOnceCell::new();
         IPV4_ADDRESS
             .get_or_try_init_type_ref(py, "ipaddress", "IPv4Address")
             .expect("failed to load ipaddress.IPv4Address")
@@ -39,7 +41,7 @@ impl ToPyObject for Ipv4Addr {
 
 impl ToPyObject for Ipv6Addr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        static IPV6_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        static IPV6_ADDRESS: GILOnceCell<PyDetached<PyType>> = GILOnceCell::new();
         IPV6_ADDRESS
             .get_or_try_init_type_ref(py, "ipaddress", "IPv6Address")
             .expect("failed to load ipaddress.IPv6Address")

@@ -11,12 +11,12 @@ use std::{
 
 use crate::{
     callback::PyCallbackOutput, ffi, impl_::panic::PanicTrap, methods::IPowModulo,
-    panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
+    panic::PanicException, types::PyModule, GILPool, PyDetached, PyResult, Python,
 };
 
 #[inline]
 pub unsafe fn module_init(
-    f: for<'py> unsafe fn(Python<'py>) -> PyResult<Py<PyModule>>,
+    f: for<'py> unsafe fn(Python<'py>) -> PyResult<PyDetached<PyModule>>,
 ) -> *mut ffi::PyObject {
     trampoline(|py| f(py).map(|module| module.into_ptr()))
 }

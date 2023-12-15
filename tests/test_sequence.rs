@@ -73,7 +73,7 @@ impl ByteSequence {
         Self { elements }
     }
 
-    fn __inplace_concat__(mut slf: PyRefMut<'_, Self>, other: &Self) -> Py<Self> {
+    fn __inplace_concat__(mut slf: PyRefMut<'_, Self>, other: &Self) -> PyDetached<Self> {
         slf.elements.extend_from_slice(&other.elements);
         slf.into()
     }
@@ -90,7 +90,7 @@ impl ByteSequence {
         }
     }
 
-    fn __inplace_repeat__(mut slf: PyRefMut<'_, Self>, count: isize) -> PyResult<Py<Self>> {
+    fn __inplace_repeat__(mut slf: PyRefMut<'_, Self>, count: isize) -> PyResult<PyDetached<Self>> {
         if count >= 0 {
             let mut elements = Vec::with_capacity(slf.elements.len() * count as usize);
             for _ in 0..count {

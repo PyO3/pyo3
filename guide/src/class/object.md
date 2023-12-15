@@ -143,7 +143,7 @@ impl Number {
 > #[pymethods]
 > impl NotHashable {
 >     #[classattr]
->     const __hash__: Option<Py<PyAny>> = None;
+>     const __hash__: Option<PyDetached<PyAny>> = None;
 > }
 > ```
 

@@ -76,11 +76,11 @@ let obj: &PyAny = PyList::empty(py);
 // To &PyList with PyAny::downcast
 let _: &PyList = obj.downcast()?;
 
-// To Py<PyAny> (aka PyObject) with .into()
-let _: Py<PyAny> = obj.into();
+// To PyDetached<PyAny> (aka PyObject) with .into()
+let _: PyDetached<PyAny> = obj.into();
 
-// To Py<PyList> with PyAny::extract
-let _: Py<PyList> = obj.extract()?;
+// To PyDetached<PyList> with PyAny::extract
+let _: PyDetached<PyList> = obj.extract()?;
 # Ok(())
 # }).unwrap();
 ```
@@ -91,16 +91,16 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 # use pyo3::prelude::*;
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
+let obj: &PyAny = PyDetached::new(py, MyClass {})?.into_ref(py);
 
 // To &PyCell<MyClass> with PyAny::downcast
 let _: &PyCell<MyClass> = obj.downcast()?;
 
-// To Py<PyAny> (aka PyObject) with .into()
-let _: Py<PyAny> = obj.into();
+// To PyDetached<PyAny> (aka PyObject) with .into()
+let _: PyDetached<PyAny> = obj.into();
 
-// To Py<MyClass> with PyAny::extract
-let _: Py<MyClass> = obj.extract()?;
+// To PyDetached<MyClass> with PyAny::extract
+let _: PyDetached<MyClass> = obj.extract()?;
 
 // To MyClass with PyAny::extract, if MyClass: Clone
 let _: MyClass = obj.extract()?;
@@ -144,8 +144,8 @@ let _: &PyAny = list;
 // To &PyAny explicitly with .as_ref()
 let _: &PyAny = list.as_ref();
 
-// To Py<T> with .into() or Py::from()
-let _: Py<PyList> = list.into();
+// To PyDetached<T> with .into() or PyDetached::from()
+let _: PyDetached<PyList> = list.into();
 
 // To PyObject with .into() or .to_object(py)
 let _: PyObject = list.into();
@@ -173,18 +173,18 @@ For a `Py<PyList>`, the conversions are as below:
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # Python::with_gil(|py| {
-let list: Py<PyList> = PyList::empty(py).into();
+let list: PyDetached<PyList> = PyList::empty(py).into();
 
-// To &PyList with Py::as_ref() (borrows from the Py)
+// To &PyList with PyDetached::as_ref() (borrows from the Py)
 let _: &PyList = list.as_ref(py);
 
 # let list_clone = list.clone(); // Because `.into_ref()` will consume `list`.
-// To &PyList with Py::into_ref() (moves the pointer into PyO3's object storage)
+// To &PyList with PyDetached::into_ref() (moves the pointer into PyO3's object storage)
 let _: &PyList = list.into_ref(py);
 
 # let list = list_clone;
-// To Py<PyAny> (aka PyObject) with .into()
-let _: Py<PyAny> = list.into();
+// To PyDetached<PyAny> (aka PyObject) with .into()
+let _: PyDetached<PyAny> = list.into();
 # })
 ```
 
@@ -195,24 +195,24 @@ For a `#[pyclass] struct MyClass`, the conversions for `Py<MyClass>` are below:
 # Python::with_gil(|py| {
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let my_class: Py<MyClass> = Py::new(py, MyClass { })?;
+let my_class: PyDetached<MyClass> = PyDetached::new(py, MyClass { })?;
 
-// To &PyCell<MyClass> with Py::as_ref() (borrows from the Py)
+// To &PyCell<MyClass> with PyDetached::as_ref() (borrows from the Py)
 let _: &PyCell<MyClass> = my_class.as_ref(py);
 
 # let my_class_clone = my_class.clone(); // Because `.into_ref()` will consume `my_class`.
-// To &PyCell<MyClass> with Py::into_ref() (moves the pointer into PyO3's object storage)
+// To &PyCell<MyClass> with PyDetached::into_ref() (moves the pointer into PyO3's object storage)
 let _: &PyCell<MyClass> = my_class.into_ref(py);
 
 # let my_class = my_class_clone.clone();
-// To Py<PyAny> (aka PyObject) with .into_py(py)
-let _: Py<PyAny> = my_class.into_py(py);
+// To PyDetached<PyAny> (aka PyObject) with .into_py(py)
+let _: PyDetached<PyAny> = my_class.into_py(py);
 
 # let my_class = my_class_clone;
-// To PyRef<'_, MyClass> with Py::borrow or Py::try_borrow
+// To PyRef<'_, MyClass> with PyDetached::borrow or PyDetached::try_borrow
 let _: PyRef<'_, MyClass> = my_class.try_borrow(py)?;
 
-// To PyRefMut<'_, MyClass> with Py::borrow_mut or Py::try_borrow_mut
+// To PyRefMut<'_, MyClass> with PyDetached::borrow_mut or PyDetached::try_borrow_mut
 let _: PyRefMut<'_, MyClass> = my_class.try_borrow_mut(py)?;
 # Ok(())
 # }).unwrap();

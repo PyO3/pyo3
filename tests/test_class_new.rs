@@ -215,8 +215,8 @@ struct NewExisting {
 #[pymethods]
 impl NewExisting {
     #[new]
-    fn new(py: pyo3::Python<'_>, val: usize) -> pyo3::Py<NewExisting> {
-        static PRE_BUILT: GILOnceCell<[pyo3::Py<NewExisting>; 2]> = GILOnceCell::new();
+    fn new(py: pyo3::Python<'_>, val: usize) -> pyo3::PyDetached<NewExisting> {
+        static PRE_BUILT: GILOnceCell<[pyo3::PyDetached<NewExisting>; 2]> = GILOnceCell::new();
         let existing = PRE_BUILT.get_or_init(py, || {
             [
                 pyo3::PyCell::new(py, NewExisting { num: 0 })

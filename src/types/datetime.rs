@@ -21,7 +21,7 @@ use crate::ffi::{
 };
 use crate::instance::PyNativeType;
 use crate::types::PyTuple;
-use crate::{AsPyPointer, IntoPy, Py, PyAny, Python};
+use crate::{AsPyPointer, IntoPy, PyAny, PyDetached, Python};
 use std::os::raw::c_int;
 #[cfg(feature = "chrono")]
 use std::ptr;
@@ -312,7 +312,7 @@ impl PyDateTime {
         timestamp: f64,
         tzinfo: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyDateTime> {
-        let args: Py<PyTuple> = (timestamp, tzinfo).into_py(py);
+        let args: PyDetached<PyTuple> = (timestamp, tzinfo).into_py(py);
 
         // safety ensure API is loaded
         let _api = ensure_datetime_api(py);

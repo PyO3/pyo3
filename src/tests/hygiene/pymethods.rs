@@ -114,8 +114,11 @@ impl Dummy {
 
     fn __delitem__(&self, key: u32) {}
 
-    fn __iter__(_: crate::pycell::PyRef<'_, Self>, py: crate::Python<'_>) -> crate::Py<DummyIter> {
-        crate::Py::new(py, DummyIter {}).unwrap()
+    fn __iter__(
+        _: crate::pycell::PyRef<'_, Self>,
+        py: crate::Python<'_>,
+    ) -> crate::PyDetached<DummyIter> {
+        crate::PyDetached::new(py, DummyIter {}).unwrap()
     }
 
     fn __next__(&mut self) -> ::std::option::Option<()> {
@@ -125,8 +128,8 @@ impl Dummy {
     fn __reversed__(
         slf: crate::pycell::PyRef<'_, Self>,
         py: crate::Python<'_>,
-    ) -> crate::Py<DummyIter> {
-        crate::Py::new(py, DummyIter {}).unwrap()
+    ) -> crate::PyDetached<DummyIter> {
+        crate::PyDetached::new(py, DummyIter {}).unwrap()
     }
 
     fn __contains__(&self, item: u32) -> bool {
@@ -343,8 +346,8 @@ impl Dummy {
     fn __aiter__(
         slf: crate::pycell::PyRef<'_, Self>,
         py: crate::Python<'_>,
-    ) -> crate::Py<DummyIter> {
-        crate::Py::new(py, DummyIter {}).unwrap()
+    ) -> crate::PyDetached<DummyIter> {
+        crate::PyDetached::new(py, DummyIter {}).unwrap()
     }
 
     fn __anext__(&mut self) -> ::std::option::Option<()> {
@@ -507,8 +510,11 @@ impl Dummy {
 
     fn __delitem__(&self, key: u32) {}
 
-    fn __iter__(_: crate::pycell::PyRef<'_, Self>, py: crate::Python<'_>) -> crate::Py<DummyIter> {
-        crate::Py::new(py, DummyIter {}).unwrap()
+    fn __iter__(
+        _: crate::pycell::PyRef<'_, Self>,
+        py: crate::Python<'_>,
+    ) -> crate::PyDetached<DummyIter> {
+        crate::PyDetached::new(py, DummyIter {}).unwrap()
     }
 
     fn __next__(&mut self) -> ::std::option::Option<()> {
@@ -518,8 +524,8 @@ impl Dummy {
     fn __reversed__(
         slf: crate::pycell::PyRef<'_, Self>,
         py: crate::Python<'_>,
-    ) -> crate::Py<DummyIter> {
-        crate::Py::new(py, DummyIter {}).unwrap()
+    ) -> crate::PyDetached<DummyIter> {
+        crate::PyDetached::new(py, DummyIter {}).unwrap()
     }
 
     fn __contains__(&self, item: u32) -> bool {
@@ -735,8 +741,8 @@ impl Dummy {
     fn __aiter__(
         slf: crate::pycell::PyRef<'_, Self>,
         py: crate::Python<'_>,
-    ) -> crate::Py<DummyIter> {
-        crate::Py::new(py, DummyIter {}).unwrap()
+    ) -> crate::PyDetached<DummyIter> {
+        crate::PyDetached::new(py, DummyIter {}).unwrap()
     }
 
     fn __anext__(&mut self) -> ::std::option::Option<()> {

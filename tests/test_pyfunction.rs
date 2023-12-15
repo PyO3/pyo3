@@ -503,8 +503,8 @@ fn test_return_value_borrows_from_arguments() {
     Python::with_gil(|py| {
         let function = wrap_pyfunction!(return_value_borrows_from_arguments, py).unwrap();
 
-        let key = Py::new(py, Key("key".to_owned())).unwrap();
-        let value = Py::new(py, Value(42)).unwrap();
+        let key = PyDetached::new(py, Key("key".to_owned())).unwrap();
+        let value = PyDetached::new(py, Value(42)).unwrap();
 
         py_assert!(py, function key value, "function(key, value) == { \"key\": 42 }");
     });

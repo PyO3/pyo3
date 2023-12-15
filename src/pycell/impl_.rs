@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn test_mutable_borrow_prevents_further_borrows() {
         Python::with_gil(|py| {
-            let mmm = Py::new(
+            let mmm = PyDetached::new(
                 py,
                 PyClassInitializer::from(MutableBase)
                     .add_subclass(MutableChildOfMutableBase)
@@ -327,7 +327,7 @@ mod tests {
     #[test]
     fn test_immutable_borrows_prevent_mutable_borrows() {
         Python::with_gil(|py| {
-            let mmm = Py::new(
+            let mmm = PyDetached::new(
                 py,
                 PyClassInitializer::from(MutableBase)
                     .add_subclass(MutableChildOfMutableBase)

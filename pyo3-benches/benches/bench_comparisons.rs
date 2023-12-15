@@ -45,8 +45,12 @@ impl OrderedRichcmp {
 
 fn bench_ordered_dunder_methods(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let obj1 = Py::new(py, OrderedDunderMethods(0)).unwrap().into_ref(py);
-        let obj2 = Py::new(py, OrderedDunderMethods(1)).unwrap().into_ref(py);
+        let obj1 = PyDetached::new(py, OrderedDunderMethods(0))
+            .unwrap()
+            .into_ref(py);
+        let obj2 = PyDetached::new(py, OrderedDunderMethods(1))
+            .unwrap()
+            .into_ref(py);
 
         b.iter(|| obj2.gt(obj1).unwrap());
     });
@@ -54,8 +58,8 @@ fn bench_ordered_dunder_methods(b: &mut Bencher<'_>) {
 
 fn bench_ordered_richcmp(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let obj1 = Py::new(py, OrderedRichcmp(0)).unwrap().into_ref(py);
-        let obj2 = Py::new(py, OrderedRichcmp(1)).unwrap().into_ref(py);
+        let obj1 = PyDetached::new(py, OrderedRichcmp(0)).unwrap().into_ref(py);
+        let obj2 = PyDetached::new(py, OrderedRichcmp(1)).unwrap().into_ref(py);
 
         b.iter(|| obj2.gt(obj1).unwrap());
     });

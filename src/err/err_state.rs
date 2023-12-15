@@ -2,16 +2,16 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     types::{PyTraceback, PyType},
-    IntoPy, Py, PyAny, PyObject, PyTypeInfo, Python,
+    IntoPy, PyAny, PyDetached, PyObject, PyTypeInfo, Python,
 };
 
 #[derive(Clone)]
 pub(crate) struct PyErrStateNormalized {
     #[cfg(not(Py_3_12))]
-    ptype: Py<PyType>,
-    pub pvalue: Py<PyBaseException>,
+    ptype: PyDetached<PyType>,
+    pub pvalue: PyDetached<PyBaseException>,
     #[cfg(not(Py_3_12))]
-    ptraceback: Option<Py<PyTraceback>>,
+    ptraceback: Option<PyDetached<PyTraceback>>,
 }
 
 impl PyErrStateNormalized {
@@ -39,7 +39,7 @@ impl PyErrStateNormalized {
 
     #[cfg(Py_3_12)]
     pub(crate) fn take(py: Python<'_>) -> Option<PyErrStateNormalized> {
-        unsafe { Py::from_owned_ptr_or_opt(py, ffi::PyErr_GetRaisedException()) }
+        unsafe { PyDetached::from_owned_ptr_or_opt(py, ffi::PyErr_GetRaisedException()) }
             .map(|pvalue| PyErrStateNormalized { pvalue })
     }
 
@@ -51,9 +51,9 @@ impl PyErrStateNormalized {
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
         PyErrStateNormalized {
-            ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
-            pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
-            ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
+            ptype: PyDetached::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
+            pvalue: PyDetached::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
+            ptraceback: PyDetached::from_owned_ptr_or_opt(py, ptraceback),
         }
     }
 }
@@ -108,7 +108,7 @@ impl PyErrState {
             pvalue: pvalue.into(),
             #[cfg(not(Py_3_12))]
             ptraceback: unsafe {
-                Py::from_owned_ptr_or_opt(
+                PyDetached::from_owned_ptr_or_opt(
                     pvalue.py(),
                     ffi::PyException_GetTraceback(pvalue.as_ptr()),
                 )
@@ -140,8 +140,8 @@ impl PyErrState {
                 ptraceback,
             } => {
                 let mut ptype = ptype.into_ptr();
-                let mut pvalue = pvalue.map_or(std::ptr::null_mut(), Py::into_ptr);
-                let mut ptraceback = ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr);
+                let mut pvalue = pvalue.map_or(std::ptr::null_mut(), PyDetached::into_ptr);
+                let mut ptraceback = ptraceback.map_or(std::ptr::null_mut(), PyDetached::into_ptr);
                 unsafe {
                     ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
                     PyErrStateNormalized::from_normalized_ffi_tuple(py, ptype, pvalue, ptraceback)
@@ -161,8 +161,8 @@ impl PyErrState {
                 ptraceback,
             } => (
                 ptype.into_ptr(),
-                pvalue.map_or(std::ptr::null_mut(), Py::into_ptr),
-                ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr),
+                pvalue.map_or(std::ptr::null_mut(), PyDetached::into_ptr),
+                ptraceback.map_or(std::ptr::null_mut(), PyDetached::into_ptr),
             ),
             PyErrState::Normalized(PyErrStateNormalized {
                 ptype,
@@ -171,7 +171,7 @@ impl PyErrState {
             }) => (
                 ptype.into_ptr(),
                 pvalue.into_ptr(),
-                ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr),
+                ptraceback.map_or(std::ptr::null_mut(), PyDetached::into_ptr),
             ),
         };
         unsafe { ffi::PyErr_Restore(ptype, pvalue, ptraceback) }

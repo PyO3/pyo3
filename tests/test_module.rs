@@ -350,7 +350,7 @@ fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_owned(module: Py<PyModule>) -> PyResult<String> {
+fn pyfunction_with_module_owned(module: PyDetached<PyModule>) -> PyResult<String> {
     Python::with_gil(|gil| module.as_ref(gil).name().map(Into::into))
 }
 

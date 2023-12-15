@@ -7,7 +7,7 @@ use portable_atomic::{AtomicI64, Ordering};
 
 #[cfg(not(PyPy))]
 use crate::exceptions::PyImportError;
-use crate::{ffi, sync::GILOnceCell, types::PyModule, Py, PyResult, Python};
+use crate::{ffi, sync::GILOnceCell, types::PyModule, PyDetached, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -18,7 +18,7 @@ pub struct ModuleDef {
     #[cfg(all(not(PyPy), Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
     interpreter: AtomicI64,
     /// Initialized module object, cached to avoid reinitialization.
-    module: GILOnceCell<Py<PyModule>>,
+    module: GILOnceCell<PyDetached<PyModule>>,
 }
 
 /// Wrapper to enable initializer to be used in const fns.
@@ -64,7 +64,7 @@ impl ModuleDef {
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
-    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
+    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<PyDetached<PyModule>> {
         #[cfg(all(PyPy, not(Py_3_8)))]
         {
             const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
@@ -120,7 +120,7 @@ impl ModuleDef {
         self.module
             .get_or_try_init(py, || {
                 let module = unsafe {
-                    Py::<PyModule>::from_owned_ptr_or_err(
+                    PyDetached::<PyModule>::from_owned_ptr_or_err(
                         py,
                         ffi::PyModule_Create(self.ffi_def.get()),
                     )?

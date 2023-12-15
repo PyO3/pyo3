@@ -237,7 +237,7 @@ mod inheriting_native_type {
     #[test]
     fn inherit_dict_drop() {
         Python::with_gil(|py| {
-            let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
+            let dict_sub = pyo3::PyDetached::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
             let item = py.eval("object()", None, None).unwrap();

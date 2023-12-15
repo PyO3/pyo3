@@ -1,4 +1,4 @@
-use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
+use crate::{ffi, FromPyObject, IntoPy, PyAny, PyDetached, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -57,7 +57,7 @@ impl PyBytes {
         unsafe {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let pypybytes: Py<PyBytes> = Py::from_owned_ptr_or_err(py, pyptr)?;
+            let pypybytes: PyDetached<PyBytes> = PyDetached::from_owned_ptr_or_err(py, pyptr)?;
             let buffer: *mut u8 = ffi::PyBytes_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
@@ -97,7 +97,7 @@ impl PyBytes {
     }
 }
 
-impl Py<PyBytes> {
+impl PyDetached<PyBytes> {
     /// Gets the Python bytes as a byte slice. Because Python bytes are
     /// immutable, the result may be used for as long as the reference to
     /// `self` is held, including when the GIL is released.
@@ -141,13 +141,13 @@ impl<'source> FromPyObject<'source> for Cow<'source, [u8]> {
 }
 
 impl ToPyObject for Cow<'_, [u8]> {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+    fn to_object(&self, py: Python<'_>) -> PyDetached<PyAny> {
         PyBytes::new(py, self.as_ref()).into()
     }
 }
 
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
+impl IntoPy<PyDetached<PyAny>> for Cow<'_, [u8]> {
+    fn into_py(self, py: Python<'_>) -> PyDetached<PyAny> {
         self.to_object(py)
     }
 }

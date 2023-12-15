@@ -18,7 +18,7 @@ fn test_cloneable_pyclass() {
     let c = Cloneable { x: 10 };
 
     Python::with_gil(|py| {
-        let py_c = Py::new(py, c.clone()).unwrap().to_object(py);
+        let py_c = PyDetached::new(py, c.clone()).unwrap().to_object(py);
 
         let c2: Cloneable = py_c.extract(py).unwrap();
         assert_eq!(c, c2);
@@ -58,7 +58,7 @@ impl SubClass {
 #[pyclass]
 struct PolymorphicContainer {
     #[pyo3(get, set)]
-    inner: Py<BaseClass>,
+    inner: PyDetached<BaseClass>,
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn test_polymorphic_container_stores_base_class() {
         let p = PyCell::new(
             py,
             PolymorphicContainer {
-                inner: Py::new(py, BaseClass::default()).unwrap(),
+                inner: PyDetached::new(py, BaseClass::default()).unwrap(),
             },
         )
         .unwrap()
@@ -83,7 +83,7 @@ fn test_polymorphic_container_stores_sub_class() {
         let p = PyCell::new(
             py,
             PolymorphicContainer {
-                inner: Py::new(py, BaseClass::default()).unwrap(),
+                inner: PyDetached::new(py, BaseClass::default()).unwrap(),
             },
         )
         .unwrap()
@@ -110,7 +110,7 @@ fn test_polymorphic_container_does_not_accept_other_types() {
         let p = PyCell::new(
             py,
             PolymorphicContainer {
-                inner: Py::new(py, BaseClass::default()).unwrap(),
+                inner: PyDetached::new(py, BaseClass::default()).unwrap(),
             },
         )
         .unwrap()

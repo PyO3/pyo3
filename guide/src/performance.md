@@ -64,7 +64,7 @@ For example, instead of writing
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 
-struct Foo(Py<PyList>);
+struct Foo(PyDetached<PyList>);
 
 struct FooRef<'a>(&'a PyList);
 
@@ -81,7 +81,7 @@ use more efficient
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
-# struct Foo(Py<PyList>);
+# struct Foo(PyDetached<PyList>);
 # struct FooRef<'a>(&'a PyList);
 #
 impl PartialEq<Foo> for FooRef<'_> {

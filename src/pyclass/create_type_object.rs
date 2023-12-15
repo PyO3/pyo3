@@ -12,7 +12,8 @@ use crate::{
         trampoline::trampoline,
     },
     types::PyType,
-    Py, PyCell, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
+    PyCell, PyClass, PyDetached, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo,
+    Python,
 };
 use std::{
     borrow::Cow,
@@ -24,7 +25,7 @@ use std::{
 };
 
 pub(crate) struct PyClassTypeObject {
-    pub type_object: Py<PyType>,
+    pub type_object: PyDetached<PyType>,
     #[allow(dead_code)] // This is purely a cache that must live as long as the type object
     getset_destructors: Vec<GetSetDefDestructor>,
 }
@@ -428,8 +429,8 @@ impl PyTypeBuilder {
         };
 
         // Safety: We've correctly setup the PyType_Spec at this point
-        let type_object: Py<PyType> =
-            unsafe { Py::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
+        let type_object: PyDetached<PyType> =
+            unsafe { PyDetached::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
 
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);

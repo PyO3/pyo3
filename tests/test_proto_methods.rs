@@ -65,7 +65,7 @@ impl ExampleClass {
 }
 
 fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
-    Py::new(
+    PyDetached::new(
         py,
         ExampleClass {
             value: 5,
@@ -178,14 +178,14 @@ impl LenOverflow {
 #[test]
 fn len_overflow() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, LenOverflow).unwrap();
+        let inst = PyDetached::new(py, LenOverflow).unwrap();
         py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
     });
 }
 
 #[pyclass]
 pub struct Mapping {
-    values: Py<PyDict>,
+    values: PyDetached<PyDict>,
 }
 
 #[pymethods]
@@ -213,7 +213,7 @@ fn mapping() {
     Python::with_gil(|py| {
         PyMapping::register::<Mapping>(py).unwrap();
 
-        let inst = Py::new(
+        let inst = PyDetached::new(
             py,
             Mapping {
                 values: PyDict::new(py).into(),
@@ -321,7 +321,7 @@ fn sequence() {
     Python::with_gil(|py| {
         PySequence::register::<Sequence>(py).unwrap();
 
-        let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
+        let inst = PyDetached::new(py, Sequence { values: vec![] }).unwrap();
 
         let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
 
@@ -382,7 +382,7 @@ impl Iterator {
 #[test]
 fn iterator() {
     Python::with_gil(|py| {
-        let inst = Py::new(
+        let inst = PyDetached::new(
             py,
             Iterator {
                 iter: Box::new(5..8),
@@ -410,11 +410,11 @@ struct NotCallable;
 #[test]
 fn callable() {
     Python::with_gil(|py| {
-        let c = Py::new(py, Callable).unwrap();
+        let c = PyDetached::new(py, Callable).unwrap();
         py_assert!(py, c, "callable(c)");
         py_assert!(py, c, "c(7) == 42");
 
-        let nc = Py::new(py, NotCallable).unwrap();
+        let nc = PyDetached::new(py, NotCallable).unwrap();
         py_assert!(py, nc, "not callable(nc)");
     });
 }
@@ -517,7 +517,7 @@ impl Contains {
 #[test]
 fn contains() {
     Python::with_gil(|py| {
-        let c = Py::new(py, Contains {}).unwrap();
+        let c = PyDetached::new(py, Contains {}).unwrap();
         py_run!(py, c, "assert 1 in c");
         py_run!(py, c, "assert -1 not in c");
         py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
@@ -547,7 +547,7 @@ impl GetItem {
 #[test]
 fn test_getitem() {
     Python::with_gil(|py| {
-        let ob = Py::new(py, GetItem {}).unwrap();
+        let ob = PyDetached::new(py, GetItem {}).unwrap();
 
         py_assert!(py, ob, "ob[1] == 'int'");
         py_assert!(py, ob, "ob[100:200:1] == 'slice'");
@@ -697,13 +697,13 @@ asyncio.run(main())
 
 #[pyclass]
 struct AsyncIterator {
-    future: Option<Py<OnceFuture>>,
+    future: Option<PyDetached<OnceFuture>>,
 }
 
 #[pymethods]
 impl AsyncIterator {
     #[new]
-    fn new(future: Py<OnceFuture>) -> Self {
+    fn new(future: PyDetached<OnceFuture>) -> Self {
         Self {
             future: Some(future),
         }
@@ -713,7 +713,7 @@ impl AsyncIterator {
         slf
     }
 
-    fn __anext__(&mut self) -> Option<Py<OnceFuture>> {
+    fn __anext__(&mut self) -> Option<PyDetached<OnceFuture>> {
         self.future.take()
     }
 }
@@ -835,10 +835,10 @@ fn test_hash_opt_out() {
     // By default Python provides a hash implementation, which can be disabled by setting __hash__
     // to None.
     Python::with_gil(|py| {
-        let empty = Py::new(py, EmptyClass).unwrap();
+        let empty = PyDetached::new(py, EmptyClass).unwrap();
         py_assert!(py, empty, "hash(empty) is not None");
 
-        let not_hashable = Py::new(py, NotHashable).unwrap();
+        let not_hashable = PyDetached::new(py, NotHashable).unwrap();
         py_expect_exception!(py, not_hashable, "hash(not_hashable)", PyTypeError);
     })
 }
@@ -882,10 +882,10 @@ impl NoContains {
 #[test]
 fn test_contains_opt_out() {
     Python::with_gil(|py| {
-        let defaulted_contains = Py::new(py, DefaultedContains).unwrap();
+        let defaulted_contains = PyDetached::new(py, DefaultedContains).unwrap();
         py_assert!(py, defaulted_contains, "'a' in defaulted_contains");
 
-        let no_contains = Py::new(py, NoContains).unwrap();
+        let no_contains = PyDetached::new(py, NoContains).unwrap();
         py_expect_exception!(py, no_contains, "'a' in no_contains", PyTypeError);
     })
 }

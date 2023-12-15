@@ -1,6 +1,6 @@
 #![cfg(feature = "serde")]
 
-//! Enables (de)serialization of [`Py`]`<T>` objects via [serde](https://docs.rs/serde).
+//! Enables (de)serialization of [`PyDetached`]`<T>` objects via [serde](https://docs.rs/serde).
 //!
 //! # Setup
 //!
@@ -12,10 +12,10 @@
 //! serde = "1.0"
 //! ```
 
-use crate::{Py, PyAny, PyClass, Python};
+use crate::{PyAny, PyClass, PyDetached, Python};
 use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
-impl<T> Serialize for Py<T>
+impl<T> Serialize for PyDetached<T>
 where
     T: Serialize + PyClass,
 {
@@ -31,18 +31,18 @@ where
     }
 }
 
-impl<'de, T> Deserialize<'de> for Py<T>
+impl<'de, T> Deserialize<'de> for PyDetached<T>
 where
     T: PyClass<BaseType = PyAny> + Deserialize<'de>,
 {
-    fn deserialize<D>(deserializer: D) -> Result<Py<T>, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<PyDetached<T>, D::Error>
     where
         D: Deserializer<'de>,
     {
         let deserialized = T::deserialize(deserializer)?;
 
         Python::with_gil(|py| {
-            Py::new(py, deserialized).map_err(|e| de::Error::custom(e.to_string()))
+            PyDetached::new(py, deserialized).map_err(|e| de::Error::custom(e.to_string()))
         })
     }
 }

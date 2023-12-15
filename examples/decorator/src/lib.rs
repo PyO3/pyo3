@@ -13,7 +13,7 @@ pub struct PyCounter {
     count: Cell<u64>,
 
     // This is the actual function being wrapped.
-    wraps: Py<PyAny>,
+    wraps: PyDetached<PyAny>,
 }
 
 #[pymethods]
@@ -24,7 +24,7 @@ impl PyCounter {
     //    1. It doesn't guarantee the object can actually be called successfully
     //    2. We still need to handle any exceptions that the function might raise
     #[new]
-    fn __new__(wraps: Py<PyAny>) -> Self {
+    fn __new__(wraps: PyDetached<PyAny>) -> Self {
         PyCounter {
             count: Cell::new(0),
             wraps,
@@ -42,7 +42,7 @@ impl PyCounter {
         py: Python<'_>,
         args: &PyTuple,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<Py<PyAny>> {
+    ) -> PyResult<PyDetached<PyAny>> {
         let old_count = self.count.get();
         let new_count = old_count + 1;
         self.count.set(new_count);

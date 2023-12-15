@@ -52,14 +52,14 @@ error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
 29 |     class.get();
    |           ^^^ expected `True`, found `False`
    |
-note: required by a bound in `pyo3::Py::<T>::get`
+note: required by a bound in `pyo3::PyDetached::<T>::get`
   --> src/instance.rs
    |
    |     pub fn get(&self) -> &T
    |            --- required by a bound in this associated function
    |     where
    |         T: PyClass<Frozen = True> + Sync,
-   |                    ^^^^^^^^^^^^^ required by this bound in `Py::<T>::get`
+   |                    ^^^^^^^^^^^^^ required by this bound in `PyDetached::<T>::get`
 
 error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
   --> tests/ui/invalid_frozen_pyclass_borrow.rs:33:11

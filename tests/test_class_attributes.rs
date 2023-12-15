@@ -48,8 +48,8 @@ impl Foo {
     }
 
     #[classattr]
-    fn a_foo_with_py(py: Python<'_>) -> Py<Foo> {
-        Py::new(py, Foo { x: 1 }).unwrap()
+    fn a_foo_with_py(py: Python<'_>) -> PyDetached<Foo> {
+        PyDetached::new(py, Foo { x: 1 }).unwrap()
     }
 }
 

@@ -4,7 +4,7 @@ use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
-use crate::{IntoPy, Py, PyObject, Python};
+use crate::{IntoPy, PyDetached, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 
@@ -63,9 +63,9 @@ impl PyModule {
     /// ```
     pub fn import<N>(py: Python<'_>, name: N) -> PyResult<&PyModule>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
-        let name: Py<PyString> = name.into_py(py);
+        let name: PyDetached<PyString> = name.into_py(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr())) }
     }
 

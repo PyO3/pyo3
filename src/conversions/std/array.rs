@@ -1,7 +1,8 @@
 use crate::types::PySequence;
 use crate::{exceptions, PyErr};
 use crate::{
-    ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, Python, ToPyObject,
+    ffi, FromPyObject, IntoPy, PyAny, PyDetached, PyDowncastError, PyObject, PyResult, Python,
+    ToPyObject,
 };
 
 impl<T, const N: usize> IntoPy<PyObject> for [T; N]
@@ -14,10 +15,10 @@ where
 
             let ptr = ffi::PyList_New(len);
 
-            // We create the  `Py` pointer here for two reasons:
+            // We create the  `PyDetached` pointer here for two reasons:
             // - panics if the ptr is null
             // - its Drop cleans up the list if user code panics.
-            let list: Py<PyAny> = Py::from_owned_ptr(py, ptr);
+            let list: PyDetached<PyAny> = PyDetached::from_owned_ptr(py, ptr);
 
             for (i, obj) in (0..len).zip(self) {
                 let obj = obj.into_py(py).into_ptr();

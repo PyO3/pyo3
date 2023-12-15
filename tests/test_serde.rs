@@ -14,8 +14,8 @@ mod test_serde {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     struct User {
         username: String,
-        group: Option<Py<Group>>,
-        friends: Vec<Py<User>>,
+        group: Option<PyDetached<Group>>,
+        friends: Vec<PyDetached<User>>,
     }
 
     #[test]
@@ -31,11 +31,11 @@ mod test_serde {
         };
 
         let user = Python::with_gil(|py| {
-            let py_friend1 = Py::new(py, friend1).expect("failed to create friend 1");
-            let py_friend2 = Py::new(py, friend2).expect("failed to create friend 2");
+            let py_friend1 = PyDetached::new(py, friend1).expect("failed to create friend 1");
+            let py_friend2 = PyDetached::new(py, friend2).expect("failed to create friend 2");
 
             let friends = vec![py_friend1, py_friend2];
-            let py_group = Py::new(
+            let py_group = PyDetached::new(
                 py,
                 Group {
                     name: "group name".into(),

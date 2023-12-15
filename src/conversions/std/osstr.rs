@@ -58,7 +58,7 @@ impl FromPyObject<'_> for OsString {
         {
             // Decode from Python's lossless bytes string representation back into raw bytes
             let fs_encoded_bytes = unsafe {
-                crate::Py::<crate::types::PyBytes>::from_owned_ptr(
+                crate::PyDetached::<crate::types::PyBytes>::from_owned_ptr(
                     ob.py(),
                     ffi::PyUnicode_EncodeFSDefault(pystring.as_ptr()),
                 )

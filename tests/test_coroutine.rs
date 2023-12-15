@@ -48,9 +48,9 @@ fn test_coroutine_qualname() {
             Self
         }
         // TODO use &self when possible
-        async fn my_method(_self: Py<Self>) {}
+        async fn my_method(_self: PyDetached<Self>) {}
         #[classmethod]
-        async fn my_classmethod(_cls: Py<PyType>) {}
+        async fn my_classmethod(_cls: PyDetached<PyType>) {}
         #[staticmethod]
         async fn my_staticmethod() {}
     }
@@ -256,7 +256,7 @@ fn test_async_method_receiver() {
     Python::with_gil(|gil| {
         let test = r#"
         import asyncio
-        
+
         obj = Counter()
         coro1 = obj.get()
         coro2 = obj.get()

@@ -159,7 +159,7 @@ struct Permission {
 #[derive(Serialize, Deserialize)]
 struct User {
     username: String,
-    permissions: Vec<Py<Permission>>,
+    permissions: Vec<PyDetached<Permission>>,
 }
 # }
 ```

@@ -27,8 +27,8 @@ impl MutRefArg {
 #[test]
 fn mut_ref_arg() {
     Python::with_gil(|py| {
-        let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
-        let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
+        let inst1 = PyDetached::new(py, MutRefArg { n: 0 }).unwrap();
+        let inst2 = PyDetached::new(py, MutRefArg { n: 0 }).unwrap();
 
         py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
         let inst2 = inst2.as_ref(py).borrow();

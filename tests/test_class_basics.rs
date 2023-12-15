@@ -230,7 +230,7 @@ impl UnsendableChild {
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
     let obj = Python::with_gil(|py| -> PyResult<_> {
-        let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
+        let obj: PyDetached<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
         let caught_panic =
@@ -312,7 +312,7 @@ impl ClassWithFromPyWithMethods {
 #[test]
 fn test_pymethods_from_py_with() {
     Python::with_gil(|py| {
-        let instance = Py::new(py, ClassWithFromPyWithMethods {}).unwrap();
+        let instance = PyDetached::new(py, ClassWithFromPyWithMethods {}).unwrap();
 
         py_run!(
             py,
@@ -339,7 +339,7 @@ fn test_tuple_struct_class() {
 
         py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");
 
-        let instance = Py::new(py, TupleClass(5)).unwrap();
+        let instance = PyDetached::new(py, TupleClass(5)).unwrap();
         py_run!(
             py,
             instance,
@@ -522,7 +522,7 @@ fn access_frozen_class_without_gil() {
         value: AtomicUsize,
     }
 
-    let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+    let py_counter: PyDetached<FrozenCounter> = Python::with_gil(|py| {
         let counter = FrozenCounter {
             value: AtomicUsize::new(0),
         };
@@ -564,7 +564,7 @@ fn drop_unsendable_elsewhere() {
 
         let dropped = Arc::new(AtomicBool::new(false));
 
-        let unsendable = Py::new(
+        let unsendable = PyDetached::new(
             py,
             Unsendable {
                 dropped: dropped.clone(),

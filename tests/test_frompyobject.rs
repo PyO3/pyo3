@@ -57,7 +57,7 @@ fn test_named_fields_struct() {
             s: "foo".into(),
             foo: None,
         };
-        let py_c = Py::new(py, pya).unwrap();
+        let py_c = PyDetached::new(py, pya).unwrap();
         let a: A<'_> =
             FromPyObject::extract(py_c.as_ref(py)).expect("Failed to extract A from PyA");
         assert_eq!(a.s, "foo");

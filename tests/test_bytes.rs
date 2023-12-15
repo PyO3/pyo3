@@ -42,7 +42,7 @@ fn test_bytearray_vec_conversion() {
 
 #[test]
 fn test_py_as_bytes() {
-    let pyobj: pyo3::Py<pyo3::types::PyBytes> =
+    let pyobj: pyo3::PyDetached<pyo3::types::PyBytes> =
         Python::with_gil(|py| pyo3::types::PyBytes::new(py, b"abc").into_py(py));
 
     let data = Python::with_gil(|py| pyobj.as_bytes(py));

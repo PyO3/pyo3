@@ -26,7 +26,7 @@ pub struct Bar {
     #[pyo3(get, set)]
     b: Foo,
     #[pyo3(get, set)]
-    c: ::std::option::Option<crate::Py<Foo2>>,
+    c: ::std::option::Option<crate::PyDetached<Foo2>>,
 }
 
 #[crate::pyclass]

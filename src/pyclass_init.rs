@@ -1,7 +1,7 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::{ffi, Py, PyCell, PyClass, PyErr, PyResult, Python};
+use crate::{ffi, PyCell, PyClass, PyDetached, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
     pycell::{
@@ -137,7 +137,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 pub struct PyClassInitializer<T: PyClass>(PyClassInitializerImpl<T>);
 
 enum PyClassInitializerImpl<T: PyClass> {
-    Existing(Py<T>),
+    Existing(PyDetached<T>),
     New {
         init: T,
         super_init: <T::BaseType as PyClassBaseType>::Initializer,
@@ -294,9 +294,9 @@ where
     }
 }
 
-impl<T: PyClass> From<Py<T>> for PyClassInitializer<T> {
+impl<T: PyClass> From<PyDetached<T>> for PyClassInitializer<T> {
     #[inline]
-    fn from(value: Py<T>) -> PyClassInitializer<T> {
+    fn from(value: PyDetached<T>) -> PyClassInitializer<T> {
         PyClassInitializer(PyClassInitializerImpl::Existing(value))
     }
 }

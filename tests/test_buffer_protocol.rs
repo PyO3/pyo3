@@ -49,7 +49,7 @@ fn test_buffer() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
     Python::with_gil(|py| {
-        let instance = Py::new(
+        let instance = PyDetached::new(
             py,
             TestBufferClass {
                 vec: vec![b' ', b'2', b'3'],
@@ -121,7 +121,7 @@ fn test_releasebuffer_unraisable_error() {
     Python::with_gil(|py| {
         let capture = UnraisableCapture::install(py);
 
-        let instance = Py::new(py, ReleaseBufferError {}).unwrap();
+        let instance = PyDetached::new(py, ReleaseBufferError {}).unwrap();
         let env = [("ob", instance.clone())].into_py_dict(py);
 
         assert!(capture.borrow(py).capture.is_none());

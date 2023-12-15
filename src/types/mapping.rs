@@ -2,7 +2,7 @@ use crate::err::{PyDowncastError, PyResult};
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
-use crate::{ffi, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
+use crate::{ffi, PyDetached, PyNativeType, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -110,7 +110,7 @@ impl PyMapping {
     }
 }
 
-static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static MAPPING_ABC: GILOnceCell<PyDetached<PyType>> = GILOnceCell::new();
 
 fn get_mapping_abc(py: Python<'_>) -> PyResult<&PyType> {
     MAPPING_ABC

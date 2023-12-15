@@ -65,7 +65,7 @@ impl BasicClass {
     }
 
     #[staticmethod]
-    fn staticmethod(py: pyo3::Python<'_>, v: usize) -> pyo3::Py<pyo3::PyAny> {
+    fn staticmethod(py: pyo3::Python<'_>, v: usize) -> pyo3::PyDetached<pyo3::PyAny> {
         use pyo3::IntoPy;
         v.to_string().into_py(py)
     }

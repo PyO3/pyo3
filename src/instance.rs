@@ -43,21 +43,21 @@ pub unsafe trait PyNativeType: Sized {
     }
 }
 
-/// A GIL-attached equivalent to `Py`.
+/// A GIL-attached equivalent to `PyDetached`.
 #[repr(transparent)]
-pub(crate) struct Py2<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
+pub(crate) struct Py2<'py, T>(Python<'py>, ManuallyDrop<PyDetached<T>>);
 
 impl<'py> Py2<'py, PyAny> {
     /// Constructs a new Py2 from a pointer. Panics if ptr is null.
     pub(crate) unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
+        Self(py, ManuallyDrop::new(PyDetached::from_owned_ptr(py, ptr)))
     }
 
     // /// Constructs a new Py2 from a pointer. Returns None if ptr is null.
     // ///
     // /// Safety: ptr must be a valid pointer to a Python object, or NULL.
     // pub unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
-    //     Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    //     PyDetached::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     // }
 
     /// Constructs a new Py2 from a pointer. Returns error if ptr is null.
@@ -65,7 +65,7 @@ impl<'py> Py2<'py, PyAny> {
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
-        Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+        PyDetached::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
 }
 
@@ -226,7 +226,7 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 /// to get a (mutable) reference to a contained pyclass, using a scheme similar to std's [`RefCell`].
 /// See the [`PyCell` guide entry](https://pyo3.rs/latest/class.html#pycell-and-interior-mutability)
 /// for more information.
-///  - You can call methods directly on `Py` with [`Py::call`], [`Py::call_method`] and friends.
+///  - You can call methods directly on `PyDetached` with [`Py::call`], [`Py::call_method`] and friends.
 /// These require passing in the [`Python<'py>`](crate::Python) token but are otherwise similar to the corresponding
 /// methods on [`PyAny`].
 ///
@@ -264,7 +264,7 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 /// }
 /// ```
 ///
-/// [`Py`]`<T>` can be used to get around this by converting `dict` into a GIL-independent reference:
+/// [`PyDetached`]`<T>` can be used to get around this by converting `dict` into a GIL-independent reference:
 ///
 /// ```rust
 /// use pyo3::prelude::*;
@@ -272,7 +272,7 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///
 /// #[pyclass]
 /// struct Foo {
-///     inner: Py<PyDict>,
+///     inner: PyDetached<PyDict>,
 /// }
 ///
 /// #[pymethods]
@@ -280,7 +280,7 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///     #[new]
 ///     fn __new__() -> Foo {
 ///         Python::with_gil(|py| {
-///             let dict: Py<PyDict> = PyDict::new(py).into();
+///             let dict: PyDetached<PyDict> = PyDict::new(py).into();
 ///             Foo { inner: dict }
 ///         })
 ///     }
@@ -309,7 +309,7 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///
 /// #[pyclass]
 /// struct Foo {
-///     inner: Py<Bar>,
+///     inner: PyDetached<Bar>,
 /// }
 ///
 /// #[pymethods]
@@ -317,7 +317,7 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///     #[new]
 ///     fn __new__() -> PyResult<Foo> {
 ///         Python::with_gil(|py| {
-///             let bar: Py<Bar> = Py::new(py, Bar {})?;
+///             let bar: PyDetached<Bar> = PyDetached::new(py, Bar {})?;
 ///             Ok(Foo { inner: bar })
 ///         })
 ///     }
@@ -343,7 +343,7 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 /// As with [`Rc`]`<T>`, cloning it increases its reference count rather than duplicating
 /// the underlying object.
 ///
-/// This can be done using either [`Py::clone_ref`] or [`Py`]`<T>`'s [`Clone`] trait implementation.
+/// This can be done using either [`Py::clone_ref`] or [`PyDetached`]`<T>`'s [`Clone`] trait implementation.
 /// [`Py::clone_ref`] will be faster if you happen to be already holding the GIL.
 ///
 /// ```rust
@@ -352,12 +352,12 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///
 /// # fn main() {
 /// Python::with_gil(|py| {
-///     let first: Py<PyDict> = PyDict::new(py).into();
+///     let first: PyDetached<PyDict> = PyDict::new(py).into();
 ///
 ///     // All of these are valid syntax
-///     let second = Py::clone_ref(&first, py);
+///     let second = PyDetached::clone_ref(&first, py);
 ///     let third = first.clone_ref(py);
-///     let fourth = Py::clone(&first);
+///     let fourth = PyDetached::clone(&first);
 ///     let fifth = first.clone();
 ///
 ///     // Disposing of our original `Py<PyDict>` just decrements the reference count.
@@ -373,20 +373,20 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///
 /// # Preventing reference cycles
 ///
-/// It is easy to accidentally create reference cycles using [`Py`]`<T>`.
+/// It is easy to accidentally create reference cycles using [`PyDetached`]`<T>`.
 /// The Python interpreter can break these reference cycles within pyclasses if they
 /// [integrate with the garbage collector][gc]. If your pyclass contains other Python
 /// objects you should implement it to avoid leaking memory.
 ///
 /// # A note on Python reference counts
 ///
-/// Dropping a [`Py`]`<T>` will eventually decrease Python's reference count
+/// Dropping a [`PyDetached`]`<T>` will eventually decrease Python's reference count
 /// of the pointed-to variable, allowing Python's garbage collector to free
 /// the associated memory, but this may not happen immediately.  This is
-/// because a [`Py`]`<T>` can be dropped at any time, but the Python reference
+/// because a [`PyDetached`]`<T>` can be dropped at any time, but the Python reference
 /// count can only be modified when the GIL is held.
 ///
-/// If a [`Py`]`<T>` is dropped while its thread happens to be holding the
+/// If a [`PyDetached`]`<T>` is dropped while its thread happens to be holding the
 /// GIL then the Python reference count will be decreased immediately.
 /// Otherwise, the reference count will be decreased the next time the GIL is
 /// reacquired.
@@ -400,15 +400,22 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 /// [`RefCell`]: std::cell::RefCell
 /// [gc]: https://pyo3.rs/main/class/protocols.html#garbage-collector-integration
 #[repr(transparent)]
-pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
+pub struct PyDetached<T>(NonNull<ffi::PyObject>, PhantomData<T>);
+
+#[deprecated(
+    since = "0.21.0",
+    note = "`Py<T>` has been renamed to `PyDetached<T>` to make space for an upcoming rework to the PyO3 API."
+)]
+/// Deprecated name for [`PyDetached<T>`].
+pub type Py<T> = PyDetached<T>;
 
 // The inner value is only accessed through ways that require proving the gil is held
 #[cfg(feature = "nightly")]
-unsafe impl<T> crate::marker::Ungil for Py<T> {}
-unsafe impl<T> Send for Py<T> {}
-unsafe impl<T> Sync for Py<T> {}
+unsafe impl<T> crate::marker::Ungil for PyDetached<T> {}
+unsafe impl<T> Send for PyDetached<T> {}
+unsafe impl<T> Sync for PyDetached<T> {}
 
-impl<T> Py<T>
+impl<T> PyDetached<T>
 where
     T: PyClass,
 {
@@ -423,22 +430,22 @@ where
     /// struct Foo {/* fields omitted */}
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<Py<Foo>> {
-    ///     let foo: Py<Foo> = Py::new(py, Foo {})?;
+    /// Python::with_gil(|py| -> PyResult<PyDetached<Foo>> {
+    ///     let foo: PyDetached<Foo> = PyDetached::new(py, Foo {})?;
     ///     Ok(foo)
     /// })?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>> {
+    pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<PyDetached<T>> {
         let initializer = value.into();
         let obj = initializer.create_cell(py)?;
-        let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
+        let ob = unsafe { PyDetached::from_owned_ptr(py, obj as _) };
         Ok(ob)
     }
 }
 
-impl<T> Py<T>
+impl<T> PyDetached<T>
 where
     T: HasPyGilRef,
 {
@@ -463,7 +470,7 @@ where
     /// # use pyo3::types::PyList;
     /// #
     /// Python::with_gil(|py| {
-    ///     let list: Py<PyList> = PyList::empty(py).into();
+    ///     let list: PyDetached<PyList> = PyList::empty(py).into();
     ///     // FIXME as_ref() no longer makes sense with new Py API, remove this doc
     ///     // let list: &PyList = list.as_ref(py);
     ///     // assert_eq!(list.len(), 0);
@@ -479,7 +486,7 @@ where
     /// struct MyClass {}
     ///
     /// Python::with_gil(|py| {
-    ///     let my_class: Py<MyClass> = Py::new(py, MyClass {}).unwrap();
+    ///     let my_class: PyDetached<MyClass> = PyDetached::new(py, MyClass {}).unwrap();
     ///     let my_class_cell: &PyCell<MyClass> = my_class.as_ref(py);
     ///     assert!(my_class_cell.try_borrow().is_ok());
     /// });
@@ -505,8 +512,8 @@ where
     /// ```rust,compile_fail
     /// # use pyo3::prelude::*;
     /// #
-    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<Py<PyAny>>) -> &'py PyAny {
-    ///     let obj: Py<PyAny> = value.into_py(py);
+    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<PyDetached<PyAny>>) -> &'py PyAny {
+    ///     let obj: PyDetached<PyAny> = value.into_py(py);
     ///
     ///     // The lifetime of the return value of this function is the shortest
     ///     // of `obj` and `py`. As `obj` is owned by the current function,
@@ -522,8 +529,8 @@ where
     /// ```rust
     /// # use pyo3::prelude::*;
     /// # #[allow(dead_code)] // This is just to show it compiles.
-    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<Py<PyAny>>) -> &'py PyAny {
-    ///     let obj: Py<PyAny> = value.into_py(py);
+    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<PyDetached<PyAny>>) -> &'py PyAny {
+    ///     let obj: PyDetached<PyAny> = value.into_py(py);
     ///
     ///     // This reference's lifetime is determined by `py`'s lifetime.
     ///     // Because that originates from outside this function,
@@ -536,7 +543,7 @@ where
     }
 }
 
-impl<T> Py<T> {
+impl<T> PyDetached<T> {
     /// Returns the raw FFI pointer represented by self.
     ///
     /// # Safety
@@ -564,7 +571,7 @@ impl<T> Py<T> {
     }
 }
 
-impl<T> Py<T>
+impl<T> PyDetached<T>
 where
     T: PyClass,
 {
@@ -590,7 +597,7 @@ where
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let foo: Py<Foo> = Py::new(py, Foo { inner: 73 })?;
+    ///     let foo: PyDetached<Foo> = PyDetached::new(py, Foo { inner: 73 })?;
     ///     let inner: &u8 = &foo.borrow(py).inner;
     ///
     ///     assert_eq!(*inner, 73);
@@ -627,7 +634,7 @@ where
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let foo: Py<Foo> = Py::new(py, Foo { inner: 73 })?;
+    ///     let foo: PyDetached<Foo> = PyDetached::new(py, Foo { inner: 73 })?;
     ///     foo.borrow_mut(py).inner = 35;
     ///
     ///     assert_eq!(foo.borrow(py).inner, 35);
@@ -697,7 +704,7 @@ where
     /// let cell  = Python::with_gil(|py| {
     ///     let counter = FrozenCounter { value: AtomicUsize::new(0) };
     ///
-    ///     Py::new(py, counter).unwrap()
+    ///     PyDetached::new(py, counter).unwrap()
     /// });
     ///
     /// cell.get().value.fetch_add(1, Ordering::Relaxed);
@@ -715,11 +722,11 @@ where
     }
 }
 
-impl<T> Py<T> {
-    /// Attaches this `Py` to the given Python context, allowing access to further Python APIs.
+impl<T> PyDetached<T> {
+    /// Attaches this `PyDetached` to the given Python context, allowing access to further Python APIs.
     pub(crate) fn attach<'py>(&self, _py: Python<'py>) -> &Py2<'py, T> {
-        // Safety: `Py2` has the same layout as `Py`
-        unsafe { &*(self as *const Py<T>).cast() }
+        // Safety: `Py2` has the same layout as `PyDetached`
+        unsafe { &*(self as *const PyDetached<T>).cast() }
     }
 
     /// Same as `attach` but takes ownership of `self`.
@@ -756,8 +763,8 @@ impl<T> Py<T> {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    ///     let first: Py<PyDict> = PyDict::new(py).into();
-    ///     let second = Py::clone_ref(&first, py);
+    ///     let first: PyDetached<PyDict> = PyDict::new(py).into();
+    ///     let second = PyDetached::clone_ref(&first, py);
     ///
     ///     // Both point to the same object
     ///     assert!(first.is(&second));
@@ -765,8 +772,8 @@ impl<T> Py<T> {
     /// # }
     /// ```
     #[inline]
-    pub fn clone_ref(&self, py: Python<'_>) -> Py<T> {
-        unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
+    pub fn clone_ref(&self, py: Python<'_>) -> PyDetached<T> {
+        unsafe { PyDetached::from_borrowed_ptr(py, self.0.as_ptr()) }
     }
 
     /// Returns whether the object is considered to be None.
@@ -814,10 +821,10 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, Py, Python, PyObject, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, PyDetached, Python, PyObject, PyResult};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
+    /// fn version(sys: PyDetached<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
     ///     sys.getattr(py, intern!(py, "version"))
     /// }
     /// #
@@ -828,7 +835,7 @@ impl<T> Py<T> {
     /// ```
     pub fn getattr<N>(&self, py: Python<'_>, attr_name: N) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         self.attach(py).as_any().getattr(attr_name).map(Into::into)
     }
@@ -857,8 +864,8 @@ impl<T> Py<T> {
     /// ```
     pub fn setattr<N, V>(&self, py: Python<'_>, attr_name: N, value: V) -> PyResult<()>
     where
-        N: IntoPy<Py<PyString>>,
-        V: IntoPy<Py<PyAny>>,
+        N: IntoPy<PyDetached<PyString>>,
+        V: IntoPy<PyDetached<PyAny>>,
     {
         self.attach(py)
             .as_any()
@@ -871,7 +878,7 @@ impl<T> Py<T> {
     pub fn call(
         &self,
         py: Python<'_>,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<PyDetached<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         self.attach(py).as_any().call(args, kwargs).map(Into::into)
@@ -880,7 +887,11 @@ impl<T> Py<T> {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, py: Python<'_>, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
+    pub fn call1(
+        &self,
+        py: Python<'_>,
+        args: impl IntoPy<PyDetached<PyTuple>>,
+    ) -> PyResult<PyObject> {
         self.attach(py).as_any().call1(args).map(Into::into)
     }
 
@@ -905,8 +916,8 @@ impl<T> Py<T> {
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>,
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>,
     {
         self.attach(py)
             .as_any()
@@ -922,8 +933,8 @@ impl<T> Py<T> {
     /// macro can be used to intern `name`.
     pub fn call_method1<N, A>(&self, py: Python<'_>, name: N, args: A) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>,
+        N: IntoPy<PyDetached<PyString>>,
+        A: IntoPy<PyDetached<PyTuple>>,
     {
         self.attach(py)
             .as_any()
@@ -939,7 +950,7 @@ impl<T> Py<T> {
     /// macro can be used to intern `name`.
     pub fn call_method0<N>(&self, py: Python<'_>, name: N) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         self.attach(py).as_any().call_method0(name).map(Into::into)
     }
@@ -955,9 +966,9 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
-    pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> PyDetached<T> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
+            Some(nonnull_ptr) => PyDetached(nonnull_ptr, PhantomData),
             None => crate::err::panic_after_error(py),
         }
     }
@@ -972,9 +983,9 @@ impl<T> Py<T> {
     pub unsafe fn from_owned_ptr_or_err(
         py: Python<'_>,
         ptr: *mut ffi::PyObject,
-    ) -> PyResult<Py<T>> {
+    ) -> PyResult<PyDetached<T>> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
+            Some(nonnull_ptr) => Ok(PyDetached(nonnull_ptr, PhantomData)),
             None => Err(PyErr::fetch(py)),
         }
     }
@@ -987,7 +998,7 @@ impl<T> Py<T> {
     /// If non-null, `ptr` must be a pointer to a Python object of type T.
     #[inline]
     pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|nonnull_ptr| Py(nonnull_ptr, PhantomData))
+        NonNull::new(ptr).map(|nonnull_ptr| PyDetached(nonnull_ptr, PhantomData))
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
@@ -998,7 +1009,7 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
-    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> PyDetached<T> {
         match Self::from_borrowed_ptr_or_opt(py, ptr) {
             Some(slf) => slf,
             None => crate::err::panic_after_error(py),
@@ -1032,7 +1043,7 @@ impl<T> Py<T> {
     ) -> Option<Self> {
         NonNull::new(ptr).map(|nonnull_ptr| {
             ffi::Py_INCREF(ptr);
-            Py(nonnull_ptr, PhantomData)
+            PyDetached(nonnull_ptr, PhantomData)
         })
     }
 
@@ -1054,15 +1065,15 @@ impl<T> Py<T> {
     }
 }
 
-impl<T> ToPyObject for Py<T> {
-    /// Converts `Py` instance -> PyObject.
+impl<T> ToPyObject for PyDetached<T> {
+    /// Converts `PyDetached` instance -> PyObject.
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
-impl<T> IntoPy<PyObject> for Py<T> {
-    /// Converts a `Py` instance to `PyObject`.
+impl<T> IntoPy<PyObject> for PyDetached<T> {
+    /// Converts a `PyDetached` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python<'_>) -> PyObject {
@@ -1070,7 +1081,7 @@ impl<T> IntoPy<PyObject> for Py<T> {
     }
 }
 
-impl<T> IntoPy<PyObject> for &'_ Py<T> {
+impl<T> IntoPy<PyObject> for &'_ PyDetached<T> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
@@ -1078,14 +1089,14 @@ impl<T> IntoPy<PyObject> for &'_ Py<T> {
 }
 
 impl<T> ToPyObject for Py2<'_, T> {
-    /// Converts `Py` instance -> PyObject.
+    /// Converts `PyDetached` instance -> PyObject.
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
 impl<T> IntoPy<PyObject> for Py2<'_, T> {
-    /// Converts a `Py` instance to `PyObject`.
+    /// Converts a `PyDetached` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python<'_>) -> PyObject {
@@ -1094,7 +1105,7 @@ impl<T> IntoPy<PyObject> for Py2<'_, T> {
 }
 
 impl<T> IntoPy<PyObject> for &Py2<'_, T> {
-    /// Converts a `Py` instance to `PyObject`.
+    /// Converts a `PyDetached` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python<'_>) -> PyObject {
@@ -1102,7 +1113,7 @@ impl<T> IntoPy<PyObject> for &Py2<'_, T> {
     }
 }
 
-unsafe impl<T> crate::AsPyPointer for Py<T> {
+unsafe impl<T> crate::AsPyPointer for PyDetached<T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -1112,7 +1123,7 @@ unsafe impl<T> crate::AsPyPointer for Py<T> {
 
 impl std::convert::From<&'_ PyAny> for PyObject {
     fn from(obj: &PyAny) -> Self {
-        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ptr()) }
+        unsafe { PyDetached::from_borrowed_ptr(obj.py(), obj.as_ptr()) }
     }
 }
 
@@ -1121,16 +1132,16 @@ where
     T: PyNativeType + AsRef<PyAny>,
 {
     fn from(obj: &T) -> Self {
-        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ref().as_ptr()) }
+        unsafe { PyDetached::from_borrowed_ptr(obj.py(), obj.as_ref().as_ptr()) }
     }
 }
 
-impl<T> std::convert::From<Py<T>> for PyObject
+impl<T> std::convert::From<PyDetached<T>> for PyObject
 where
     T: AsRef<PyAny>,
 {
     #[inline]
-    fn from(other: Py<T>) -> Self {
+    fn from(other: PyDetached<T>) -> Self {
         unsafe { Self::from_non_null(other.into_non_null()) }
     }
 }
@@ -1146,7 +1157,7 @@ where
     }
 }
 
-impl<T> std::convert::From<Py2<'_, T>> for Py<T> {
+impl<T> std::convert::From<Py2<'_, T>> for PyDetached<T> {
     #[inline]
     fn from(other: Py2<'_, T>) -> Self {
         unsafe { Self::from_non_null(other.into_non_null()) }
@@ -1154,37 +1165,37 @@ impl<T> std::convert::From<Py2<'_, T>> for Py<T> {
 }
 
 // `&PyCell<T>` can be converted to `Py<T>`
-impl<T> std::convert::From<&PyCell<T>> for Py<T>
+impl<T> std::convert::From<&PyCell<T>> for PyDetached<T>
 where
     T: PyClass,
 {
     fn from(cell: &PyCell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(cell.py(), cell.as_ptr()) }
+        unsafe { PyDetached::from_borrowed_ptr(cell.py(), cell.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
+impl<'a, T> std::convert::From<PyRef<'a, T>> for PyDetached<T>
 where
     T: PyClass,
 {
     fn from(pyref: PyRef<'a, T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
+        unsafe { PyDetached::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
+impl<'a, T> std::convert::From<PyRefMut<'a, T>> for PyDetached<T>
 where
     T: PyClass<Frozen = False>,
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
+        unsafe { PyDetached::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
 
 /// If the GIL is held this increments `self`'s reference count.
-/// Otherwise this registers the [`Py`]`<T>` instance to have its reference count
+/// Otherwise this registers the [`PyDetached`]`<T>` instance to have its reference count
 /// incremented the next time PyO3 acquires the GIL.
-impl<T> Clone for Py<T> {
+impl<T> Clone for PyDetached<T> {
     fn clone(&self) -> Self {
         unsafe {
             gil::register_incref(self.0);
@@ -1193,8 +1204,8 @@ impl<T> Clone for Py<T> {
     }
 }
 
-/// Dropping a `Py` instance decrements the reference count on the object by 1.
-impl<T> Drop for Py<T> {
+/// Dropping a `PyDetached` instance decrements the reference count on the object by 1.
+impl<T> Drop for PyDetached<T> {
     fn drop(&mut self) {
         unsafe {
             gil::register_decref(self.0);
@@ -1202,7 +1213,7 @@ impl<T> Drop for Py<T> {
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Py<T>
+impl<'a, T> FromPyObject<'a> for PyDetached<T>
 where
     T: PyTypeInfo,
     &'a T::AsRefTarget: FromPyObject<'a>,
@@ -1212,7 +1223,7 @@ where
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
         unsafe {
             ob.extract::<&T::AsRefTarget>()
-                .map(|val| Py::from_borrowed_ptr(ob.py(), val.as_ptr()))
+                .map(|val| PyDetached::from_borrowed_ptr(ob.py(), val.as_ptr()))
         }
     }
 }
@@ -1234,14 +1245,14 @@ where
 ///
 /// However for GIL lifetime reasons, cause() cannot be implemented for `Py<T>`.
 /// Use .as_ref() to get the GIL-scoped error if you need to inspect the cause.
-impl<T> std::error::Error for Py<T>
+impl<T> std::error::Error for PyDetached<T>
 where
     T: std::error::Error + PyTypeInfo,
     T::AsRefTarget: std::fmt::Display,
 {
 }
 
-impl<T> std::fmt::Display for Py<T>
+impl<T> std::fmt::Display for PyDetached<T>
 where
     T: PyTypeInfo,
     T::AsRefTarget: std::fmt::Display,
@@ -1251,7 +1262,7 @@ where
     }
 }
 
-impl<T> std::fmt::Debug for Py<T> {
+impl<T> std::fmt::Debug for PyDetached<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Py").field(&self.0.as_ptr()).finish()
     }
@@ -1262,8 +1273,8 @@ impl<T> std::fmt::Debug for Py<T> {
 /// This is an owned reference a Python object without any type information. This value can also be
 /// safely sent between threads.
 ///
-/// See the documentation for [`Py`](struct.Py.html).
-pub type PyObject = Py<PyAny>;
+/// See the documentation for [`PyDetached`](struct.Py.html).
+pub type PyObject = PyDetached<PyAny>;
 
 impl PyObject {
     /// Downcast this `PyObject` to a concrete Python type or pyclass.
@@ -1303,7 +1314,7 @@ impl PyObject {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: PyObject = Py::new(py, Class { i: 0 }).unwrap().into_py(py);
+    ///     let class: PyObject = PyDetached::new(py, Class { i: 0 }).unwrap().into_py(py);
     ///
     ///     let class_cell: &PyCell<Class> = class.downcast(py)?;
     ///
@@ -1340,7 +1351,7 @@ impl PyObject {
 
 #[cfg(test)]
 mod tests {
-    use super::{Py, Py2, PyObject};
+    use super::{Py2, PyDetached, PyObject};
     use crate::types::{PyDict, PyString};
     use crate::{PyAny, PyResult, Python, ToPyObject};
 
@@ -1375,9 +1386,9 @@ mod tests {
 
     #[test]
     fn py_from_dict() {
-        let dict: Py<PyDict> = Python::with_gil(|py| {
+        let dict: PyDetached<PyDict> = Python::with_gil(|py| {
             let native = PyDict::new(py);
-            Py::from(native)
+            PyDetached::from(native)
         });
 
         assert_eq!(Python::with_gil(|py| dict.get_refcnt(py)), 1);
@@ -1386,7 +1397,7 @@ mod tests {
     #[test]
     fn pyobject_from_py() {
         Python::with_gil(|py| {
-            let dict: Py<PyDict> = PyDict::new(py).into();
+            let dict: PyDetached<PyDict> = PyDict::new(py).into();
             let cnt = dict.get_refcnt(py);
             let p: PyObject = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
@@ -1404,7 +1415,7 @@ class A:
 a = A()
    "#;
             let module = PyModule::from_code(py, CODE, "", "")?;
-            let instance: Py<PyAny> = module.getattr("a")?.into();
+            let instance: PyDetached<PyAny> = module.getattr("a")?.into();
 
             instance.getattr(py, "foo").unwrap_err();
 
@@ -1431,7 +1442,7 @@ class A:
 a = A()
    "#;
             let module = PyModule::from_code(py, CODE, "", "")?;
-            let instance: Py<PyAny> = module.getattr("a")?.into();
+            let instance: PyDetached<PyAny> = module.getattr("a")?.into();
 
             let foo = crate::intern!(py, "foo");
             let bar = crate::intern!(py, "bar");
@@ -1446,7 +1457,7 @@ a = A()
     #[test]
     fn invalid_attr() -> PyResult<()> {
         Python::with_gil(|py| {
-            let instance: Py<PyAny> = py.eval("object()", None, None)?.into();
+            let instance: PyDetached<PyAny> = py.eval("object()", None, None)?.into();
 
             instance.getattr(py, "foo").unwrap_err();
 
@@ -1524,7 +1535,7 @@ a = A()
         fn instance_borrow_methods() {
             // More detailed tests of the underlying semantics in pycell.rs
             Python::with_gil(|py| {
-                let instance = Py::new(py, SomeClass(0)).unwrap();
+                let instance = PyDetached::new(py, SomeClass(0)).unwrap();
                 assert_eq!(instance.borrow(py).0, 0);
                 assert_eq!(instance.try_borrow(py).unwrap().0, 0);
                 assert_eq!(instance.borrow_mut(py).0, 0);
@@ -1543,7 +1554,7 @@ a = A()
         fn cell_tryfrom() {
             // More detailed tests of the underlying semantics in pycell.rs
             Python::with_gil(|py| {
-                let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);
+                let instance: &PyAny = PyDetached::new(py, SomeClass(0)).unwrap().into_ref(py);
                 let _: &PyCell<SomeClass> = PyTryInto::try_into(instance).unwrap();
                 let _: &PyCell<SomeClass> = PyTryInto::try_into_exact(instance).unwrap();
             })

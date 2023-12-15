@@ -4,7 +4,7 @@ use crate::Python;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
     types::{PyDict, PyString},
-    IntoPy, Py, PyAny,
+    IntoPy, PyAny, PyDetached,
 };
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
@@ -14,7 +14,7 @@ use libc::wchar_t;
 #[test]
 fn test_datetime_fromtimestamp() {
     Python::with_gil(|py| {
-        let args: Py<PyAny> = (100,).into_py(py);
+        let args: PyDetached<PyAny> = (100,).into_py(py);
         let dt: &PyAny = unsafe {
             PyDateTime_IMPORT();
             py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr()))
@@ -35,7 +35,7 @@ fn test_datetime_fromtimestamp() {
 #[test]
 fn test_date_fromtimestamp() {
     Python::with_gil(|py| {
-        let args: Py<PyAny> = (100,).into_py(py);
+        let args: PyDetached<PyAny> = (100,).into_py(py);
         let dt: &PyAny = unsafe {
             PyDateTime_IMPORT();
             py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr()))

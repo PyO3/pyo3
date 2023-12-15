@@ -105,8 +105,8 @@
 //! impl !Ungil for Python<'_> {}
 //! impl !Ungil for ffi::PyObject {}
 //!
-//! // `Py` wraps it in  a safe api, so this is OK
-//! unsafe impl<T> Ungil for Py<T> {}
+//! // `PyDetached` wraps it in  a safe api, so this is OK
+//! unsafe impl<T> Ungil for PyDetached<T> {}
 //! # }
 //! ```
 //!
@@ -114,7 +114,7 @@
 //!
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: std::rc::Rc
-//! [`Py`]: crate::Py
+//! [`PyDetached`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
@@ -123,7 +123,7 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, FromPyPointer, IntoPy, Py, PyObject, PyTypeCheck, PyTypeInfo};
+use crate::{ffi, FromPyPointer, IntoPy, PyDetached, PyObject, PyTypeCheck, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -378,7 +378,7 @@ pub use nightly::Ungil;
 /// [`GILPool`] to manage memory.
 ///
 /// [scoping rules]: https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html#ownership-rules
-/// [`Py::clone_ref`]: crate::Py::clone_ref
+/// [`Py::clone_ref`]: crate::PyDetached::clone_ref
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[derive(Copy, Clone)]
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
@@ -481,7 +481,7 @@ impl<'py> Python<'py> {
     /// Only types that implement [`Ungil`] can cross the closure. See the
     /// [module level documentation](self) for more information.
     ///
-    /// If you need to pass Python objects into the closure you can use [`Py`]`<T>`to create a
+    /// If you need to pass Python objects into the closure you can use [`PyDetached`]`<T>`to create a
     /// reference independent of the GIL lifetime. However, you cannot do much with those without a
     /// [`Python`] token, for which you'd need to reacquire the GIL.
     ///
@@ -528,7 +528,7 @@ impl<'py> Python<'py> {
     /// }
     /// ```
     ///
-    /// [`Py`]: crate::Py
+    /// [`PyDetached`]: crate::Py
     /// [`PyString`]: crate::types::PyString
     /// [auto-traits]: https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html
     /// [Parallelism]: https://pyo3.rs/main/parallelism.html
@@ -690,7 +690,7 @@ impl<'py> Python<'py> {
     /// Imports the Python module with the specified name.
     pub fn import<N>(self, name: N) -> PyResult<&'py PyModule>
     where
-        N: IntoPy<Py<PyString>>,
+        N: IntoPy<PyDetached<PyString>>,
     {
         PyModule::import(self, name)
     }
@@ -1065,7 +1065,7 @@ impl<'unbound> Python<'unbound> {
 mod tests {
     use super::*;
     use crate::types::{IntoPyDict, PyDict, PyList};
-    use crate::Py;
+    use crate::PyDetached;
     use std::sync::Arc;
 
     #[test]
@@ -1154,7 +1154,7 @@ mod tests {
 
     #[test]
     fn test_allow_threads_pass_stuff_in() {
-        let list: Py<PyList> = Python::with_gil(|py| {
+        let list: PyDetached<PyList> = Python::with_gil(|py| {
             let list = PyList::new(py, vec!["foo", "bar"]);
             list.into()
         });

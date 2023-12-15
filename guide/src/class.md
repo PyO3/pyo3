@@ -63,7 +63,7 @@ Rust lifetimes are used by the Rust compiler to reason about a program's memory 
 
 As soon as Rust data is exposed to Python, there is no guarantee that the Rust compiler can make on how long the data will live. Python is a reference-counted language and those references can be held for an arbitrarily long time which is untraceable by the Rust compiler. The only possible way to express this correctly is to require that any `#[pyclass]` does not borrow data for any lifetime shorter than the `'static` lifetime, i.e. the `#[pyclass]` cannot have any lifetime parameters.
 
-When you need to share ownership of data between Python and Rust, instead of using borrowed references with lifetimes consider using reference-counted smart pointers such as [`Arc`] or [`Py`].
+When you need to share ownership of data between Python and Rust, instead of using borrowed references with lifetimes consider using reference-counted smart pointers such as [`Arc`] or [`PyDetached`].
 
 #### No generic parameters
 
@@ -115,7 +115,7 @@ impl Nonzero {
 ```
 
 If you want to return an existing object (for example, because your `new`
-method caches the values it returns), `new` can return `pyo3::Py<Self>`.
+method caches the values it returns), `new` can return `pyo3::PyDetached<Self>`.
 
 As you can see, the Rust method name is not important here; this way you can
 still, use `new()` for a Rust-level constructor.
@@ -202,14 +202,14 @@ struct MyClass {
     num: i32,
 }
 
-fn return_myclass() -> Py<MyClass> {
-    Python::with_gil(|py| Py::new(py, MyClass { num: 1 }).unwrap())
+fn return_myclass() -> PyDetached<MyClass> {
+    Python::with_gil(|py| PyDetached::new(py, MyClass { num: 1 }).unwrap())
 }
 
 let obj = return_myclass();
 
 Python::with_gil(|py| {
-    let cell = obj.as_ref(py); // Py<MyClass>::as_ref returns &PyCell<MyClass>
+    let cell = obj.as_ref(py); // PyDetached<MyClass>::as_ref returns &PyCell<MyClass>
     let obj_ref = cell.borrow(); // Get PyRef<T>
     assert_eq!(obj_ref.num, 1);
 });
@@ -230,12 +230,12 @@ struct FrozenCounter {
     value: AtomicUsize,
 }
 
-let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
+let py_counter: PyDetached<FrozenCounter> = Python::with_gil(|py| {
     let counter = FrozenCounter {
         value: AtomicUsize::new(0),
     };
 
-    Py::new(py, counter).unwrap()
+    PyDetached::new(py, counter).unwrap()
 });
 
 py_counter.get().value.fetch_add(1, Ordering::Relaxed);
@@ -343,10 +343,10 @@ impl SubSubClass {
         let base = PyClassInitializer::from(BaseClass::new());
         let sub = base.add_subclass(SubClass { val2: val });
         if val % 2 == 0 {
-            Ok(Py::new(py, sub)?.to_object(py))
+            Ok(PyDetached::new(py, sub)?.to_object(py))
         } else {
             let sub_sub = sub.add_subclass(SubSubClass { val3: val });
-            Ok(Py::new(py, sub_sub)?.to_object(py))
+            Ok(PyDetached::new(py, sub_sub)?.to_object(py))
         }
     }
 }
@@ -778,7 +778,7 @@ fn increment_then_print_field(my_class: &PyCell<MyClass>) {
 
 // Take a GIL-indepedent reference when you want to store the reference elsewhere.
 #[pyfunction]
-fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
+fn print_refcnt(my_class: PyDetached<MyClass>, py: Python<'_>) {
     println!("{}", my_class.get_refcnt(py));
 }
 ```
@@ -971,8 +971,8 @@ enum MyEnum {
 }
 
 Python::with_gil(|py| {
-    let x = Py::new(py, MyEnum::Variant).unwrap();
-    let y = Py::new(py, MyEnum::OtherVariant).unwrap();
+    let x = PyDetached::new(py, MyEnum::Variant).unwrap();
+    let y = PyDetached::new(py, MyEnum::OtherVariant).unwrap();
     let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, x y cls, r#"
         assert x == cls.Variant
@@ -1016,7 +1016,7 @@ enum MyEnum{
 
 Python::with_gil(|py| {
     let cls = py.get_type::<MyEnum>();
-    let x = Py::new(py, MyEnum::Variant).unwrap();
+    let x = PyDetached::new(py, MyEnum::Variant).unwrap();
     pyo3::py_run!(py, cls x, r#"
         assert repr(x) == 'MyEnum.Variant'
         assert repr(cls.OtherVariant) == 'MyEnum.OtherVariant'
@@ -1057,7 +1057,7 @@ enum MyEnum {
 }
 
 Python::with_gil(|py| {
-    let x = Py::new(py, MyEnum::Variant).unwrap();
+    let x = PyDetached::new(py, MyEnum::Variant).unwrap();
     let cls = py.get_type::<MyEnum>();
     pyo3::py_run!(py, x cls, r#"
         assert repr(x) == 'RenamedEnum.UPPERCASE'
@@ -1148,7 +1148,7 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a
 
 impl pyo3::IntoPy<PyObject> for MyClass {
     fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
-        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
+        pyo3::IntoPy::into_py(pyo3::PyDetached::new(py, self).unwrap(), py)
     }
 }
 
@@ -1196,7 +1196,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 [`GILGuard`]: {{#PYO3_DOCS_URL}}/pyo3/struct.GILGuard.html
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
 
-[`Py`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
+[`PyDetached`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyDetached.html
 [`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html

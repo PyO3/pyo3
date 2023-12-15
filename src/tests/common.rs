@@ -75,11 +75,11 @@ mod inner {
 
     #[cfg(all(feature = "macros", Py_3_8))]
     impl UnraisableCapture {
-        pub fn install(py: Python<'_>) -> Py<Self> {
+        pub fn install(py: Python<'_>) -> PyDetached<Self> {
             let sys = py.import("sys").unwrap();
             let old_hook = sys.getattr("unraisablehook").unwrap().into();
 
-            let capture = Py::new(
+            let capture = PyDetached::new(
                 py,
                 UnraisableCapture {
                     capture: None,

@@ -17,7 +17,7 @@ pub enum MyEnum {
 fn test_enum_class_attr() {
     Python::with_gil(|py| {
         let my_enum = py.get_type::<MyEnum>();
-        let var = Py::new(py, MyEnum::Variant).unwrap();
+        let var = PyDetached::new(py, MyEnum::Variant).unwrap();
         py_assert!(py, my_enum var, "my_enum.Variant == var");
     })
 }
@@ -55,9 +55,9 @@ fn test_enum_arg() {
 #[test]
 fn test_enum_eq_enum() {
     Python::with_gil(|py| {
-        let var1 = Py::new(py, MyEnum::Variant).unwrap();
-        let var2 = Py::new(py, MyEnum::Variant).unwrap();
-        let other_var = Py::new(py, MyEnum::OtherVariant).unwrap();
+        let var1 = PyDetached::new(py, MyEnum::Variant).unwrap();
+        let var2 = PyDetached::new(py, MyEnum::Variant).unwrap();
+        let other_var = PyDetached::new(py, MyEnum::OtherVariant).unwrap();
         py_assert!(py, var1 var2, "var1 == var2");
         py_assert!(py, var1 other_var, "var1 != other_var");
         py_assert!(py, var1 var2, "(var1 != var2) == False");
@@ -67,7 +67,7 @@ fn test_enum_eq_enum() {
 #[test]
 fn test_enum_eq_incomparable() {
     Python::with_gil(|py| {
-        let var1 = Py::new(py, MyEnum::Variant).unwrap();
+        let var1 = PyDetached::new(py, MyEnum::Variant).unwrap();
         py_assert!(py, var1, "(var1 == 'foo') == False");
         py_assert!(py, var1, "(var1 != 'foo') == True");
     })
@@ -84,8 +84,8 @@ fn test_custom_discriminant() {
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
         let CustomDiscriminant = py.get_type::<CustomDiscriminant>();
-        let one = Py::new(py, CustomDiscriminant::One).unwrap();
-        let two = Py::new(py, CustomDiscriminant::Two).unwrap();
+        let one = PyDetached::new(py, CustomDiscriminant::One).unwrap();
+        let two = PyDetached::new(py, CustomDiscriminant::Two).unwrap();
         py_run!(py, CustomDiscriminant one two, r#"
         assert CustomDiscriminant.One == one
         assert CustomDiscriminant.Two == two
@@ -97,9 +97,9 @@ fn test_custom_discriminant() {
 #[test]
 fn test_enum_to_int() {
     Python::with_gil(|py| {
-        let one = Py::new(py, CustomDiscriminant::One).unwrap();
+        let one = PyDetached::new(py, CustomDiscriminant::One).unwrap();
         py_assert!(py, one, "int(one) == 1");
-        let v = Py::new(py, MyEnum::Variant).unwrap();
+        let v = PyDetached::new(py, MyEnum::Variant).unwrap();
         let v_value = MyEnum::Variant as isize;
         py_run!(py, v v_value, "int(v) == v_value");
     })
@@ -108,7 +108,7 @@ fn test_enum_to_int() {
 #[test]
 fn test_enum_compare_int() {
     Python::with_gil(|py| {
-        let one = Py::new(py, CustomDiscriminant::One).unwrap();
+        let one = PyDetached::new(py, CustomDiscriminant::One).unwrap();
         py_run!(
             py,
             one,
@@ -130,7 +130,7 @@ enum SmallEnum {
 #[test]
 fn test_enum_compare_int_no_throw_when_overflow() {
     Python::with_gil(|py| {
-        let v = Py::new(py, SmallEnum::V).unwrap();
+        let v = PyDetached::new(py, SmallEnum::V).unwrap();
         py_assert!(py, v, "v != 1<<30")
     })
 }
@@ -146,7 +146,7 @@ enum BigEnum {
 fn test_big_enum_no_overflow() {
     Python::with_gil(|py| {
         let usize_max = usize::MAX;
-        let v = Py::new(py, BigEnum::V).unwrap();
+        let v = PyDetached::new(py, BigEnum::V).unwrap();
         py_assert!(py, usize_max v, "v == usize_max");
         py_assert!(py, usize_max v, "int(v) == usize_max");
     })
@@ -172,7 +172,7 @@ pub enum RenameEnum {
 #[test]
 fn test_rename_enum_repr_correct() {
     Python::with_gil(|py| {
-        let var1 = Py::new(py, RenameEnum::Variant).unwrap();
+        let var1 = PyDetached::new(py, RenameEnum::Variant).unwrap();
         py_assert!(py, var1, "repr(var1) == 'MyEnum.Variant'");
     })
 }
@@ -187,7 +187,7 @@ pub enum RenameVariantEnum {
 #[test]
 fn test_rename_variant_repr_correct() {
     Python::with_gil(|py| {
-        let var1 = Py::new(py, RenameVariantEnum::Variant).unwrap();
+        let var1 = PyDetached::new(py, RenameVariantEnum::Variant).unwrap();
         py_assert!(py, var1, "repr(var1) == 'RenameVariantEnum.VARIANT'");
     })
 }

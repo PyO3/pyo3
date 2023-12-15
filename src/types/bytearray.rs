@@ -1,5 +1,5 @@
 use crate::err::{PyErr, PyResult};
-use crate::{ffi, AsPyPointer, Py, PyAny, Python};
+use crate::{ffi, AsPyPointer, PyAny, PyDetached, Python};
 use std::os::raw::c_char;
 use std::slice;
 
@@ -51,7 +51,8 @@ impl PyByteArray {
             let pyptr =
                 ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let pypybytearray: Py<PyByteArray> = Py::from_owned_ptr_or_err(py, pyptr)?;
+            let pypybytearray: PyDetached<PyByteArray> =
+                PyDetached::from_owned_ptr_or_err(py, pyptr)?;
             let buffer: *mut u8 = ffi::PyByteArray_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray

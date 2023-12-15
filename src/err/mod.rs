@@ -5,7 +5,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{IntoPy, Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{IntoPy, PyAny, PyDetached, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -220,7 +220,7 @@ impl PyErr {
     }
 
     /// Consumes self to take ownership of the exception value contained in this error.
-    pub fn into_value(self, py: Python<'_>) -> Py<PyBaseException> {
+    pub fn into_value(self, py: Python<'_>) -> PyDetached<PyBaseException> {
         // NB technically this causes one reference count increase and decrease in quick succession
         // on pvalue, but it's probably not worth optimizing this right now for the additional code
         // complexity.
@@ -395,7 +395,7 @@ impl PyErr {
         doc: Option<&str>,
         base: Option<&PyType>,
         dict: Option<PyObject>,
-    ) -> PyResult<Py<PyType>> {
+    ) -> PyResult<PyDetached<PyType>> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
@@ -426,7 +426,7 @@ impl PyErr {
             )
         };
 
-        unsafe { Py::from_owned_ptr_or_err(py, ptr) }
+        unsafe { PyDetached::from_owned_ptr_or_err(py, ptr) }
     }
 
     /// Prints a standard traceback to `sys.stderr`.
@@ -641,7 +641,7 @@ impl PyErr {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
                 value.as_ptr(),
-                cause.map_or(std::ptr::null_mut(), Py::into_ptr),
+                cause.map_or(std::ptr::null_mut(), PyDetached::into_ptr),
             );
         }
     }
@@ -738,7 +738,7 @@ impl<'a> IntoPy<PyObject> for &'a PyErr {
 }
 
 struct PyDowncastErrorArguments {
-    from: Py<PyType>,
+    from: PyDetached<PyType>,
     to: Cow<'static, str>,
 }
 

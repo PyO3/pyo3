@@ -8,7 +8,8 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::PyList;
 use crate::types::PySequence;
 use crate::{
-    exceptions, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    exceptions, FromPyObject, IntoPy, PyAny, PyDetached, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 
 #[inline]
@@ -16,7 +17,7 @@ use crate::{
 fn new_from_iter(
     py: Python<'_>,
     elements: &mut dyn ExactSizeIterator<Item = PyObject>,
-) -> Py<PyTuple> {
+) -> PyDetached<PyTuple> {
     unsafe {
         // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -28,7 +29,7 @@ fn new_from_iter(
 
         // - Panics if the ptr is null
         // - Cleans up the tuple if `convert` or the asserts panic
-        let tup: Py<PyTuple> = Py::from_owned_ptr(py, ptr);
+        let tup: PyDetached<PyTuple> = PyDetached::from_owned_ptr(py, ptr);
 
         let mut counter: Py_ssize_t = 0;
 
@@ -320,8 +321,8 @@ fn type_output() -> TypeInfo {
         }
     }
 
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
+    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyDetached<PyTuple>> for ($($T,)+) {
+        fn into_py(self, py: Python<'_>) -> PyDetached<PyTuple> {
             array_into_tuple(py, [$(self.$n.into_py(py)),+])
         }
 
@@ -353,10 +354,10 @@ fn type_input() -> TypeInfo {
     }
 });
 
-fn array_into_tuple<const N: usize>(py: Python<'_>, array: [PyObject; N]) -> Py<PyTuple> {
+fn array_into_tuple<const N: usize>(py: Python<'_>, array: [PyObject; N]) -> PyDetached<PyTuple> {
     unsafe {
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
-        let tup = Py::from_owned_ptr(py, ptr);
+        let tup = PyDetached::from_owned_ptr(py, ptr);
         for (index, obj) in array.into_iter().enumerate() {
             #[cfg(not(any(Py_LIMITED_API, PyPy)))]
             ffi::PyTuple_SET_ITEM(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
@@ -859,7 +860,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks() {
-        use crate::{IntoPy, Py};
+        use crate::{IntoPy, PyDetached};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -885,7 +886,7 @@ mod tests {
         }
 
         impl ToPyObject for Bad {
-            fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+            fn to_object(&self, py: Python<'_>) -> PyDetached<PyAny> {
                 self.to_owned().into_py(py)
             }
         }
@@ -927,7 +928,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks_2() {
-        use crate::{IntoPy, Py};
+        use crate::{IntoPy, PyDetached};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -953,7 +954,7 @@ mod tests {
         }
 
         impl ToPyObject for Bad {
-            fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+            fn to_object(&self, py: Python<'_>) -> PyDetached<PyAny> {
                 self.to_owned().into_py(py)
             }
         }
@@ -962,7 +963,7 @@ mod tests {
         NEEDS_DESTRUCTING_COUNT.store(4, SeqCst);
         Python::with_gil(|py| {
             std::panic::catch_unwind(|| {
-                let _tuple: Py<PyAny> = s.to_object(py);
+                let _tuple: PyDetached<PyAny> = s.to_object(py);
             })
             .unwrap_err();
         });

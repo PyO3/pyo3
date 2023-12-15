@@ -9,7 +9,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, FromPyObject, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
+use crate::{ffi, FromPyObject, PyDetached, PyNativeType, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -523,7 +523,7 @@ where
     Ok(v)
 }
 
-static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static SEQUENCE_ABC: GILOnceCell<PyDetached<PyType>> = GILOnceCell::new();
 
 fn get_sequence_abc(py: Python<'_>) -> PyResult<&PyType> {
     SEQUENCE_ABC

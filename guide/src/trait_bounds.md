@@ -73,7 +73,7 @@ use pyo3::prelude::*;
 # }
 
 struct UserModel {
-    model: Py<PyAny>,
+    model: PyDetached<PyAny>,
 }
 
 impl Model for UserModel {
@@ -127,7 +127,7 @@ Let's add the PyO3 annotations and add a constructor:
 
 #[pyclass]
 struct UserModel {
-    model: Py<PyAny>,
+    model: PyDetached<PyAny>,
 }
 
 #[pymodule]
@@ -139,7 +139,7 @@ fn trait_exposure(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #[pymethods]
 impl UserModel {
     #[new]
-    pub fn new(model: Py<PyAny>) -> Self {
+    pub fn new(model: PyDetached<PyAny>) -> Self {
         UserModel { model }
     }
 }
@@ -172,7 +172,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 #
 # #[pyclass]
 # struct UserModel {
-#     model: Py<PyAny>,
+#     model: PyDetached<PyAny>,
 # }
 #
 # impl Model for UserModel {
@@ -316,7 +316,7 @@ class Model:
 This call results in the following panic:
 
 ```block
-pyo3_runtime.PanicException: called `Result::unwrap()` on an `Err` value: PyErr { type: Py(0x10dcf79f0, PhantomData) }
+pyo3_runtime.PanicException: called `Result::unwrap()` on an `Err` value: PyErr { type: PyDetached(0x10dcf79f0, PhantomData) }
 ```
 
 This error code is not helpful for a Python user that does not know anything about Rust, or someone that does not know PyO3 was used to interface the Rust code.
@@ -340,7 +340,7 @@ We used in our `get_results` method the following call that performs the type co
 #
 # #[pyclass]
 # struct UserModel {
-#     model: Py<PyAny>,
+#     model: PyDetached<PyAny>,
 # }
 
 impl Model for UserModel {
@@ -392,7 +392,7 @@ Let's break it down in order to perform better error handling:
 #
 # #[pyclass]
 # struct UserModel {
-#     model: Py<PyAny>,
+#     model: PyDetached<PyAny>,
 # }
 
 impl Model for UserModel {
@@ -480,7 +480,7 @@ pub fn solve_wrapper(model: &mut UserModel) {
 
 #[pyclass]
 pub struct UserModel {
-    model: Py<PyAny>,
+    model: PyDetached<PyAny>,
 }
 
 #[pymodule]
@@ -493,7 +493,7 @@ fn trait_exposure(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #[pymethods]
 impl UserModel {
     #[new]
-    pub fn new(model: Py<PyAny>) -> Self {
+    pub fn new(model: PyDetached<PyAny>) -> Self {
         UserModel { model }
     }
 

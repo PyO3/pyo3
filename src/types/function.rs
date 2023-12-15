@@ -108,7 +108,7 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'py>,
     ) -> PyResult<&'py Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
-        let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
+        let (mod_ptr, module_name): (_, Option<PyDetached<PyString>>) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             (mod_ptr, Some(m.name()?.into_py(py)))
         } else {
@@ -122,7 +122,7 @@ impl PyCFunction {
 
         let module_name_ptr = module_name
             .as_ref()
-            .map_or(std::ptr::null_mut(), Py::as_ptr);
+            .map_or(std::ptr::null_mut(), PyDetached::as_ptr);
 
         unsafe {
             py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(

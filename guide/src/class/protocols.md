@@ -197,11 +197,11 @@ struct Container {
 
 #[pymethods]
 impl Container {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Iter>> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<PyDetached<Iter>> {
         let iter = Iter {
             inner: slf.iter.clone().into_iter(),
         };
-        Py::new(slf.py(), iter)
+        PyDetached::new(slf.py(), iter)
     }
 }
 

@@ -61,7 +61,7 @@ impl<T: PyClass> LazyTypeObject<T> {
 }
 
 impl LazyTypeObjectInner {
-    // Uses dynamically dispatched fn(Python<'py>) -> PyResult<Py<PyType>
+    // Uses dynamically dispatched fn(Python<'py>) -> PyResult<PyDetached<PyType>
     // so that this code is only instantiated once, instead of for every T
     // like the generic LazyTypeObject<T> methods above.
     fn get_or_try_init<'py>(

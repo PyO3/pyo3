@@ -288,7 +288,7 @@ drop(second);
 
 The replacement is [`Python::with_gil`]() which is more cumbersome but enforces the proper nesting by design, e.g.
 
-```rust
+```rust,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -464,7 +464,7 @@ Python::with_gil(|py| {
 
 After, some type annotations may be necessary:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 #
 # fn main() {
@@ -579,7 +579,7 @@ impl MyClass {
 
 ### Removed `PartialEq` for object wrappers
 
-The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq`
+The Python object wrappers `PyDetached` and `PyAny` had implementations of `PartialEq`
 so that `object_a == object_b` would compare the Python objects for pointer
 equality, which corresponds to the `is` operator, not the `==` operator in
 Python.  This has been removed in favor of a new method: use
@@ -921,7 +921,7 @@ let list_ref: &PyList = list_py.as_ref(py);
 ```
 
 After:
-```rust
+```rust,ignore
 use pyo3::{Py, types::PyList};
 # pyo3::Python::with_gil(|py| {
 let list_py: Py<PyList> = PyList::empty(py).into();

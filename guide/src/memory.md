@@ -144,7 +144,7 @@ reference count reaches zero?  It depends whether or not we are holding the GIL.
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let hello: Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract()?;
+    let hello: PyDetached<PyString> = py.eval("\"Hello World!\"", None, None)?.extract()?;
     println!("Python says: {}", hello.as_ref(py));
     Ok(())
 })?;
@@ -165,7 +165,7 @@ we are *not* holding the GIL?
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-let hello: Py<PyString> = Python::with_gil(|py| {
+let hello: PyDetached<PyString> = Python::with_gil(|py| {
     py.eval("\"Hello World!\"", None, None)?.extract()
 })?;
 // Do some stuff...
@@ -196,7 +196,7 @@ We can avoid the delay in releasing memory if we are careful to drop the
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-let hello: Py<PyString> =
+let hello: PyDetached<PyString> =
     Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
@@ -218,7 +218,7 @@ until the GIL is dropped.
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
-let hello: Py<PyString> =
+let hello: PyDetached<PyString> =
     Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:

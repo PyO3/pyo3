@@ -18,7 +18,7 @@ impl UnsendableDictClass {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_unsendable_dict() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, UnsendableDictClass {}).unwrap();
+        let inst = PyDetached::new(py, UnsendableDictClass {}).unwrap();
         py_run!(py, inst, "assert inst.__dict__ == {}");
     });
 }
@@ -38,7 +38,7 @@ impl UnsendableDictClassWithWeakRef {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_unsendable_dict_with_weakref() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, UnsendableDictClassWithWeakRef {}).unwrap();
+        let inst = PyDetached::new(py, UnsendableDictClassWithWeakRef {}).unwrap();
         py_run!(py, inst, "assert inst.__dict__ == {}");
         py_run!(
             py,

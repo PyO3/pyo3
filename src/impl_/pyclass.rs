@@ -7,7 +7,8 @@ use crate::{
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     types::PyBool,
-    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    PyAny, PyCell, PyClass, PyDetached, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo,
+    Python,
 };
 use std::{
     borrow::Cow,
@@ -329,7 +330,7 @@ slot_fragment_trait! {
         attr: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
         Err(PyErr::new::<PyAttributeError, _>(
-            (Py::<PyAny>::from_borrowed_ptr(py, attr),)
+            (PyDetached::<PyAny>::from_borrowed_ptr(py, attr),)
         ))
     }
 }

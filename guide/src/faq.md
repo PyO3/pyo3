@@ -131,7 +131,7 @@ struct Inner {/* fields omitted */}
 #[pyclass]
 struct Outer {
     #[pyo3(get)]
-    inner: Py<Inner>,
+    inner: PyDetached<Inner>,
 }
 
 #[pymethods]
@@ -139,7 +139,7 @@ impl Outer {
     #[new]
     fn __new__(py: Python<'_>) -> PyResult<Self> {
         Ok(Self {
-            inner: Py::new(py, Inner {})?,
+            inner: PyDetached::new(py, Inner {})?,
         })
     }
 }
@@ -183,7 +183,7 @@ struct MyClass;
 
 ## I'm trying to call Python from Rust but I get `STATUS_DLL_NOT_FOUND` or `STATUS_ENTRYPOINT_NOT_FOUND`!
 
-This happens on Windows when linking to the python DLL fails or the wrong one is linked. The Python DLL on Windows will usually be called something like: 
+This happens on Windows when linking to the python DLL fails or the wrong one is linked. The Python DLL on Windows will usually be called something like:
 - `python3X.dll` for Python 3.X, e.g. `python310.dll` for Python 3.10
 - `python3.dll` when using PyO3's `abi3` feature
 

@@ -16,7 +16,7 @@ use crate::{
     panic::PanicException,
     pyclass::IterNextOutput,
     types::{PyIterator, PyString},
-    IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    IntoPy, PyAny, PyDetached, PyErr, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -29,7 +29,7 @@ const COROUTINE_REUSED_ERROR: &str = "cannot reuse already awaited coroutine";
 /// Python coroutine wrapping a [`Future`].
 #[pyclass(crate = "crate")]
 pub struct Coroutine {
-    name: Option<Py<PyString>>,
+    name: Option<PyDetached<PyString>>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     future: Option<Pin<Box<dyn Future<Output = PyResult<PyObject>> + Send>>>,
@@ -44,7 +44,7 @@ impl Coroutine {
     ///
     /// `Coroutine `throw` drop the wrapped future and reraise the exception passed
     pub(crate) fn new<F, T, E>(
-        name: Option<Py<PyString>>,
+        name: Option<PyDetached<PyString>>,
         qualname_prefix: Option<&'static str>,
         throw_callback: Option<ThrowCallback>,
         future: F,
@@ -134,7 +134,7 @@ pub(crate) fn iter_result(result: IterNextOutput<PyObject, PyObject>) -> PyResul
 #[pymethods(crate = "crate")]
 impl Coroutine {
     #[getter]
-    fn __name__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
+    fn __name__(&self, py: Python<'_>) -> PyResult<PyDetached<PyString>> {
         match &self.name {
             Some(name) => Ok(name.clone_ref(py)),
             None => Err(PyAttributeError::new_err("__name__")),
@@ -142,7 +142,7 @@ impl Coroutine {
     }
 
     #[getter]
-    fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
+    fn __qualname__(&self, py: Python<'_>) -> PyResult<PyDetached<PyString>> {
         match (&self.name, &self.qualname_prefix) {
             (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.as_ref(py).to_str()?)
                 .as_str()
@@ -166,7 +166,7 @@ impl Coroutine {
         drop(self.future.take());
     }
 
-    fn __await__(self_: Py<Self>) -> Py<Self> {
+    fn __await__(self_: PyDetached<Self>) -> PyDetached<Self> {
         self_
     }
 

@@ -25,7 +25,7 @@ impl Reader {
     fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<Self> {
         slf
     }
-    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> Iter {
+    fn get_iter(slf: &PyCell<Self>, keys: PyDetached<PyBytes>) -> Iter {
         Iter {
             reader: slf.into(),
             keys,
@@ -34,10 +34,10 @@ impl Reader {
     }
     fn get_iter_and_reset(
         mut slf: PyRefMut<'_, Self>,
-        keys: Py<PyBytes>,
+        keys: PyDetached<PyBytes>,
         py: Python<'_>,
     ) -> PyResult<Iter> {
-        let reader = Py::new(py, slf.clone())?;
+        let reader = PyDetached::new(py, slf.clone())?;
         slf.inner.clear();
         Ok(Iter {
             reader,
@@ -50,8 +50,8 @@ impl Reader {
 #[pyclass]
 #[derive(Debug)]
 struct Iter {
-    reader: Py<Reader>,
-    keys: Py<PyBytes>,
+    reader: PyDetached<Reader>,
+    keys: PyDetached<PyBytes>,
     idx: usize,
 }
 

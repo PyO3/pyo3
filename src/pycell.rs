@@ -92,7 +92,7 @@
 //! # }
 //! # fn main() -> PyResult<()> {
 //! Python::with_gil(|py| {
-//!     let n = Py::new(py, Number { inner: 0 })?;
+//!     let n = PyDetached::new(py, Number { inner: 0 })?;
 //!
 //!     // We borrow the guard and then dereference
 //!     // it to get a mutable reference to Number
@@ -128,7 +128,7 @@
 //! }
 //! # fn main() {
 //! #     Python::with_gil(|py| {
-//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n = PyDetached::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
@@ -165,7 +165,7 @@
 //! # fn main() {
 //! #     // With duplicate numbers
 //! #     Python::with_gil(|py| {
-//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n = PyDetached::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
@@ -174,8 +174,8 @@
 //! #
 //! #     // With two different numbers
 //! #     Python::with_gil(|py| {
-//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
-//! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
+//! #         let n = PyDetached::new(py, Number{inner: 35}).unwrap();
+//! #         let n2 = PyDetached::new(py, Number{inner: 42}).unwrap();
 //! #         assert!(!n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
 //! #         fun.call1((&n, &n2)).unwrap();
@@ -283,7 +283,7 @@ impl<T: PyClass> PyCell<T> {
     /// Makes a new `PyCell` on the Python heap and return the reference to it.
     ///
     /// In cases where the value in the cell does not need to be accessed immediately after
-    /// creation, consider [`Py::new`](crate::Py::new) as a more efficient alternative.
+    /// creation, consider [`Py::new`](crate::PyDetached::new) as a more efficient alternative.
     pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {
         unsafe {
             let initializer = value.into();

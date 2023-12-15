@@ -78,7 +78,7 @@ impl ClassMethod {
     }
 
     #[classmethod]
-    fn method_owned(cls: Py<PyType>) -> PyResult<String> {
+    fn method_owned(cls: PyDetached<PyType>) -> PyResult<String> {
         Ok(format!(
             "{}.method_owned()!",
             Python::with_gil(|gil| cls.as_ref(gil).name().map(ToString::to_string))?
@@ -322,7 +322,7 @@ impl MethSignature {
 #[test]
 fn meth_signature() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, MethSignature {}).unwrap();
+        let inst = PyDetached::new(py, MethSignature {}).unwrap();
 
         py_run!(py, inst, "assert inst.get_optional() == 10");
         py_run!(py, inst, "assert inst.get_optional(100) == 100");
@@ -814,7 +814,7 @@ impl CfgStruct {
 #[test]
 fn test_cfg_attrs() {
     Python::with_gil(|py| {
-        let inst = Py::new(py, CfgStruct {}).unwrap();
+        let inst = PyDetached::new(py, CfgStruct {}).unwrap();
 
         #[cfg(unix)]
         {
@@ -1036,7 +1036,7 @@ issue_1506!(
         }
 
         fn issue_1506_custom_receiver(
-            _slf: Py<Self>,
+            _slf: PyDetached<Self>,
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
@@ -1045,7 +1045,7 @@ issue_1506!(
         }
 
         fn issue_1506_custom_receiver_explicit(
-            _slf: Py<Issue1506>,
+            _slf: PyDetached<Issue1506>,
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
@@ -1118,11 +1118,11 @@ fn test_option_pyclass_arg() {
     Python::with_gil(|py| {
         let f = wrap_pyfunction!(option_class_arg, py).unwrap();
         assert!(f.call0().unwrap().is_none());
-        let obj = Py::new(py, SomePyClass {}).unwrap();
+        let obj = PyDetached::new(py, SomePyClass {}).unwrap();
         assert!(f
             .call1((obj,))
             .unwrap()
-            .extract::<Py<SomePyClass>>()
+            .extract::<PyDetached<SomePyClass>>()
             .is_ok());
     })
 }

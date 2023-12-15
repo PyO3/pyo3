@@ -5,7 +5,7 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{PyAny, PyDetached, PyObject, Python, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -18,7 +18,7 @@ pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyLi
 pub(crate) fn new_from_iter(
     py: Python<'_>,
     elements: &mut dyn ExactSizeIterator<Item = PyObject>,
-) -> Py<PyList> {
+) -> PyDetached<PyList> {
     unsafe {
         // PyList_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -28,10 +28,10 @@ pub(crate) fn new_from_iter(
 
         let ptr = ffi::PyList_New(len);
 
-        // We create the  `Py` pointer here for two reasons:
+        // We create the  `PyDetached` pointer here for two reasons:
         // - panics if the ptr is null
         // - its Drop cleans up the list if user code or the asserts panic.
-        let list: Py<PyList> = Py::from_owned_ptr(py, ptr);
+        let list: PyDetached<PyList> = PyDetached::from_owned_ptr(py, ptr);
 
         let mut counter: Py_ssize_t = 0;
 
@@ -857,7 +857,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks() {
-        use crate::{Py, PyAny};
+        use crate::{PyAny, PyDetached};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -882,7 +882,7 @@ mod tests {
         }
 
         impl ToPyObject for Bad {
-            fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+            fn to_object(&self, py: Python<'_>) -> PyDetached<PyAny> {
                 self.to_owned().into_py(py)
             }
         }

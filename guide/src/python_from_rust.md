@@ -32,7 +32,7 @@ fn main() -> PyResult<()> {
     let arg3 = "arg3";
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code(
+        let fun: PyDetached<PyAny> = PyModule::from_code(
             py,
             "def example(*args, **kwargs):
                 if args != ():
@@ -78,7 +78,7 @@ fn main() -> PyResult<()> {
     let val2 = 2;
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code(
+        let fun: PyDetached<PyAny> = PyModule::from_code(
             py,
             "def example(*args, **kwargs):
                 if args != ():
@@ -372,9 +372,9 @@ fn main() -> PyResult<()> {
         "/python_app/utils/foo.py"
     ));
     let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
-    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+    let from_python = Python::with_gil(|py| -> PyResult<PyDetached<PyAny>> {
         PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
+        let app: PyDetached<PyAny> = PyModule::from_code(py, py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -405,10 +405,10 @@ use std::path::Path;
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = fs::read_to_string(path.join("app.py"))?;
-    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+    let from_python = Python::with_gil(|py| -> PyResult<PyDetached<PyAny>> {
         let syspath: &PyList = py.import("sys")?.getattr("path")?.downcast()?;
         syspath.insert(0, &path)?;
-        let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
+        let app: PyDetached<PyAny> = PyModule::from_code(py, &py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)

@@ -786,7 +786,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_clone_without_gil() {
-        use crate::{Py, PyAny};
+        use crate::{PyAny, PyDetached};
         use std::{sync::Arc, thread};
 
         // Some events for synchronizing
@@ -795,7 +795,7 @@ mod tests {
         static REFCNT_CHECKED: Event = Event::new();
 
         Python::with_gil(|py| {
-            let obj: Arc<Py<PyAny>> = Arc::new(get_object(py));
+            let obj: Arc<PyDetached<PyAny>> = Arc::new(get_object(py));
             let thread_obj = Arc::clone(&obj);
 
             let count = obj.get_refcnt(py);
@@ -826,7 +826,7 @@ mod tests {
 
                 println!("4. The other thread is now hogging the GIL, we clone without it held");
                 // Cloning without GIL should not update reference count
-                let cloned = Py::clone(&*obj);
+                let cloned = PyDetached::clone(&*obj);
                 OBJECT_CLONED.set();
                 cloned
             });
@@ -851,7 +851,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_clone_in_other_thread() {
-        use crate::Py;
+        use crate::PyDetached;
         use std::{sync::Arc, thread};
 
         // Some events for synchronizing
@@ -866,7 +866,7 @@ mod tests {
             let t = thread::spawn(move || {
                 // Cloning without GIL should not update reference count
                 #[allow(clippy::redundant_clone)]
-                let _ = Py::clone(&*thread_obj);
+                let _ = PyDetached::clone(&*thread_obj);
                 OBJECT_CLONED.set();
             });
 

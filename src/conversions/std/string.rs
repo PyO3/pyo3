@@ -3,7 +3,8 @@ use std::borrow::Cow;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    types::PyString, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    types::PyString, FromPyObject, IntoPy, PyAny, PyDetached, PyObject, PyResult, Python,
+    ToPyObject,
 };
 
 /// Converts a Rust `str` to a Python object.
@@ -27,9 +28,9 @@ impl<'a> IntoPy<PyObject> for &'a str {
     }
 }
 
-impl<'a> IntoPy<Py<PyString>> for &'a str {
+impl<'a> IntoPy<PyDetached<PyString>> for &'a str {
     #[inline]
-    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+    fn into_py(self, py: Python<'_>) -> PyDetached<PyString> {
         PyString::new(py, self).into()
     }
 

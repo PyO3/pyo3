@@ -1,5 +1,5 @@
 //! Synchronization mechanisms based on the Python GIL.
-use crate::{types::PyString, types::PyType, Py, PyErr, PyVisit, Python};
+use crate::{types::PyString, types::PyType, PyDetached, PyErr, PyVisit, Python};
 use std::cell::UnsafeCell;
 
 /// Value with concurrent access protected by the GIL.
@@ -73,7 +73,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;
 ///
-/// static LIST_CELL: GILOnceCell<Py<PyList>> = GILOnceCell::new();
+/// static LIST_CELL: GILOnceCell<PyDetached<PyList>> = GILOnceCell::new();
 ///
 /// pub fn get_shared_list(py: Python<'_>) -> &PyList {
 ///     LIST_CELL
@@ -187,7 +187,7 @@ impl<T> GILOnceCell<T> {
     }
 }
 
-impl GILOnceCell<Py<PyType>> {
+impl GILOnceCell<PyDetached<PyType>> {
     /// Get a reference to the contained Python type, initializing it if needed.
     ///
     /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
@@ -249,7 +249,7 @@ macro_rules! intern {
 
 /// Implementation detail for `intern!` macro.
 #[doc(hidden)]
-pub struct Interned(&'static str, GILOnceCell<Py<PyString>>);
+pub struct Interned(&'static str, GILOnceCell<PyDetached<PyString>>);
 
 impl Interned {
     /// Creates an empty holder for an interned `str`.

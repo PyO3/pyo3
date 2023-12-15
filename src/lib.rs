@@ -41,7 +41,7 @@
 //!
 //! ## The GIL-independent types
 //!
-//! When wrapped in [`Py`]`<...>`, like with [`Py`]`<`[`PyAny`]`>` or [`Py`]`<SomePyClass>`, Python
+//! When wrapped in [`PyDetached`]`<...>`, like with [`PyDetached`]`<`[`PyAny`]`>` or [`PyDetached`]`<SomePyClass>`, Python
 //! objects no longer have a limited lifetime which makes them easier to store in structs and pass
 //! between functions. However, you cannot do much with them without a
 //! [`Python<'py>`](crate::Python) token, for which you’d need to reacquire the GIL.
@@ -94,7 +94,7 @@
 //! - [`rust_decimal`]: Enables conversions between Python's decimal.Decimal and [rust_decimal]'s
 //! [`Decimal`] type.
 //! - [`serde`]: Allows implementing [serde]'s [`Serialize`] and [`Deserialize`] traits for
-//! [`Py`]`<T>` for all `T` that implement [`Serialize`] and [`Deserialize`].
+//! [`PyDetached`]`<T>` for all `T` that implement [`Serialize`] and [`Deserialize`].
 //! - [`smallvec`][smallvec]: Enables conversions between Python list and [smallvec]'s [`SmallVec`].
 //!
 //! ## Unstable features
@@ -300,7 +300,7 @@ pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::instance::{Py, PyNativeType, PyObject};
+pub use crate::instance::{PyDetached, PyNativeType, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
@@ -308,6 +308,9 @@ pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
+
+#[allow(deprecated)]
+pub use crate::instance::Py;
 
 // Expected to become public API in 0.21 under a different name
 pub(crate) use crate::instance::Py2;

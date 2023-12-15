@@ -2,7 +2,7 @@
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
-    Py,
+    PyDetached,
 };
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
@@ -248,11 +248,14 @@ pub use impl_::*;
 pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
-) -> PyResult<Py<PySet>> {
-    fn inner(py: Python<'_>, elements: &mut dyn Iterator<Item = PyObject>) -> PyResult<Py<PySet>> {
-        let set: Py<PySet> = unsafe {
-            // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
-            Py::from_owned_ptr_or_err(py, ffi::PySet_New(std::ptr::null_mut()))?
+) -> PyResult<PyDetached<PySet>> {
+    fn inner(
+        py: Python<'_>,
+        elements: &mut dyn Iterator<Item = PyObject>,
+    ) -> PyResult<PyDetached<PySet>> {
+        let set: PyDetached<PySet> = unsafe {
+            // We create the  `PyDetached` pointer because its Drop cleans up the set if user code panics.
+            PyDetached::from_owned_ptr_or_err(py, ffi::PySet_New(std::ptr::null_mut()))?
         };
         let ptr = set.as_ptr();
 
