@@ -280,7 +280,7 @@ mod capsule;
 mod code;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
-mod datetime;
+pub(crate) mod datetime;
 mod dict;
 mod ellipsis;
 pub(crate) mod float;

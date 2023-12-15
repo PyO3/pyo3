@@ -41,6 +41,7 @@
 //! }
 //! ```
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
+use crate::types::datetime::timezone_from_offset;
 use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
     PyTzInfo, PyTzInfoAccess, PyUnicode,
@@ -50,7 +51,6 @@ use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
 };
-use pyo3_ffi::{PyDateTime_IMPORT, PyTimeZone_FromOffset};
 use std::convert::TryInto;
 
 impl ToPyObject for Duration {
@@ -231,22 +231,14 @@ impl FromPyObject<'_> for DateTime<Utc> {
     }
 }
 
-// Utility function used to convert PyDelta to timezone
-fn py_timezone_from_offset<'a>(py: &Python<'a>, td: &PyDelta) -> &'a PyAny {
-    // Safety: py.from_owned_ptr needs the cast to be valid.
-    // Since we are forcing a &PyDelta as input, the cast should always be valid.
-    unsafe {
-        PyDateTime_IMPORT();
-        py.from_owned_ptr(PyTimeZone_FromOffset(td.as_ptr()))
-    }
-}
-
 impl ToPyObject for FixedOffset {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let seconds_offset = self.local_minus_utc();
         let td =
             PyDelta::new(py, 0, seconds_offset, 0, true).expect("failed to construct timedelta");
-        py_timezone_from_offset(&py, td).into()
+        timezone_from_offset(py, td)
+            .expect("Failed to construct PyTimezone")
+            .into()
     }
 }
 
@@ -847,14 +839,14 @@ mod tests {
             let offset = FixedOffset::east_opt(3600).unwrap().to_object(py);
             // Python timezone from timedelta
             let td = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_timedelta = py_timezone_from_offset(&py, td);
+            let py_timedelta = timezone_from_offset(py, td).unwrap();
             // Should be equal
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
 
             // Same but with negative values
             let offset = FixedOffset::east_opt(-3600).unwrap().to_object(py);
             let td = PyDelta::new(py, 0, -3600, 0, true).unwrap();
-            let py_timedelta = py_timezone_from_offset(&py, td);
+            let py_timedelta = timezone_from_offset(py, td).unwrap();
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
         })
     }
@@ -863,7 +855,7 @@ mod tests {
     fn test_pyo3_offset_fixed_frompyobject() {
         Python::with_gil(|py| {
             let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_tzinfo = py_timezone_from_offset(&py, py_timedelta);
+            let py_tzinfo = timezone_from_offset(py, py_timedelta).unwrap();
             let offset: FixedOffset = py_tzinfo.extract().unwrap();
             assert_eq!(FixedOffset::east_opt(3600).unwrap(), offset);
         })
@@ -886,12 +878,12 @@ mod tests {
             assert_eq!(Utc, py_utc);
 
             let py_timedelta = PyDelta::new(py, 0, 0, 0, true).unwrap();
-            let py_timezone_utc = py_timezone_from_offset(&py, py_timedelta);
+            let py_timezone_utc = timezone_from_offset(py, py_timedelta).unwrap();
             let py_timezone_utc: Utc = py_timezone_utc.extract().unwrap();
             assert_eq!(Utc, py_timezone_utc);
 
             let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_timezone = py_timezone_from_offset(&py, py_timedelta);
+            let py_timezone = timezone_from_offset(py, py_timedelta).unwrap();
             assert!(py_timezone.extract::<Utc>().is_err());
         })
     }
