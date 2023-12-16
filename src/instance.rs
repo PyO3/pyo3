@@ -787,7 +787,15 @@ impl<T> Py<T> {
     /// Returns whether the object is considered to be true.
     ///
     /// This is equivalent to the Python expression `bool(self)`.
+    #[deprecated(since = "0.21.0", note = "use `.is_truthy()` instead")]
     pub fn is_true(&self, py: Python<'_>) -> PyResult<bool> {
+        self.is_truthy(py)
+    }
+
+    /// Returns whether the object is considered to be true.
+    ///
+    /// This applies truth value testing equivalent to the Python expression `bool(self)`.
+    pub fn is_truthy(&self, py: Python<'_>) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
         err::error_on_minusone(py, v)?;
         Ok(v != 0)

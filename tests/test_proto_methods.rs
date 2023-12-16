@@ -159,9 +159,9 @@ fn test_hash() {
 fn test_bool() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert!(example_py.is_true().unwrap());
+        assert!(example_py.is_truthy().unwrap());
         example_py.borrow_mut().value = 0;
-        assert!(!example_py.is_true().unwrap());
+        assert!(!example_py.is_truthy().unwrap());
     })
 }
 
