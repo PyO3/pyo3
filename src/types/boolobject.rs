@@ -81,6 +81,13 @@ impl<'source> FromPyObject<'source> for bool {
             return Ok(obj.is_true());
         }
 
+        let missing_conversion = |obj: &PyAny| {
+            PyTypeError::new_err(format!(
+                "object of type '{}' does not define a '__bool__' conversion",
+                obj.get_type()
+            ))
+        };
+
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         unsafe {
             let ptr = obj.as_ptr();
@@ -95,14 +102,14 @@ impl<'source> FromPyObject<'source> for bool {
                 }
             }
 
-            Err(PyTypeError::new_err("object has no __bool__ magic method"))
+            Err(missing_conversion(obj))
         }
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
         {
             let meth = obj
                 .lookup_special(crate::intern!(obj.py(), "__bool__"))?
-                .ok_or_else(|| PyTypeError::new_err("object has no __bool__ magic method"))?;
+                .ok_or_else(|| missing_conversion(obj))?;
 
             let obj = meth.call0()?.downcast::<PyBool>()?;
             Ok(obj.is_true())
@@ -174,13 +181,13 @@ class D:
             let c = module.getattr("C").unwrap().call0().unwrap();
             assert_eq!(
                 c.extract::<bool>().unwrap_err().to_string(),
-                "TypeError: object has no __bool__ magic method",
+                "TypeError: object of type '<class 'test.C'>' does not define a '__bool__' conversion",
             );
 
             let d = module.getattr("D").unwrap().call0().unwrap();
             assert_eq!(
                 d.extract::<bool>().unwrap_err().to_string(),
-                "TypeError: object has no __bool__ magic method",
+                "TypeError: object of type '<class 'test.D'>' does not define a '__bool__' conversion",
             );
         });
     }
