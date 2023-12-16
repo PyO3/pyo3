@@ -306,7 +306,7 @@ impl PyAny {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
     ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
-    ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_true()?);
+    ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -640,8 +640,16 @@ impl PyAny {
     /// Returns whether the object is considered to be true.
     ///
     /// This is equivalent to the Python expression `bool(self)`.
+    #[deprecated(since = "0.21.0", note = "use `.is_truthy()` instead")]
     pub fn is_true(&self) -> PyResult<bool> {
-        Py2::borrowed_from_gil_ref(&self).is_true()
+        self.is_truthy()
+    }
+
+    /// Returns whether the object is considered to be true.
+    ///
+    /// This applies truth value testing equivalent to the Python expression `bool(self)`.
+    pub fn is_truthy(&self) -> PyResult<bool> {
+        Py2::borrowed_from_gil_ref(&self).is_truthy()
     }
 
     /// Returns whether the object is considered to be None.
@@ -1165,7 +1173,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
     ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
-    ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_true()?);
+    ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -1452,7 +1460,7 @@ pub(crate) trait PyAnyMethods<'py> {
     /// Returns whether the object is considered to be true.
     ///
     /// This is equivalent to the Python expression `bool(self)`.
-    fn is_true(&self) -> PyResult<bool>;
+    fn is_truthy(&self) -> PyResult<bool>;
 
     /// Returns whether the object is considered to be None.
     ///
@@ -1773,7 +1781,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             let do_compare = |other, op| unsafe {
                 ffi::PyObject_RichCompare(any.as_ptr(), other, op)
                     .assume_owned_or_err(any.py())
-                    .and_then(|obj| obj.is_true())
+                    .and_then(|obj| obj.is_truthy())
             };
             if do_compare(other, ffi::Py_EQ)? {
                 Ok(Ordering::Equal)
@@ -1816,7 +1824,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         O: ToPyObject,
     {
         self.rich_compare(other, CompareOp::Lt)
-            .and_then(|any| any.is_true())
+            .and_then(|any| any.is_truthy())
     }
 
     fn le<O>(&self, other: O) -> PyResult<bool>
@@ -1824,7 +1832,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         O: ToPyObject,
     {
         self.rich_compare(other, CompareOp::Le)
-            .and_then(|any| any.is_true())
+            .and_then(|any| any.is_truthy())
     }
 
     fn eq<O>(&self, other: O) -> PyResult<bool>
@@ -1832,7 +1840,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         O: ToPyObject,
     {
         self.rich_compare(other, CompareOp::Eq)
-            .and_then(|any| any.is_true())
+            .and_then(|any| any.is_truthy())
     }
 
     fn ne<O>(&self, other: O) -> PyResult<bool>
@@ -1840,7 +1848,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         O: ToPyObject,
     {
         self.rich_compare(other, CompareOp::Ne)
-            .and_then(|any| any.is_true())
+            .and_then(|any| any.is_truthy())
     }
 
     fn gt<O>(&self, other: O) -> PyResult<bool>
@@ -1848,7 +1856,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         O: ToPyObject,
     {
         self.rich_compare(other, CompareOp::Gt)
-            .and_then(|any| any.is_true())
+            .and_then(|any| any.is_truthy())
     }
 
     fn ge<O>(&self, other: O) -> PyResult<bool>
@@ -1856,7 +1864,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         O: ToPyObject,
     {
         self.rich_compare(other, CompareOp::Ge)
-            .and_then(|any| any.is_true())
+            .and_then(|any| any.is_truthy())
     }
 
     fn is_callable(&self) -> bool {
@@ -1948,7 +1956,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
         self.call_method(name, args, None)
     }
 
-    fn is_true(&self) -> PyResult<bool> {
+    fn is_truthy(&self) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
         err::error_on_minusone(self.py(), v)?;
         Ok(v != 0)
@@ -2554,7 +2562,7 @@ class SimpleClass:
             assert!(!py_int
                 .rich_compare(py_str, CompareOp::Eq)
                 .unwrap()
-                .is_true()
+                .is_truthy()
                 .unwrap());
         })
     }
