@@ -367,13 +367,13 @@ impl<'py> Python<'py> {
         F: Send + FnOnce() -> T,
         T: Send,
     {
-        use std::mem::transmute;
+        use std::mem::{replace, transmute};
         use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
-        use std::sync::mpsc::{sync_channel, SendError, SyncSender};
-        use std::thread::{Builder, Result};
+        use std::sync::Arc;
+        use std::thread::Builder;
         use std::time::Duration;
 
-        use parking_lot::{const_mutex, Mutex};
+        use parking_lot::{const_mutex, Condvar, Mutex};
 
         use crate::impl_::panic::PanicTrap;
 
@@ -391,20 +391,15 @@ impl<'py> Python<'py> {
         struct Task(*mut (dyn FnMut() + 'static));
         unsafe impl Send for Task {}
 
-        let (result_sender, result_receiver) = sync_channel::<Result<T>>(0);
-
         let mut f = Some(f);
+        let mut result = None;
 
         let mut task = || {
             let f = f
                 .take()
                 .expect("allow_threads closure called more than once");
 
-            let result = catch_unwind(AssertUnwindSafe(f));
-
-            result_sender
-                .send(result)
-                .expect("allow_threads runtime task was abandoned");
+            result = Some(catch_unwind(AssertUnwindSafe(f)));
         };
 
         // SAFETY: the current thread will block until the closure has returned
@@ -415,47 +410,142 @@ impl<'py> Python<'py> {
             "allow_threads panicked while stack data was accessed by another thread, please report this as a bug at https://github.com/PyO3/pyo3/issues",
         );
 
-        static THREADS: Mutex<Vec<SyncSender<Task>>> = const_mutex(Vec::new());
+        enum MailboxInner {
+            Empty,
+            Task(Task),
+            Working,
+            Done,
+            Abandoned,
+        }
 
-        let dispatch = move || {
-            while let Some(task_sender) = THREADS.lock().pop() {
-                match task_sender.send(task) {
-                    Ok(()) => return task_sender,
-                    Err(SendError(same_task)) => task = same_task,
+        struct Mailbox {
+            inner: Mutex<MailboxInner>,
+            flag: Condvar,
+        }
+
+        impl Mailbox {
+            fn new(task: Task) -> Self {
+                Self {
+                    inner: Mutex::new(MailboxInner::Task(task)),
+                    flag: Condvar::new(),
                 }
             }
 
-            let (task_sender, task_receiver) = sync_channel::<Task>(0);
-
-            Builder::new()
-                .name("pyo3 allow_threads runtime".to_owned())
-                .spawn(move || {
-                    let mut next_task = Ok(task);
-
-                    while let Ok(task) = next_task {
-                        // SAFETY: all data accessed by `task` will stay alive until it completes
-                        unsafe { (*task.0)() };
-
-                        next_task = task_receiver.recv_timeout(Duration::from_secs(60));
+            fn send_task(&self, task: Task) -> Option<Task> {
+                use MailboxInner::*;
+                let mut inner = self.inner.lock();
+                match &*inner {
+                    Empty => {
+                        *inner = Task(task);
+                        drop(inner);
+                        self.flag.notify_one();
+                        None
                     }
-                })
-                .expect("failed to create allow_threads runtime thread");
+                    Abandoned => Some(task),
+                    Task(_) | Working | Done => unreachable!("sent task to active worker"),
+                }
+            }
 
-            task_sender
+            fn recv_task(&self) -> Option<Task> {
+                use MailboxInner::*;
+                let mut inner = self.inner.lock();
+                loop {
+                    match &*inner {
+                        Empty | Done => {
+                            if self
+                                .flag
+                                .wait_for(&mut inner, Duration::from_secs(60))
+                                .timed_out()
+                            {
+                                *inner = Abandoned;
+                                return None;
+                            }
+                        }
+                        Task(_) => match replace(&mut *inner, Working) {
+                            Task(task) => return Some(task),
+                            _ => unreachable!(),
+                        },
+                        Working | Abandoned => {
+                            unreachable!("received task on active or exited worker")
+                        }
+                    }
+                }
+            }
+
+            fn signal_done(&self) {
+                use MailboxInner::*;
+                let mut inner = self.inner.lock();
+                match &*inner {
+                    Working => {
+                        *inner = Done;
+                        drop(inner);
+                        self.flag.notify_one();
+                    }
+                    Empty | Task(_) | Done | Abandoned => {
+                        unreachable!("signalled completion on inactive worker")
+                    }
+                }
+            }
+
+            fn await_done(&self) {
+                use MailboxInner::*;
+                let mut inner = self.inner.lock();
+                loop {
+                    match &*inner {
+                        Done => {
+                            *inner = Empty;
+                            return;
+                        }
+                        Task(_) | Working => self.flag.wait(&mut inner),
+                        Empty | Abandoned => {
+                            unreachable!("awaited completion from inactive worker")
+                        }
+                    }
+                }
+            }
+        }
+
+        static THREADS: Mutex<Vec<Arc<Mailbox>>> = const_mutex(Vec::new());
+
+        let dispatch = move || {
+            while let Some(mailbox) = THREADS.lock().pop() {
+                match mailbox.send_task(task) {
+                    None => return mailbox,
+                    Some(same_task) => task = same_task,
+                }
+            }
+
+            let mailbox = Arc::new(Mailbox::new(task));
+
+            {
+                let mailbox = Arc::clone(&mailbox);
+
+                Builder::new()
+                    .name("pyo3 allow_threads runtime".to_owned())
+                    .spawn(move || {
+                        while let Some(task) = mailbox.recv_task() {
+                            // SAFETY: all data accessed by `task` will stay alive until it completes
+                            unsafe { (*task.0)() };
+
+                            mailbox.signal_done();
+                        }
+                    })
+                    .expect("failed to create allow_threads runtime thread");
+            }
+
+            mailbox
         };
 
-        let task_sender = dispatch();
+        let mailbox = dispatch();
 
         // 3. Wait for completion and check result
-        let result = result_receiver
-            .recv()
-            .expect("allow_threads runtime thread died unexpectedly");
+        mailbox.await_done();
 
         trap.disarm();
 
-        THREADS.lock().push(task_sender);
+        THREADS.lock().push(mailbox);
 
-        match result {
+        match result.expect("allow_threads runtime thread did not set result") {
             Ok(result) => result,
             Err(payload) => resume_unwind(payload),
         }
