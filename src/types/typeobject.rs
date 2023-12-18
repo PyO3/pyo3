@@ -1,5 +1,8 @@
 use crate::err::{self, PyResult};
 use crate::{ffi, PyAny, PyTypeInfo, Python};
+use std::borrow::Cow;
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
@@ -33,6 +36,29 @@ impl PyType {
     /// Gets the name of the `PyType`.
     pub fn name(&self) -> PyResult<&str> {
         self.getattr(intern!(self.py(), "__qualname__"))?.extract()
+    }
+
+    /// Gets the full name, which includes the module, of the `PyType`.
+    pub fn full_name(&self) -> PyResult<Cow<'_, str>> {
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        {
+            let name = unsafe { CStr::from_ptr((*self.as_type_ptr()).tp_name) }.to_str()?;
+
+            Ok(Cow::Borrowed(name))
+        }
+
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        {
+            let module = self
+                .getattr(intern!(self.py(), "__module__"))?
+                .extract::<&str>()?;
+
+            let name = self
+                .getattr(intern!(self.py(), "__name__"))?
+                .extract::<&str>()?;
+
+            Ok(Cow::Owned(format!("{}.{}", module, name)))
+        }
     }
 
     /// Checks whether `self` is a subclass of `other`.
