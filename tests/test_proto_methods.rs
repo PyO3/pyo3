@@ -658,10 +658,10 @@ impl OnceFuture {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
-        if !slf.polled {
-            slf.polled = true;
-            Some(slf.future.clone())
+    fn __next__<'py>(&'py mut self, py: Python<'py>) -> Option<&'py PyAny> {
+        if !self.polled {
+            self.polled = true;
+            Some(self.future.as_ref(py))
         } else {
             None
         }

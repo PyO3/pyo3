@@ -91,6 +91,7 @@ impl CompareOp {
 /// Usage example:
 ///
 /// ```rust
+/// # #![allow(deprecated)]
 /// use pyo3::prelude::*;
 /// use pyo3::iter::IterNextOutput;
 ///
@@ -122,6 +123,7 @@ impl CompareOp {
 ///     }
 /// }
 /// ```
+#[deprecated(since = "0.21.0", note = "Use `Option` or `PyStopIteration` instead.")]
 pub enum IterNextOutput<T, U> {
     /// The value yielded by the iterator.
     Yield(T),
@@ -130,38 +132,22 @@ pub enum IterNextOutput<T, U> {
 }
 
 /// Alias of `IterNextOutput` with `PyObject` yield & return values.
+#[deprecated(since = "0.21.0", note = "Use `Option` or `PyStopIteration` instead.")]
+#[allow(deprecated)]
 pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
 
-impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
-    fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
-        match self {
-            IterNextOutput::Yield(o) => Ok(o.into_ptr()),
-            IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
-        }
-    }
-}
-
-impl<T, U> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U>
+#[allow(deprecated)]
+impl<T, U> IntoPyCallbackOutput<*mut ffi::PyObject> for IterNextOutput<T, U>
 where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         match self {
-            IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
-            IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
-        }
-    }
-}
-
-impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
-        match self {
-            Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
-            None => Ok(PyIterNextOutput::Return(py.None().into())),
+            IterNextOutput::Yield(o) => Ok(o.into_py(py).into_ptr()),
+            IterNextOutput::Return(o) => {
+                Err(crate::exceptions::PyStopIteration::new_err(o.into_py(py)))
+            }
         }
     }
 }

@@ -362,6 +362,7 @@ pub mod class {
     /// For compatibility reasons this has not yet been removed, however will be done so
     /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod iter {
+        #[allow(deprecated)]
         pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
     }
 
