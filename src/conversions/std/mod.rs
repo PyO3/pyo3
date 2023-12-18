@@ -1,4 +1,5 @@
 mod array;
+mod duration;
 mod ipaddr;
 mod map;
 mod num;
