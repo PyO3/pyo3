@@ -787,9 +787,11 @@ pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc"
 const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
     .arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
-const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_conversion(
-    TokenGenerator(|| quote! { _pyo3::class::iter::IterNextOutput::<_, _> }),
-);
+const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc")
+    .return_specialized_conversion(
+        TokenGenerator(|| quote! { IterBaseKind, IterOptionKind, IterResultOptionKind }),
+        TokenGenerator(|| quote! { iter_tag }),
+    );
 const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
 const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
 const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_conversion(
@@ -987,17 +989,23 @@ fn extract_object(
 enum ReturnMode {
     ReturnSelf,
     Conversion(TokenGenerator),
+    SpecializedConversion(TokenGenerator, TokenGenerator),
 }
 
 impl ReturnMode {
     fn return_call_output(&self, call: TokenStream) -> TokenStream {
         match self {
             ReturnMode::Conversion(conversion) => quote! {
-                let _result: _pyo3::PyResult<#conversion> = #call;
+                let _result: _pyo3::PyResult<#conversion> = _pyo3::callback::convert(py, #call);
                 _pyo3::callback::convert(py, _result)
             },
+            ReturnMode::SpecializedConversion(traits, tag) => quote! {
+                let _result = #call;
+                use _pyo3::callback::{#traits};
+                (&_result).#tag().convert(py, _result)
+            },
             ReturnMode::ReturnSelf => quote! {
-                let _result: _pyo3::PyResult<()> = #call;
+                let _result: _pyo3::PyResult<()> = _pyo3::callback::convert(py, #call);
                 _result?;
                 _pyo3::ffi::Py_XINCREF(_raw_slf);
                 ::std::result::Result::Ok(_raw_slf)
@@ -1043,6 +1051,15 @@ impl SlotDef {
 
     const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
         self.return_mode = Some(ReturnMode::Conversion(return_conversion));
+        self
+    }
+
+    const fn return_specialized_conversion(
+        mut self,
+        traits: TokenGenerator,
+        tag: TokenGenerator,
+    ) -> Self {
+        self.return_mode = Some(ReturnMode::SpecializedConversion(traits, tag));
         self
     }
 
@@ -1142,11 +1159,11 @@ fn generate_method_body(
     let self_arg = spec.tp.self_arg(Some(cls), extract_error_mode);
     let rust_name = spec.name;
     let args = extract_proto_arguments(spec, arguments, extract_error_mode)?;
-    let call = quote! { _pyo3::callback::convert(py, #cls::#rust_name(#self_arg #(#args),*)) };
+    let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
     Ok(if let Some(return_mode) = return_mode {
         return_mode.return_call_output(call)
     } else {
-        call
+        quote! { _pyo3::callback::convert(py, #call) }
     })
 }
 

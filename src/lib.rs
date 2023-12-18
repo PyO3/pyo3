@@ -356,17 +356,6 @@ pub mod class {
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
     ///
-    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterNextOutput` instead
-    /// of `use pyo3::class::pyasync::IterNextOutput`.
-    ///
-    /// For compatibility reasons this has not yet been removed, however will be done so
-    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
-    pub mod iter {
-        pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
-    }
-
-    /// Old module which contained some implementation details of the `#[pyproto]` module.
-    ///
     /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::PyTraverseError` instead
     /// of `use pyo3::class::gc::PyTraverseError`.
     ///

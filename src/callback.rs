@@ -6,6 +6,7 @@ use crate::ffi::{self, Py_hash_t};
 use crate::{IntoPy, PyObject, Python};
 use std::isize;
 use std::os::raw::c_int;
+use std::ptr::null_mut;
 
 /// A type which can be the return type of a python C-API callback
 pub trait PyCallbackOutput: Copy {
@@ -176,3 +177,86 @@ where
 {
     value.convert(py)
 }
+
+// Autoref-based specialization for handling `__next__` returning `Option`
+
+#[doc(hidden)]
+pub struct IterBaseTag;
+
+impl IterBaseTag {
+    #[inline]
+    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    where
+        Value: IntoPyCallbackOutput<Target>,
+    {
+        value.convert(py)
+    }
+}
+
+#[doc(hidden)]
+pub trait IterBaseKind {
+    fn iter_tag(&self) -> IterBaseTag {
+        IterBaseTag
+    }
+}
+
+impl<Value> IterBaseKind for &Value {}
+
+#[doc(hidden)]
+pub struct IterOptionTag;
+
+impl IterOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: Option<Value>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Some(value) => value.convert(py),
+            None => Ok(null_mut()),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub trait IterOptionKind {
+    fn iter_tag(&self) -> IterOptionTag {
+        IterOptionTag
+    }
+}
+
+impl<Value> IterOptionKind for Option<Value> {}
+
+#[doc(hidden)]
+pub struct IterResultOptionTag;
+
+impl IterResultOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: PyResult<Option<Value>>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Ok(Some(value)) => value.convert(py),
+            Ok(None) => Ok(null_mut()),
+            Err(err) => Err(err),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub trait IterResultOptionKind {
+    fn iter_tag(&self) -> IterResultOptionTag {
+        IterResultOptionTag
+    }
+}
+
+impl<Value> IterResultOptionKind for PyResult<Option<Value>> {}
