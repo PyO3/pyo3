@@ -33,13 +33,28 @@ impl PyType {
         py.from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 
-    /// Gets the name of the `PyType`.
-    pub fn name(&self) -> PyResult<&str> {
-        self.getattr(intern!(self.py(), "__qualname__"))?.extract()
+    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
+    pub fn qualname(&self) -> PyResult<String> {
+        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
+        let name = self.getattr(intern!(self.py(), "__qualname__"))?.extract();
+
+        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
+        let name = {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+            use crate::types::any::PyAnyMethods;
+
+            let obj = unsafe {
+                ffi::PyType_GetQualName(self.as_type_ptr()).assume_owned_or_err(self.py())?
+            };
+
+            obj.extract()
+        };
+
+        name
     }
 
     /// Gets the full name, which includes the module, of the `PyType`.
-    pub fn full_name(&self) -> PyResult<Cow<'_, str>> {
+    pub fn name(&self) -> PyResult<Cow<'_, str>> {
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         {
             let name = unsafe { CStr::from_ptr((*self.as_type_ptr()).tp_name) }.to_str()?;
@@ -49,13 +64,17 @@ impl PyType {
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
         {
-            let module = self
-                .getattr(intern!(self.py(), "__module__"))?
-                .extract::<&str>()?;
+            let module = self.getattr(intern!(self.py(), "__module__"))?;
 
-            let name = self
-                .getattr(intern!(self.py(), "__name__"))?
-                .extract::<&str>()?;
+            #[cfg(not(Py_3_11))]
+            let name = self.getattr(intern!(self.py(), "__name__"))?;
+
+            #[cfg(Py_3_11)]
+            let name = {
+                use crate::ffi_ptr_ext::FfiPtrExt;
+
+                unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? }
+            };
 
             Ok(Cow::Owned(format!("{}.{}", module, name)))
         }

@@ -74,6 +74,9 @@ Python::with_gil(|py| {
 });
 ```
 
+### `PyType::name` is now `PyType::qualname`
+
+`PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
 
 ## from 0.19.* to 0.20
 

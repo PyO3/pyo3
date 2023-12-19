@@ -706,7 +706,7 @@ impl std::fmt::Display for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Python::with_gil(|py| {
             let value = self.value(py);
-            let type_name = value.get_type().name().map_err(|_| std::fmt::Error)?;
+            let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
             write!(f, "{}", type_name)?;
             if let Ok(s) = value.str() {
                 write!(f, ": {}", &s.to_string_lossy())
@@ -748,7 +748,8 @@ impl PyErrArguments for PyDowncastErrorArguments {
             "'{}' object cannot be converted to '{}'",
             self.from
                 .as_ref(py)
-                .name()
+                .qualname()
+                .as_deref()
                 .unwrap_or("<failed to extract type name>"),
             self.to
         )
@@ -775,7 +776,10 @@ impl<'a> std::fmt::Display for PyDowncastError<'a> {
         write!(
             f,
             "'{}' object cannot be converted to '{}'",
-            self.from.get_type().name().map_err(|_| std::fmt::Error)?,
+            self.from
+                .get_type()
+                .qualname()
+                .map_err(|_| std::fmt::Error)?,
             self.to
         )
     }
