@@ -382,11 +382,9 @@ fn py_time_to_naive_time(py_time: &impl PyTimeAccess) -> PyResult<NaiveTime> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cmp::Ordering, panic};
-
-    use crate::{tests::common::CatchWarnings, PyTypeInfo};
-
     use super::*;
+    use crate::{tests::common::CatchWarnings, types::PyTuple, Py, PyTypeInfo};
+    use std::{cmp::Ordering, panic};
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
@@ -416,15 +414,14 @@ mod tests {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
         Python::with_gil(|py| {
-            let utc = timezone_utc(py);
-            let py_datetime = PyDateTime::new(py, 2022, 1, 1, 1, 0, 0, 0, Some(utc)).unwrap();
+            let py_datetime =
+                new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0, python_utc(py)));
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<NaiveDateTime> = py_datetime.extract();
-            assert!(res.is_err());
-            let res = res.err().unwrap();
-            // Also check the error message is what we expect
-            let msg = res.value(py).repr().unwrap().to_string();
-            assert_eq!(msg, "TypeError('expected a datetime without tzinfo')");
+            assert_eq!(
+                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                "TypeError('expected a datetime without tzinfo')"
+            );
         });
     }
 
@@ -433,22 +430,20 @@ mod tests {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
         Python::with_gil(|py| {
-            let py_datetime = PyDateTime::new(py, 2022, 1, 1, 1, 0, 0, 0, None).unwrap();
+            let py_datetime = new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0));
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<Utc>> = py_datetime.extract();
-            assert!(res.is_err());
-            let res = res.err().unwrap();
-            // Also check the error message is what we expect
-            let msg = res.value(py).repr().unwrap().to_string();
-            assert_eq!(msg, "TypeError('expected a datetime with non-None tzinfo')");
+            assert_eq!(
+                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                "TypeError('expected a datetime with non-None tzinfo')"
+            );
 
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<FixedOffset>> = py_datetime.extract();
-            assert!(res.is_err());
-            let res = res.err().unwrap();
-            // Also check the error message is what we expect
-            let msg = res.value(py).repr().unwrap().to_string();
-            assert_eq!(msg, "TypeError('expected a datetime with non-None tzinfo')");
+            assert_eq!(
+                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                "TypeError('expected a datetime with non-None tzinfo')"
+            );
         });
     }
 
@@ -502,10 +497,9 @@ mod tests {
         let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
             Python::with_gil(|py| {
                 let delta = delta.to_object(py);
-                let delta: &PyDelta = delta.extract(py).unwrap();
-                let py_delta = PyDelta::new(py, py_days, py_seconds, py_ms, true).unwrap();
+                let py_delta = new_py_datetime_ob(py, "timedelta", (py_days, py_seconds, py_ms));
                 assert!(
-                    delta.eq(py_delta).unwrap(),
+                    delta.as_ref(py).eq(py_delta).unwrap(),
                     "{}: {} != {}",
                     name,
                     delta,
@@ -539,7 +533,7 @@ mod tests {
         // The `name` parameter is used to identify the check in case of a failure.
         let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
             Python::with_gil(|py| {
-                let py_delta = PyDelta::new(py, py_days, py_seconds, py_ms, true).unwrap();
+                let py_delta = new_py_datetime_ob(py, "timedelta", (py_days, py_seconds, py_ms));
                 let py_delta: Duration = py_delta.extract().unwrap();
                 assert_eq!(py_delta, delta, "{}: {} != {}", name, py_delta, delta);
             })
@@ -571,7 +565,7 @@ mod tests {
             assert!(panic::catch_unwind(|| Duration::days(low_days as i64)).is_ok());
             // This panics on PyDelta::new
             assert!(panic::catch_unwind(|| {
-                let py_delta = PyDelta::new(py, low_days, 0, 0, true).unwrap();
+                let py_delta = new_py_datetime_ob(py, "timedelta", (low_days, 0, 0));
                 if let Ok(_duration) = py_delta.extract::<Duration>() {
                     // So we should never get here
                 }
@@ -583,7 +577,7 @@ mod tests {
             assert!(panic::catch_unwind(|| Duration::days(high_days as i64)).is_ok());
             // This panics on PyDelta::new
             assert!(panic::catch_unwind(|| {
-                let py_delta = PyDelta::new(py, high_days, 0, 0, true).unwrap();
+                let py_delta = new_py_datetime_ob(py, "timedelta", (high_days, 0, 0));
                 if let Ok(_duration) = py_delta.extract::<Duration>() {
                     // So we should never get here
                 }
@@ -599,10 +593,9 @@ mod tests {
                 let date = NaiveDate::from_ymd_opt(year, month, day)
                     .unwrap()
                     .to_object(py);
-                let date: &PyDate = date.extract(py).unwrap();
-                let py_date = PyDate::new(py, year, month as u8, day as u8).unwrap();
+                let py_date = new_py_datetime_ob(py, "date", (year, month, day));
                 assert_eq!(
-                    date.compare(py_date).unwrap(),
+                    date.as_ref(py).compare(py_date).unwrap(),
                     Ordering::Equal,
                     "{}: {} != {}",
                     name,
@@ -622,7 +615,7 @@ mod tests {
     fn test_pyo3_date_frompyobject() {
         let eq_ymd = |name: &'static str, year, month, day| {
             Python::with_gil(|py| {
-                let py_date = PyDate::new(py, year, month as u8, day as u8).unwrap();
+                let py_date = new_py_datetime_ob(py, "date", (year, month, day));
                 let py_date: NaiveDate = py_date.extract().unwrap();
                 let date = NaiveDate::from_ymd_opt(year, month, day).unwrap();
                 assert_eq!(py_date, date, "{}: {} != {}", name, date, py_date);
@@ -646,22 +639,22 @@ mod tests {
                         .unwrap()
                         .and_utc();
                     let datetime = datetime.to_object(py);
-                    let datetime: &PyDateTime = datetime.extract(py).unwrap();
-                    let py_tz = timezone_utc(py);
-                    let py_datetime = PyDateTime::new(
+                    let py_datetime = new_py_datetime_ob(
                         py,
-                        year,
-                        month as u8,
-                        day as u8,
-                        hour as u8,
-                        minute as u8,
-                        second as u8,
-                        py_ms,
-                        Some(py_tz),
-                    )
-                    .unwrap();
+                        "datetime",
+                        (
+                            year,
+                            month,
+                            day,
+                            hour,
+                            minute,
+                            second,
+                            py_ms,
+                            python_utc(py),
+                        ),
+                    );
                     assert_eq!(
-                        datetime.compare(py_datetime).unwrap(),
+                        datetime.as_ref(py).compare(py_datetime).unwrap(),
                         Ordering::Equal,
                         "{}: {} != {}",
                         name,
@@ -696,23 +689,14 @@ mod tests {
                         .and_local_timezone(offset)
                         .unwrap();
                     let datetime = datetime.to_object(py);
-                    let datetime: &PyDateTime = datetime.extract(py).unwrap();
                     let py_tz = offset.to_object(py);
-                    let py_tz = py_tz.downcast(py).unwrap();
-                    let py_datetime = PyDateTime::new(
+                    let py_datetime = new_py_datetime_ob(
                         py,
-                        year,
-                        month as u8,
-                        day as u8,
-                        hour as u8,
-                        minute as u8,
-                        second as u8,
-                        py_ms,
-                        Some(py_tz),
-                    )
-                    .unwrap();
+                        "datetime",
+                        (year, month, day, hour, minute, second, py_ms, py_tz),
+                    );
                     assert_eq!(
-                        datetime.compare(py_datetime).unwrap(),
+                        datetime.as_ref(py).compare(py_datetime).unwrap(),
                         Ordering::Equal,
                         "{}: {} != {}",
                         name,
@@ -744,23 +728,16 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let py_tz = timezone_utc(py);
-            let py_datetime = PyDateTime::new(
+            let tz_utc = timezone_utc(py);
+            let py_datetime = new_py_datetime_ob(
                 py,
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
-                micro,
-                Some(py_tz),
-            )
-            .unwrap();
+                "datetime",
+                (year, month, day, hour, minute, second, micro, tz_utc),
+            );
             let py_datetime: DateTime<Utc> = py_datetime.extract().unwrap();
-            let datetime = NaiveDate::from_ymd_opt(year, month.into(), day.into())
+            let datetime = NaiveDate::from_ymd_opt(year, month, day)
                 .unwrap()
-                .and_hms_micro_opt(hour.into(), minute.into(), second.into(), micro)
+                .and_hms_micro_opt(hour, minute, second, micro)
                 .unwrap()
                 .and_utc();
             assert_eq!(py_datetime, datetime,);
@@ -779,23 +756,15 @@ mod tests {
             let micro = 999_999;
             let offset = FixedOffset::east_opt(3600).unwrap();
             let py_tz = offset.to_object(py);
-            let py_tz = py_tz.downcast(py).unwrap();
-            let py_datetime = PyDateTime::new(
+            let py_datetime = new_py_datetime_ob(
                 py,
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
-                micro,
-                Some(py_tz),
-            )
-            .unwrap();
+                "datetime",
+                (year, month, day, hour, minute, second, micro, py_tz),
+            );
             let datetime_from_py: DateTime<FixedOffset> = py_datetime.extract().unwrap();
-            let datetime = NaiveDate::from_ymd_opt(year, month.into(), day.into())
+            let datetime = NaiveDate::from_ymd_opt(year, month, day)
                 .unwrap()
-                .and_hms_micro_opt(hour.into(), minute.into(), second.into(), micro)
+                .and_hms_micro_opt(hour, minute, second, micro)
                 .unwrap();
             let datetime = datetime.and_local_timezone(offset).unwrap();
 
@@ -805,10 +774,12 @@ mod tests {
                 "Extracting Utc from nonzero FixedOffset timezone will fail"
             );
 
-            let utc = timezone_utc(py);
-            let py_datetime_utc =
-                PyDateTime::new(py, year, month, day, hour, minute, second, micro, Some(utc))
-                    .unwrap();
+            let utc = python_utc(py);
+            let py_datetime_utc = new_py_datetime_ob(
+                py,
+                "datetime",
+                (year, month, day, hour, minute, second, micro, utc),
+            );
             assert!(
                 py_datetime_utc.extract::<DateTime<FixedOffset>>().is_ok(),
                 "Extracting FixedOffset from Utc timezone will succeed"
@@ -822,15 +793,15 @@ mod tests {
             // Chrono offset
             let offset = FixedOffset::east_opt(3600).unwrap().to_object(py);
             // Python timezone from timedelta
-            let td = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_timedelta = timezone_from_offset(py, td).unwrap();
+            let td = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
+            let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
             // Should be equal
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
 
             // Same but with negative values
             let offset = FixedOffset::east_opt(-3600).unwrap().to_object(py);
-            let td = PyDelta::new(py, 0, -3600, 0, true).unwrap();
-            let py_timedelta = timezone_from_offset(py, td).unwrap();
+            let td = new_py_datetime_ob(py, "timedelta", (0, -3600, 0));
+            let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
         })
     }
@@ -838,8 +809,8 @@ mod tests {
     #[test]
     fn test_pyo3_offset_fixed_frompyobject() {
         Python::with_gil(|py| {
-            let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_tzinfo = timezone_from_offset(py, py_timedelta).unwrap();
+            let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
+            let py_tzinfo = new_py_datetime_ob(py, "timezone", (py_timedelta,));
             let offset: FixedOffset = py_tzinfo.extract().unwrap();
             assert_eq!(FixedOffset::east_opt(3600).unwrap(), offset);
         })
@@ -849,7 +820,7 @@ mod tests {
     fn test_pyo3_offset_utc_topyobject() {
         Python::with_gil(|py| {
             let utc = Utc.to_object(py);
-            let py_utc = timezone_utc(py);
+            let py_utc = python_utc(py);
             assert!(utc.as_ref(py).is(py_utc));
         })
     }
@@ -857,17 +828,17 @@ mod tests {
     #[test]
     fn test_pyo3_offset_utc_frompyobject() {
         Python::with_gil(|py| {
-            let py_utc = timezone_utc(py);
+            let py_utc = python_utc(py);
             let py_utc: Utc = py_utc.extract().unwrap();
             assert_eq!(Utc, py_utc);
 
-            let py_timedelta = PyDelta::new(py, 0, 0, 0, true).unwrap();
-            let py_timezone_utc = timezone_from_offset(py, py_timedelta).unwrap();
+            let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 0, 0));
+            let py_timezone_utc = new_py_datetime_ob(py, "timezone", (py_timedelta,));
             let py_timezone_utc: Utc = py_timezone_utc.extract().unwrap();
             assert_eq!(Utc, py_timezone_utc);
 
-            let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_timezone = timezone_from_offset(py, py_timedelta).unwrap();
+            let py_timedelta = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
+            let py_timezone = new_py_datetime_ob(py, "timezone", (py_timedelta,));
             assert!(py_timezone.extract::<Utc>().is_err());
         })
     }
@@ -879,11 +850,9 @@ mod tests {
                 let time = NaiveTime::from_hms_micro_opt(hour, minute, second, ms)
                     .unwrap()
                     .to_object(py);
-                let time: &PyTime = time.extract(py).unwrap();
-                let py_time =
-                    PyTime::new(py, hour as u8, minute as u8, second as u8, py_ms, None).unwrap();
+                let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, py_ms));
                 assert!(
-                    time.eq(py_time).unwrap(),
+                    time.as_ref(py).eq(py_time).unwrap(),
                     "{}: {} != {}",
                     name,
                     time,
@@ -911,19 +880,39 @@ mod tests {
         let second = 7;
         let micro = 999_999;
         Python::with_gil(|py| {
-            let py_time =
-                PyTime::new(py, hour as u8, minute as u8, second as u8, micro, None).unwrap();
+            let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, micro));
             let py_time: NaiveTime = py_time.extract().unwrap();
             let time = NaiveTime::from_hms_micro_opt(hour, minute, second, micro).unwrap();
             assert_eq!(py_time, time);
         })
     }
 
+    fn new_py_datetime_ob<'a>(
+        py: Python<'a>,
+        name: &str,
+        args: impl IntoPy<Py<PyTuple>>,
+    ) -> &'a PyAny {
+        py.import("datetime")
+            .unwrap()
+            .getattr(name)
+            .unwrap()
+            .call1(args)
+            .unwrap()
+    }
+
+    fn python_utc(py: Python<'_>) -> &PyAny {
+        py.import("datetime")
+            .unwrap()
+            .getattr("timezone")
+            .unwrap()
+            .getattr("utc")
+            .unwrap()
+    }
+
     #[cfg(all(test, not(target_arch = "wasm32")))]
     mod proptests {
         use super::*;
         use crate::types::IntoPyDict;
-
         use proptest::prelude::*;
 
         proptest! {
