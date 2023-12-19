@@ -1,7 +1,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    ffi, instance::Py2, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+    exceptions::PyTypeError, ffi, instance::Py2, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
+    Python, ToPyObject,
 };
 
 /// Represents a Python `bool`.
@@ -76,7 +77,52 @@ impl IntoPy<PyObject> for bool {
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl<'source> FromPyObject<'source> for bool {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
-        Ok(obj.downcast::<PyBool>()?.is_true())
+        let err = match obj.downcast::<PyBool>() {
+            Ok(obj) => return Ok(obj.is_true()),
+            Err(err) => err,
+        };
+
+        if obj
+            .get_type()
+            .name()
+            .map_or(false, |name| name == "numpy.bool_")
+        {
+            let missing_conversion = |obj: &PyAny| {
+                PyTypeError::new_err(format!(
+                    "object of type '{}' does not define a '__bool__' conversion",
+                    obj.get_type()
+                ))
+            };
+
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            unsafe {
+                let ptr = obj.as_ptr();
+
+                if let Some(tp_as_number) = (*(*ptr).ob_type).tp_as_number.as_ref() {
+                    if let Some(nb_bool) = tp_as_number.nb_bool {
+                        match (nb_bool)(ptr) {
+                            0 => return Ok(false),
+                            1 => return Ok(true),
+                            _ => return Err(crate::PyErr::fetch(obj.py())),
+                        }
+                    }
+                }
+
+                return Err(missing_conversion(obj));
+            }
+
+            #[cfg(any(Py_LIMITED_API, PyPy))]
+            {
+                let meth = obj
+                    .lookup_special(crate::intern!(obj.py(), "__bool__"))?
+                    .ok_or_else(|| missing_conversion(obj))?;
+
+                let obj = meth.call0()?.downcast::<PyBool>()?;
+                return Ok(obj.is_true());
+            }
+        }
+
+        Err(err.into())
     }
 
     #[cfg(feature = "experimental-inspect")]

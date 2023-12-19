@@ -54,3 +54,13 @@ def test_type_full_name_includes_module():
     numpy = pytest.importorskip("numpy")
 
     assert pyo3_pytests.misc.get_type_full_name(numpy.bool_(True)) == "numpy.bool_"
+
+
+def test_accepts_numpy_bool():
+    # binary numpy wheel not available on all platforms
+    numpy = pytest.importorskip("numpy")
+
+    assert pyo3_pytests.misc.accepts_bool(True) is True
+    assert pyo3_pytests.misc.accepts_bool(False) is False
+    assert pyo3_pytests.misc.accepts_bool(numpy.bool_(True)) is True
+    assert pyo3_pytests.misc.accepts_bool(numpy.bool_(False)) is False
