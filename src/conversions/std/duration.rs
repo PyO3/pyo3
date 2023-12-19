@@ -1,4 +1,4 @@
-use crate::exceptions::{PyUserWarning, PyValueError};
+use crate::exceptions::PyValueError;
 #[cfg(Py_LIMITED_API)]
 use crate::sync::GILOnceCell;
 #[cfg(Py_LIMITED_API)]
@@ -7,7 +7,7 @@ use crate::types::PyType;
 use crate::types::{PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, Py};
-use crate::{FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
+use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::time::Duration;
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
@@ -56,30 +56,28 @@ impl ToPyObject for Duration {
         let microseconds = self.subsec_micros();
 
         #[cfg(not(Py_LIMITED_API))]
-        let delta = PyDelta::new(
-            py,
-            days.try_into()
-                .expect("Too large Rust duration for timedelta"),
-            seconds.try_into().unwrap(),
-            microseconds.try_into().unwrap(),
-            false,
-        )
-        .expect("failed to construct timedelta (overflow?)");
+        {
+            PyDelta::new(
+                py,
+                days.try_into()
+                    .expect("Too large Rust duration for timedelta"),
+                seconds.try_into().unwrap(),
+                microseconds.try_into().unwrap(),
+                false,
+            )
+            .expect("failed to construct timedelta (overflow?)")
+            .into()
+        }
         #[cfg(Py_LIMITED_API)]
-        let delta = {
+        {
             static TIMEDELTA: GILOnceCell<Py<PyType>> = GILOnceCell::new();
             TIMEDELTA
                 .get_or_try_init_type_ref(py, "datetime", "timedelta")
                 .unwrap()
                 .call1((days, seconds, microseconds))
                 .unwrap()
-        };
-
-        if self.subsec_nanos() % 1_000 != 0 {
-            warn_truncated_nanoseconds(delta);
+                .into()
         }
-
-        delta.into()
     }
 }
 
@@ -87,18 +85,6 @@ impl IntoPy<PyObject> for Duration {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
-}
-
-fn warn_truncated_nanoseconds(obj: &PyAny) {
-    let py = obj.py();
-    if let Err(e) = PyErr::warn(
-        py,
-        py.get_type::<PyUserWarning>(),
-        "ignored nanoseconds, `datetime.timedelta` does not support nanoseconds",
-        0,
-    ) {
-        e.write_unraisable(py, Some(obj))
-    };
 }
 
 #[cfg(test)]
@@ -195,20 +181,6 @@ mod tests {
     fn test_topyobject_overflow() {
         Python::with_gil(|py| {
             assert!(panic::catch_unwind(|| Duration::MAX.to_object(py)).is_err());
-        })
-    }
-
-    #[test]
-    fn test_topyobject_precision_loss() {
-        Python::with_gil(|py| {
-            assert_warnings!(
-                py,
-                Duration::new(0, 1).to_object(py),
-                [(
-                    PyUserWarning,
-                    "ignored nanoseconds, `datetime.timedelta` does not support nanoseconds"
-                )]
-            );
         })
     }
 
