@@ -44,7 +44,7 @@ use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 use crate::types::datetime::timezone_from_offset;
 use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
-    PyTzInfo, PyTzInfoAccess, PyUnicode,
+    PyTzInfo, PyTzInfoAccess,
 };
 use crate::{FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
@@ -200,10 +200,10 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     }
 }
 
-impl FromPyObject<'_> for DateTime<FixedOffset> {
-    fn extract(ob: &PyAny) -> PyResult<DateTime<FixedOffset>> {
+impl<Tz: TimeZone + for<'a> FromPyObject<'a>> FromPyObject<'_> for DateTime<Tz> {
+    fn extract(ob: &PyAny) -> PyResult<DateTime<Tz>> {
         let dt: &PyDateTime = ob.downcast()?;
-        let tz: FixedOffset = if let Some(tzinfo) = dt.get_tzinfo() {
+        let tz = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
             return Err(PyTypeError::new_err(
@@ -211,23 +211,12 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
             ));
         };
         let dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
-        // `FixedOffset` cannot have ambiguities so we don't have to worry about DST folds and such
-        Ok(dt.and_local_timezone(tz).unwrap())
-    }
-}
-
-impl FromPyObject<'_> for DateTime<Utc> {
-    fn extract(ob: &PyAny) -> PyResult<DateTime<Utc>> {
-        let dt: &PyDateTime = ob.downcast()?;
-        let _: Utc = if let Some(tzinfo) = dt.get_tzinfo() {
-            tzinfo.extract()?
-        } else {
-            return Err(PyTypeError::new_err(
-                "expected a datetime with non-None tzinfo",
-            ));
-        };
-        let dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
-        Ok(dt.and_utc())
+        dt.and_local_timezone(tz).single().ok_or_else(|| {
+            PyValueError::new_err(format!(
+                "The datetime {:?} contains an incompatible or ambiguous timezone",
+                ob
+            ))
+        })
     }
 }
 
@@ -262,12 +251,7 @@ impl FromPyObject<'_> for FixedOffset {
         // Trying to convert None to a PyDelta in the next line will then fail.
         let py_timedelta = py_tzinfo.call_method1("utcoffset", (ob.py().None(),))?;
         let py_timedelta: &PyDelta = py_timedelta.downcast().map_err(|_| {
-            PyTypeError::new_err(format!(
-                "{:?} is not a fixed offset timezone",
-                py_tzinfo
-                    .repr()
-                    .unwrap_or_else(|_| PyUnicode::new(ob.py(), "repr failed"))
-            ))
+            PyTypeError::new_err(format!("{:?} is not a fixed offset timezone", py_tzinfo))
         })?;
         let days = py_timedelta.get_days() as i64;
         let seconds = py_timedelta.get_seconds() as i64;
@@ -423,7 +407,7 @@ mod tests {
             let res = result.err().unwrap();
             // Also check the error message is what we expect
             let msg = res.value(py).repr().unwrap().to_string();
-            assert_eq!(msg, "TypeError('\"zoneinfo.ZoneInfo(key=\\'Europe/London\\')\" is not a fixed offset timezone')");
+            assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
         });
     }
 
