@@ -57,9 +57,16 @@ impl PyType {
     pub fn name(&self) -> PyResult<Cow<'_, str>> {
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         {
-            let name = unsafe { CStr::from_ptr((*self.as_type_ptr()).tp_name) }.to_str()?;
+            let ptr = self.as_type_ptr();
 
-            Ok(Cow::Borrowed(name))
+            let name = unsafe { CStr::from_ptr((*ptr).tp_name) }.to_str()?;
+
+            #[cfg(Py_3_10)]
+            if unsafe { ffi::PyType_HasFeature(ptr, ffi::Py_TPFLAGS_IMMUTABLETYPE) } != 0 {
+                return Ok(Cow::Borrowed(name));
+            }
+
+            Ok(Cow::Owned(name.to_owned()))
         }
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
