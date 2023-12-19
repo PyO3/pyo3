@@ -2,6 +2,7 @@ import importlib
 import platform
 import sys
 
+import gevent
 import pyo3_pytests.misc
 import pytest
 
@@ -64,3 +65,39 @@ def test_accepts_numpy_bool():
     assert pyo3_pytests.misc.accepts_bool(False) is False
     assert pyo3_pytests.misc.accepts_bool(numpy.bool_(True)) is True
     assert pyo3_pytests.misc.accepts_bool(numpy.bool_(False)) is False
+
+
+class ArbitraryClass:
+    worker_id: int
+    iteration: int
+
+    def __init__(self, worker_id: int, iteration: int):
+        self.worker_id = worker_id
+        self.iteration = iteration
+
+    def __repr__(self):
+        return f"ArbitraryClass({self.worker_id}, {self.iteration})"
+
+    def __del__(self):
+        print("del", self.worker_id, self.iteration)
+
+
+def test_gevent():
+    def worker(worker_id: int) -> None:
+        for iteration in range(2):
+            d = {"key": ArbitraryClass(worker_id, iteration)}
+
+            def arbitrary_python_code():
+                # remove the dictionary entry so that the class value can be
+                # garbage collected
+                del d["key"]
+                print("gevent sleep", worker_id, iteration)
+                gevent.sleep(0)
+                print("after gevent sleep", worker_id, iteration)
+
+            print("start", worker_id, iteration)
+            pyo3_pytests.misc.get_item_and_run_callback(d, arbitrary_python_code)
+            print("end", worker_id, iteration)
+
+    workers = [gevent.spawn(worker, i) for i in range(2)]
+    gevent.joinall(workers)
