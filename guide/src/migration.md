@@ -74,7 +74,124 @@ Python::with_gil(|py| {
 });
 ```
 
-### `PyType::name` is now `PyType::qualname`
+### `Iter(A)NextOutput` are deprecated
+
+The `__next__` and `__anext__` magic methods can now return any type convertible into Python objects directly just like all other `#[pymethods]`. The `IterNextOutput` used by `__next__` and `IterANextOutput` used by `__anext__` are subsequently deprecated. Most importantly, this change allows returning an awaitable from `__anext__` without non-sensically wrapping it into `Yield` or `Some`. Only the return types `Option<T>` and `PyResult<Option<T>>` are still handled in a special manner where `Some(val)` yields `val` and `None` stops iteration.
+
+Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
+
+```rust
+#![allow(deprecated)]
+use pyo3::prelude::*;
+use pyo3::iter::IterNextOutput;
+
+#[pyclass]
+struct PyClassIter {
+    count: usize,
+}
+
+#[pymethods]
+impl PyClassIter {
+    fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {
+        if self.count < 5 {
+            self.count += 1;
+            IterNextOutput::Yield(self.count)
+        } else {
+            IterNextOutput::Return("done")
+        }
+    }
+}
+```
+
+If returning `"done"` via `StopIteration` is not really required, this should be written as
+
+```rust
+use pyo3::prelude::*;
+
+#[pyclass]
+struct PyClassIter {
+    count: usize,
+}
+
+#[pymethods]
+impl PyClassIter {
+    fn __next__(&mut self) -> Option<usize> {
+        if self.count < 5 {
+            self.count += 1;
+            Some(self.count)
+        } else {
+            None
+        }
+    }
+}
+```
+
+This form also has additional benefits: It has already worked in previous PyO3 versions, it matches the signature of Rust's [`Iterator` trait](https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html) and it allows using a fast path in CPython which completely avoids the cost of raising a `StopIteration` exception. Note that using [`Option::transpose`](https://doc.rust-lang.org/stable/std/option/enum.Option.html#method.transpose) and the `PyResult<Option<T>>` variant, this form can also be used to wrap fallible iterators.
+
+Alternatively, the implementation can also be done as it would in Python itself, i.e. by "raising" a `StopIteration` exception
+
+```rust
+use pyo3::prelude::*;
+use pyo3::exceptions::PyStopIteration;
+
+#[pyclass]
+struct PyClassIter {
+    count: usize,
+}
+
+#[pymethods]
+impl PyClassIter {
+    fn __next__(&mut self) -> PyResult<usize> {
+        if self.count < 5 {
+            self.count += 1;
+            Ok(self.count)
+        } else {
+            Err(PyStopIteration::new_err("done"))
+        }
+    }
+}
+```
+
+Finally, an asynchronous iterator can directly return an awaitable without confusing wrapping
+
+```rust
+use pyo3::prelude::*;
+
+#[pyclass]
+struct PyClassAwaitable {
+    number: usize,
+}
+
+#[pymethods]
+impl PyClassAwaitable {
+    fn __next__(&self) -> usize {
+        self.number
+    }
+
+    fn __await__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+}
+
+#[pyclass]
+struct PyClassAsyncIter {
+    number: usize,
+}
+
+#[pymethods]
+impl PyClassAsyncIter {
+    fn __anext__(&mut self) -> PyClassAwaitable {
+        self.number += 1;
+        PyClassAwaitable { number: self.number }
+    }
+
+    fn __aiter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+}
+```
+
+### `PyType::name` has been renamed to `PyType::qualname`
 
 `PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
 
