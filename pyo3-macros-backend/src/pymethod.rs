@@ -799,8 +799,9 @@ const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc")
     );
 const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
 const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
-const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_conversion(
-    TokenGenerator(|| quote! { _pyo3::class::pyasync::IterANextOutput::<_, _> }),
+const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_specialized_conversion(
+    TokenGenerator(|| quote! { AsyncIterBaseKind, AsyncIterOptionKind, AsyncIterResultOptionKind }),
+    TokenGenerator(|| quote! { async_iter_tag }),
 );
 const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")

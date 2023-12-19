@@ -1,4 +1,5 @@
 use crate::callback::IntoPyCallbackOutput;
+use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
@@ -381,3 +382,83 @@ pub trait IterResultOptionKind {
 }
 
 impl<Value> IterResultOptionKind for PyResult<Option<Value>> {}
+
+// Autoref-based specialization for handling `__anext__` returning `Option`
+
+pub struct AsyncIterBaseTag;
+
+impl AsyncIterBaseTag {
+    #[inline]
+    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    where
+        Value: IntoPyCallbackOutput<Target>,
+    {
+        value.convert(py)
+    }
+}
+
+pub trait AsyncIterBaseKind {
+    #[inline]
+    fn async_iter_tag(&self) -> AsyncIterBaseTag {
+        AsyncIterBaseTag
+    }
+}
+
+impl<Value> AsyncIterBaseKind for &Value {}
+
+pub struct AsyncIterOptionTag;
+
+impl AsyncIterOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: Option<Value>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Some(value) => value.convert(py),
+            None => Err(PyStopAsyncIteration::new_err(())),
+        }
+    }
+}
+
+pub trait AsyncIterOptionKind {
+    #[inline]
+    fn async_iter_tag(&self) -> AsyncIterOptionTag {
+        AsyncIterOptionTag
+    }
+}
+
+impl<Value> AsyncIterOptionKind for Option<Value> {}
+
+pub struct AsyncIterResultOptionTag;
+
+impl AsyncIterResultOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: PyResult<Option<Value>>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Ok(Some(value)) => value.convert(py),
+            Ok(None) => Err(PyStopAsyncIteration::new_err(())),
+            Err(err) => Err(err),
+        }
+    }
+}
+
+pub trait AsyncIterResultOptionKind {
+    #[inline]
+    fn async_iter_tag(&self) -> AsyncIterResultOptionTag {
+        AsyncIterResultOptionTag
+    }
+}
+
+impl<Value> AsyncIterResultOptionKind for PyResult<Option<Value>> {}

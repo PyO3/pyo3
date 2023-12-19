@@ -155,6 +155,10 @@ where
 /// Output of `__anext__`.
 ///
 /// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `Option` or `PyStopAsyncIteration` instead."
+)]
 pub enum IterANextOutput<T, U> {
     /// An expression which the generator yielded.
     Yield(T),
@@ -163,40 +167,25 @@ pub enum IterANextOutput<T, U> {
 }
 
 /// An [IterANextOutput] of Python objects.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `Option` or `PyStopAsyncIteration` instead."
+)]
+#[allow(deprecated)]
 pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
 
-impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
-    fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
-        match self {
-            IterANextOutput::Yield(o) => Ok(o.into_ptr()),
-            IterANextOutput::Return(opt) => {
-                Err(crate::exceptions::PyStopAsyncIteration::new_err((opt,)))
-            }
-        }
-    }
-}
-
-impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
+#[allow(deprecated)]
+impl<T, U> IntoPyCallbackOutput<*mut ffi::PyObject> for IterANextOutput<T, U>
 where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         match self {
-            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
-            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
-        }
-    }
-}
-
-impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
-        match self {
-            Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
-            None => Ok(PyIterANextOutput::Return(py.None().into())),
+            IterANextOutput::Yield(o) => Ok(o.into_py(py).into_ptr()),
+            IterANextOutput::Return(o) => Err(crate::exceptions::PyStopAsyncIteration::new_err(
+                o.into_py(py),
+            )),
         }
     }
 }
