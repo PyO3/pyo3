@@ -74,14 +74,14 @@ impl ClassMethod {
     #[classmethod]
     /// Test class method.
     fn method(cls: &PyType) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.name()?))
+        Ok(format!("{}.method()!", cls.qualname()?))
     }
 
     #[classmethod]
     fn method_owned(cls: Py<PyType>) -> PyResult<String> {
         Ok(format!(
             "{}.method_owned()!",
-            Python::with_gil(|gil| cls.as_ref(gil).name().map(ToString::to_string))?
+            Python::with_gil(|gil| cls.as_ref(gil).qualname())?
         ))
     }
 }
@@ -109,7 +109,7 @@ struct ClassMethodWithArgs {}
 impl ClassMethodWithArgs {
     #[classmethod]
     fn method(cls: &PyType, input: &PyString) -> PyResult<String> {
-        Ok(format!("{}.method({})", cls.name()?, input))
+        Ok(format!("{}.method({})", cls.qualname()?, input))
     }
 }
 
@@ -937,7 +937,7 @@ impl r#RawIdents {
 fn test_raw_idents() {
     Python::with_gil(|py| {
         let raw_idents_type = py.get_type::<r#RawIdents>();
-        assert_eq!(raw_idents_type.name().unwrap(), "RawIdents");
+        assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
         py_run!(
             py,
             raw_idents_type,

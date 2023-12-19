@@ -87,7 +87,7 @@ the subclass name. This is typically done in Python code by accessing
 impl Number {
     fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
         // This is the equivalent of `self.__class__.__name__` in Python.
-        let class_name: &str = slf.get_type().name()?;
+        let class_name: String = slf.get_type().qualname()?;
         // To access fields of the Rust struct, we need to borrow the `PyCell`.
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
@@ -263,7 +263,7 @@ impl Number {
     }
 
     fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
-        let class_name: &str = slf.get_type().name()?;
+        let class_name: String = slf.get_type().qualname()?;
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 

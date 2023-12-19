@@ -1,5 +1,8 @@
 use crate::err::{self, PyResult};
 use crate::{ffi, PyAny, PyTypeInfo, Python};
+use std::borrow::Cow;
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
@@ -30,9 +33,58 @@ impl PyType {
         py.from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 
-    /// Gets the name of the `PyType`.
-    pub fn name(&self) -> PyResult<&str> {
-        self.getattr(intern!(self.py(), "__qualname__"))?.extract()
+    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
+    pub fn qualname(&self) -> PyResult<String> {
+        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
+        let name = self.getattr(intern!(self.py(), "__qualname__"))?.extract();
+
+        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
+        let name = {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+            use crate::types::any::PyAnyMethods;
+
+            let obj = unsafe {
+                ffi::PyType_GetQualName(self.as_type_ptr()).assume_owned_or_err(self.py())?
+            };
+
+            obj.extract()
+        };
+
+        name
+    }
+
+    /// Gets the full name, which includes the module, of the `PyType`.
+    pub fn name(&self) -> PyResult<Cow<'_, str>> {
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        {
+            let ptr = self.as_type_ptr();
+
+            let name = unsafe { CStr::from_ptr((*ptr).tp_name) }.to_str()?;
+
+            #[cfg(Py_3_10)]
+            if unsafe { ffi::PyType_HasFeature(ptr, ffi::Py_TPFLAGS_IMMUTABLETYPE) } != 0 {
+                return Ok(Cow::Borrowed(name));
+            }
+
+            Ok(Cow::Owned(name.to_owned()))
+        }
+
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        {
+            let module = self.getattr(intern!(self.py(), "__module__"))?;
+
+            #[cfg(not(Py_3_11))]
+            let name = self.getattr(intern!(self.py(), "__name__"))?;
+
+            #[cfg(Py_3_11)]
+            let name = {
+                use crate::ffi_ptr_ext::FfiPtrExt;
+
+                unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? }
+            };
+
+            Ok(Cow::Owned(format!("{}.{}", module, name)))
+        }
     }
 
     /// Checks whether `self` is a subclass of `other`.

@@ -48,3 +48,9 @@ def test_import_in_subinterpreter_forbidden():
         )
 
     _xxsubinterpreters.destroy(sub_interpreter)
+
+
+def test_type_full_name_includes_module():
+    numpy = pytest.importorskip("numpy")
+
+    assert pyo3_pytests.misc.get_type_full_name(numpy.bool_(True)) == "numpy.bool_"

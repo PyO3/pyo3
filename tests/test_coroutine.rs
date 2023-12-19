@@ -136,7 +136,10 @@ fn cancelled_coroutine() {
                 None,
             )
             .unwrap_err();
-        assert_eq!(err.value(gil).get_type().name().unwrap(), "CancelledError");
+        assert_eq!(
+            err.value(gil).get_type().qualname().unwrap(),
+            "CancelledError"
+        );
     })
 }
 
