@@ -1,6 +1,6 @@
 use crate::class::basic::CompareOp;
 use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{PyDowncastError, PyDowncastError2, PyDowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Py2;
@@ -1563,12 +1563,12 @@ pub(crate) trait PyAnyMethods<'py> {
     /// })
     /// # }
     /// ```
-    fn downcast<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError2<'_, 'py>>
     where
         T: PyTypeCheck;
 
     /// Like `downcast` but takes ownership of `self`.
-    fn downcast_into<T>(self) -> Result<Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast_into<T>(self) -> Result<Py2<'py, T>, PyDowncastIntoError<'py>>
     where
         T: PyTypeCheck;
 
@@ -1602,12 +1602,12 @@ pub(crate) trait PyAnyMethods<'py> {
     ///     assert!(any.downcast_exact::<PyBool>().is_ok());
     /// });
     /// ```
-    fn downcast_exact<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast_exact<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError2<'_, 'py>>
     where
         T: PyTypeInfo;
 
     /// Like `downcast_exact` but takes ownership of `self`.
-    fn downcast_into_exact<T>(self) -> Result<Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast_into_exact<T>(self) -> Result<Py2<'py, T>, PyDowncastIntoError<'py>>
     where
         T: PyTypeInfo;
 
@@ -2036,7 +2036,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
     }
 
     #[inline]
-    fn downcast<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError2<'_, 'py>>
     where
         T: PyTypeCheck,
     {
@@ -2044,12 +2044,12 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
-            Err(PyDowncastError::new(self.clone().into_gil_ref(), T::NAME))
+            Err(PyDowncastError2::new(self, T::NAME))
         }
     }
 
     #[inline]
-    fn downcast_into<T>(self) -> Result<Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast_into<T>(self) -> Result<Py2<'py, T>, PyDowncastIntoError<'py>>
     where
         T: PyTypeCheck,
     {
@@ -2057,12 +2057,12 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
-            Err(PyDowncastError::new(self.clone().into_gil_ref(), T::NAME))
+            Err(PyDowncastIntoError::new(self, T::NAME))
         }
     }
 
     #[inline]
-    fn downcast_exact<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast_exact<T>(&self) -> Result<&Py2<'py, T>, PyDowncastError2<'_, 'py>>
     where
         T: PyTypeInfo,
     {
@@ -2070,12 +2070,12 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
-            Err(PyDowncastError::new(self.clone().into_gil_ref(), T::NAME))
+            Err(PyDowncastError2::new(self, T::NAME))
         }
     }
 
     #[inline]
-    fn downcast_into_exact<T>(self) -> Result<Py2<'py, T>, PyDowncastError<'py>>
+    fn downcast_into_exact<T>(self) -> Result<Py2<'py, T>, PyDowncastIntoError<'py>>
     where
         T: PyTypeInfo,
     {
@@ -2083,7 +2083,7 @@ impl<'py> PyAnyMethods<'py> for Py2<'py, PyAny> {
             // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
-            Err(PyDowncastError::new(self.into_gil_ref(), T::NAME))
+            Err(PyDowncastIntoError::new(self, T::NAME))
         }
     }
 
