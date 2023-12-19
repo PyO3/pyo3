@@ -5,6 +5,7 @@ use crate::exceptions::{PyOverflowError, PyStopAsyncIteration};
 use crate::ffi::{self, Py_hash_t};
 use crate::{IntoPy, PyObject, Python};
 use std::isize;
+use std::marker::PhantomData;
 use std::os::raw::c_int;
 use std::ptr::null_mut;
 
@@ -181,6 +182,16 @@ where
 // Autoref-based specialization for handling `__next__` returning `Option`
 
 #[doc(hidden)]
+pub struct TagBuilder<T>(PhantomData<T>);
+
+impl<T> TagBuilder<T> {
+    #[inline]
+    pub fn new<F: FnOnce() -> T>(_: &F) -> Self {
+        TagBuilder(PhantomData)
+    }
+}
+
+#[doc(hidden)]
 pub struct IterBaseTag;
 
 impl IterBaseTag {
@@ -200,7 +211,7 @@ pub trait IterBaseKind {
     }
 }
 
-impl<Value> IterBaseKind for &Value {}
+impl<Value> IterBaseKind for &TagBuilder<Value> {}
 
 #[doc(hidden)]
 pub struct IterOptionTag;
@@ -229,7 +240,7 @@ pub trait IterOptionKind {
     }
 }
 
-impl<Value> IterOptionKind for Option<Value> {}
+impl<Value> IterOptionKind for TagBuilder<Option<Value>> {}
 
 #[doc(hidden)]
 pub struct IterResultOptionTag;
@@ -259,7 +270,7 @@ pub trait IterResultOptionKind {
     }
 }
 
-impl<Value> IterResultOptionKind for PyResult<Option<Value>> {}
+impl<Value> IterResultOptionKind for TagBuilder<PyResult<Option<Value>>> {}
 
 // Autoref-based specialization for handling `__anext__` returning `Option`
 
@@ -283,7 +294,7 @@ pub trait AsyncIterBaseKind {
     }
 }
 
-impl<Value> AsyncIterBaseKind for &Value {}
+impl<Value> AsyncIterBaseKind for &TagBuilder<Value> {}
 
 #[doc(hidden)]
 pub struct AsyncIterOptionTag;
@@ -312,7 +323,7 @@ pub trait AsyncIterOptionKind {
     }
 }
 
-impl<Value> AsyncIterOptionKind for Option<Value> {}
+impl<Value> AsyncIterOptionKind for TagBuilder<Option<Value>> {}
 
 #[doc(hidden)]
 pub struct AsyncIterResultOptionTag;
@@ -342,4 +353,4 @@ pub trait AsyncIterResultOptionKind {
     }
 }
 
-impl<Value> AsyncIterResultOptionKind for PyResult<Option<Value>> {}
+impl<Value> AsyncIterResultOptionKind for TagBuilder<PyResult<Option<Value>>> {}

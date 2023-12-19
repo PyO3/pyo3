@@ -994,17 +994,35 @@ enum ReturnMode {
 }
 
 impl ReturnMode {
-    fn return_call_output(&self, call: TokenStream) -> TokenStream {
+    fn return_call_output(
+        &self,
+        call: TokenStream,
+        cls: &syn::Type,
+        spec: &FnSpec<'_>,
+    ) -> TokenStream {
         match self {
             ReturnMode::Conversion(conversion) => quote! {
                 let _result: _pyo3::PyResult<#conversion> = _pyo3::callback::convert(py, #call);
                 _pyo3::callback::convert(py, _result)
             },
-            ReturnMode::SpecializedConversion(traits, tag) => quote! {
-                let _result = #call;
-                use _pyo3::callback::{#traits};
-                (&_result).#tag().convert(py, _result)
-            },
+            ReturnMode::SpecializedConversion(traits, tag) => {
+                let unreachable_args = std::iter::repeat(quote! { ::core::panic!() }).take(
+                    spec.signature.arguments.len()
+                        + if spec.tp.skip_first_rust_argument_in_python_signature() {
+                            1
+                        } else {
+                            0
+                        },
+                );
+                let fn_ident = spec.name;
+                quote! {
+                    use _pyo3::callback::{#traits};
+                    #[allow(unreachable_code)]
+                    let _type_hinter = || #cls::#fn_ident(#(#unreachable_args),*);
+                    let tag = (&_pyo3::callback::TagBuilder::new(&_type_hinter)).#tag();
+                    tag.convert(py, #call)
+                }
+            }
             ReturnMode::ReturnSelf => quote! {
                 let _result: _pyo3::PyResult<()> = _pyo3::callback::convert(py, #call);
                 _result?;
@@ -1162,7 +1180,7 @@ fn generate_method_body(
     let args = extract_proto_arguments(spec, arguments, extract_error_mode)?;
     let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
     Ok(if let Some(return_mode) = return_mode {
-        return_mode.return_call_output(call)
+        return_mode.return_call_output(call, cls, spec)
     } else {
         quote! { _pyo3::callback::convert(py, #call) }
     })
