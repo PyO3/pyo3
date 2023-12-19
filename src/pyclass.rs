@@ -1,8 +1,5 @@
 //! `PyClass` and related traits.
-use crate::{
-    callback::IntoPyCallbackOutput, ffi, impl_::pyclass::PyClassImpl, IntoPy, PyCell, PyObject,
-    PyResult, PyTypeInfo, Python,
-};
+use crate::{ffi, impl_::pyclass::PyClassImpl, PyCell, PyTypeInfo};
 use std::{cmp::Ordering, os::raw::c_int};
 
 mod create_type_object;
@@ -81,55 +78,6 @@ impl CompareOp {
             CompareOp::Le => result != Ordering::Greater,
             CompareOp::Gt => result == Ordering::Greater,
             CompareOp::Ge => result != Ordering::Less,
-        }
-    }
-}
-
-/// Output of `__anext__`.
-///
-/// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
-pub enum IterANextOutput<T, U> {
-    /// An expression which the generator yielded.
-    Yield(T),
-    /// A `StopAsyncIteration` object.
-    Return(U),
-}
-
-/// An [IterANextOutput] of Python objects.
-pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
-
-impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
-    fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
-        match self {
-            IterANextOutput::Yield(o) => Ok(o.into_ptr()),
-            IterANextOutput::Return(opt) => {
-                Err(crate::exceptions::PyStopAsyncIteration::new_err((opt,)))
-            }
-        }
-    }
-}
-
-impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
-where
-    T: IntoPy<PyObject>,
-    U: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
-        match self {
-            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
-            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
-        }
-    }
-}
-
-impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
-        match self {
-            Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
-            None => Ok(PyIterANextOutput::Return(py.None().into())),
         }
     }
 }

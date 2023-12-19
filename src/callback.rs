@@ -1,7 +1,7 @@
 //! Utilities for a Python callable object that invokes a Rust function.
 
 use crate::err::{PyErr, PyResult};
-use crate::exceptions::PyOverflowError;
+use crate::exceptions::{PyOverflowError, PyStopAsyncIteration};
 use crate::ffi::{self, Py_hash_t};
 use crate::{IntoPy, PyObject, Python};
 use std::isize;
@@ -260,3 +260,86 @@ pub trait IterResultOptionKind {
 }
 
 impl<Value> IterResultOptionKind for PyResult<Option<Value>> {}
+
+// Autoref-based specialization for handling `__anext__` returning `Option`
+
+#[doc(hidden)]
+pub struct AsyncIterBaseTag;
+
+impl AsyncIterBaseTag {
+    #[inline]
+    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    where
+        Value: IntoPyCallbackOutput<Target>,
+    {
+        value.convert(py)
+    }
+}
+
+#[doc(hidden)]
+pub trait AsyncIterBaseKind {
+    fn async_iter_tag(&self) -> AsyncIterBaseTag {
+        AsyncIterBaseTag
+    }
+}
+
+impl<Value> AsyncIterBaseKind for &Value {}
+
+#[doc(hidden)]
+pub struct AsyncIterOptionTag;
+
+impl AsyncIterOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: Option<Value>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Some(value) => value.convert(py),
+            None => Err(PyStopAsyncIteration::new_err(())),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub trait AsyncIterOptionKind {
+    fn async_iter_tag(&self) -> AsyncIterOptionTag {
+        AsyncIterOptionTag
+    }
+}
+
+impl<Value> AsyncIterOptionKind for Option<Value> {}
+
+#[doc(hidden)]
+pub struct AsyncIterResultOptionTag;
+
+impl AsyncIterResultOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: PyResult<Option<Value>>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Ok(Some(value)) => value.convert(py),
+            Ok(None) => Err(PyStopAsyncIteration::new_err(())),
+            Err(err) => Err(err),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub trait AsyncIterResultOptionKind {
+    fn async_iter_tag(&self) -> AsyncIterResultOptionTag {
+        AsyncIterResultOptionTag
+    }
+}
+
+impl<Value> AsyncIterResultOptionKind for PyResult<Option<Value>> {}
