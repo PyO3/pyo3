@@ -1,4 +1,5 @@
 use crate::err::{PyErr, PyResult};
+use crate::instance::{Py2, Py2Borrowed};
 use crate::{ffi, AsPyPointer, Py, PyAny, Python};
 use std::os::raw::c_char;
 use std::slice;
@@ -74,13 +75,12 @@ impl PyByteArray {
     /// Gets the length of the bytearray.
     #[inline]
     pub fn len(&self) -> usize {
-        // non-negative Py_ssize_t should always fit into Rust usize
-        unsafe { ffi::PyByteArray_Size(self.as_ptr()) as usize }
+        Py2::borrowed_from_gil_ref(&self).len()
     }
 
     /// Checks if the bytearray is empty.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        Py2::borrowed_from_gil_ref(&self).is_empty()
     }
 
     /// Gets the start of the buffer containing the contents of the bytearray.
@@ -89,7 +89,7 @@ impl PyByteArray {
     ///
     /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
     pub fn data(&self) -> *mut u8 {
-        unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
+        Py2::borrowed_from_gil_ref(&self).data()
     }
 
     /// Extracts a slice of the `ByteArray`'s entire buffer.
@@ -188,7 +188,7 @@ impl PyByteArray {
     /// }
     /// ```
     pub unsafe fn as_bytes(&self) -> &[u8] {
-        slice::from_raw_parts(self.data(), self.len())
+        Py2Borrowed::from_gil_ref(self).as_bytes()
     }
 
     /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
@@ -200,7 +200,7 @@ impl PyByteArray {
     /// apply to this function as well.
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        slice::from_raw_parts_mut(self.data(), self.len())
+        Py2Borrowed::from_gil_ref(self).as_bytes_mut()
     }
 
     /// Copies the contents of the bytearray to a Rust vector.
@@ -222,7 +222,7 @@ impl PyByteArray {
     /// # });
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
-        unsafe { self.as_bytes() }.to_vec()
+        Py2::borrowed_from_gil_ref(&self).to_vec()
     }
 
     /// Resizes the bytearray object to the new length `len`.
@@ -230,6 +230,193 @@ impl PyByteArray {
     /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
     /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
     pub fn resize(&self, len: usize) -> PyResult<()> {
+        Py2::borrowed_from_gil_ref(&self).resize(len)
+    }
+}
+
+/// Implementation of functionality for [`PyByteArray`].
+///
+/// These methods are defined for the `Py2<'py, PyByteArray>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PyByteArray")]
+pub trait PyByteArrayMethods<'py> {
+    /// Gets the length of the bytearray.
+    fn len(&self) -> usize;
+
+    /// Checks if the bytearray is empty.
+    fn is_empty(&self) -> bool;
+
+    /// Gets the start of the buffer containing the contents of the bytearray.
+    ///
+    /// # Safety
+    ///
+    /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
+    fn data(&self) -> *mut u8;
+
+    /// Extracts a slice of the `ByteArray`'s entire buffer.
+    ///
+    /// # Safety
+    ///
+    /// Mutation of the `bytearray` invalidates the slice. If it is used afterwards, the behavior is
+    /// undefined.
+    ///
+    /// These mutations may occur in Python code as well as from Rust:
+    /// - Calling methods like [`PyByteArray::as_bytes_mut`] and [`PyByteArray::resize`] will
+    /// invalidate the slice.
+    /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
+    /// handlers, which may execute arbitrary Python code. This means that if Python code has a
+    /// reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
+    /// using the slice.
+    ///
+    /// As a result, this slice should only be used for short-lived operations without executing any
+    /// Python code, such as copying into a Vec.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyRuntimeError;
+    /// use pyo3::types::PyByteArray;
+    ///
+    /// #[pyfunction]
+    /// fn a_valid_function(bytes: &PyByteArray) -> PyResult<()> {
+    ///     let section = {
+    ///         // SAFETY: We promise to not let the interpreter regain control
+    ///         // or invoke any PyO3 APIs while using the slice.
+    ///         let slice = unsafe { bytes.as_bytes() };
+    ///
+    ///         // Copy only a section of `bytes` while avoiding
+    ///         // `to_vec` which copies the entire thing.
+    ///         let section = slice
+    ///             .get(6..11)
+    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))?;
+    ///         Vec::from(section)
+    ///     };
+    ///
+    ///     // Now we can do things with `section` and call PyO3 APIs again.
+    ///     // ...
+    ///     # assert_eq!(&section, b"world");
+    ///
+    ///     Ok(())
+    /// }
+    /// # fn main() -> PyResult<()> {
+    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
+    /// #         let locals = pyo3::types::PyDict::new(py);
+    /// #         locals.set_item("a_valid_function", fun)?;
+    /// #
+    /// #         py.run(
+    /// # r#"b = bytearray(b"hello world")
+    /// # a_valid_function(b)
+    /// #
+    /// # try:
+    /// #     a_valid_function(bytearray())
+    /// # except RuntimeError as e:
+    /// #     assert str(e) == 'input is not long enough'"#,
+    /// #             None,
+    /// #             Some(locals),
+    /// #         )?;
+    /// #
+    /// #         Ok(())
+    /// #     })
+    /// # }
+    /// ```
+    ///
+    /// # Incorrect usage
+    ///
+    /// The following `bug` function is unsound ⚠️
+    ///
+    /// ```rust,no_run
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyByteArray;
+    ///
+    /// # #[allow(dead_code)]
+    /// #[pyfunction]
+    /// fn bug(py: Python<'_>, bytes: &PyByteArray) {
+    ///     let slice = unsafe { bytes.as_bytes() };
+    ///
+    ///     // This explicitly yields control back to the Python interpreter...
+    ///     // ...but it's not always this obvious. Many things do this implicitly.
+    ///     py.allow_threads(|| {
+    ///         // Python code could be mutating through its handle to `bytes`,
+    ///         // which makes reading it a data race, which is undefined behavior.
+    ///         println!("{:?}", slice[0]);
+    ///     });
+    ///
+    ///     // Python code might have mutated it, so we can not rely on the slice
+    ///     // remaining valid. As such this is also undefined behavior.
+    ///     println!("{:?}", slice[0]);
+    /// }
+    /// ```
+    unsafe fn as_bytes(&self) -> &[u8];
+
+    /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
+    ///
+    /// # Safety
+    ///
+    /// Any other accesses of the `bytearray`'s buffer invalidate the slice. If it is used
+    /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArray::as_bytes`]
+    /// apply to this function as well.
+    #[allow(clippy::mut_from_ref)]
+    unsafe fn as_bytes_mut(&self) -> &mut [u8];
+
+    /// Copies the contents of the bytearray to a Rust vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyByteArray;
+    /// # Python::with_gil(|py| {
+    /// let bytearray = PyByteArray::new(py, b"Hello World.");
+    /// let mut copied_message = bytearray.to_vec();
+    /// assert_eq!(b"Hello World.", copied_message.as_slice());
+    ///
+    /// copied_message[11] = b'!';
+    /// assert_eq!(b"Hello World!", copied_message.as_slice());
+    ///
+    /// pyo3::py_run!(py, bytearray, "assert bytearray == b'Hello World.'");
+    /// # });
+    /// ```
+    fn to_vec(&self) -> Vec<u8>;
+
+    /// Resizes the bytearray object to the new length `len`.
+    ///
+    /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
+    /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
+    fn resize(&self, len: usize) -> PyResult<()>;
+}
+
+impl<'py> PyByteArrayMethods<'py> for Py2<'py, PyByteArray> {
+    #[inline]
+    fn len(&self) -> usize {
+        // non-negative Py_ssize_t should always fit into Rust usize
+        unsafe { ffi::PyByteArray_Size(self.as_ptr()) as usize }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn data(&self) -> *mut u8 {
+        Py2Borrowed::from(self).data()
+    }
+
+    unsafe fn as_bytes(&self) -> &[u8] {
+        Py2Borrowed::from(self).as_bytes()
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    unsafe fn as_bytes_mut(&self) -> &mut [u8] {
+        Py2Borrowed::from(self).as_bytes_mut()
+    }
+
+    fn to_vec(&self) -> Vec<u8> {
+        unsafe { self.as_bytes() }.to_vec()
+    }
+
+    fn resize(&self, len: usize) -> PyResult<()> {
         unsafe {
             let result = ffi::PyByteArray_Resize(self.as_ptr(), len as ffi::Py_ssize_t);
             if result == 0 {
@@ -238,6 +425,22 @@ impl PyByteArray {
                 Err(PyErr::fetch(self.py()))
             }
         }
+    }
+}
+
+impl<'a> Py2Borrowed<'a, '_, PyByteArray> {
+    fn data(&self) -> *mut u8 {
+        unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    unsafe fn as_bytes(self) -> &'a [u8] {
+        slice::from_raw_parts(self.data(), self.len())
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
+        slice::from_raw_parts_mut(self.data(), self.len())
     }
 }
 

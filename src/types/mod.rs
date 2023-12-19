@@ -273,8 +273,8 @@ macro_rules! pyobject_native_type {
 
 pub(crate) mod any;
 pub(crate) mod boolobject;
-mod bytearray;
-mod bytes;
+pub(crate) mod bytearray;
+pub(crate) mod bytes;
 mod capsule;
 #[cfg(not(Py_LIMITED_API))]
 mod code;
