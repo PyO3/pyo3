@@ -29,24 +29,23 @@ pub fn impl_arg_params(
     spec: &FnSpec<'_>,
     self_: Option<&syn::Type>,
     fastcall: bool,
+    holders: &mut Vec<TokenStream>,
 ) -> Result<(TokenStream, Vec<TokenStream>)> {
     let args_array = syn::Ident::new("output", Span::call_site());
 
     if !fastcall && is_forwarded_args(&spec.signature) {
         // In the varargs convention, we can just pass though if the signature
         // is (*args, **kwds).
-        let mut holders = Vec::new();
         let arg_convert = spec
             .signature
             .arguments
             .iter()
-            .map(|arg| impl_arg_param(arg, &mut 0, &args_array, &mut holders))
+            .map(|arg| impl_arg_param(arg, &mut 0, &args_array, holders))
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
                 let _args = py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
                 let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = py.from_borrowed_ptr_or_opt(_kwargs);
-                #( #holders )*
             },
             arg_convert,
         ));
@@ -75,12 +74,11 @@ pub fn impl_arg_params(
     let num_params = positional_parameter_names.len() + keyword_only_parameters.len();
 
     let mut option_pos = 0;
-    let mut holders = Vec::new();
     let param_conversion = spec
         .signature
         .arguments
         .iter()
-        .map(|arg| impl_arg_param(arg, &mut option_pos, &args_array, &mut holders))
+        .map(|arg| impl_arg_param(arg, &mut option_pos, &args_array, holders))
         .collect::<Result<_>>()?;
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
@@ -134,7 +132,6 @@ pub fn impl_arg_params(
                     keyword_only_parameters: &[#(#keyword_only_parameters),*],
                 };
                 let mut #args_array = [::std::option::Option::None; #num_params];
-                #( #holders )*
                 let (_args, _kwargs) = #extract_expression;
         },
         param_conversion,

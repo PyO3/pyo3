@@ -481,9 +481,10 @@ fn impl_call_setter(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     self_type: &SelfType,
+    holders: &mut Vec<TokenStream>,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise);
+    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders);
 
     if args.is_empty() {
         bail_spanned!(spec.name.span() => "setter function expected to have one argument");
@@ -511,6 +512,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc();
+    let mut holders = Vec::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
             field_index, field, ..
@@ -519,7 +521,7 @@ pub fn impl_py_setter_def(
                 mutable: true,
                 span: Span::call_site(),
             }
-            .receiver(cls, ExtractErrorMode::Raise);
+            .receiver(cls, ExtractErrorMode::Raise, &mut holders);
             if let Some(ident) = &field.ident {
                 // named struct field
                 quote!({ #slf.#ident = _val; })
@@ -531,7 +533,7 @@ pub fn impl_py_setter_def(
         }
         PropertyType::Function {
             spec, self_type, ..
-        } => impl_call_setter(cls, spec, self_type)?,
+        } => impl_call_setter(cls, spec, self_type, &mut holders)?,
     };
 
     let wrapper_ident = match property_type {
@@ -575,7 +577,7 @@ pub fn impl_py_setter_def(
                     _pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
             let _val = _pyo3::FromPyObject::extract(_value)?;
-
+            #( #holders )*
             _pyo3::callback::convert(py, #setter_impl)
         }
     };
@@ -601,9 +603,10 @@ fn impl_call_getter(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     self_type: &SelfType,
+    holders: &mut Vec<TokenStream>,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise);
+    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders);
     ensure_spanned!(
         args.is_empty(),
         args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
@@ -627,6 +630,7 @@ pub fn impl_py_getter_def(
     let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc();
 
+    let mut holders = Vec::new();
     let body = match property_type {
         PropertyType::Descriptor {
             field_index, field, ..
@@ -635,7 +639,7 @@ pub fn impl_py_getter_def(
                 mutable: false,
                 span: Span::call_site(),
             }
-            .receiver(cls, ExtractErrorMode::Raise);
+            .receiver(cls, ExtractErrorMode::Raise, &mut holders);
             let field_token = if let Some(ident) = &field.ident {
                 // named struct field
                 ident.to_token_stream()
@@ -651,7 +655,7 @@ pub fn impl_py_getter_def(
         PropertyType::Function {
             spec, self_type, ..
         } => {
-            let call = impl_call_getter(cls, spec, self_type)?;
+            let call = impl_call_getter(cls, spec, self_type, &mut holders)?;
             quote! {
                 _pyo3::callback::convert(py, #call)
             }
@@ -692,6 +696,7 @@ pub fn impl_py_getter_def(
             py: _pyo3::Python<'_>,
             _slf: *mut _pyo3::ffi::PyObject
         ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
+            #( #holders )*
             #body
         }
     };
@@ -1154,7 +1159,7 @@ fn generate_method_body(
     holders: &mut Vec<TokenStream>,
     return_mode: Option<&ReturnMode>,
 ) -> Result<TokenStream> {
-    let self_arg = spec.tp.self_arg(Some(cls), extract_error_mode);
+    let self_arg = spec.tp.self_arg(Some(cls), extract_error_mode, holders);
     let rust_name = spec.name;
     let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders)?;
     let call = quote! { _pyo3::callback::convert(py, #cls::#rust_name(#self_arg #(#args),*)) };
