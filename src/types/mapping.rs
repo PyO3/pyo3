@@ -135,6 +135,7 @@ impl PyTypeCheck for PyMapping {
     }
 }
 
+#[allow(deprecated)]
 impl<'v> crate::PyTryFrom<'v> for PyMapping {
     /// Downcasting to `PyMapping` requires the concrete class to be a subclass (or registered
     /// subclass) of `collections.abc.Mapping` (from the Python standard library) - i.e.
@@ -168,7 +169,7 @@ mod tests {
     use crate::{
         exceptions::PyKeyError,
         types::{PyDict, PyTuple},
-        PyTryFrom, Python,
+        Python,
     };
 
     use super::*;
@@ -318,7 +319,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_mapping_try_from() {
+        use crate::PyTryFrom;
         Python::with_gil(|py| {
             let dict = PyDict::new(py);
             let _ = <PyMapping as PyTryFrom>::try_from(dict).unwrap();

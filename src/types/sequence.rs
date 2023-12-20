@@ -549,6 +549,7 @@ impl PyTypeCheck for PySequence {
     }
 }
 
+#[allow(deprecated)]
 impl<'v> crate::PyTryFrom<'v> for PySequence {
     /// Downcasting to `PySequence` requires the concrete class to be a subclass (or registered
     /// subclass) of `collections.abc.Sequence` (from the Python standard library) - i.e.
@@ -577,7 +578,7 @@ impl<'v> crate::PyTryFrom<'v> for PySequence {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyList, PySequence, PyTuple};
-    use crate::{PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -1078,7 +1079,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_seq_try_from() {
+        use crate::PyTryFrom;
         Python::with_gil(|py| {
             let list = PyList::empty(py);
             let _ = <PySequence as PyTryFrom>::try_from(list).unwrap();

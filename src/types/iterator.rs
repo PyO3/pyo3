@@ -79,6 +79,7 @@ impl PyTypeCheck for PyIterator {
     }
 }
 
+#[allow(deprecated)]
 impl<'v> crate::PyTryFrom<'v> for PyIterator {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
         let value = value.into();

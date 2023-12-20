@@ -1614,7 +1614,7 @@ a = A()
 
     #[cfg(feature = "macros")]
     mod using_macros {
-        use crate::{PyCell, PyTryInto};
+        use crate::PyCell;
 
         use super::*;
 
@@ -1642,7 +1642,9 @@ a = A()
         }
 
         #[test]
+        #[allow(deprecated)]
         fn cell_tryfrom() {
+            use crate::PyTryInto;
             // More detailed tests of the underlying semantics in pycell.rs
             Python::with_gil(|py| {
                 let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);

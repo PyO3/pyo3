@@ -23,7 +23,6 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// This is expected to be deprecated in the near future, see <https://github.com/PyO3/pyo3/issues/3382>
 ///
-///
 /// # Safety
 ///
 /// - `Py<Self>::as_ref` will hand out references to `Self::AsRefTarget`.
