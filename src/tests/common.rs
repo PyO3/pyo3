@@ -129,9 +129,9 @@ mod inner {
     #[macro_export]
     macro_rules! assert_warnings {
         ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
-            CatchWarnings::enter($py, |w| {
+            $crate::tests::common::CatchWarnings::enter($py, |w| {
                 $body;
-                let expected_warnings = [$((<$category>::type_object($py), $message)),+];
+                let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object($py), $message)),+];
                 assert_eq!(w.len(), expected_warnings.len());
                 for (warning, (category, message)) in w.iter().zip(expected_warnings) {
 

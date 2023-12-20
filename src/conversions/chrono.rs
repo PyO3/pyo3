@@ -564,7 +564,7 @@ fn timezone_utc(py: Python<'_>) -> &PyAny {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{tests::common::CatchWarnings, types::PyTuple, Py, PyTypeInfo};
+    use crate::{types::PyTuple, Py};
     use std::{cmp::Ordering, panic};
 
     #[test]
@@ -1090,9 +1090,10 @@ mod tests {
             .unwrap()
     }
 
-    #[cfg(all(test, not(target_arch = "wasm32")))]
+    #[cfg(not(target_arch = "wasm32"))]
     mod proptests {
         use super::*;
+        use crate::tests::common::CatchWarnings;
         use crate::types::IntoPyDict;
         use proptest::prelude::*;
 

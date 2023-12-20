@@ -33,7 +33,7 @@ The table below contains the Python type and the corresponding function argument
 | `datetime.date` | -                             | `&PyDate`            |
 | `datetime.time` | -                             | `&PyTime`            |
 | `datetime.tzinfo` | -                           | `&PyTzInfo`          |
-| `datetime.timedelta` | -                        | `&PyDelta`           |
+| `datetime.timedelta` | `Duration`               | `&PyDelta`           |
 | `decimal.Decimal` | `rust_decimal::Decimal`[^5] | -                    |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |

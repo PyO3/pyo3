@@ -908,7 +908,6 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::tests::common::CatchWarnings;
     use crate::{PyErr, PyTypeInfo, Python};
 
     #[test]
