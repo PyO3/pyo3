@@ -5,7 +5,8 @@
 //! when awaited, see guide examples related to pyo3-asyncio for ways
 //! to suspend tasks and await results.
 
-use pyo3::{prelude::*, pyclass::IterNextOutput};
+use pyo3::exceptions::PyStopIteration;
+use pyo3::prelude::*;
 
 #[pyclass]
 #[derive(Debug)]
@@ -30,13 +31,13 @@ impl IterAwaitable {
         pyself
     }
 
-    fn __next__(&mut self, py: Python<'_>) -> PyResult<IterNextOutput<PyObject, PyObject>> {
+    fn __next__(&mut self, py: Python<'_>) -> PyResult<PyObject> {
         match self.result.take() {
             Some(res) => match res {
-                Ok(v) => Ok(IterNextOutput::Return(v)),
+                Ok(v) => Err(PyStopIteration::new_err(v)),
                 Err(err) => Err(err),
             },
-            _ => Ok(IterNextOutput::Yield(py.None().into())),
+            _ => Ok(py.None().into()),
         }
     }
 }
@@ -66,15 +67,13 @@ impl FutureAwaitable {
         pyself
     }
 
-    fn __next__(
-        mut pyself: PyRefMut<'_, Self>,
-    ) -> PyResult<IterNextOutput<PyRefMut<'_, Self>, PyObject>> {
+    fn __next__(mut pyself: PyRefMut<'_, Self>) -> PyResult<PyRefMut<'_, Self>> {
         match pyself.result {
             Some(_) => match pyself.result.take().unwrap() {
-                Ok(v) => Ok(IterNextOutput::Return(v)),
+                Ok(v) => Err(PyStopIteration::new_err(v)),
                 Err(err) => Err(err),
             },
-            _ => Ok(IterNextOutput::Yield(pyself)),
+            _ => Ok(pyself),
         }
     }
 }

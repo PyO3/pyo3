@@ -481,9 +481,10 @@ fn impl_call_setter(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     self_type: &SelfType,
+    holders: &mut Vec<TokenStream>,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise);
+    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders);
 
     if args.is_empty() {
         bail_spanned!(spec.name.span() => "setter function expected to have one argument");
@@ -511,6 +512,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc();
+    let mut holders = Vec::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
             field_index, field, ..
@@ -519,7 +521,7 @@ pub fn impl_py_setter_def(
                 mutable: true,
                 span: Span::call_site(),
             }
-            .receiver(cls, ExtractErrorMode::Raise);
+            .receiver(cls, ExtractErrorMode::Raise, &mut holders);
             if let Some(ident) = &field.ident {
                 // named struct field
                 quote!({ #slf.#ident = _val; })
@@ -531,7 +533,7 @@ pub fn impl_py_setter_def(
         }
         PropertyType::Function {
             spec, self_type, ..
-        } => impl_call_setter(cls, spec, self_type)?,
+        } => impl_call_setter(cls, spec, self_type, &mut holders)?,
     };
 
     let wrapper_ident = match property_type {
@@ -575,7 +577,7 @@ pub fn impl_py_setter_def(
                     _pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
             let _val = _pyo3::FromPyObject::extract(_value)?;
-
+            #( #holders )*
             _pyo3::callback::convert(py, #setter_impl)
         }
     };
@@ -601,9 +603,10 @@ fn impl_call_getter(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     self_type: &SelfType,
+    holders: &mut Vec<TokenStream>,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise);
+    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders);
     ensure_spanned!(
         args.is_empty(),
         args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
@@ -627,6 +630,7 @@ pub fn impl_py_getter_def(
     let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc();
 
+    let mut holders = Vec::new();
     let body = match property_type {
         PropertyType::Descriptor {
             field_index, field, ..
@@ -635,7 +639,7 @@ pub fn impl_py_getter_def(
                 mutable: false,
                 span: Span::call_site(),
             }
-            .receiver(cls, ExtractErrorMode::Raise);
+            .receiver(cls, ExtractErrorMode::Raise, &mut holders);
             let field_token = if let Some(ident) = &field.ident {
                 // named struct field
                 ident.to_token_stream()
@@ -651,7 +655,7 @@ pub fn impl_py_getter_def(
         PropertyType::Function {
             spec, self_type, ..
         } => {
-            let call = impl_call_getter(cls, spec, self_type)?;
+            let call = impl_call_getter(cls, spec, self_type, &mut holders)?;
             quote! {
                 _pyo3::callback::convert(py, #call)
             }
@@ -692,6 +696,7 @@ pub fn impl_py_getter_def(
             py: _pyo3::Python<'_>,
             _slf: *mut _pyo3::ffi::PyObject
         ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
+            #( #holders )*
             #body
         }
     };
@@ -787,13 +792,16 @@ pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc"
 const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
     .arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
-const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_conversion(
-    TokenGenerator(|| quote! { _pyo3::class::iter::IterNextOutput::<_, _> }),
-);
+const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc")
+    .return_specialized_conversion(
+        TokenGenerator(|| quote! { IterBaseKind, IterOptionKind, IterResultOptionKind }),
+        TokenGenerator(|| quote! { iter_tag }),
+    );
 const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
 const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
-const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_conversion(
-    TokenGenerator(|| quote! { _pyo3::class::pyasync::IterANextOutput::<_, _> }),
+const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_specialized_conversion(
+    TokenGenerator(|| quote! { AsyncIterBaseKind, AsyncIterOptionKind, AsyncIterResultOptionKind }),
+    TokenGenerator(|| quote! { async_iter_tag }),
 );
 const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
@@ -998,17 +1006,23 @@ fn extract_object(
 enum ReturnMode {
     ReturnSelf,
     Conversion(TokenGenerator),
+    SpecializedConversion(TokenGenerator, TokenGenerator),
 }
 
 impl ReturnMode {
     fn return_call_output(&self, call: TokenStream) -> TokenStream {
         match self {
             ReturnMode::Conversion(conversion) => quote! {
-                let _result: _pyo3::PyResult<#conversion> = #call;
+                let _result: _pyo3::PyResult<#conversion> = _pyo3::callback::convert(py, #call);
                 _pyo3::callback::convert(py, _result)
             },
+            ReturnMode::SpecializedConversion(traits, tag) => quote! {
+                let _result = #call;
+                use _pyo3::impl_::pymethods::{#traits};
+                (&_result).#tag().convert(py, _result)
+            },
             ReturnMode::ReturnSelf => quote! {
-                let _result: _pyo3::PyResult<()> = #call;
+                let _result: _pyo3::PyResult<()> = _pyo3::callback::convert(py, #call);
                 _result?;
                 _pyo3::ffi::Py_XINCREF(_raw_slf);
                 ::std::result::Result::Ok(_raw_slf)
@@ -1054,6 +1068,15 @@ impl SlotDef {
 
     const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
         self.return_mode = Some(ReturnMode::Conversion(return_conversion));
+        self
+    }
+
+    const fn return_specialized_conversion(
+        mut self,
+        traits: TokenGenerator,
+        tag: TokenGenerator,
+    ) -> Self {
+        self.return_mode = Some(ReturnMode::SpecializedConversion(traits, tag));
         self
     }
 
@@ -1154,14 +1177,14 @@ fn generate_method_body(
     holders: &mut Vec<TokenStream>,
     return_mode: Option<&ReturnMode>,
 ) -> Result<TokenStream> {
-    let self_arg = spec.tp.self_arg(Some(cls), extract_error_mode);
+    let self_arg = spec.tp.self_arg(Some(cls), extract_error_mode, holders);
     let rust_name = spec.name;
     let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders)?;
-    let call = quote! { _pyo3::callback::convert(py, #cls::#rust_name(#self_arg #(#args),*)) };
+    let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
     Ok(if let Some(return_mode) = return_mode {
         return_mode.return_call_output(call)
     } else {
-        call
+        quote! { _pyo3::callback::convert(py, #call) }
     })
 }
 

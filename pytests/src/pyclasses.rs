@@ -1,5 +1,4 @@
-use pyo3::exceptions::PyValueError;
-use pyo3::iter::IterNextOutput;
+use pyo3::exceptions::{PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
@@ -28,12 +27,12 @@ impl PyClassIter {
         Default::default()
     }
 
-    fn __next__(&mut self) -> IterNextOutput<usize, &'static str> {
+    fn __next__(&mut self) -> PyResult<usize> {
         if self.count < 5 {
             self.count += 1;
-            IterNextOutput::Yield(self.count)
+            Ok(self.count)
         } else {
-            IterNextOutput::Return("Ended")
+            Err(PyStopIteration::new_err("Ended"))
         }
     }
 }

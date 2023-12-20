@@ -1,12 +1,17 @@
+use crate::callback::IntoPyCallbackOutput;
+use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
-use crate::{ffi, PyAny, PyCell, PyClass, PyObject, PyResult, PyTraverseError, PyVisit, Python};
+use crate::{
+    ffi, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit, Python,
+};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::ptr::null_mut;
 
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
 #[cfg(Py_3_8)]
@@ -299,3 +304,165 @@ pub(crate) fn get_name(name: &'static str) -> PyResult<Cow<'static, CStr>> {
 pub(crate) fn get_doc(doc: &'static str) -> PyResult<Cow<'static, CStr>> {
     extract_c_string(doc, "function doc cannot contain NUL byte.")
 }
+
+// Autoref-based specialization for handling `__next__` returning `Option`
+
+pub struct IterBaseTag;
+
+impl IterBaseTag {
+    #[inline]
+    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    where
+        Value: IntoPyCallbackOutput<Target>,
+    {
+        value.convert(py)
+    }
+}
+
+pub trait IterBaseKind {
+    #[inline]
+    fn iter_tag(&self) -> IterBaseTag {
+        IterBaseTag
+    }
+}
+
+impl<Value> IterBaseKind for &Value {}
+
+pub struct IterOptionTag;
+
+impl IterOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: Option<Value>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Some(value) => value.convert(py),
+            None => Ok(null_mut()),
+        }
+    }
+}
+
+pub trait IterOptionKind {
+    #[inline]
+    fn iter_tag(&self) -> IterOptionTag {
+        IterOptionTag
+    }
+}
+
+impl<Value> IterOptionKind for Option<Value> {}
+
+pub struct IterResultOptionTag;
+
+impl IterResultOptionTag {
+    #[inline]
+    pub fn convert<Value, Error>(
+        self,
+        py: Python<'_>,
+        value: Result<Option<Value>, Error>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Error: Into<PyErr>,
+    {
+        match value {
+            Ok(Some(value)) => value.convert(py),
+            Ok(None) => Ok(null_mut()),
+            Err(err) => Err(err.into()),
+        }
+    }
+}
+
+pub trait IterResultOptionKind {
+    #[inline]
+    fn iter_tag(&self) -> IterResultOptionTag {
+        IterResultOptionTag
+    }
+}
+
+impl<Value, Error> IterResultOptionKind for Result<Option<Value>, Error> {}
+
+// Autoref-based specialization for handling `__anext__` returning `Option`
+
+pub struct AsyncIterBaseTag;
+
+impl AsyncIterBaseTag {
+    #[inline]
+    pub fn convert<Value, Target>(self, py: Python<'_>, value: Value) -> PyResult<Target>
+    where
+        Value: IntoPyCallbackOutput<Target>,
+    {
+        value.convert(py)
+    }
+}
+
+pub trait AsyncIterBaseKind {
+    #[inline]
+    fn async_iter_tag(&self) -> AsyncIterBaseTag {
+        AsyncIterBaseTag
+    }
+}
+
+impl<Value> AsyncIterBaseKind for &Value {}
+
+pub struct AsyncIterOptionTag;
+
+impl AsyncIterOptionTag {
+    #[inline]
+    pub fn convert<Value>(
+        self,
+        py: Python<'_>,
+        value: Option<Value>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        match value {
+            Some(value) => value.convert(py),
+            None => Err(PyStopAsyncIteration::new_err(())),
+        }
+    }
+}
+
+pub trait AsyncIterOptionKind {
+    #[inline]
+    fn async_iter_tag(&self) -> AsyncIterOptionTag {
+        AsyncIterOptionTag
+    }
+}
+
+impl<Value> AsyncIterOptionKind for Option<Value> {}
+
+pub struct AsyncIterResultOptionTag;
+
+impl AsyncIterResultOptionTag {
+    #[inline]
+    pub fn convert<Value, Error>(
+        self,
+        py: Python<'_>,
+        value: Result<Option<Value>, Error>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Error: Into<PyErr>,
+    {
+        match value {
+            Ok(Some(value)) => value.convert(py),
+            Ok(None) => Err(PyStopAsyncIteration::new_err(())),
+            Err(err) => Err(err.into()),
+        }
+    }
+}
+
+pub trait AsyncIterResultOptionKind {
+    #[inline]
+    fn async_iter_tag(&self) -> AsyncIterResultOptionTag {
+        AsyncIterResultOptionTag
+    }
+}
+
+impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}

@@ -14,7 +14,6 @@ use crate::{
     coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
-    pyclass::IterNextOutput,
     types::{PyIterator, PyString},
     IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
@@ -68,11 +67,7 @@ impl Coroutine {
         }
     }
 
-    fn poll(
-        &mut self,
-        py: Python<'_>,
-        throw: Option<PyObject>,
-    ) -> PyResult<IterNextOutput<PyObject, PyObject>> {
+    fn poll(&mut self, py: Python<'_>, throw: Option<PyObject>) -> PyResult<PyObject> {
         // raise if the coroutine has already been run to completion
         let future_rs = match self.future {
             Some(ref mut fut) => fut,
@@ -100,7 +95,7 @@ impl Coroutine {
         match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
             Ok(Poll::Ready(res)) => {
                 self.close();
-                return Ok(IterNextOutput::Return(res?));
+                return Err(PyStopIteration::new_err(res?));
             }
             Err(err) => {
                 self.close();
@@ -115,19 +110,12 @@ impl Coroutine {
             if let Some(future) = PyIterator::from_object(future).unwrap().next() {
                 // future has not been leaked into Python for now, and Rust code can only call
                 // `set_result(None)` in `Wake` implementation, so it's safe to unwrap
-                return Ok(IterNextOutput::Yield(future.unwrap().into()));
+                return Ok(future.unwrap().into());
             }
         }
         // if waker has been waken during future polling, this is roughly equivalent to
         // `await asyncio.sleep(0)`, so just yield `None`.
-        Ok(IterNextOutput::Yield(py.None().into()))
-    }
-}
-
-pub(crate) fn iter_result(result: IterNextOutput<PyObject, PyObject>) -> PyResult<PyObject> {
-    match result {
-        IterNextOutput::Yield(ob) => Ok(ob),
-        IterNextOutput::Return(ob) => Err(PyStopIteration::new_err(ob)),
+        Ok(py.None().into())
     }
 }
 
@@ -153,11 +141,11 @@ impl Coroutine {
     }
 
     fn send(&mut self, py: Python<'_>, _value: &PyAny) -> PyResult<PyObject> {
-        iter_result(self.poll(py, None)?)
+        self.poll(py, None)
     }
 
     fn throw(&mut self, py: Python<'_>, exc: PyObject) -> PyResult<PyObject> {
-        iter_result(self.poll(py, Some(exc))?)
+        self.poll(py, Some(exc))
     }
 
     fn close(&mut self) {
@@ -170,7 +158,7 @@ impl Coroutine {
         self_
     }
 
-    fn __next__(&mut self, py: Python<'_>) -> PyResult<IterNextOutput<PyObject, PyObject>> {
+    fn __next__(&mut self, py: Python<'_>) -> PyResult<PyObject> {
         self.poll(py, None)
     }
 }
