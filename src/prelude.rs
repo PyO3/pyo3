@@ -32,3 +32,4 @@ pub use crate::wrap_pyfunction;
 // pub(crate) use crate::types::bytes::PyBytesMethods;
 // pub(crate) use crate::types::float::PyFloatMethods;
 // pub(crate) use crate::types::sequence::PySequenceMethods;
+// pub(crate) use crate::types::string::PyStringMethods;
