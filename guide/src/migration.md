@@ -76,7 +76,7 @@ Python::with_gil(|py| {
 
 ### `Iter(A)NextOutput` are deprecated
 
-The `__next__` and `__anext__` magic methods can now return any type convertible into Python objects directly just like all other `#[pymethods]`. The `IterNextOutput` used by `__next__` and `IterANextOutput` used by `__anext__` are subsequently deprecated. Most importantly, this change allows returning an awaitable from `__anext__` without non-sensically wrapping it into `Yield` or `Some`. Only the return types `Option<T>` and `PyResult<Option<T>>` are still handled in a special manner where `Some(val)` yields `val` and `None` stops iteration.
+The `__next__` and `__anext__` magic methods can now return any type convertible into Python objects directly just like all other `#[pymethods]`. The `IterNextOutput` used by `__next__` and `IterANextOutput` used by `__anext__` are subsequently deprecated. Most importantly, this change allows returning an awaitable from `__anext__` without non-sensically wrapping it into `Yield` or `Some`. Only the return types `Option<T>` and `Result<Option<T>, E>` are still handled in a special manner where `Some(val)` yields `val` and `None` stops iteration.
 
 Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
 
@@ -126,7 +126,7 @@ impl PyClassIter {
 }
 ```
 
-This form also has additional benefits: It has already worked in previous PyO3 versions, it matches the signature of Rust's [`Iterator` trait](https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html) and it allows using a fast path in CPython which completely avoids the cost of raising a `StopIteration` exception. Note that using [`Option::transpose`](https://doc.rust-lang.org/stable/std/option/enum.Option.html#method.transpose) and the `PyResult<Option<T>>` variant, this form can also be used to wrap fallible iterators.
+This form also has additional benefits: It has already worked in previous PyO3 versions, it matches the signature of Rust's [`Iterator` trait](https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html) and it allows using a fast path in CPython which completely avoids the cost of raising a `StopIteration` exception. Note that using [`Option::transpose`](https://doc.rust-lang.org/stable/std/option/enum.Option.html#method.transpose) and the `Result<Option<T>, E>` variant, this form can also be used to wrap fallible iterators.
 
 Alternatively, the implementation can also be done as it would in Python itself, i.e. by "raising" a `StopIteration` exception
 

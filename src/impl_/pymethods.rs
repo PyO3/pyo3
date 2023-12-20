@@ -3,7 +3,9 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
-use crate::{ffi, PyAny, PyCell, PyClass, PyObject, PyResult, PyTraverseError, PyVisit, Python};
+use crate::{
+    ffi, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit, Python,
+};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::fmt;
@@ -358,18 +360,19 @@ pub struct IterResultOptionTag;
 
 impl IterResultOptionTag {
     #[inline]
-    pub fn convert<Value>(
+    pub fn convert<Value, Error>(
         self,
         py: Python<'_>,
-        value: PyResult<Option<Value>>,
+        value: Result<Option<Value>, Error>,
     ) -> PyResult<*mut ffi::PyObject>
     where
         Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Error: Into<PyErr>,
     {
         match value {
             Ok(Some(value)) => value.convert(py),
             Ok(None) => Ok(null_mut()),
-            Err(err) => Err(err),
+            Err(err) => Err(err.into()),
         }
     }
 }
@@ -381,7 +384,7 @@ pub trait IterResultOptionKind {
     }
 }
 
-impl<Value> IterResultOptionKind for PyResult<Option<Value>> {}
+impl<Value, Error> IterResultOptionKind for Result<Option<Value>, Error> {}
 
 // Autoref-based specialization for handling `__anext__` returning `Option`
 
@@ -438,18 +441,19 @@ pub struct AsyncIterResultOptionTag;
 
 impl AsyncIterResultOptionTag {
     #[inline]
-    pub fn convert<Value>(
+    pub fn convert<Value, Error>(
         self,
         py: Python<'_>,
-        value: PyResult<Option<Value>>,
+        value: Result<Option<Value>, Error>,
     ) -> PyResult<*mut ffi::PyObject>
     where
         Value: IntoPyCallbackOutput<*mut ffi::PyObject>,
+        Error: Into<PyErr>,
     {
         match value {
             Ok(Some(value)) => value.convert(py),
             Ok(None) => Err(PyStopAsyncIteration::new_err(())),
-            Err(err) => Err(err),
+            Err(err) => Err(err.into()),
         }
     }
 }
@@ -461,4 +465,4 @@ pub trait AsyncIterResultOptionKind {
     }
 }
 
-impl<Value> AsyncIterResultOptionKind for PyResult<Option<Value>> {}
+impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
