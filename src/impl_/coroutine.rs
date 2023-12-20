@@ -15,14 +15,21 @@ pub fn new_coroutine<F, T, E>(
     name: &PyString,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
+    allow_threads: bool,
     future: F,
 ) -> Coroutine
 where
     F: Future<Output = Result<T, E>> + Send + 'static,
-    T: IntoPy<PyObject>,
-    E: Into<PyErr>,
+    T: IntoPy<PyObject> + Send,
+    E: Into<PyErr> + Send,
 {
-    Coroutine::new(Some(name.into()), qualname_prefix, throw_callback, future)
+    Coroutine::new(
+        Some(name.into()),
+        qualname_prefix,
+        throw_callback,
+        allow_threads,
+        future,
+    )
 }
 
 fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {

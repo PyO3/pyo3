@@ -1,9 +1,13 @@
-use crate::{PyAny, PyObject};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll, Waker},
+};
+
 use parking_lot::Mutex;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll, Waker};
+
+use crate::{PyAny, PyObject};
 
 #[derive(Debug, Default)]
 struct Inner {
