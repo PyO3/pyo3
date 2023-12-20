@@ -262,6 +262,14 @@ impl<'a, 'py> Py2Borrowed<'a, 'py, PyAny> {
             py,
         )
     }
+
+    /// # Safety
+    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// the caller and it's the caller's responsibility to ensure that the reference this is
+    /// derived from is valid for the lifetime `'a`.
+    pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self(NonNull::new_unchecked(ptr), PhantomData, py)
+    }
 }
 
 impl<'a, 'py, T> From<&'a Py2<'py, T>> for Py2Borrowed<'a, 'py, T> {

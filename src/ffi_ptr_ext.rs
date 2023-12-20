@@ -35,6 +35,9 @@ pub(crate) trait FfiPtrExt: Sealed {
 
     /// Same as `assume_borrowed_or_err`, but panics on NULL.
     unsafe fn assume_borrowed<'a>(self, py: Python<'_>) -> Py2Borrowed<'a, '_, PyAny>;
+
+    /// Same as `assume_borrowed_or_err`, but does not check for NULL.
+    unsafe fn assume_borrowed_unchecked<'a>(self, py: Python<'_>) -> Py2Borrowed<'a, '_, PyAny>;
 }
 
 impl FfiPtrExt for *mut ffi::PyObject {
@@ -67,5 +70,10 @@ impl FfiPtrExt for *mut ffi::PyObject {
     #[inline]
     unsafe fn assume_borrowed<'a>(self, py: Python<'_>) -> Py2Borrowed<'a, '_, PyAny> {
         Py2Borrowed::from_ptr(py, self)
+    }
+
+    #[inline]
+    unsafe fn assume_borrowed_unchecked<'a>(self, py: Python<'_>) -> Py2Borrowed<'a, '_, PyAny> {
+        Py2Borrowed::from_ptr_unchecked(py, self)
     }
 }
