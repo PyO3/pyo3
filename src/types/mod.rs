@@ -301,7 +301,7 @@ mod pysuper;
 pub(crate) mod sequence;
 pub(crate) mod set;
 mod slice;
-mod string;
+pub(crate) mod string;
 mod traceback;
 mod tuple;
 mod typeobject;
