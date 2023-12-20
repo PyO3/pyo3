@@ -221,6 +221,8 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///
 /// The advantage of this over `&Py2` is that it avoids the need to have a pointer-to-pointer, as Py2
 /// is already a pointer to an `ffi::PyObject``.
+///
+/// Similarly, this type is `Copy` and `Clone`, like a shared reference (`&T`).
 #[repr(transparent)]
 pub(crate) struct Py2Borrowed<'a, 'py, T>(
     NonNull<ffi::PyObject>,
@@ -325,6 +327,14 @@ impl<'py, T> Deref for Py2Borrowed<'_, 'py, T> {
         unsafe { &*(&self.0 as *const _ as *const Py2<'py, T>) }
     }
 }
+
+impl<T> Clone for Py2Borrowed<'_, '_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for Py2Borrowed<'_, '_, T> {}
 
 /// A GIL-independent reference to an object allocated on the Python heap.
 ///
