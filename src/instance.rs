@@ -1325,7 +1325,7 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        Py2::<PyAny>::borrowed_from_gil_ref(&ob)
+        Py2::borrowed_from_gil_ref(&ob)
             .downcast()
             .map(Clone::clone)
             .map_err(Into::into)

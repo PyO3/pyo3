@@ -713,11 +713,9 @@ impl PyAny {
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
     pub fn iter(&self) -> PyResult<&PyIterator> {
-        Py2::borrowed_from_gil_ref(&self).iter().map(|py2| {
-            // Can't use into_gil_ref here because T: PyTypeInfo bound is not satisfied
-            // Safety: into_ptr produces a valid pointer to PyIterator object
-            unsafe { self.py().from_owned_ptr(py2.into_ptr()) }
-        })
+        Py2::borrowed_from_gil_ref(&self)
+            .iter()
+            .map(Py2::into_gil_ref)
     }
 
     /// Returns the Python type object for this object's type.
