@@ -1728,7 +1728,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, attr_name.into_py(self.py()).attach_into(py))
+        inner(self, attr_name.into_py(self.py()).into_bound(py))
     }
 
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
@@ -1749,8 +1749,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            attr_name.into_py(py).attach_into(py),
-            value.to_object(py).attach_into(py),
+            attr_name.into_py(py).into_bound(py),
+            value.to_object(py).into_bound(py),
         )
     }
 
@@ -1765,7 +1765,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, attr_name.into_py(py).attach_into(py))
+        inner(self, attr_name.into_py(py).into_bound(py))
     }
 
     fn compare<O>(&self, other: O) -> PyResult<Ordering>
@@ -1795,7 +1795,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, other.to_object(py).attach_into(py))
+        inner(self, other.to_object(py).into_bound(py))
     }
 
     fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<Bound<'py, PyAny>>
@@ -1814,7 +1814,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, other.to_object(py).attach_into(py), compare_op)
+        inner(self, other.to_object(py).into_bound(py), compare_op)
     }
 
     fn lt<O>(&self, other: O) -> PyResult<bool>
@@ -1890,7 +1890,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, args.into_py(py).attach_into(py), kwargs)
+        inner(self, args.into_py(py).into_bound(py), kwargs)
     }
 
     fn call0(&self) -> PyResult<Bound<'py, PyAny>> {
@@ -1937,7 +1937,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
                 // Optimized path on python 3.9+
                 unsafe {
-                    let name = name.into_py(py).attach_into(py);
+                    let name = name.into_py(py).into_bound(py);
                     ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()).assume_owned_or_err(py)
                 }
             } else {
@@ -1987,7 +1987,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
@@ -2008,8 +2008,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         inner(
             self,
-            key.to_object(py).attach_into(py),
-            value.to_object(py).attach_into(py),
+            key.to_object(py).into_bound(py),
+            value.to_object(py).into_bound(py),
         )
     }
 
@@ -2024,7 +2024,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
@@ -2184,7 +2184,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
 
         let py = self.py();
-        inner(self, value.to_object(py).attach_into(py))
+        inner(self, value.to_object(py).into_bound(py))
     }
 
     #[cfg(not(PyPy))]

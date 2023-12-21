@@ -437,7 +437,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         }
 
         let py = self.py();
-        inner(self, index, item.to_object(py).attach_into(py))
+        inner(self, index, item.to_object(py).into_bound(py))
     }
 
     /// Deletes the `index`th element of self.
@@ -483,7 +483,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         }
 
         let py = self.py();
-        inner(self, item.to_object(py).attach_into(py))
+        inner(self, item.to_object(py).into_bound(py))
     }
 
     /// Inserts an item at the specified index.
@@ -500,7 +500,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         }
 
         let py = self.py();
-        inner(self, index, item.to_object(py).attach_into(py))
+        inner(self, index, item.to_object(py).into_bound(py))
     }
 
     /// Determines if self contains `value`.

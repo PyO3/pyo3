@@ -407,7 +407,7 @@ impl Py<PyString> {
     /// the GIL lifetime.
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub fn to_str<'a>(&'a self, py: Python<'_>) -> PyResult<&'a str> {
-        self.attach_borrow(py).to_str()
+        self.bind_borrowed(py).to_str()
     }
 
     /// Converts the `PyString` into a Rust string, avoiding copying when possible.
@@ -418,7 +418,7 @@ impl Py<PyString> {
     /// Because `str` objects are immutable, the returned slice is independent of
     /// the GIL lifetime.
     pub fn to_cow<'a>(&'a self, py: Python<'_>) -> PyResult<Cow<'a, str>> {
-        self.attach_borrow(py).to_cow()
+        self.bind_borrowed(py).to_cow()
     }
 
     /// Converts the `PyString` into a Rust string.
@@ -429,7 +429,7 @@ impl Py<PyString> {
     /// Because `str` objects are immutable, the returned slice is independent of
     /// the GIL lifetime.
     pub fn to_string_lossy<'a>(&'a self, py: Python<'_>) -> Cow<'a, str> {
-        self.attach_borrow(py).to_string_lossy()
+        self.bind_borrowed(py).to_string_lossy()
     }
 }
 

@@ -375,7 +375,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         }
 
         let py = self.py();
-        inner(self, i, item.to_object(py).attach_into(py))
+        inner(self, i, item.to_object(py).into_bound(py))
     }
 
     #[inline]
@@ -417,7 +417,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         }
 
         let py = self.py();
-        inner(self, value.to_object(py).attach_into(py))
+        inner(self, value.to_object(py).into_bound(py))
     }
 
     #[inline]
@@ -435,7 +435,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         }
 
         let py = self.py();
-        inner(self, value.to_object(py).attach_into(py))
+        inner(self, value.to_object(py).into_bound(py))
     }
 
     #[inline]
@@ -450,7 +450,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         }
 
         let py = self.py();
-        inner(self, value.to_object(self.py()).attach_into(py))
+        inner(self, value.to_object(self.py()).into_bound(py))
     }
 
     #[inline]

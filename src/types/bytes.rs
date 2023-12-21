@@ -129,7 +129,7 @@ impl Py<PyBytes> {
     /// immutable, the result may be used for as long as the reference to
     /// `self` is held, including when the GIL is released.
     pub fn as_bytes<'a>(&'a self, py: Python<'_>) -> &'a [u8] {
-        self.attach_borrow(py).as_bytes()
+        self.bind_borrowed(py).as_bytes()
     }
 }
 

@@ -832,17 +832,18 @@ where
 
 impl<T> Py<T> {
     /// Attaches this `Py` to the given Python context, allowing access to further Python APIs.
-    pub(crate) fn attach<'py>(&self, _py: Python<'py>) -> &Bound<'py, T> {
+    pub fn bind<'py>(&self, _py: Python<'py>) -> &Bound<'py, T> {
         // Safety: `Bound` has the same layout as `Py`
         unsafe { &*(self as *const Py<T>).cast() }
     }
 
-    /// Same as `attach` but takes ownership of `self`.
-    pub(crate) fn attach_into(self, py: Python<'_>) -> Bound<'_, T> {
+    /// Same as `bind` but takes ownership of `self`.
+    pub fn into_bound(self, py: Python<'_>) -> Bound<'_, T> {
         Bound(py, ManuallyDrop::new(self))
     }
 
-    pub(crate) fn attach_borrow<'a, 'py>(&'a self, py: Python<'py>) -> Borrowed<'a, 'py, T> {
+    /// Same as `bind` but produces a `Borrowed<T>` instead of a `Bound<T>`.
+    pub fn bind_borrowed<'a, 'py>(&'a self, py: Python<'py>) -> Borrowed<'a, 'py, T> {
         Borrowed(self.0, PhantomData, py)
     }
 
@@ -957,7 +958,7 @@ impl<T> Py<T> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        self.attach(py).as_any().getattr(attr_name).map(Into::into)
+        self.bind(py).as_any().getattr(attr_name).map(Into::into)
     }
 
     /// Sets an attribute value.
@@ -987,9 +988,9 @@ impl<T> Py<T> {
         N: IntoPy<Py<PyString>>,
         V: IntoPy<Py<PyAny>>,
     {
-        self.attach(py)
+        self.bind(py)
             .as_any()
-            .setattr(attr_name, value.into_py(py).attach_into(py))
+            .setattr(attr_name, value.into_py(py).into_bound(py))
     }
 
     /// Calls the object.
@@ -1001,21 +1002,21 @@ impl<T> Py<T> {
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
-        self.attach(py).as_any().call(args, kwargs).map(Into::into)
+        self.bind(py).as_any().call(args, kwargs).map(Into::into)
     }
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
     pub fn call1(&self, py: Python<'_>, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
-        self.attach(py).as_any().call1(args).map(Into::into)
+        self.bind(py).as_any().call1(args).map(Into::into)
     }
 
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self, py: Python<'_>) -> PyResult<PyObject> {
-        self.attach(py).as_any().call0().map(Into::into)
+        self.bind(py).as_any().call0().map(Into::into)
     }
 
     /// Calls a method on the object.
@@ -1035,7 +1036,7 @@ impl<T> Py<T> {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        self.attach(py)
+        self.bind(py)
             .as_any()
             .call_method(name, args, kwargs)
             .map(Into::into)
@@ -1052,7 +1053,7 @@ impl<T> Py<T> {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        self.attach(py)
+        self.bind(py)
             .as_any()
             .call_method1(name, args)
             .map(Into::into)
@@ -1068,7 +1069,7 @@ impl<T> Py<T> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        self.attach(py).as_any().call_method0(name).map(Into::into)
+        self.bind(py).as_any().call_method0(name).map(Into::into)
     }
 
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
@@ -1624,7 +1625,7 @@ a = A()
     #[test]
     fn test_debug_fmt() {
         Python::with_gil(|py| {
-            let obj = "hello world".to_object(py).attach_into(py);
+            let obj = "hello world".to_object(py).into_bound(py);
             assert_eq!(format!("{:?}", obj), "'hello world'");
         });
     }
@@ -1632,7 +1633,7 @@ a = A()
     #[test]
     fn test_display_fmt() {
         Python::with_gil(|py| {
-            let obj = "hello world".to_object(py).attach_into(py);
+            let obj = "hello world".to_object(py).into_bound(py);
             assert_eq!(format!("{}", obj), "hello world");
         });
     }

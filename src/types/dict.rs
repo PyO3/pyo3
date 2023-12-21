@@ -391,7 +391,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
     fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
@@ -414,7 +414,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
@@ -435,8 +435,8 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            key.to_object(py).attach_into(py),
-            value.to_object(py).attach_into(py),
+            key.to_object(py).into_bound(py),
+            value.to_object(py).into_bound(py),
         )
     }
 
@@ -451,7 +451,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
     fn keys(&self) -> Bound<'py, PyList> {
