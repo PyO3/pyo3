@@ -1,4 +1,4 @@
-use crate::instance::{Py2, Py2Borrowed};
+use crate::instance::{Borrowed, Py2};
 use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
@@ -89,7 +89,7 @@ impl PyBytes {
     /// Gets the Python string as a byte slice.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
-        Py2Borrowed::from_gil_ref(self).as_bytes()
+        Borrowed::from_gil_ref(self).as_bytes()
     }
 }
 
@@ -107,11 +107,11 @@ pub(crate) trait PyBytesMethods<'py> {
 impl<'py> PyBytesMethods<'py> for Py2<'py, PyBytes> {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
-        Py2Borrowed::from(self).as_bytes()
+        Borrowed::from(self).as_bytes()
     }
 }
 
-impl<'a> Py2Borrowed<'a, '_, PyBytes> {
+impl<'a> Borrowed<'a, '_, PyBytes> {
     /// Gets the Python string as a byte slice.
     #[allow(clippy::wrong_self_convention)]
     fn as_bytes(self) -> &'a [u8] {

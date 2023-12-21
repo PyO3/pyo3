@@ -1,5 +1,5 @@
 use crate::err::{PyErr, PyResult};
-use crate::instance::{Py2, Py2Borrowed};
+use crate::instance::{Borrowed, Py2};
 use crate::{ffi, AsPyPointer, Py, PyAny, Python};
 use std::os::raw::c_char;
 use std::slice;
@@ -188,7 +188,7 @@ impl PyByteArray {
     /// }
     /// ```
     pub unsafe fn as_bytes(&self) -> &[u8] {
-        Py2Borrowed::from_gil_ref(self).as_bytes()
+        Borrowed::from_gil_ref(self).as_bytes()
     }
 
     /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
@@ -200,7 +200,7 @@ impl PyByteArray {
     /// apply to this function as well.
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        Py2Borrowed::from_gil_ref(self).as_bytes_mut()
+        Borrowed::from_gil_ref(self).as_bytes_mut()
     }
 
     /// Copies the contents of the bytearray to a Rust vector.
@@ -400,16 +400,16 @@ impl<'py> PyByteArrayMethods<'py> for Py2<'py, PyByteArray> {
     }
 
     fn data(&self) -> *mut u8 {
-        Py2Borrowed::from(self).data()
+        Borrowed::from(self).data()
     }
 
     unsafe fn as_bytes(&self) -> &[u8] {
-        Py2Borrowed::from(self).as_bytes()
+        Borrowed::from(self).as_bytes()
     }
 
     #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        Py2Borrowed::from(self).as_bytes_mut()
+        Borrowed::from(self).as_bytes_mut()
     }
 
     fn to_vec(&self) -> Vec<u8> {
@@ -428,7 +428,7 @@ impl<'py> PyByteArrayMethods<'py> for Py2<'py, PyByteArray> {
     }
 }
 
-impl<'a> Py2Borrowed<'a, '_, PyByteArray> {
+impl<'a> Borrowed<'a, '_, PyByteArray> {
     fn data(&self) -> *mut u8 {
         unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
     }

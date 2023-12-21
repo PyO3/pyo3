@@ -4,7 +4,7 @@ use std::iter::FusedIterator;
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Py2Borrowed;
+use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
 use crate::{Py2, PyAny, PyObject, Python, ToPyObject};
@@ -392,7 +392,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
             // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
             ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t)
                 .assume_borrowed_or_err(self.py())
-                .map(Py2Borrowed::to_owned)
+                .map(Borrowed::to_owned)
         }
     }
 

@@ -1,7 +1,7 @@
 #[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Py2Borrowed;
+use crate::instance::Borrowed;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
@@ -184,7 +184,7 @@ impl PyString {
     pub fn to_str(&self) -> PyResult<&str> {
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
         {
-            Py2Borrowed::from_gil_ref(self).to_str()
+            Borrowed::from_gil_ref(self).to_str()
         }
 
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
@@ -202,7 +202,7 @@ impl PyString {
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
     pub fn to_cow(&self) -> PyResult<Cow<'_, str>> {
-        Py2Borrowed::from_gil_ref(self).to_cow()
+        Borrowed::from_gil_ref(self).to_cow()
     }
 
     /// Converts the `PyString` into a Rust string.
@@ -210,7 +210,7 @@ impl PyString {
     /// Unpaired surrogates invalid UTF-8 sequences are
     /// replaced with `U+FFFD REPLACEMENT CHARACTER`.
     pub fn to_string_lossy(&self) -> Cow<'_, str> {
-        Py2Borrowed::from_gil_ref(self).to_string_lossy()
+        Borrowed::from_gil_ref(self).to_string_lossy()
     }
 
     /// Obtains the raw data backing the Python string.
@@ -229,7 +229,7 @@ impl PyString {
     /// expected on the targets where you plan to distribute your software.
     #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
-        Py2Borrowed::from_gil_ref(self).data()
+        Borrowed::from_gil_ref(self).data()
     }
 }
 
@@ -280,24 +280,24 @@ pub(crate) trait PyStringMethods<'py> {
 impl<'py> PyStringMethods<'py> for Py2<'py, PyString> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn to_str(&self) -> PyResult<&str> {
-        Py2Borrowed::from(self).to_str()
+        Borrowed::from(self).to_str()
     }
 
     fn to_cow(&self) -> PyResult<Cow<'_, str>> {
-        Py2Borrowed::from(self).to_cow()
+        Borrowed::from(self).to_cow()
     }
 
     fn to_string_lossy(&self) -> Cow<'_, str> {
-        Py2Borrowed::from(self).to_string_lossy()
+        Borrowed::from(self).to_string_lossy()
     }
 
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
-        Py2Borrowed::from(self).data()
+        Borrowed::from(self).data()
     }
 }
 
-impl<'a> Py2Borrowed<'a, '_, PyString> {
+impl<'a> Borrowed<'a, '_, PyString> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[allow(clippy::wrong_self_convention)]
     fn to_str(self) -> PyResult<&'a str> {

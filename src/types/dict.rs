@@ -2,7 +2,7 @@ use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::{Py2, Py2Borrowed};
+use crate::instance::{Borrowed, Py2};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
@@ -406,7 +406,7 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
             match unsafe {
                 ffi::PyDict_GetItemWithError(dict.as_ptr(), key.as_ptr())
                     .assume_borrowed_or_opt(py)
-                    .map(Py2Borrowed::to_owned)
+                    .map(Borrowed::to_owned)
             } {
                 some @ Some(_) => Ok(some),
                 None => PyErr::take(py).map(Err).transpose(),

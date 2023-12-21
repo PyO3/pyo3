@@ -224,13 +224,9 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 ///
 /// Similarly, this type is `Copy` and `Clone`, like a shared reference (`&T`).
 #[repr(transparent)]
-pub(crate) struct Py2Borrowed<'a, 'py, T>(
-    NonNull<ffi::PyObject>,
-    PhantomData<&'a Py<T>>,
-    Python<'py>,
-);
+pub(crate) struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
 
-impl<'py, T> Py2Borrowed<'_, 'py, T> {
+impl<'py, T> Borrowed<'_, 'py, T> {
     /// Creates a new owned `Py2` from this borrowed reference by increasing the reference count.
     pub(crate) fn to_owned(self) -> Py2<'py, T> {
         unsafe { ffi::Py_INCREF(self.as_ptr()) };
@@ -241,7 +237,7 @@ impl<'py, T> Py2Borrowed<'_, 'py, T> {
     }
 }
 
-impl<'a, 'py> Py2Borrowed<'a, 'py, PyAny> {
+impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     /// the caller and it's the caller's responsibility to ensure that the reference this is
@@ -285,7 +281,7 @@ impl<'a, 'py> Py2Borrowed<'a, 'py, PyAny> {
     }
 }
 
-impl<'a, 'py, T> From<&'a Py2<'py, T>> for Py2Borrowed<'a, 'py, T> {
+impl<'a, 'py, T> From<&'a Py2<'py, T>> for Borrowed<'a, 'py, T> {
     /// Create borrow on a Py2
     fn from(instance: &'a Py2<'py, T>) -> Self {
         Self(
@@ -296,7 +292,7 @@ impl<'a, 'py, T> From<&'a Py2<'py, T>> for Py2Borrowed<'a, 'py, T> {
     }
 }
 
-impl<'py, T> Py2Borrowed<'py, 'py, T>
+impl<'py, T> Borrowed<'py, 'py, T>
 where
     T: HasPyGilRef,
 {
@@ -312,13 +308,13 @@ where
     // }
 }
 
-impl<T> std::fmt::Debug for Py2Borrowed<'_, '_, T> {
+impl<T> std::fmt::Debug for Borrowed<'_, '_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Py2::fmt(self, f)
     }
 }
 
-impl<'py, T> Deref for Py2Borrowed<'_, 'py, T> {
+impl<'py, T> Deref for Borrowed<'_, 'py, T> {
     type Target = Py2<'py, T>;
 
     #[inline]
@@ -328,13 +324,13 @@ impl<'py, T> Deref for Py2Borrowed<'_, 'py, T> {
     }
 }
 
-impl<T> Clone for Py2Borrowed<'_, '_, T> {
+impl<T> Clone for Borrowed<'_, '_, T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> Copy for Py2Borrowed<'_, '_, T> {}
+impl<T> Copy for Borrowed<'_, '_, T> {}
 
 /// A GIL-independent reference to an object allocated on the Python heap.
 ///
@@ -846,8 +842,8 @@ impl<T> Py<T> {
         Py2(py, ManuallyDrop::new(self))
     }
 
-    pub(crate) fn attach_borrow<'a, 'py>(&'a self, py: Python<'py>) -> Py2Borrowed<'a, 'py, T> {
-        Py2Borrowed(self.0, PhantomData, py)
+    pub(crate) fn attach_borrow<'a, 'py>(&'a self, py: Python<'py>) -> Borrowed<'a, 'py, T> {
+        Borrowed(self.0, PhantomData, py)
     }
 
     /// Returns whether `self` and `other` point to the same object. To compare
