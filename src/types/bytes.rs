@@ -99,7 +99,7 @@ impl PyBytes {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyBytes")]
-pub(crate) trait PyBytesMethods<'py> {
+pub trait PyBytesMethods<'py> {
     /// Gets the Python string as a byte slice.
     fn as_bytes(&self) -> &[u8];
 }

@@ -265,7 +265,7 @@ impl PyDict {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyDict")]
-pub(crate) trait PyDictMethods<'py> {
+pub trait PyDictMethods<'py> {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.
@@ -545,7 +545,7 @@ impl<'a> IntoIterator for &'a PyDict {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub(crate) struct PyDictIterator2<'py> {
+pub struct PyDictIterator2<'py> {
     dict: Bound<'py, PyDict>,
     ppos: ffi::Py_ssize_t,
     di_used: ffi::Py_ssize_t,

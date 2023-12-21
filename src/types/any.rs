@@ -996,7 +996,7 @@ impl PyAny {
 /// It is recommended you import this trait via `use pyo3::prelude::*` rather than
 /// by importing this trait directly.
 #[doc(alias = "PyAny")]
-pub(crate) trait PyAnyMethods<'py> {
+pub trait PyAnyMethods<'py> {
     /// Returns whether `self` and `other` point to the same object. To compare
     /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
     ///

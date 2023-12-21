@@ -256,7 +256,7 @@ index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyList")]
-pub(crate) trait PyListMethods<'py> {
+pub trait PyListMethods<'py> {
     /// Returns the length of the list.
     fn len(&self) -> usize;
 
@@ -594,7 +594,7 @@ impl<'a> IntoIterator for &'a PyList {
 }
 
 /// Used by `PyList::iter()`.
-pub(crate) struct PyListIterator2<'py> {
+pub struct PyListIterator2<'py> {
     list: Bound<'py, PyList>,
     index: usize,
     length: usize,

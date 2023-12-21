@@ -45,7 +45,7 @@ pub unsafe trait PyNativeType: Sized {
 
 /// A GIL-attached equivalent to `Py`.
 #[repr(transparent)]
-pub(crate) struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
+pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
 
 impl<'py> Bound<'py, PyAny> {
     /// Constructs a new Bound from a pointer. Panics if ptr is null.
@@ -224,7 +224,7 @@ unsafe impl<T> AsPyPointer for Bound<'_, T> {
 ///
 /// Similarly, this type is `Copy` and `Clone`, like a shared reference (`&T`).
 #[repr(transparent)]
-pub(crate) struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
+pub struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
 
 impl<'py, T> Borrowed<'_, 'py, T> {
     /// Creates a new owned `Bound` from this borrowed reference by increasing the reference count.
