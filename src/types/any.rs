@@ -1,6 +1,6 @@
 use crate::class::basic::CompareOp;
 use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
-use crate::err::{PyDowncastError, PyDowncastError2, PyDowncastIntoError, PyErr, PyResult};
+use crate::err::{DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
@@ -1561,12 +1561,12 @@ pub trait PyAnyMethods<'py> {
     /// })
     /// # }
     /// ```
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, PyDowncastError2<'_, 'py>>
+    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeCheck;
 
     /// Like `downcast` but takes ownership of `self`.
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, PyDowncastIntoError<'py>>
+    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeCheck;
 
@@ -1600,12 +1600,12 @@ pub trait PyAnyMethods<'py> {
     ///     assert!(any.downcast_exact::<PyBool>().is_ok());
     /// });
     /// ```
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, PyDowncastError2<'_, 'py>>
+    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeInfo;
 
     /// Like `downcast_exact` but takes ownership of `self`.
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, PyDowncastIntoError<'py>>
+    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeInfo;
 
@@ -2041,7 +2041,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, PyDowncastError2<'_, 'py>>
+    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeCheck,
     {
@@ -2049,12 +2049,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
-            Err(PyDowncastError2::new(self, T::NAME))
+            Err(DowncastError::new(self, T::NAME))
         }
     }
 
     #[inline]
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, PyDowncastIntoError<'py>>
+    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeCheck,
     {
@@ -2062,12 +2062,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
-            Err(PyDowncastIntoError::new(self, T::NAME))
+            Err(DowncastIntoError::new(self, T::NAME))
         }
     }
 
     #[inline]
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, PyDowncastError2<'_, 'py>>
+    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
         T: PyTypeInfo,
     {
@@ -2075,12 +2075,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
-            Err(PyDowncastError2::new(self, T::NAME))
+            Err(DowncastError::new(self, T::NAME))
         }
     }
 
     #[inline]
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, PyDowncastIntoError<'py>>
+    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeInfo,
     {
@@ -2088,7 +2088,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
-            Err(PyDowncastIntoError::new(self, T::NAME))
+            Err(DowncastIntoError::new(self, T::NAME))
         }
     }
 

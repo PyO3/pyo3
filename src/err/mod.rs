@@ -65,16 +65,16 @@ impl<'a> PyDowncastError<'a> {
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
-pub struct PyDowncastError2<'a, 'py> {
+pub struct DowncastError<'a, 'py> {
     from: &'a Bound<'py, PyAny>,
     to: Cow<'static, str>,
 }
 
-impl<'a, 'py> PyDowncastError2<'a, 'py> {
+impl<'a, 'py> DowncastError<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        PyDowncastError2 {
+        DowncastError {
             from,
             to: to.into(),
         }
@@ -83,16 +83,16 @@ impl<'a, 'py> PyDowncastError2<'a, 'py> {
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
-pub struct PyDowncastIntoError<'py> {
+pub struct DowncastIntoError<'py> {
     from: Bound<'py, PyAny>,
     to: Cow<'static, str>,
 }
 
-impl<'py> PyDowncastIntoError<'py> {
-    /// Create a new `PyDowncastIntoError` representing a failure to convert the object
+impl<'py> DowncastIntoError<'py> {
+    /// Create a new `DowncastIntoError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        PyDowncastIntoError {
+        DowncastIntoError {
             from,
             to: to.into(),
         }
@@ -815,9 +815,9 @@ impl<'a> std::fmt::Display for PyDowncastError<'a> {
     }
 }
 
-/// Convert `PyDowncastError2` to Python `TypeError`.
-impl std::convert::From<PyDowncastError2<'_, '_>> for PyErr {
-    fn from(err: PyDowncastError2<'_, '_>) -> PyErr {
+/// Convert `DowncastError` to Python `TypeError`.
+impl std::convert::From<DowncastError<'_, '_>> for PyErr {
+    fn from(err: DowncastError<'_, '_>) -> PyErr {
         let args = PyDowncastErrorArguments {
             from: err.from.get_type().into(),
             to: err.to,
@@ -827,17 +827,17 @@ impl std::convert::From<PyDowncastError2<'_, '_>> for PyErr {
     }
 }
 
-impl std::error::Error for PyDowncastError2<'_, '_> {}
+impl std::error::Error for DowncastError<'_, '_> {}
 
-impl std::fmt::Display for PyDowncastError2<'_, '_> {
+impl std::fmt::Display for DowncastError<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         display_downcast_error(f, self.from, &self.to)
     }
 }
 
-/// Convert `PyDowncastIntoError` to Python `TypeError`.
-impl std::convert::From<PyDowncastIntoError<'_>> for PyErr {
-    fn from(err: PyDowncastIntoError<'_>) -> PyErr {
+/// Convert `DowncastIntoError` to Python `TypeError`.
+impl std::convert::From<DowncastIntoError<'_>> for PyErr {
+    fn from(err: DowncastIntoError<'_>) -> PyErr {
         let args = PyDowncastErrorArguments {
             from: err.from.get_type().into(),
             to: err.to,
@@ -847,9 +847,9 @@ impl std::convert::From<PyDowncastIntoError<'_>> for PyErr {
     }
 }
 
-impl std::error::Error for PyDowncastIntoError<'_> {}
+impl std::error::Error for DowncastIntoError<'_> {}
 
-impl std::fmt::Display for PyDowncastIntoError<'_> {
+impl std::fmt::Display for DowncastIntoError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         display_downcast_error(f, &self.from, &self.to)
     }
