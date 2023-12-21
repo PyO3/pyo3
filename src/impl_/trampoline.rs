@@ -9,9 +9,13 @@ use std::{
     panic::{self, UnwindSafe},
 };
 
+#[cfg(feature = "pool")]
+use crate::gil::GILPool;
+#[cfg(not(feature = "pool"))]
+use crate::gil::WithGIL;
 use crate::{
     callback::PyCallbackOutput, ffi, impl_::panic::PanicTrap, methods::IPowModulo,
-    panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
+    panic::PanicException, types::PyModule, Py, PyResult, Python,
 };
 
 #[inline]
@@ -174,8 +178,14 @@ where
     R: PyCallbackOutput,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
+    #[cfg(feature = "pool")]
     let pool = unsafe { GILPool::new() };
+    #[cfg(feature = "pool")]
     let py = pool.python();
+    #[cfg(not(feature = "pool"))]
+    let gil = unsafe { WithGIL::during_call() };
+    #[cfg(not(feature = "pool"))]
+    let py = gil.python();
     let out = panic_result_into_callback_output(
         py,
         panic::catch_unwind(move || -> PyResult<_> { body(py) }),
@@ -219,8 +229,14 @@ where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<()> + UnwindSafe,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    let pool = GILPool::new();
+    #[cfg(feature = "pool")]
+    let pool = unsafe { GILPool::new() };
+    #[cfg(feature = "pool")]
     let py = pool.python();
+    #[cfg(not(feature = "pool"))]
+    let gil = unsafe { WithGIL::during_call() };
+    #[cfg(not(feature = "pool"))]
+    let py = gil.python();
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {

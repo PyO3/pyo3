@@ -1,12 +1,13 @@
 //! Interaction with Python's global interpreter lock
 
+#[cfg(feature = "pool")]
 use crate::impl_::not_send::{NotSend, NOT_SEND};
 use crate::{ffi, Python};
 use parking_lot::{const_mutex, Mutex, Once};
 use std::cell::Cell;
-#[cfg(debug_assertions)]
+#[cfg(all(feature = "pool", debug_assertions))]
 use std::cell::RefCell;
-#[cfg(not(debug_assertions))]
+#[cfg(all(feature = "pool", not(debug_assertions)))]
 use std::cell::UnsafeCell;
 use std::{mem, ptr::NonNull};
 
@@ -37,9 +38,9 @@ thread_local_const_init! {
     static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
 
     /// Temporarily hold objects that will be released when the GILPool drops.
-    #[cfg(debug_assertions)]
+    #[cfg(all(feature = "pool", debug_assertions))]
     static OWNED_OBJECTS: RefCell<PyObjVec> = const { RefCell::new(Vec::new()) };
-    #[cfg(not(debug_assertions))]
+    #[cfg(all(feature = "pool", not(debug_assertions)))]
     static OWNED_OBJECTS: UnsafeCell<PyObjVec> = const { UnsafeCell::new(Vec::new()) };
 }
 
@@ -139,17 +140,27 @@ where
     ffi::Py_InitializeEx(0);
 
     // Safety: the GIL is already held because of the Py_IntializeEx call.
+    #[cfg(feature = "pool")]
     let pool = GILPool::new();
+    #[cfg(feature = "pool")]
+    let py = pool.python();
+    #[cfg(not(feature = "pool"))]
+    let gil = WithGIL::during_call();
+    #[cfg(not(feature = "pool"))]
+    let py = gil.python();
 
     // Import the threading module - this ensures that it will associate this thread as the "main"
     // thread, which is important to avoid an `AssertionError` at finalization.
-    pool.python().import("threading").unwrap();
+    py.import("threading").unwrap();
 
     // Execute the closure.
-    let result = f(pool.python());
+    let result = f(py);
 
     // Drop the pool before finalizing.
+    #[cfg(feature = "pool")]
     drop(pool);
+    #[cfg(not(feature = "pool"))]
+    drop(gil);
 
     // Finalize the Python interpreter.
     ffi::Py_Finalize();
@@ -160,6 +171,7 @@ where
 /// RAII type that represents the Global Interpreter Lock acquisition.
 pub(crate) struct GILGuard {
     gstate: ffi::PyGILState_STATE,
+    #[cfg(feature = "pool")]
     pool: mem::ManuallyDrop<GILPool>,
 }
 
@@ -222,9 +234,14 @@ impl GILGuard {
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        #[cfg(feature = "pool")]
         let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
 
-        Some(GILGuard { gstate, pool })
+        Some(GILGuard {
+            gstate,
+            #[cfg(feature = "pool")]
+            pool,
+        })
     }
 }
 
@@ -233,6 +250,7 @@ impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
             // Drop the objects in the pool before attempting to release the thread state
+            #[cfg(feature = "pool")]
             mem::ManuallyDrop::drop(&mut self.pool);
 
             ffi::PyGILState_Release(self.gstate);
@@ -317,6 +335,30 @@ impl Drop for SuspendGIL {
     }
 }
 
+/// Used to indicate safe access to the GIL
+pub(crate) struct WithGIL;
+
+impl WithGIL {
+    pub unsafe fn during_call() -> Self {
+        increment_gil_count();
+
+        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+        POOL.update_counts(Python::assume_gil_acquired());
+
+        Self
+    }
+
+    pub fn python(&self) -> Python<'_> {
+        unsafe { Python::assume_gil_acquired() }
+    }
+}
+
+impl Drop for WithGIL {
+    fn drop(&mut self) {
+        decrement_gil_count();
+    }
+}
+
 /// Used to lock safe access to the GIL
 pub(crate) struct LockGIL {
     count: isize,
@@ -355,9 +397,9 @@ impl Drop for LockGIL {
 ///
 /// See the [Memory Management] chapter of the guide for more information about how PyO3 uses
 /// [`GILPool`] to manage memory.
-
 ///
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
+#[cfg(feature = "pool")]
 pub struct GILPool {
     /// Initial length of owned objects and anys.
     /// `Option` is used since TSL can be broken when `new` is called from `atexit`.
@@ -365,6 +407,7 @@ pub struct GILPool {
     _not_send: NotSend,
 }
 
+#[cfg(feature = "pool")]
 impl GILPool {
     /// Creates a new [`GILPool`]. This function should only ever be called with the GIL held.
     ///
@@ -401,6 +444,7 @@ impl GILPool {
     }
 }
 
+#[cfg(feature = "pool")]
 impl Drop for GILPool {
     fn drop(&mut self) {
         if let Some(start) = self.start {
@@ -463,6 +507,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
+#[cfg(feature = "pool")]
 pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
     // Ignores the error in case this function called from `atexit`.

@@ -71,6 +71,9 @@ experimental-inspect = []
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
 
+# Enables GIL-bound references backed by a thread-local pool
+pool = []
+
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 

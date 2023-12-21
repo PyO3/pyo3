@@ -5,10 +5,9 @@ use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
-use crate::{
-    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
-};
+use crate::{ffi, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python};
 use std::cell::Cell;
+#[cfg(feature = "pool")]
 use std::ptr::NonNull;
 
 /// Returns a borrowed pointer to a Python object.
@@ -543,12 +542,13 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     }
 }
 
+#[cfg(feature = "pool")]
 unsafe impl<'p, T> FromPyPointer<'p> for T
 where
     T: 'p + crate::PyNativeType,
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
-        gil::register_owned(py, NonNull::new(ptr)?);
+        crate::gil::register_owned(py, NonNull::new(ptr)?);
         Some(&*(ptr as *mut Self))
     }
     unsafe fn from_borrowed_ptr_or_opt(

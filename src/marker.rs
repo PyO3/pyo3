@@ -116,7 +116,9 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::gil::{GILGuard, GILPool, SuspendGIL};
+#[cfg(feature = "pool")]
+use crate::gil::GILPool;
+use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::type_object::HasPyGilRef;
 use crate::types::{
@@ -967,6 +969,7 @@ impl<'py> Python<'py> {
     ///
     /// [`.python()`]: crate::GILPool::python
     #[inline]
+    #[cfg(feature = "pool")]
     pub unsafe fn new_pool(self) -> GILPool {
         GILPool::new()
     }
@@ -1025,6 +1028,7 @@ impl Python<'_> {
     /// });
     /// ```
     #[inline]
+    #[cfg(feature = "pool")]
     pub fn with_pool<F, R>(&self, f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R + Ungil,
