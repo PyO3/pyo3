@@ -240,14 +240,10 @@ impl<'py> PyMappingMethods<'py> for Py2<'py, PyMapping> {
     }
 }
 
-static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-
 fn get_mapping_abc(py: Python<'_>) -> PyResult<&PyType> {
-    MAPPING_ABC
-        .get_or_try_init(py, || {
-            py.import("collections.abc")?.getattr("Mapping")?.extract()
-        })
-        .map(|ty| ty.as_ref(py))
+    static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+    MAPPING_ABC.get_or_try_init_type_ref(py, "collections.abc", "Mapping")
 }
 
 impl PyTypeCheck for PyMapping {
@@ -260,8 +256,10 @@ impl PyTypeCheck for PyMapping {
         PyDict::is_type_of(object)
             || get_mapping_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
-                // TODO: surface errors in this chain to the user
-                .unwrap_or(false)
+                .unwrap_or_else(|err| {
+                    err.write_unraisable(object.py(), Some(object));
+                    false
+                })
     }
 }
 
