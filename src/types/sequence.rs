@@ -540,8 +540,10 @@ impl PyTypeCheck for PySequence {
             || PyTuple::is_type_of(object)
             || get_sequence_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
-                // TODO: surface errors in this chain to the user
-                .unwrap_or(false)
+                .unwrap_or_else(|err| {
+                    err.write_unraisable(object.py(), Some(object));
+                    false
+                })
     }
 }
 
