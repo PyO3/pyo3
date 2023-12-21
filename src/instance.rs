@@ -228,6 +228,17 @@ pub(crate) struct Py2Borrowed<'a, 'py, T>(
     Python<'py>,
 );
 
+impl<'py, T> Py2Borrowed<'_, 'py, T> {
+    /// Creates a new owned `Py2` from this borrowed reference by increasing the reference count.
+    pub(crate) fn to_owned(self) -> Py2<'py, T> {
+        unsafe { ffi::Py_INCREF(self.as_ptr()) };
+        Py2(
+            self.py(),
+            ManuallyDrop::new(unsafe { Py::from_non_null(self.0) }),
+        )
+    }
+}
+
 impl<'a, 'py> Py2Borrowed<'a, 'py, PyAny> {
     /// # Safety
     /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
