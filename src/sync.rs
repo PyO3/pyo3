@@ -1,5 +1,5 @@
 //! Synchronization mechanisms based on the Python GIL.
-use crate::{types::PyString, types::PyType, Py, PyErr, PyVisit, Python};
+use crate::{types::PyString, types::PyType, Py, PyResult, PyVisit, Python};
 use std::cell::UnsafeCell;
 
 /// Value with concurrent access protected by the GIL.
@@ -196,7 +196,7 @@ impl GILOnceCell<Py<PyType>> {
         py: Python<'py>,
         module_name: &str,
         attr_name: &str,
-    ) -> Result<&'py PyType, PyErr> {
+    ) -> PyResult<&'py PyType> {
         self.get_or_try_init(py, || py.import(module_name)?.getattr(attr_name)?.extract())
             .map(|ty| ty.as_ref(py))
     }

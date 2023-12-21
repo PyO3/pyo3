@@ -240,14 +240,10 @@ impl<'py> PyMappingMethods<'py> for Py2<'py, PyMapping> {
     }
 }
 
-static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-
 fn get_mapping_abc(py: Python<'_>) -> PyResult<&PyType> {
-    MAPPING_ABC
-        .get_or_try_init(py, || {
-            py.import("collections.abc")?.getattr("Mapping")?.extract()
-        })
-        .map(|ty| ty.as_ref(py))
+    static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+    MAPPING_ABC.get_or_try_init_type_ref(py, "collections.abc", "Mapping")
 }
 
 impl PyTypeCheck for PyMapping {

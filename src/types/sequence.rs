@@ -523,14 +523,10 @@ where
     Ok(v)
 }
 
-static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-
 fn get_sequence_abc(py: Python<'_>) -> PyResult<&PyType> {
-    SEQUENCE_ABC
-        .get_or_try_init(py, || {
-            py.import("collections.abc")?.getattr("Sequence")?.extract()
-        })
-        .map(|ty| ty.as_ref(py))
+    static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+    SEQUENCE_ABC.get_or_try_init_type_ref(py, "collections.abc", "Sequence")
 }
 
 impl PyTypeCheck for PySequence {
