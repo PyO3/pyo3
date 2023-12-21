@@ -1617,6 +1617,10 @@ pub trait PyAnyMethods<'py> {
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T>;
 
     /// Like `downcast_unchecked` but takes ownership of `self`.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
     unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T>;
 
     /// Extracts some type from the Python object.
