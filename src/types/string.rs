@@ -5,7 +5,7 @@ use crate::instance::Borrowed;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-use crate::{ffi, IntoPy, Py, Py2, PyAny, PyResult, Python};
+use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
@@ -235,7 +235,7 @@ impl PyString {
 
 /// Implementation of functionality for [`PyString`].
 ///
-/// These methods are defined for the `Py2<'py, PyString>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyString>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyString")]
@@ -277,7 +277,7 @@ pub(crate) trait PyStringMethods<'py> {
     unsafe fn data(&self) -> PyResult<PyStringData<'_>>;
 }
 
-impl<'py> PyStringMethods<'py> for Py2<'py, PyString> {
+impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn to_str(&self) -> PyResult<&str> {
         Borrowed::from(self).to_str()
@@ -433,13 +433,13 @@ impl Py<PyString> {
     }
 }
 
-impl IntoPy<Py<PyString>> for Py2<'_, PyString> {
+impl IntoPy<Py<PyString>> for Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
         self.into()
     }
 }
 
-impl IntoPy<Py<PyString>> for &Py2<'_, PyString> {
+impl IntoPy<Py<PyString>> for &Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
         self.clone().into()
     }

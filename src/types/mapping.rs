@@ -1,6 +1,6 @@
 use crate::err::{PyDowncastError, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Py2;
+use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
@@ -20,13 +20,13 @@ impl PyMapping {
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
-        Py2::borrowed_from_gil_ref(&self).len()
+        Bound::borrowed_from_gil_ref(&self).len()
     }
 
     /// Returns whether the mapping is empty.
     #[inline]
     pub fn is_empty(&self) -> PyResult<bool> {
-        Py2::borrowed_from_gil_ref(&self).is_empty()
+        Bound::borrowed_from_gil_ref(&self).is_empty()
     }
 
     /// Determines if the mapping contains the specified key.
@@ -36,7 +36,7 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).contains(key)
+        Bound::borrowed_from_gil_ref(&self).contains(key)
     }
 
     /// Gets the item in self with key `key`.
@@ -49,9 +49,9 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .get_item(key)
-            .map(Py2::into_gil_ref)
+            .map(Bound::into_gil_ref)
     }
 
     /// Sets the item in self with key `key`.
@@ -63,7 +63,7 @@ impl PyMapping {
         K: ToPyObject,
         V: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).set_item(key, value)
+        Bound::borrowed_from_gil_ref(&self).set_item(key, value)
     }
 
     /// Deletes the item with key `key`.
@@ -74,31 +74,31 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).del_item(key)
+        Bound::borrowed_from_gil_ref(&self).del_item(key)
     }
 
     /// Returns a sequence containing all keys in the mapping.
     #[inline]
     pub fn keys(&self) -> PyResult<&PySequence> {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .keys()
-            .map(Py2::into_gil_ref)
+            .map(Bound::into_gil_ref)
     }
 
     /// Returns a sequence containing all values in the mapping.
     #[inline]
     pub fn values(&self) -> PyResult<&PySequence> {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .values()
-            .map(Py2::into_gil_ref)
+            .map(Bound::into_gil_ref)
     }
 
     /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
     #[inline]
     pub fn items(&self) -> PyResult<&PySequence> {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .items()
-            .map(Py2::into_gil_ref)
+            .map(Bound::into_gil_ref)
     }
 
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
@@ -113,7 +113,7 @@ impl PyMapping {
 
 /// Implementation of functionality for [`PyMapping`].
 ///
-/// These methods are defined for the `Py2<'py, PyMapping>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyMapping>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyMapping")]
@@ -138,7 +138,7 @@ pub(crate) trait PyMappingMethods<'py> {
     /// Returns an `Err` if the item with specified key is not found, usually `KeyError`.
     ///
     /// This is equivalent to the Python expression `self[key]`.
-    fn get_item<K>(&self, key: K) -> PyResult<Py2<'py, PyAny>>
+    fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
     where
         K: ToPyObject;
 
@@ -158,16 +158,16 @@ pub(crate) trait PyMappingMethods<'py> {
         K: ToPyObject;
 
     /// Returns a sequence containing all keys in the mapping.
-    fn keys(&self) -> PyResult<Py2<'py, PySequence>>;
+    fn keys(&self) -> PyResult<Bound<'py, PySequence>>;
 
     /// Returns a sequence containing all values in the mapping.
-    fn values(&self) -> PyResult<Py2<'py, PySequence>>;
+    fn values(&self) -> PyResult<Bound<'py, PySequence>>;
 
     /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
-    fn items(&self) -> PyResult<Py2<'py, PySequence>>;
+    fn items(&self) -> PyResult<Bound<'py, PySequence>>;
 }
 
-impl<'py> PyMappingMethods<'py> for Py2<'py, PyMapping> {
+impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     #[inline]
     fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyMapping_Size(self.as_ptr()) };
@@ -188,7 +188,7 @@ impl<'py> PyMappingMethods<'py> for Py2<'py, PyMapping> {
     }
 
     #[inline]
-    fn get_item<K>(&self, key: K) -> PyResult<Py2<'py, PyAny>>
+    fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
     where
         K: ToPyObject,
     {
@@ -213,7 +213,7 @@ impl<'py> PyMappingMethods<'py> for Py2<'py, PyMapping> {
     }
 
     #[inline]
-    fn keys(&self) -> PyResult<Py2<'py, PySequence>> {
+    fn keys(&self) -> PyResult<Bound<'py, PySequence>> {
         unsafe {
             ffi::PyMapping_Keys(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -222,7 +222,7 @@ impl<'py> PyMappingMethods<'py> for Py2<'py, PyMapping> {
     }
 
     #[inline]
-    fn values(&self) -> PyResult<Py2<'py, PySequence>> {
+    fn values(&self) -> PyResult<Bound<'py, PySequence>> {
         unsafe {
             ffi::PyMapping_Values(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -231,7 +231,7 @@ impl<'py> PyMappingMethods<'py> for Py2<'py, PyMapping> {
     }
 
     #[inline]
-    fn items(&self) -> PyResult<Py2<'py, PySequence>> {
+    fn items(&self) -> PyResult<Bound<'py, PySequence>> {
         unsafe {
             ffi::PyMapping_Items(self.as_ptr())
                 .assume_owned_or_err(self.py())

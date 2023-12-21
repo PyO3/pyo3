@@ -45,22 +45,22 @@ pub unsafe trait PyNativeType: Sized {
 
 /// A GIL-attached equivalent to `Py`.
 #[repr(transparent)]
-pub(crate) struct Py2<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
+pub(crate) struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
 
-impl<'py> Py2<'py, PyAny> {
-    /// Constructs a new Py2 from a pointer. Panics if ptr is null.
+impl<'py> Bound<'py, PyAny> {
+    /// Constructs a new Bound from a pointer. Panics if ptr is null.
     pub(crate) unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
 
-    // /// Constructs a new Py2 from a pointer. Returns None if ptr is null.
+    // /// Constructs a new Bound from a pointer. Returns None if ptr is null.
     // ///
     // /// Safety: ptr must be a valid pointer to a Python object, or NULL.
     // pub unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
     //     Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     // }
 
-    /// Constructs a new Py2 from a pointer. Returns error if ptr is null.
+    /// Constructs a new Bound from a pointer. Returns error if ptr is null.
     pub(crate) unsafe fn from_owned_ptr_or_err(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -69,22 +69,22 @@ impl<'py> Py2<'py, PyAny> {
     }
 }
 
-impl<'py, T> Py2<'py, T> {
-    /// Helper to cast to Py2<'py, PyAny>
-    pub(crate) fn as_any(&self) -> &Py2<'py, PyAny> {
-        // Safety: all Py2<T> have the same memory layout, and all Py2<T> are valid Py2<PyAny>
+impl<'py, T> Bound<'py, T> {
+    /// Helper to cast to Bound<'py, PyAny>
+    pub(crate) fn as_any(&self) -> &Bound<'py, PyAny> {
+        // Safety: all Bound<T> have the same memory layout, and all Bound<T> are valid Bound<PyAny>
         unsafe { std::mem::transmute(self) }
     }
 }
 
-impl<'py, T> std::fmt::Debug for Py2<'py, T> {
+impl<'py, T> std::fmt::Debug for Bound<'py, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.repr(), f)
     }
 }
 
-impl<'py, T> std::fmt::Display for Py2<'py, T> {
+impl<'py, T> std::fmt::Display for Bound<'py, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.str(), f)
@@ -92,8 +92,8 @@ impl<'py, T> std::fmt::Display for Py2<'py, T> {
 }
 
 fn python_format(
-    any: &Py2<'_, PyAny>,
-    format_result: PyResult<Py2<'_, PyString>>,
+    any: &Bound<'_, PyAny>,
+    format_result: PyResult<Bound<'_, PyString>>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> Result<(), std::fmt::Error> {
     match format_result {
@@ -109,40 +109,40 @@ fn python_format(
     }
 }
 
-impl<'py, T> Deref for Py2<'py, T>
+impl<'py, T> Deref for Bound<'py, T>
 where
     T: AsRef<PyAny>,
 {
-    type Target = Py2<'py, PyAny>;
+    type Target = Bound<'py, PyAny>;
 
     #[inline]
-    fn deref(&self) -> &Py2<'py, PyAny> {
+    fn deref(&self) -> &Bound<'py, PyAny> {
         self.as_any()
     }
 }
 
-impl<'py, T> AsRef<Py2<'py, PyAny>> for Py2<'py, T>
+impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T>
 where
     T: AsRef<PyAny>,
 {
-    fn as_ref(&self) -> &Py2<'py, PyAny> {
+    fn as_ref(&self) -> &Bound<'py, PyAny> {
         self.as_any()
     }
 }
 
-impl<T> Clone for Py2<'_, T> {
+impl<T> Clone for Bound<'_, T> {
     fn clone(&self) -> Self {
         Self(self.0, ManuallyDrop::new(self.1.clone_ref(self.0)))
     }
 }
 
-impl<T> Drop for Py2<'_, T> {
+impl<T> Drop for Bound<'_, T> {
     fn drop(&mut self) {
         unsafe { ffi::Py_DECREF(self.1.as_ptr()) }
     }
 }
 
-impl<'py, T> Py2<'py, T> {
+impl<'py, T> Bound<'py, T> {
     /// Returns the GIL token associated with this object.
     pub fn py(&self) -> Python<'py> {
         self.0
@@ -172,7 +172,7 @@ impl<'py, T> Py2<'py, T> {
         self.into_non_null().as_ptr()
     }
 
-    /// Internal helper to convert e.g. &'a &'py PyDict to &'a Py2<'py, PyDict> for
+    /// Internal helper to convert e.g. &'a &'py PyDict to &'a Bound<'py, PyDict> for
     /// backwards-compatibility during migration to removal of pool.
     #[doc(hidden)] // public and doc(hidden) to use in examples and tests for now
     pub fn borrowed_from_gil_ref<'a, U>(gil_ref: &'a &'py U) -> &'a Self
@@ -180,7 +180,7 @@ impl<'py, T> Py2<'py, T> {
         U: PyNativeType<AsRefSource = T>,
     {
         // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
-        // so &'a &'py T::AsRefTarget has the same layout as &'a Py2<'py, T>
+        // so &'a &'py T::AsRefTarget has the same layout as &'a Bound<'py, T>
         unsafe { std::mem::transmute(gil_ref) }
     }
 
@@ -211,15 +211,15 @@ impl<'py, T> Py2<'py, T> {
     }
 }
 
-unsafe impl<T> AsPyPointer for Py2<'_, T> {
+unsafe impl<T> AsPyPointer for Bound<'_, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.1.as_ptr()
     }
 }
 
-/// A borrowed equivalent to `Py2`.
+/// A borrowed equivalent to `Bound`.
 ///
-/// The advantage of this over `&Py2` is that it avoids the need to have a pointer-to-pointer, as Py2
+/// The advantage of this over `&Bound` is that it avoids the need to have a pointer-to-pointer, as Bound
 /// is already a pointer to an `ffi::PyObject``.
 ///
 /// Similarly, this type is `Copy` and `Clone`, like a shared reference (`&T`).
@@ -227,10 +227,10 @@ unsafe impl<T> AsPyPointer for Py2<'_, T> {
 pub(crate) struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
 
 impl<'py, T> Borrowed<'_, 'py, T> {
-    /// Creates a new owned `Py2` from this borrowed reference by increasing the reference count.
-    pub(crate) fn to_owned(self) -> Py2<'py, T> {
+    /// Creates a new owned `Bound` from this borrowed reference by increasing the reference count.
+    pub(crate) fn to_owned(self) -> Bound<'py, T> {
         unsafe { ffi::Py_INCREF(self.as_ptr()) };
-        Py2(
+        Bound(
             self.py(),
             ManuallyDrop::new(unsafe { Py::from_non_null(self.0) }),
         )
@@ -281,9 +281,9 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     }
 }
 
-impl<'a, 'py, T> From<&'a Py2<'py, T>> for Borrowed<'a, 'py, T> {
-    /// Create borrow on a Py2
-    fn from(instance: &'a Py2<'py, T>) -> Self {
+impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {
+    /// Create borrow on a Bound
+    fn from(instance: &'a Bound<'py, T>) -> Self {
         Self(
             unsafe { NonNull::new_unchecked(instance.as_ptr()) },
             PhantomData,
@@ -310,17 +310,17 @@ where
 
 impl<T> std::fmt::Debug for Borrowed<'_, '_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Py2::fmt(self, f)
+        Bound::fmt(self, f)
     }
 }
 
 impl<'py, T> Deref for Borrowed<'_, 'py, T> {
-    type Target = Py2<'py, T>;
+    type Target = Bound<'py, T>;
 
     #[inline]
-    fn deref(&self) -> &Py2<'py, T> {
-        // safety: Py2 has the same layout as NonNull<ffi::PyObject>
-        unsafe { &*(&self.0 as *const _ as *const Py2<'py, T>) }
+    fn deref(&self) -> &Bound<'py, T> {
+        // safety: Bound has the same layout as NonNull<ffi::PyObject>
+        unsafe { &*(&self.0 as *const _ as *const Bound<'py, T>) }
     }
 }
 
@@ -832,14 +832,14 @@ where
 
 impl<T> Py<T> {
     /// Attaches this `Py` to the given Python context, allowing access to further Python APIs.
-    pub(crate) fn attach<'py>(&self, _py: Python<'py>) -> &Py2<'py, T> {
-        // Safety: `Py2` has the same layout as `Py`
+    pub(crate) fn attach<'py>(&self, _py: Python<'py>) -> &Bound<'py, T> {
+        // Safety: `Bound` has the same layout as `Py`
         unsafe { &*(self as *const Py<T>).cast() }
     }
 
     /// Same as `attach` but takes ownership of `self`.
-    pub(crate) fn attach_into(self, py: Python<'_>) -> Py2<'_, T> {
-        Py2(py, ManuallyDrop::new(self))
+    pub(crate) fn attach_into(self, py: Python<'_>) -> Bound<'_, T> {
+        Bound(py, ManuallyDrop::new(self))
     }
 
     pub(crate) fn attach_borrow<'a, 'py>(&'a self, py: Python<'py>) -> Borrowed<'a, 'py, T> {
@@ -1204,14 +1204,14 @@ impl<T> IntoPy<PyObject> for &'_ Py<T> {
     }
 }
 
-impl<T> ToPyObject for Py2<'_, T> {
+impl<T> ToPyObject for Bound<'_, T> {
     /// Converts `Py` instance -> PyObject.
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
-impl<T> IntoPy<PyObject> for Py2<'_, T> {
+impl<T> IntoPy<PyObject> for Bound<'_, T> {
     /// Converts a `Py` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
@@ -1220,7 +1220,7 @@ impl<T> IntoPy<PyObject> for Py2<'_, T> {
     }
 }
 
-impl<T> IntoPy<PyObject> for &Py2<'_, T> {
+impl<T> IntoPy<PyObject> for &Bound<'_, T> {
     /// Converts a `Py` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
@@ -1262,20 +1262,20 @@ where
     }
 }
 
-impl<T> std::convert::From<Py2<'_, T>> for PyObject
+impl<T> std::convert::From<Bound<'_, T>> for PyObject
 where
     T: AsRef<PyAny>,
 {
     #[inline]
-    fn from(other: Py2<'_, T>) -> Self {
+    fn from(other: Bound<'_, T>) -> Self {
         let py = other.py();
         other.into_py(py)
     }
 }
 
-impl<T> std::convert::From<Py2<'_, T>> for Py<T> {
+impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     #[inline]
-    fn from(other: Py2<'_, T>) -> Self {
+    fn from(other: Bound<'_, T>) -> Self {
         unsafe { Self::from_non_null(other.into_non_null()) }
     }
 }
@@ -1344,13 +1344,13 @@ where
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Py2<'a, T>
+impl<'a, T> FromPyObject<'a> for Bound<'a, T>
 where
     T: PyTypeInfo,
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        Py2::borrowed_from_gil_ref(&ob)
+        Bound::borrowed_from_gil_ref(&ob)
             .downcast()
             .map(Clone::clone)
             .map_err(Into::into)
@@ -1467,7 +1467,7 @@ impl PyObject {
 
 #[cfg(test)]
 mod tests {
-    use super::{Py, Py2, PyObject};
+    use super::{Bound, Py, PyObject};
     use crate::types::{PyDict, PyString};
     use crate::{PyAny, PyResult, Python, ToPyObject};
 
@@ -1588,7 +1588,7 @@ a = A()
         Python::with_gil(|py| {
             let instance: &PyAny = py.eval("object()", None, None).unwrap();
             let ptr = instance.as_ptr();
-            let instance: Py2<'_, PyAny> = instance.extract().unwrap();
+            let instance: Bound<'_, PyAny> = instance.extract().unwrap();
             assert_eq!(instance.as_ptr(), ptr);
         })
     }
@@ -1596,8 +1596,8 @@ a = A()
     #[test]
     fn test_py2_into_py_object() {
         Python::with_gil(|py| {
-            let instance: Py2<'_, PyAny> =
-                Py2::borrowed_from_gil_ref(&py.eval("object()", None, None).unwrap()).clone();
+            let instance: Bound<'_, PyAny> =
+                Bound::borrowed_from_gil_ref(&py.eval("object()", None, None).unwrap()).clone();
             let ptr = instance.as_ptr();
             let instance: PyObject = instance.clone().into();
             assert_eq!(instance.as_ptr(), ptr);

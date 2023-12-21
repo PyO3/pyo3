@@ -1,6 +1,6 @@
 use crate::{
     ffi,
-    instance::{Borrowed, Py2},
+    instance::{Borrowed, Bound},
     PyAny, PyResult, Python,
 };
 
@@ -15,8 +15,8 @@ mod sealed {
 use sealed::Sealed;
 
 pub(crate) trait FfiPtrExt: Sealed {
-    unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Py2<'_, PyAny>>;
-    unsafe fn assume_owned(self, py: Python<'_>) -> Py2<'_, PyAny>;
+    unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>>;
+    unsafe fn assume_owned(self, py: Python<'_>) -> Bound<'_, PyAny>;
 
     /// Assumes this pointer is borrowed from a parent object.
     ///
@@ -37,13 +37,13 @@ pub(crate) trait FfiPtrExt: Sealed {
 
 impl FfiPtrExt for *mut ffi::PyObject {
     #[inline]
-    unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Py2<'_, PyAny>> {
-        Py2::from_owned_ptr_or_err(py, self)
+    unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+        Bound::from_owned_ptr_or_err(py, self)
     }
 
     #[inline]
-    unsafe fn assume_owned(self, py: Python<'_>) -> Py2<'_, PyAny> {
-        Py2::from_owned_ptr(py, self)
+    unsafe fn assume_owned(self, py: Python<'_>) -> Bound<'_, PyAny> {
+        Bound::from_owned_ptr(py, self)
     }
 
     #[inline]

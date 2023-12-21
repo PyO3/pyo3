@@ -1,5 +1,5 @@
 use crate::err::{PyErr, PyResult};
-use crate::instance::{Borrowed, Py2};
+use crate::instance::{Borrowed, Bound};
 use crate::{ffi, AsPyPointer, Py, PyAny, Python};
 use std::os::raw::c_char;
 use std::slice;
@@ -75,12 +75,12 @@ impl PyByteArray {
     /// Gets the length of the bytearray.
     #[inline]
     pub fn len(&self) -> usize {
-        Py2::borrowed_from_gil_ref(&self).len()
+        Bound::borrowed_from_gil_ref(&self).len()
     }
 
     /// Checks if the bytearray is empty.
     pub fn is_empty(&self) -> bool {
-        Py2::borrowed_from_gil_ref(&self).is_empty()
+        Bound::borrowed_from_gil_ref(&self).is_empty()
     }
 
     /// Gets the start of the buffer containing the contents of the bytearray.
@@ -89,7 +89,7 @@ impl PyByteArray {
     ///
     /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
     pub fn data(&self) -> *mut u8 {
-        Py2::borrowed_from_gil_ref(&self).data()
+        Bound::borrowed_from_gil_ref(&self).data()
     }
 
     /// Extracts a slice of the `ByteArray`'s entire buffer.
@@ -222,7 +222,7 @@ impl PyByteArray {
     /// # });
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
-        Py2::borrowed_from_gil_ref(&self).to_vec()
+        Bound::borrowed_from_gil_ref(&self).to_vec()
     }
 
     /// Resizes the bytearray object to the new length `len`.
@@ -230,13 +230,13 @@ impl PyByteArray {
     /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
     /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
     pub fn resize(&self, len: usize) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).resize(len)
+        Bound::borrowed_from_gil_ref(&self).resize(len)
     }
 }
 
 /// Implementation of functionality for [`PyByteArray`].
 ///
-/// These methods are defined for the `Py2<'py, PyByteArray>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyByteArray>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyByteArray")]
@@ -388,7 +388,7 @@ pub trait PyByteArrayMethods<'py> {
     fn resize(&self, len: usize) -> PyResult<()>;
 }
 
-impl<'py> PyByteArrayMethods<'py> for Py2<'py, PyByteArray> {
+impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     #[inline]
     fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize

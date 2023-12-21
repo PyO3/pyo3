@@ -1,7 +1,7 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::{
-    ffi, AsPyPointer, Py2, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, PyTypeCheck,
+    ffi, AsPyPointer, Bound, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, PyTypeCheck,
 };
 
 /// A Python iterator object.
@@ -34,10 +34,10 @@ impl PyIterator {
     ///
     /// Equivalent to Python's built-in `iter` function.
     pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_object2(Py2::borrowed_from_gil_ref(&obj)).map(Py2::into_gil_ref)
+        Self::from_object2(Bound::borrowed_from_gil_ref(&obj)).map(Bound::into_gil_ref)
     }
 
-    pub(crate) fn from_object2<'py>(obj: &Py2<'py, PyAny>) -> PyResult<Py2<'py, PyIterator>> {
+    pub(crate) fn from_object2<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
         unsafe {
             ffi::PyObject_GetIter(obj.as_ptr())
                 .assume_owned_or_err(obj.py())

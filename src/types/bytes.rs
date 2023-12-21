@@ -1,4 +1,4 @@
-use crate::instance::{Borrowed, Py2};
+use crate::instance::{Borrowed, Bound};
 use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
@@ -95,7 +95,7 @@ impl PyBytes {
 
 /// Implementation of functionality for [`PyBytes`].
 ///
-/// These methods are defined for the `Py2<'py, PyBytes>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyBytes>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyBytes")]
@@ -104,7 +104,7 @@ pub(crate) trait PyBytesMethods<'py> {
     fn as_bytes(&self) -> &[u8];
 }
 
-impl<'py> PyBytesMethods<'py> for Py2<'py, PyBytes> {
+impl<'py> PyBytesMethods<'py> for Bound<'py, PyBytes> {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
         Borrowed::from(self).as_bytes()

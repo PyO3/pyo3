@@ -7,7 +7,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Py2, PyAny, PyObject, Python, ToPyObject};
+use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
 
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
@@ -23,7 +23,7 @@ pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyLi
 pub(crate) fn new_from_iter<'py>(
     py: Python<'py>,
     elements: &mut dyn ExactSizeIterator<Item = PyObject>,
-) -> Py2<'py, PyList> {
+) -> Bound<'py, PyList> {
     unsafe {
         // PyList_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -33,7 +33,7 @@ pub(crate) fn new_from_iter<'py>(
 
         let ptr = ffi::PyList_New(len);
 
-        // We create the `Py2` pointer here for two reasons:
+        // We create the `Bound` pointer here for two reasons:
         // - panics if the ptr is null
         // - its Drop cleans up the list if user code or the asserts panic.
         let list = ptr.assume_owned(py).downcast_into_unchecked();
@@ -98,12 +98,12 @@ impl PyList {
 
     /// Returns the length of the list.
     pub fn len(&self) -> usize {
-        Py2::borrowed_from_gil_ref(&self).len()
+        Bound::borrowed_from_gil_ref(&self).len()
     }
 
     /// Checks if the list is empty.
     pub fn is_empty(&self) -> bool {
-        Py2::borrowed_from_gil_ref(&self).is_empty()
+        Bound::borrowed_from_gil_ref(&self).is_empty()
     }
 
     /// Returns `self` cast as a `PySequence`.
@@ -122,9 +122,9 @@ impl PyList {
     /// });
     /// ```
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .get_item(index)
-            .map(Py2::into_gil_ref)
+            .map(Bound::into_gil_ref)
     }
 
     /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
@@ -134,7 +134,7 @@ impl PyList {
     /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .get_item_unchecked(index)
             .into_gil_ref()
     }
@@ -144,7 +144,7 @@ impl PyList {
     /// Indices must be nonnegative, and out-of-range indices are clipped to
     /// `self.len()`.
     pub fn get_slice(&self, low: usize, high: usize) -> &PyList {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .get_slice(low, high)
             .into_gil_ref()
     }
@@ -156,7 +156,7 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).set_item(index, item)
+        Bound::borrowed_from_gil_ref(&self).set_item(index, item)
     }
 
     /// Deletes the `index`th element of self.
@@ -164,7 +164,7 @@ impl PyList {
     /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
     pub fn del_item(&self, index: usize) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).del_item(index)
+        Bound::borrowed_from_gil_ref(&self).del_item(index)
     }
 
     /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
@@ -172,7 +172,7 @@ impl PyList {
     /// This is equivalent to the Python statement `self[low:high] = v`.
     #[inline]
     pub fn set_slice(&self, low: usize, high: usize, seq: &PyAny) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).set_slice(low, high, Py2::borrowed_from_gil_ref(&seq))
+        Bound::borrowed_from_gil_ref(&self).set_slice(low, high, Bound::borrowed_from_gil_ref(&seq))
     }
 
     /// Deletes the slice from `low` to `high` from `self`.
@@ -180,7 +180,7 @@ impl PyList {
     /// This is equivalent to the Python statement `del self[low:high]`.
     #[inline]
     pub fn del_slice(&self, low: usize, high: usize) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).del_slice(low, high)
+        Bound::borrowed_from_gil_ref(&self).del_slice(low, high)
     }
 
     /// Appends an item to the list.
@@ -188,7 +188,7 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).append(item)
+        Bound::borrowed_from_gil_ref(&self).append(item)
     }
 
     /// Inserts an item at the specified index.
@@ -198,7 +198,7 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).insert(index, item)
+        Bound::borrowed_from_gil_ref(&self).insert(index, item)
     }
 
     /// Determines if self contains `value`.
@@ -209,7 +209,7 @@ impl PyList {
     where
         V: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).contains(value)
+        Bound::borrowed_from_gil_ref(&self).contains(value)
     }
 
     /// Returns the first index `i` for which `self[i] == value`.
@@ -220,29 +220,31 @@ impl PyList {
     where
         V: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).index(value)
+        Bound::borrowed_from_gil_ref(&self).index(value)
     }
 
     /// Returns an iterator over this list's items.
     pub fn iter(&self) -> PyListIterator<'_> {
-        PyListIterator(Py2::borrowed_from_gil_ref(&self).iter())
+        PyListIterator(Bound::borrowed_from_gil_ref(&self).iter())
     }
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
     pub fn sort(&self) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).sort()
+        Bound::borrowed_from_gil_ref(&self).sort()
     }
 
     /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
     pub fn reverse(&self) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).reverse()
+        Bound::borrowed_from_gil_ref(&self).reverse()
     }
 
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
     ///
     /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
     pub fn to_tuple(&self) -> &PyTuple {
-        Py2::borrowed_from_gil_ref(&self).to_tuple().into_gil_ref()
+        Bound::borrowed_from_gil_ref(&self)
+            .to_tuple()
+            .into_gil_ref()
     }
 }
 
@@ -250,7 +252,7 @@ index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 
 /// Implementation of functionality for [`PyList`].
 ///
-/// These methods are defined for the `Py2<'py, PyList>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyList>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyList")]
@@ -262,7 +264,7 @@ pub(crate) trait PyListMethods<'py> {
     fn is_empty(&self) -> bool;
 
     /// Returns `self` cast as a `PySequence`.
-    fn as_sequence(&self) -> &Py2<'py, PySequence>;
+    fn as_sequence(&self) -> &Bound<'py, PySequence>;
 
     /// Gets the list item at the specified index.
     /// # Example
@@ -274,7 +276,7 @@ pub(crate) trait PyListMethods<'py> {
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 2);
     /// });
     /// ```
-    fn get_item(&self, index: usize) -> PyResult<Py2<'py, PyAny>>;
+    fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>>;
 
     /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
     ///
@@ -282,13 +284,13 @@ pub(crate) trait PyListMethods<'py> {
     ///
     /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(Py_LIMITED_API))]
-    unsafe fn get_item_unchecked(&self, index: usize) -> Py2<'py, PyAny>;
+    unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
     /// `self.len()`.
-    fn get_slice(&self, low: usize, high: usize) -> Py2<'py, PyList>;
+    fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyList>;
 
     /// Sets the item at the specified index.
     ///
@@ -305,7 +307,7 @@ pub(crate) trait PyListMethods<'py> {
     /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
     ///
     /// This is equivalent to the Python statement `self[low:high] = v`.
-    fn set_slice(&self, low: usize, high: usize, seq: &Py2<'_, PyAny>) -> PyResult<()>;
+    fn set_slice(&self, low: usize, high: usize, seq: &Bound<'_, PyAny>) -> PyResult<()>;
 
     /// Deletes the slice from `low` to `high` from `self`.
     ///
@@ -350,10 +352,10 @@ pub(crate) trait PyListMethods<'py> {
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
     ///
     /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
-    fn to_tuple(&self) -> Py2<'py, PyTuple>;
+    fn to_tuple(&self) -> Bound<'py, PyTuple>;
 }
 
-impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
+impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Returns the length of the list.
     fn len(&self) -> usize {
         unsafe {
@@ -373,7 +375,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     }
 
     /// Returns `self` cast as a `PySequence`.
-    fn as_sequence(&self) -> &Py2<'py, PySequence> {
+    fn as_sequence(&self) -> &Bound<'py, PySequence> {
         unsafe { self.downcast_unchecked() }
     }
 
@@ -387,7 +389,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 2);
     /// });
     /// ```
-    fn get_item(&self, index: usize) -> PyResult<Py2<'py, PyAny>> {
+    fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
         unsafe {
             // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
             ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t)
@@ -402,7 +404,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     ///
     /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(Py_LIMITED_API))]
-    unsafe fn get_item_unchecked(&self, index: usize) -> Py2<'py, PyAny> {
+    unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
         ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
             .assume_borrowed(self.py())
@@ -413,7 +415,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
     /// `self.len()`.
-    fn get_slice(&self, low: usize, high: usize) -> Py2<'py, PyList> {
+    fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyList_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high))
                 .assume_owned(self.py())
@@ -428,7 +430,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     where
         I: ToPyObject,
     {
-        fn inner(list: &Py2<'_, PyList>, index: usize, item: Py2<'_, PyAny>) -> PyResult<()> {
+        fn inner(list: &Bound<'_, PyList>, index: usize, item: Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_SetItem(list.as_ptr(), get_ssize_index(index), item.into_ptr())
             })
@@ -450,7 +452,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     ///
     /// This is equivalent to the Python statement `self[low:high] = v`.
     #[inline]
-    fn set_slice(&self, low: usize, high: usize, seq: &Py2<'_, PyAny>) -> PyResult<()> {
+    fn set_slice(&self, low: usize, high: usize, seq: &Bound<'_, PyAny>) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyList_SetSlice(
                 self.as_ptr(),
@@ -474,7 +476,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     where
         I: ToPyObject,
     {
-        fn inner(list: &Py2<'_, PyList>, item: Py2<'_, PyAny>) -> PyResult<()> {
+        fn inner(list: &Bound<'_, PyList>, item: Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_Append(list.as_ptr(), item.as_ptr())
             })
@@ -491,7 +493,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     where
         I: ToPyObject,
     {
-        fn inner(list: &Py2<'_, PyList>, index: usize, item: Py2<'_, PyAny>) -> PyResult<()> {
+        fn inner(list: &Bound<'_, PyList>, index: usize, item: Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(list.py(), unsafe {
                 ffi::PyList_Insert(list.as_ptr(), get_ssize_index(index), item.as_ptr())
             })
@@ -541,7 +543,7 @@ impl<'py> PyListMethods<'py> for Py2<'py, PyList> {
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
     ///
     /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
-    fn to_tuple(&self) -> Py2<'py, PyTuple> {
+    fn to_tuple(&self) -> Bound<'py, PyTuple> {
         unsafe {
             ffi::PyList_AsTuple(self.as_ptr())
                 .assume_owned(self.py())
@@ -558,7 +560,7 @@ impl<'a> Iterator for PyListIterator<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Py2::into_gil_ref)
+        self.0.next().map(Bound::into_gil_ref)
     }
 
     #[inline]
@@ -570,7 +572,7 @@ impl<'a> Iterator for PyListIterator<'a> {
 impl<'a> DoubleEndedIterator for PyListIterator<'a> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back().map(Py2::into_gil_ref)
+        self.0.next_back().map(Bound::into_gil_ref)
     }
 }
 
@@ -593,13 +595,13 @@ impl<'a> IntoIterator for &'a PyList {
 
 /// Used by `PyList::iter()`.
 pub(crate) struct PyListIterator2<'py> {
-    list: Py2<'py, PyList>,
+    list: Bound<'py, PyList>,
     index: usize,
     length: usize,
 }
 
 impl<'py> PyListIterator2<'py> {
-    fn new(list: Py2<'py, PyList>) -> Self {
+    fn new(list: Bound<'py, PyList>) -> Self {
         let length: usize = list.len();
         PyListIterator2 {
             list,
@@ -608,7 +610,7 @@ impl<'py> PyListIterator2<'py> {
         }
     }
 
-    unsafe fn get_item(&self, index: usize) -> Py2<'py, PyAny> {
+    unsafe fn get_item(&self, index: usize) -> Bound<'py, PyAny> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
         let item = self.list.get_item(index).expect("list.get failed");
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
@@ -618,7 +620,7 @@ impl<'py> PyListIterator2<'py> {
 }
 
 impl<'py> Iterator for PyListIterator2<'py> {
-    type Item = Py2<'py, PyAny>;
+    type Item = Bound<'py, PyAny>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -663,8 +665,8 @@ impl ExactSizeIterator for PyListIterator2<'_> {
 
 impl FusedIterator for PyListIterator2<'_> {}
 
-impl<'a, 'py> IntoIterator for &'a Py2<'py, PyList> {
-    type Item = Py2<'py, PyAny>;
+impl<'a, 'py> IntoIterator for &'a Bound<'py, PyList> {
+    type Item = Bound<'py, PyAny>;
     type IntoIter = PyListIterator2<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -672,8 +674,8 @@ impl<'a, 'py> IntoIterator for &'a Py2<'py, PyList> {
     }
 }
 
-impl<'py> IntoIterator for Py2<'py, PyList> {
-    type Item = Py2<'py, PyAny>;
+impl<'py> IntoIterator for Bound<'py, PyList> {
+    type Item = Bound<'py, PyAny>;
     type IntoIter = PyListIterator2<'py>;
 
     fn into_iter(self) -> Self::IntoIter {

@@ -1,4 +1,4 @@
-use crate::instance::Py2;
+use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
@@ -66,14 +66,14 @@ impl<'a> PyDowncastError<'a> {
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
 pub(crate) struct PyDowncastError2<'a, 'py> {
-    from: &'a Py2<'py, PyAny>,
+    from: &'a Bound<'py, PyAny>,
     to: Cow<'static, str>,
 }
 
 impl<'a, 'py> PyDowncastError2<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
-    pub fn new(from: &'a Py2<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
+    pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
         PyDowncastError2 {
             from,
             to: to.into(),
@@ -84,14 +84,14 @@ impl<'a, 'py> PyDowncastError2<'a, 'py> {
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
 pub(crate) struct PyDowncastIntoError<'py> {
-    from: Py2<'py, PyAny>,
+    from: Bound<'py, PyAny>,
     to: Cow<'static, str>,
 }
 
 impl<'py> PyDowncastIntoError<'py> {
     /// Create a new `PyDowncastIntoError` representing a failure to convert the object
     /// `from` into the type named in `to`.
-    pub fn new(from: Py2<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
+    pub fn new(from: Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
         PyDowncastIntoError {
             from,
             to: to.into(),
@@ -811,7 +811,7 @@ impl<'a> std::error::Error for PyDowncastError<'a> {}
 
 impl<'a> std::fmt::Display for PyDowncastError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, Py2::borrowed_from_gil_ref(&self.from), &self.to)
+        display_downcast_error(f, Bound::borrowed_from_gil_ref(&self.from), &self.to)
     }
 }
 
@@ -857,7 +857,7 @@ impl std::fmt::Display for PyDowncastIntoError<'_> {
 
 fn display_downcast_error(
     f: &mut std::fmt::Formatter<'_>,
-    from: &Py2<'_, PyAny>,
+    from: &Bound<'_, PyAny>,
     to: &str,
 ) -> std::fmt::Result {
     write!(

@@ -311,7 +311,7 @@ pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
 
 // Expected to become public API in 0.21 under a different name
-pub(crate) use crate::instance::Py2;
+pub(crate) use crate::instance::Bound;
 pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
 
