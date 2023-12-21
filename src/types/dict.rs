@@ -335,7 +335,7 @@ pub trait PyDictMethods<'py> {
     /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
     /// It is allowed to modify values as you iterate over the dictionary, but only
     /// so long as the set of keys does not change.
-    fn iter(&self) -> PyDictIterator2<'py>;
+    fn iter(&self) -> BoundDictIterator<'py>;
 
     /// Returns `self` cast as a `PyMapping`.
     fn as_mapping(&self) -> &Bound<'py, PyMapping>;
@@ -478,8 +478,8 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         }
     }
 
-    fn iter(&self) -> PyDictIterator2<'py> {
-        PyDictIterator2::new(self.clone())
+    fn iter(&self) -> BoundDictIterator<'py> {
+        BoundDictIterator::new(self.clone())
     }
 
     fn as_mapping(&self) -> &Bound<'py, PyMapping> {
@@ -512,7 +512,7 @@ fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub struct PyDictIterator<'py>(PyDictIterator2<'py>);
+pub struct PyDictIterator<'py>(BoundDictIterator<'py>);
 
 impl<'py> Iterator for PyDictIterator<'py> {
     type Item = (&'py PyAny, &'py PyAny);
@@ -545,14 +545,14 @@ impl<'a> IntoIterator for &'a PyDict {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub struct PyDictIterator2<'py> {
+pub struct BoundDictIterator<'py> {
     dict: Bound<'py, PyDict>,
     ppos: ffi::Py_ssize_t,
     di_used: ffi::Py_ssize_t,
     len: ffi::Py_ssize_t,
 }
 
-impl<'py> Iterator for PyDictIterator2<'py> {
+impl<'py> Iterator for BoundDictIterator<'py> {
     type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
 
     #[inline]
@@ -610,16 +610,16 @@ impl<'py> Iterator for PyDictIterator2<'py> {
     }
 }
 
-impl<'py> ExactSizeIterator for PyDictIterator2<'py> {
+impl<'py> ExactSizeIterator for BoundDictIterator<'py> {
     fn len(&self) -> usize {
         self.len as usize
     }
 }
 
-impl<'py> PyDictIterator2<'py> {
+impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
         let len = dict_len(&dict);
-        PyDictIterator2 {
+        BoundDictIterator {
             dict,
             ppos: 0,
             di_used: len,
@@ -630,7 +630,7 @@ impl<'py> PyDictIterator2<'py> {
 
 impl<'py> IntoIterator for &'_ Bound<'py, PyDict> {
     type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
-    type IntoIter = PyDictIterator2<'py>;
+    type IntoIter = BoundDictIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -639,10 +639,10 @@ impl<'py> IntoIterator for &'_ Bound<'py, PyDict> {
 
 impl<'py> IntoIterator for Bound<'py, PyDict> {
     type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
-    type IntoIter = PyDictIterator2<'py>;
+    type IntoIter = BoundDictIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PyDictIterator2::new(self)
+        BoundDictIterator::new(self)
     }
 }
 

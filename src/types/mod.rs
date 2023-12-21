@@ -76,8 +76,9 @@ pub use self::typeobject::PyType;
 /// the Limited API and PyPy, the underlying structures are opaque and that may not be possible.
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
-    pub use super::dict::PyDictIterator;
+    pub use super::dict::{BoundDictIterator, PyDictIterator};
     pub use super::frozenset::PyFrozenSetIterator;
+    pub use super::list::{BoundListIterator, PyListIterator};
     pub use super::set::PySetIterator;
     pub use super::tuple::PyTupleIterator;
 }

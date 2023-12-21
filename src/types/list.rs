@@ -341,7 +341,7 @@ pub trait PyListMethods<'py> {
         V: ToPyObject;
 
     /// Returns an iterator over this list's items.
-    fn iter(&self) -> PyListIterator2<'py>;
+    fn iter(&self) -> BoundListIterator<'py>;
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
     fn sort(&self) -> PyResult<()>;
@@ -526,8 +526,8 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     }
 
     /// Returns an iterator over this list's items.
-    fn iter(&self) -> PyListIterator2<'py> {
-        PyListIterator2::new(self.clone())
+    fn iter(&self) -> BoundListIterator<'py> {
+        BoundListIterator::new(self.clone())
     }
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
@@ -553,7 +553,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 }
 
 /// Used by `PyList::iter()`.
-pub struct PyListIterator<'a>(PyListIterator2<'a>);
+pub struct PyListIterator<'a>(BoundListIterator<'a>);
 
 impl<'a> Iterator for PyListIterator<'a> {
     type Item = &'a PyAny;
@@ -594,16 +594,16 @@ impl<'a> IntoIterator for &'a PyList {
 }
 
 /// Used by `PyList::iter()`.
-pub struct PyListIterator2<'py> {
+pub struct BoundListIterator<'py> {
     list: Bound<'py, PyList>,
     index: usize,
     length: usize,
 }
 
-impl<'py> PyListIterator2<'py> {
+impl<'py> BoundListIterator<'py> {
     fn new(list: Bound<'py, PyList>) -> Self {
         let length: usize = list.len();
-        PyListIterator2 {
+        BoundListIterator {
             list,
             index: 0,
             length,
@@ -619,7 +619,7 @@ impl<'py> PyListIterator2<'py> {
     }
 }
 
-impl<'py> Iterator for PyListIterator2<'py> {
+impl<'py> Iterator for BoundListIterator<'py> {
     type Item = Bound<'py, PyAny>;
 
     #[inline]
@@ -642,7 +642,7 @@ impl<'py> Iterator for PyListIterator2<'py> {
     }
 }
 
-impl DoubleEndedIterator for PyListIterator2<'_> {
+impl DoubleEndedIterator for BoundListIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         let length = self.length.min(self.list.len());
@@ -657,17 +657,17 @@ impl DoubleEndedIterator for PyListIterator2<'_> {
     }
 }
 
-impl ExactSizeIterator for PyListIterator2<'_> {
+impl ExactSizeIterator for BoundListIterator<'_> {
     fn len(&self) -> usize {
         self.length.saturating_sub(self.index)
     }
 }
 
-impl FusedIterator for PyListIterator2<'_> {}
+impl FusedIterator for BoundListIterator<'_> {}
 
 impl<'a, 'py> IntoIterator for &'a Bound<'py, PyList> {
     type Item = Bound<'py, PyAny>;
-    type IntoIter = PyListIterator2<'py>;
+    type IntoIter = BoundListIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -676,10 +676,10 @@ impl<'a, 'py> IntoIterator for &'a Bound<'py, PyList> {
 
 impl<'py> IntoIterator for Bound<'py, PyList> {
     type Item = Bound<'py, PyAny>;
-    type IntoIter = PyListIterator2<'py>;
+    type IntoIter = BoundListIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PyListIterator2::new(self)
+        BoundListIterator::new(self)
     }
 }
 
