@@ -65,7 +65,7 @@ impl<'a> PyDowncastError<'a> {
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
-pub(crate) struct PyDowncastError2<'a, 'py> {
+pub struct PyDowncastError2<'a, 'py> {
     from: &'a Bound<'py, PyAny>,
     to: Cow<'static, str>,
 }
@@ -83,7 +83,7 @@ impl<'a, 'py> PyDowncastError2<'a, 'py> {
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
-pub(crate) struct PyDowncastIntoError<'py> {
+pub struct PyDowncastIntoError<'py> {
     from: Bound<'py, PyAny>,
     to: Cow<'static, str>,
 }
