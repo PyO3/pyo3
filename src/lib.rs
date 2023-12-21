@@ -297,7 +297,9 @@ pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, FromPyPointer, IntoPy, ToPyObject};
 #[allow(deprecated)]
 pub use crate::conversion::{PyTryFrom, PyTryInto};
-pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
+pub use crate::err::{
+    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult,
+};
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
@@ -311,7 +313,7 @@ pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
 
 // Expected to become public API in 0.21 under a different name
-pub(crate) use crate::instance::Py2;
+pub(crate) use crate::instance::Bound;
 pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
 

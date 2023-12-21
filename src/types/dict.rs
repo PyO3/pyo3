@@ -2,7 +2,7 @@ use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::{Py2, Py2Borrowed};
+use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
@@ -82,26 +82,26 @@ impl PyDict {
     ///
     /// This is equivalent to the Python expression `self.copy()`.
     pub fn copy(&self) -> PyResult<&PyDict> {
-        Py2::borrowed_from_gil_ref(&self)
+        Bound::borrowed_from_gil_ref(&self)
             .copy()
-            .map(Py2::into_gil_ref)
+            .map(Bound::into_gil_ref)
     }
 
     /// Empties an existing dictionary of all key-value pairs.
     pub fn clear(&self) {
-        Py2::borrowed_from_gil_ref(&self).clear()
+        Bound::borrowed_from_gil_ref(&self).clear()
     }
 
     /// Return the number of items in the dictionary.
     ///
     /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> usize {
-        Py2::borrowed_from_gil_ref(&self).len()
+        Bound::borrowed_from_gil_ref(&self).len()
     }
 
     /// Checks if the dict is empty, i.e. `len(self) == 0`.
     pub fn is_empty(&self) -> bool {
-        Py2::borrowed_from_gil_ref(&self).is_empty()
+        Bound::borrowed_from_gil_ref(&self).is_empty()
     }
 
     /// Determines if the dictionary contains the specified key.
@@ -111,7 +111,7 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).contains(key)
+        Bound::borrowed_from_gil_ref(&self).contains(key)
     }
 
     /// Gets an item from the dictionary.
@@ -160,7 +160,7 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        match Py2::borrowed_from_gil_ref(&self).get_item(key) {
+        match Bound::borrowed_from_gil_ref(&self).get_item(key) {
             Ok(Some(item)) => Ok(Some(item.into_gil_ref())),
             Ok(None) => Ok(None),
             Err(e) => Err(e),
@@ -188,7 +188,7 @@ impl PyDict {
         K: ToPyObject,
         V: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).set_item(key, value)
+        Bound::borrowed_from_gil_ref(&self).set_item(key, value)
     }
 
     /// Deletes an item.
@@ -198,28 +198,28 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        Py2::borrowed_from_gil_ref(&self).del_item(key)
+        Bound::borrowed_from_gil_ref(&self).del_item(key)
     }
 
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
     pub fn keys(&self) -> &PyList {
-        Py2::borrowed_from_gil_ref(&self).keys().into_gil_ref()
+        Bound::borrowed_from_gil_ref(&self).keys().into_gil_ref()
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
     pub fn values(&self) -> &PyList {
-        Py2::borrowed_from_gil_ref(&self).values().into_gil_ref()
+        Bound::borrowed_from_gil_ref(&self).values().into_gil_ref()
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
     pub fn items(&self) -> &PyList {
-        Py2::borrowed_from_gil_ref(&self).items().into_gil_ref()
+        Bound::borrowed_from_gil_ref(&self).items().into_gil_ref()
     }
 
     /// Returns an iterator of `(key, value)` pairs in this dictionary.
@@ -230,7 +230,7 @@ impl PyDict {
     /// It is allowed to modify values as you iterate over the dictionary, but only
     /// so long as the set of keys does not change.
     pub fn iter(&self) -> PyDictIterator<'_> {
-        PyDictIterator(Py2::borrowed_from_gil_ref(&self).iter())
+        PyDictIterator(Bound::borrowed_from_gil_ref(&self).iter())
     }
 
     /// Returns `self` cast as a `PyMapping`.
@@ -243,7 +243,7 @@ impl PyDict {
     /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
     /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
     pub fn update(&self, other: &PyMapping) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).update(Py2::borrowed_from_gil_ref(&other))
+        Bound::borrowed_from_gil_ref(&self).update(Bound::borrowed_from_gil_ref(&other))
     }
 
     /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
@@ -255,21 +255,21 @@ impl PyDict {
     /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
     /// so should have the same performance as `update`.
     pub fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
-        Py2::borrowed_from_gil_ref(&self).update_if_missing(Py2::borrowed_from_gil_ref(&other))
+        Bound::borrowed_from_gil_ref(&self).update_if_missing(Bound::borrowed_from_gil_ref(&other))
     }
 }
 
 /// Implementation of functionality for [`PyDict`].
 ///
-/// These methods are defined for the `Py2<'py, PyDict>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyDict>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyDict")]
-pub(crate) trait PyDictMethods<'py> {
+pub trait PyDictMethods<'py> {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.
-    fn copy(&self) -> PyResult<Py2<'py, PyDict>>;
+    fn copy(&self) -> PyResult<Bound<'py, PyDict>>;
 
     /// Empties an existing dictionary of all key-value pairs.
     fn clear(&self);
@@ -294,7 +294,7 @@ pub(crate) trait PyDictMethods<'py> {
     /// Returns `None` if the item is not present, or if an error occurs.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    fn get_item<K>(&self, key: K) -> PyResult<Option<Py2<'py, PyAny>>>
+    fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         K: ToPyObject;
 
@@ -316,17 +316,17 @@ pub(crate) trait PyDictMethods<'py> {
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
-    fn keys(&self) -> Py2<'py, PyList>;
+    fn keys(&self) -> Bound<'py, PyList>;
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
-    fn values(&self) -> Py2<'py, PyList>;
+    fn values(&self) -> Bound<'py, PyList>;
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
-    fn items(&self) -> Py2<'py, PyList>;
+    fn items(&self) -> Bound<'py, PyList>;
 
     /// Returns an iterator of `(key, value)` pairs in this dictionary.
     ///
@@ -335,16 +335,16 @@ pub(crate) trait PyDictMethods<'py> {
     /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
     /// It is allowed to modify values as you iterate over the dictionary, but only
     /// so long as the set of keys does not change.
-    fn iter(&self) -> PyDictIterator2<'py>;
+    fn iter(&self) -> BoundDictIterator<'py>;
 
     /// Returns `self` cast as a `PyMapping`.
-    fn as_mapping(&self) -> &Py2<'py, PyMapping>;
+    fn as_mapping(&self) -> &Bound<'py, PyMapping>;
 
     /// Update this dictionary with the key/value pairs from another.
     ///
     /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
     /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
-    fn update(&self, other: &Py2<'_, PyMapping>) -> PyResult<()>;
+    fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()>;
 
     /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
     ///
@@ -354,11 +354,11 @@ pub(crate) trait PyDictMethods<'py> {
     ///
     /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
     /// so should have the same performance as `update`.
-    fn update_if_missing(&self, other: &Py2<'_, PyMapping>) -> PyResult<()>;
+    fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()>;
 }
 
-impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
-    fn copy(&self) -> PyResult<Py2<'py, PyDict>> {
+impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
+    fn copy(&self) -> PyResult<Bound<'py, PyDict>> {
         unsafe {
             ffi::PyDict_Copy(self.as_ptr())
                 .assume_owned_or_err(self.py())
@@ -382,7 +382,7 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
     where
         K: ToPyObject,
     {
-        fn inner(dict: &Py2<'_, PyDict>, key: Py2<'_, PyAny>) -> PyResult<bool> {
+        fn inner(dict: &Bound<'_, PyDict>, key: Bound<'_, PyAny>) -> PyResult<bool> {
             match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
                 1 => Ok(true),
                 0 => Ok(false),
@@ -391,22 +391,22 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
-    fn get_item<K>(&self, key: K) -> PyResult<Option<Py2<'py, PyAny>>>
+    fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         K: ToPyObject,
     {
         fn inner<'py>(
-            dict: &Py2<'py, PyDict>,
-            key: Py2<'_, PyAny>,
-        ) -> PyResult<Option<Py2<'py, PyAny>>> {
+            dict: &Bound<'py, PyDict>,
+            key: Bound<'_, PyAny>,
+        ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
             match unsafe {
                 ffi::PyDict_GetItemWithError(dict.as_ptr(), key.as_ptr())
                     .assume_borrowed_or_opt(py)
-                    .map(Py2Borrowed::to_owned)
+                    .map(Borrowed::to_owned)
             } {
                 some @ Some(_) => Ok(some),
                 None => PyErr::take(py).map(Err).transpose(),
@@ -414,7 +414,7 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
@@ -423,9 +423,9 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
         V: ToPyObject,
     {
         fn inner(
-            dict: &Py2<'_, PyDict>,
-            key: Py2<'_, PyAny>,
-            value: Py2<'_, PyAny>,
+            dict: &Bound<'_, PyDict>,
+            key: Bound<'_, PyAny>,
+            value: Bound<'_, PyAny>,
         ) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
@@ -435,8 +435,8 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
         let py = self.py();
         inner(
             self,
-            key.to_object(py).attach_into(py),
-            value.to_object(py).attach_into(py),
+            key.to_object(py).into_bound(py),
+            value.to_object(py).into_bound(py),
         )
     }
 
@@ -444,17 +444,17 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
     where
         K: ToPyObject,
     {
-        fn inner(dict: &Py2<'_, PyDict>, key: Py2<'_, PyAny>) -> PyResult<()> {
+        fn inner(dict: &Bound<'_, PyDict>, key: Bound<'_, PyAny>) -> PyResult<()> {
             err::error_on_minusone(dict.py(), unsafe {
                 ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
             })
         }
 
         let py = self.py();
-        inner(self, key.to_object(py).attach_into(py))
+        inner(self, key.to_object(py).into_bound(py))
     }
 
-    fn keys(&self) -> Py2<'py, PyList> {
+    fn keys(&self) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Keys(self.as_ptr())
                 .assume_owned(self.py())
@@ -462,7 +462,7 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
         }
     }
 
-    fn values(&self) -> Py2<'py, PyList> {
+    fn values(&self) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Values(self.as_ptr())
                 .assume_owned(self.py())
@@ -470,7 +470,7 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
         }
     }
 
-    fn items(&self) -> Py2<'py, PyList> {
+    fn items(&self) -> Bound<'py, PyList> {
         unsafe {
             ffi::PyDict_Items(self.as_ptr())
                 .assume_owned(self.py())
@@ -478,28 +478,28 @@ impl<'py> PyDictMethods<'py> for Py2<'py, PyDict> {
         }
     }
 
-    fn iter(&self) -> PyDictIterator2<'py> {
-        PyDictIterator2::new(self.clone())
+    fn iter(&self) -> BoundDictIterator<'py> {
+        BoundDictIterator::new(self.clone())
     }
 
-    fn as_mapping(&self) -> &Py2<'py, PyMapping> {
+    fn as_mapping(&self) -> &Bound<'py, PyMapping> {
         unsafe { self.downcast_unchecked() }
     }
 
-    fn update(&self, other: &Py2<'_, PyMapping>) -> PyResult<()> {
+    fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
         })
     }
 
-    fn update_if_missing(&self, other: &Py2<'_, PyMapping>) -> PyResult<()> {
+    fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
         })
     }
 }
 
-fn dict_len(dict: &Py2<'_, PyDict>) -> Py_ssize_t {
+fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
     #[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
     unsafe {
         ffi::PyDict_Size(dict.as_ptr())
@@ -512,7 +512,7 @@ fn dict_len(dict: &Py2<'_, PyDict>) -> Py_ssize_t {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub struct PyDictIterator<'py>(PyDictIterator2<'py>);
+pub struct PyDictIterator<'py>(BoundDictIterator<'py>);
 
 impl<'py> Iterator for PyDictIterator<'py> {
     type Item = (&'py PyAny, &'py PyAny);
@@ -545,15 +545,15 @@ impl<'a> IntoIterator for &'a PyDict {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-pub(crate) struct PyDictIterator2<'py> {
-    dict: Py2<'py, PyDict>,
+pub struct BoundDictIterator<'py> {
+    dict: Bound<'py, PyDict>,
     ppos: ffi::Py_ssize_t,
     di_used: ffi::Py_ssize_t,
     len: ffi::Py_ssize_t,
 }
 
-impl<'py> Iterator for PyDictIterator2<'py> {
-    type Item = (Py2<'py, PyAny>, Py2<'py, PyAny>);
+impl<'py> Iterator for BoundDictIterator<'py> {
+    type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -610,16 +610,16 @@ impl<'py> Iterator for PyDictIterator2<'py> {
     }
 }
 
-impl<'py> ExactSizeIterator for PyDictIterator2<'py> {
+impl<'py> ExactSizeIterator for BoundDictIterator<'py> {
     fn len(&self) -> usize {
         self.len as usize
     }
 }
 
-impl<'py> PyDictIterator2<'py> {
-    fn new(dict: Py2<'py, PyDict>) -> Self {
+impl<'py> BoundDictIterator<'py> {
+    fn new(dict: Bound<'py, PyDict>) -> Self {
         let len = dict_len(&dict);
-        PyDictIterator2 {
+        BoundDictIterator {
             dict,
             ppos: 0,
             di_used: len,
@@ -628,21 +628,21 @@ impl<'py> PyDictIterator2<'py> {
     }
 }
 
-impl<'py> IntoIterator for &'_ Py2<'py, PyDict> {
-    type Item = (Py2<'py, PyAny>, Py2<'py, PyAny>);
-    type IntoIter = PyDictIterator2<'py>;
+impl<'py> IntoIterator for &'_ Bound<'py, PyDict> {
+    type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
+    type IntoIter = BoundDictIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'py> IntoIterator for Py2<'py, PyDict> {
-    type Item = (Py2<'py, PyAny>, Py2<'py, PyAny>);
-    type IntoIter = PyDictIterator2<'py>;
+impl<'py> IntoIterator for Bound<'py, PyDict> {
+    type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
+    type IntoIter = BoundDictIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PyDictIterator2::new(self)
+        BoundDictIterator::new(self)
     }
 }
 

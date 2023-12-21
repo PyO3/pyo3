@@ -1,7 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    ffi, instance::Py2, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
+    ffi, instance::Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
     Python, ToPyObject,
 };
 use std::os::raw::c_double;
@@ -29,13 +29,13 @@ impl PyFloat {
 
     /// Gets the value of this float.
     pub fn value(&self) -> c_double {
-        Py2::borrowed_from_gil_ref(&self).value()
+        Bound::borrowed_from_gil_ref(&self).value()
     }
 }
 
 /// Implementation of functionality for [`PyFloat`].
 ///
-/// These methods are defined for the `Py2<'py, PyFloat>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyFloat>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyFloat")]
@@ -44,7 +44,7 @@ pub trait PyFloatMethods<'py> {
     fn value(&self) -> c_double;
 }
 
-impl<'py> PyFloatMethods<'py> for Py2<'py, PyFloat> {
+impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
     fn value(&self) -> c_double {
         #[cfg(not(Py_LIMITED_API))]
         unsafe {

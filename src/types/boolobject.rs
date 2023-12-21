@@ -1,7 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, ffi, instance::Py2, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
+    exceptions::PyTypeError, ffi, instance::Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
     Python, ToPyObject,
 };
 
@@ -21,13 +21,13 @@ impl PyBool {
     /// Gets whether this boolean is `true`.
     #[inline]
     pub fn is_true(&self) -> bool {
-        Py2::borrowed_from_gil_ref(&self).is_true()
+        Bound::borrowed_from_gil_ref(&self).is_true()
     }
 }
 
 /// Implementation of functionality for [`PyBool`].
 ///
-/// These methods are defined for the `Py2<'py, PyBool>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyBool>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyBool")]
@@ -36,7 +36,7 @@ pub trait PyBoolMethods<'py> {
     fn is_true(&self) -> bool;
 }
 
-impl<'py> PyBoolMethods<'py> for Py2<'py, PyBool> {
+impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
     fn is_true(&self) -> bool {
         self.as_ptr() == unsafe { crate::ffi::Py_True() }

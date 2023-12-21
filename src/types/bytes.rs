@@ -1,4 +1,4 @@
-use crate::instance::{Py2, Py2Borrowed};
+use crate::instance::{Borrowed, Bound};
 use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
@@ -89,29 +89,29 @@ impl PyBytes {
     /// Gets the Python string as a byte slice.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
-        Py2Borrowed::from_gil_ref(self).as_bytes()
+        Borrowed::from_gil_ref(self).as_bytes()
     }
 }
 
 /// Implementation of functionality for [`PyBytes`].
 ///
-/// These methods are defined for the `Py2<'py, PyBytes>` smart pointer, so to use method call
+/// These methods are defined for the `Bound<'py, PyBytes>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyBytes")]
-pub(crate) trait PyBytesMethods<'py> {
+pub trait PyBytesMethods<'py> {
     /// Gets the Python string as a byte slice.
     fn as_bytes(&self) -> &[u8];
 }
 
-impl<'py> PyBytesMethods<'py> for Py2<'py, PyBytes> {
+impl<'py> PyBytesMethods<'py> for Bound<'py, PyBytes> {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
-        Py2Borrowed::from(self).as_bytes()
+        Borrowed::from(self).as_bytes()
     }
 }
 
-impl<'a> Py2Borrowed<'a, '_, PyBytes> {
+impl<'a> Borrowed<'a, '_, PyBytes> {
     /// Gets the Python string as a byte slice.
     #[allow(clippy::wrong_self_convention)]
     fn as_bytes(self) -> &'a [u8] {
@@ -129,7 +129,7 @@ impl Py<PyBytes> {
     /// immutable, the result may be used for as long as the reference to
     /// `self` is held, including when the GIL is released.
     pub fn as_bytes<'a>(&'a self, py: Python<'_>) -> &'a [u8] {
-        self.attach_borrow(py).as_bytes()
+        self.bind_borrowed(py).as_bytes()
     }
 }
 
