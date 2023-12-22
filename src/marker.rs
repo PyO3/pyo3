@@ -907,6 +907,9 @@ impl<'py> Python<'py> {
     /// As Python's [`signal`][2] API allows users to define custom signal handlers, calling this
     /// function allows arbitrary Python code inside signal handlers to run.
     ///
+    /// If the function is called from a non-main thread, or under a non-main Python interpreter,
+    /// it does nothing yet still returns `Ok(())`.
+    ///
     /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
     /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
