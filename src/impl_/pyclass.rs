@@ -1013,6 +1013,7 @@ impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
 #[doc(hidden)]
 pub trait PyClassThreadChecker<T>: Sized {
     fn ensure(&self);
+    fn check(&self) -> bool;
     fn can_drop(&self, py: Python<'_>) -> bool;
     fn new() -> Self;
     private_decl! {}
@@ -1028,6 +1029,9 @@ pub struct SendablePyClass<T: Send>(PhantomData<T>);
 
 impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
     fn ensure(&self) {}
+    fn check(&self) -> bool {
+        true
+    }
     fn can_drop(&self, _py: Python<'_>) -> bool {
         true
     }
@@ -1053,6 +1057,10 @@ impl ThreadCheckerImpl {
         );
     }
 
+    fn check(&self) -> bool {
+        thread::current().id() == self.0
+    }
+
     fn can_drop(&self, py: Python<'_>, type_name: &'static str) -> bool {
         if thread::current().id() != self.0 {
             PyRuntimeError::new_err(format!(
@@ -1070,6 +1078,9 @@ impl ThreadCheckerImpl {
 impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     fn ensure(&self) {
         self.ensure(std::any::type_name::<T>());
+    }
+    fn check(&self) -> bool {
+        self.check()
     }
     fn can_drop(&self, py: Python<'_>) -> bool {
         self.can_drop(py, std::any::type_name::<T>())

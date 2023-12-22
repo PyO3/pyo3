@@ -351,6 +351,14 @@ impl<T: PyClass> PyCell<T> {
             .map(|_| PyRef { inner: self })
     }
 
+    /// Variant of [`try_borrow`][Self::try_borrow] which fails instead of panicking if called from the wrong thread
+    pub(crate) fn try_borrow_threadsafe(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
+        self.check_threadsafe()?;
+        self.borrow_checker()
+            .try_borrow()
+            .map(|_| PyRef { inner: self })
+    }
+
     /// Mutably borrows the value `T`, returning an error if the value is currently borrowed.
     /// This borrow lasts as long as the returned `PyRefMut` exists.
     ///
@@ -975,6 +983,7 @@ impl From<PyBorrowMutError> for PyErr {
 #[doc(hidden)]
 pub trait PyCellLayout<T>: PyLayout<T> {
     fn ensure_threadsafe(&self);
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError>;
     /// Implementation of tp_dealloc.
     /// # Safety
     /// - slf must be a valid pointer to an instance of a T or a subclass.
@@ -988,6 +997,9 @@ where
     T: PyTypeInfo,
 {
     fn ensure_threadsafe(&self) {}
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+        Ok(())
+    }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         let type_obj = T::type_object_raw(py);
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
@@ -1024,6 +1036,12 @@ where
     fn ensure_threadsafe(&self) {
         self.contents.thread_checker.ensure();
         self.ob_base.ensure_threadsafe();
+    }
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+        if !self.contents.thread_checker.check() {
+            return Err(PyBorrowError { _private: () });
+        }
+        self.ob_base.check_threadsafe()
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.

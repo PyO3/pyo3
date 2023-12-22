@@ -512,6 +512,55 @@ fn drop_during_traversal_without_gil() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
+#[pyclass(unsendable)]
+struct UnsendableTraversal {
+    traversed: Cell<bool>,
+}
+
+#[pymethods]
+impl UnsendableTraversal {
+    fn __clear__(&mut self) {}
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        self.traversed.set(true);
+        Ok(())
+    }
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+fn unsendable_are_not_traversed_on_foreign_thread() {
+    Python::with_gil(|py| unsafe {
+        let ty = py.get_type::<UnsendableTraversal>().as_type_ptr();
+        let traverse = get_type_traverse(ty).unwrap();
+
+        let obj = Py::new(
+            py,
+            UnsendableTraversal {
+                traversed: Cell::new(false),
+            },
+        )
+        .unwrap();
+
+        let ptr = SendablePtr(obj.as_ptr());
+
+        std::thread::spawn(move || {
+            // traversal on foreign thread is a no-op
+            assert_eq!(traverse({ ptr }.0, novisit, std::ptr::null_mut()), 0);
+        })
+        .join()
+        .unwrap();
+
+        assert!(!obj.borrow(py).traversed.get());
+
+        // traversal on home thread still works
+        assert_eq!(traverse({ ptr }.0, novisit, std::ptr::null_mut()), 0);
+
+        assert!(obj.borrow(py).traversed.get());
+    });
+}
+
 // Manual traversal utilities
 
 unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
@@ -533,3 +582,8 @@ extern "C" fn visit_error(
 ) -> std::os::raw::c_int {
     -1
 }
+
+#[derive(Clone, Copy)]
+struct SendablePtr(*mut pyo3::ffi::PyObject);
+
+unsafe impl Send for SendablePtr {}
