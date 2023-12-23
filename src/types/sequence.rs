@@ -23,13 +23,13 @@ impl PySequence {
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
-        Bound::borrowed_from_gil_ref(&self).len()
+        self.as_bound().len()
     }
 
     /// Returns whether the sequence is empty.
     #[inline]
     pub fn is_empty(&self) -> PyResult<bool> {
-        Bound::borrowed_from_gil_ref(&self).is_empty()
+        self.as_bound().is_empty()
     }
 
     /// Returns the concatenation of `self` and `other`.
@@ -37,8 +37,8 @@ impl PySequence {
     /// This is equivalent to the Python expression `self + other`.
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .concat(Bound::borrowed_from_gil_ref(&other))
+        self.as_bound()
+            .concat(other.as_bound())
             .map(Bound::into_gil_ref)
     }
 
@@ -47,9 +47,7 @@ impl PySequence {
     /// This is equivalent to the Python expression `self * count`.
     #[inline]
     pub fn repeat(&self, count: usize) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .repeat(count)
-            .map(Bound::into_gil_ref)
+        self.as_bound().repeat(count).map(Bound::into_gil_ref)
     }
 
     /// Concatenates `self` and `other`, in place if possible.
@@ -61,8 +59,8 @@ impl PySequence {
     /// possible, but create and return a new object if not.
     #[inline]
     pub fn in_place_concat(&self, other: &PySequence) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .in_place_concat(Bound::borrowed_from_gil_ref(&other))
+        self.as_bound()
+            .in_place_concat(other.as_bound())
             .map(Bound::into_gil_ref)
     }
 
@@ -75,7 +73,7 @@ impl PySequence {
     /// possible, but create and return a new object if not.
     #[inline]
     pub fn in_place_repeat(&self, count: usize) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
+        self.as_bound()
             .in_place_repeat(count)
             .map(Bound::into_gil_ref)
     }
@@ -85,9 +83,7 @@ impl PySequence {
     /// This is equivalent to the Python expression `self[index]` without support of negative indices.
     #[inline]
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
-        Bound::borrowed_from_gil_ref(&self)
-            .get_item(index)
-            .map(|py2| py2.into_gil_ref())
+        self.as_bound().get_item(index).map(Bound::into_gil_ref)
     }
 
     /// Returns the slice of sequence object between `begin` and `end`.
@@ -95,7 +91,7 @@ impl PySequence {
     /// This is equivalent to the Python expression `self[begin:end]`.
     #[inline]
     pub fn get_slice(&self, begin: usize, end: usize) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
+        self.as_bound()
             .get_slice(begin, end)
             .map(Bound::into_gil_ref)
     }
@@ -108,7 +104,7 @@ impl PySequence {
     where
         I: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).set_item(i, item)
+        self.as_bound().set_item(i, item)
     }
 
     /// Deletes the `i`th element of self.
@@ -116,7 +112,7 @@ impl PySequence {
     /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
     pub fn del_item(&self, i: usize) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).del_item(i)
+        self.as_bound().del_item(i)
     }
 
     /// Assigns the sequence `v` to the slice of `self` from `i1` to `i2`.
@@ -124,7 +120,7 @@ impl PySequence {
     /// This is equivalent to the Python statement `self[i1:i2] = v`.
     #[inline]
     pub fn set_slice(&self, i1: usize, i2: usize, v: &PyAny) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).set_slice(i1, i2, Bound::borrowed_from_gil_ref(&v))
+        self.as_bound().set_slice(i1, i2, v.as_bound())
     }
 
     /// Deletes the slice from `i1` to `i2` from `self`.
@@ -132,7 +128,7 @@ impl PySequence {
     /// This is equivalent to the Python statement `del self[i1:i2]`.
     #[inline]
     pub fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).del_slice(i1, i2)
+        self.as_bound().del_slice(i1, i2)
     }
 
     /// Returns the number of occurrences of `value` in self, that is, return the
@@ -143,7 +139,7 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).count(value)
+        self.as_bound().count(value)
     }
 
     /// Determines if self contains `value`.
@@ -154,7 +150,7 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).contains(value)
+        self.as_bound().contains(value)
     }
 
     /// Returns the first index `i` for which `self[i] == value`.
@@ -165,23 +161,19 @@ impl PySequence {
     where
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).index(value)
+        self.as_bound().index(value)
     }
 
     /// Returns a fresh list based on the Sequence.
     #[inline]
     pub fn to_list(&self) -> PyResult<&PyList> {
-        Bound::borrowed_from_gil_ref(&self)
-            .to_list()
-            .map(|py2| py2.into_gil_ref())
+        self.as_bound().to_list().map(Bound::into_gil_ref)
     }
 
     /// Returns a fresh tuple based on the Sequence.
     #[inline]
     pub fn to_tuple(&self) -> PyResult<&PyTuple> {
-        Bound::borrowed_from_gil_ref(&self)
-            .to_tuple()
-            .map(|py2| py2.into_gil_ref())
+        self.as_bound().to_tuple().map(Bound::into_gil_ref)
     }
 
     /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard

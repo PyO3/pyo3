@@ -27,6 +27,16 @@ pub unsafe trait PyNativeType: Sized {
     /// The form of this which is stored inside a `Py<T>` smart pointer.
     type AsRefSource: HasPyGilRef<AsRefTarget = Self>;
 
+    /// Cast `&self` to a `Bound` smart pointer.
+    ///
+    /// This is available as a migration tool to adjust code from the deprecated "GIL Refs"
+    /// API to the `Bound` smart pointer API.
+    fn as_bound<'a, 'py>(self: &'a &'py Self) -> &'a Bound<'py, Self::AsRefSource> {
+        // Safety: &'py Self is expected to be a Python pointer,
+        // so &'a &'py Self has the same layout as &'a Bound<'py, T>
+        unsafe { std::mem::transmute(self) }
+    }
+
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]
     fn py(&self) -> Python<'_> {
@@ -170,18 +180,6 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
         self.into_non_null().as_ptr()
-    }
-
-    /// Internal helper to convert e.g. &'a &'py PyDict to &'a Bound<'py, PyDict> for
-    /// backwards-compatibility during migration to removal of pool.
-    #[doc(hidden)] // public and doc(hidden) to use in examples and tests for now
-    pub fn borrowed_from_gil_ref<'a, U>(gil_ref: &'a &'py U) -> &'a Self
-    where
-        U: PyNativeType<AsRefSource = T>,
-    {
-        // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
-        // so &'a &'py T::AsRefTarget has the same layout as &'a Bound<'py, T>
-        unsafe { std::mem::transmute(gil_ref) }
     }
 
     /// Internal helper to get to pool references for backwards compatibility
@@ -1351,7 +1349,7 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        Bound::borrowed_from_gil_ref(&ob)
+        ob.as_bound()
             .downcast()
             .map(Clone::clone)
             .map_err(Into::into)
@@ -1470,7 +1468,7 @@ impl PyObject {
 mod tests {
     use super::{Bound, Py, PyObject};
     use crate::types::{PyDict, PyString};
-    use crate::{PyAny, PyResult, Python, ToPyObject};
+    use crate::{PyAny, PyNativeType, PyResult, Python, ToPyObject};
 
     #[test]
     fn test_call0() {
@@ -1597,8 +1595,7 @@ a = A()
     #[test]
     fn test_py2_into_py_object() {
         Python::with_gil(|py| {
-            let instance: Bound<'_, PyAny> =
-                Bound::borrowed_from_gil_ref(&py.eval("object()", None, None).unwrap()).clone();
+            let instance = py.eval("object()", None, None).unwrap().as_bound().clone();
             let ptr = instance.as_ptr();
             let instance: PyObject = instance.clone().into();
             assert_eq!(instance.as_ptr(), ptr);

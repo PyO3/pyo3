@@ -7,7 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{IntoPy, Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -811,7 +811,7 @@ impl<'a> std::error::Error for PyDowncastError<'a> {}
 
 impl<'a> std::fmt::Display for PyDowncastError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, Bound::borrowed_from_gil_ref(&self.from), &self.to)
+        display_downcast_error(f, self.from.as_bound(), &self.to)
     }
 }
 

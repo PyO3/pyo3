@@ -6,7 +6,7 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
-use crate::{ffi, Python, ToPyObject};
+use crate::{ffi, PyNativeType, Python, ToPyObject};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -82,26 +82,24 @@ impl PyDict {
     ///
     /// This is equivalent to the Python expression `self.copy()`.
     pub fn copy(&self) -> PyResult<&PyDict> {
-        Bound::borrowed_from_gil_ref(&self)
-            .copy()
-            .map(Bound::into_gil_ref)
+        self.as_bound().copy().map(Bound::into_gil_ref)
     }
 
     /// Empties an existing dictionary of all key-value pairs.
     pub fn clear(&self) {
-        Bound::borrowed_from_gil_ref(&self).clear()
+        self.as_bound().clear()
     }
 
     /// Return the number of items in the dictionary.
     ///
     /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> usize {
-        Bound::borrowed_from_gil_ref(&self).len()
+        self.as_bound().len()
     }
 
     /// Checks if the dict is empty, i.e. `len(self) == 0`.
     pub fn is_empty(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_empty()
+        self.as_bound().is_empty()
     }
 
     /// Determines if the dictionary contains the specified key.
@@ -111,7 +109,7 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).contains(key)
+        self.as_bound().contains(key)
     }
 
     /// Gets an item from the dictionary.
@@ -160,7 +158,7 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        match Bound::borrowed_from_gil_ref(&self).get_item(key) {
+        match self.as_bound().get_item(key) {
             Ok(Some(item)) => Ok(Some(item.into_gil_ref())),
             Ok(None) => Ok(None),
             Err(e) => Err(e),
@@ -188,7 +186,7 @@ impl PyDict {
         K: ToPyObject,
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).set_item(key, value)
+        self.as_bound().set_item(key, value)
     }
 
     /// Deletes an item.
@@ -198,28 +196,28 @@ impl PyDict {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).del_item(key)
+        self.as_bound().del_item(key)
     }
 
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
     pub fn keys(&self) -> &PyList {
-        Bound::borrowed_from_gil_ref(&self).keys().into_gil_ref()
+        self.as_bound().keys().into_gil_ref()
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
     pub fn values(&self) -> &PyList {
-        Bound::borrowed_from_gil_ref(&self).values().into_gil_ref()
+        self.as_bound().values().into_gil_ref()
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
     pub fn items(&self) -> &PyList {
-        Bound::borrowed_from_gil_ref(&self).items().into_gil_ref()
+        self.as_bound().items().into_gil_ref()
     }
 
     /// Returns an iterator of `(key, value)` pairs in this dictionary.
@@ -230,7 +228,7 @@ impl PyDict {
     /// It is allowed to modify values as you iterate over the dictionary, but only
     /// so long as the set of keys does not change.
     pub fn iter(&self) -> PyDictIterator<'_> {
-        PyDictIterator(Bound::borrowed_from_gil_ref(&self).iter())
+        PyDictIterator(self.as_bound().iter())
     }
 
     /// Returns `self` cast as a `PyMapping`.
@@ -243,7 +241,7 @@ impl PyDict {
     /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
     /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
     pub fn update(&self, other: &PyMapping) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).update(Bound::borrowed_from_gil_ref(&other))
+        self.as_bound().update(other.as_bound())
     }
 
     /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
@@ -255,7 +253,7 @@ impl PyDict {
     /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
     /// so should have the same performance as `update`.
     pub fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).update_if_missing(Bound::borrowed_from_gil_ref(&other))
+        self.as_bound().update_if_missing(other.as_bound())
     }
 }
 

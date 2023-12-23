@@ -214,15 +214,15 @@ impl PyDate {
 
 impl PyDateAccess for PyDate {
     fn get_year(&self) -> i32 {
-        Bound::borrowed_from_gil_ref(&self).get_year()
+        self.as_bound().get_year()
     }
 
     fn get_month(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_month()
+        self.as_bound().get_month()
     }
 
     fn get_day(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_day()
+        self.as_bound().get_day()
     }
 }
 
@@ -342,15 +342,15 @@ impl PyDateTime {
 
 impl PyDateAccess for PyDateTime {
     fn get_year(&self) -> i32 {
-        Bound::borrowed_from_gil_ref(&self).get_year()
+        self.as_bound().get_year()
     }
 
     fn get_month(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_month()
+        self.as_bound().get_month()
     }
 
     fn get_day(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_day()
+        self.as_bound().get_day()
     }
 }
 
@@ -370,23 +370,23 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
 
 impl PyTimeAccess for PyDateTime {
     fn get_hour(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_hour()
+        self.as_bound().get_hour()
     }
 
     fn get_minute(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_minute()
+        self.as_bound().get_minute()
     }
 
     fn get_second(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_second()
+        self.as_bound().get_second()
     }
 
     fn get_microsecond(&self) -> u32 {
-        Bound::borrowed_from_gil_ref(&self).get_microsecond()
+        self.as_bound().get_microsecond()
     }
 
     fn get_fold(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).get_fold()
+        self.as_bound().get_fold()
     }
 }
 
@@ -414,7 +414,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
 impl<'py> PyTzInfoAccess<'py> for &'py PyDateTime {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        Bound::borrowed_from_gil_ref(self).get_tzinfo()
+        self.as_bound().get_tzinfo()
     }
 }
 
@@ -500,23 +500,23 @@ impl PyTime {
 
 impl PyTimeAccess for PyTime {
     fn get_hour(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_hour()
+        self.as_bound().get_hour()
     }
 
     fn get_minute(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_minute()
+        self.as_bound().get_minute()
     }
 
     fn get_second(&self) -> u8 {
-        Bound::borrowed_from_gil_ref(&self).get_second()
+        self.as_bound().get_second()
     }
 
     fn get_microsecond(&self) -> u32 {
-        Bound::borrowed_from_gil_ref(&self).get_microsecond()
+        self.as_bound().get_microsecond()
     }
 
     fn get_fold(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).get_fold()
+        self.as_bound().get_fold()
     }
 }
 
@@ -544,7 +544,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
 impl<'py> PyTzInfoAccess<'py> for &'py PyTime {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        Bound::borrowed_from_gil_ref(self).get_tzinfo()
+        self.as_bound().get_tzinfo()
     }
 }
 
@@ -635,15 +635,15 @@ impl PyDelta {
 
 impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
-        Bound::borrowed_from_gil_ref(&self).get_days()
+        self.as_bound().get_days()
     }
 
     fn get_seconds(&self) -> i32 {
-        Bound::borrowed_from_gil_ref(&self).get_seconds()
+        self.as_bound().get_seconds()
     }
 
     fn get_microseconds(&self) -> i32 {
-        Bound::borrowed_from_gil_ref(&self).get_microseconds()
+        self.as_bound().get_microseconds()
     }
 }
 

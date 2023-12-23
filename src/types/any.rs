@@ -73,7 +73,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `self is other`.
     #[inline]
     pub fn is<T: AsPyPointer>(&self, other: &T) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is(other)
+        self.as_bound().is(other)
     }
 
     /// Determines whether this object has the given attribute.
@@ -102,7 +102,7 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        Bound::borrowed_from_gil_ref(&self).hasattr(attr_name)
+        self.as_bound().hasattr(attr_name)
     }
 
     /// Retrieves an attribute value.
@@ -131,9 +131,7 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        Bound::borrowed_from_gil_ref(&self)
-            .getattr(attr_name)
-            .map(Bound::into_gil_ref)
+        self.as_bound().getattr(attr_name).map(Bound::into_gil_ref)
     }
 
     /// Retrieve an attribute value, skipping the instance dictionary during the lookup but still
@@ -208,7 +206,7 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).setattr(attr_name, value)
+        self.as_bound().setattr(attr_name, value)
     }
 
     /// Deletes an attribute.
@@ -221,7 +219,7 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        Bound::borrowed_from_gil_ref(&self).delattr(attr_name)
+        self.as_bound().delattr(attr_name)
     }
 
     /// Returns an [`Ordering`] between `self` and `other`.
@@ -274,7 +272,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).compare(other)
+        self.as_bound().compare(other)
     }
 
     /// Tests whether two Python objects obey a given [`CompareOp`].
@@ -315,7 +313,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self)
+        self.as_bound()
             .rich_compare(other, compare_op)
             .map(Bound::into_gil_ref)
     }
@@ -327,7 +325,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).lt(other)
+        self.as_bound().lt(other)
     }
 
     /// Tests whether this object is less than or equal to another.
@@ -337,7 +335,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).le(other)
+        self.as_bound().le(other)
     }
 
     /// Tests whether this object is equal to another.
@@ -347,7 +345,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).eq(other)
+        self.as_bound().eq(other)
     }
 
     /// Tests whether this object is not equal to another.
@@ -357,7 +355,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).ne(other)
+        self.as_bound().ne(other)
     }
 
     /// Tests whether this object is greater than another.
@@ -367,7 +365,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).gt(other)
+        self.as_bound().gt(other)
     }
 
     /// Tests whether this object is greater than or equal to another.
@@ -377,7 +375,7 @@ impl PyAny {
     where
         O: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).ge(other)
+        self.as_bound().ge(other)
     }
 
     /// Determines whether this object appears callable.
@@ -408,7 +406,7 @@ impl PyAny {
     ///
     /// [1]: https://docs.python.org/3/library/functions.html#callable
     pub fn is_callable(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_callable()
+        self.as_bound().is_callable()
     }
 
     /// Calls the object.
@@ -446,9 +444,7 @@ impl PyAny {
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny> {
-        Bound::borrowed_from_gil_ref(&self)
-            .call(args, kwargs)
-            .map(Bound::into_gil_ref)
+        self.as_bound().call(args, kwargs).map(Bound::into_gil_ref)
     }
 
     /// Calls the object without arguments.
@@ -472,9 +468,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
-        Bound::borrowed_from_gil_ref(&self)
-            .call0()
-            .map(Bound::into_gil_ref)
+        self.as_bound().call0().map(Bound::into_gil_ref)
     }
 
     /// Calls the object with only positional arguments.
@@ -505,9 +499,7 @@ impl PyAny {
     /// # }
     /// ```
     pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
-        Bound::borrowed_from_gil_ref(&self)
-            .call1(args)
-            .map(Bound::into_gil_ref)
+        self.as_bound().call1(args).map(Bound::into_gil_ref)
     }
 
     /// Calls a method on the object.
@@ -550,7 +542,7 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        Bound::borrowed_from_gil_ref(&self)
+        self.as_bound()
             .call_method(name, args, kwargs)
             .map(Bound::into_gil_ref)
     }
@@ -590,9 +582,7 @@ impl PyAny {
     where
         N: IntoPy<Py<PyString>>,
     {
-        Bound::borrowed_from_gil_ref(&self)
-            .call_method0(name)
-            .map(Bound::into_gil_ref)
+        self.as_bound().call_method0(name).map(Bound::into_gil_ref)
     }
 
     /// Calls a method on the object with only positional arguments.
@@ -632,7 +622,7 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        Bound::borrowed_from_gil_ref(&self)
+        self.as_bound()
             .call_method1(name, args)
             .map(Bound::into_gil_ref)
     }
@@ -649,7 +639,7 @@ impl PyAny {
     ///
     /// This applies truth value testing equivalent to the Python expression `bool(self)`.
     pub fn is_truthy(&self) -> PyResult<bool> {
-        Bound::borrowed_from_gil_ref(&self).is_truthy()
+        self.as_bound().is_truthy()
     }
 
     /// Returns whether the object is considered to be None.
@@ -657,7 +647,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `self is None`.
     #[inline]
     pub fn is_none(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_none()
+        self.as_bound().is_none()
     }
 
     /// Returns whether the object is Ellipsis, e.g. `...`.
@@ -665,14 +655,14 @@ impl PyAny {
     /// This is equivalent to the Python expression `self is ...`.
     #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
     pub fn is_ellipsis(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_ellipsis()
+        self.as_bound().is_ellipsis()
     }
 
     /// Returns true if the sequence or mapping has a length of 0.
     ///
     /// This is equivalent to the Python expression `len(self) == 0`.
     pub fn is_empty(&self) -> PyResult<bool> {
-        Bound::borrowed_from_gil_ref(&self).is_empty()
+        self.as_bound().is_empty()
     }
 
     /// Gets an item from the collection.
@@ -682,9 +672,7 @@ impl PyAny {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self)
-            .get_item(key)
-            .map(Bound::into_gil_ref)
+        self.as_bound().get_item(key).map(Bound::into_gil_ref)
     }
 
     /// Sets a collection item value.
@@ -695,7 +683,7 @@ impl PyAny {
         K: ToPyObject,
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).set_item(key, value)
+        self.as_bound().set_item(key, value)
     }
 
     /// Deletes an item from the collection.
@@ -705,7 +693,7 @@ impl PyAny {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).del_item(key)
+        self.as_bound().del_item(key)
     }
 
     /// Takes an object and returns an iterator for it.
@@ -713,20 +701,18 @@ impl PyAny {
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
     pub fn iter(&self) -> PyResult<&PyIterator> {
-        Bound::borrowed_from_gil_ref(&self)
-            .iter()
-            .map(Bound::into_gil_ref)
+        self.as_bound().iter().map(Bound::into_gil_ref)
     }
 
     /// Returns the Python type object for this object's type.
     pub fn get_type(&self) -> &PyType {
-        Bound::borrowed_from_gil_ref(&self).get_type()
+        self.as_bound().get_type()
     }
 
     /// Returns the Python type pointer for this object.
     #[inline]
     pub fn get_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        Bound::borrowed_from_gil_ref(&self).get_type_ptr()
+        self.as_bound().get_type_ptr()
     }
 
     /// Downcast this `PyAny` to a concrete Python type or pyclass.
@@ -863,46 +849,42 @@ impl PyAny {
 
     /// Returns the reference count for the Python object.
     pub fn get_refcnt(&self) -> isize {
-        Bound::borrowed_from_gil_ref(&self).get_refcnt()
+        self.as_bound().get_refcnt()
     }
 
     /// Computes the "repr" representation of self.
     ///
     /// This is equivalent to the Python expression `repr(self)`.
     pub fn repr(&self) -> PyResult<&PyString> {
-        Bound::borrowed_from_gil_ref(&self)
-            .repr()
-            .map(Bound::into_gil_ref)
+        self.as_bound().repr().map(Bound::into_gil_ref)
     }
 
     /// Computes the "str" representation of self.
     ///
     /// This is equivalent to the Python expression `str(self)`.
     pub fn str(&self) -> PyResult<&PyString> {
-        Bound::borrowed_from_gil_ref(&self)
-            .str()
-            .map(Bound::into_gil_ref)
+        self.as_bound().str().map(Bound::into_gil_ref)
     }
 
     /// Retrieves the hash code of self.
     ///
     /// This is equivalent to the Python expression `hash(self)`.
     pub fn hash(&self) -> PyResult<isize> {
-        Bound::borrowed_from_gil_ref(&self).hash()
+        self.as_bound().hash()
     }
 
     /// Returns the length of the sequence or mapping.
     ///
     /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> PyResult<usize> {
-        Bound::borrowed_from_gil_ref(&self).len()
+        self.as_bound().len()
     }
 
     /// Returns the list of attributes of this object.
     ///
     /// This is equivalent to the Python expression `dir(self)`.
     pub fn dir(&self) -> &PyList {
-        Bound::borrowed_from_gil_ref(&self).dir().into_gil_ref()
+        self.as_bound().dir().into_gil_ref()
     }
 
     /// Checks whether this object is an instance of type `ty`.
@@ -910,7 +892,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `isinstance(self, ty)`.
     #[inline]
     pub fn is_instance(&self, ty: &PyAny) -> PyResult<bool> {
-        Bound::borrowed_from_gil_ref(&self).is_instance(Bound::borrowed_from_gil_ref(&ty))
+        self.as_bound().is_instance(ty.as_bound())
     }
 
     /// Checks whether this object is an instance of exactly type `ty` (not a subclass).
@@ -918,7 +900,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `type(self) is ty`.
     #[inline]
     pub fn is_exact_instance(&self, ty: &PyAny) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_exact_instance(Bound::borrowed_from_gil_ref(&ty))
+        self.as_bound().is_exact_instance(ty.as_bound())
     }
 
     /// Checks whether this object is an instance of type `T`.
@@ -927,7 +909,7 @@ impl PyAny {
     /// if the type `T` is known at compile time.
     #[inline]
     pub fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_instance_of::<T>()
+        self.as_bound().is_instance_of::<T>()
     }
 
     /// Checks whether this object is an instance of exactly type `T`.
@@ -936,7 +918,7 @@ impl PyAny {
     /// if the type `T` is known at compile time.
     #[inline]
     pub fn is_exact_instance_of<T: PyTypeInfo>(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_exact_instance_of::<T>()
+        self.as_bound().is_exact_instance_of::<T>()
     }
 
     /// Determines if self contains `value`.
@@ -946,7 +928,7 @@ impl PyAny {
     where
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).contains(value)
+        self.as_bound().contains(value)
     }
 
     /// Returns a GIL marker constrained to the lifetime of this type.
@@ -985,9 +967,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `super()`
     #[cfg(not(PyPy))]
     pub fn py_super(&self) -> PyResult<&PySuper> {
-        Bound::borrowed_from_gil_ref(&self)
-            .py_super()
-            .map(Bound::into_gil_ref)
+        self.as_bound().py_super().map(Bound::into_gil_ref)
     }
 }
 
@@ -2193,7 +2173,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[cfg(not(PyPy))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
-        PySuper::new2(Bound::borrowed_from_gil_ref(&self.get_type()), self)
+        PySuper::new2(self.get_type().as_bound(), self)
     }
 }
 

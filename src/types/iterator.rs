@@ -34,7 +34,7 @@ impl PyIterator {
     ///
     /// Equivalent to Python's built-in `iter` function.
     pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_object2(Bound::borrowed_from_gil_ref(&obj)).map(Bound::into_gil_ref)
+        Self::from_object2(obj.as_bound()).map(Bound::into_gil_ref)
     }
 
     pub(crate) fn from_object2<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
