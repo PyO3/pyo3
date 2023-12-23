@@ -7,7 +7,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
+use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
@@ -98,12 +98,12 @@ impl PyList {
 
     /// Returns the length of the list.
     pub fn len(&self) -> usize {
-        Bound::borrowed_from_gil_ref(&self).len()
+        self.as_borrowed().len()
     }
 
     /// Checks if the list is empty.
     pub fn is_empty(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_empty()
+        self.as_borrowed().is_empty()
     }
 
     /// Returns `self` cast as a `PySequence`.
@@ -122,9 +122,7 @@ impl PyList {
     /// });
     /// ```
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
-        Bound::borrowed_from_gil_ref(&self)
-            .get_item(index)
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().get_item(index).map(Bound::into_gil_ref)
     }
 
     /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
@@ -134,9 +132,7 @@ impl PyList {
     /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(Py_LIMITED_API))]
     pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
-        Bound::borrowed_from_gil_ref(&self)
-            .get_item_unchecked(index)
-            .into_gil_ref()
+        self.as_borrowed().get_item_unchecked(index).into_gil_ref()
     }
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
@@ -144,9 +140,7 @@ impl PyList {
     /// Indices must be nonnegative, and out-of-range indices are clipped to
     /// `self.len()`.
     pub fn get_slice(&self, low: usize, high: usize) -> &PyList {
-        Bound::borrowed_from_gil_ref(&self)
-            .get_slice(low, high)
-            .into_gil_ref()
+        self.as_borrowed().get_slice(low, high).into_gil_ref()
     }
 
     /// Sets the item at the specified index.
@@ -156,7 +150,7 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).set_item(index, item)
+        self.as_borrowed().set_item(index, item)
     }
 
     /// Deletes the `index`th element of self.
@@ -164,7 +158,7 @@ impl PyList {
     /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
     pub fn del_item(&self, index: usize) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).del_item(index)
+        self.as_borrowed().del_item(index)
     }
 
     /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
@@ -172,7 +166,7 @@ impl PyList {
     /// This is equivalent to the Python statement `self[low:high] = v`.
     #[inline]
     pub fn set_slice(&self, low: usize, high: usize, seq: &PyAny) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).set_slice(low, high, Bound::borrowed_from_gil_ref(&seq))
+        self.as_borrowed().set_slice(low, high, &seq.as_borrowed())
     }
 
     /// Deletes the slice from `low` to `high` from `self`.
@@ -180,7 +174,7 @@ impl PyList {
     /// This is equivalent to the Python statement `del self[low:high]`.
     #[inline]
     pub fn del_slice(&self, low: usize, high: usize) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).del_slice(low, high)
+        self.as_borrowed().del_slice(low, high)
     }
 
     /// Appends an item to the list.
@@ -188,7 +182,7 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).append(item)
+        self.as_borrowed().append(item)
     }
 
     /// Inserts an item at the specified index.
@@ -198,7 +192,7 @@ impl PyList {
     where
         I: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).insert(index, item)
+        self.as_borrowed().insert(index, item)
     }
 
     /// Determines if self contains `value`.
@@ -209,7 +203,7 @@ impl PyList {
     where
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).contains(value)
+        self.as_borrowed().contains(value)
     }
 
     /// Returns the first index `i` for which `self[i] == value`.
@@ -220,31 +214,29 @@ impl PyList {
     where
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).index(value)
+        self.as_borrowed().index(value)
     }
 
     /// Returns an iterator over this list's items.
     pub fn iter(&self) -> PyListIterator<'_> {
-        PyListIterator(Bound::borrowed_from_gil_ref(&self).iter())
+        PyListIterator(self.as_borrowed().iter())
     }
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
     pub fn sort(&self) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).sort()
+        self.as_borrowed().sort()
     }
 
     /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
     pub fn reverse(&self) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).reverse()
+        self.as_borrowed().reverse()
     }
 
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
     ///
     /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
     pub fn to_tuple(&self) -> &PyTuple {
-        Bound::borrowed_from_gil_ref(&self)
-            .to_tuple()
-            .into_gil_ref()
+        self.as_borrowed().to_tuple().into_gil_ref()
     }
 }
 

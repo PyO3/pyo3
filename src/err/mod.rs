@@ -7,7 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{IntoPy, Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -542,7 +542,7 @@ impl PyErr {
     )]
     #[inline]
     pub fn write_unraisable(self, py: Python<'_>, obj: Option<&PyAny>) {
-        self.write_unraisable_bound(py, obj.as_ref().map(Bound::borrowed_from_gil_ref))
+        self.write_unraisable_bound(py, obj.map(PyAny::as_borrowed).as_deref())
     }
 
     /// Reports the error as unraisable.
@@ -821,7 +821,7 @@ impl<'a> std::error::Error for PyDowncastError<'a> {}
 
 impl<'a> std::fmt::Display for PyDowncastError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, Bound::borrowed_from_gil_ref(&self.from), &self.to)
+        display_downcast_error(f, &self.from.as_borrowed(), &self.to)
     }
 }
 

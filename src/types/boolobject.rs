@@ -1,8 +1,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, ffi, instance::Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    exceptions::PyTypeError, ffi, instance::Bound, FromPyObject, IntoPy, PyAny, PyNativeType,
+    PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Represents a Python `bool`.
@@ -21,7 +21,7 @@ impl PyBool {
     /// Gets whether this boolean is `true`.
     #[inline]
     pub fn is_true(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_true()
+        self.as_borrowed().is_true()
     }
 }
 

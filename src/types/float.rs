@@ -29,7 +29,7 @@ impl PyFloat {
 
     /// Gets the value of this float.
     pub fn value(&self) -> c_double {
-        Bound::borrowed_from_gil_ref(&self).value()
+        self.as_borrowed().value()
     }
 }
 

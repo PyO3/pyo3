@@ -42,7 +42,6 @@
 //! }
 //! ```
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
-use crate::instance::Bound;
 #[cfg(Py_LIMITED_API)]
 use crate::sync::GILOnceCell;
 #[cfg(not(Py_LIMITED_API))]
@@ -56,7 +55,9 @@ use crate::types::{
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, PyDowncastError};
-use crate::{FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
+};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
@@ -466,7 +467,7 @@ fn warn_truncated_leap_second(obj: &PyAny) {
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
-        e.write_unraisable_bound(py, Some(Bound::borrowed_from_gil_ref(&obj)))
+        e.write_unraisable_bound(py, Some(&obj.as_borrowed()))
     };
 }
 

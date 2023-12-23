@@ -1,6 +1,6 @@
 use crate::err::{PyErr, PyResult};
 use crate::instance::{Borrowed, Bound};
-use crate::{ffi, AsPyPointer, Py, PyAny, Python};
+use crate::{ffi, AsPyPointer, Py, PyAny, PyNativeType, Python};
 use std::os::raw::c_char;
 use std::slice;
 
@@ -75,12 +75,12 @@ impl PyByteArray {
     /// Gets the length of the bytearray.
     #[inline]
     pub fn len(&self) -> usize {
-        Bound::borrowed_from_gil_ref(&self).len()
+        self.as_borrowed().len()
     }
 
     /// Checks if the bytearray is empty.
     pub fn is_empty(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_empty()
+        self.as_borrowed().is_empty()
     }
 
     /// Gets the start of the buffer containing the contents of the bytearray.
@@ -89,7 +89,7 @@ impl PyByteArray {
     ///
     /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
     pub fn data(&self) -> *mut u8 {
-        Bound::borrowed_from_gil_ref(&self).data()
+        self.as_borrowed().data()
     }
 
     /// Extracts a slice of the `ByteArray`'s entire buffer.
@@ -188,7 +188,7 @@ impl PyByteArray {
     /// }
     /// ```
     pub unsafe fn as_bytes(&self) -> &[u8] {
-        Borrowed::from_gil_ref(self).as_bytes()
+        self.as_borrowed().as_bytes()
     }
 
     /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
@@ -200,7 +200,7 @@ impl PyByteArray {
     /// apply to this function as well.
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        Borrowed::from_gil_ref(self).as_bytes_mut()
+        self.as_borrowed().as_bytes_mut()
     }
 
     /// Copies the contents of the bytearray to a Rust vector.
@@ -222,7 +222,7 @@ impl PyByteArray {
     /// # });
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
-        Bound::borrowed_from_gil_ref(&self).to_vec()
+        self.as_borrowed().to_vec()
     }
 
     /// Resizes the bytearray object to the new length `len`.
@@ -230,7 +230,7 @@ impl PyByteArray {
     /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
     /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
     pub fn resize(&self, len: usize) -> PyResult<()> {
-        Bound::borrowed_from_gil_ref(&self).resize(len)
+        self.as_borrowed().resize(len)
     }
 }
 
