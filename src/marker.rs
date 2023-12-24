@@ -373,7 +373,7 @@ impl<'py> Python<'py> {
         use std::thread::Builder;
         use std::time::Duration;
 
-        use parking_lot::{const_mutex, Condvar, Mutex};
+        use parking_lot::{Condvar, Mutex};
 
         use crate::impl_::panic::PanicTrap;
 
@@ -403,7 +403,7 @@ impl<'py> Python<'py> {
         };
 
         // SAFETY: the current thread will block until the closure has returned
-        let mut task = Task(unsafe { transmute(&mut task as &mut (dyn FnMut() + '_)) });
+        let task = Task(unsafe { transmute(&mut task as &mut (dyn FnMut() + '_)) });
 
         // 2. Dispatch task to waiting thread, spawn new thread if necessary
         let trap = PanicTrap::new(
@@ -424,10 +424,21 @@ impl<'py> Python<'py> {
         }
 
         impl Mailbox {
-            fn new(task: Task) -> Self {
+            fn new() -> Self {
                 Self {
-                    inner: Mutex::new(MailboxInner::Task(task)),
+                    inner: Mutex::new(MailboxInner::Abandoned),
                     flag: Condvar::new(),
+                }
+            }
+
+            fn init(&self, task: Task) {
+                use MailboxInner::*;
+                let mut inner = self.inner.lock();
+                match &*inner {
+                    Abandoned => *inner = MailboxInner::Task(task),
+                    Empty | Task(_) | Working | Done => {
+                        unreachable!("initializing existing worker")
+                    }
                 }
             }
 
@@ -505,20 +516,15 @@ impl<'py> Python<'py> {
             }
         }
 
-        static THREADS: Mutex<Vec<Arc<Mailbox>>> = const_mutex(Vec::new());
+        thread_local! {
+            static MAILBOX: Arc<Mailbox> = Arc::new(Mailbox::new());
+        }
 
-        let dispatch = move || {
-            while let Some(mailbox) = THREADS.lock().pop() {
-                match mailbox.send_task(task) {
-                    None => return mailbox,
-                    Some(same_task) => task = same_task,
-                }
-            }
+        MAILBOX.with(|mailbox| {
+            if let Some(task) = mailbox.send_task(task) {
+                let mailbox = Arc::clone(mailbox);
 
-            let mailbox = Arc::new(Mailbox::new(task));
-
-            {
-                let mailbox = Arc::clone(&mailbox);
+                mailbox.init(task);
 
                 Builder::new()
                     .name("pyo3 allow_threads runtime".to_owned())
@@ -533,17 +539,11 @@ impl<'py> Python<'py> {
                     .expect("failed to create allow_threads runtime thread");
             }
 
-            mailbox
-        };
-
-        let mailbox = dispatch();
-
-        // 3. Wait for completion and check result
-        mailbox.await_done();
+            // 3. Wait for completion and check result
+            mailbox.await_done();
+        });
 
         trap.disarm();
-
-        THREADS.lock().push(mailbox);
 
         match result.expect("allow_threads runtime thread did not set result") {
             Ok(result) => result,
