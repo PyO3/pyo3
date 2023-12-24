@@ -35,6 +35,7 @@ impl SubClass {
     }
 
     fn method_super_new(self_: &PyCell<Self>) -> PyResult<&PyAny> {
+        #[allow(deprecated)]
         let super_ = PySuper::new(self_.get_type(), self_)?;
         super_.call_method("method", (), None)
     }

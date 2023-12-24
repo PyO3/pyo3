@@ -16,6 +16,19 @@ pyobject_native_type_core!(
 );
 
 impl PySuper {
+    /// Deprecated form of `PySuper::new_bound`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PySuper::new` will be replaced by `PySuper::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
+        Self::new_bound(
+            Bound::borrowed_from_gil_ref(&ty),
+            Bound::borrowed_from_gil_ref(&obj),
+        )
+        .map(Bound::into_gil_ref)
+    }
+
     /// Constructs a new super object. More read about super object: [docs](https://docs.python.org/3/library/functions.html#super)
     ///
     /// # Examples
@@ -56,15 +69,7 @@ impl PySuper {
     ///     }
     /// }
     /// ```
-    pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
-        Self::new2(
-            Bound::borrowed_from_gil_ref(&ty),
-            Bound::borrowed_from_gil_ref(&obj),
-        )
-        .map(Bound::into_gil_ref)
-    }
-
-    pub(crate) fn new2<'py>(
+    pub fn new_bound<'py>(
         ty: &Bound<'py, PyType>,
         obj: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PySuper>> {
