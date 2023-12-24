@@ -100,6 +100,7 @@ fn test_exception_nosegfault() {
 
 #[test]
 #[cfg(Py_3_8)]
+#[allow(deprecated)]
 fn test_write_unraisable() {
     use common::UnraisableCapture;
     use pyo3::{exceptions::PyRuntimeError, ffi};

@@ -10,8 +10,8 @@ use std::{
 };
 
 use crate::{
-    callback::PyCallbackOutput, ffi, impl_::panic::PanicTrap, methods::IPowModulo,
-    panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
+    callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
+    methods::IPowModulo, panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
 };
 
 #[inline]
@@ -224,7 +224,7 @@ where
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
-        py_err.write_unraisable(py, py.from_borrowed_ptr_or_opt(ctx));
+        py_err.write_unraisable_bound(py, ctx.assume_borrowed_or_opt(py).as_deref());
     }
     trap.disarm();
 }

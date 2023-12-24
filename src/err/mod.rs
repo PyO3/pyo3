@@ -535,6 +535,16 @@ impl PyErr {
             .restore(py)
     }
 
+    /// Deprecated form of `PyErr::write_unraisable_bound`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::write_unraisable` will be replaced by `PyErr::write_unraisable_bound` in a future PyO3 version"
+    )]
+    #[inline]
+    pub fn write_unraisable(self, py: Python<'_>, obj: Option<&PyAny>) {
+        self.write_unraisable_bound(py, obj.as_ref().map(Bound::borrowed_from_gil_ref))
+    }
+
     /// Reports the error as unraisable.
     ///
     /// This calls `sys.unraisablehook()` using the current exception and obj argument.
@@ -557,16 +567,16 @@ impl PyErr {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     match failing_function() {
-    ///         Err(pyerr) => pyerr.write_unraisable(py, None),
+    ///         Err(pyerr) => pyerr.write_unraisable_bound(py, None),
     ///         Ok(..) => { /* do something here */ }
     ///     }
     ///     Ok(())
     /// })
     /// # }
     #[inline]
-    pub fn write_unraisable(self, py: Python<'_>, obj: Option<&PyAny>) {
+    pub fn write_unraisable_bound(self, py: Python<'_>, obj: Option<&Bound<'_, PyAny>>) {
         self.restore(py);
-        unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), |x| x.as_ptr())) }
+        unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), Bound::as_ptr)) }
     }
 
     /// Issues a warning message.

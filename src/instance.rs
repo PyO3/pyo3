@@ -3,6 +3,7 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
 use crate::types::any::PyAnyMethods;
+use crate::types::string::PyStringMethods;
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
@@ -97,10 +98,8 @@ fn python_format(
     f: &mut std::fmt::Formatter<'_>,
 ) -> Result<(), std::fmt::Error> {
     match format_result {
-        Result::Ok(s) => return f.write_str(&s.as_gil_ref().to_string_lossy()),
-        Result::Err(err) => {
-            err.write_unraisable(any.py(), std::option::Option::Some(any.as_gil_ref()))
-        }
+        Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
+        Result::Err(err) => err.write_unraisable_bound(any.py(), Some(any)),
     }
 
     match any.get_type().name() {
