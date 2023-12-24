@@ -183,8 +183,9 @@ impl<'py, T> Bound<'py, T> {
         unsafe { std::mem::transmute(gil_ref) }
     }
 
-    /// Internal helper to get to pool references for backwards compatibility
-    #[doc(hidden)] // public and doc(hidden) to use in examples and tests for now
+    /// Casts this `Bound<T>` as the corresponding "GIL Ref" type.
+    ///
+    /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
     pub fn as_gil_ref(&'py self) -> &'py T::AsRefTarget
     where
         T: HasPyGilRef,
@@ -192,8 +193,10 @@ impl<'py, T> Bound<'py, T> {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 
-    /// Internal helper to get to pool references for backwards compatibility
-    #[doc(hidden)] // public but hidden, to use for tests for now
+    /// Casts this `Bound<T>` as the corresponding "GIL Ref" type, registering the pointer on the
+    /// [release pool](Python::from_owned_ptr).
+    ///
+    /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
     pub fn into_gil_ref(self) -> &'py T::AsRefTarget
     where
         T: HasPyGilRef,
