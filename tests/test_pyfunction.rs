@@ -491,7 +491,7 @@ fn return_value_borrows_from_arguments<'py>(
     key: &'py Key,
     value: &'py Value,
 ) -> HashMap<&'py str, i32> {
-    py.allow_threads(move || {
+    py.allow_threads().with(move || {
         let mut map = HashMap::new();
         map.insert(key.0.as_str(), value.0);
         map

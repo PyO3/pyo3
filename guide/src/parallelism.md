@@ -69,7 +69,7 @@ To enable parallel execution of this function, the [`Python::allow_threads`] met
 # }
 #[pyfunction]
 fn search_sequential_allow_threads(py: Python<'_>, contents: &str, needle: &str) -> usize {
-    py.allow_threads(|| search_sequential(contents, needle))
+    py.allow_threads().with(|| search_sequential(contents, needle))
 }
 ```
 

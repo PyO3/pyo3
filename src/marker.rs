@@ -25,14 +25,14 @@
 //! and to close soundness holes implied by thread-local storage hiding such references,
 //! we do need to run the closure on a dedicated runtime thread.
 //!
-//! ```rust, compile_fail
+//! ```rust
 //! use pyo3::prelude::*;
 //! use std::rc::Rc;
 //!
 //! Python::with_gil(|py| {
 //!     let rc = Rc::new(5);
 //!
-//!     py.allow_threads(|| {
+//!     unsafe { py.allow_threads().local_unconstrained() }.with(|| {
 //!         // This could be fine...
 //!         println!("{:?}", *rc);
 //!     });
@@ -61,7 +61,7 @@
 //!     let string = PyString::new(py, "foo");
 //!
 //!     WRAPPED.set(string, || {
-//!         py.allow_threads(callback);
+//!         py.allow_threads().with(callback);
 //!     });
 //! });
 //! ```
@@ -82,7 +82,7 @@
 //!
 //! If the performance overhead of shunting the closure to another is too high
 //! or code requires access to thread-local storage established by the calling thread,
-//! there is the unsafe escape hatch [`Python::unsafe_allow_threads`]
+//! there is the unsafe escape hatch `Python::unsafe_allow_threads`
 //! which executes the closure directly after suspending the GIL.
 //!
 //! However, note establishing the required invariants to soundly call this function
@@ -92,8 +92,9 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::gil::{GILGuard, GILPool, SuspendGIL};
+use crate::gil::{GILGuard, GILPool};
 use crate::impl_::not_send::NotSend;
+use crate::sync::RemoteAllowThreads;
 use crate::type_object::HasPyGilRef;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
@@ -303,7 +304,7 @@ impl<'py> Python<'py> {
     /// #[pyfunction]
     /// fn sum_numbers(py: Python<'_>, numbers: Vec<u32>) -> PyResult<u32> {
     ///     // We release the GIL here so any other Python threads get a chance to run.
-    ///     py.allow_threads(move || {
+    ///     py.allow_threads().with(move || {
     ///         // An example of an "expensive" Rust calculation
     ///         let sum = numbers.iter().sum();
     ///
@@ -332,7 +333,7 @@ impl<'py> Python<'py> {
     ///
     /// fn parallel_print(py: Python<'_>) {
     ///     let s = PyString::new(py, "This object cannot be accessed without holding the GIL >_<");
-    ///     py.allow_threads(move || {
+    ///     py.allow_threads().with(move || {
     ///         println!("{:?}", s); // This causes a compile error.
     ///     });
     /// }
@@ -350,7 +351,7 @@ impl<'py> Python<'py> {
     ///
     ///     let wrapped = SendWrapper::new(string);
     ///
-    ///     py.allow_threads(|| {
+    ///     py.allow_threads().with(|| {
     ///         // panicks because this is not the thread which created `wrapped`
     ///         let sneaky: &PyString = *wrapped;
     ///         println!("{:?}", sneaky);
@@ -362,195 +363,7 @@ impl<'py> Python<'py> {
     /// [`PyString`]: crate::types::PyString
     /// [auto-traits]: https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html
     /// [Parallelism]: https://pyo3.rs/main/parallelism.html
-    pub fn allow_threads<T, F>(self, f: F) -> T
-    where
-        F: Send + FnOnce() -> T,
-        T: Send,
-    {
-        use std::mem::{replace, transmute};
-        use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
-        use std::sync::Arc;
-        use std::thread::Builder;
-        use std::time::Duration;
-
-        use parking_lot::{Condvar, Mutex};
-
-        use crate::impl_::panic::PanicTrap;
-
-        // Use a guard pattern to handle reacquiring the GIL,
-        // so that the GIL will be reacquired even if `f` panics.
-        // The `Send` bound on the closure prevents the user from
-        // transferring the `Python` token into the closure.
-        let _guard = unsafe { SuspendGIL::new() };
-
-        // To close soundness loopholes w.r.t. `send_wrapper` or `scoped-tls`,
-        // we run the closure on a separate thread so that it cannot
-        // access thread-local storage from the current thread.
-
-        // 1. Construct a task
-        struct Task(*mut (dyn FnMut() + 'static));
-        unsafe impl Send for Task {}
-
-        let mut f = Some(f);
-        let mut result = None;
-
-        let mut task = || {
-            let f = f
-                .take()
-                .expect("allow_threads closure called more than once");
-
-            result = Some(catch_unwind(AssertUnwindSafe(f)));
-        };
-
-        // SAFETY: the current thread will block until the closure has returned
-        let task = Task(unsafe { transmute(&mut task as &mut (dyn FnMut() + '_)) });
-
-        // 2. Dispatch task to waiting thread, spawn new thread if necessary
-        let trap = PanicTrap::new(
-            "allow_threads panicked while stack data was accessed by another thread, please report this as a bug at https://github.com/PyO3/pyo3/issues",
-        );
-
-        enum MailboxInner {
-            Empty,
-            Task(Task),
-            Working,
-            Done,
-            Abandoned,
-        }
-
-        struct Mailbox {
-            inner: Mutex<MailboxInner>,
-            flag: Condvar,
-        }
-
-        impl Mailbox {
-            fn new() -> Self {
-                Self {
-                    inner: Mutex::new(MailboxInner::Abandoned),
-                    flag: Condvar::new(),
-                }
-            }
-
-            fn init(&self, task: Task) {
-                use MailboxInner::*;
-                let mut inner = self.inner.lock();
-                match &*inner {
-                    Abandoned => *inner = MailboxInner::Task(task),
-                    Empty | Task(_) | Working | Done => {
-                        unreachable!("initializing existing worker")
-                    }
-                }
-            }
-
-            fn send_task(&self, task: Task) -> Option<Task> {
-                use MailboxInner::*;
-                let mut inner = self.inner.lock();
-                match &*inner {
-                    Empty => {
-                        *inner = Task(task);
-                        drop(inner);
-                        self.flag.notify_one();
-                        None
-                    }
-                    Abandoned => Some(task),
-                    Task(_) | Working | Done => unreachable!("sent task to active worker"),
-                }
-            }
-
-            fn recv_task(&self) -> Option<Task> {
-                use MailboxInner::*;
-                let mut inner = self.inner.lock();
-                loop {
-                    match &*inner {
-                        Empty | Done => {
-                            if self
-                                .flag
-                                .wait_for(&mut inner, Duration::from_secs(60))
-                                .timed_out()
-                            {
-                                *inner = Abandoned;
-                                return None;
-                            }
-                        }
-                        Task(_) => match replace(&mut *inner, Working) {
-                            Task(task) => return Some(task),
-                            _ => unreachable!(),
-                        },
-                        Working | Abandoned => {
-                            unreachable!("received task on active or exited worker")
-                        }
-                    }
-                }
-            }
-
-            fn signal_done(&self) {
-                use MailboxInner::*;
-                let mut inner = self.inner.lock();
-                match &*inner {
-                    Working => {
-                        *inner = Done;
-                        drop(inner);
-                        self.flag.notify_one();
-                    }
-                    Empty | Task(_) | Done | Abandoned => {
-                        unreachable!("signalled completion on inactive worker")
-                    }
-                }
-            }
-
-            fn await_done(&self) {
-                use MailboxInner::*;
-                let mut inner = self.inner.lock();
-                loop {
-                    match &*inner {
-                        Done => {
-                            *inner = Empty;
-                            return;
-                        }
-                        Task(_) | Working => self.flag.wait(&mut inner),
-                        Empty | Abandoned => {
-                            unreachable!("awaited completion from inactive worker")
-                        }
-                    }
-                }
-            }
-        }
-
-        thread_local! {
-            static MAILBOX: Arc<Mailbox> = Arc::new(Mailbox::new());
-        }
-
-        MAILBOX.with(|mailbox| {
-            if let Some(task) = mailbox.send_task(task) {
-                let mailbox = Arc::clone(mailbox);
-
-                mailbox.init(task);
-
-                Builder::new()
-                    .name("pyo3 allow_threads runtime".to_owned())
-                    .spawn(move || {
-                        while let Some(task) = mailbox.recv_task() {
-                            // SAFETY: all data accessed by `task` will stay alive until it completes
-                            unsafe { (*task.0)() };
-
-                            mailbox.signal_done();
-                        }
-                    })
-                    .expect("failed to create allow_threads runtime thread");
-            }
-
-            // 3. Wait for completion and check result
-            mailbox.await_done();
-        });
-
-        trap.disarm();
-
-        match result.expect("allow_threads runtime thread did not set result") {
-            Ok(result) => result,
-            Err(payload) => resume_unwind(payload),
-        }
-    }
-
+    ///
     /// An unsafe version of [`allow_threads`][Self::allow_threads]
     ///
     /// This version does _not_ run the given closure on a dedicated runtime thread,
@@ -570,13 +383,11 @@ impl<'py> Python<'py> {
     ///
     ///     let wrapped = SendWrapper::new(string);
     ///
-    ///     unsafe {
-    ///         py.unsafe_allow_threads(|| {
-    ///             // 💥 Unsound! 💥
-    ///             let sneaky: &PyString = *wrapped;
-    ///             println!("{:?}", sneaky);
-    ///         });
-    ///     }
+    ///     unsafe { py.allow_threads().local() }.with(|| {
+    ///         // 💥 Unsound! 💥
+    ///         let sneaky: &PyString = *wrapped;
+    ///         println!("{:?}", sneaky);
+    ///     });
     /// });
     /// ```
     ///
@@ -587,18 +398,8 @@ impl<'py> Python<'py> {
     /// The caller must ensure that no code within the closure accesses GIL-protected data
     /// bound to the current thread. Note that this property is highly non-local as for example
     /// `scoped-tls` allows "smuggling" GIL-bound references using what is essentially global state.
-    pub unsafe fn unsafe_allow_threads<T, F>(self, f: F) -> T
-    where
-        F: Send + FnOnce() -> T,
-        T: Send,
-    {
-        // Use a guard pattern to handle reacquiring the GIL,
-        // so that the GIL will be reacquired even if `f` panics.
-        // The `Send` bound on the closure prevents the user from
-        // transferring the `Python` token into the closure.
-        let _guard = SuspendGIL::new();
-
-        f()
+    pub fn allow_threads(self) -> RemoteAllowThreads<'py> {
+        RemoteAllowThreads(self)
     }
 
     /// Evaluates a Python expression in the given context and returns the result.
@@ -1110,7 +911,7 @@ mod tests {
             let b2 = b.clone();
             std::thread::spawn(move || Python::with_gil(|_| b2.wait()));
 
-            py.allow_threads(|| {
+            py.allow_threads().with(|| {
                 // If allow_threads does not release the GIL, this will deadlock because
                 // the thread spawned above will never be able to acquire the GIL.
                 b.wait();
@@ -1130,7 +931,7 @@ mod tests {
         Python::with_gil(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
                 let py = Python::assume_gil_acquired();
-                py.allow_threads(|| {
+                py.allow_threads().with(|| {
                     panic!("There was a panic!");
                 });
             });
@@ -1155,7 +956,7 @@ mod tests {
         let a = Arc::new(String::from("foo"));
 
         Python::with_gil(|py| {
-            py.allow_threads(|| {
+            py.allow_threads().with(|| {
                 drop((list, &mut v, a));
             });
         });

@@ -702,7 +702,7 @@ mod tests {
             Python::with_gil(|py| {
                 assert!(gil_is_acquired());
 
-                py.allow_threads(move || {
+                py.allow_threads().with(move || {
                     assert!(!gil_is_acquired());
 
                     Python::with_gil(|_| assert!(gil_is_acquired()));
@@ -724,7 +724,7 @@ mod tests {
             let obj = get_object(py);
             assert!(obj.get_refcnt(py) == 1);
             // Clone the object without the GIL to use internal tracking
-            let escaped_ref = py.allow_threads(|| obj.clone());
+            let escaped_ref = py.allow_threads().with(|| obj.clone());
             // But after the block the refcounts are updated
             assert!(obj.get_refcnt(py) == 2);
             drop(escaped_ref);
@@ -820,7 +820,7 @@ mod tests {
                 })
             });
 
-            let cloned = py.allow_threads(|| {
+            let cloned = py.allow_threads().with(|| {
                 println!("2. The GIL has been released.");
 
                 // Wait until the GIL has been acquired on the thread.
