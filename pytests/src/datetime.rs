@@ -161,12 +161,12 @@ fn datetime_from_timestamp<'p>(
 
 #[pyfunction]
 fn get_datetime_tzinfo(dt: &PyDateTime) -> Option<Bound<'_, PyTzInfo>> {
-    dt.get_tzinfo()
+    dt.get_tzinfo_bound()
 }
 
 #[pyfunction]
 fn get_time_tzinfo(dt: &PyTime) -> Option<Bound<'_, PyTzInfo>> {
-    dt.get_tzinfo()
+    dt.get_tzinfo_bound()
 }
 
 #[pyclass(extends=PyTzInfo)]

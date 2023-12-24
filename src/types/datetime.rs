@@ -163,12 +163,21 @@ pub trait PyTimeAccess {
 
 /// Trait for accessing the components of a struct containing a tzinfo.
 pub trait PyTzInfoAccess<'py> {
+    /// Deprecated form of `get_tzinfo_bound`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "`get_tzinfo` will be replaced by `get_tzinfo_bound` in a future PyO3 version"
+    )]
+    fn get_tzinfo(&self) -> Option<&'py PyTzInfo> {
+        self.get_tzinfo_bound().map(Bound::into_gil_ref)
+    }
+
     /// Returns the tzinfo (which may be None).
     ///
     /// Implementations should conform to the upstream documentation:
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_TZINFO>
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_TIME_GET_TZINFO>
-    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>>;
+    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>>;
 }
 
 /// Bindings around `datetime.date`
@@ -413,13 +422,13 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 }
 
 impl<'py> PyTzInfoAccess<'py> for &'py PyDateTime {
-    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        Bound::borrowed_from_gil_ref(self).get_tzinfo()
+    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
+        Bound::borrowed_from_gil_ref(self).get_tzinfo_bound()
     }
 }
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
-    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
+    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
         unsafe {
             if (*ptr).hastzinfo != 0 {
@@ -543,13 +552,13 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 }
 
 impl<'py> PyTzInfoAccess<'py> for &'py PyTime {
-    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        Bound::borrowed_from_gil_ref(self).get_tzinfo()
+    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
+        Bound::borrowed_from_gil_ref(self).get_tzinfo_bound()
     }
 }
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
-    fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
+    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
         unsafe {
             if (*ptr).hastzinfo != 0 {
@@ -725,6 +734,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+    #[allow(deprecated)]
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
             let utc = timezone_utc(py);
