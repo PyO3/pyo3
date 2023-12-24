@@ -5,6 +5,40 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.20.* to 0.21
 
+PyO3 0.21 introduces a new `Bound<'py, T>` smart pointer which replaces the existing "GIL Refs" API to interact with Python objects. For example, in PyO3 0.20 the reference `&'py PyAny` would be used to interact with Python objects. In PyO3 0.21 the updated type is `Bound<'py, PyAny>`. Making this change moves Rust ownership semantics out of PyO3's internals and into user code. This change fixes [a known soundness edge case of interaction with gevent](https://github.com/PyO3/pyo3/issues/3668) as well as improves CPU and [memory performance](https://github.com/PyO3/pyo3/issues/1056). For a full history of discussion see https://github.com/PyO3/pyo3/issues/3382.
+
+The "GIL Ref" `&'py PyAny` and similar types such as `&'py PyDict` continue to be available as a deprecated API. Due to the advantages of the new API it is advised that all users make the effort to upgrade as soon as possible.
+
+In addition to the major API type overhaul, PyO3 has needed to make a few small breaking adjustments to other APIs to close correctness and soundness gaps.
+
+The recommended steps to update to PyO3 0.21 is as follows:
+  1. Add compatibility code to convert new `Bound<T>` smart pointers back to GIL Refs
+  2. Fix all other PyO3 0.21 migration steps
+  3. Incrementally replace usage of the GIL Refs API by `Bound<T>` smart pointers
+
+The following sections are laid out in this order.
+
+### APIs which now return `Bound<T>` instead of GIL Refs
+
+To make usage of `Bound<T>` the canonical way to use PyO3, a number of APIs have been changed to return `Bound<T>` smart pointers. For example, Python type constructors such as `PyList::new` now return `Bound<'py, PyList>` instead of `&'py PyList`.
+
+As a temporary backwards-compatibility shim, it is recommended to use `Bound::into_gil_ref` to convert these types back into GIL Refs to fix compilation errors while updating PyO3.
+
+Before:
+
+```rust,ignore
+let list: &PyList = PyList::new(py, &[1, 2, 3]);
+```
+
+After:
+
+```rust
+let list: &PyList = PyList::new(py, &[1, 2, 3]).into_gil_ref();
+```
+
+The exhaustive list of APIs migrated is:
+ - `PyTzInfoAccess::get_tzinfo`
+
 ### `PyTypeInfo` and `PyTryFrom` have been adjusted
 
 The `PyTryFrom` trait has aged poorly, its [`try_from`] method now conflicts with `try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
@@ -195,6 +229,10 @@ impl PyClassAsyncIter {
 ### `PyType::name` has been renamed to `PyType::qualname`
 
 `PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
+
+### Migrating from the GIL-Refs API to `Bound<T>`
+
+TODO
 
 ## from 0.19.* to 0.20
 
