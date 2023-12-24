@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{PyIterator, PyString},
-    IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    IntoPy, Py, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -107,7 +107,10 @@ impl Coroutine {
         if let Some(future) = self.waker.as_ref().unwrap().initialize_future(py)? {
             // `asyncio.Future` must be awaited; fortunately, it implements `__iter__ = __await__`
             // and will yield itself if its result has not been set in polling above
-            if let Some(future) = PyIterator::from_object(future).unwrap().next() {
+            if let Some(future) = PyIterator::from_bound_object(&future.as_borrowed())
+                .unwrap()
+                .next()
+            {
                 // future has not been leaked into Python for now, and Rust code can only call
                 // `set_result(None)` in `Wake` implementation, so it's safe to unwrap
                 return Ok(future.unwrap().into());

@@ -209,7 +209,7 @@ mod impl_ {
     impl<'py> BoundFrozenSetIterator<'py> {
         pub(super) fn new(frozenset: Bound<'py, PyFrozenSet>) -> Self {
             Self {
-                it: PyIterator::from_object2(&frozenset).unwrap(),
+                it: PyIterator::from_bound_object(&frozenset).unwrap(),
             }
         }
     }
