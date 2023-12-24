@@ -107,7 +107,7 @@ macro_rules! pyobject_native_type_base(
             {
                 match self.str() {
                     ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
-                    ::std::result::Result::Err(err) => err.write_unraisable(self.py(), ::std::option::Option::Some(self)),
+                    ::std::result::Result::Err(err) => err.write_unraisable_bound(self.py(), ::std::option::Option::Some($crate::Bound::borrowed_from_gil_ref(&self))),
                 }
 
                 match self.get_type().name() {

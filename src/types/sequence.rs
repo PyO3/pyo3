@@ -541,7 +541,10 @@ impl PyTypeCheck for PySequence {
             || get_sequence_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {
-                    err.write_unraisable(object.py(), Some(object));
+                    err.write_unraisable_bound(
+                        object.py(),
+                        Some(Bound::borrowed_from_gil_ref(&object)),
+                    );
                     false
                 })
     }
