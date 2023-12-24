@@ -400,16 +400,16 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     fn data(&self) -> *mut u8 {
-        Borrowed::from(self).data()
+        self.as_borrowed().data()
     }
 
     unsafe fn as_bytes(&self) -> &[u8] {
-        Borrowed::from(self).as_bytes()
+        self.as_borrowed().as_bytes()
     }
 
     #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        Borrowed::from(self).as_bytes_mut()
+        self.as_borrowed().as_bytes_mut()
     }
 
     fn to_vec(&self) -> Vec<u8> {

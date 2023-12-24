@@ -280,20 +280,20 @@ pub trait PyStringMethods<'py> {
 impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn to_str(&self) -> PyResult<&str> {
-        Borrowed::from(self).to_str()
+        self.as_borrowed().to_str()
     }
 
     fn to_cow(&self) -> PyResult<Cow<'_, str>> {
-        Borrowed::from(self).to_cow()
+        self.as_borrowed().to_cow()
     }
 
     fn to_string_lossy(&self) -> Cow<'_, str> {
-        Borrowed::from(self).to_string_lossy()
+        self.as_borrowed().to_string_lossy()
     }
 
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
-        Borrowed::from(self).data()
+        self.as_borrowed().data()
     }
 }
 

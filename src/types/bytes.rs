@@ -107,7 +107,7 @@ pub trait PyBytesMethods<'py> {
 impl<'py> PyBytesMethods<'py> for Bound<'py, PyBytes> {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
-        Borrowed::from(self).as_bytes()
+        self.as_borrowed().as_bytes()
     }
 }
 

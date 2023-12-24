@@ -197,6 +197,15 @@ impl<'py, T> Bound<'py, T> {
         self.into_non_null().as_ptr()
     }
 
+    /// Casts this `Bound<T>` to a `Borrowed<T>` smart pointer.
+    pub fn as_borrowed<'a>(&'a self) -> Borrowed<'a, 'py, T> {
+        Borrowed(
+            unsafe { NonNull::new_unchecked(self.as_ptr()) },
+            PhantomData,
+            self.py(),
+        )
+    }
+
     /// Casts this `Bound<T>` as the corresponding "GIL Ref" type.
     ///
     /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
@@ -300,11 +309,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
 impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {
     /// Create borrow on a Bound
     fn from(instance: &'a Bound<'py, T>) -> Self {
-        Self(
-            unsafe { NonNull::new_unchecked(instance.as_ptr()) },
-            PhantomData,
-            instance.py(),
-        )
+        instance.as_borrowed()
     }
 }
 
