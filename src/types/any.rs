@@ -2193,7 +2193,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[cfg(not(PyPy))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
-        PySuper::new2(Bound::borrowed_from_gil_ref(&self.get_type()), self)
+        PySuper::new_bound(Bound::borrowed_from_gil_ref(&self.get_type()), self)
     }
 }
 
