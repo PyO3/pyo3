@@ -1,4 +1,5 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::{
     ffi, AsPyPointer, Bound, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, PyTypeCheck,
@@ -56,18 +57,48 @@ impl<'p> Iterator for &'p PyIterator {
     /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
     fn next(&mut self) -> Option<Self::Item> {
-        let py = self.0.py();
-
-        match unsafe { py.from_owned_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) } {
-            Some(obj) => Some(Ok(obj)),
-            None => PyErr::take(py).map(Err),
-        }
+        Borrowed::<PyIterator>::from_gil_ref(self)
+            .next()
+            .map(|result| result.map(Bound::into_gil_ref))
     }
 
     #[cfg(not(Py_LIMITED_API))]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let hint = unsafe { ffi::PyObject_LengthHint(self.0.as_ptr(), 0) };
+        Bound::borrowed_from_gil_ref(self).size_hint()
+    }
+}
+
+impl<'py> Iterator for Bound<'py, PyIterator> {
+    type Item = PyResult<Bound<'py, PyAny>>;
+
+    /// Retrieves the next item from an iterator.
+    ///
+    /// Returns `None` when the iterator is exhausted.
+    /// If an exception occurs, returns `Some(Err(..))`.
+    /// Further `next()` calls after an exception occurs are likely
+    /// to repeatedly result in the same exception.
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        Borrowed::from(&*self).next()
+    }
+
+    #[cfg(not(Py_LIMITED_API))]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let hint = unsafe { ffi::PyObject_LengthHint(self.as_ptr(), 0) };
         (hint.max(0) as usize, None)
+    }
+}
+
+impl<'py> Borrowed<'_, 'py, PyIterator> {
+    // TODO: this method is on Borrowed so that &'py PyIterator can use this; once that
+    // implementation is deleted this method should be moved to the `Bound<'py, PyIterator> impl
+    fn next(self) -> Option<PyResult<Bound<'py, PyAny>>> {
+        let py = self.py();
+
+        match unsafe { ffi::PyIter_Next(self.as_ptr()).assume_owned_or_opt(py) } {
+            Some(obj) => Some(Ok(obj)),
+            None => PyErr::take(py).map(Err),
+        }
     }
 }
 
