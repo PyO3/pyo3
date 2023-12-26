@@ -219,6 +219,7 @@ about this topic.
 
 ## Articles and other media
 
+- [(Video) Extending Python with Rust using PyO3](https://www.youtube.com/watch?v=T45ZEmSR1-s) - Dec 16, 2023
 - [A Week of PyO3 + rust-numpy (How to Speed Up Your Data Pipeline X Times)](https://terencezl.github.io/blog/2023/06/06/a-week-of-pyo3-rust-numpy/) - Jun 6, 2023
 - [(Podcast) PyO3 with David Hewitt](https://rustacean-station.org/episode/david-hewitt/) - May 19, 2023
 - [Making Python 100x faster with less than 100 lines of Rust](https://ohadravid.github.io/posts/2023-03-rusty-python/) - Mar 28, 2023
