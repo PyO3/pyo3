@@ -60,9 +60,12 @@ pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyT
 impl PyTuple {
     /// Deprecated form of `PyTuple::new_bound`.
     #[track_caller]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyTuple::new` will be replaced by `PyTuple::new_bound` in a future PyO3 version"
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyTuple::new` will be replaced by `PyTuple::new_bound` in a future PyO3 version"
+        )
     )]
     pub fn new<T, U>(
         py: Python<'_>,
@@ -115,9 +118,12 @@ impl PyTuple {
     }
 
     /// Deprecated form of `PyTuple::empty_bound`.
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyTuple::empty` will be replaced by `PyTuple::empty_bound` in a future PyO3 version"
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyTuple::empty` will be replaced by `PyTuple::empty_bound` in a future PyO3 version"
+        )
     )]
     pub fn empty(py: Python<'_>) -> &PyTuple {
         Self::empty_bound(py).into_gil_ref()
@@ -361,7 +367,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     }
 
     fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>> {
-        Borrowed::from(self).get_borrowed_item(index)
+        self.as_borrowed().get_borrowed_item(index)
     }
 
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
@@ -371,7 +377,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        Borrowed::from(self).get_borrowed_item_unchecked(index)
+        self.as_borrowed().get_borrowed_item_unchecked(index)
     }
 
     #[cfg(not(Py_LIMITED_API))]
@@ -406,7 +412,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     }
 
     fn iter_borrowed<'a>(&'a self) -> BorrowedTupleIterator<'a, 'py> {
-        BorrowedTupleIterator::new(Borrowed::from(self))
+        BorrowedTupleIterator::new(self.as_borrowed())
     }
 
     fn to_list(&self) -> Bound<'py, PyList> {
@@ -496,7 +502,7 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
             let item = unsafe {
-                BorrowedTupleIterator::get_item(Borrowed::from(&self.tuple), self.index).to_owned()
+                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), self.index).to_owned()
             };
             self.index += 1;
             Some(item)
@@ -517,7 +523,7 @@ impl<'py> DoubleEndedIterator for BoundTupleIterator<'py> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
             let item = unsafe {
-                BorrowedTupleIterator::get_item(Borrowed::from(&self.tuple), self.length - 1)
+                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), self.length - 1)
                     .to_owned()
             };
             self.length -= 1;
@@ -797,7 +803,7 @@ tuple_conversion!(
 #[cfg(test)]
 #[allow(deprecated)] // TODO: remove allow when GIL Pool is removed
 mod tests {
-    use crate::types::{PyAny, PyList, PyTuple};
+    use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyAny, PyList, PyTuple};
     use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
@@ -822,8 +828,18 @@ mod tests {
             let ob = (1, 2, 3).to_object(py);
             let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(3, tuple.len());
+            assert!(!tuple.is_empty());
             let ob: &PyAny = tuple.into();
             assert_eq!((1, 2, 3), ob.extract().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_empty() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::empty(py);
+            assert!(tuple.is_empty());
+            assert_eq!(0, tuple.len());
         });
     }
 
@@ -867,6 +883,52 @@ mod tests {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
             let tuple: &PyTuple = ob.downcast(py).unwrap();
+            assert_eq!(3, tuple.len());
+            let mut iter = tuple.iter().rev();
+
+            assert_eq!(iter.size_hint(), (3, Some(3)));
+
+            assert_eq!(3_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (2, Some(2)));
+
+            assert_eq!(2_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (1, Some(1)));
+
+            assert_eq!(1_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+
+            assert!(iter.next().is_none());
+            assert!(iter.next().is_none());
+        });
+    }
+
+    #[test]
+    fn test_bound_iter() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new_bound(py, [1, 2, 3]);
+            assert_eq!(3, tuple.len());
+            let mut iter = tuple.iter();
+
+            assert_eq!(iter.size_hint(), (3, Some(3)));
+
+            assert_eq!(1_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (2, Some(2)));
+
+            assert_eq!(2_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (1, Some(1)));
+
+            assert_eq!(3_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+
+            assert!(iter.next().is_none());
+            assert!(iter.next().is_none());
+        });
+    }
+
+    #[test]
+    fn test_bound_iter_rev() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new_bound(py, [1, 2, 3]);
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter().rev();
 
@@ -1306,6 +1368,52 @@ mod tests {
             let list = tuple.to_list();
             let list_expected = PyList::new(py, vec![1, 2, 3]);
             assert!(list.eq(list_expected).unwrap());
+        })
+    }
+
+    #[test]
+    fn test_tuple_as_sequence() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new(py, vec![1, 2, 3]);
+            let sequence = tuple.as_sequence();
+            assert!(tuple.get_item(0).unwrap().eq(1).unwrap());
+            assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
+
+            assert_eq!(tuple.len(), 3);
+            assert_eq!(sequence.len().unwrap(), 3);
+        })
+    }
+
+    #[test]
+    fn test_bound_tuple_get_item() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new_bound(py, vec![1, 2, 3, 4]);
+
+            assert_eq!(tuple.len(), 4);
+            assert_eq!(tuple.get_item(0).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(
+                tuple
+                    .get_borrowed_item(1)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                2
+            );
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            {
+                assert_eq!(
+                    unsafe { tuple.get_item_unchecked(2) }
+                        .extract::<i32>()
+                        .unwrap(),
+                    3
+                );
+                assert_eq!(
+                    unsafe { tuple.get_borrowed_item_unchecked(3) }
+                        .extract::<i32>()
+                        .unwrap(),
+                    4
+                );
+            }
         })
     }
 }
