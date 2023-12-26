@@ -626,15 +626,6 @@ impl<'py> BoundDictIterator<'py> {
     }
 }
 
-impl<'py> IntoIterator for &'_ Bound<'py, PyDict> {
-    type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
-    type IntoIter = BoundDictIterator<'py>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 impl<'py> IntoIterator for Bound<'py, PyDict> {
     type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
     type IntoIter = BoundDictIterator<'py>;

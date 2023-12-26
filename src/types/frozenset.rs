@@ -197,16 +197,6 @@ impl<'py> IntoIterator for Bound<'py, PyFrozenSet> {
     }
 }
 
-impl<'py> IntoIterator for &'_ Bound<'py, PyFrozenSet> {
-    type Item = Bound<'py, PyAny>;
-    type IntoIter = BoundFrozenSetIterator<'py>;
-
-    /// Returns an iterator of values in this set.
-    fn into_iter(self) -> Self::IntoIter {
-        BoundFrozenSetIterator::new(self.clone())
-    }
-}
-
 #[cfg(Py_LIMITED_API)]
 mod impl_ {
     use super::*;

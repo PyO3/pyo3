@@ -277,20 +277,6 @@ impl<'py> IntoIterator for Bound<'py, PySet> {
     }
 }
 
-impl<'py> IntoIterator for &'_ Bound<'py, PySet> {
-    type Item = Bound<'py, PyAny>;
-    type IntoIter = BoundSetIterator<'py>;
-
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    fn into_iter(self) -> Self::IntoIter {
-        BoundSetIterator::new(self.clone())
-    }
-}
-
 #[cfg(Py_LIMITED_API)]
 mod impl_ {
     use super::*;
