@@ -622,6 +622,12 @@ impl<'a, 'py> ExactSizeIterator for BorrowedTupleIterator<'a, 'py> {
 
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
+impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
+    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
+        self.unbind()
+    }
+}
+
 #[cold]
 fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!(
