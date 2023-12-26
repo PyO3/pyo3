@@ -94,7 +94,7 @@ impl PySet {
 
     /// Removes and returns an arbitrary element from the set.
     pub fn pop(&self) -> Option<PyObject> {
-        self.as_borrowed().pop().map(Py::from)
+        self.as_borrowed().pop().map(Bound::unbind)
     }
 
     /// Returns an iterator of values in this set.

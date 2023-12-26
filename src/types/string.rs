@@ -435,13 +435,13 @@ impl Py<PyString> {
 
 impl IntoPy<Py<PyString>> for Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
-        self.into()
+        self.unbind()
     }
 }
 
 impl IntoPy<Py<PyString>> for &Bound<'_, PyString> {
     fn into_py(self, _py: Python<'_>) -> Py<PyString> {
-        self.clone().into()
+        self.clone().unbind()
     }
 }
 

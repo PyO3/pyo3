@@ -206,6 +206,14 @@ impl<'py, T> Bound<'py, T> {
         )
     }
 
+    /// Removes the connection for this `Bound<T>` from the GIL, allowing
+    /// it to cross thread boundaries.
+    pub fn unbind(self) -> Py<T> {
+        // Safety: the type T is known to be correct and the ownership of the
+        // pointer is transferred to the new Py<T> instance.
+        unsafe { Py::from_non_null(self.into_non_null()) }
+    }
+
     /// Casts this `Bound<T>` as the corresponding "GIL Ref" type.
     ///
     /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
@@ -973,7 +981,7 @@ impl<T> Py<T> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        self.bind(py).as_any().getattr(attr_name).map(Into::into)
+        self.bind(py).as_any().getattr(attr_name).map(Bound::unbind)
     }
 
     /// Sets an attribute value.
@@ -1017,21 +1025,21 @@ impl<T> Py<T> {
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
-        self.bind(py).as_any().call(args, kwargs).map(Into::into)
+        self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
     }
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
     pub fn call1(&self, py: Python<'_>, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
-        self.bind(py).as_any().call1(args).map(Into::into)
+        self.bind(py).as_any().call1(args).map(Bound::unbind)
     }
 
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self, py: Python<'_>) -> PyResult<PyObject> {
-        self.bind(py).as_any().call0().map(Into::into)
+        self.bind(py).as_any().call0().map(Bound::unbind)
     }
 
     /// Calls a method on the object.
@@ -1054,7 +1062,7 @@ impl<T> Py<T> {
         self.bind(py)
             .as_any()
             .call_method(name, args, kwargs)
-            .map(Into::into)
+            .map(Bound::unbind)
     }
 
     /// Calls a method on the object with only positional arguments.
@@ -1071,7 +1079,7 @@ impl<T> Py<T> {
         self.bind(py)
             .as_any()
             .call_method1(name, args)
-            .map(Into::into)
+            .map(Bound::unbind)
     }
 
     /// Calls a method on the object with no arguments.
@@ -1084,7 +1092,7 @@ impl<T> Py<T> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        self.bind(py).as_any().call_method0(name).map(Into::into)
+        self.bind(py).as_any().call_method0(name).map(Bound::unbind)
     }
 
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
@@ -1292,7 +1300,7 @@ where
 impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     #[inline]
     fn from(other: Bound<'_, T>) -> Self {
-        unsafe { Self::from_non_null(other.into_non_null()) }
+        other.unbind()
     }
 }
 
@@ -1618,7 +1626,7 @@ a = A()
                 .as_borrowed()
                 .to_owned();
             let ptr = instance.as_ptr();
-            let instance: PyObject = instance.clone().into();
+            let instance: PyObject = instance.clone().unbind();
             assert_eq!(instance.as_ptr(), ptr);
         })
     }
