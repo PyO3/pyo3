@@ -162,11 +162,11 @@ pub struct Tuple(String, usize);
 #[test]
 fn test_tuple_struct() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, &[1.into_py(py), "test".into_py(py)]);
-        let tup = Tuple::extract(tup.as_ref());
+        let tup = PyTuple::new_bound(py, &[1.into_py(py), "test".into_py(py)]);
+        let tup = Tuple::extract(tup.as_gil_ref());
         assert!(tup.is_err());
-        let tup = PyTuple::new(py, &["test".into_py(py), 1.into_py(py)]);
-        let tup = Tuple::extract(tup.as_ref()).expect("Failed to extract Tuple from PyTuple");
+        let tup = PyTuple::new_bound(py, &["test".into_py(py), 1.into_py(py)]);
+        let tup = Tuple::extract(tup.as_gil_ref()).expect("Failed to extract Tuple from PyTuple");
         assert_eq!(tup.0, "test");
         assert_eq!(tup.1, 1);
     });
@@ -324,8 +324,8 @@ pub struct PyBool {
 #[test]
 fn test_enum() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, &[1.into_py(py), "test".into_py(py)]);
-        let f = Foo::extract(tup.as_ref()).expect("Failed to extract Foo from tuple");
+        let tup = PyTuple::new_bound(py, &[1.into_py(py), "test".into_py(py)]);
+        let f = Foo::extract(tup.as_gil_ref()).expect("Failed to extract Foo from tuple");
         match f {
             Foo::TupleVar(test, test2) => {
                 assert_eq!(test, 1);
@@ -401,8 +401,8 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 - variant StructWithGetItemArg (StructWithGetItemArg): KeyError: 'foo'"
         );
 
-        let tup = PyTuple::empty(py);
-        let err = Foo::extract(tup.as_ref()).unwrap_err();
+        let tup = PyTuple::empty_bound(py);
+        let err = Foo::extract(tup.as_gil_ref()).unwrap_err();
         assert_eq!(
             err.to_string(),
             "\

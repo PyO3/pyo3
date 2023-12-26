@@ -181,7 +181,7 @@ struct RustyTuple(String, String);
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new(py, vec!["test", "test2"]);
+#         let tuple = PyTuple::new_bound(py, vec!["test", "test2"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!(rustytuple.0, "test");
@@ -204,7 +204,7 @@ struct RustyTuple((String,));
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new(py, vec!["test"]);
+#         let tuple = PyTuple::new_bound(py, vec!["test"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!((rustytuple.0).0, "test");
@@ -482,7 +482,7 @@ If the input is neither a string nor an integer, the error message will be:
     - retrieve the field from a mapping, possibly with the custom key specified as an argument.
     - can be any literal that implements `ToBorrowedObject`
 - `pyo3(from_py_with = "...")`
-    - apply a custom function to convert the field from Python the desired Rust type. 
+    - apply a custom function to convert the field from Python the desired Rust type.
     - the argument must be the name of the function as a string.
     - the function signature must be `fn(&PyAny) -> PyResult<T>` where `T` is the Rust type of the argument.
 

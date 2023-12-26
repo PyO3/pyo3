@@ -58,6 +58,23 @@ pub struct PyTuple(PyAny);
 pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), #checkfunction=ffi::PyTuple_Check);
 
 impl PyTuple {
+    /// Deprecated form of `PyTuple::new_bound`.
+    #[track_caller]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTuple::new` will be replaced by `PyTuple::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<T, U>(
+        py: Python<'_>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> &PyTuple
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        Self::new_bound(py, elements).into_gil_ref()
+    }
+
     /// Constructs a new tuple with the given elements.
     ///
     /// If you want to create a [`PyTuple`] with elements of different or unknown types, or from an
@@ -73,7 +90,7 @@ impl PyTuple {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
-    ///     let tuple: &PyTuple = PyTuple::new(py, elements);
+    ///     let tuple = PyTuple::new_bound(py, elements);
     ///     assert_eq!(format!("{:?}", tuple), "(0, 1, 2, 3, 4, 5)");
     /// });
     /// # }
@@ -85,21 +102,34 @@ impl PyTuple {
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function using [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
-    pub fn new<T, U>(
+    pub fn new_bound<T, U>(
         py: Python<'_>,
         elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> &PyTuple
+    ) -> Bound<'_, PyTuple>
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
         let mut elements = elements.into_iter().map(|e| e.to_object(py));
-        new_from_iter(py, &mut elements).into_gil_ref()
+        new_from_iter(py, &mut elements)
+    }
+
+    /// Deprecated form of `PyTuple::empty_bound`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTuple::empty` will be replaced by `PyTuple::empty_bound` in a future PyO3 version"
+    )]
+    pub fn empty(py: Python<'_>) -> &PyTuple {
+        Self::empty_bound(py).into_gil_ref()
     }
 
     /// Constructs an empty tuple (on the Python side, a singleton object).
-    pub fn empty(py: Python<'_>) -> &PyTuple {
-        unsafe { py.from_owned_ptr(ffi::PyTuple_New(0)) }
+    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
+        unsafe {
+            ffi::PyTuple_New(0)
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Gets the length of the tuple.
@@ -765,6 +795,7 @@ tuple_conversion!(
 );
 
 #[cfg(test)]
+#[allow(deprecated)] // TODO: remove allow when GIL Pool is removed
 mod tests {
     use crate::types::{PyAny, PyList, PyTuple};
     use crate::{Python, ToPyObject};
