@@ -1,6 +1,21 @@
 //! Synchronization mechanisms based on the Python GIL.
-use crate::{types::PyString, types::PyType, Py, PyResult, PyVisit, Python};
-use std::cell::UnsafeCell;
+use std::{
+    cell::UnsafeCell,
+    mem::{replace, transmute},
+    panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
+    sync::Arc,
+    thread::Builder,
+    time::Duration,
+};
+
+use parking_lot::{Condvar, Mutex};
+
+use crate::{
+    gil::SuspendGIL,
+    impl_::panic::PanicTrap,
+    types::{PyString, PyType},
+    Py, PyResult, PyVisit, Python,
+};
 
 /// Value with concurrent access protected by the GIL.
 ///
@@ -263,6 +278,247 @@ impl Interned {
         self.1
             .get_or_init(py, || PyString::intern(py, self.0).into())
             .as_ref(py)
+    }
+}
+
+/// TODO
+pub struct RemoteAllowThreads<'py>(pub(crate) Python<'py>);
+
+impl<'py> RemoteAllowThreads<'py> {
+    /// TODO
+    ///
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn local(self) -> LocalAllowThreads<'py> {
+        LocalAllowThreads(self.0)
+    }
+
+    /// TODO
+    ///
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn local_unconstrained(self) -> LocalUnconstrainedAllowThreads<'py> {
+        LocalUnconstrainedAllowThreads(self.0)
+    }
+
+    /// TODO
+    pub fn with<T, F>(self, f: F) -> T
+    where
+        F: Send + FnOnce() -> T,
+        T: Send,
+    {
+        // Use a guard pattern to handle reacquiring the GIL,
+        // so that the GIL will be reacquired even if `f` panics.
+        // The `Send` bound on the closure prevents the user from
+        // transferring the `Python` token into the closure.
+        let _guard = unsafe { SuspendGIL::new() };
+
+        // To close soundness loopholes w.r.t. `send_wrapper` or `scoped-tls`,
+        // we run the closure on a separate thread so that it cannot
+        // access thread-local storage from the current thread.
+
+        // 1. Construct a task
+        let mut f = Some(f);
+        let mut result = None;
+
+        let mut task = || {
+            let f = f
+                .take()
+                .expect("allow_threads closure called more than once");
+
+            result = Some(catch_unwind(AssertUnwindSafe(f)));
+        };
+
+        // SAFETY: the current thread will block until the closure has returned
+        let task = Task(unsafe { transmute(&mut task as &mut (dyn FnMut() + '_)) });
+
+        // 2. Dispatch task to waiting thread, spawn new thread if necessary
+        let trap = PanicTrap::new(
+            "allow_threads panicked while stack data was accessed by another thread, please report this as a bug at https://github.com/PyO3/pyo3/issues",
+        );
+
+        thread_local! {
+            static MAILBOX: Arc<Mailbox> = Arc::new(Mailbox::new());
+        }
+
+        MAILBOX.with(|mailbox| {
+            if let Some(task) = mailbox.send_task(task) {
+                let mailbox = Arc::clone(mailbox);
+
+                mailbox.init(task);
+
+                Builder::new()
+                    .name("pyo3 allow_threads runtime".to_owned())
+                    .spawn(move || {
+                        while let Some(task) = mailbox.recv_task() {
+                            // SAFETY: all data accessed by `task` will stay alive until it completes
+                            unsafe { (*task.0)() };
+
+                            mailbox.signal_done();
+                        }
+                    })
+                    .expect("failed to create allow_threads runtime thread");
+            }
+
+            // 3. Wait for completion and check result
+            mailbox.await_done();
+        });
+
+        trap.disarm();
+
+        match result.expect("allow_threads runtime thread did not set result") {
+            Ok(result) => result,
+            Err(payload) => resume_unwind(payload),
+        }
+    }
+}
+
+/// TODO
+pub struct LocalAllowThreads<'py>(Python<'py>);
+
+impl LocalAllowThreads<'_> {
+    /// TODO
+    pub fn with<T, F>(self, f: F) -> T
+    where
+        F: Send + FnOnce() -> T,
+        T: Send,
+    {
+        // Use a guard pattern to handle reacquiring the GIL,
+        // so that the GIL will be reacquired even if `f` panics.
+        // The `Send` bound on the closure prevents the user from
+        // transferring the `Python` token into the closure.
+        let _guard = unsafe { SuspendGIL::new() };
+
+        f()
+    }
+}
+
+/// TODO
+pub struct LocalUnconstrainedAllowThreads<'py>(Python<'py>);
+
+impl LocalUnconstrainedAllowThreads<'_> {
+    /// TODO
+    pub fn with<T, F>(self, f: F) -> T
+    where
+        F: FnOnce() -> T,
+    {
+        // Use a guard pattern to handle reacquiring the GIL,
+        // so that the GIL will be reacquired even if `f` panics.
+        let _guard = unsafe { SuspendGIL::new() };
+
+        f()
+    }
+}
+
+struct Task(*mut (dyn FnMut() + 'static));
+
+unsafe impl Send for Task {}
+
+enum MailboxInner {
+    Empty,
+    Task(Task),
+    Working,
+    Done,
+    Abandoned,
+}
+
+struct Mailbox {
+    inner: Mutex<MailboxInner>,
+    flag: Condvar,
+}
+
+impl Mailbox {
+    fn new() -> Self {
+        Self {
+            inner: Mutex::new(MailboxInner::Abandoned),
+            flag: Condvar::new(),
+        }
+    }
+
+    fn init(&self, task: Task) {
+        use MailboxInner::*;
+        let mut inner = self.inner.lock();
+        match &*inner {
+            Abandoned => *inner = MailboxInner::Task(task),
+            Empty | Task(_) | Working | Done => {
+                unreachable!("initializing existing worker")
+            }
+        }
+    }
+
+    fn send_task(&self, task: Task) -> Option<Task> {
+        use MailboxInner::*;
+        let mut inner = self.inner.lock();
+        match &*inner {
+            Empty => {
+                *inner = Task(task);
+                drop(inner);
+                self.flag.notify_one();
+                None
+            }
+            Abandoned => Some(task),
+            Task(_) | Working | Done => unreachable!("sent task to active worker"),
+        }
+    }
+
+    fn recv_task(&self) -> Option<Task> {
+        use MailboxInner::*;
+        let mut inner = self.inner.lock();
+        loop {
+            match &*inner {
+                Empty | Done => {
+                    if self
+                        .flag
+                        .wait_for(&mut inner, Duration::from_secs(60))
+                        .timed_out()
+                    {
+                        *inner = Abandoned;
+                        return None;
+                    }
+                }
+                Task(_) => match replace(&mut *inner, Working) {
+                    Task(task) => return Some(task),
+                    _ => unreachable!(),
+                },
+                Working | Abandoned => {
+                    unreachable!("received task on active or exited worker")
+                }
+            }
+        }
+    }
+
+    fn signal_done(&self) {
+        use MailboxInner::*;
+        let mut inner = self.inner.lock();
+        match &*inner {
+            Working => {
+                *inner = Done;
+                drop(inner);
+                self.flag.notify_one();
+            }
+            Empty | Task(_) | Done | Abandoned => {
+                unreachable!("signalled completion on inactive worker")
+            }
+        }
+    }
+
+    fn await_done(&self) {
+        use MailboxInner::*;
+        let mut inner = self.inner.lock();
+        loop {
+            match &*inner {
+                Done => {
+                    *inner = Empty;
+                    return;
+                }
+                Task(_) | Working => self.flag.wait(&mut inner),
+                Empty | Abandoned => {
+                    unreachable!("awaited completion from inactive worker")
+                }
+            }
+        }
     }
 }
 

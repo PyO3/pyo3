@@ -52,6 +52,7 @@ chrono = { version = "0.4.25" }
 trybuild = ">=1.0.70"
 proptest = { version = "1.0", default-features = false, features = ["std"] }
 send_wrapper = "0.6"
+scoped-tls = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 rayon = "1.6.1"
@@ -95,9 +96,6 @@ generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 
 # Changes `Python::with_gil` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
-
-# Optimizes PyObject to Vec conversion and so on.
-nightly = []
 
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.

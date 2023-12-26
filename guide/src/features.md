@@ -81,10 +81,6 @@ Most users should only need a single `#[pymethods]` per `#[pyclass]`. In additio
 
 See [the `#[pyclass]` implementation details](class.md#implementation-details) for more information.
 
-### `nightly`
-
-The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::allow_threads` function.
-
 ### `resolve-config`
 
 The `resolve-config` feature of the `pyo3-build-config` crate controls whether that crate's

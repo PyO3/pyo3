@@ -75,6 +75,10 @@ Python::with_gil(|py| {
 });
 ```
 
+### `Python::allow_threads` was split into `Python::safe_allow_threads` and `Python::unsafe_allow_threads`
+
+TODO
+
 ### `Iter(A)NextOutput` are deprecated
 
 The `__next__` and `__anext__` magic methods can now return any type convertible into Python objects directly just like all other `#[pymethods]`. The `IterNextOutput` used by `__next__` and `IterANextOutput` used by `__anext__` are subsequently deprecated. Most importantly, this change allows returning an awaitable from `__anext__` without non-sensically wrapping it into `Yield` or `Some`. Only the return types `Option<T>` and `Result<Option<T>, E>` are still handled in a special manner where `Some(val)` yields `val` and `None` stops iteration.
