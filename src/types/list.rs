@@ -657,15 +657,6 @@ impl ExactSizeIterator for BoundListIterator<'_> {
 
 impl FusedIterator for BoundListIterator<'_> {}
 
-impl<'a, 'py> IntoIterator for &'a Bound<'py, PyList> {
-    type Item = Bound<'py, PyAny>;
-    type IntoIter = BoundListIterator<'py>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 impl<'py> IntoIterator for Bound<'py, PyList> {
     type Item = Bound<'py, PyAny>;
     type IntoIter = BoundListIterator<'py>;

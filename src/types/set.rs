@@ -2,7 +2,9 @@
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
-    Py,
+    ffi_ptr_ext::FfiPtrExt,
+    instance::Bound,
+    Py, PyNativeType,
 };
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
@@ -46,9 +48,7 @@ impl PySet {
     /// Removes all elements from the set.
     #[inline]
     pub fn clear(&self) {
-        unsafe {
-            ffi::PySet_Clear(self.as_ptr());
-        }
+        self.as_borrowed().clear()
     }
 
     /// Returns the number of items in the set.
@@ -56,12 +56,12 @@ impl PySet {
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> usize {
-        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
+        self.as_borrowed().len()
     }
 
     /// Checks if set is empty.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.as_borrowed().is_empty()
     }
 
     /// Determines if the set contains the specified key.
@@ -71,15 +71,7 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        fn inner(set: &PySet, key: PyObject) -> PyResult<bool> {
-            match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(set.py())),
-            }
-        }
-
-        inner(self, key.to_object(self.py()))
+        self.as_borrowed().contains(key)
     }
 
     /// Removes the element from the set if it is present.
@@ -89,15 +81,7 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        fn inner(set: &PySet, key: PyObject) -> PyResult<bool> {
-            match unsafe { ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(set.py())),
-            }
-        }
-
-        inner(self, key.to_object(self.py()))
+        self.as_borrowed().discard(key)
     }
 
     /// Adds an element to the set.
@@ -105,23 +89,12 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        fn inner(set: &PySet, key: PyObject) -> PyResult<()> {
-            err::error_on_minusone(set.py(), unsafe {
-                ffi::PySet_Add(set.as_ptr(), key.as_ptr())
-            })
-        }
-
-        inner(self, key.to_object(self.py()))
+        self.as_borrowed().add(key)
     }
 
     /// Removes and returns an arbitrary element from the set.
     pub fn pop(&self) -> Option<PyObject> {
-        let element =
-            unsafe { PyObject::from_owned_ptr_or_err(self.py(), ffi::PySet_Pop(self.as_ptr())) };
-        match element {
-            Ok(e) => Some(e),
-            Err(_) => None,
-        }
+        self.as_borrowed().pop().map(Bound::unbind)
     }
 
     /// Returns an iterator of values in this set.
@@ -130,7 +103,177 @@ impl PySet {
     ///
     /// If PyO3 detects that the set is mutated during iteration, it will panic.
     pub fn iter(&self) -> PySetIterator<'_> {
-        IntoIterator::into_iter(self)
+        PySetIterator(BoundSetIterator::new(self.as_borrowed().to_owned()))
+    }
+}
+
+/// Implementation of functionality for [`PySet`].
+///
+/// These methods are defined for the `Bound<'py, PySet>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PySet")]
+pub trait PySetMethods<'py> {
+    /// Removes all elements from the set.
+    fn clear(&self);
+
+    /// Returns the number of items in the set.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
+    fn len(&self) -> usize;
+
+    /// Checks if set is empty.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Determines if the set contains the specified key.
+    ///
+    /// This is equivalent to the Python expression `key in self`.
+    fn contains<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToPyObject;
+
+    /// Removes the element from the set if it is present.
+    ///
+    /// Returns `true` if the element was present in the set.
+    fn discard<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToPyObject;
+
+    /// Adds an element to the set.
+    fn add<K>(&self, key: K) -> PyResult<()>
+    where
+        K: ToPyObject;
+
+    /// Removes and returns an arbitrary element from the set.
+    fn pop(&self) -> Option<Bound<'py, PyAny>>;
+
+    /// Returns an iterator of values in this set.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
+    fn iter(&self) -> BoundSetIterator<'py>;
+}
+
+impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
+    #[inline]
+    fn clear(&self) {
+        unsafe {
+            ffi::PySet_Clear(self.as_ptr());
+        }
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
+    }
+
+    fn contains<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToPyObject,
+    {
+        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+            match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
+                1 => Ok(true),
+                0 => Ok(false),
+                _ => Err(PyErr::fetch(set.py())),
+            }
+        }
+
+        let py = self.py();
+        inner(self, key.to_object(py).into_bound(py))
+    }
+
+    fn discard<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToPyObject,
+    {
+        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<bool> {
+            match unsafe { ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) } {
+                1 => Ok(true),
+                0 => Ok(false),
+                _ => Err(PyErr::fetch(set.py())),
+            }
+        }
+
+        let py = self.py();
+        inner(self, key.to_object(py).into_bound(py))
+    }
+
+    fn add<K>(&self, key: K) -> PyResult<()>
+    where
+        K: ToPyObject,
+    {
+        fn inner(set: &Bound<'_, PySet>, key: Bound<'_, PyAny>) -> PyResult<()> {
+            err::error_on_minusone(set.py(), unsafe {
+                ffi::PySet_Add(set.as_ptr(), key.as_ptr())
+            })
+        }
+
+        let py = self.py();
+        inner(self, key.to_object(py).into_bound(py))
+    }
+
+    fn pop(&self) -> Option<Bound<'py, PyAny>> {
+        let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
+        match element {
+            Ok(e) => Some(e),
+            Err(_) => None,
+        }
+    }
+
+    fn iter(&self) -> BoundSetIterator<'py> {
+        BoundSetIterator::new(self.clone())
+    }
+}
+
+/// PyO3 implementation of an iterator for a Python `set` object.
+pub struct PySetIterator<'py>(BoundSetIterator<'py>);
+
+impl<'py> Iterator for PySetIterator<'py> {
+    type Item = &'py super::PyAny;
+
+    /// Advances the iterator and returns the next value.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(Bound::into_gil_ref)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<'py> IntoIterator for &'py PySet {
+    type Item = &'py PyAny;
+    type IntoIter = PySetIterator<'py>;
+    /// Returns an iterator of values in this set.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
+    fn into_iter(self) -> Self::IntoIter {
+        PySetIterator(BoundSetIterator::new(self.as_borrowed().to_owned()))
+    }
+}
+
+impl<'py> IntoIterator for Bound<'py, PySet> {
+    type Item = Bound<'py, PyAny>;
+    type IntoIter = BoundSetIterator<'py>;
+
+    /// Returns an iterator of values in this set.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
+    fn into_iter(self) -> Self::IntoIter {
+        BoundSetIterator::new(self)
     }
 }
 
@@ -138,29 +281,21 @@ impl PySet {
 mod impl_ {
     use super::*;
 
-    impl<'a> std::iter::IntoIterator for &'a PySet {
-        type Item = &'a PyAny;
-        type IntoIter = PySetIterator<'a>;
+    /// PyO3 implementation of an iterator for a Python `set` object.
+    pub struct BoundSetIterator<'p> {
+        it: Bound<'p, PyIterator>,
+    }
 
-        /// Returns an iterator of values in this set.
-        ///
-        /// # Panics
-        ///
-        /// If PyO3 detects that the set is mutated during iteration, it will panic.
-        fn into_iter(self) -> Self::IntoIter {
-            PySetIterator {
-                it: PyIterator::from_object(self).unwrap(),
+    impl<'py> BoundSetIterator<'py> {
+        pub(super) fn new(set: Bound<'py, PySet>) -> Self {
+            Self {
+                it: PyIterator::from_object2(&set).unwrap(),
             }
         }
     }
 
-    /// PyO3 implementation of an iterator for a Python `set` object.
-    pub struct PySetIterator<'p> {
-        it: &'p PyIterator,
-    }
-
-    impl<'py> Iterator for PySetIterator<'py> {
-        type Item = &'py super::PyAny;
+    impl<'py> Iterator for BoundSetIterator<'py> {
+        type Item = Bound<'py, super::PyAny>;
 
         /// Advances the iterator and returns the next value.
         ///
@@ -179,31 +314,21 @@ mod impl_ {
     use super::*;
 
     /// PyO3 implementation of an iterator for a Python `set` object.
-    pub struct PySetIterator<'py> {
-        set: &'py super::PySet,
+    pub struct BoundSetIterator<'py> {
+        set: Bound<'py, super::PySet>,
         pos: ffi::Py_ssize_t,
         used: ffi::Py_ssize_t,
     }
 
-    impl<'a> std::iter::IntoIterator for &'a PySet {
-        type Item = &'a PyAny;
-        type IntoIter = PySetIterator<'a>;
-        /// Returns an iterator of values in this set.
-        ///
-        /// # Panics
-        ///
-        /// If PyO3 detects that the set is mutated during iteration, it will panic.
-        fn into_iter(self) -> Self::IntoIter {
-            PySetIterator {
-                set: self,
-                pos: 0,
-                used: unsafe { ffi::PySet_Size(self.as_ptr()) },
-            }
+    impl<'py> BoundSetIterator<'py> {
+        pub(super) fn new(set: Bound<'py, PySet>) -> Self {
+            let used = unsafe { ffi::PySet_Size(set.as_ptr()) };
+            BoundSetIterator { set, pos: 0, used }
         }
     }
 
-    impl<'py> Iterator for PySetIterator<'py> {
-        type Item = &'py super::PyAny;
+    impl<'py> Iterator for BoundSetIterator<'py> {
+        type Item = Bound<'py, super::PyAny>;
 
         /// Advances the iterator and returns the next value.
         ///
@@ -221,7 +346,7 @@ mod impl_ {
                 if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0
                 {
                     // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
-                    Some(self.set.py().from_owned_ptr(ffi::_Py_NewRef(key)))
+                    Some(key.assume_borrowed(self.set.py()).to_owned())
                 } else {
                     None
                 }
@@ -235,9 +360,15 @@ mod impl_ {
         }
     }
 
-    impl<'py> ExactSizeIterator for PySetIterator<'py> {
+    impl<'py> ExactSizeIterator for BoundSetIterator<'py> {
         fn len(&self) -> usize {
             self.set.len().saturating_sub(self.pos as usize)
+        }
+    }
+
+    impl<'py> ExactSizeIterator for PySetIterator<'py> {
+        fn len(&self) -> usize {
+            self.0.len()
         }
     }
 }
@@ -289,6 +420,7 @@ mod tests {
         Python::with_gil(|py| {
             let set = PySet::empty(py).unwrap();
             assert_eq!(0, set.len());
+            assert!(set.is_empty());
         });
     }
 
@@ -406,19 +538,30 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_set_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PySet::new(py, &[1]).unwrap();
-
             let mut iter = set.iter();
 
-            if cfg!(Py_LIMITED_API) {
-                assert_eq!(iter.size_hint(), (0, None));
-            } else {
-                assert_eq!(iter.size_hint(), (1, Some(1)));
-                iter.next();
-                assert_eq!(iter.size_hint(), (0, Some(0)));
-            }
+            // Exact size
+            assert_eq!(iter.len(), 1);
+            assert_eq!(iter.size_hint(), (1, Some(1)));
+            iter.next();
+            assert_eq!(iter.len(), 0);
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
+    }
+
+    #[test]
+    #[cfg(Py_LIMITED_API)]
+    fn test_set_iter_size_hint() {
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
+            let iter = set.iter();
+
+            // No known bounds
+            assert_eq!(iter.size_hint(), (0, None));
         });
     }
 }
