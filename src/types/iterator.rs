@@ -35,7 +35,7 @@ impl PyIterator {
     ///
     /// Equivalent to Python's built-in `iter` function.
     pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_object2(Bound::borrowed_from_gil_ref(&obj)).map(Bound::into_gil_ref)
+        Self::from_object2(&obj.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     pub(crate) fn from_object2<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
@@ -57,14 +57,14 @@ impl<'p> Iterator for &'p PyIterator {
     /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
     fn next(&mut self) -> Option<Self::Item> {
-        Borrowed::<PyIterator>::from_gil_ref(self)
+        self.as_borrowed()
             .next()
             .map(|result| result.map(Bound::into_gil_ref))
     }
 
     #[cfg(not(Py_LIMITED_API))]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        Bound::borrowed_from_gil_ref(self).size_hint()
+        self.as_borrowed().size_hint()
     }
 }
 

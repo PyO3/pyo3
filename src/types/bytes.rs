@@ -1,5 +1,5 @@
 use crate::instance::{Borrowed, Bound};
-use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
+use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyNativeType, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -89,7 +89,7 @@ impl PyBytes {
     /// Gets the Python string as a byte slice.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
-        Borrowed::from_gil_ref(self).as_bytes()
+        self.as_borrowed().as_bytes()
     }
 }
 
@@ -107,7 +107,7 @@ pub trait PyBytesMethods<'py> {
 impl<'py> PyBytesMethods<'py> for Bound<'py, PyBytes> {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
-        Borrowed::from(self).as_bytes()
+        self.as_borrowed().as_bytes()
     }
 }
 

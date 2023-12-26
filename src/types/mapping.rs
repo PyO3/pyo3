@@ -20,13 +20,13 @@ impl PyMapping {
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
-        Bound::borrowed_from_gil_ref(&self).len()
+        self.as_borrowed().len()
     }
 
     /// Returns whether the mapping is empty.
     #[inline]
     pub fn is_empty(&self) -> PyResult<bool> {
-        Bound::borrowed_from_gil_ref(&self).is_empty()
+        self.as_borrowed().is_empty()
     }
 
     /// Determines if the mapping contains the specified key.
@@ -36,7 +36,7 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).contains(key)
+        self.as_borrowed().contains(key)
     }
 
     /// Gets the item in self with key `key`.
@@ -49,9 +49,7 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self)
-            .get_item(key)
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().get_item(key).map(Bound::into_gil_ref)
     }
 
     /// Sets the item in self with key `key`.
@@ -63,7 +61,7 @@ impl PyMapping {
         K: ToPyObject,
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).set_item(key, value)
+        self.as_borrowed().set_item(key, value)
     }
 
     /// Deletes the item with key `key`.
@@ -74,31 +72,25 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).del_item(key)
+        self.as_borrowed().del_item(key)
     }
 
     /// Returns a sequence containing all keys in the mapping.
     #[inline]
     pub fn keys(&self) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .keys()
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().keys().map(Bound::into_gil_ref)
     }
 
     /// Returns a sequence containing all values in the mapping.
     #[inline]
     pub fn values(&self) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .values()
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().values().map(Bound::into_gil_ref)
     }
 
     /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
     #[inline]
     pub fn items(&self) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .items()
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().items().map(Bound::into_gil_ref)
     }
 
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
@@ -257,10 +249,7 @@ impl PyTypeCheck for PyMapping {
             || get_mapping_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {
-                    err.write_unraisable_bound(
-                        object.py(),
-                        Some(Bound::borrowed_from_gil_ref(&object)),
-                    );
+                    err.write_unraisable_bound(object.py(), Some(&object.as_borrowed()));
                     false
                 })
     }

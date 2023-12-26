@@ -28,6 +28,19 @@ pub unsafe trait PyNativeType: Sized {
     /// The form of this which is stored inside a `Py<T>` smart pointer.
     type AsRefSource: HasPyGilRef<AsRefTarget = Self>;
 
+    /// Cast `&self` to a `Borrowed` smart pointer.
+    ///
+    /// `Borrowed<T>` implements `Deref<Target=Bound<T>>`, so can also be used in locations
+    /// where `Bound<T>` is expected.
+    ///
+    /// This is available as a migration tool to adjust code from the deprecated "GIL Refs"
+    /// API to the `Bound` smart pointer API.
+    fn as_borrowed(&self) -> Borrowed<'_, '_, Self::AsRefSource> {
+        // Safety: &'py Self is expected to be a Python pointer,
+        // so has the same layout as Borrowed<'py, 'py, T>
+        unsafe { std::mem::transmute(self) }
+    }
+
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]
     fn py(&self) -> Python<'_> {
@@ -184,16 +197,13 @@ impl<'py, T> Bound<'py, T> {
         self.into_non_null().as_ptr()
     }
 
-    /// Internal helper to convert e.g. &'a &'py PyDict to &'a Bound<'py, PyDict> for
-    /// backwards-compatibility during migration to removal of pool.
-    #[doc(hidden)] // public and doc(hidden) to use in examples and tests for now
-    pub fn borrowed_from_gil_ref<'a, U>(gil_ref: &'a &'py U) -> &'a Self
-    where
-        U: PyNativeType<AsRefSource = T>,
-    {
-        // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
-        // so &'a &'py T::AsRefTarget has the same layout as &'a Bound<'py, T>
-        unsafe { std::mem::transmute(gil_ref) }
+    /// Casts this `Bound<T>` to a `Borrowed<T>` smart pointer.
+    pub fn as_borrowed<'a>(&'a self) -> Borrowed<'a, 'py, T> {
+        Borrowed(
+            unsafe { NonNull::new_unchecked(self.as_ptr()) },
+            PhantomData,
+            self.py(),
+        )
     }
 
     /// Casts this `Bound<T>` as the corresponding "GIL Ref" type.
@@ -299,11 +309,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
 impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {
     /// Create borrow on a Bound
     fn from(instance: &'a Bound<'py, T>) -> Self {
-        Self(
-            unsafe { NonNull::new_unchecked(instance.as_ptr()) },
-            PhantomData,
-            instance.py(),
-        )
+        instance.as_borrowed()
     }
 }
 
@@ -311,12 +317,6 @@ impl<'py, T> Borrowed<'py, 'py, T>
 where
     T: HasPyGilRef,
 {
-    pub(crate) fn from_gil_ref(gil_ref: &'py T::AsRefTarget) -> Self {
-        // Safety: &'py T::AsRefTarget is expected to be a Python pointer,
-        // so &'py T::AsRefTarget has the same layout as Self.
-        unsafe { std::mem::transmute(gil_ref) }
-    }
-
     // pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
     //     // Safety: self is a borrow over `'py`.
     //     unsafe { self.py().from_borrowed_ptr(self.0.as_ptr()) }
@@ -1366,7 +1366,7 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        Bound::borrowed_from_gil_ref(&ob)
+        ob.as_borrowed()
             .downcast()
             .map(Clone::clone)
             .map_err(Into::into)
@@ -1485,7 +1485,7 @@ impl PyObject {
 mod tests {
     use super::{Bound, Py, PyObject};
     use crate::types::{PyDict, PyString};
-    use crate::{PyAny, PyResult, Python, ToPyObject};
+    use crate::{PyAny, PyNativeType, PyResult, Python, ToPyObject};
 
     #[test]
     fn test_call0() {
@@ -1612,8 +1612,11 @@ a = A()
     #[test]
     fn test_py2_into_py_object() {
         Python::with_gil(|py| {
-            let instance: Bound<'_, PyAny> =
-                Bound::borrowed_from_gil_ref(&py.eval("object()", None, None).unwrap()).clone();
+            let instance = py
+                .eval("object()", None, None)
+                .unwrap()
+                .as_borrowed()
+                .to_owned();
             let ptr = instance.as_ptr();
             let instance: PyObject = instance.clone().into();
             assert_eq!(instance.as_ptr(), ptr);

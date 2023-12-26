@@ -1,7 +1,7 @@
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{ffi, PyTypeInfo};
+use crate::{ffi, PyNativeType, PyTypeInfo};
 use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
@@ -22,11 +22,7 @@ impl PySuper {
         note = "`PySuper::new` will be replaced by `PySuper::new_bound` in a future PyO3 version"
     )]
     pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
-        Self::new_bound(
-            Bound::borrowed_from_gil_ref(&ty),
-            Bound::borrowed_from_gil_ref(&obj),
-        )
-        .map(Bound::into_gil_ref)
+        Self::new_bound(&ty.as_borrowed(), &obj.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Constructs a new super object. More read about super object: [docs](https://docs.python.org/3/library/functions.html#super)
@@ -73,7 +69,8 @@ impl PySuper {
         ty: &Bound<'py, PyType>,
         obj: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PySuper>> {
-        Bound::borrowed_from_gil_ref(&PySuper::type_object(ty.py()))
+        PySuper::type_object(ty.py())
+            .as_borrowed()
             .call1((ty, obj))
             .map(|any| {
                 // Safety: super() always returns instance of super
