@@ -5,6 +5,8 @@ use crate::{
     PyObject, PyResult, Python, ToPyObject,
 };
 
+use super::any::PyAnyMethods;
+
 /// Represents a Python `bool`.
 #[repr(transparent)]
 pub struct PyBool(PyAny);
@@ -75,8 +77,8 @@ impl IntoPy<PyObject> for bool {
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl<'source> FromPyObject<'source> for bool {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_> for bool {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let err = match obj.downcast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
             Err(err) => err,
@@ -87,7 +89,7 @@ impl<'source> FromPyObject<'source> for bool {
             .name()
             .map_or(false, |name| name == "numpy.bool_")
         {
-            let missing_conversion = |obj: &PyAny| {
+            let missing_conversion = |obj: &Bound<'_, PyAny>| {
                 PyTypeError::new_err(format!(
                     "object of type '{}' does not define a '__bool__' conversion",
                     obj.get_type()
@@ -117,7 +119,7 @@ impl<'source> FromPyObject<'source> for bool {
                     .lookup_special(crate::intern!(obj.py(), "__bool__"))?
                     .ok_or_else(|| missing_conversion(obj))?;
 
-                let obj = meth.call0()?.downcast::<PyBool>()?;
+                let obj = meth.call0()?.downcast_into::<PyBool>()?;
                 return Ok(obj.is_true());
             }
         }

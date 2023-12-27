@@ -1425,11 +1425,8 @@ where
     T: PyTypeInfo,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        ob.as_borrowed()
-            .downcast()
-            .map(Clone::clone)
-            .map_err(Into::into)
+    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
+        ob.downcast().map(Clone::clone).map_err(Into::into)
     }
 }
 
