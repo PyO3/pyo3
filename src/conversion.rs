@@ -6,7 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 use crate::{
-    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+    ffi, gil, Bound, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
 };
 use std::cell::Cell;
 use std::ptr::NonNull;
@@ -215,11 +215,26 @@ pub trait IntoPy<T>: Sized {
 /// Since which case applies depends on the runtime type of the Python object,
 /// both the `obj` and `prepared` variables must outlive the resulting string slice.
 ///
-/// The trait's conversion method takes a `&PyAny` argument but is called
-/// `FromPyObject` for historical reasons.
+/// During the migration of PyO3 from the "GIL Refs" API to the `Bound<T>` smart pointer, this trait
+/// has two methods `extract` and `extract_bound` which are defaulted to call each other. To avoid
+/// infinite recursion, implementors must implement at least one of these methods. The recommendation
+/// is to implement `extract_bound` and leave `extract` as the default implementation.
 pub trait FromPyObject<'source>: Sized {
-    /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'source PyAny) -> PyResult<Self>;
+    /// Extracts `Self` from the source GIL Ref `obj`.
+    ///
+    /// Implementors are encouraged to implement `extract_bound` and leave this method as the
+    /// default implementation, which will forward calls to `extract_bound`.
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        Self::extract_bound(&ob.as_borrowed())
+    }
+
+    /// Extracts `Self` from the bound smart pointer `obj`.
+    ///
+    /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
+    /// this will be most compatible with PyO3's future API.
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        Self::extract(ob.clone().into_gil_ref())
+    }
 
     /// Extracts the type hint information for this type when it appears as an argument.
     ///

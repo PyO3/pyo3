@@ -241,11 +241,41 @@ To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointe
 
 For example, the following APIs have gained updated variants:
 - `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
+- `FromPyObject::extract` has a new `FromPyObject::extract_bound` (see the section below)
 
 Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
 - Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)
 - `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
+
+#### Migrating `FromPyObject` implementations
+
+`FromPyObject` has had a new method `extract_bound` which takes `&Bound<'py, PyAny>` as an argument instead of `&PyAny`. Both `extract` and `extract_bound` have been given default implementations in terms of the other, to avoid breaking code immediately on update to 0.21.
+
+All implementations of `FromPyObject` should be switched from `extract` to `extract_bound`.
+
+Before:
+
+```rust,ignore
+impl<'py> FromPyObject<'py> for MyType {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
+        /* ... */
+    }
+}
+```
+
+After:
+
+```rust,ignore
+impl<'py> FromPyObject<'py> for MyType {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        /* ... */
+    }
+}
+```
+
+
+The expectation is that in 0.22 `extract_bound` will have the default implementation removed and in 0.23 `extract` will be removed.
 
 ## from 0.19.* to 0.20
 
