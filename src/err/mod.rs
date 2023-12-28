@@ -536,9 +536,12 @@ impl PyErr {
     }
 
     /// Deprecated form of `PyErr::write_unraisable_bound`.
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::write_unraisable` will be replaced by `PyErr::write_unraisable_bound` in a future PyO3 version"
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::write_unraisable` will be replaced by `PyErr::write_unraisable_bound` in a future PyO3 version"
+        )
     )]
     #[inline]
     pub fn write_unraisable(self, py: Python<'_>, obj: Option<&PyAny>) {
