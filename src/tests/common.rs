@@ -24,6 +24,13 @@ mod inner {
     }
 
     #[macro_export]
+    macro_rules! assert_py_eq {
+        ($val:expr, $expected:expr) => {
+            assert!($val.eq($expected).unwrap());
+        };
+    }
+
+    #[macro_export]
     macro_rules! py_expect_exception {
         // Case1: idents & no err_msg
         ($py:expr, $($val:ident)+, $code:expr, $err:ident) => {{
