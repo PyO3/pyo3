@@ -3,8 +3,7 @@ use std::borrow::Cow;
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, TextSignatureAttribute,
-    TextSignatureAttributeValue,
+    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -68,7 +67,6 @@ pub struct PyClassPyO3Options {
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
     pub subclass: Option<kw::subclass>,
-    pub text_signature: Option<TextSignatureAttribute>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
 }
@@ -886,18 +884,6 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclassimpl(&self) -> Result<TokenStream> {
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
-        let deprecated_text_signature = match self
-            .attr
-            .options
-            .text_signature
-            .as_ref()
-            .map(|attr| &attr.value)
-        {
-            Some(TextSignatureAttributeValue::Str(s)) => quote!(::std::option::Option::Some(#s)),
-            Some(TextSignatureAttributeValue::Disabled(_)) | None => {
-                quote!(::std::option::Option::None)
-            }
-        };
         let is_basetype = self.attr.options.subclass.is_some();
         let base = self
             .attr
@@ -1040,7 +1026,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     static DOC: _pyo3::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = _pyo3::sync::GILOnceCell::new();
                     DOC.get_or_try_init(py, || {
                         let collector = PyClassImplCollector::<Self>::new();
-                        build_pyclass_doc(<#cls as _pyo3::PyTypeInfo>::NAME, #doc, #deprecated_text_signature.or_else(|| collector.new_text_signature()))
+                        build_pyclass_doc(<#cls as _pyo3::PyTypeInfo>::NAME, #doc, collector.new_text_signature())
                     }).map(::std::ops::Deref::deref)
                 }
 
