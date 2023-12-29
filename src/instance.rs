@@ -1016,14 +1016,30 @@ impl<T> Py<T> {
             .setattr(attr_name, value.into_py(py).into_bound(py))
     }
 
+    /// Deprecated form of [`call_bound`][Py::call_bound].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`call` will be replaced by `call_bound` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub fn call<A>(&self, py: Python<'_>, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
+    where
+        A: IntoPy<Py<PyTuple>>,
+    {
+        self.call_bound(py, args, kwargs.map(PyDict::as_borrowed).as_deref())
+    }
+
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
-    pub fn call(
+    pub fn call_bound(
         &self,
         py: Python<'_>,
         args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyObject> {
         self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
     }
@@ -1042,18 +1058,41 @@ impl<T> Py<T> {
         self.bind(py).as_any().call0().map(Bound::unbind)
     }
 
-    /// Calls a method on the object.
-    ///
-    /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
-    ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
-    /// macro can be used to intern `name`.
+    /// Deprecated form of [`call_method_bound`][Py::call_method_bound].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`call_method` will be replaced by `call_method_bound` in a future PyO3 version"
+        )
+    )]
+    #[inline]
     pub fn call_method<N, A>(
         &self,
         py: Python<'_>,
         name: N,
         args: A,
         kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyString>>,
+        A: IntoPy<Py<PyTuple>>,
+    {
+        self.call_method_bound(py, name, args, kwargs.map(PyDict::as_borrowed).as_deref())
+    }
+
+    /// Calls a method on the object.
+    ///
+    /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
+    /// macro can be used to intern `name`.
+    pub fn call_method_bound<N, A>(
+        &self,
+        py: Python<'_>,
+        name: N,
+        args: A,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyObject>
     where
         N: IntoPy<Py<PyString>>,
@@ -1490,23 +1529,34 @@ impl PyObject {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::{Bound, Py, PyObject};
-    use crate::types::{PyDict, PyString};
+    use crate::types::{dict::IntoPyDict, PyDict, PyString};
     use crate::{PyAny, PyNativeType, PyResult, Python, ToPyObject};
 
     #[test]
-    fn test_call0() {
+    fn test_call() {
         Python::with_gil(|py| {
             let obj = py.get_type::<PyDict>().to_object(py);
-            assert_eq!(
-                obj.call0(py)
+
+            let assert_repr = |obj: &PyAny, expected: &str| {
+                assert_eq!(obj.repr().unwrap().to_str().unwrap(), expected);
+            };
+
+            assert_repr(obj.call0(py).unwrap().as_ref(py), "{}");
+            assert_repr(obj.call1(py, ()).unwrap().as_ref(py), "{}");
+            assert_repr(obj.call(py, (), None).unwrap().as_ref(py), "{}");
+
+            assert_repr(
+                obj.call1(py, ((('x', 1),),)).unwrap().as_ref(py),
+                "{'x': 1}",
+            );
+            assert_repr(
+                obj.call(py, (), Some([('x', 1)].into_py_dict(py)))
                     .unwrap()
-                    .as_ref(py)
-                    .repr()
-                    .unwrap()
-                    .to_string_lossy(),
-                "{}"
+                    .as_ref(py),
+                "{'x': 1}",
             );
         })
     }

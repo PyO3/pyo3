@@ -447,7 +447,7 @@ impl PyAny {
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny> {
         self.as_borrowed()
-            .call(args, kwargs)
+            .call(args, kwargs.map(PyDict::as_borrowed).as_deref())
             .map(Bound::into_gil_ref)
     }
 
@@ -547,7 +547,7 @@ impl PyAny {
         A: IntoPy<Py<PyTuple>>,
     {
         self.as_borrowed()
-            .call_method(name, args, kwargs)
+            .call_method(name, args, kwargs.map(PyDict::as_borrowed).as_deref())
             .map(Bound::into_gil_ref)
     }
 
@@ -1322,7 +1322,7 @@ pub trait PyAnyMethods<'py> {
     fn call(
         &self,
         args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>;
 
     /// Calls the object without arguments.
@@ -1415,7 +1415,7 @@ pub trait PyAnyMethods<'py> {
         &self,
         name: N,
         args: A,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPy<Py<PyString>>,
@@ -1970,12 +1970,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     fn call(
         &self,
         args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         fn inner<'py>(
             any: &Bound<'py, PyAny>,
             args: Bound<'_, PyTuple>,
-            kwargs: Option<&PyDict>,
+            kwargs: Option<&Bound<'_, PyDict>>,
         ) -> PyResult<Bound<'py, PyAny>> {
             unsafe {
                 ffi::PyObject_Call(
@@ -2015,7 +2015,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         &self,
         name: N,
         args: A,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPy<Py<PyString>>,
@@ -2292,6 +2292,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::{
         basic::CompareOp,
