@@ -164,9 +164,12 @@ pub trait PyTimeAccess {
 /// Trait for accessing the components of a struct containing a tzinfo.
 pub trait PyTzInfoAccess<'py> {
     /// Deprecated form of `get_tzinfo_bound`.
-    #[deprecated(
-        since = "0.21.0",
-        note = "`get_tzinfo` will be replaced by `get_tzinfo_bound` in a future PyO3 version"
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`get_tzinfo` will be replaced by `get_tzinfo_bound` in a future PyO3 version"
+        )
     )]
     fn get_tzinfo(&self) -> Option<&'py PyTzInfo> {
         self.get_tzinfo_bound().map(Bound::into_gil_ref)
@@ -734,7 +737,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
-    #[allow(deprecated)]
+    #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
             let utc = timezone_utc(py);

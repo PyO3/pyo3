@@ -57,6 +57,12 @@ This feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` a
 
 This is a first step towards adding first-class support for generating type annotations automatically in PyO3, however work is needed to finish this off. All feedback and offers of help welcome on [issue #2454](https://github.com/PyO3/pyo3/issues/2454).
 
+### `gil-refs`
+
+This feature is a backwards-compatibility feature to allow continued use of the "GIL Refs" APIs deprecated in PyO3 0.21. These APIs have performance drawbacks and soundness edge cases which the newer `Bound<T>` smart pointer and accompanying APIs resolve.
+
+This feature and the APIs it enables is expected to be removed in a future PyO3 version.
+
 ### `macros`
 
 This feature enables a dependency on the `pyo3-macros` crate, which provides the procedural macros portion of PyO3's API:

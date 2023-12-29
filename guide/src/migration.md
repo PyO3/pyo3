@@ -5,6 +5,42 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.20.* to 0.21
 
+PyO3 0.21 introduces a new `Bound<'py, T>` smart pointer which replaces the existing "GIL Refs" API to interact with Python objects. For example, in PyO3 0.20 the reference `&'py PyAny` would be used to interact with Python objects. In PyO3 0.21 the updated type is `Bound<'py, PyAny>`. Making this change moves Rust ownership semantics out of PyO3's internals and into user code. This change fixes [a known soundness edge case of interaction with gevent](https://github.com/PyO3/pyo3/issues/3668) as well as improves CPU and [memory performance](https://github.com/PyO3/pyo3/issues/1056). For a full history of discussion see https://github.com/PyO3/pyo3/issues/3382.
+
+The "GIL Ref" `&'py PyAny` and similar types such as `&'py PyDict` continue to be available as a deprecated API. Due to the advantages of the new API it is advised that all users make the effort to upgrade as soon as possible.
+
+In addition to the major API type overhaul, PyO3 has needed to make a few small breaking adjustments to other APIs to close correctness and soundness gaps.
+
+The recommended steps to update to PyO3 0.21 is as follows:
+  1. Enable the `gil-refs` feature to silence deprecations related to the API change
+  2. Fix all other PyO3 0.21 migration steps
+  3. Disable the `gil-refs` feature and migrate off the deprecated APIs
+
+The following sections are laid out in this order.
+
+### Enable the `gil-refs` feature
+
+To make the transition for the PyO3 ecosystem away from the GIL Refs API as smooth as possible, in PyO3 0.21 no APIs consuming or producing GIL Refs have been altered. Instead, variants using `Bound<T>` smart pointers have been introduced, for example `PyTuple::new_bound` which returns `Bound<PyTuple>` is the replacement form of `PyTuple::new`. The GIL Ref APIs have been deprecated, but to make migration easier it is possible to disable these deprecation warnings by enabling the `gil-refs` feature.
+
+It is recommended that users do this as a first step of updating to PyO3 0.21 so that the deprecation warnings do not get in the way of resolving the rest of the migration steps.
+
+Before:
+
+```toml
+# Cargo.toml
+[dependencies]
+pyo3 = "0.20"
+```
+
+After:
+
+```toml
+# Cargo.toml
+[dependencies]
+pyo3 = { version = "0.21", features = ["gil-refs"] }
+```
+
+
 ### `PyTypeInfo` and `PyTryFrom` have been adjusted
 
 The `PyTryFrom` trait has aged poorly, its [`try_from`] method now conflicts with `try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
@@ -195,6 +231,10 @@ impl PyClassAsyncIter {
 ### `PyType::name` has been renamed to `PyType::qualname`
 
 `PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
+
+### Migrating from the GIL-Refs API to `Bound<T>`
+
+TODO
 
 ## from 0.19.* to 0.20
 
