@@ -294,7 +294,7 @@ mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
 mod memoryview;
-mod module;
+pub(crate) mod module;
 mod none;
 mod notimplemented;
 mod num;
