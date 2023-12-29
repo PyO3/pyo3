@@ -10,6 +10,24 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.20.1] - 2023-12-30
+
+### Added
+
+- Add optional `either` feature to add conversions for `either::Either<L, R>` sum type. [#3456](https://github.com/PyO3/pyo3/pull/3456)
+- Add optional `smallvec` feature to add conversions for `smallvec::SmallVec`. [#3507](https://github.com/PyO3/pyo3/pull/3507)
+- Add `take` and `into_inner` methods to `GILOnceCell` [#3556](https://github.com/PyO3/pyo3/pull/3556)
+- `#[classmethod]` methods can now also receive `Py<PyType>` as their first argument. [#3587](https://github.com/PyO3/pyo3/pull/3587)
+- `#[pyfunction(pass_module)]` can now also receive `Py<PyModule>` as their first argument. [#3587](https://github.com/PyO3/pyo3/pull/3587)
+- Add `traverse` method to `GILProtected`. [#3616](https://github.com/PyO3/pyo3/pull/3616)
+- Added `abi3-py312` feature [#3687](https://github.com/PyO3/pyo3/pull/3687)
+
+### Fixed
+
+- Fix minimum version specification for optional `chrono` dependency. [#3512](https://github.com/PyO3/pyo3/pull/3512)
+- Silenced new `clippy::unnecessary_fallible_conversions` warning when using a `Py<Self>` `self` receiver. [#3564](https://github.com/PyO3/pyo3/pull/3564)
+
+
 ## [0.20.0] - 2023-10-11
 
 ### Packaging
@@ -1599,7 +1617,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/pyo3/pyo3/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/pyo3/pyo3/compare/v0.19.2...v0.20.0
 [0.19.2]: https://github.com/pyo3/pyo3/compare/v0.19.1...v0.19.2
 [0.19.1]: https://github.com/pyo3/pyo3/compare/v0.19.0...v0.19.1
