@@ -2,9 +2,9 @@
 
 The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments. Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted. These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
 
-Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. Most arguments are required by default, except for trailing `Option<_>` arguments, which are [implicitly given a default of `None`](#trailing-optional-arguments). There are two ways to modify this behaviour:
-  - The `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
-  - Extra arguments directly to `#[pyfunction]`. (See deprecated form)
+Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. Most arguments are required by default, except for trailing `Option<_>` arguments, which are [implicitly given a default of `None`](#trailing-optional-arguments). This behaviour can be configured by the `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
+
+This section of the guide goes into detail about use of the `#[pyo3(signature = (...))]` option and its related option `#[pyo3(text_signature = "...")]`
 
 ## Using `#[pyo3(signature = (...))]`
 
