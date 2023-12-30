@@ -62,7 +62,7 @@ where
 /// use pyo3::{Python, PyAny, PyType, PyNativeType};
 /// 
 /// struct PyFormatter(PyAny);
-/// unsafe impl PyTypeInfo for Formatter {
+/// unsafe impl PyTypeInfo for PyFormatter {
 ///     const NAME: &'static str = "Formatter";
 ///     const MODULE: Option<&'static str> = Option::Some("string");
 ///     type AsRefTarget = PyAny;
