@@ -58,6 +58,10 @@ where
 /// To use PyTypeInfo to represent a custom Python class that is not implemented in Rust:
 ///
 /// ```
+/// use pyo3_ffi::PyTypeObject;
+/// use pyo3::types::PyType;
+/// use pyo3::PyNativeType;
+/// 
 /// struct Formatter(PyAny);
 /// unsafe impl PyTypeInfo for Formatter {
 ///     const NAME: &'static str = "MyPyType";
