@@ -62,9 +62,9 @@ where
 /// use pyo3::types::PyType;
 /// use pyo3::{Python, PyNativeType};
 /// 
-/// struct Formatter(PyAny);
+/// struct PyFormatter(PyAny);
 /// unsafe impl PyTypeInfo for Formatter {
-///     const NAME: &'static str = "MyPyType";
+///     const NAME: &'static str = "Formatter";
 ///     const MODULE: Option<&'static str> = Option::Some("string");
 ///     type AsRefTarget = PyAny;
 ///
@@ -75,7 +75,7 @@ where
 ///         typ.get_type_ptr()
 ///     }
 /// }
-/// unsafe impl PyNativeType for Formatter {}
+/// unsafe impl PyNativeType for PyFormatter {}
 /// ```
 pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     /// Class name.
