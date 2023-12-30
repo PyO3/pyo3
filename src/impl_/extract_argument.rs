@@ -615,7 +615,7 @@ impl<'py> VarargsHandler<'py> for TupleVarargs {
         varargs: &[Option<&PyAny>],
         _function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
-        Ok(PyTuple::new(py, varargs))
+        Ok(PyTuple::new_bound(py, varargs).into_gil_ref())
     }
 
     #[inline]
@@ -697,7 +697,7 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 mod tests {
     use crate::{
         types::{IntoPyDict, PyTuple},
-        PyAny, Python, ToPyObject,
+        PyAny, Python,
     };
 
     use super::{push_parameter_list, FunctionDescription, NoVarargs, NoVarkeywords};
@@ -714,8 +714,8 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::new(py, Vec::<&PyAny>::new());
-            let kwargs = [("foo".to_object(py).into_ref(py), 0u8)].into_py_dict(py);
+            let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
+            let kwargs = [("foo", 0u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -745,8 +745,8 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::new(py, Vec::<&PyAny>::new());
-            let kwargs = [(1u8.to_object(py).into_ref(py), 1u8)].into_py_dict(py);
+            let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
+            let kwargs = [(1u8, 1u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -776,7 +776,7 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::new(py, Vec::<&PyAny>::new());
+            let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
             let mut output = [None, None];
             let err = unsafe {
                 function_description.extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

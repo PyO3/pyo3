@@ -1231,7 +1231,7 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, vec![1, 2, 3]);
             let tuple = list.to_tuple();
-            let tuple_expected = PyTuple::new(py, vec![1, 2, 3]);
+            let tuple_expected = PyTuple::new_bound(py, vec![1, 2, 3]);
             assert!(tuple.eq(tuple_expected).unwrap());
         })
     }

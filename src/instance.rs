@@ -325,10 +325,10 @@ impl<'py, T> Borrowed<'py, 'py, T>
 where
     T: HasPyGilRef,
 {
-    // pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
-    //     // Safety: self is a borrow over `'py`.
-    //     unsafe { self.py().from_borrowed_ptr(self.0.as_ptr()) }
-    // }
+    pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
+        // Safety: self is a borrow over `'py`.
+        unsafe { self.py().from_borrowed_ptr(self.0.as_ptr()) }
+    }
 }
 
 impl<T> std::fmt::Debug for Borrowed<'_, '_, T> {

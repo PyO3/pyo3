@@ -465,7 +465,7 @@ mod implementations {
 /// Converts `()` to an empty Python tuple.
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-        PyTuple::empty(py).into()
+        PyTuple::empty_bound(py).unbind()
     }
 }
 

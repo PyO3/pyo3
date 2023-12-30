@@ -80,7 +80,7 @@ pub mod iter {
     pub use super::frozenset::{BoundFrozenSetIterator, PyFrozenSetIterator};
     pub use super::list::{BoundListIterator, PyListIterator};
     pub use super::set::{BoundSetIterator, PySetIterator};
-    pub use super::tuple::PyTupleIterator;
+    pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator, PyTupleIterator};
 }
 
 // Implementations core to all native types
@@ -305,5 +305,5 @@ pub(crate) mod set;
 mod slice;
 pub(crate) mod string;
 mod traceback;
-mod tuple;
+pub(crate) mod tuple;
 mod typeobject;
