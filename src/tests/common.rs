@@ -149,4 +149,5 @@ mod inner {
     }
 }
 
+#[allow(unused_imports)] // some tests use just the macros and none of the other functionality
 pub use inner::*;

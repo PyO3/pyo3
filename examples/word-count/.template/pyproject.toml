@@ -1,9 +1,13 @@
 [build-system]
-requires = ["setuptools>=41.0.0", "wheel", "setuptools_rust>=1.0.0"]
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
 
 [project]
 name = "{{project-name}}"
 version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["pytest"]
 
 [tool.pytest.ini_options]
 addopts = "--benchmark-disable"

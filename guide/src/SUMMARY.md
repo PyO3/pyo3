@@ -36,9 +36,8 @@
 ---
 
 [Appendix A: Migration guide](migration.md)
-[Appendix B: PyO3 and rust-cpython](rust_cpython.md)
-[Appendix C: Trait bounds](trait_bounds.md)
-[Appendix D: Python typing hints](python_typing_hints.md)
+[Appendix B: Trait bounds](trait_bounds.md)
+[Appendix C: Python typing hints](python_typing_hints.md)
 [CHANGELOG](changelog.md)
 
 ---

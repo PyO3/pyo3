@@ -118,16 +118,15 @@ def test_time(args, kwargs):
 
 
 @given(t=st.times())
-def test_time(t):
+def test_time_hypothesis(t):
     act = rdt.get_time_tuple(t)
     exp = (t.hour, t.minute, t.second, t.microsecond)
 
     assert act == exp
 
 
-@pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @given(t=st.times())
-def test_time_fold(t):
+def test_time_tuple_fold(t):
     t_nofold = t.replace(fold=0)
     t_fold = t.replace(fold=1)
 
@@ -138,9 +137,8 @@ def test_time_fold(t):
         assert act == exp
 
 
-@pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @pytest.mark.parametrize("fold", [False, True])
-def test_time_fold(fold):
+def test_time_with_fold(fold):
     t = rdt.time_with_fold(0, 0, 0, 0, None, fold)
     assert t.fold == fold
 
@@ -206,7 +204,6 @@ def test_datetime_tuple(dt):
     assert act == exp
 
 
-@pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @given(dt=st.datetimes())
 def test_datetime_tuple_fold(dt):
     dt_fold = dt.replace(fold=1)

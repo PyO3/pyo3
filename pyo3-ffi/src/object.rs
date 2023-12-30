@@ -487,7 +487,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         )
     ))]
     {
-        return _Py_IncRef(op);
+        _Py_IncRef(op);
     }
 
     #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_3_10)))]
@@ -552,7 +552,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         )
     ))]
     {
-        return _Py_DecRef(op);
+        _Py_DecRef(op);
     }
 
     #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_3_10)))]

@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-ffi"
-version = "0.20.0"
+version = "0.20.1"
 description = "Python-API bindings for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -31,11 +31,14 @@ abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37"]
 abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
 abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310"]
-abi3-py311 = ["abi3", "pyo3-build-config/abi3-py311"]
+abi3-py311 = ["abi3-py312", "pyo3-build-config/abi3-py311"]
+abi3-py312 = ["abi3", "pyo3-build-config/abi3-py312"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
 generate-import-lib = ["pyo3-build-config/python3-dll-a"]
 
-
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.20.0", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.20.1", features = ["resolve-config"] }
+
+[lints]
+workspace = true

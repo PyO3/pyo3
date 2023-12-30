@@ -11,6 +11,7 @@ Below is a brief description of each of these:
 | `setuptools-rust-starter` | A template project which is configured to use [`setuptools_rust`](https://github.com/PyO3/setuptools-rust/) for development. |
 | `word-count` | A quick performance comparison between word counter implementations written in each of Rust and Python. |
 | `plugin` | Illustrates how to use Python as a scripting language within a Rust application |
+| `sequential` | Illustrates how to use pyo3-ffi to write subinterpreter-safe modules |
 
 ## Creating new projects from these examples
 

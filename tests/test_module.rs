@@ -350,6 +350,12 @@ fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
 
 #[pyfunction]
 #[pyo3(pass_module)]
+fn pyfunction_with_module_owned(module: Py<PyModule>) -> PyResult<String> {
+    Python::with_gil(|gil| module.as_ref(gil).name().map(Into::into))
+}
+
+#[pyfunction]
+#[pyo3(pass_module)]
 fn pyfunction_with_module_and_py<'a>(
     module: &'a PyModule,
     _python: Python<'a>,
@@ -393,6 +399,7 @@ fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str>
 #[pymodule]
 fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
+    m.add_function(wrap_pyfunction!(pyfunction_with_module_owned, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_py, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_arg, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_default_arg, m)?)?;
@@ -401,6 +408,7 @@ fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<
         pyfunction_with_pass_module_in_attribute,
         m
     )?)?;
+    m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
     Ok(())
 }
 
@@ -412,6 +420,11 @@ fn test_module_functions_with_module() {
             py,
             m,
             "m.pyfunction_with_module() == 'module_with_functions_with_module'"
+        );
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_module_owned() == 'module_with_functions_with_module'"
         );
         py_assert!(
             py,

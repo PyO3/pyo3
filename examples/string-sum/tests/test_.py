@@ -14,7 +14,7 @@ def test_err1():
 
     with pytest.raises(
         TypeError, match="sum_as_string expected an int for positional argument 1"
-    ) as e:
+    ):
         sum_as_string(a, b)
 
 
@@ -23,19 +23,19 @@ def test_err2():
 
     with pytest.raises(
         TypeError, match="sum_as_string expected an int for positional argument 2"
-    ) as e:
+    ):
         sum_as_string(a, b)
 
 
 def test_overflow1():
     a, b = 0, 1 << 43
 
-    with pytest.raises(OverflowError, match="cannot fit 8796093022208 in 32 bits") as e:
+    with pytest.raises(OverflowError, match="cannot fit 8796093022208 in 32 bits"):
         sum_as_string(a, b)
 
 
 def test_overflow2():
     a, b = 1 << 30, 1 << 30
 
-    with pytest.raises(OverflowError, match="arguments too large to add") as e:
+    with pytest.raises(OverflowError, match="arguments too large to add"):
         sum_as_string(a, b)

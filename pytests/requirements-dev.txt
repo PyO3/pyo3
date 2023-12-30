@@ -1,6 +1,0 @@
-hypothesis>=3.55
-pytest>=6.0
-pytest-asyncio>=0.21
-pytest-benchmark>=3.4
-psutil>=5.6
-typing_extensions>=4.0.0

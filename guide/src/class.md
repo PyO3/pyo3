@@ -337,10 +337,27 @@ impl SubSubClass {
         let super_ = self_.into_super(); // Get PyRef<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
     }
+
+    #[staticmethod]
+    fn factory_method(py: Python<'_>, val: usize) -> PyResult<PyObject> {
+        let base = PyClassInitializer::from(BaseClass::new());
+        let sub = base.add_subclass(SubClass { val2: val });
+        if val % 2 == 0 {
+            Ok(Py::new(py, sub)?.to_object(py))
+        } else {
+            let sub_sub = sub.add_subclass(SubSubClass { val3: val });
+            Ok(Py::new(py, sub_sub)?.to_object(py))
+        }
+    }
 }
 # Python::with_gil(|py| {
 #     let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
-#     pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
+#     pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000");
+#     let subsub = SubSubClass::factory_method(py, 2).unwrap();
+#     let subsubsub = SubSubClass::factory_method(py, 3).unwrap();
+#     let cls = py.get_type::<SubSubClass>();
+#     pyo3::py_run!(py, subsub cls, "assert not isinstance(subsub, cls)");
+#     pyo3::py_run!(py, subsubsub cls, "assert isinstance(subsubsub, cls)");
 # });
 ```
 

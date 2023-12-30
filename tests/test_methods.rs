@@ -76,6 +76,14 @@ impl ClassMethod {
     fn method(cls: &PyType) -> PyResult<String> {
         Ok(format!("{}.method()!", cls.name()?))
     }
+
+    #[classmethod]
+    fn method_owned(cls: Py<PyType>) -> PyResult<String> {
+        Ok(format!(
+            "{}.method_owned()!",
+            Python::with_gil(|gil| cls.as_ref(gil).name().map(ToString::to_string))?
+        ))
+    }
 }
 
 #[test]
@@ -84,6 +92,11 @@ fn class_method() {
         let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
+        py_assert!(
+            py,
+            *d,
+            "C().method_owned() == 'ClassMethod.method_owned()!'"
+        );
         py_assert!(py, *d, "C.method.__doc__ == 'Test class method.'");
         py_assert!(py, *d, "C().method.__doc__ == 'Test class method.'");
     });

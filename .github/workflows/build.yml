@@ -65,7 +65,7 @@ jobs:
         run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
 
       - name: Build docs
-        run: cargo doc --no-deps --no-default-features --features "full ${{ inputs.extra-features }}"
+        run: nox -s docs
 
       - name: Build (no features)
         run: cargo build --lib --tests --no-default-features

@@ -42,7 +42,9 @@ use target_lexicon::OperatingSystem;
 /// For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building_and_distribution/multiple_python_versions.html).
 #[cfg(feature = "resolve-config")]
 pub fn use_pyo3_cfgs() {
-    get().emit_pyo3_cfgs();
+    for cargo_command in get().build_script_outputs() {
+        println!("{}", cargo_command)
+    }
 }
 
 /// Adds linker arguments suitable for PyO3's `extension-module` feature.

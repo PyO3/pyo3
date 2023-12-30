@@ -1,0 +1,7 @@
+[build-system]
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
+
+[project]
+name = "{{project-name}}"
+version = "0.1.0"

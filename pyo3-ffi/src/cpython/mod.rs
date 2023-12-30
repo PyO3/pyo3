@@ -31,7 +31,6 @@ pub(crate) mod pystate;
 pub(crate) mod pythonrun;
 // skipped sysmodule.h
 pub(crate) mod floatobject;
-#[cfg(not(PyPy))]
 pub(crate) mod pyframe;
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
@@ -60,7 +59,7 @@ pub use self::object::*;
 pub use self::objimpl::*;
 pub use self::pydebug::*;
 pub use self::pyerrors::*;
-#[cfg(not(PyPy))]
+#[cfg(Py_3_11)]
 pub use self::pyframe::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
@@ -69,4 +68,5 @@ pub use self::pystate::*;
 pub use self::pythonrun::*;
 pub use self::tupleobject::*;
 pub use self::unicodeobject::*;
+#[cfg(not(PyPy))]
 pub use self::weakrefobject::*;

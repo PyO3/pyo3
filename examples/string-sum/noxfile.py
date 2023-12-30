@@ -2,8 +2,7 @@ import nox
 
 
 @nox.session
-def python(session):
-    session.install("-rrequirements-dev.txt")
-    session.install("maturin")
-    session.run_always("maturin", "develop")
+def python(session: nox.Session):
+    session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
+    session.install(".[dev]")
     session.run("pytest")

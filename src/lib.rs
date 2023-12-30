@@ -1,15 +1,6 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![cfg_attr(
-    docsrs, // rustdoc:: is not supported on msrv
-    deny(
-        invalid_doc_attributes,
-        rustdoc::broken_intra_doc_links,
-        rustdoc::bare_urls
-    )
-)]
-#![warn(rust_2018_idioms, unused_lifetimes)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -91,6 +82,7 @@
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
 //! - [`chrono`]: Enables a conversion from [chrono]'s structures to the equivalent Python ones.
+//! - [`either`]: Enables conversions between Python objects and [either]'s [`Either`] type.
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
@@ -103,6 +95,7 @@
 //! [`Decimal`] type.
 //! - [`serde`]: Allows implementing [serde]'s [`Serialize`] and [`Deserialize`] traits for
 //! [`Py`]`<T>` for all `T` that implement [`Serialize`] and [`Deserialize`].
+//! - [`smallvec`][smallvec]: Enables conversions between Python list and [smallvec]'s [`SmallVec`].
 //!
 //! ## Unstable features
 //!
@@ -256,6 +249,7 @@
 //! [inventory]: https://docs.rs/inventory
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
+//! [`SmallVec`]: https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html
 //! [`IndexMap`]: https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html
 //! [`BigInt`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html
 //! [`BigUint`]: https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html
@@ -264,6 +258,9 @@
 //! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 //! [chrono]: https://docs.rs/chrono/ "Date and Time for Rust."
 //! [`chrono`]: ./chrono/index.html "Documentation about the `chrono` feature."
+//! [either]: https://docs.rs/either/ "A type that represents one of two alternatives."
+//! [`either`]: ./either/index.html "Documentation about the `either` feature."
+//! [`Either`]: https://docs.rs/either/latest/either/enum.Either.html
 //! [eyre]: https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications."
 //! [`Report`]: https://docs.rs/eyre/latest/eyre/struct.Report.html
 //! [`eyre`]: ./eyre/index.html "Documentation about the `eyre` feature."
@@ -282,6 +279,7 @@
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
+//! [smallvec]: https://docs.rs/smallvec
 //! [indexmap]: https://docs.rs/indexmap
 //! [manual_builds]: https://pyo3.rs/latest/building_and_distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
 //! [num-bigint]: https://docs.rs/num-bigint
@@ -433,6 +431,7 @@ pub mod once_cell {
     pub use crate::sync::{GILOnceCell, Interned};
 }
 
+#[allow(unused_imports)] // with no features enabled this module has no public exports
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
@@ -499,7 +498,6 @@ pub mod doc_test {
         "guide/src/performance.md" => guide_performance_md,
         "guide/src/python_from_rust.md" => guide_python_from_rust_md,
         "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
-        "guide/src/rust_cpython.md" => guide_rust_cpython_md,
         "guide/src/trait_bounds.md" => guide_trait_bounds_md,
         "guide/src/types.md" => guide_types_md,
     }

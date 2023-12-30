@@ -27,10 +27,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - name: Check python formatting (black)
-        run: nox -s fmt-py
+      - name: Check python formatting and lints (ruff)
+        run: nox -s ruff
       - name: Check rust formatting (rustfmt)
-        run: nox -s fmt-rust
+        run: nox -s rustfmt
+
+  semver-checks:
+    if: github.ref != 'refs/heads/main'
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
 
   check-msrv:
     needs: [fmt]
@@ -104,7 +113,17 @@ jobs:
             rust-target: "i686-pc-windows-msvc",
           },
         ]
+        include:
+          # Run beta clippy as a way to detect any incoming lints which may affect downstream users
+          - rust: beta
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
     name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
+    continue-on-error: ${{ matrix.platform.rust != 'stable' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -144,7 +163,7 @@ jobs:
       matrix:
         extra-features: ["multiple-pymethods"]
         rust: [stable]
-        python-version: ["3.11"]
+        python-version: ["3.12"]
         platform:
           [
             {
@@ -221,7 +240,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: 1.56.0
-            python-version: "3.11"
+            python-version: "3.12"
             platform:
               {
                 os: "ubuntu-latest",
@@ -233,7 +252,7 @@ jobs:
 
           # Test the `nightly` feature
           - rust: nightly
-            python-version: "3.11"
+            python-version: "3.12"
             platform:
               {
                 os: "ubuntu-latest",
@@ -244,7 +263,7 @@ jobs:
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
-            python-version: "3.11"
+            python-version: "3.12"
             platform:
               {
                 os: "windows-latest",
@@ -287,7 +306,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
-      - run: cargo install cargo-careful
+      - uses: taiki-e/install-action@cargo-careful
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s test-rust -- careful skip-full
     env:
@@ -318,7 +337,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: steps.should-skip.outputs.skip != 'true'
         with:
-          components: llvm-tools-preview
+          components: llvm-tools-preview,rust-src
       - name: Install cargo-llvm-cov
         if: steps.should-skip.outputs.skip != 'true'
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -334,17 +353,21 @@ jobs:
 
   emscripten:
     name: emscripten
-    if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
+        with:
+          # TODO bump emscripten builds to test on 3.12
+          python-version: 3.11
         id: setup-python
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-emscripten
-      - uses: actions/setup-node@v3
+          components: rust-src
+      - uses: actions/setup-node@v4
         with:
           node-version: 14
       - run: python -m pip install --upgrade pip && pip install nox

@@ -1,26 +1,9 @@
-[tool.black]
-target_version = ['py35']
-include = '\.pyi?$'
-exclude = '''
-
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.mypy_cache
-    | \.tox
-    | \.nox
-    | \.venv
-    | venv
-    | target
-    | dist
-  )/
-)
-'''
+[tool.ruff.extend-per-file-ignores]
+"__init__.py" = ["F403"]
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
-version = "0.20.0"
+version = "0.20.1"
 start_string = "<!-- towncrier release notes start -->\n"
 template = ".towncrier.template.md"
 title_format = "## [{version}] - {project_date}"
