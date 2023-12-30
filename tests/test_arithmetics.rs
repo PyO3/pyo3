@@ -178,6 +178,10 @@ impl BinaryArithmetic {
         format!("BA * {:?}", rhs)
     }
 
+    fn __truediv__(&self, rhs: &PyAny) -> String {
+        format!("BA / {:?}", rhs)
+    }
+
     fn __lshift__(&self, rhs: &PyAny) -> String {
         format!("BA << {:?}", rhs)
     }
@@ -233,6 +237,18 @@ fn binary_arithmetic() {
         py_expect_exception!(py, c, "1 ** c", PyTypeError);
 
         py_run!(py, c, "assert pow(c, 1, 100) == 'BA ** 1 (mod: Some(100))'");
+
+        let c: Bound<'_, PyAny> = c.extract().unwrap();
+        assert_py_eq!(c.add(&c).unwrap(), "BA + BA");
+        assert_py_eq!(c.sub(&c).unwrap(), "BA - BA");
+        assert_py_eq!(c.mul(&c).unwrap(), "BA * BA");
+        assert_py_eq!(c.div(&c).unwrap(), "BA / BA");
+        assert_py_eq!(c.lshift(&c).unwrap(), "BA << BA");
+        assert_py_eq!(c.rshift(&c).unwrap(), "BA >> BA");
+        assert_py_eq!(c.bitand(&c).unwrap(), "BA & BA");
+        assert_py_eq!(c.bitor(&c).unwrap(), "BA | BA");
+        assert_py_eq!(c.bitxor(&c).unwrap(), "BA ^ BA");
+        assert_py_eq!(c.pow(&c, py.None()).unwrap(), "BA ** BA (mod: None)");
     });
 }
 

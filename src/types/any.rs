@@ -1208,6 +1208,58 @@ pub trait PyAnyMethods<'py> {
     where
         O: ToPyObject;
 
+    /// Computes `self + other`.
+    fn add<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self - other`.
+    fn sub<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self * other`.
+    fn mul<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self / other`.
+    fn div<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self << other`.
+    fn lshift<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self >> other`.
+    fn rshift<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
+    /// `py.None()` may be passed for the `modulus`.
+    fn pow<O1, O2>(&self, other: O1, modulus: O2) -> PyResult<Bound<'py, PyAny>>
+    where
+        O1: ToPyObject,
+        O2: ToPyObject;
+
+    /// Computes `self & other`.
+    fn bitand<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self | other`.
+    fn bitor<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self ^ other`.
+    fn bitxor<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
     /// Determines whether this object appears callable.
     ///
     /// This is equivalent to Python's [`callable()`][1] function.
@@ -1680,6 +1732,26 @@ pub trait PyAnyMethods<'py> {
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>>;
 }
 
+macro_rules! implement_binop {
+    ($name:ident, $c_api:ident, $op:expr) => {
+        #[doc = concat!("Computes `self ", $op, " other`.")]
+        fn $name<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+        where
+            O: ToPyObject,
+        {
+            fn inner<'py>(
+                any: &Bound<'py, PyAny>,
+                other: Bound<'_, PyAny>,
+            ) -> PyResult<Bound<'py, PyAny>> {
+                unsafe { ffi::$c_api(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py()) }
+            }
+
+            let py = self.py();
+            inner(self, other.to_object(py).into_bound(py))
+        }
+    };
+}
+
 impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
     fn is<T: AsPyPointer>(&self, other: &T) -> bool {
@@ -1853,6 +1925,42 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         self.rich_compare(other, CompareOp::Ge)
             .and_then(|any| any.is_truthy())
+    }
+
+    implement_binop!(add, PyNumber_Add, "+");
+    implement_binop!(sub, PyNumber_Subtract, "-");
+    implement_binop!(mul, PyNumber_Multiply, "*");
+    implement_binop!(div, PyNumber_TrueDivide, "/");
+    implement_binop!(lshift, PyNumber_Lshift, "<<");
+    implement_binop!(rshift, PyNumber_Rshift, ">>");
+    implement_binop!(bitand, PyNumber_And, "&");
+    implement_binop!(bitor, PyNumber_Or, "|");
+    implement_binop!(bitxor, PyNumber_Xor, "^");
+
+    /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
+    /// `py.None()` may be passed for the `modulus`.
+    fn pow<O1, O2>(&self, other: O1, modulus: O2) -> PyResult<Bound<'py, PyAny>>
+    where
+        O1: ToPyObject,
+        O2: ToPyObject,
+    {
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            other: Bound<'_, PyAny>,
+            modulus: Bound<'_, PyAny>,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            unsafe {
+                ffi::PyNumber_Power(any.as_ptr(), other.as_ptr(), modulus.as_ptr())
+                    .assume_owned_or_err(any.py())
+            }
+        }
+
+        let py = self.py();
+        inner(
+            self,
+            other.to_object(py).into_bound(py),
+            modulus.to_object(py).into_bound(py),
+        )
     }
 
     fn is_callable(&self) -> bool {
