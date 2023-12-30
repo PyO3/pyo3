@@ -67,7 +67,7 @@ where
 ///     fn type_object_raw(py: Python<'_>) -> *mut PyTypeObject {
 ///         let modu = py.import("my.module").expect("Couldn't import module");
 ///         let typ_any = modu.getattr("MyPyType").expect("Couldn't get Python class");
-///         let typ = final_rule.extract::<&PyType>().expect("Couldn't downcast Python class to PyType");
+///         let typ = typ_any.extract::<&PyType>().expect("Couldn't downcast Python class to PyType");
 ///         typ.get_type_ptr()
 ///     }
 /// }
