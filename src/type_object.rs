@@ -58,20 +58,20 @@ where
 /// To use PyTypeInfo to represent a custom Python class that is not implemented in Rust:
 ///
 /// ```
-/// struct MyPyType(PyAny);
-/// unsafe impl PyTypeInfo for MyPyType {
+/// struct Formatter(PyAny);
+/// unsafe impl PyTypeInfo for Formatter {
 ///     const NAME: &'static str = "MyPyType";
-///     const MODULE: Option<&'static str> = Option::Some("my.module");
+///     const MODULE: Option<&'static str> = Option::Some("string");
 ///     type AsRefTarget = PyAny;
 ///
 ///     fn type_object_raw(py: Python<'_>) -> *mut PyTypeObject {
-///         let modu = py.import("my.module").expect("Couldn't import module");
-///         let typ_any = modu.getattr("MyPyType").expect("Couldn't get Python class");
+///         let modu = py.import("string").expect("Couldn't import string module");
+///         let typ_any = modu.getattr("Formatter").expect("Couldn't get Python class");
 ///         let typ = typ_any.extract::<&PyType>().expect("Couldn't downcast Python class to PyType");
 ///         typ.get_type_ptr()
 ///     }
 /// }
-/// unsafe impl PyNativeType for MyPyType {}
+/// unsafe impl PyNativeType for Formatter {}
 /// ```
 pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     /// Class name.
