@@ -12,8 +12,8 @@ fn make_date(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate>
 }
 
 #[pyfunction]
-fn get_date_tuple<'p>(py: Python<'p>, d: &PyDate) -> &'p PyTuple {
-    PyTuple::new(py, [d.get_year(), d.get_month() as i32, d.get_day() as i32])
+fn get_date_tuple<'p>(py: Python<'p>, d: &PyDate) -> Bound<'p, PyTuple> {
+    PyTuple::new_bound(py, [d.get_year(), d.get_month() as i32, d.get_day() as i32])
 }
 
 #[pyfunction]
@@ -48,8 +48,8 @@ fn time_with_fold<'p>(
 }
 
 #[pyfunction]
-fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
-    PyTuple::new(
+fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> Bound<'p, PyTuple> {
+    PyTuple::new_bound(
         py,
         [
             dt.get_hour() as u32,
@@ -61,8 +61,8 @@ fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
 }
 
 #[pyfunction]
-fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
-    PyTuple::new(
+fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> Bound<'p, PyTuple> {
+    PyTuple::new_bound(
         py,
         [
             dt.get_hour() as u32,
@@ -80,8 +80,8 @@ fn make_delta(py: Python<'_>, days: i32, seconds: i32, microseconds: i32) -> PyR
 }
 
 #[pyfunction]
-fn get_delta_tuple<'p>(py: Python<'p>, delta: &PyDelta) -> &'p PyTuple {
-    PyTuple::new(
+fn get_delta_tuple<'p>(py: Python<'p>, delta: &PyDelta) -> Bound<'p, PyTuple> {
+    PyTuple::new_bound(
         py,
         [
             delta.get_days(),
@@ -118,8 +118,8 @@ fn make_datetime<'p>(
 }
 
 #[pyfunction]
-fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
-    PyTuple::new(
+fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> Bound<'p, PyTuple> {
+    PyTuple::new_bound(
         py,
         [
             dt.get_year(),
@@ -134,8 +134,8 @@ fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
 }
 
 #[pyfunction]
-fn get_datetime_tuple_fold<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
-    PyTuple::new(
+fn get_datetime_tuple_fold<'p>(py: Python<'p>, dt: &PyDateTime) -> Bound<'p, PyTuple> {
+    PyTuple::new_bound(
         py,
         [
             dt.get_year(),
