@@ -71,7 +71,7 @@ where
 ///         typ.get_type_ptr()
 ///     }
 /// }
-/// unsafe impl PyNativeType for PyFinalRule {}
+/// unsafe impl PyNativeType for MyPyType {}
 /// ```
 pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     /// Class name.
