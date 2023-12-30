@@ -59,7 +59,7 @@ where
 ///
 /// ```
 /// use pyo3_ffi::PyTypeObject;
-/// use pyo3::{Python, PyAny, PyType, PyNativeType};
+/// use pyo3::{Python, PyAny, PyType, PyNativeType, PyTypeInfo};
 /// 
 /// struct PyFormatter(PyAny);
 /// unsafe impl PyTypeInfo for PyFormatter {
