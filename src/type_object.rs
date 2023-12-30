@@ -59,13 +59,14 @@ where
 ///
 /// ```
 /// use pyo3_ffi::PyTypeObject;
-/// use pyo3::{Python, PyAny, PyType, PyNativeType, PyTypeInfo};
+/// use pyo3::types::{PyAny, PyType};
+/// use pyo3::{Python, PyNativeType, PyTypeInfo};
 /// 
 /// struct PyFormatter(PyAny);
 /// unsafe impl PyTypeInfo for PyFormatter {
 ///     const NAME: &'static str = "Formatter";
 ///     const MODULE: Option<&'static str> = Option::Some("string");
-///     type AsRefTarget = PyAny;
+///     type AsRefTarget = PyType;
 ///
 ///     fn type_object_raw(py: Python<'_>) -> *mut PyTypeObject {
 ///         let modu = py.import("string").expect("Couldn't import string module");
