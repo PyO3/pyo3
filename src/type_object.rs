@@ -52,6 +52,27 @@ where
 ///
 /// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
 /// non-null pointer to the corresponding Python type object.
+///
+/// # Example
+///
+/// To use PyTypeInfo to represent a custom Python class that is not implemented in Rust:
+///
+/// ```
+/// struct MyPyType(PyAny);
+/// unsafe impl PyTypeInfo for MyPyType {
+///     const NAME: &'static str = "MyPyType";
+///     const MODULE: Option<&'static str> = Option::Some("my.module");
+///     type AsRefTarget = PyAny;
+///
+///     fn type_object_raw(py: Python<'_>) -> *mut PyTypeObject {
+///         let modu = py.import("my.module").expect("Couldn't import module");
+///         let typ_any = modu.getattr("MyPyType").expect("Couldn't get Python class");
+///         let typ = final_rule.extract::<&PyType>().expect("Couldn't downcast Python class to PyType");
+///         typ.get_type_ptr()
+///     }
+/// }
+/// unsafe impl PyNativeType for PyFinalRule {}
+/// ```
 pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     /// Class name.
     const NAME: &'static str;
