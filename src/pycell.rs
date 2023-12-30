@@ -641,7 +641,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// }
 /// # Python::with_gil(|py| {
 /// #     let sub = PyCell::new(py, Child::new()).unwrap();
-/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
+/// #     pyo3::py_run_bound!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
 /// # });
 /// ```
 ///
@@ -740,7 +740,7 @@ where
     /// }
     /// # Python::with_gil(|py| {
     /// #     let sub = PyCell::new(py, Sub::new()).unwrap();
-    /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
+    /// #     pyo3::py_run_bound!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
     /// ```
     pub fn into_super(self) -> PyRef<'p, U> {

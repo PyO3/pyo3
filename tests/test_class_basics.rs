@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::PyType;
-use pyo3::{py_run, PyClass};
+use pyo3::{py_run_bound, PyClass};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -59,22 +59,22 @@ struct ClassWithDocs {
 fn class_with_docstr() {
     Python::with_gil(|py| {
         let typeobj = py.get_type::<ClassWithDocs>();
-        py_run!(
+        py_run_bound!(
             py,
             typeobj,
             "assert typeobj.__doc__ == 'Line1\\nLine2\\n Line3'"
         );
-        py_run!(
+        py_run_bound!(
             py,
             typeobj,
             "assert typeobj.value.__doc__ == 'Property field'"
         );
-        py_run!(
+        py_run_bound!(
             py,
             typeobj,
             "assert typeobj.readonly.__doc__ == 'Read-only property field'"
         );
-        py_run!(
+        py_run_bound!(
             py,
             typeobj,
             "assert typeobj.writeonly.__doc__ == 'Write-only property field'"
@@ -314,7 +314,7 @@ fn test_pymethods_from_py_with() {
     Python::with_gil(|py| {
         let instance = Py::new(py, ClassWithFromPyWithMethods {}).unwrap();
 
-        py_run!(
+        py_run_bound!(
             py,
             instance,
             r#"
@@ -340,7 +340,7 @@ fn test_tuple_struct_class() {
         py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");
 
         let instance = Py::new(py, TupleClass(5)).unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             instance,
             r#"
@@ -371,7 +371,7 @@ fn dunder_dict_support() {
             },
         )
         .unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             r#"
@@ -394,7 +394,7 @@ fn access_dunder_dict() {
             },
         )
         .unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             r#"
@@ -425,7 +425,7 @@ fn inherited_dict() {
             ),
         )
         .unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             r#"
@@ -453,7 +453,7 @@ fn weakref_dunder_dict_support() {
             },
         )
         .unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
@@ -477,7 +477,7 @@ fn weakref_support() {
             },
         )
         .unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "import weakref; assert weakref.ref(inst)() is inst"
@@ -505,7 +505,7 @@ fn inherited_weakref() {
             ),
         )
         .unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "import weakref; assert weakref.ref(inst)() is inst"

@@ -686,6 +686,7 @@ impl_element!(f32, Float);
 impl_element!(f64, Float);
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::PyBuffer;
     use crate::ffi;

@@ -79,7 +79,7 @@ fn main() -> PyResult<()> {
 
     // Log some messages from Python
     Python::with_gil(|py| {
-        py.run(
+        py.run_bound(
             "
 import logging
 logging.error('Something bad happened')

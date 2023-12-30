@@ -1,9 +1,10 @@
 use crate::ffi::*;
 use crate::Python;
 
+use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
-    types::{any::PyAnyMethods, PyDict, PyString},
+    types::{dict::PyDictMethods, PyDict, PyString},
     IntoPy, Py, PyAny,
 };
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
@@ -19,12 +20,12 @@ fn test_datetime_fromtimestamp() {
             PyDateTime_IMPORT();
             py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr()))
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -40,12 +41,12 @@ fn test_date_fromtimestamp() {
             PyDateTime_IMPORT();
             py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr()))
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert dt == datetime.date.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -60,12 +61,12 @@ fn test_utc_timezone() {
             PyDateTime_IMPORT();
             py.from_borrowed_ptr(PyDateTime_TimeZone_UTC())
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert utc_timezone is datetime.timezone.utc",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -81,7 +82,7 @@ fn test_timezone_from_offset() {
     Python::with_gil(|py| {
         let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
         let tz: &PyAny = unsafe { py.from_borrowed_ptr(PyTimeZone_FromOffset(delta.as_ptr())) };
-        crate::py_run!(
+        crate::py_run_bound!(
             py,
             tz,
             "import datetime; assert tz == datetime.timezone(datetime.timedelta(seconds=100))"
@@ -105,7 +106,7 @@ fn test_timezone_from_offset_and_name() {
                 tzname.as_ptr(),
             ))
         };
-        crate::py_run!(
+        crate::py_run_bound!(
             py,
             tz,
             "import datetime; assert tz == datetime.timezone(datetime.timedelta(seconds=100), 'testtz')"
@@ -293,7 +294,7 @@ fn test_get_tzinfo() {
 #[test]
 fn test_inc_dec_ref() {
     Python::with_gil(|py| {
-        let obj = py.eval("object()", None, None).unwrap();
+        let obj = py.eval_bound("object()", None, None).unwrap();
 
         let ref_count = obj.get_refcnt();
         let ptr = obj.as_ptr();

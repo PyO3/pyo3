@@ -116,14 +116,18 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::type_object::HasPyGilRef;
+use crate::types::any::PyAnyMethods;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, FromPyPointer, IntoPy, Py, PyObject, PyTypeCheck, PyTypeInfo};
+use crate::{
+    ffi, Bound, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTypeCheck, PyTypeInfo,
+};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -357,8 +361,8 @@ pub use nightly::Ungil;
 /// # fn main () -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
 ///     for _ in 0..10 {
-///         let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
-///         println!("Python says: {}", hello.to_str()?);
+///         let hello: Bound<'_, PyString> = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into()?;
+///         println!("Python says: {}", hello.to_cow()?);
 ///         // Normally variables in a loop scope are dropped here, but `hello` is a reference to
 ///         // something owned by the Python interpreter. Dropping this reference does nothing.
 ///     }
@@ -416,7 +420,7 @@ impl Python<'_> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval("5", None, None)?.extract()?;
+    ///     let x: i32 = py.eval_bound("5", None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -545,6 +549,29 @@ impl<'py> Python<'py> {
         f()
     }
 
+    /// Deprecated form of [`eval_bound`][Python::eval_bound].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`eval` will be replaced by `eval_bound` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub fn eval(
+        self,
+        code: &str,
+        globals: Option<&PyDict>,
+        locals: Option<&PyDict>,
+    ) -> PyResult<&'py PyAny> {
+        self.eval_bound(
+            code,
+            globals.map(PyDict::as_borrowed).as_deref(),
+            locals.map(PyDict::as_borrowed).as_deref(),
+        )
+        .map(Bound::into_gil_ref)
+    }
+
     /// Evaluates a Python expression in the given context and returns the result.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
@@ -558,18 +585,40 @@ impl<'py> Python<'py> {
     /// ```
     /// # use pyo3::prelude::*;
     /// # Python::with_gil(|py| {
-    /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let result = py.eval_bound("[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
     /// ```
-    pub fn eval(
+    pub fn eval_bound(
+        self,
+        code: &str,
+        globals: Option<&Bound<'_, PyDict>>,
+        locals: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.run_code(code, ffi::Py_eval_input, globals, locals)
+    }
+
+    /// Deprecated form of [`run_bound`][Python::run_bound].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`run` will be replaced by `run_bound` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub fn run(
         self,
         code: &str,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'py PyAny> {
-        self.run_code(code, ffi::Py_eval_input, globals, locals)
+    ) -> PyResult<()> {
+        self.run_bound(
+            code,
+            globals.map(PyDict::as_borrowed).as_deref(),
+            locals.map(PyDict::as_borrowed).as_deref(),
+        )
     }
 
     /// Executes one or more Python statements in the given context.
@@ -587,30 +636,30 @@ impl<'py> Python<'py> {
     ///     types::{PyBytes, PyDict},
     /// };
     /// Python::with_gil(|py| {
-    ///     let locals = PyDict::new(py);
-    ///     py.run(
+    ///     let locals = PyDict::new_bound(py);
+    ///     py.run_bound(
     ///         r#"
     /// import base64
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
     /// "#,
     ///         None,
-    ///         Some(locals),
+    ///         Some(&locals),
     ///     )
     ///     .unwrap();
     ///     let ret = locals.get_item("ret").unwrap().unwrap();
-    ///     let b64: &PyBytes = ret.downcast().unwrap();
+    ///     let b64: &Bound<'_, PyBytes> = ret.downcast().unwrap();
     ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// });
     /// ```
     ///
-    /// You can use [`py_run!`](macro.py_run.html) for a handy alternative of `run`
+    /// You can use [`py_run_bound!`](macro.py_run_bound.html) for a handy alternative of `run`
     /// if you don't need `globals` and unwrapping is OK.
-    pub fn run(
+    pub fn run_bound(
         self,
         code: &str,
-        globals: Option<&PyDict>,
-        locals: Option<&PyDict>,
+        globals: Option<&Bound<'_, PyDict>>,
+        locals: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
         let res = self.run_code(code, ffi::Py_file_input, globals, locals);
         res.map(|obj| {
@@ -629,9 +678,9 @@ impl<'py> Python<'py> {
         self,
         code: &str,
         start: c_int,
-        globals: Option<&PyDict>,
-        locals: Option<&PyDict>,
-    ) -> PyResult<&'py PyAny> {
+        globals: Option<&Bound<'_, PyDict>>,
+        locals: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let code = CString::new(code)?;
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
@@ -640,9 +689,9 @@ impl<'py> Python<'py> {
             }
 
             let globals = globals
-                .map(|dict| dict.as_ptr())
+                .map(Bound::as_ptr)
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
+            let locals = locals.map(Bound::as_ptr).unwrap_or(globals);
 
             // If `globals` don't provide `__builtins__`, most of the code will fail if Python
             // version is <3.10. That's probably not what user intended, so insert `__builtins__`
@@ -667,14 +716,10 @@ impl<'py> Python<'py> {
                 }
             }
 
-            let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
-            if code_obj.is_null() {
-                return Err(PyErr::fetch(self));
-            }
-            let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
-            ffi::Py_DECREF(code_obj);
+            let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start)
+                .assume_owned_or_err(self)?;
 
-            self.from_owned_ptr_or_err(res_ptr)
+            ffi::PyEval_EvalCode(code_obj.as_ptr(), globals, locals).assume_owned_or_err(self)
         }
     }
 
@@ -1066,6 +1111,7 @@ impl<'unbound> Python<'unbound> {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
     use crate::types::{any::PyAnyMethods, IntoPyDict, PyDict, PyList};

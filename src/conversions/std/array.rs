@@ -130,7 +130,7 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering},
     };
 
-    use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
+    use crate::{types::any::PyAnyMethods, types::PyList, IntoPy, PyResult, Python, ToPyObject};
 
     #[test]
     fn array_try_from_fn() {
@@ -157,7 +157,7 @@ mod tests {
     fn test_extract_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 33] = py
-                .eval(
+                .eval_bound(
                     "bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')",
                     None,
                     None,
@@ -173,7 +173,7 @@ mod tests {
     fn test_extract_small_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 3] = py
-                .eval("bytearray(b'abc')", None, None)
+                .eval_bound("bytearray(b'abc')", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -197,7 +197,7 @@ mod tests {
     fn test_extract_invalid_sequence_length() {
         Python::with_gil(|py| {
             let v: PyResult<[u8; 3]> = py
-                .eval("bytearray(b'abcdefg')", None, None)
+                .eval_bound("bytearray(b'abcdefg')", None, None)
                 .unwrap()
                 .extract();
             assert_eq!(
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn test_extract_non_iterable_to_array() {
         Python::with_gil(|py| {
-            let v = py.eval("42", None, None).unwrap();
+            let v = py.eval_bound("42", None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
         });

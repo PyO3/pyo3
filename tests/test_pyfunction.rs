@@ -61,7 +61,7 @@ f(a, b)
             PyBufferError
         );
 
-        pyo3::py_run!(
+        pyo3::py_run_bound!(
             py,
             f,
             r#"
@@ -92,7 +92,7 @@ fn test_functions_with_function_args() {
         let py_cfunc_arg = wrap_pyfunction!(function_with_pycfunction_arg)(py).unwrap();
         let bool_to_string = wrap_pyfunction!(optional_bool)(py).unwrap();
 
-        pyo3::py_run!(
+        pyo3::py_run_bound!(
             py,
             py_cfunc_arg
             bool_to_string,
@@ -105,7 +105,7 @@ fn test_functions_with_function_args() {
         {
             let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
 
-            pyo3::py_run!(
+            pyo3::py_run_bound!(
                 py,
                 py_func_arg,
                 r#"
@@ -139,7 +139,7 @@ fn test_function_with_custom_conversion() {
     Python::with_gil(|py| {
         let custom_conv_func = wrap_pyfunction!(function_with_custom_conversion)(py).unwrap();
 
-        pyo3::py_run!(
+        pyo3::py_run_bound!(
             py,
             custom_conv_func,
             r#"

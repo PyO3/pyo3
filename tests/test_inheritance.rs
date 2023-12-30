@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::py_run;
+use pyo3::py_run_bound;
 
 use pyo3::types::IntoPyDict;
 
@@ -20,12 +20,12 @@ struct SubclassAble {}
 #[test]
 fn subclass() {
     Python::with_gil(|py| {
-        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
+        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict_bound(py);
 
-        py.run(
+        py.run_bound(
             "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
             None,
-            Some(d),
+            Some(&d),
         )
         .map_err(|e| e.display(py))
         .unwrap();
@@ -74,7 +74,7 @@ fn inheritance_with_new_methods() {
     Python::with_gil(|py| {
         let typeobj = py.get_type::<SubClass>();
         let inst = typeobj.call((), None).unwrap();
-        py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
+        py_run_bound!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
     });
 }
 
@@ -82,7 +82,7 @@ fn inheritance_with_new_methods() {
 fn call_base_and_sub_methods() {
     Python::with_gil(|py| {
         let obj = PyCell::new(py, SubClass::new()).unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             obj,
             r#"
@@ -97,9 +97,13 @@ fn call_base_and_sub_methods() {
 fn mutation_fails() {
     Python::with_gil(|py| {
         let obj = PyCell::new(py, SubClass::new()).unwrap();
-        let global = Some([("obj", obj)].into_py_dict(py));
+        let global = Some([("obj", obj)].into_py_dict_bound(py));
         let e = py
-            .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
+            .run_bound(
+                "obj.base_set(lambda: obj.sub_set_and_ret(1))",
+                global.as_ref(),
+                None,
+            )
             .unwrap_err();
         assert_eq!(&e.to_string(), "RuntimeError: Already borrowed");
     });
@@ -152,7 +156,7 @@ impl SubClass2 {
 fn handle_result_in_new() {
     Python::with_gil(|py| {
         let subclass = py.get_type::<SubClass2>();
-        py_run!(
+        py_run_bound!(
             py,
             subclass,
             r#"
@@ -199,7 +203,7 @@ mod inheriting_native_type {
 
         Python::with_gil(|py| {
             let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();
-            py_run!(
+            py_run_bound!(
                 py,
                 set_sub,
                 r#"set_sub.add(10); assert list(set_sub) == [10]; assert set_sub.name == "Hello :)""#
@@ -226,7 +230,7 @@ mod inheriting_native_type {
     fn inherit_dict() {
         Python::with_gil(|py| {
             let dict_sub = pyo3::PyCell::new(py, DictWithName::new()).unwrap();
-            py_run!(
+            py_run_bound!(
                 py,
                 dict_sub,
                 r#"dict_sub[0] = 1; assert dict_sub[0] == 1; assert dict_sub.name == "Hello :)""#
@@ -240,10 +244,10 @@ mod inheriting_native_type {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
-            let item = py.eval("object()", None, None).unwrap();
+            let item = py.eval_bound("object()", None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
-            dict_sub.as_ref(py).set_item("foo", item).unwrap();
+            dict_sub.as_ref(py).set_item("foo", &item).unwrap();
             assert_eq!(item.get_refcnt(), 2);
 
             drop(dict_sub);
@@ -271,17 +275,17 @@ mod inheriting_native_type {
     fn custom_exception() {
         Python::with_gil(|py| {
             let cls = py.get_type::<CustomException>();
-            let dict = [("cls", cls)].into_py_dict(py);
-            let res = py.run(
+            let dict = [("cls", cls)].into_py_dict_bound(py);
+            let res = py.run_bound(
             "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
             None,
-            Some(dict)
+            Some(&dict)
             );
             let err = res.unwrap_err();
             assert!(err.matches(py, cls), "{}", err);
 
             // catching the exception in Python also works:
-            py_run!(
+            py_run_bound!(
                 py,
                 cls,
                 r#"
@@ -312,7 +316,7 @@ fn test_subclass_ref_counts() {
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
         let SimpleClass = py.get_type::<SimpleClass>();
-        py_run!(
+        py_run_bound!(
             py,
             SimpleClass,
             r#"

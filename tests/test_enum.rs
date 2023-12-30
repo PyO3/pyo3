@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::{py_run, wrap_pyfunction};
+use pyo3::{py_run_bound, wrap_pyfunction};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -33,7 +33,7 @@ fn test_return_enum() {
         let f = wrap_pyfunction!(return_enum)(py).unwrap();
         let mynum = py.get_type::<MyEnum>();
 
-        py_run!(py, f mynum, "assert f() == mynum.Variant")
+        py_run_bound!(py, f mynum, "assert f() == mynum.Variant")
     });
 }
 
@@ -48,7 +48,7 @@ fn test_enum_arg() {
         let f = wrap_pyfunction!(enum_arg)(py).unwrap();
         let mynum = py.get_type::<MyEnum>();
 
-        py_run!(py, f mynum, "f(mynum.OtherVariant)")
+        py_run_bound!(py, f mynum, "f(mynum.OtherVariant)")
     })
 }
 
@@ -86,7 +86,7 @@ fn test_custom_discriminant() {
         let CustomDiscriminant = py.get_type::<CustomDiscriminant>();
         let one = Py::new(py, CustomDiscriminant::One).unwrap();
         let two = Py::new(py, CustomDiscriminant::Two).unwrap();
-        py_run!(py, CustomDiscriminant one two, r#"
+        py_run_bound!(py, CustomDiscriminant one two, r#"
         assert CustomDiscriminant.One == one
         assert CustomDiscriminant.Two == two
         assert one != two
@@ -101,7 +101,7 @@ fn test_enum_to_int() {
         py_assert!(py, one, "int(one) == 1");
         let v = Py::new(py, MyEnum::Variant).unwrap();
         let v_value = MyEnum::Variant as isize;
-        py_run!(py, v v_value, "int(v) == v_value");
+        py_run_bound!(py, v v_value, "int(v) == v_value");
     })
 }
 
@@ -109,7 +109,7 @@ fn test_enum_to_int() {
 fn test_enum_compare_int() {
     Python::with_gil(|py| {
         let one = Py::new(py, CustomDiscriminant::One).unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             one,
             r#"

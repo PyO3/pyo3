@@ -4,7 +4,7 @@ use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
 use pyo3::{ffi, prelude::*};
 
-use pyo3::py_run;
+use pyo3::py_run_bound;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -105,10 +105,10 @@ impl ByteSequence {
 }
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
-fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+fn seq_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
+    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict_bound(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
-    py_run!(py, *d, "s = ByteSequence([1, 2, 3])");
+    py_run_bound!(py, *d, "s = ByteSequence([1, 2, 3])");
     d
 }
 
@@ -130,7 +130,7 @@ fn test_setitem() {
     Python::with_gil(|py| {
         let d = seq_dict(py);
 
-        py_run!(py, *d, "s[0] = 4; assert list(s) == [4, 2, 3]");
+        py_run_bound!(py, *d, "s[0] = 4; assert list(s) == [4, 2, 3]");
         py_expect_exception!(py, *d, "s[0] = 'hello'", PyTypeError);
     });
 }
@@ -138,24 +138,24 @@ fn test_setitem() {
 #[test]
 fn test_delitem() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict_bound(py);
 
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "s = ByteSequence([1, 2, 3]); del s[0]; assert list(s) == [2, 3]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "s = ByteSequence([1, 2, 3]); del s[1]; assert list(s) == [1, 3]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "s = ByteSequence([1, 2, 3]); del s[-1]; assert list(s) == [1, 2]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "s = ByteSequence([1, 2, 3]); del s[-2]; assert list(s) == [1, 3]"
@@ -193,7 +193,7 @@ fn test_concat() {
     Python::with_gil(|py| {
         let d = seq_dict(py);
 
-        py_run!(
+        py_run_bound!(
         py,
         *d,
         "s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1 + s2) == [1, 2, 3, 4]"
@@ -212,7 +212,7 @@ fn test_inplace_concat() {
     Python::with_gil(|py| {
         let d = seq_dict(py);
 
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "s += ByteSequence([4, 5]); assert list(s) == [1, 2, 3, 4, 5]"
@@ -226,7 +226,7 @@ fn test_repeat() {
     Python::with_gil(|py| {
         let d = seq_dict(py);
 
-        py_run!(py, *d, "s2 = s * 2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
+        py_run_bound!(py, *d, "s2 = s * 2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
         py_expect_exception!(py, *d, "s2 = s * -1", PyValueError);
     });
 }
@@ -234,9 +234,9 @@ fn test_repeat() {
 #[test]
 fn test_inplace_repeat() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict_bound(py);
 
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]"
@@ -270,7 +270,7 @@ fn test_generic_list_set() {
     Python::with_gil(|py| {
         let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
 
-        py_run!(py, list, "list.items = [1, 2, 3]");
+        py_run_bound!(py, list, "list.items = [1, 2, 3]");
         assert!(list
             .borrow()
             .items

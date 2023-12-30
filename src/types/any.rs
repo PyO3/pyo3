@@ -388,9 +388,9 @@ impl PyAny {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = fun.call(args, Some(kwargs))?;
+    ///     let result = fun.call(args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -488,9 +488,9 @@ impl PyAny {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = instance.call_method("method", args, Some(kwargs))?;
+    ///     let result = instance.call_method("method", args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -691,7 +691,7 @@ impl PyAny {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new(py);
+    ///     let dict = PyDict::new_bound(py).into_gil_ref();
     ///     assert!(dict.is_instance_of::<PyAny>());
     ///     let any: &PyAny = dict.as_ref();
     ///
@@ -1268,9 +1268,9 @@ pub trait PyAnyMethods<'py> {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = fun.call(args, Some(kwargs))?;
+    ///     let result = fun.call(args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -1360,9 +1360,9 @@ pub trait PyAnyMethods<'py> {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = instance.call_method("method", args, Some(kwargs))?;
+    ///     let result = instance.call_method("method", args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -1519,9 +1519,9 @@ pub trait PyAnyMethods<'py> {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new(py);
+    ///     let dict = PyDict::new_bound(py);
     ///     assert!(dict.is_instance_of::<PyAny>());
-    ///     let any: &PyAny = dict.as_ref();
+    ///     let any: &Bound<'_, PyAny> = &dict;
     ///
     ///     assert!(any.downcast::<PyDict>().is_ok());
     ///     assert!(any.downcast::<PyList>().is_err());

@@ -29,7 +29,10 @@ fn empty_class_with_new() {
         // Calling with arbitrary args or kwargs is not ok
         assert!(typeobj.call(("some", "args"), None).is_err());
         assert!(typeobj
-            .call((), Some([("some", "kwarg")].into_py_dict(py)))
+            .call(
+                (),
+                Some([("some", "kwarg")].into_py_dict_bound(py).as_gil_ref())
+            )
             .is_err());
     });
 }
@@ -169,9 +172,12 @@ c = Class()
 assert c.from_rust is False
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .as_borrowed()
+            .dict();
         globals.set_item("SuperClass", super_cls).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });

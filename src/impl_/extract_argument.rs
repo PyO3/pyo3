@@ -680,7 +680,7 @@ impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
         _function_description: &FunctionDescription,
     ) -> PyResult<()> {
         varkeywords
-            .get_or_insert_with(|| PyDict::new(name.py()))
+            .get_or_insert_with(|| PyDict::new_bound(name.py()).into_gil_ref())
             .set_item(name, value)
     }
 }
@@ -727,7 +727,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
-            let kwargs = [("foo", 0u8)].into_py_dict(py);
+            let kwargs = [("foo", 0u8)].into_py_dict_bound(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -758,7 +758,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
-            let kwargs = [(1u8, 1u8)].into_py_dict(py);
+            let kwargs = [(1u8, 1u8)].into_py_dict_bound(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
-use pyo3::{prelude::*, py_run, PyCell};
+use pyo3::{prelude::*, py_run_bound, PyCell};
 use std::{isize, iter};
 
 #[path = "../src/tests/common.rs"]
@@ -216,7 +216,7 @@ fn mapping() {
         let inst = Py::new(
             py,
             Mapping {
-                values: PyDict::new(py).into(),
+                values: PyDict::new_bound(py).into(),
             },
         )
         .unwrap();
@@ -225,9 +225,9 @@ fn mapping() {
 
         py_assert!(py, inst, "len(inst) == 0");
 
-        py_run!(py, inst, "inst['foo'] = 'foo'");
+        py_run_bound!(py, inst, "inst['foo'] = 'foo'");
         py_assert!(py, inst, "inst['foo'] == 'foo'");
-        py_run!(py, inst, "del inst['foo']");
+        py_run_bound!(py, inst, "del inst['foo']");
         py_expect_exception!(py, inst, "inst['foo']", PyKeyError);
 
         // Default iteration will call __getitem__ with integer indices
@@ -328,7 +328,7 @@ fn sequence() {
         py_assert!(py, inst, "len(inst) == 0");
 
         py_expect_exception!(py, inst, "inst[0]", PyIndexError);
-        py_run!(py, inst, "inst.append('foo')");
+        py_run_bound!(py, inst, "inst.append('foo')");
 
         py_assert!(py, inst, "inst[0] == 'foo'");
         py_assert!(py, inst, "inst[-1] == 'foo'");
@@ -338,7 +338,7 @@ fn sequence() {
 
         py_assert!(py, inst, "[*inst] == ['foo']");
 
-        py_run!(py, inst, "del inst[0]");
+        py_run_bound!(py, inst, "del inst[0]");
 
         py_expect_exception!(py, inst, "inst['foo']", PyTypeError);
 
@@ -352,7 +352,7 @@ fn sequence() {
         // however regular python len() works thanks to mp_len slot
         assert_eq!(inst.as_ref(py).len().unwrap(), 0);
 
-        py_run!(py, inst, "inst.append(0)");
+        py_run_bound!(py, inst, "inst.append(0)");
         sequence.set_item(0, 5).unwrap();
         assert_eq!(inst.as_ref(py).len().unwrap(), 1);
 
@@ -438,7 +438,7 @@ impl SetItem {
 fn setitem() {
     Python::with_gil(|py| {
         let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
-        py_run!(py, c, "c[1] = 2");
+        py_run_bound!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
             assert_eq!(c.key, 1);
@@ -464,7 +464,7 @@ impl DelItem {
 fn delitem() {
     Python::with_gil(|py| {
         let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
-        py_run!(py, c, "del c[1]");
+        py_run_bound!(py, c, "del c[1]");
         {
             let c = c.borrow();
             assert_eq!(c.key, 1);
@@ -493,12 +493,12 @@ impl SetDelItem {
 fn setdelitem() {
     Python::with_gil(|py| {
         let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
-        py_run!(py, c, "c[1] = 2");
+        py_run_bound!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
             assert_eq!(c.val, Some(2));
         }
-        py_run!(py, c, "del c[1]");
+        py_run_bound!(py, c, "del c[1]");
         let c = c.borrow();
         assert_eq!(c.val, None);
     });
@@ -518,8 +518,8 @@ impl Contains {
 fn contains() {
     Python::with_gil(|py| {
         let c = Py::new(py, Contains {}).unwrap();
-        py_run!(py, c, "assert 1 in c");
-        py_run!(py, c, "assert -1 not in c");
+        py_run_bound!(py, c, "assert 1 in c");
+        py_run_bound!(py, c, "assert -1 not in c");
         py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
     });
 }
@@ -689,7 +689,7 @@ asyncio.run(main())
 "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals.as_borrowed()), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -746,7 +746,7 @@ asyncio.run(main())
         globals
             .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals.as_borrowed()), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -815,7 +815,7 @@ assert c.counter.count == 1
         );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals.as_borrowed()), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });

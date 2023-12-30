@@ -14,10 +14,10 @@ use crate::{
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
-///     let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
+///     let list = py.eval_bound("iter([1, 2, 3, 4])", None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .iter()?
-///         .map(|i| i.and_then(PyAny::extract::<usize>))
+///         .map(|i| i.and_then(|any| any.extract::<usize>()))
 ///         .collect();
 ///     let sum: usize = numbers?.iter().sum();
 ///     assert_eq!(sum, 10);
@@ -286,7 +286,7 @@ def fibonacci(target):
         // Regression test for 2913
         Python::with_gil(|py| {
             let downcaster = Py::new(py, Downcaster { failed: None }).unwrap();
-            crate::py_run!(
+            crate::py_run_bound!(
                 py,
                 downcaster,
                 r#"
@@ -324,7 +324,7 @@ def fibonacci(target):
         // Regression test for 2913
         Python::with_gil(|py| {
             let assert_iterator = crate::wrap_pyfunction!(assert_iterator, py).unwrap();
-            crate::py_run!(
+            crate::py_run_bound!(
                 py,
                 assert_iterator,
                 r#"

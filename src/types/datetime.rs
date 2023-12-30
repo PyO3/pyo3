@@ -686,7 +686,7 @@ fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
 mod tests {
     use super::*;
     #[cfg(feature = "macros")]
-    use crate::py_run;
+    use crate::py_run_bound;
 
     #[test]
     #[cfg(feature = "macros")]
@@ -694,14 +694,14 @@ mod tests {
     fn test_datetime_fromtimestamp() {
         Python::with_gil(|py| {
             let dt = PyDateTime::from_timestamp(py, 100.0, None).unwrap();
-            py_run!(
+            py_run_bound!(
                 py,
                 dt,
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
             );
 
             let dt = PyDateTime::from_timestamp(py, 100.0, Some(timezone_utc(py))).unwrap();
-            py_run!(
+            py_run_bound!(
                 py,
                 dt,
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100, datetime.timezone.utc)"
@@ -715,7 +715,7 @@ mod tests {
     fn test_date_fromtimestamp() {
         Python::with_gil(|py| {
             let dt = PyDate::from_timestamp(py, 100).unwrap();
-            py_run!(
+            py_run_bound!(
                 py,
                 dt,
                 "import datetime; assert dt == datetime.date.fromtimestamp(100)"

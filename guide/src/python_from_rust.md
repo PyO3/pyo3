@@ -94,17 +94,17 @@ fn main() -> PyResult<()> {
         .into();
 
         // call object with PyDict
-        let kwargs = [(key1, val1)].into_py_dict(py);
-        fun.call_bound(py, (), Some(&kwargs.as_borrowed()))?;
+        let kwargs = [(key1, val1)].into_py_dict_bound(py);
+        fun.call_bound(py, (), Some(&kwargs))?;
 
         // pass arguments as Vec
         let kwargs = vec![(key1, val1), (key2, val2)];
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py).as_borrowed()))?;
+        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
 
         // pass arguments as HashMap
         let mut kwargs = HashMap::<&str, i32>::new();
         kwargs.insert(key1, 1);
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py).as_borrowed()))?;
+        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
 
         Ok(())
     })
@@ -157,7 +157,7 @@ use pyo3::prelude::*;
 # fn main() -> Result<(), ()> {
 Python::with_gil(|py| {
     let result = py
-        .eval("[i * 10 for i in range(5)]", None, None)
+        .eval_bound("[i * 10 for i in range(5)]", None, None)
         .map_err(|e| {
             e.print_and_set_sys_last_vars(py);
         })?;
@@ -175,13 +175,13 @@ Python::with_gil(|py| {
 This method returns nothing (like any Python statement), but you can get
 access to manipulated objects via the `locals` dict.
 
-You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
-Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
+You can also use the [`py_run_bound!`] macro, which is a shorthand for [`Python::run`].
+Since [`py_run_bound!`] panics on exceptions, we recommend you use this macro only for
 quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyCell, py_run};
+use pyo3::{PyCell, py_run_bound};
 
 # fn main() {
 #[pyclass]
@@ -208,7 +208,7 @@ Python::with_gil(|py| {
     };
     let userdata = PyCell::new(py, userdata).unwrap();
     let userdata_as_tuple = (34, "Yu");
-    py_run!(py, userdata userdata_as_tuple, r#"
+    py_run_bound!(py, userdata userdata_as_tuple, r#"
 assert repr(userdata) == "User Yu(id: 34)"
 assert userdata.as_tuple() == userdata_as_tuple
     "#);
@@ -250,10 +250,10 @@ def leaky_relu(x, slope=0.01):
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
-    let kwargs = [("slope", 0.2)].into_py_dict(py);
+    let kwargs = [("slope", 0.2)].into_py_dict_bound(py);
     let lrelu_result: f64 = activators
         .getattr("leaky_relu")?
-        .call((-1.0,), Some(kwargs))?
+        .call((-1.0,), Some(kwargs.as_gil_ref()))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())
@@ -290,7 +290,7 @@ fn foo(_py: Python<'_>, foo_module: &PyModule) -> PyResult<()> {
 
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
-    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
+    Python::with_gil(|py| py.run_bound("import foo; foo.add_one(6)", None, None))
 }
 ```
 
@@ -321,7 +321,7 @@ fn main() -> PyResult<()> {
         py_modules.set_item("foo", foo_module)?;
 
         // Now we can import + run our python code
-        Python::run(py, "import foo; foo.add_one(6)", None, None)
+        py.run_bound("import foo; foo.add_one(6)", None, None)
     })
 }
 ```
@@ -429,7 +429,7 @@ fn main() -> PyResult<()> {
 
 
 [`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.run
-[`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
+[`py_run_bound!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 
 ## Need to use a context manager from Rust?
 
@@ -466,7 +466,7 @@ class House(object):
 
         house.call_method0("__enter__").unwrap();
 
-        let result = py.eval("undefined_variable + 1", None, None);
+        let result = py.eval_bound("undefined_variable + 1", None, None);
 
         // If the eval threw an exception we'll pass it through to the context manager.
         // Otherwise, __exit__  is called with empty arguments (Python "None").

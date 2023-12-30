@@ -337,9 +337,11 @@ mod tests {
 
     fn max_datetime(py: Python<'_>) -> &PyAny {
         let naive_max = datetime_class(py).getattr("max").unwrap();
-        let kargs = PyDict::new(py);
-        kargs.set_item("tzinfo", tz_utc(py)).unwrap();
-        naive_max.call_method("replace", (), Some(kargs)).unwrap()
+        let kwargs = PyDict::new_bound(py);
+        kwargs.set_item("tzinfo", tz_utc(py)).unwrap();
+        naive_max
+            .call_method("replace", (), Some(kwargs.as_gil_ref()))
+            .unwrap()
     }
 
     #[test]

@@ -57,6 +57,13 @@ pyobject_native_type_core!(
 
 impl PyDict {
     /// Deprecated form of [`new_bound`][PyDict::new_bound].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDict::new` will be replaced by `PyDict::new_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     pub fn new(py: Python<'_>) -> &PyDict {
         Self::new_bound(py).into_gil_ref()
@@ -69,6 +76,13 @@ impl PyDict {
 
     /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDict::from_sequence` will be replaced by `PyDict::from_sequence_bound` in a future PyO3 version"
+        )
+    )]
     #[cfg(not(PyPy))]
     pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
         Self::from_sequence_bound(&seq.as_borrowed()).map(Bound::into_gil_ref)
@@ -152,16 +166,16 @@ impl PyDict {
     /// # fn main() {
     /// # let _ =
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    ///     let dict: Bound<'_, PyDict> = [("a", 1)].into_py_dict_bound(py);
     ///     // `a` is in the dictionary, with value 1
     ///     assert!(dict.get_item("a")?.map_or(Ok(false), |x| x.eq(1))?);
     ///     // `b` is not in the dictionary
     ///     assert!(dict.get_item("b")?.is_none());
     ///     // `dict` is not hashable, so this returns an error
-    ///     assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+    ///     assert!(dict.get_item(&dict).unwrap_err().is_instance_of::<PyTypeError>(py));
     ///
     ///     // `PyAny::get_item("b")` will raise a `KeyError` instead of returning `None`
-    ///     let any: &PyAny = dict.as_ref();
+    ///     let any: &Bound<'_, PyAny> = &dict;
     ///     assert!(any.get_item("b").unwrap_err().is_instance_of::<PyKeyError>(py));
     ///     Ok(())
     /// });
@@ -653,7 +667,23 @@ impl<'py> IntoIterator for Bound<'py, PyDict> {
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict;
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`into_py_dict` will be replaced by `into_py_dict_bound` in a future PyO3 version"
+        )
+    )]
+    fn into_py_dict(self, py: Python<'_>) -> &PyDict
+    where
+        Self: Sized,
+    {
+        self.into_py_dict_bound(py).into_gil_ref()
+    }
+
+    /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
+    /// depends on implementation.
+    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict>;
 }
 
 impl<T, I> IntoPyDict for I
@@ -661,8 +691,8 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
-        let dict = PyDict::new(py);
+    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
+        let dict = PyDict::new_bound(py);
         for item in self {
             dict.set_item(item.key(), item.value())
                 .expect("Failed to set_item on dict");

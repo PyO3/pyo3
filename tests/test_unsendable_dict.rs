@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::py_run;
+use pyo3::py_run_bound;
 
 #[pyclass(dict, unsendable)]
 struct UnsendableDictClass {}
@@ -19,7 +19,7 @@ impl UnsendableDictClass {
 fn test_unsendable_dict() {
     Python::with_gil(|py| {
         let inst = Py::new(py, UnsendableDictClass {}).unwrap();
-        py_run!(py, inst, "assert inst.__dict__ == {}");
+        py_run_bound!(py, inst, "assert inst.__dict__ == {}");
     });
 }
 
@@ -39,8 +39,8 @@ impl UnsendableDictClassWithWeakRef {
 fn test_unsendable_dict_with_weakref() {
     Python::with_gil(|py| {
         let inst = Py::new(py, UnsendableDictClassWithWeakRef {}).unwrap();
-        py_run!(py, inst, "assert inst.__dict__ == {}");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.__dict__ == {}");
+        py_run_bound!(
             py,
             inst,
             "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"

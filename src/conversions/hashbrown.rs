@@ -33,7 +33,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        IntoPyDict::into_py_dict_bound(self, py).into()
     }
 }
 
@@ -47,7 +47,7 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict_bound(iter, py).into()
     }
 }
 
@@ -112,7 +112,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::any::PyAnyMethods;
+    use crate::types::{any::PyAnyMethods, dict::PyDictMethods};
 
     #[test]
     fn test_hashbrown_hashmap_to_python() {
@@ -164,7 +164,7 @@ mod tests {
             let mut map = hashbrown::HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict_bound(py);
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(

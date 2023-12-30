@@ -197,10 +197,10 @@ impl PyByteArray {
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
-    /// #         let locals = pyo3::types::PyDict::new(py);
+    /// #         let locals = pyo3::types::PyDict::new_bound(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
-    /// #         py.run(
+    /// #         py.run_bound(
     /// # r#"b = bytearray(b"hello world")
     /// # a_valid_function(b)
     /// #
@@ -209,7 +209,7 @@ impl PyByteArray {
     /// # except RuntimeError as e:
     /// #     assert str(e) == 'input is not long enough'"#,
     /// #             None,
-    /// #             Some(locals),
+    /// #             Some(&locals),
     /// #         )?;
     /// #
     /// #         Ok(())
@@ -274,7 +274,7 @@ impl PyByteArray {
     /// copied_message[11] = b'!';
     /// assert_eq!(b"Hello World!", copied_message.as_slice());
     ///
-    /// pyo3::py_run!(py, bytearray, "assert bytearray == b'Hello World.'");
+    /// pyo3::py_run_bound!(py, bytearray, "assert bytearray == b'Hello World.'");
     /// # });
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
@@ -359,10 +359,10 @@ pub trait PyByteArrayMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
-    /// #         let locals = pyo3::types::PyDict::new(py);
+    /// #         let locals = pyo3::types::PyDict::new_bound(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
-    /// #         py.run(
+    /// #         py.run_bound(
     /// # r#"b = bytearray(b"hello world")
     /// # a_valid_function(b)
     /// #
@@ -371,7 +371,7 @@ pub trait PyByteArrayMethods<'py> {
     /// # except RuntimeError as e:
     /// #     assert str(e) == 'input is not long enough'"#,
     /// #             None,
-    /// #             Some(locals),
+    /// #             Some(&locals),
     /// #         )?;
     /// #
     /// #         Ok(())
@@ -432,7 +432,7 @@ pub trait PyByteArrayMethods<'py> {
     /// copied_message[11] = b'!';
     /// assert_eq!(b"Hello World!", copied_message.as_slice());
     ///
-    /// pyo3::py_run!(py, bytearray, "assert bytearray == b'Hello World.'");
+    /// pyo3::py_run_bound!(py, bytearray, "assert bytearray == b'Hello World.'");
     /// # });
     /// ```
     fn to_vec(&self) -> Vec<u8>;

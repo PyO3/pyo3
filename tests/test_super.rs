@@ -45,7 +45,7 @@ impl SubClass {
 fn test_call_super_method() {
     Python::with_gil(|py| {
         let cls = py.get_type::<SubClass>();
-        pyo3::py_run!(
+        pyo3::py_run_bound!(
             py,
             cls,
             r#"

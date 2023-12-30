@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::py_run;
+use pyo3::py_run_bound;
 use pyo3::types::IntoPyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyMapping;
@@ -68,9 +68,9 @@ impl Mapping {
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
-fn map_dict(py: Python<'_>) -> &pyo3::types::PyDict {
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
-    py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
+fn map_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
+    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict_bound(py);
+    py_run_bound!(py, *d, "m = Mapping(['1', '2', '3'])");
     d
 }
 
@@ -91,8 +91,8 @@ fn test_setitem() {
     Python::with_gil(|py| {
         let d = map_dict(py);
 
-        py_run!(py, *d, "m['1'] = 4; assert m['1'] == 4");
-        py_run!(py, *d, "m['0'] = 0; assert m['0'] == 0");
+        py_run_bound!(py, *d, "m['1'] = 4; assert m['1'] == 4");
+        py_run_bound!(py, *d, "m['0'] = 0; assert m['0'] == 0");
         py_assert!(py, *d, "len(m) == 4");
         py_expect_exception!(py, *d, "m[0] = 'hello'", PyTypeError);
         py_expect_exception!(py, *d, "m[0] = -1", PyTypeError);
@@ -103,7 +103,7 @@ fn test_setitem() {
 fn test_delitem() {
     Python::with_gil(|py| {
         let d = map_dict(py);
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "del m['1']; assert len(m) == 2 and m['2'] == 1 and m['3'] == 2"

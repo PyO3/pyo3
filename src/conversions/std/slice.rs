@@ -26,12 +26,12 @@ impl<'py> FromPyObject<'py> for &'py [u8] {
 
 #[cfg(test)]
 mod tests {
-    use crate::Python;
+    use crate::{types::any::PyAnyMethods, Python};
 
     #[test]
     fn test_extract_bytes() {
         Python::with_gil(|py| {
-            let py_bytes = py.eval("b'Hello Python'", None, None).unwrap();
+            let py_bytes = py.eval_bound("b'Hello Python'", None, None).unwrap();
             let bytes: &[u8] = py_bytes.extract().unwrap();
             assert_eq!(bytes, b"Hello Python");
         });

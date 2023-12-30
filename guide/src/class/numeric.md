@@ -390,7 +390,7 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #         let globals = PyModule::import(py, "__main__")?.dict();
 #         globals.set_item("Number", Number::type_object(py))?;
 #
-#         py.run(SCRIPT, Some(globals), None)?;
+#         py.run_bound(SCRIPT, Some(&globals.as_borrowed()), None)?;
 #         Ok(())
 #     })
 # }

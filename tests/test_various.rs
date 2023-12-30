@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{py_run, PyCell};
+use pyo3::{py_run_bound, PyCell};
 
 use std::fmt;
 
@@ -30,7 +30,7 @@ fn mut_ref_arg() {
         let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
         let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
-        py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
+        py_run_bound!(py, inst1 inst2, "inst1.set_other(inst2)");
         let inst2 = inst2.as_ref(py).borrow();
         assert_eq!(inst2.n, 100);
     });
@@ -151,7 +151,7 @@ fn test_pickle() {
         module.add_class::<PickleSupport>().unwrap();
         add_module(py, module).unwrap();
         let inst = PyCell::new(py, PickleSupport {}).unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             r#"

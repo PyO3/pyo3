@@ -108,7 +108,7 @@ impl IntoPy<PyObject> for Decimal {
 mod test_rust_decimal {
     use super::*;
     use crate::err::PyErr;
-    use crate::types::PyDict;
+    use crate::types::{dict::PyDictMethods, PyDict};
     use rust_decimal::Decimal;
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -121,16 +121,16 @@ mod test_rust_decimal {
                 Python::with_gil(|py| {
                     let rs_orig = $rs;
                     let rs_dec = rs_orig.into_py(py);
-                    let locals = PyDict::new(py);
+                    let locals = PyDict::new_bound(py);
                     locals.set_item("rs_dec", &rs_dec).unwrap();
                     // Checks if Rust Decimal -> Python Decimal conversion is correct
-                    py.run(
+                    py.run_bound(
                         &format!(
                             "import decimal\npy_dec = decimal.Decimal({})\nassert py_dec == rs_dec",
                             $py
                         ),
                         None,
-                        Some(locals),
+                        Some(&locals),
                     )
                     .unwrap();
                     // Checks if Python Decimal -> Rust Decimal conversion is correct
@@ -163,13 +163,13 @@ mod test_rust_decimal {
             let num = Decimal::from_parts(lo, mid, high, negative, scale);
             Python::with_gil(|py| {
                 let rs_dec = num.into_py(py);
-                let locals = PyDict::new(py);
+                let locals = PyDict::new_bound(py);
                 locals.set_item("rs_dec", &rs_dec).unwrap();
-                py.run(
+                py.run_bound(
                     &format!(
                        "import decimal\npy_dec = decimal.Decimal(\"{}\")\nassert py_dec == rs_dec",
                      num),
-                None, Some(locals)).unwrap();
+                None, Some(&locals)).unwrap();
                 let roundtripped: Decimal = rs_dec.extract(py).unwrap();
                 assert_eq!(num, roundtripped);
             })
@@ -189,11 +189,11 @@ mod test_rust_decimal {
     #[test]
     fn test_nan() {
         Python::with_gil(|py| {
-            let locals = PyDict::new(py);
-            py.run(
+            let locals = PyDict::new_bound(py);
+            py.run_bound(
                 "import decimal\npy_dec = decimal.Decimal(\"NaN\")",
                 None,
-                Some(locals),
+                Some(&locals),
             )
             .unwrap();
             let py_dec = locals.get_item("py_dec").unwrap().unwrap();
@@ -205,11 +205,11 @@ mod test_rust_decimal {
     #[test]
     fn test_infinity() {
         Python::with_gil(|py| {
-            let locals = PyDict::new(py);
-            py.run(
+            let locals = PyDict::new_bound(py);
+            py.run_bound(
                 "import decimal\npy_dec = decimal.Decimal(\"Infinity\")",
                 None,
-                Some(locals),
+                Some(&locals),
             )
             .unwrap();
             let py_dec = locals.get_item("py_dec").unwrap().unwrap();

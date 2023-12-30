@@ -6,7 +6,7 @@ use futures::{channel::oneshot, future::poll_fn, FutureExt};
 use pyo3::{
     coroutine::CancelHandle,
     prelude::*,
-    py_run,
+    py_run_bound,
     types::{IntoPyDict, PyType},
 };
 
@@ -31,7 +31,7 @@ fn noop_coroutine() {
     Python::with_gil(|gil| {
         let noop = wrap_pyfunction!(noop, gil).unwrap();
         let test = "import asyncio; assert asyncio.run(noop()) == 42";
-        py_run!(gil, noop, &handle_windows(test));
+        py_run_bound!(gil, noop, &handle_windows(test));
     })
 }
 
@@ -68,8 +68,8 @@ fn test_coroutine_qualname() {
             ("my_fn", wrap_pyfunction!(my_fn, gil).unwrap().deref()),
             ("MyClass", gil.get_type::<MyClass>()),
         ]
-        .into_py_dict(gil);
-        py_run!(gil, *locals, &handle_windows(test));
+        .into_py_dict_bound(gil);
+        py_run_bound!(gil, *&locals, &handle_windows(test));
     })
 }
 
@@ -91,7 +91,7 @@ fn sleep_0_like_coroutine() {
     Python::with_gil(|gil| {
         let sleep_0 = wrap_pyfunction!(sleep_0, gil).unwrap();
         let test = "import asyncio; assert asyncio.run(sleep_0()) == 42";
-        py_run!(gil, sleep_0, &handle_windows(test));
+        py_run_bound!(gil, sleep_0, &handle_windows(test));
     })
 }
 
@@ -110,7 +110,7 @@ fn sleep_coroutine() {
     Python::with_gil(|gil| {
         let sleep = wrap_pyfunction!(sleep, gil).unwrap();
         let test = r#"import asyncio; assert asyncio.run(sleep(0.1)) == 42"#;
-        py_run!(gil, sleep, &handle_windows(test));
+        py_run_bound!(gil, sleep, &handle_windows(test));
     })
 }
 
@@ -130,9 +130,9 @@ fn cancelled_coroutine() {
         let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep", sleep).unwrap();
         let err = gil
-            .run(
+            .run_bound(
                 &pyo3::unindent::unindent(&handle_windows(test)),
-                Some(globals),
+                Some(&globals.as_borrowed()),
                 None,
             )
             .unwrap_err();
@@ -170,9 +170,9 @@ fn coroutine_cancel_handle() {
         globals
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
-        gil.run(
+        gil.run_bound(
             &pyo3::unindent::unindent(&handle_windows(test)),
-            Some(globals),
+            Some(&globals.as_borrowed()),
             None,
         )
         .unwrap();
@@ -200,9 +200,9 @@ fn coroutine_is_cancelled() {
         "#;
         let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep_loop", sleep_loop).unwrap();
-        gil.run(
+        gil.run_bound(
             &pyo3::unindent::unindent(&handle_windows(test)),
-            Some(globals),
+            Some(&globals.as_borrowed()),
             None,
         )
         .unwrap();
@@ -234,7 +234,7 @@ fn coroutine_panic() {
         else:
             assert False;
         "#;
-        py_run!(gil, panic, &handle_windows(test));
+        py_run_bound!(gil, panic, &handle_windows(test));
     })
 }
 
@@ -259,7 +259,7 @@ fn test_async_method_receiver() {
     Python::with_gil(|gil| {
         let test = r#"
         import asyncio
-        
+
         obj = Counter()
         coro1 = obj.get()
         coro2 = obj.get()
@@ -286,7 +286,7 @@ fn test_async_method_receiver() {
             assert False
         assert asyncio.run(coro3) == 1
         "#;
-        let locals = [("Counter", gil.get_type::<Counter>())].into_py_dict(gil);
-        py_run!(gil, *locals, test);
+        let locals = [("Counter", gil.get_type::<Counter>())].into_py_dict_bound(gil);
+        py_run_bound!(gil, *locals, test);
     })
 }

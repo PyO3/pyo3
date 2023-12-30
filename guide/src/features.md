@@ -73,7 +73,7 @@ This feature enables a dependency on the `pyo3-macros` crate, which provides the
 - `#[pymethods]`
 - `#[derive(FromPyObject)]`
 
-It also provides the `py_run!` macro.
+It also provides the `py_run_bound!` macro.
 
 These macros require a number of dependencies which may not be needed by users who just need PyO3 for Python FFI. Disabling this feature enables faster builds for those users, as these dependencies will not be built if this feature is disabled.
 

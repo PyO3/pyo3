@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::py_run;
+use pyo3::py_run_bound;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 use pyo3::PyCell;
 
@@ -89,7 +89,7 @@ impl ClassMethod {
 #[test]
 fn class_method() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
         py_assert!(
@@ -116,7 +116,7 @@ impl ClassMethodWithArgs {
 #[test]
 fn class_method_with_args() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(
             py,
             *d,
@@ -147,7 +147,7 @@ fn static_method() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
-        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
@@ -171,7 +171,7 @@ fn static_method_with_args() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
-        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method(1337) == '0x539'");
     });
 }
@@ -324,56 +324,56 @@ fn meth_signature() {
     Python::with_gil(|py| {
         let inst = Py::new(py, MethSignature {}).unwrap();
 
-        py_run!(py, inst, "assert inst.get_optional() == 10");
-        py_run!(py, inst, "assert inst.get_optional(100) == 100");
-        py_run!(py, inst, "assert inst.get_optional2() == None");
-        py_run!(py, inst, "assert inst.get_optional2(100) == 100");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_optional() == 10");
+        py_run_bound!(py, inst, "assert inst.get_optional(100) == 100");
+        py_run_bound!(py, inst, "assert inst.get_optional2() == None");
+        py_run_bound!(py, inst, "assert inst.get_optional2(100) == 100");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_optional_positional(1, 2, 3) == 2"
         );
-        py_run!(py, inst, "assert inst.get_optional_positional(1) == None");
-        py_run!(py, inst, "assert inst.get_default() == 10");
-        py_run!(py, inst, "assert inst.get_default(100) == 100");
-        py_run!(py, inst, "assert inst.get_kwarg() == 10");
+        py_run_bound!(py, inst, "assert inst.get_optional_positional(1) == None");
+        py_run_bound!(py, inst, "assert inst.get_default() == 10");
+        py_run_bound!(py, inst, "assert inst.get_default(100) == 100");
+        py_run_bound!(py, inst, "assert inst.get_kwarg() == 10");
         py_expect_exception!(py, inst, "inst.get_kwarg(100)", PyTypeError);
-        py_run!(py, inst, "assert inst.get_kwarg(test=100) == 100");
-        py_run!(py, inst, "assert inst.get_kwargs() == [(), None]");
-        py_run!(py, inst, "assert inst.get_kwargs(1,2,3) == [(1,2,3), None]");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_kwarg(test=100) == 100");
+        py_run_bound!(py, inst, "assert inst.get_kwargs() == [(), None]");
+        py_run_bound!(py, inst, "assert inst.get_kwargs(1,2,3) == [(1,2,3), None]");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs(t=1,n=2) == [(), {'t': 1, 'n': 2}]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]"
         );
 
-        py_run!(py, inst, "assert inst.get_pos_arg_kw(1) == [1, (), None]");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_pos_arg_kw(1) == [1, (), None]");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_arg_kw(1, 2, 3) == [1, (2, 3), None]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_arg_kw(1, b=2) == [1, (), {'b': 2}]"
         );
-        py_run!(py, inst, "assert inst.get_pos_arg_kw(a=1) == [1, (), None]");
+        py_run_bound!(py, inst, "assert inst.get_pos_arg_kw(a=1) == [1, (), None]");
         py_expect_exception!(py, inst, "inst.get_pos_arg_kw()", PyTypeError);
         py_expect_exception!(py, inst, "inst.get_pos_arg_kw(1, a=1)", PyTypeError);
         py_expect_exception!(py, inst, "inst.get_pos_arg_kw(b=2)", PyTypeError);
 
-        py_run!(py, inst, "assert inst.get_pos_only(10, 11) == 21");
+        py_run_bound!(py, inst, "assert inst.get_pos_only(10, 11) == 21");
         py_expect_exception!(py, inst, "inst.get_pos_only(10, b = 11)", PyTypeError);
         py_expect_exception!(py, inst, "inst.get_pos_only(a = 10, b = 11)", PyTypeError);
 
-        py_run!(py, inst, "assert inst.get_pos_only_and_pos(10, 11) == 21");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_pos_only_and_pos(10, 11) == 21");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_pos(10, b = 11) == 21"
@@ -385,22 +385,22 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_pos_and_kw(10, 11) == 26"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_pos_and_kw(10, b = 11) == 26"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_pos_and_kw(10, 11, c = 0) == 21"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_pos_and_kw(10, b = 11, c = 0) == 21"
@@ -412,7 +412,7 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_kw_only(10, b = 11) == 21"
@@ -430,12 +430,12 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_kw_only_with_default(10) == 13"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_and_kw_only_with_default(10, b = 11) == 21"
@@ -453,17 +453,17 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_all_arg_types_together(10, 10, c = 10) == 35"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_all_arg_types_together(10, 10, c = 10, d = 10) == 40"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_all_arg_types_together(10, b = 10, c = 10, d = 10) == 40"
@@ -481,13 +481,13 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(py, inst, "assert inst.get_pos_only_with_varargs(10) == 10");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_pos_only_with_varargs(10) == 10");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_with_varargs(10, 10) == 20"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_with_varargs(10, 10, 10, 10, 10) == 50"
@@ -499,17 +499,17 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_with_kwargs(10) == [10, None]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_only_with_kwargs(10, b = 10) == [10, {'b': 10}]"
         );
-        py_run!(
+        py_run_bound!(
         py,
         inst,
         "assert inst.get_pos_only_with_kwargs(10, b = 10, c = 10, d = 10, e = 10) == [10, {'b': 10, 'c': 10, 'd': 10, 'e': 10}]"
@@ -527,58 +527,58 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_optional_pos_only_with_kwargs() == [0, None]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_optional_pos_only_with_kwargs(10) == [10, None]"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_optional_pos_only_with_kwargs(a=10) == [0, {'a': 10}]"
         );
 
-        py_run!(py, inst, "assert inst.get_kwargs_only_with_defaults() == 5");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_kwargs_only_with_defaults() == 5");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs_only_with_defaults(a = 8) == 11"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs_only_with_defaults(b = 8) == 10"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs_only_with_defaults(a = 1, b = 1) == 2"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs_only_with_defaults(b = 1, a = 1) == 2"
         );
 
-        py_run!(py, inst, "assert inst.get_kwargs_only(a = 1, b = 1) == 2");
-        py_run!(py, inst, "assert inst.get_kwargs_only(b = 1, a = 1) == 2");
+        py_run_bound!(py, inst, "assert inst.get_kwargs_only(a = 1, b = 1) == 2");
+        py_run_bound!(py, inst, "assert inst.get_kwargs_only(b = 1, a = 1) == 2");
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs_only_with_some_default(a = 2, b = 1) == 3"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs_only_with_some_default(b = 1) == 2"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_kwargs_only_with_some_default(b = 1, a = 2) == 3"
@@ -590,12 +590,12 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_args_and_required_keyword(1, 2, a=3) == ((1, 2), 3)"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_args_and_required_keyword(a=1) == ((), 1)"
@@ -607,42 +607,42 @@ fn meth_signature() {
             PyTypeError
         );
 
-        py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1) == 6");
-        py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1, 2) == 6");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_pos_arg_kw_sep1(1) == 6");
+        py_run_bound!(py, inst, "assert inst.get_pos_arg_kw_sep1(1, 2) == 6");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_arg_kw_sep1(1, 2, c=13) == 16"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_arg_kw_sep1(a=1, b=2, c=13) == 16"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_arg_kw_sep1(b=2, c=13, a=1) == 16"
         );
-        py_run!(
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_arg_kw_sep1(c=13, b=2, a=1) == 16"
         );
         py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep1(1, 2, 3)", PyTypeError);
 
-        py_run!(py, inst, "assert inst.get_pos_arg_kw_sep2(1) == 6");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.get_pos_arg_kw_sep2(1) == 6");
+        py_run_bound!(
             py,
             inst,
             "assert inst.get_pos_arg_kw_sep2(1, b=12, c=13) == 26"
         );
         py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep2(1, 2)", PyTypeError);
 
-        py_run!(py, inst, "assert inst.get_pos_kw(1, b=2) == [1, {'b': 2}]");
+        py_run_bound!(py, inst, "assert inst.get_pos_kw(1, b=2) == [1, {'b': 2}]");
         py_expect_exception!(py, inst, "inst.get_pos_kw(1,2)", PyTypeError);
 
-        py_run!(py, inst, "assert inst.args_as_vec(1,2,3) == 6");
+        py_run_bound!(py, inst, "assert inst.args_as_vec(1,2,3) == 6");
     });
 }
 
@@ -669,7 +669,7 @@ impl MethDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<MethDocs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
             py,
@@ -704,7 +704,7 @@ impl MethodWithLifeTime {
 fn method_with_lifetime() {
     Python::with_gil(|py| {
         let obj = PyCell::new(py, MethodWithLifeTime {}).unwrap();
-        py_run!(
+        py_run_bound!(
             py,
             obj,
             "assert obj.set_to_list(set((1, 2, 3))) == [1, 2, 3]"
@@ -753,27 +753,27 @@ fn method_with_pyclassarg() {
     Python::with_gil(|py| {
         let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
-        py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
-        py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
-        py_run!(py, *d, "obj = obj1.optional_add(); assert obj.value == 20");
-        py_run!(
+        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict_bound(py);
+        py_run_bound!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
+        py_run_bound!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
+        py_run_bound!(py, *d, "obj = obj1.optional_add(); assert obj.value == 20");
+        py_run_bound!(
             py,
             *d,
             "obj = obj1.optional_add(obj2); assert obj.value == 20"
         );
-        py_run!(py, *d, "obj1.inplace_add(obj2); assert obj.value == 20");
-        py_run!(
+        py_run_bound!(py, *d, "obj1.inplace_add(obj2); assert obj.value == 20");
+        py_run_bound!(
             py,
             *d,
             "obj1.inplace_add_pyref(obj2); assert obj2.value == 30"
         );
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "obj1.optional_inplace_add(); assert obj2.value == 30"
         );
-        py_run!(
+        py_run_bound!(
             py,
             *d,
             "obj1.optional_inplace_add(obj2); assert obj2.value == 40"
@@ -938,7 +938,7 @@ fn test_raw_idents() {
     Python::with_gil(|py| {
         let raw_idents_type = py.get_type::<r#RawIdents>();
         assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
-        py_run!(
+        py_run_bound!(
             py,
             raw_idents_type,
             r#"

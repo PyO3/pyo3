@@ -28,7 +28,7 @@ impl PyTraceback {
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
-    ///         .run("raise Exception('banana')", None, None)
+    ///         .run_bound("raise Exception('banana')", None, None)
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
@@ -71,7 +71,7 @@ pub trait PyTracebackMethods<'py> {
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
-    ///         .run("raise Exception('banana')", None, None)
+    ///         .run_bound("raise Exception('banana')", None, None)
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
@@ -111,6 +111,7 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::{
         prelude::*,

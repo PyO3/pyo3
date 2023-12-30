@@ -38,14 +38,14 @@ pub fn dumps<'py>(
 ///
 /// # Examples
 /// ```
-/// # use pyo3::{marshal, types::PyDict};
+/// # use pyo3::{prelude::*, marshal, types::PyDict};
 /// # pyo3::Python::with_gil(|py| {
-/// let dict = PyDict::new(py);
+/// let dict = PyDict::new_bound(py);
 /// dict.set_item("aap", "noot").unwrap();
 /// dict.set_item("mies", "wim").unwrap();
 /// dict.set_item("zus", "jet").unwrap();
 ///
-/// let bytes = marshal::dumps_bound(py, dict, marshal::VERSION);
+/// let bytes = marshal::dumps_bound(py, &dict, marshal::VERSION);
 /// # });
 /// ```
 pub fn dumps_bound<'py>(
@@ -88,6 +88,7 @@ where
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
     use crate::types::{bytes::PyBytesMethods, PyDict};

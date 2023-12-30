@@ -90,7 +90,7 @@ fn test_basic() {
     pyo3::Python::with_gil(|py| {
         let module = pyo3::wrap_pymodule!(basic_module)(py);
         let cls = py.get_type::<BasicClass>();
-        let d = pyo3::types::IntoPyDict::into_py_dict(
+        let d = pyo3::types::IntoPyDict::into_py_dict_bound(
             [
                 ("mod", module.as_ref(py).as_ref()),
                 ("cls", cls.as_ref()),
@@ -100,25 +100,25 @@ fn test_basic() {
             py,
         );
 
-        pyo3::py_run!(py, *d, "assert mod.answer() == 42");
-        pyo3::py_run!(py, *d, "assert mod.identity() is None");
-        pyo3::py_run!(py, *d, "v = object(); assert mod.identity(v) is v");
-        pyo3::py_run!(py, *d, "assert cls.OKAY");
-        pyo3::py_run!(py, *d, "assert (a.v, a.s) == (8, '')");
-        pyo3::py_run!(py, *d, "assert (b.v, b.s) == (0, 'foo')");
-        pyo3::py_run!(py, *d, "b.property = 314");
-        pyo3::py_run!(py, *d, "assert b.property == 300");
-        pyo3::py_run!(
+        pyo3::py_run_bound!(py, *d, "assert mod.answer() == 42");
+        pyo3::py_run_bound!(py, *d, "assert mod.identity() is None");
+        pyo3::py_run_bound!(py, *d, "v = object(); assert mod.identity(v) is v");
+        pyo3::py_run_bound!(py, *d, "assert cls.OKAY");
+        pyo3::py_run_bound!(py, *d, "assert (a.v, a.s) == (8, '')");
+        pyo3::py_run_bound!(py, *d, "assert (b.v, b.s) == (0, 'foo')");
+        pyo3::py_run_bound!(py, *d, "b.property = 314");
+        pyo3::py_run_bound!(py, *d, "assert b.property == 300");
+        pyo3::py_run_bound!(
             py,
             *d,
             "assert cls.classmethod.__doc__ == 'Some documentation here'"
         );
-        pyo3::py_run!(py, *d, "assert cls.classmethod() is cls");
-        pyo3::py_run!(py, *d, "assert cls.staticmethod(5) == '5'");
-        pyo3::py_run!(py, *d, "a.s = 'bar'; assert a.s == 'bar'");
-        pyo3::py_run!(py, *d, "a.mutate(); assert (a.v, a.s) == (16, 'bar!')");
-        pyo3::py_run!(py, *d, "assert a + 9 == 25");
-        pyo3::py_run!(py, *d, "b += a; assert (b.v, b.s) == (19, 'foobar!')");
+        pyo3::py_run_bound!(py, *d, "assert cls.classmethod() is cls");
+        pyo3::py_run_bound!(py, *d, "assert cls.staticmethod(5) == '5'");
+        pyo3::py_run_bound!(py, *d, "a.s = 'bar'; assert a.s == 'bar'");
+        pyo3::py_run_bound!(py, *d, "a.mutate(); assert (a.v, a.s) == (16, 'bar!')");
+        pyo3::py_run_bound!(py, *d, "assert a + 9 == 25");
+        pyo3::py_run_bound!(py, *d, "b += a; assert (b.v, b.s) == (19, 'foobar!')");
     });
 }
 
@@ -141,6 +141,6 @@ impl NewClassMethod {
 fn test_new_class_method() {
     pyo3::Python::with_gil(|py| {
         let cls = py.get_type::<NewClassMethod>();
-        pyo3::py_run!(py, cls, "assert cls().cls is cls");
+        pyo3::py_run_bound!(py, cls, "assert cls().cls is cls");
     });
 }

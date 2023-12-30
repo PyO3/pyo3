@@ -3,7 +3,7 @@ use codspeed_criterion_compat::{black_box, criterion_group, criterion_main, Benc
 use pyo3::{
     prelude::*,
     types::{PyDict, PyFloat, PyInt, PyString},
-    IntoPy, PyAny, PyObject, Python,
+    IntoPy, PyObject, Python,
 };
 
 fn extract_str_extract_success(bench: &mut Bencher<'_>) {
@@ -16,11 +16,11 @@ fn extract_str_extract_success(bench: &mut Bencher<'_>) {
 
 fn extract_str_extract_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let d = PyDict::new(py) as &PyAny;
+        let d = &PyDict::new_bound(py);
 
         bench.iter(|| match black_box(d).extract::<&str>() {
             Ok(v) => panic!("should err {}", v),
-            Err(e) => black_box(e),
+            Err(e) => e,
         });
     });
 }
@@ -39,11 +39,11 @@ fn extract_str_downcast_success(bench: &mut Bencher<'_>) {
 
 fn extract_str_downcast_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let d = PyDict::new(py) as &PyAny;
+        let d = &PyDict::new_bound(py);
 
         bench.iter(|| match black_box(d).downcast::<PyString>() {
             Ok(v) => panic!("should err {}", v),
-            Err(e) => black_box(e),
+            Err(e) => e,
         });
     });
 }
@@ -62,11 +62,11 @@ fn extract_int_extract_success(bench: &mut Bencher<'_>) {
 
 fn extract_int_extract_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let d = PyDict::new(py) as &PyAny;
+        let d = &PyDict::new_bound(py);
 
         bench.iter(|| match black_box(d).extract::<i64>() {
             Ok(v) => panic!("should err {}", v),
-            Err(e) => black_box(e),
+            Err(e) => e,
         });
     });
 }
@@ -86,11 +86,11 @@ fn extract_int_downcast_success(bench: &mut Bencher<'_>) {
 
 fn extract_int_downcast_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let d = PyDict::new(py) as &PyAny;
+        let d = &PyDict::new_bound(py);
 
         bench.iter(|| match black_box(d).downcast::<PyInt>() {
             Ok(v) => panic!("should err {}", v),
-            Err(e) => black_box(e),
+            Err(e) => e,
         });
     });
 }
@@ -100,20 +100,17 @@ fn extract_float_extract_success(bench: &mut Bencher<'_>) {
         let float_obj: PyObject = 23.42.into_py(py);
         let float = float_obj.as_ref(py);
 
-        bench.iter(|| {
-            let v = black_box(float).extract::<f64>().unwrap();
-            black_box(v);
-        });
+        bench.iter(|| black_box(float).extract::<f64>().unwrap());
     });
 }
 
 fn extract_float_extract_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let d = PyDict::new(py) as &PyAny;
+        let d = &PyDict::new_bound(py);
 
         bench.iter(|| match black_box(d).extract::<f64>() {
             Ok(v) => panic!("should err {}", v),
-            Err(e) => black_box(e),
+            Err(e) => e,
         });
     });
 }
@@ -133,11 +130,11 @@ fn extract_float_downcast_success(bench: &mut Bencher<'_>) {
 
 fn extract_float_downcast_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let d = PyDict::new(py) as &PyAny;
+        let d = &PyDict::new_bound(py);
 
         bench.iter(|| match black_box(d).downcast::<PyFloat>() {
             Ok(v) => panic!("should err {}", v),
-            Err(e) => black_box(e),
+            Err(e) => e,
         });
     });
 }

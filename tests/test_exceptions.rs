@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::{exceptions, py_run, PyErr, PyResult};
+use pyo3::{exceptions, py_run_bound, PyErr, PyResult};
 use std::error::Error;
 use std::fmt;
 #[cfg(not(target_os = "windows"))]
@@ -24,7 +24,7 @@ fn test_filenotfounderror() {
     Python::with_gil(|py| {
         let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
 
-        py_run!(
+        py_run_bound!(
             py,
             fail_to_open_file,
             r#"
@@ -70,7 +70,7 @@ fn test_custom_error() {
         let call_fail_with_custom_error =
             wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
 
-        py_run!(
+        py_run_bound!(
             py,
             call_fail_with_custom_error,
             r#"

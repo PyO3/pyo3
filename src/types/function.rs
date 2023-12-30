@@ -53,7 +53,7 @@ impl PyCFunction {
     ///
     /// ```
     /// # use pyo3::prelude::*;
-    /// # use pyo3::{py_run, types::{PyCFunction, PyDict, PyTuple}};
+    /// # use pyo3::{py_run_bound, types::{PyCFunction, PyDict, PyTuple}};
     ///
     /// Python::with_gil(|py| {
     ///     let add_one = |args: &PyTuple, _kwargs: Option<&PyDict>| -> PyResult<_> {
@@ -61,7 +61,7 @@ impl PyCFunction {
     ///         Ok(i+1)
     ///     };
     ///     let add_one = PyCFunction::new_closure(py, None, None, add_one).unwrap();
-    ///     py_run!(py, add_one, "assert add_one(42) == 43");
+    ///     py_run_bound!(py, add_one, "assert add_one(42) == 43");
     /// });
     /// ```
     pub fn new_closure<'a, F, R>(

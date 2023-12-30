@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 
-use pyo3::py_run;
+use pyo3::py_run_bound;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
 
 #[path = "../src/tests/common.rs"]
@@ -74,7 +74,7 @@ fn test_module_with_functions() {
             "module_with_functions",
             wrap_pymodule!(module_with_functions)(py),
         )]
-        .into_py_dict(py);
+        .into_py_dict_bound(py);
 
         py_assert!(
             py,
@@ -127,9 +127,9 @@ fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
     Python::with_gil(|py| {
-        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
+        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict_bound(py);
 
-        py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
+        py_run_bound!(py, *d, "assert different_name.__name__ == 'other_name'");
     });
 }
 

@@ -3,7 +3,7 @@
 use std::cell::Cell;
 
 use pyo3::prelude::*;
-use pyo3::py_run;
+use pyo3::py_run_bound;
 use pyo3::types::{IntoPyDict, PyList};
 
 #[path = "../src/tests/common.rs"]
@@ -52,19 +52,19 @@ fn class_with_properties() {
     Python::with_gil(|py| {
         let inst = Py::new(py, ClassWithProperties { num: 10 }).unwrap();
 
-        py_run!(py, inst, "assert inst.get_num() == 10");
-        py_run!(py, inst, "assert inst.get_num() == inst.DATA");
-        py_run!(py, inst, "inst.DATA = 20");
-        py_run!(py, inst, "assert inst.get_num() == 20 == inst.DATA");
+        py_run_bound!(py, inst, "assert inst.get_num() == 10");
+        py_run_bound!(py, inst, "assert inst.get_num() == inst.DATA");
+        py_run_bound!(py, inst, "inst.DATA = 20");
+        py_run_bound!(py, inst, "assert inst.get_num() == 20 == inst.DATA");
 
         py_expect_exception!(py, inst, "del inst.DATA", PyAttributeError);
 
-        py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 20");
-        py_run!(py, inst, "inst.unwrapped = 42");
-        py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 42");
-        py_run!(py, inst, "assert inst.data_list == [42]");
+        py_run_bound!(py, inst, "assert inst.get_num() == inst.unwrapped == 20");
+        py_run_bound!(py, inst, "inst.unwrapped = 42");
+        py_run_bound!(py, inst, "assert inst.get_num() == inst.unwrapped == 42");
+        py_run_bound!(py, inst, "assert inst.data_list == [42]");
 
-        let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.DATA.__doc__ == 'a getter for data'");
     });
 }
@@ -96,9 +96,9 @@ fn getter_setter_autogen() {
         )
         .unwrap();
 
-        py_run!(py, inst, "assert inst.num == 10");
-        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
-        py_run!(
+        py_run_bound!(py, inst, "assert inst.num == 10");
+        py_run_bound!(py, inst, "inst.num = 20; assert inst.num == 20");
+        py_run_bound!(
             py,
             inst,
             "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'"
@@ -130,8 +130,8 @@ fn ref_getter_setter() {
     Python::with_gil(|py| {
         let inst = Py::new(py, RefGetterSetter { num: 10 }).unwrap();
 
-        py_run!(py, inst, "assert inst.num == 10");
-        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+        py_run_bound!(py, inst, "assert inst.num == 10");
+        py_run_bound!(py, inst, "inst.num = 20; assert inst.num == 20");
     });
 }
 
@@ -157,7 +157,7 @@ fn tuple_struct_getter_setter() {
         let inst = Py::new(py, TupleClassGetterSetter(10)).unwrap();
 
         py_assert!(py, inst, "inst.num == 10");
-        py_run!(py, inst, "inst.num = 20");
+        py_run_bound!(py, inst, "inst.num = 20");
         py_assert!(py, inst, "inst.num == 20");
     });
 }
@@ -172,8 +172,8 @@ fn get_set_all() {
     Python::with_gil(|py| {
         let inst = Py::new(py, All { num: 10 }).unwrap();
 
-        py_run!(py, inst, "assert inst.num == 10");
-        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+        py_run_bound!(py, inst, "assert inst.num == 10");
+        py_run_bound!(py, inst, "inst.num = 20; assert inst.num == 20");
     });
 }
 
@@ -188,8 +188,8 @@ fn get_all_and_set() {
     Python::with_gil(|py| {
         let inst = Py::new(py, All2 { num: 10 }).unwrap();
 
-        py_run!(py, inst, "assert inst.num == 10");
-        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+        py_run_bound!(py, inst, "assert inst.num == 10");
+        py_run_bound!(py, inst, "inst.num = 20; assert inst.num == 20");
     });
 }
 
@@ -208,9 +208,9 @@ fn cell_getter_setter() {
         let inst = Py::new(py, c).unwrap().to_object(py);
         let cell = Cell::new(20).to_object(py);
 
-        py_run!(py, cell, "assert cell == 20");
-        py_run!(py, inst, "assert inst.cell_inner == 10");
-        py_run!(
+        py_run_bound!(py, cell, "assert cell == 20");
+        py_run_bound!(py, inst, "assert inst.cell_inner == 10");
+        py_run_bound!(
             py,
             inst,
             "inst.cell_inner = 20; assert inst.cell_inner == 20"
@@ -234,6 +234,6 @@ fn borrowed_value_with_lifetime_of_self() {
     Python::with_gil(|py| {
         let inst = Py::new(py, BorrowedValue {}).unwrap().to_object(py);
 
-        py_run!(py, inst, "assert inst.value == 'value'");
+        py_run_bound!(py, inst, "assert inst.value == 'value'");
     });
 }

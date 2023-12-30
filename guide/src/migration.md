@@ -280,7 +280,7 @@ Python::with_gil(|py| {
 
 After:
 
-```rust
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyDict, IntoPyDict};
@@ -403,7 +403,7 @@ fn raise_err() -> anyhow::Result<()> {
 fn main() {
     Python::with_gil(|py| {
         let rs_func = wrap_pyfunction!(raise_err, py).unwrap();
-        pyo3::py_run!(
+        pyo3::py_run_bound!(
             py,
             rs_func,
             r"
@@ -1201,7 +1201,7 @@ all you need to do is remove `ObjectProtocol` from your code.
 Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing.
 
 Before:
-```rust,compile_fail
+```rust,ignore
 use pyo3::ObjectProtocol;
 
 # pyo3::Python::with_gil(|py| {
@@ -1212,7 +1212,7 @@ assert_eq!(hi.len().unwrap(), 5);
 ```
 
 After:
-```rust
+```rust,ignore
 # pyo3::Python::with_gil(|py| {
 let obj = py.eval("lambda: 'Hi :)'", None, None).unwrap();
 let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
@@ -1293,7 +1293,7 @@ impl Names {
 }
 # Python::with_gil(|py| {
 #     let names = PyCell::new(py, Names::new()).unwrap();
-#     pyo3::py_run!(py, names, r"
+#     pyo3::py_run_bound!(py, names, r"
 #     try:
 #        names.merge(names)
 #        assert False, 'Unreachable'
@@ -1358,8 +1358,8 @@ After:
 # #[pymethods] impl MyClass { #[new]fn new() -> Self { MyClass {} }}
 # Python::with_gil(|py| {
 # let typeobj = py.get_type::<MyClass>();
-# let d = [("c", typeobj)].into_py_dict(py);
-# let create_obj = || py.eval("c()", None, Some(d)).unwrap();
+# let d = [("c", typeobj)].into_py_dict_bound(py);
+# let create_obj = || py.eval_bound("c()", None, Some(&d)).unwrap().into_gil_ref();
 let obj: &PyAny = create_obj();
 let obj_cell: &PyCell<MyClass> = obj.extract().unwrap();
 let obj_cloned: MyClass = obj.extract().unwrap(); // extracted by cloning the object

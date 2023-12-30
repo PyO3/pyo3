@@ -27,7 +27,7 @@ very simple and easy-to-understand programs like this:
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
+    let hello: Bound<'_, PyString> = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into()?;
     println!("Python says: {}", hello);
     Ok(())
 })?;
@@ -48,7 +48,7 @@ of the time we don't have to think about this, but consider the following:
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
-        let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
+        let hello: Bound<'_, PyString> = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into()?;
         println!("Python says: {}", hello);
     }
     // There are 10 copies of `hello` on Python's heap here.
@@ -76,7 +76,7 @@ is to acquire and release the GIL with each iteration of the loop.
 # fn main() -> PyResult<()> {
 for _ in 0..10 {
     Python::with_gil(|py| -> PyResult<()> {
-        let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
+        let hello: Bound<'_, PyString> = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into()?;
         println!("Python says: {}", hello);
         Ok(())
     })?; // only one copy of `hello` at a time
@@ -97,7 +97,7 @@ Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         let pool = unsafe { py.new_pool() };
         let py = pool.python();
-        let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
+        let hello: Bound<'_, PyString> = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into()?;
         println!("Python says: {}", hello);
     }
     Ok(())
@@ -144,7 +144,7 @@ reference count reaches zero?  It depends whether or not we are holding the GIL.
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let hello: Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract()?;
+    let hello: Py<PyString> = py.eval_bound("\"Hello World!\"", None, None)?.extract()?;
     println!("Python says: {}", hello.as_ref(py));
     Ok(())
 })?;
@@ -166,7 +166,7 @@ we are *not* holding the GIL?
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract()
+    py.eval_bound("\"Hello World!\"", None, None)?.extract()
 })?;
 // Do some stuff...
 // Now sometime later in the program we want to access `hello`.
@@ -197,7 +197,7 @@ We can avoid the delay in releasing memory if we are careful to drop the
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 let hello: Py<PyString> =
-    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
+    Python::with_gil(|py| py.eval_bound("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {
@@ -219,7 +219,7 @@ until the GIL is dropped.
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 let hello: Py<PyString> =
-    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
+    Python::with_gil(|py| py.eval_bound("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {

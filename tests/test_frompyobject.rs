@@ -365,17 +365,17 @@ fn test_enum() {
             _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {:?}", f),
         }
 
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item("a", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = Foo::extract(dict.into_gil_ref()).expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItem { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItem, got {:?}", f),
         }
 
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item("foo", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = Foo::extract(dict.into_gil_ref()).expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItemArg { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {:?}", f),
@@ -386,8 +386,8 @@ fn test_enum() {
 #[test]
 fn test_enum_error() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let err = Foo::extract(dict.as_ref()).unwrap_err();
+        let dict = PyDict::new_bound(py);
+        let err = Foo::extract(dict.into_gil_ref()).unwrap_err();
         assert_eq!(
             err.to_string(),
             "\
@@ -430,8 +430,8 @@ enum EnumWithCatchAll<'a> {
 #[test]
 fn test_enum_catch_all() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let f = EnumWithCatchAll::extract(dict.as_ref())
+        let dict = PyDict::new_bound(py);
+        let f = EnumWithCatchAll::extract(dict.into_gil_ref())
             .expect("Failed to extract EnumWithCatchAll from dict");
         match f {
             EnumWithCatchAll::CatchAll(any) => {
@@ -459,8 +459,8 @@ pub enum Bar {
 #[test]
 fn test_err_rename() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let f = Bar::extract(dict.as_ref());
+        let dict = PyDict::new_bound(py);
+        let f = Bar::extract(dict.into_gil_ref());
         assert!(f.is_err());
         assert_eq!(
             f.unwrap_err().to_string(),
@@ -486,14 +486,14 @@ pub struct Zap {
 fn test_from_py_with() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(
+            .eval_bound(
                 r#"{"name": "whatever", "my_object": [1, 2, 3]}"#,
                 None,
                 None,
             )
             .expect("failed to create dict");
 
-        let zap = Zap::extract(py_zap).unwrap();
+        let zap = Zap::extract(py_zap.into_gil_ref()).unwrap();
 
         assert_eq!(zap.name, "whatever");
         assert_eq!(zap.some_object_length, 3usize);
@@ -507,10 +507,10 @@ pub struct ZapTuple(String, #[pyo3(from_py_with = "PyAny::len")] usize);
 fn test_from_py_with_tuple_struct() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
-        let zap = ZapTuple::extract(py_zap).unwrap();
+        let zap = ZapTuple::extract(py_zap.into_gil_ref()).unwrap();
 
         assert_eq!(zap.0, "whatever");
         assert_eq!(zap.1, 3usize);
@@ -521,10 +521,10 @@ fn test_from_py_with_tuple_struct() {
 fn test_from_py_with_tuple_struct_error() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3], "third")"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3], "third")"#, None, None)
             .expect("failed to create tuple");
 
-        let f = ZapTuple::extract(py_zap);
+        let f = ZapTuple::extract(py_zap.into_gil_ref());
 
         assert!(f.is_err());
         assert_eq!(
@@ -544,10 +544,10 @@ pub enum ZapEnum {
 fn test_from_py_with_enum() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
-        let zap = ZapEnum::extract(py_zap).unwrap();
+        let zap = ZapEnum::extract(py_zap.into_gil_ref()).unwrap();
         let expected_zap = ZapEnum::Zip(2);
 
         assert_eq!(zap, expected_zap);

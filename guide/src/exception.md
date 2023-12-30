@@ -24,13 +24,13 @@ use pyo3::exceptions::PyException;
 create_exception!(mymodule, CustomError, PyException);
 
 Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py);
-    pyo3::py_run!(
+    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict_bound(py);
+    pyo3::py_run_bound!(
         py,
         *ctx,
         "assert str(CustomError) == \"<class 'mymodule.CustomError'>\""
     );
-    pyo3::py_run!(py, *ctx, "assert CustomError('oops').args == ('oops',)");
+    pyo3::py_run_bound!(py, *ctx, "assert CustomError('oops').args == ('oops',)");
 });
 ```
 
