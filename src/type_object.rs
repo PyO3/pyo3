@@ -59,14 +59,13 @@ where
 ///
 /// ```
 /// use pyo3_ffi::PyTypeObject;
-/// use pyo3::types::{PyAny, PyType};
+/// use pyo3::types::PyType;
 /// use pyo3::{Python, PyNativeType, PyTypeInfo};
 /// 
 /// struct PyFormatter(PyAny);
 /// unsafe impl PyTypeInfo for PyFormatter {
 ///     const NAME: &'static str = "Formatter";
 ///     const MODULE: Option<&'static str> = Option::Some("string");
-///     type AsRefTarget = PyType;
 ///
 ///     fn type_object_raw(py: Python<'_>) -> *mut PyTypeObject {
 ///         let modu = py.import("string").expect("Couldn't import string module");
@@ -75,7 +74,9 @@ where
 ///         typ.get_type_ptr()
 ///     }
 /// }
-/// unsafe impl PyNativeType for PyFormatter {}
+/// unsafe impl PyNativeType for PyFormatter {
+///     type AsRefSource = PyFormatter;
+/// }
 /// ```
 pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     /// Class name.
