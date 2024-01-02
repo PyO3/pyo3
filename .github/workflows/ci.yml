@@ -327,7 +327,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
-      - run: cargo rustdoc --lib --no-default-features --features "macros num-bigint num-complex hashbrown serde multiple-pymethods indexmap eyre either chrono rust_decimal" -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
+      - run: cargo rustdoc --lib --no-default-features --features full -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
 
   coverage:
     needs: [fmt]
