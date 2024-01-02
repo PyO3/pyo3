@@ -43,9 +43,10 @@
 //!
 //! [either](https://docs.rs/either/ "A library for easy idiomatic error handling and reporting in Rust applications")’s
 
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, inspect::types::TypeInfo, FromPyObject, IntoPy, PyAny, PyObject,
-    PyResult, Python, ToPyObject,
+    exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 use either::Either;
 
@@ -97,6 +98,7 @@ where
         }
     }
 
+    #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         TypeInfo::union_of(&[L::type_input(), R::type_input()])
     }
