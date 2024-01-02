@@ -57,7 +57,7 @@ rayon = "1.6.1"
 widestring = "0.5.1"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.20.1", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "=0.20.1", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
