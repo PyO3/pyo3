@@ -128,7 +128,7 @@ members = [
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre", "either", "chrono", "rust_decimal"]
+features = ["full"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.lints.clippy]

@@ -313,6 +313,22 @@ jobs:
       RUST_BACKTRACE: 1
       TRYBUILD: overwrite
 
+  docsrs:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cargo-careful
+        continue-on-error: true
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+      - run: cargo rustdoc --lib --no-default-features --features full -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
+
   coverage:
     needs: [fmt]
     name: coverage-${{ matrix.os }}
@@ -387,6 +403,8 @@ jobs:
         run: nox -s test-emscripten
 
   test-debug:
+    needs: [fmt]
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -438,6 +456,7 @@ jobs:
       - build-full
       - valgrind
       - careful
+      - docsrs
       - coverage
       - emscripten
     if: always()
