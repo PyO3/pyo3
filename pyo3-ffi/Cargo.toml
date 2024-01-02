@@ -38,7 +38,7 @@ abi3-py312 = ["abi3", "pyo3-build-config/abi3-py312"]
 generate-import-lib = ["pyo3-build-config/python3-dll-a"]
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.21.0-dev", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.21.0-dev", features = ["resolve-config"] }
 
 [lints]
 workspace = true

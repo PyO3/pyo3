@@ -59,7 +59,7 @@ widestring = "0.5.1"
 futures = "0.3.28"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.21.0-dev", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "=0.21.0-dev", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
