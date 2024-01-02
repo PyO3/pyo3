@@ -31,14 +31,23 @@ pyobject_native_type_named!(PyIterator);
 pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
-    /// Constructs a `PyIterator` from a Python iterable object.
-    ///
-    /// Equivalent to Python's built-in `iter` function.
+    /// Deprecated form of `PyIterator::from_bound_object`.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyIterator::from_object` will be replaced by `PyIterator::from_bound_object` in a future PyO3 version"
+        )
+    )]
     pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_object2(&obj.as_borrowed()).map(Bound::into_gil_ref)
+        Self::from_bound_object(&obj.as_borrowed()).map(Bound::into_gil_ref)
     }
 
-    pub(crate) fn from_object2<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
+    /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
+    ///
+    /// Usually it is more convenient to write [`obj.iter()`][crate::types::any::PyAnyMethods::iter],
+    /// which is a more concise way of calling this function.
+    pub fn from_bound_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
         unsafe {
             ffi::PyObject_GetIter(obj.as_ptr())
                 .assume_owned_or_err(obj.py())
@@ -135,6 +144,7 @@ impl<'v> crate::PyTryFrom<'v> for PyIterator {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;

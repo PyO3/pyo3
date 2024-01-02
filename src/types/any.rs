@@ -2126,7 +2126,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
-        PyIterator::from_object2(self)
+        PyIterator::from_bound_object(self)
     }
 
     fn get_type(&self) -> &'py PyType {

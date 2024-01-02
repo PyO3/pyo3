@@ -289,7 +289,7 @@ mod impl_ {
     impl<'py> BoundSetIterator<'py> {
         pub(super) fn new(set: Bound<'py, PySet>) -> Self {
             Self {
-                it: PyIterator::from_object2(&set).unwrap(),
+                it: PyIterator::from_bound_object(&set).unwrap(),
             }
         }
     }
