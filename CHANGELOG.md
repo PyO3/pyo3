@@ -10,6 +10,17 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.20.2] - 2024-01-04
+
+### Packaging
+
+- Pin `pyo3` and `pyo3-ffi` dependencies on `pyo3-build-config` to require the same patch version, i.e. `pyo3` 0.20.2 requires _exactly_ `pyo3-build-config` 0.20.2. [#3721](https://github.com/PyO3/pyo3/pull/3721)
+
+### Fixed
+
+- Fix compile failure when building `pyo3` 0.20.0 with latest `pyo3-build-config` 0.20.X. [#3724](https://github.com/PyO3/pyo3/pull/3724)
+- Fix docs.rs build. [#3722](https://github.com/PyO3/pyo3/pull/3722)
+
 ## [0.20.1] - 2023-12-30
 
 ### Added
@@ -1617,7 +1628,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/pyo3/pyo3/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/pyo3/pyo3/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/pyo3/pyo3/compare/v0.19.2...v0.20.0
 [0.19.2]: https://github.com/pyo3/pyo3/compare/v0.19.1...v0.19.2
