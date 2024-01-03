@@ -154,6 +154,13 @@ pub struct InterpreterConfig {
 
 impl InterpreterConfig {
     #[doc(hidden)]
+    pub fn emit_pyo3_cfgs(&self) {
+        for cfg in self.build_script_outputs() {
+            println!("{}", cfg);
+        }
+    }
+
+    #[doc(hidden)]
     pub fn build_script_outputs(&self) -> Vec<String> {
         // This should have been checked during pyo3-build-config build time.
         assert!(self.version >= MINIMUM_SUPPORTED_VERSION);
