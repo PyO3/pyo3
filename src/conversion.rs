@@ -243,6 +243,21 @@ impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
     }
 }
 
+impl<T: ?Sized + ToPyObject> ToPyObject for Box<T> {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        self.as_ref().to_object(py)
+    }
+}
+
+impl<T: ?Sized> IntoPy<PyObject> for Box<T>
+where
+    for<'a> &'a T: IntoPy<PyObject>,
+{
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.as_ref().into_py(py)
+    }
+}
+
 /// `Option::Some<T>` is converted like `T`.
 /// `Option::None` is converted to Python `None`.
 impl<T> ToPyObject for Option<T>
@@ -578,7 +593,7 @@ mod test_no_clone {}
 
 #[cfg(test)]
 mod tests {
-    use crate::{PyObject, Python};
+    use crate::{IntoPy, PyObject, Python, ToPyObject};
 
     #[allow(deprecated)]
     mod deprecated {
@@ -640,5 +655,23 @@ mod tests {
             // Ensure ref count not changed by as_ptr call
             assert_eq!(none.get_refcnt(), ref_cnt);
         });
+    }
+
+    #[test]
+    fn test_box_topyobject() {
+        let s: Box<str> = "test".into();
+
+        let obj = Python::with_gil(|py| s.to_object(py));
+
+        assert_eq!(&obj.to_string(), "test")
+    }
+
+    #[test]
+    fn test_box_intopy() {
+        let s: Box<str> = "test".into();
+
+        let obj = Python::with_gil(|py| s.into_py(py));
+
+        assert_eq!(&obj.to_string(), "test")
     }
 }
