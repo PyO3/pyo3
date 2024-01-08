@@ -251,10 +251,10 @@ impl<T: ?Sized + ToPyObject> ToPyObject for Box<T> {
 
 impl<T: ?Sized> IntoPy<PyObject> for Box<T>
 where
-    for<'a> &'a T: IntoPy<PyObject>,
+    T: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_ref().into_py(py)
+        (*self).into_py(py)
     }
 }
 
@@ -670,7 +670,7 @@ mod tests {
     fn test_box_intopy() {
         let s: Box<str> = "test".into();
 
-        let obj = Python::with_gil(|py| s.into_py(py));
+        let obj: PyObject = Python::with_gil(|py| s.into_py(py));
 
         assert_eq!(&obj.to_string(), "test")
     }
