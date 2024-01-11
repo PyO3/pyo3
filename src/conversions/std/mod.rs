@@ -1,5 +1,4 @@
 mod array;
-mod duration;
 mod ipaddr;
 mod map;
 mod num;
@@ -8,4 +7,5 @@ mod path;
 mod set;
 mod slice;
 mod string;
+mod time;
 mod vec;
