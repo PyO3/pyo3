@@ -21,7 +21,7 @@ mod bufferinfo {
     use std::ptr;
 
     #[cfg(PyPy)]
-    const Py_MAX_NDIMS: usize = 36;
+    const Py_MAX_NDIMS: usize = if cfg!(Py_3_9) { 64 } else { 36 };
 
     #[repr(C)]
     #[derive(Copy, Clone)]

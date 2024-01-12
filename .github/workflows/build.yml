@@ -32,6 +32,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
+          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}  # PyPy can have FFI changes within Python versions, which creates pain in CI
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox
