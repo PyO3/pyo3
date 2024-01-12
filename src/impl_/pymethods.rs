@@ -21,7 +21,7 @@ pub struct IPowModulo(*mut ffi::PyObject);
 /// Python 3.7 and older - __ipow__ does not have modulo argument correctly populated.
 #[cfg(not(Py_3_8))]
 #[repr(transparent)]
-pub struct IPowModulo(std::mem::MaybeUninit<*mut ffi::PyObject>);
+pub struct IPowModulo(#[allow(dead_code)] std::mem::MaybeUninit<*mut ffi::PyObject>);
 
 /// Helper to use as pymethod ffi definition
 #[allow(non_camel_case_types)]
