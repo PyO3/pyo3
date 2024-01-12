@@ -146,9 +146,10 @@ pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
 
 /// Extract the path to the pyo3 crate, or use the default (`::pyo3`).
 pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
-    attr.as_ref()
-        .map(|p| p.value.0.clone())
-        .unwrap_or_else(|| syn::parse_str("::pyo3").unwrap())
+    match attr {
+        Some(attr) => attr.value.0.clone(),
+        None => syn::parse_str("::pyo3").unwrap(),
+    }
 }
 
 pub fn apply_renaming_rule(rule: RenamingRule, name: &str) -> String {

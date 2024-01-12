@@ -80,6 +80,7 @@ To declare a constructor, you need to define a method and annotate it with the `
 attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
 
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct Number(i32);
@@ -96,6 +97,7 @@ impl Number {
 Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
 
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::exceptions::PyValueError;
 # #[pyclass]
@@ -130,6 +132,7 @@ For arguments, see the [`Method arguments`](#method-arguments) section below.
 The next step is to create the module initializer and add our class to it:
 
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct Number(i32);
@@ -663,6 +666,7 @@ Declares a class method callable from Python.
 
 To create a constructor which takes a positional class argument, you can combine the `#[classmethod]` and `#[new]` modifiers:
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyType;
 # #[pyclass]

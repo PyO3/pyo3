@@ -885,13 +885,10 @@ impl<'a> PyClassImplsBuilder<'a> {
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
         let is_basetype = self.attr.options.subclass.is_some();
-        let base = self
-            .attr
-            .options
-            .extends
-            .as_ref()
-            .map(|extends_attr| extends_attr.value.clone())
-            .unwrap_or_else(|| parse_quote! { _pyo3::PyAny });
+        let base = match &self.attr.options.extends {
+            Some(extends_attr) => extends_attr.value.clone(),
+            None => parse_quote! { _pyo3::PyAny },
+        };
         let is_subclass = self.attr.options.extends.is_some();
         let is_mapping: bool = self.attr.options.mapping.is_some();
         let is_sequence: bool = self.attr.options.sequence.is_some();

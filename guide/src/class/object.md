@@ -3,6 +3,7 @@
 Recall the `Number` class from the previous chapter:
 
 ```rust
+# #![allow(dead_code)]
 use pyo3::prelude::*;
 
 #[pyclass]
