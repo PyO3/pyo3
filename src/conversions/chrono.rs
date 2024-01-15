@@ -9,8 +9,6 @@
 //!
 //! ```toml
 //! [dependencies]
-//! # change * to the latest versions
-//! pyo3 = { version = "*", features = ["chrono"] }
 //! chrono = "0.4"
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"chrono\"] }")]
 //! ```
@@ -18,7 +16,7 @@
 //! Note that you must use compatible versions of chrono and PyO3.
 //! The required chrono version may vary based on the version of PyO3.
 //!
-//! # Example: Convert a `PyDateTime` to chrono's `DateTime<Utc>`
+//! # Example: Convert a `datetime.datetime` to chrono's `DateTime<Utc>`
 //!
 //! ```rust
 //! use chrono::{DateTime, Duration, TimeZone, Utc};
