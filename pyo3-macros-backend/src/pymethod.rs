@@ -324,7 +324,8 @@ pub fn impl_py_method_def(
     })
 }
 
-fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAndSlotDef> {
+/// Also used by pyclass.
+pub fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAndSlotDef> {
     let wrapper_ident = syn::Ident::new("__pymethod___new____", Span::call_site());
     let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     // Use just the text_signature_call_signature() because the class' Python name
