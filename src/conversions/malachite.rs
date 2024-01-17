@@ -93,7 +93,6 @@ impl<'source> FromPyObject<'source> for Integer {
         #[cfg(Py_LIMITED_API)]
         {
             let bytes = int_to_py_bytes(num, n_bytes, true)?.as_bytes();
-            eprintln!("n_bytes: {}", n_bytes);
             let n_limbs_64 = n_bytes >> 3;  // the number of 64-bit limbs needed to store the integer
             let mut limbs_64 = Vec::with_capacity(n_limbs_64);
             for i in (0..n_bytes).step_by(8) {
@@ -156,7 +155,7 @@ impl ToPyObject for Integer {
             return 0.to_object(py);
         }
 
-        let bytes = limbs_to_bytes(self.twos_complement_limbs(), self.twos_complement_limbs().count() as u64, true);  // signed
+        let bytes = limbs_to_bytes(self.twos_complement_limbs(), self.twos_complement_limbs().count() as u64);
 
         #[cfg(not(Py_LIMITED_API))]
         unsafe {
@@ -190,7 +189,7 @@ impl ToPyObject for Natural {
             return 0.to_object(py);
         }
 
-        let bytes = limbs_to_bytes(self.limbs(), self.limb_count(),false);  // unsigned
+        let bytes = limbs_to_bytes(self.limbs(), self.limb_count());
 
         #[cfg(not(Py_LIMITED_API))]
         unsafe {
@@ -233,19 +232,14 @@ impl IntoPy<PyObject> for Natural {
 
 /// Convert 64-bit limbs used by malachite to bytes
 #[inline]
-fn limbs_to_bytes(limbs: impl Iterator<Item = u64>, limb_count: u64, signed: bool) -> Vec<u8> {
-    let mut n_bytes = limb_count << 3;
-    if !signed { n_bytes += 1; }
-
-    let mut bytes = Vec::with_capacity(n_bytes as usize);
+fn limbs_to_bytes(limbs: impl Iterator<Item = u64>, limb_count: u64) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity((limb_count << 3) as usize);
 
     for limb in limbs {
         for byte in limb.to_le_bytes() {
             bytes.push(byte);
         }
     }
-
-    if !signed { bytes.push(0); }
 
     bytes
 }
