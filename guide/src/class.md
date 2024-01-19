@@ -2,7 +2,7 @@
 
 PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
-The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` or a fieldless `enum` (a.k.a. C-like enum) to generate a Python type for it. They will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled, each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) `#[pymethods]` may also have implementations for Python magic methods such as `__str__`.
+The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` or `enum` to generate a Python type for it. They will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled, each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) `#[pymethods]` may also have implementations for Python magic methods such as `__str__`.
 
 This chapter will discuss the functionality and configuration these attributes offer. Below is a list of links to the relevant section of this chapter for each:
 
@@ -21,13 +21,13 @@ This chapter will discuss the functionality and configuration these attributes o
 
 ## Defining a new class
 
-To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or a fieldless enum.
+To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or enum.
 ```rust
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
 #[pyclass]
-struct Integer {
+struct MyClass {
     inner: i32,
 }
 
@@ -35,7 +35,15 @@ struct Integer {
 #[pyclass]
 struct Number(i32);
 
-// PyO3 supports custom discriminants in enums
+// PyO3 supports unit-only enums (which contain only unit variants)
+// These simple enums behave similarly to Python's enumerations (enum.Enum)
+#[pyclass]
+enum MyEnum {
+    Variant,
+    OtherVariant = 30, // PyO3 supports custom discriminants.
+}
+
+// PyO3 supports custom discriminants in unit-only enums
 #[pyclass]
 enum HttpResponse {
     Ok = 200,
@@ -44,14 +52,19 @@ enum HttpResponse {
     // ...
 }
 
+// PyO3 also supports enums with non-unit variants
+// These complex enums have sligtly different behavior from the simple enums above
+// They are meant to work with instance checks and match statement patterns
 #[pyclass]
-enum MyEnum {
-    Variant,
-    OtherVariant = 30, // PyO3 supports custom discriminants.
+enum Shape {
+    Circle { radius: f64 },
+    Rectangle { width: f64, height: f64 },
+    RegularPolygon { side_count: u32, radius: f64 },
+    Nothing { },
 }
 ```
 
-The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
+The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] for `MyClass`, `Number`, `MyEnum`, `HttpResponse`, and `Shape`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
 ### Restrictions
 
@@ -964,7 +977,13 @@ Note that `text_signature` on `#[new]` is not compatible with compilation in
 
 ## #[pyclass] enums
 
-Currently PyO3 only supports fieldless enums. PyO3 adds a class attribute for each variant, so you can access them in Python without defining `#[new]`. PyO3 also provides default implementations of `__richcmp__` and `__int__`, so they can be compared using `==`:
+Enum support in PyO3 comes in two flavors, depending on what kind of variants the enum has: simple and complex.
+
+### Simple enums
+
+A simple enum (a.k.a. C-like enum) has only unit variants.
+
+PyO3 adds a class attribute for each variant, so you can access them in Python without defining `#[new]`. PyO3 also provides default implementations of `__richcmp__` and `__int__`, so they can be compared using `==`:
 
 ```rust
 # use pyo3::prelude::*;
@@ -986,7 +1005,7 @@ Python::with_gil(|py| {
 })
 ```
 
-You can also convert your enums into `int`:
+You can also convert your simple enums into `int`:
 
 ```rust
 # use pyo3::prelude::*;
@@ -1093,6 +1112,90 @@ enum BadSubclass {
 ```
 
 `#[pyclass]` enums are currently not interoperable with `IntEnum` in Python.
+
+### Complex enums
+
+An enum is complex if it has any non-unit (struct or tuple) variants.
+
+Currently PyO3 supports only struct variants in a complex enum. Support for unit and tuple variants is planned.
+
+PyO3 adds a class attribute for each variant, which may be used to construct values and in match patterns. PyO3 also provides getter methods for all fields of each variant.
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+enum Shape {
+    Circle { radius: f64 },
+    Rectangle { width: f64, height: f64 },
+    RegularPolygon { side_count: u32, radius: f64 },
+    Nothing { },
+}
+
+Python::with_gil(|py| {
+    let def_count_vertices = if py.version_info() >= (3, 10) { r#"
+        def count_vertices(cls, shape):
+            match shape:
+                case cls.Circle():
+                    return 0
+                case cls.Rectangle():
+                    return 4
+                case cls.RegularPolygon(side_count=n):
+                    return n
+                case cls.Nothing():
+                    return 0
+    "# } else { r#"
+        def count_vertices(cls, shape):
+            if isinstance(shape, cls.Circle):
+                return 0
+            elif isinstance(shape, cls.Rectangle):
+                return 4
+            elif isinstance(shape, cls.RegularPolygon):
+                n = shape.side_count
+                return n
+            elif isinstance(shape, cls.Nothing):
+                return 0
+    "# };
+
+    let circle = Shape::Circle { radius: 10.0 }.into_py(py);
+    let square = Shape::RegularPolygon { side_count: 4, radius: 10.0 }.into_py(py);
+    let cls = py.get_type::<Shape>();
+
+    pyo3::py_run!(py, circle square cls, &format!(r#"
+        assert isinstance(circle, cls)
+        assert isinstance(circle, cls.Circle)
+        assert circle.radius == 10.0
+
+        assert isinstance(square, cls)
+        assert isinstance(square, cls.RegularPolygon)
+        assert square.side_count == 4
+        assert square.radius == 10.0
+
+        {}
+
+        assert count_vertices(cls, circle) == 0
+        assert count_vertices(cls, square) == 4
+    "#, def_count_vertices))
+})
+```
+
+WARNING: `Py::new` and `.into_py` are currently inconsistent. Note how the constructed value is _not_ an instance of the specific variant. For this reason, constructing values is only recommended using `.into_py`.
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+enum MyEnum {
+    Variant { i: i32 },
+}
+
+Python::with_gil(|py| {
+    let x = Py::new(py, MyEnum::Variant { i: 42 }).unwrap();
+    let cls = py.get_type::<MyEnum>();
+    pyo3::py_run!(py, x cls, r#"
+        assert isinstance(x, cls)
+        assert not isinstance(x, cls.Variant)
+    "#)
+})
+```
 
 ## Implementation details
 
