@@ -46,6 +46,25 @@ struct AssertingBaseClass;
 impl AssertingBaseClass {
     #[new]
     #[classmethod]
+    fn new(cls: &Bound<'_, PyType>, expected_type: Bound<'_, PyType>) -> PyResult<Self> {
+        if !cls.is(&expected_type) {
+            return Err(PyValueError::new_err(format!(
+                "{:?} != {:?}",
+                cls, expected_type
+            )));
+        }
+        Ok(Self)
+    }
+}
+
+#[pyclass(subclass)]
+#[derive(Clone, Debug)]
+struct AssertingBaseClassDeprecated;
+
+#[pymethods]
+impl AssertingBaseClassDeprecated {
+    #[new]
+    #[classmethod]
     fn new(cls: &PyType, expected_type: &PyType) -> PyResult<Self> {
         if !cls.is(expected_type) {
             return Err(PyValueError::new_err(format!(

@@ -3,8 +3,10 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
+use crate::types::PyType;
 use crate::{
-    ffi, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit, Python,
+    ffi, Bound, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit,
+    Python,
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -466,3 +468,39 @@ pub trait AsyncIterResultOptionKind {
 }
 
 impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
+
+/// Create a reference to bound from a reference to a raw ffi pointer
+///
+/// # Safety:
+///   - ptr must be a non-null pointer to a valid ffi::PyObject
+///   - ptr owns a Python reference for at least the lifetime 'a
+#[inline]
+pub unsafe fn ptr_to_bound<'py, 'a>(
+    py: Python<'py>,
+    ptr: &'a *mut ffi::PyObject,
+) -> &'a Bound<'py, PyAny> {
+    Bound::from_ref_to_ptr(py, ptr)
+}
+
+pub struct BoundType<'a, 'py>(pub &'a Bound<'py, PyType>);
+
+impl<'a> From<BoundType<'a, 'a>> for &'a PyType {
+    #[inline]
+    fn from(bound: BoundType<'a, 'a>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py> From<BoundType<'a, 'py>> for &'a Bound<'py, PyType> {
+    #[inline]
+    fn from(bound: BoundType<'a, 'py>) -> Self {
+        bound.0
+    }
+}
+
+impl From<BoundType<'_, '_>> for Py<PyType> {
+    #[inline]
+    fn from(bound: BoundType<'_, '_>) -> Self {
+        bound.0.clone().unbind()
+    }
+}

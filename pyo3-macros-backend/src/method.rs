@@ -127,7 +127,10 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(#py, #slf.cast())),
+                    ::std::convert::Into::into(_pyo3::impl_::pymethods::BoundType(
+                        _pyo3::impl_::pymethods::ptr_to_bound(#py, &#slf.cast())
+                            .downcast_unchecked::<_pyo3::types::PyType>()
+                    )),
                 }
             }
             FnType::FnModule(span) => {
