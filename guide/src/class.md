@@ -1131,8 +1131,21 @@ enum Shape {
     Nothing { },
 }
 
+# #[cfg(Py_3_10)]
 Python::with_gil(|py| {
-    let def_count_vertices = if py.version_info() >= (3, 10) { r#"
+    let circle = Shape::Circle { radius: 10.0 }.into_py(py);
+    let square = Shape::RegularPolygon { side_count: 4, radius: 10.0 }.into_py(py);
+    let cls = py.get_type::<Shape>();
+    pyo3::py_run!(py, circle square cls, r#"
+        assert isinstance(circle, cls)
+        assert isinstance(circle, cls.Circle)
+        assert circle.radius == 10.0
+
+        assert isinstance(square, cls)
+        assert isinstance(square, cls.RegularPolygon)
+        assert square.side_count == 4
+        assert square.radius == 10.0
+
         def count_vertices(cls, shape):
             match shape:
                 case cls.Circle():
@@ -1143,38 +1156,10 @@ Python::with_gil(|py| {
                     return n
                 case cls.Nothing():
                     return 0
-    "# } else { r#"
-        def count_vertices(cls, shape):
-            if isinstance(shape, cls.Circle):
-                return 0
-            elif isinstance(shape, cls.Rectangle):
-                return 4
-            elif isinstance(shape, cls.RegularPolygon):
-                n = shape.side_count
-                return n
-            elif isinstance(shape, cls.Nothing):
-                return 0
-    "# };
-
-    let circle = Shape::Circle { radius: 10.0 }.into_py(py);
-    let square = Shape::RegularPolygon { side_count: 4, radius: 10.0 }.into_py(py);
-    let cls = py.get_type::<Shape>();
-
-    pyo3::py_run!(py, circle square cls, &format!(r#"
-        assert isinstance(circle, cls)
-        assert isinstance(circle, cls.Circle)
-        assert circle.radius == 10.0
-
-        assert isinstance(square, cls)
-        assert isinstance(square, cls.RegularPolygon)
-        assert square.side_count == 4
-        assert square.radius == 10.0
-
-        {}
 
         assert count_vertices(cls, circle) == 0
         assert count_vertices(cls, square) == 4
-    "#, def_count_vertices))
+    "#)
 })
 ```
 
