@@ -51,9 +51,13 @@
 
 
 
-use crate::{ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject, PyErr, exceptions::PyValueError};
 use malachite::{Natural, Integer};
 use malachite::num::basic::traits::Zero;
+use malachite::num::arithmetic::traits::{DivisibleByPowerOf2, IsPowerOf2};
+use malachite::num::basic::integers::PrimitiveInt;
+use malachite::num::logic::traits::SignificantBits;
+use malachite::platform::Limb;
 
 
 
@@ -119,6 +123,11 @@ impl<'source> FromPyObject<'source> for Natural {
                 num_owned.as_ref(py)
             };
 
+        // check if number is negative, and if so, raise TypeError
+        if num.lt(0)? {
+            return Err(PyErr::new::<PyValueError, _>("expected non-negative integer"));
+        }
+
         // check if number is zero, and if so, return zero
         let n_bits = int_n_bits(num)?;
         if n_bits == 0 {
@@ -155,7 +164,7 @@ impl ToPyObject for Integer {
             return 0.to_object(py);
         }
 
-        let bytes = limbs_to_bytes(self.twos_complement_limbs(), self.twos_complement_limbs().count() as u64);
+        let bytes = limbs_to_bytes(self.twos_complement_limbs(), twos_complement_limb_count(self));
 
         #[cfg(not(Py_LIMITED_API))]
         unsafe {
@@ -326,6 +335,21 @@ fn int_n_bits(long: &PyLong) -> PyResult<usize> {
     }
 }
 
+/// Return the count of limbs needed to store the two's complement representation of an Integer.
+#[inline]
+fn twos_complement_limb_count(n: &Integer) -> u64 {
+    let abs_limbs_count = n.unsigned_abs_ref().limb_count();
+    let highest_bit_of_highest_limb = n
+        .significant_bits()
+        .divisible_by_power_of_2(Limb::LOG_WIDTH);
+    if highest_bit_of_highest_limb && (*n > 0 || (*n < 0 && !n.unsigned_abs_ref().is_power_of_2()))
+    {
+        abs_limbs_count + 1
+    } else {
+        abs_limbs_count
+    }
+}
+
 
 
 #[cfg(test)]
@@ -337,7 +361,7 @@ mod tests {
     /// Fibonacci sequence iterator (Rust)
     fn rust_fib<T>() -> impl Iterator<Item = T>
         where
-            T: From<u16>,
+            T: From<u8>,
             for<'a> &'a T: std::ops::Add<Output = T>,
     {
         let mut f0: T = T::from(1);
@@ -480,5 +504,47 @@ mod tests {
                 test!(Integer, (-Integer::from(1) << i) - Integer::from(1u32), py);
             }
         });
+    }
+
+    /// Test error when converting negative integer to Natural
+    #[test]
+    fn negative_natural() {
+        Python::with_gil(|py| {
+            let zero = 0.to_object(py);
+            let minus_one = (-1).to_object(py);
+            assert_eq!(zero.extract::<Natural>(py).unwrap(), Natural::ZERO);
+            assert!(minus_one.extract::<Natural>(py).unwrap_err().get_type(py).is(PyType::new::<PyValueError>(py)));
+        });
+    }
+
+    /// Test twos_complement_limb_count function
+    #[test]
+    fn twos_limb_count() {
+        // assert that the number of limbs is zero for zero
+        assert_eq!(0, twos_complement_limb_count(&Integer::ZERO));
+        assert_eq!(0, twos_complement_limb_count(&-Integer::ZERO));
+
+        // test for the first 5000 fibonacci numbers
+        for int_fib in rust_fib::<Integer>().take(5000) {
+            // assert that the number of limbs is correct
+            assert_eq!(twos_complement_limb_count(&int_fib), int_fib.twos_complement_limbs().count() as u64);
+
+            // negate the number and assert that the number of limbs is correct
+            let neg_int_fib = -int_fib;
+            assert_eq!(twos_complement_limb_count(&neg_int_fib), neg_int_fib.twos_complement_limbs().count() as u64);
+        }
+
+        // test for first 5000 powers of 2
+        for i in 0..5000 {
+            // generate the power of 2
+            let int_pow2 = Integer::from(1) << i;
+
+            // assert that the number of limbs is correct
+            assert_eq!(twos_complement_limb_count(&int_pow2), int_pow2.twos_complement_limbs().count() as u64);
+
+            // negate the number and assert that the number of limbs is correct
+            let neg_int_pow2 = -int_pow2;
+            assert_eq!(twos_complement_limb_count(&neg_int_pow2), neg_int_pow2.twos_complement_limbs().count() as u64);
+        }
     }
 }
