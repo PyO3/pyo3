@@ -245,7 +245,7 @@ For example, the following APIs have gained updated variants:
 Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
 - Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)
 - `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
-- `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators".
+- `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 
 ## from 0.19.* to 0.20
 
