@@ -75,12 +75,12 @@ Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#is
 In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`] methods which do the same thing.
 
 ```rust
-use pyo3::Python;
+use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
 Python::with_gil(|py| {
     assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
-    let list = PyList::new(py, &[1, 2, 3, 4]);
+    let list = PyList::new_bound(py, &[1, 2, 3, 4]);
     assert!(!list.is_instance_of::<PyBool>());
     assert!(list.is_instance_of::<PyList>());
 });

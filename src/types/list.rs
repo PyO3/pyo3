@@ -88,7 +88,7 @@ impl PyList {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
-    ///     let list: &PyList = PyList::new(py, elements);
+    ///     let list = PyList::new_bound(py, elements);
     ///     assert_eq!(format!("{:?}", list), "[0, 1, 2, 3, 4, 5]");
     /// });
     /// # }
@@ -154,7 +154,7 @@ impl PyList {
     /// ```
     /// use pyo3::{prelude::*, types::PyList};
     /// Python::with_gil(|py| {
-    ///     let list = PyList::new(py, [2, 3, 5, 7]);
+    ///     let list = PyList::new_bound(py, [2, 3, 5, 7]);
     ///     let obj = list.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 2);
     /// });
@@ -301,7 +301,7 @@ pub trait PyListMethods<'py> {
     /// ```
     /// use pyo3::{prelude::*, types::PyList};
     /// Python::with_gil(|py| {
-    ///     let list = PyList::new(py, [2, 3, 5, 7]);
+    ///     let list = PyList::new_bound(py, [2, 3, 5, 7]);
     ///     let obj = list.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 2);
     /// });
@@ -414,7 +414,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// ```
     /// use pyo3::{prelude::*, types::PyList};
     /// Python::with_gil(|py| {
-    ///     let list = PyList::new(py, [2, 3, 5, 7]);
+    ///     let list = PyList::new_bound(py, [2, 3, 5, 7]);
     ///     let obj = list.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 2);
     /// });

@@ -12,7 +12,7 @@
 /// use pyo3::{prelude::*, py_run, types::PyList};
 ///
 /// Python::with_gil(|py| {
-///     let list = PyList::new(py, &[1, 2, 3]);
+///     let list = PyList::new_bound(py, &[1, 2, 3]);
 ///     py_run!(py, list, "assert list == [1, 2, 3]");
 /// });
 /// ```

@@ -71,6 +71,7 @@ a list:
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # Python::with_gil(|py| -> PyResult<()> {
+#[allow(deprecated)]  // PyList::empty is part of the deprecated "GIL Refs" API.
 let obj: &PyAny = PyList::empty(py);
 
 // To &PyList with PyAny::downcast
@@ -133,6 +134,7 @@ To see all Python types exposed by `PyO3` you should consult the
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # Python::with_gil(|py| -> PyResult<()> {
+#[allow(deprecated)]  // PyList::empty is part of the deprecated "GIL Refs" API.
 let list = PyList::empty(py);
 
 // Use methods from PyAny on all Python types with Deref implementation
@@ -173,7 +175,7 @@ For a `Py<PyList>`, the conversions are as below:
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # Python::with_gil(|py| {
-let list: Py<PyList> = PyList::empty(py).into();
+let list: Py<PyList> = PyList::empty_bound(py).unbind();
 
 // To &PyList with Py::as_ref() (borrows from the Py)
 let _: &PyList = list.as_ref(py);

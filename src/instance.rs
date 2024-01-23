@@ -615,10 +615,9 @@ where
     /// # use pyo3::types::PyList;
     /// #
     /// Python::with_gil(|py| {
-    ///     let list: Py<PyList> = PyList::empty(py).into();
-    ///     // FIXME as_ref() no longer makes sense with new Py API, remove this doc
-    ///     // let list: &PyList = list.as_ref(py);
-    ///     // assert_eq!(list.len(), 0);
+    ///     let list: Py<PyList> = PyList::empty_bound(py).into();
+    ///     let list: &PyList = list.as_ref(py);
+    ///     assert_eq!(list.len(), 0);
     /// });
     /// ```
     ///

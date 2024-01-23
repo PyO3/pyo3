@@ -13,7 +13,7 @@ fails, so usually you will use something like
 # use pyo3::types::PyList;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let list = PyList::new(py, b"foo");
+#         let list = PyList::new_bound(py, b"foo");
 let v: Vec<i32> = list.extract()?;
 #         assert_eq!(&v, &[102, 111, 111]);
 #         Ok(())
