@@ -566,6 +566,7 @@ impl<'v> crate::PyTryFrom<'v> for PySequence {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::types::{PyList, PySequence, PyTuple};
     use crate::{PyObject, Python, ToPyObject};

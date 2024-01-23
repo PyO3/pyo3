@@ -564,7 +564,8 @@ pub struct TransparentFromPyWith {
 #[test]
 fn test_transparent_from_py_with() {
     Python::with_gil(|py| {
-        let result = TransparentFromPyWith::extract(PyList::new(py, [1, 2, 3])).unwrap();
+        let result =
+            TransparentFromPyWith::extract(PyList::new_bound(py, [1, 2, 3]).as_gil_ref()).unwrap();
         let expected = TransparentFromPyWith { len: 3 };
 
         assert_eq!(result, expected);

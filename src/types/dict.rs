@@ -697,6 +697,7 @@ where
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
     #[cfg(not(PyPy))]

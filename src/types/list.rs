@@ -56,6 +56,24 @@ pub(crate) fn new_from_iter<'py>(
 }
 
 impl PyList {
+    /// Deprecated form of [`PyList::new_bound`].
+    #[inline]
+    #[track_caller]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyList::new` will be replaced by `PyList::new_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        Self::new_bound(py, elements).into_gil_ref()
+    }
+
     /// Constructs a new list with the given elements.
     ///
     /// If you want to create a [`PyList`] with elements of different or unknown types, or from an
@@ -82,18 +100,38 @@ impl PyList {
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function with (for example) [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
-    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
+    pub fn new_bound<T, U>(
+        py: Python<'_>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> Bound<'_, PyList>
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
         let mut iter = elements.into_iter().map(|e| e.to_object(py));
-        new_from_iter(py, &mut iter).into_gil_ref()
+        new_from_iter(py, &mut iter)
+    }
+
+    /// Deprecated form of [`PyList::empty_bound`].
+    #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyList::empty` will be replaced by `PyList::empty_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn empty(py: Python<'_>) -> &PyList {
+        Self::empty_bound(py).into_gil_ref()
     }
 
     /// Constructs a new empty list.
-    pub fn empty(py: Python<'_>) -> &PyList {
-        unsafe { py.from_owned_ptr(ffi::PyList_New(0)) }
+    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyList> {
+        unsafe {
+            ffi::PyList_New(0)
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Returns the length of the list.
@@ -667,6 +705,7 @@ impl<'py> IntoIterator for Bound<'py, PyList> {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::types::{PyList, PyTuple};
     use crate::Python;
