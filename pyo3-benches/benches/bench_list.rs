@@ -20,7 +20,7 @@ fn iter_list(b: &mut Bencher<'_>) {
 fn list_new(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        b.iter(|| PyList::new_bound(py, 0..LEN));
+        b.iter_with_large_drop(|| PyList::new_bound(py, 0..LEN));
     });
 }
 
