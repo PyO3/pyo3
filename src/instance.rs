@@ -355,6 +355,20 @@ impl<T> Clone for Borrowed<'_, '_, T> {
 
 impl<T> Copy for Borrowed<'_, '_, T> {}
 
+impl<T> ToPyObject for Borrowed<'_, '_, T> {
+    /// Converts `Py` instance -> PyObject.
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        (*self).into_py(py)
+    }
+}
+
+impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
+    /// Converts `Py` instance -> PyObject.
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.to_owned().into_py(py)
+    }
+}
+
 /// A GIL-independent reference to an object allocated on the Python heap.
 ///
 /// This type does not auto-dereference to the inner object because you must prove you hold the GIL to access it.
