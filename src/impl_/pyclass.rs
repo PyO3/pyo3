@@ -7,7 +7,8 @@ use crate::{
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     types::PyBool,
-    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    Py, PyAny, PyCell, PyClass, PyClassInitializer, PyErr, PyMethodDefType, PyNativeType, PyResult,
+    PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
@@ -135,6 +136,19 @@ pub struct PyClassItems {
 
 // Allow PyClassItems in statics
 unsafe impl Sync for PyClassItems {}
+
+/// Allows customizing how a Py<T> is created from a value, while also providing a default implementation.
+pub trait PyInitializable: PyClass {
+    fn initialize(
+        py: Python<'_>,
+        value: impl Into<PyClassInitializer<Self>>,
+    ) -> PyResult<Py<Self>> {
+        let initializer: PyClassInitializer<Self> = value.into();
+        let obj = initializer.create_cell(py)?;
+        let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
+        Ok(ob)
+    }
+}
 
 /// Implements the underlying functionality of `#[pyclass]`, assembled by various proc macros.
 ///

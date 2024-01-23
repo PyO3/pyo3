@@ -6,8 +6,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
-    PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyInitializable,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -548,7 +548,7 @@ unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T>
 where
-    T: PyClass,
+    T: PyInitializable,
 {
     /// Creates a new instance `Py<T>` of a `#[pyclass]` on the Python heap.
     ///
@@ -569,10 +569,7 @@ where
     /// # }
     /// ```
     pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>> {
-        let initializer = value.into();
-        let obj = initializer.create_cell(py)?;
-        let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
-        Ok(ob)
+        <T as PyInitializable>::initialize(py, value)
     }
 }
 

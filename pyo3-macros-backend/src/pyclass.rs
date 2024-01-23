@@ -864,10 +864,19 @@ fn impl_complex_enum(
         }
     };
 
+    let enum_pyinitializable_impl = quote! {
+        impl _pyo3::PyInitializable for #cls {
+            fn initialize(py: Python<'_>, value: impl Into<PyClassInitializer<Self>>) -> PyResult<Py<Self>> {
+                todo!()
+            }
+        }
+    };
+
     let pyclass_impls: TokenStream = vec![
         impl_builder.impl_pyclass(),
         impl_builder.impl_extractext(),
         enum_into_py_impl,
+        enum_pyinitializable_impl,
         impl_builder.impl_pyclassimpl()?,
         impl_builder.impl_freelist(),
     ]
@@ -1336,6 +1345,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let tokens = vec![
             self.impl_pyclass(),
             self.impl_extractext(),
+            self.impl_pyinitializable(),
             self.impl_into_py(),
             self.impl_pyclassimpl()?,
             self.impl_freelist(),
@@ -1396,6 +1406,13 @@ impl<'a> PyClassImplsBuilder<'a> {
                     }
                 }
             }
+        }
+    }
+
+    fn impl_pyinitializable(&self) -> TokenStream {
+        let cls = self.cls;
+        quote! {
+            impl _pyo3::PyInitializable for #cls {}
         }
     }
 
