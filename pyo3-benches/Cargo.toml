@@ -15,6 +15,10 @@ criterion = "0.5.1"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
 
+[profile.bench]
+debug = true
+strip = false
+
 [[bench]]
 name = "bench_any"
 harness = false
