@@ -272,6 +272,18 @@ impl PyErr {
         exc
     }
 
+    /// Deprecated form of [`PyErr::traceback_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::traceback` will be replaced by `PyErr::traceback_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn traceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
+        self.normalized(py).ptraceback(py).map(|b| b.into_gil_ref())
+    }
+
     /// Returns the traceback of this exception object.
     ///
     /// # Examples
@@ -280,10 +292,10 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.traceback(py).is_none());
+    ///     assert!(err.traceback_bound(py).is_none());
     /// });
     /// ```
-    pub fn traceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
+    pub fn traceback_bound<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
         self.normalized(py).ptraceback(py)
     }
 
@@ -476,10 +488,16 @@ impl PyErr {
 
         #[cfg(not(Py_3_12))]
         unsafe {
+            // keep the bound `traceback` alive for entire duration of
+            // PyErr_Display. if we inline this, the `Bound` will be dropped
+            // after the argument got evaluated, leading to call with a dangling
+            // pointer.
+            let traceback = self.traceback_bound(py);
             ffi::PyErr_Display(
                 self.get_type(py).as_ptr(),
                 self.value(py).as_ptr(),
-                self.traceback(py)
+                traceback
+                    .as_ref()
                     .map_or(std::ptr::null_mut(), |traceback| traceback.as_ptr()),
             )
         }
@@ -658,15 +676,15 @@ impl PyErr {
     ///
     /// # Examples
     /// ```rust
-    /// use pyo3::{exceptions::PyTypeError, PyErr, Python};
+    /// use pyo3::{exceptions::PyTypeError, PyErr, Python, prelude::PyAnyMethods};
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
     ///     assert!(err.get_type(py).is(err_clone.get_type(py)));
     ///     assert!(err.value(py).is(err_clone.value(py)));
-    ///     match err.traceback(py) {
-    ///         None => assert!(err_clone.traceback(py).is_none()),
-    ///         Some(tb) => assert!(err_clone.traceback(py).unwrap().is(tb)),
+    ///     match err.traceback_bound(py) {
+    ///         None => assert!(err_clone.traceback_bound(py).is_none()),
+    ///         Some(tb) => assert!(err_clone.traceback_bound(py).unwrap().is(&tb)),
     ///     }
     /// });
     /// ```
@@ -747,7 +765,7 @@ impl std::fmt::Debug for PyErr {
             f.debug_struct("PyErr")
                 .field("type", self.get_type(py))
                 .field("value", self.value(py))
-                .field("traceback", &self.traceback(py))
+                .field("traceback", &self.traceback_bound(py))
                 .finish()
         })
     }

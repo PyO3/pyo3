@@ -100,6 +100,7 @@ macro_rules! import_exception {
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::GILOnceCell;
+                use $crate::prelude::PyTracebackMethods;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 
@@ -109,7 +110,7 @@ macro_rules! import_exception {
                             .import(stringify!($module))
                             .unwrap_or_else(|err| {
                                 let traceback = err
-                                    .traceback(py)
+                                    .traceback_bound(py)
                                     .map(|tb| tb.format().expect("raised exception will have a traceback"))
                                     .unwrap_or_default();
                                 ::std::panic!("Can not import module {}: {}\n{}", stringify!($module), err, traceback);
