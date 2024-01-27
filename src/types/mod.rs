@@ -277,7 +277,7 @@ pub(crate) mod any;
 pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
-mod capsule;
+pub(crate) mod capsule;
 #[cfg(not(Py_LIMITED_API))]
 mod code;
 mod complex;
