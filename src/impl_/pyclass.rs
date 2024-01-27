@@ -510,11 +510,11 @@ macro_rules! define_pyclass_binary_operator_slot {
             #[inline]
             unsafe fn $lhs(
                 self,
-                _py: Python<'_>,
+                py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
-                Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+                Ok(py.NotImplemented().into_ptr())
             }
         }
 
@@ -525,11 +525,11 @@ macro_rules! define_pyclass_binary_operator_slot {
             #[inline]
             unsafe fn $rhs(
                 self,
-                _py: Python<'_>,
+                py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
-                Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+                Ok(py.NotImplemented().into_ptr())
             }
         }
 
@@ -700,12 +700,12 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __pow__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -716,12 +716,12 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __rpow__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -761,11 +761,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __lt__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -776,11 +776,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __le__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -791,11 +791,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __eq__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -824,11 +824,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __gt__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -839,11 +839,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __ge__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 

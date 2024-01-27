@@ -965,7 +965,9 @@ impl PyAny {
     #[inline]
     pub fn into_ptr(&self) -> *mut ffi::PyObject {
         // Safety: self.as_ptr() returns a valid non-null pointer
-        unsafe { ffi::_Py_NewRef(self.as_ptr()) }
+        let ptr = self.as_ptr();
+        unsafe { ffi::Py_INCREF(ptr) };
+        ptr
     }
 
     /// Return a proxy object that delegates method calls to a parent or sibling class of type.

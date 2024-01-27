@@ -155,7 +155,7 @@ unsafe fn fill_view_from_readonly_data(
         return Err(PyBufferError::new_err("Object is not writable"));
     }
 
-    (*view).obj = ffi::_Py_NewRef(owner.as_ptr());
+    (*view).obj = owner.into_ptr();
 
     (*view).buf = data.as_ptr() as *mut c_void;
     (*view).len = data.len() as isize;

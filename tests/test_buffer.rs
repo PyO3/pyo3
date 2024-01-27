@@ -41,8 +41,6 @@ impl TestBufferErrors {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        (*view).obj = ffi::_Py_NewRef(slf.as_ptr());
-
         let bytes = &slf.buf;
 
         (*view).buf = bytes.as_ptr() as *mut c_void;
@@ -79,6 +77,8 @@ impl TestBufferErrors {
                 IncorrectAlignment => (*view).buf = (*view).buf.add(1),
             }
         }
+
+        (*view).obj = slf.into_ptr();
 
         Ok(())
     }
