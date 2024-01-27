@@ -59,10 +59,10 @@
 //! #
 //! #         module.add_function(wrap_pyfunction!(get_eigenvalues, module)?)?;
 //! #
-//! #         let m11 = PyComplex::from_doubles(py, 0_f64, -1_f64);
-//! #         let m12 = PyComplex::from_doubles(py, 1_f64, 0_f64);
-//! #         let m21 = PyComplex::from_doubles(py, 2_f64, -1_f64);
-//! #         let m22 = PyComplex::from_doubles(py, -1_f64, 0_f64);
+//! #         let m11 = PyComplex::from_doubles_bound(py, 0_f64, -1_f64);
+//! #         let m12 = PyComplex::from_doubles_bound(py, 1_f64, 0_f64);
+//! #         let m21 = PyComplex::from_doubles_bound(py, 2_f64, -1_f64);
+//! #         let m22 = PyComplex::from_doubles_bound(py, -1_f64, 0_f64);
 //! #
 //! #         let result = module
 //! #             .getattr("get_eigenvalues")?
