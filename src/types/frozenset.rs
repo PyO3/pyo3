@@ -1,10 +1,12 @@
-#[cfg(not(Py_LIMITED_API))]
-use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
-    ffi, Bound, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject,
+    ffi,
+    ffi_ptr_ext::FfiPtrExt,
+    py_result_ext::PyResultExt,
+    types::any::PyAnyMethods,
+    Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject,
 };
 use std::ptr;
 
@@ -63,20 +65,45 @@ pyobject_native_type_core!(
 );
 
 impl PyFrozenSet {
-    /// Creates a new frozenset.
-    ///
-    /// May panic when running out of memory.
+    /// Deprecated form of [`PyFrozenSet::new_bound`].
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new<'a, 'p, T: ToPyObject + 'a>(
         py: Python<'p>,
         elements: impl IntoIterator<Item = &'a T>,
     ) -> PyResult<&'p PyFrozenSet> {
-        new_from_iter(py, elements).map(|set| set.into_ref(py))
+        Self::new_bound(py, elements).map(Bound::into_gil_ref)
+    }
+
+    /// Creates a new frozenset.
+    ///
+    /// May panic when running out of memory.
+    #[inline]
+    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = &'a T>,
+    ) -> PyResult<Bound<'p, PyFrozenSet>> {
+        new_from_iter(py, elements)
+    }
+
+    /// Deprecated form of [`PyFrozenSet::empty_bound`].
+    pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
+        Self::empty_bound(py).map(Bound::into_gil_ref)
     }
 
     /// Creates a new empty frozen set
-    pub fn empty(py: Python<'_>) -> PyResult<&PyFrozenSet> {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(ptr::null_mut())) }
+    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
+        unsafe {
+            ffi::PyFrozenSet_New(ptr::null_mut())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Return the number of items in the set.
@@ -285,14 +312,16 @@ pub use impl_::*;
 pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
-) -> PyResult<Py<PyFrozenSet>> {
-    fn inner(
-        py: Python<'_>,
+) -> PyResult<Bound<'_, PyFrozenSet>> {
+    fn inner<'py>(
+        py: Python<'py>,
         elements: &mut dyn Iterator<Item = PyObject>,
-    ) -> PyResult<Py<PyFrozenSet>> {
-        let set: Py<PyFrozenSet> = unsafe {
+    ) -> PyResult<Bound<'py, PyFrozenSet>> {
+        let set = unsafe {
             // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
-            Py::from_owned_ptr_or_err(py, ffi::PyFrozenSet_New(std::ptr::null_mut()))?
+            ffi::PyFrozenSet_New(std::ptr::null_mut())
+                .assume_owned_or_err(py)?
+                .downcast_into_unchecked()
         };
         let ptr = set.as_ptr();
 
@@ -308,6 +337,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
 
