@@ -355,6 +355,20 @@ impl<T> Clone for Borrowed<'_, '_, T> {
 
 impl<T> Copy for Borrowed<'_, '_, T> {}
 
+impl<T> ToPyObject for Borrowed<'_, '_, T> {
+    /// Converts `Py` instance -> PyObject.
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        (*self).into_py(py)
+    }
+}
+
+impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
+    /// Converts `Py` instance -> PyObject.
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.to_owned().into_py(py)
+    }
+}
+
 /// A GIL-independent reference to an object allocated on the Python heap.
 ///
 /// This type does not auto-dereference to the inner object because you must prove you hold the GIL to access it.
@@ -601,10 +615,9 @@ where
     /// # use pyo3::types::PyList;
     /// #
     /// Python::with_gil(|py| {
-    ///     let list: Py<PyList> = PyList::empty(py).into();
-    ///     // FIXME as_ref() no longer makes sense with new Py API, remove this doc
-    ///     // let list: &PyList = list.as_ref(py);
-    ///     // assert_eq!(list.len(), 0);
+    ///     let list: Py<PyList> = PyList::empty_bound(py).into();
+    ///     let list: &PyList = list.as_ref(py);
+    ///     assert_eq!(list.len(), 0);
     /// });
     /// ```
     ///

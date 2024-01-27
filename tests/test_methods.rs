@@ -689,12 +689,12 @@ struct MethodWithLifeTime {}
 
 #[pymethods]
 impl MethodWithLifeTime {
-    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<&'py PyList> {
+    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<Bound<'py, PyList>> {
         let mut items = vec![];
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());
         }
-        let list = PyList::new(py, items);
+        let list = PyList::new_bound(py, items);
         list.sort()?;
         Ok(list)
     }

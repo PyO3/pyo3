@@ -23,21 +23,17 @@ fn enum_from_pyobject(b: &mut Bencher<'_>) {
 
 fn list_via_downcast(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any: &PyAny = PyList::empty(py).into();
+        let any: &Bound<'_, PyAny> = &PyList::empty_bound(py);
 
-        b.iter(|| {
-            let _list: &PyList = black_box(any).downcast().unwrap();
-        });
+        b.iter(|| black_box(any).downcast::<PyList>().unwrap());
     })
 }
 
 fn list_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any: &PyAny = PyList::empty(py).into();
+        let any: &Bound<'_, PyAny> = &PyList::empty_bound(py);
 
-        b.iter(|| {
-            let _list: &PyList = black_box(any).extract().unwrap();
-        });
+        b.iter(|| black_box(any).extract::<Bound<'_, PyList>>().unwrap());
     })
 }
 
@@ -45,9 +41,7 @@ fn not_a_list_via_downcast(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let any: &PyAny = PyString::new(py, "foobar").into();
 
-        b.iter(|| {
-            black_box(any).downcast::<PyList>().unwrap_err();
-        });
+        b.iter(|| black_box(any).downcast::<PyList>().unwrap_err());
     })
 }
 
@@ -55,9 +49,7 @@ fn not_a_list_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let any: &PyAny = PyString::new(py, "foobar").into();
 
-        b.iter(|| {
-            black_box(any).extract::<&PyList>().unwrap_err();
-        });
+        b.iter(|| black_box(any).extract::<&PyList>().unwrap_err());
     })
 }
 

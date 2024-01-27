@@ -560,7 +560,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             Ok(idx) => idx.downcast_into().map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
-                    let l = PyList::empty(self.py()).as_borrowed().to_owned();
+                    let l = PyList::empty_bound(self.py());
                     self.setattr(__all__, &l).map_err(PyErr::from)?;
                     Ok(l)
                 } else {

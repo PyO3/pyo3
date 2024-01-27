@@ -1067,8 +1067,7 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{IntoPyDict, PyDict, PyList};
-    use crate::Py;
+    use crate::types::{any::PyAnyMethods, IntoPyDict, PyDict, PyList};
     use std::sync::Arc;
 
     #[test]
@@ -1150,17 +1149,14 @@ mod tests {
 
             // If allow_threads is implemented correctly, this thread still owns the GIL here
             // so the following Python calls should not cause crashes.
-            let list = PyList::new(py, [1, 2, 3, 4]);
+            let list = PyList::new_bound(py, [1, 2, 3, 4]);
             assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
         });
     }
 
     #[test]
     fn test_allow_threads_pass_stuff_in() {
-        let list: Py<PyList> = Python::with_gil(|py| {
-            let list = PyList::new(py, vec!["foo", "bar"]);
-            list.into()
-        });
+        let list = Python::with_gil(|py| PyList::new_bound(py, vec!["foo", "bar"]).unbind());
         let mut v = vec![1, 2, 3];
         let a = Arc::new(String::from("foo"));
 

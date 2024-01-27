@@ -45,7 +45,7 @@ pyo3 = { version = "0.21", features = ["gil-refs"] }
 
 The `PyTryFrom` trait has aged poorly, its [`try_from`] method now conflicts with `try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
 
-To tighten up the PyO3 traits ahead of [a proposed upcoming API change](https://github.com/PyO3/pyo3/issues/3382) the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
+To tighten up the PyO3 traits as part of the deprecation of the GIL Refs API the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
 
 To migrate, switch all type casts to use `obj.downcast()` instead of `try_from(obj)` (and similar for `downcast_exact`).
 
@@ -71,6 +71,9 @@ After:
 # use pyo3::types::{PyInt, PyList};
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
+    // Note that PyList::new is deprecated for PyList::new_bound as part of the GIL Refs API removal,
+    // see the section below on migration to Bound<T>.
+    #[allow(deprecated)]
     let list = PyList::new(py, 0..5);
     let b = list.get_item(0).unwrap().downcast::<PyInt>()?;
     Ok(())
@@ -234,7 +237,15 @@ impl PyClassAsyncIter {
 
 ### Migrating from the GIL-Refs API to `Bound<T>`
 
-TODO
+To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointer has been introduced by adding complements to all functions which accept or return GIL Refs. This allows code to migrate by replacing the deprecated APIs with the new ones.
+
+For example, the following APIs have gained updated variants:
+- `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
+
+Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
+- Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)
+- `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
+- `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 
 ## from 0.19.* to 0.20
 
@@ -853,6 +864,7 @@ that these types can now also support Rust's indexing operators as part of a
 consistent API:
 
 ```rust
+#![allow(deprecated)]
 use pyo3::{Python, types::PyList};
 
 Python::with_gil(|py| {
@@ -1073,7 +1085,7 @@ This should require no code changes except removing `use pyo3::AsPyRef` for code
 `pyo3::prelude::*`.
 
 Before:
-```rust,compile_fail
+```rust,ignore
 use pyo3::{AsPyRef, Py, types::PyList};
 # pyo3::Python::with_gil(|py| {
 let list_py: Py<PyList> = PyList::empty(py).into();
@@ -1082,7 +1094,7 @@ let list_ref: &PyList = list_py.as_ref(py);
 ```
 
 After:
-```rust
+```rust,ignore
 use pyo3::{Py, types::PyList};
 # pyo3::Python::with_gil(|py| {
 let list_py: Py<PyList> = PyList::empty(py).into();
