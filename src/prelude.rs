@@ -38,4 +38,5 @@ pub use crate::types::module::PyModuleMethods;
 pub use crate::types::sequence::PySequenceMethods;
 pub use crate::types::set::PySetMethods;
 pub use crate::types::string::PyStringMethods;
+pub use crate::types::traceback::PyTracebackMethods;
 pub use crate::types::tuple::PyTupleMethods;

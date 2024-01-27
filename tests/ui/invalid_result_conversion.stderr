@@ -5,8 +5,8 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
    | ^^^^^^^^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
    |
    = help: the following other types implement trait `From<T>`:
-             <PyErr as From<PyBorrowError>>
              <PyErr as From<std::io::Error>>
+             <PyErr as From<PyBorrowError>>
              <PyErr as From<PyBorrowMutError>>
              <PyErr as From<PyDowncastError<'a>>>
              <PyErr as From<DowncastError<'_, '_>>>
