@@ -136,51 +136,6 @@ impl PyAny {
             .map(Bound::into_gil_ref)
     }
 
-    /// Retrieve an attribute value, skipping the instance dictionary during the lookup but still
-    /// binding the object to the instance.
-    ///
-    /// This is useful when trying to resolve Python's "magic" methods like `__getitem__`, which
-    /// are looked up starting from the type object.  This returns an `Option` as it is not
-    /// typically a direct error for the special lookup to fail, as magic methods are optional in
-    /// many situations in which they might be called.
-    ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
-    /// to intern `attr_name`.
-    #[allow(dead_code)] // Currently only used with num-complex+abi3, so dead without that.
-    pub(crate) fn lookup_special<N>(&self, attr_name: N) -> PyResult<Option<&PyAny>>
-    where
-        N: IntoPy<Py<PyString>>,
-    {
-        let py = self.py();
-        let self_type = self.get_type();
-        let attr = if let Ok(attr) = self_type.getattr(attr_name) {
-            attr
-        } else {
-            return Ok(None);
-        };
-
-        // Manually resolve descriptor protocol.
-        if cfg!(Py_3_10)
-            || unsafe { ffi::PyType_HasFeature(attr.get_type_ptr(), ffi::Py_TPFLAGS_HEAPTYPE) } != 0
-        {
-            // This is the preferred faster path, but does not work on static types (generally,
-            // types defined in extension modules) before Python 3.10.
-            unsafe {
-                let descr_get_ptr = ffi::PyType_GetSlot(attr.get_type_ptr(), ffi::Py_tp_descr_get);
-                if descr_get_ptr.is_null() {
-                    return Ok(Some(attr));
-                }
-                let descr_get: ffi::descrgetfunc = std::mem::transmute(descr_get_ptr);
-                let ret = descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr());
-                py.from_owned_ptr_or_err(ret).map(Some)
-            }
-        } else if let Ok(descr_get) = attr.get_type().getattr(crate::intern!(py, "__get__")) {
-            descr_get.call1((attr, self, self_type)).map(Some)
-        } else {
-            Ok(Some(attr))
-        }
-    }
-
     /// Sets an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
@@ -1666,9 +1621,9 @@ pub trait PyAnyMethods<'py> {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around [`FromPyObject::extract()`].
-    fn extract<'a, D>(&'a self) -> PyResult<D>
+    fn extract<D>(&self) -> PyResult<D>
     where
-        D: FromPyObject<'a>;
+        D: FromPyObject<'py>;
 
     /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
@@ -2202,11 +2157,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         std::mem::transmute(self)
     }
 
-    fn extract<'a, D>(&'a self) -> PyResult<D>
+    fn extract<D>(&self) -> PyResult<D>
     where
-        D: FromPyObject<'a>,
+        D: FromPyObject<'py>,
     {
-        FromPyObject::extract(self.as_gil_ref())
+        FromPyObject::extract_bound(self)
     }
 
     fn get_refcnt(&self) -> isize {
@@ -2293,13 +2248,64 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 }
 
+impl<'py> Bound<'py, PyAny> {
+    /// Retrieve an attribute value, skipping the instance dictionary during the lookup but still
+    /// binding the object to the instance.
+    ///
+    /// This is useful when trying to resolve Python's "magic" methods like `__getitem__`, which
+    /// are looked up starting from the type object.  This returns an `Option` as it is not
+    /// typically a direct error for the special lookup to fail, as magic methods are optional in
+    /// many situations in which they might be called.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
+    #[allow(dead_code)] // Currently only used with num-complex+abi3, so dead without that.
+    pub(crate) fn lookup_special<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        let py = self.py();
+        let self_type = self.get_type().as_borrowed();
+        let attr = if let Ok(attr) = self_type.getattr(attr_name) {
+            attr
+        } else {
+            return Ok(None);
+        };
+
+        // Manually resolve descriptor protocol.
+        if cfg!(Py_3_10)
+            || unsafe { ffi::PyType_HasFeature(attr.get_type_ptr(), ffi::Py_TPFLAGS_HEAPTYPE) } != 0
+        {
+            // This is the preferred faster path, but does not work on static types (generally,
+            // types defined in extension modules) before Python 3.10.
+            unsafe {
+                let descr_get_ptr = ffi::PyType_GetSlot(attr.get_type_ptr(), ffi::Py_tp_descr_get);
+                if descr_get_ptr.is_null() {
+                    return Ok(Some(attr));
+                }
+                let descr_get: ffi::descrgetfunc = std::mem::transmute(descr_get_ptr);
+                let ret = descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr());
+                ret.assume_owned_or_err(py).map(Some)
+            }
+        } else if let Ok(descr_get) = attr
+            .get_type()
+            .as_borrowed()
+            .getattr(crate::intern!(py, "__get__"))
+        {
+            descr_get.call1((attr, self, self_type)).map(Some)
+        } else {
+            Ok(Some(attr))
+        }
+    }
+}
+
 #[cfg(test)]
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::{
         basic::CompareOp,
-        types::{IntoPyDict, PyAny, PyBool, PyList, PyLong, PyModule},
-        PyTypeInfo, Python, ToPyObject,
+        types::{any::PyAnyMethods, IntoPyDict, PyAny, PyBool, PyList, PyLong, PyModule},
+        PyNativeType, PyTypeInfo, Python, ToPyObject,
     };
 
     #[test]
@@ -2344,8 +2350,13 @@ class NonHeapNonDescriptorInt:
             .unwrap();
 
             let int = crate::intern!(py, "__int__");
-            let eval_int =
-                |obj: &PyAny| obj.lookup_special(int)?.unwrap().call0()?.extract::<u32>();
+            let eval_int = |obj: &PyAny| {
+                obj.as_borrowed()
+                    .lookup_special(int)?
+                    .unwrap()
+                    .call0()?
+                    .extract::<u32>()
+            };
 
             let simple = module.getattr("SimpleInt").unwrap().call0().unwrap();
             assert_eq!(eval_int(simple).unwrap(), 1);
@@ -2354,7 +2365,7 @@ class NonHeapNonDescriptorInt:
             let no_descriptor = module.getattr("NoDescriptorInt").unwrap().call0().unwrap();
             assert_eq!(eval_int(no_descriptor).unwrap(), 1);
             let missing = module.getattr("NoInt").unwrap().call0().unwrap();
-            assert!(missing.lookup_special(int).unwrap().is_none());
+            assert!(missing.as_borrowed().lookup_special(int).unwrap().is_none());
             // Note the instance override should _not_ call the instance method that returns 2,
             // because that's not how special lookups are meant to work.
             let instance_override = module.getattr("instance_override").unwrap();
@@ -2364,7 +2375,7 @@ class NonHeapNonDescriptorInt:
                 .unwrap()
                 .call0()
                 .unwrap();
-            assert!(descriptor_error.lookup_special(int).is_err());
+            assert!(descriptor_error.as_borrowed().lookup_special(int).is_err());
             let nonheap_nondescriptor = module
                 .getattr("NonHeapNonDescriptorInt")
                 .unwrap()
