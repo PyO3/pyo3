@@ -56,9 +56,22 @@ pyobject_native_type_core!(
 );
 
 impl PyDict {
-    /// Creates a new empty dictionary.
+    /// Deprecated form of [`new_bound`][PyDict::new_bound].
+    #[inline]
     pub fn new(py: Python<'_>) -> &PyDict {
-        unsafe { py.from_owned_ptr(ffi::PyDict_New()) }
+        Self::new_bound(py).into_gil_ref()
+    }
+
+    /// Creates a new empty dictionary.
+    pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
+        unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
+    }
+
+    /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
+    #[inline]
+    #[cfg(not(PyPy))]
+    pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
+        Self::from_sequence_bound(&seq.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -69,11 +82,11 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
+    pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let py = seq.py();
-        let dict = Self::new(py);
+        let dict = Self::new_bound(py);
         err::error_on_minusone(py, unsafe {
-            ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1)
+            ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
     }
