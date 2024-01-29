@@ -119,7 +119,7 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - uses: dorny/paths-filter@v2
+      - uses: dorny/paths-filter@v3
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
         if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
         id: ffi-changes
