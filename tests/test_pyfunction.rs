@@ -529,3 +529,20 @@ fn test_some_wrap_arguments() {
         py_assert!(py, function, "function() == [1, 2, None, None]");
     })
 }
+
+#[test]
+fn test_reference_to_bound_arguments() {
+    #[pyfunction]
+    fn reference_args<'py>(
+        x: &Bound<'py, PyAny>,
+        y: Option<&Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        y.map_or_else(|| Ok(x.clone()), |y| y.add(x))
+    }
+
+    Python::with_gil(|py| {
+        let function = wrap_pyfunction!(reference_args, py).unwrap();
+        py_assert!(py, function, "function(1) == 1");
+        py_assert!(py, function, "function(1, 2) == 3");
+    })
+}
