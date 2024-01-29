@@ -73,10 +73,8 @@ fn not_a_list_via_extract_enum(b: &mut Bencher<'_>) {
 
 fn f64_from_pyobject(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let obj = PyFloat::new(py, 1.234);
-        b.iter(|| {
-            let _: f64 = obj.extract().unwrap();
-        });
+        let obj = &PyFloat::new_bound(py, 1.234);
+        b.iter(|| black_box(obj).extract::<f64>().unwrap());
     })
 }
 

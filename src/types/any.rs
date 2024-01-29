@@ -202,8 +202,8 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a = PyFloat::new(py, 0_f64);
-    ///     let b = PyFloat::new(py, 42_f64);
+    ///     let a = PyFloat::new_bound(py, 0_f64);
+    ///     let b = PyFloat::new_bound(py, 42_f64);
     ///     assert_eq!(a.compare(b)?, Ordering::Less);
     ///     Ok(())
     /// })?;
@@ -218,7 +218,7 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a = PyFloat::new(py, 0_f64);
+    ///     let a = PyFloat::new_bound(py, 0_f64);
     ///     let b = PyString::new(py, "zero");
     ///     assert!(a.compare(b).is_err());
     ///     Ok(())
@@ -1058,8 +1058,8 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a = PyFloat::new(py, 0_f64);
-    ///     let b = PyFloat::new(py, 42_f64);
+    ///     let a = PyFloat::new_bound(py, 0_f64);
+    ///     let b = PyFloat::new_bound(py, 42_f64);
     ///     assert_eq!(a.compare(b)?, Ordering::Less);
     ///     Ok(())
     /// })?;
@@ -1074,7 +1074,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a = PyFloat::new(py, 0_f64);
+    ///     let a = PyFloat::new_bound(py, 0_f64);
     ///     let b = PyString::new(py, "zero");
     ///     assert!(a.compare(b).is_err());
     ///     Ok(())
