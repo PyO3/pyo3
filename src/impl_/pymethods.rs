@@ -3,9 +3,7 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
-use crate::{
-    ffi, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit, Python,
-};
+use crate::{ffi, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::fmt;
@@ -34,14 +32,15 @@ pub type ipowfunc = unsafe extern "C" fn(
 impl IPowModulo {
     #[cfg(Py_3_8)]
     #[inline]
-    pub fn to_borrowed_any(self, py: Python<'_>) -> &PyAny {
-        unsafe { py.from_borrowed_ptr::<PyAny>(self.0) }
+    pub fn as_ptr(self) -> *mut ffi::PyObject {
+        self.0
     }
 
     #[cfg(not(Py_3_8))]
     #[inline]
-    pub fn to_borrowed_any(self, py: Python<'_>) -> &PyAny {
-        unsafe { py.from_borrowed_ptr::<PyAny>(ffi::Py_None()) }
+    pub fn as_ptr(self) -> *mut ffi::PyObject {
+        // Safety: returning a borrowed pointer to Python `None` singleton
+        unsafe { ffi::Py_None() }
     }
 }
 

@@ -191,7 +191,7 @@ impl SelfType {
                 });
                 error_mode.handle_error(quote_spanned! { *span =>
                     _pyo3::impl_::extract_argument::#method::<#cls>(
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf),
+                        _pyo3::impl_::extract_argument::PyArg::from_ptr(#py, #slf),
                         &mut #holder,
                     )
                 })

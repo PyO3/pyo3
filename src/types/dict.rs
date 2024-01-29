@@ -517,6 +517,17 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 }
 
+impl<'py> Bound<'py, PyDict> {
+    /// Iterates over the contents of this dictionary without incrementing reference counts.
+    ///``
+    /// # Safety
+    /// The corresponding key in the dictionary cannot be mutated for the duration
+    /// of the borrow.
+    pub(crate) unsafe fn iter_borrowed<'a>(&'a self) -> BorrowedDictIter<'a, 'py> {
+        BorrowedDictIter::new(self)
+    }
+}
+
 fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
     #[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
     unsafe {
@@ -654,6 +665,104 @@ impl<'py> IntoIterator for Bound<'py, PyDict> {
         BoundDictIterator::new(self)
     }
 }
+
+mod borrowed_iter {
+    use super::*;
+
+    /// Variant of the above which is used to iterate the items of the dictionary
+    /// without incrementing reference counts. This is only safe if it's known
+    /// that the dictionary will not be modified during iteration.
+    pub struct BorrowedDictIter<'a, 'py> {
+        dict: &'a Bound<'py, PyDict>,
+        ppos: ffi::Py_ssize_t,
+        di_used: ffi::Py_ssize_t,
+        len: ffi::Py_ssize_t,
+    }
+
+    impl<'a, 'py> Iterator for BorrowedDictIter<'a, 'py> {
+        type Item = (Borrowed<'a, 'py, PyAny>, Borrowed<'a, 'py, PyAny>);
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            let ma_used = dict_len(self.dict);
+
+            // These checks are similar to what CPython does.
+            //
+            // If the dimension of the dict changes e.g. key-value pairs are removed
+            // or added during iteration, this will panic next time when `next` is called
+            if self.di_used != ma_used {
+                self.di_used = -1;
+                panic!("dictionary changed size during iteration");
+            };
+
+            // If the dict is changed in such a way that the length remains constant
+            // then this will panic at the end of iteration - similar to this:
+            //
+            // d = {"a":1, "b":2, "c": 3}
+            //
+            // for k, v in d.items():
+            //     d[f"{k}_"] = 4
+            //     del d[k]
+            //     print(k)
+            //
+            if self.len == -1 {
+                self.di_used = -1;
+                panic!("dictionary keys changed during iteration");
+            };
+
+            let ret = unsafe { self.next_unchecked() };
+            if ret.is_some() {
+                self.len -= 1
+            }
+            ret
+        }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let len = self.len();
+            (len, Some(len))
+        }
+    }
+
+    impl ExactSizeIterator for BorrowedDictIter<'_, '_> {
+        fn len(&self) -> usize {
+            self.len as usize
+        }
+    }
+
+    impl<'a, 'py> BorrowedDictIter<'a, 'py> {
+        pub(super) fn new(dict: &'a Bound<'py, PyDict>) -> Self {
+            let len = dict_len(dict);
+            BorrowedDictIter {
+                dict,
+                ppos: 0,
+                di_used: len,
+                len,
+            }
+        }
+
+        /// Advances the iterator without checking for concurrent modification.
+        ///
+        /// See [`PyDict_Next`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Next)
+        /// for more information.
+        unsafe fn next_unchecked(
+            &mut self,
+        ) -> Option<(Borrowed<'a, 'py, PyAny>, Borrowed<'a, 'py, PyAny>)> {
+            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+
+            if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) != 0 {
+                let py = self.dict.py();
+                // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
+                Some((key.assume_borrowed(py), value.assume_borrowed(py)))
+            } else {
+                None
+            }
+        }
+    }
+}
+
+pub(crate) use borrowed_iter::BorrowedDictIter;
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyDict`
 /// Primary use case for this trait is `call` and `call_method` methods as keywords argument.

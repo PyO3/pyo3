@@ -16,6 +16,7 @@ pub(crate) fn ok_wrap(obj: TokenStream) -> TokenStream {
 
 pub(crate) fn map_result_into_ptr(result: TokenStream) -> TokenStream {
     quote! {
-        _pyo3::impl_::wrap::map_result_into_ptr(py, #result)
+        let result = _pyo3::impl_::wrap::map_result_into_ptr(py, #result);
+        result
     }
 }

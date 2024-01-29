@@ -7,8 +7,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
-    PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -502,6 +502,19 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// derived from is valid for the lifetime `'a`.
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
+    }
+
+    #[inline]
+    pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
+    where
+        T: PyTypeCheck,
+    {
+        if T::type_check(&self) {
+            // Safety: type_check is responsible for ensuring that the type is correct
+            Ok(unsafe { self.downcast_unchecked() })
+        } else {
+            Err(DowncastError::new_from_borrowed(self, T::NAME))
+        }
     }
 
     /// Converts this `PyAny` to a concrete Python type without checking validity.

@@ -930,39 +930,31 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! {
-                    py.from_borrowed_ptr::<_pyo3::PyAny>(#ident)
-                },
+                quote! { #ident },
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
                 quote! {
-                    py.from_borrowed_ptr::<_pyo3::PyAny>(
-                        if #ident.is_null() {
-                            _pyo3::ffi::Py_None()
-                        } else {
-                            #ident
-                        }
-                    )
+                    if #ident.is_null() {
+                        _pyo3::ffi::Py_None()
+                    } else {
+                        #ident
+                    }
                 },
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! {
-                    py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr())
-                },
+                quote! { #ident.as_ptr() },
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! {
-                    #ident.to_borrowed_any(py)
-                },
+                quote! { #ident.as_ptr() },
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
                 quote! {
@@ -988,7 +980,7 @@ fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Vec<TokenStream>,
     name: &str,
-    source: TokenStream,
+    source_ptr: TokenStream,
 ) -> TokenStream {
     let holder = syn::Ident::new(&format!("holder_{}", holders.len()), Span::call_site());
     holders.push(quote! {
@@ -997,7 +989,7 @@ fn extract_object(
     });
     extract_error_mode.handle_error(quote! {
         _pyo3::impl_::extract_argument::extract_argument(
-            #source,
+            _pyo3::impl_::extract_argument::PyArg::from_ptr(py, #source_ptr),
             &mut #holder,
             #name
         )
