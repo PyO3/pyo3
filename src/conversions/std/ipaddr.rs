@@ -99,11 +99,11 @@ mod test_ipaddr {
     #[test]
     fn test_from_pystring() {
         Python::with_gil(|py| {
-            let py_str = PyString::new(py, "0:0:0:0:0:0:0:1");
+            let py_str = PyString::new_bound(py, "0:0:0:0:0:0:0:1");
             let ip: IpAddr = py_str.to_object(py).extract(py).unwrap();
             assert_eq!(ip, IpAddr::from_str("::1").unwrap());
 
-            let py_str = PyString::new(py, "invalid");
+            let py_str = PyString::new_bound(py, "invalid");
             assert!(py_str.to_object(py).extract::<IpAddr>(py).is_err());
         });
     }

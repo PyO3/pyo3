@@ -236,7 +236,7 @@ struct RustyTransparentStruct {
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let s = PyString::new(py, "test");
+#         let s = PyString::new_bound(py, "test");
 #
 #         let tup: RustyTransparentTupleStruct = s.extract()?;
 #         assert_eq!(tup.0, "test");
@@ -303,7 +303,7 @@ enum RustyEnum<'a> {
 #             );
 #         }
 #         {
-#             let thing = PyString::new(py, "text");
+#             let thing = PyString::new_bound(py, "text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(

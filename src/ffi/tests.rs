@@ -3,7 +3,7 @@ use crate::Python;
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
-    types::{PyDict, PyString},
+    types::{any::PyAnyMethods, PyDict, PyString},
     IntoPy, Py, PyAny,
 };
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
@@ -98,7 +98,7 @@ fn test_timezone_from_offset_and_name() {
 
     Python::with_gil(|py| {
         let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
-        let tzname = PyString::new(py, "testtz");
+        let tzname = PyString::new_bound(py, "testtz");
         let tz: &PyAny = unsafe {
             py.from_borrowed_ptr(PyTimeZone_FromOffsetAndName(
                 delta.as_ptr(),
@@ -167,7 +167,7 @@ fn ascii_object_bitfield() {
 fn ascii() {
     Python::with_gil(|py| {
         // This test relies on implementation details of PyString.
-        let s = PyString::new(py, "hello, world");
+        let s = PyString::new_bound(py, "hello, world");
         let ptr = s.as_ptr();
 
         unsafe {
@@ -209,7 +209,7 @@ fn ascii() {
 fn ucs4() {
     Python::with_gil(|py| {
         let s = "哈哈🐈";
-        let py_string = PyString::new(py, s);
+        let py_string = PyString::new_bound(py, s);
         let ptr = py_string.as_ptr();
 
         unsafe {

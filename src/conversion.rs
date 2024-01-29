@@ -190,7 +190,7 @@ pub trait IntoPy<T>: Sized {
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let obj: Py<PyString> = PyString::new(py, "blah").into();
+///     let obj: Py<PyString> = PyString::new_bound(py, "blah").into();
 ///
 ///     // Straight from an owned reference
 ///     let s: &str = obj.extract(py)?;
