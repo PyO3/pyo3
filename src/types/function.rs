@@ -1,6 +1,7 @@
 use crate::derive_utils::PyFunctionArguments;
 use crate::methods::PyMethodDefDestructor;
 use crate::prelude::*;
+use crate::types::capsule::PyCapsuleMethods;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
@@ -80,7 +81,7 @@ impl PyCFunction {
         );
         let (def, def_destructor) = method_def.as_method_def()?;
 
-        let capsule = PyCapsule::new(
+        let capsule = PyCapsule::new_bound(
             py,
             ClosureDestructor::<F> {
                 closure,

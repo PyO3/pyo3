@@ -29,6 +29,7 @@ pub use crate::types::any::PyAnyMethods;
 pub use crate::types::boolobject::PyBoolMethods;
 pub use crate::types::bytearray::PyByteArrayMethods;
 pub use crate::types::bytes::PyBytesMethods;
+pub use crate::types::capsule::PyCapsuleMethods;
 pub use crate::types::dict::PyDictMethods;
 pub use crate::types::float::PyFloatMethods;
 pub use crate::types::frozenset::PyFrozenSetMethods;
