@@ -44,8 +44,8 @@ pub fn impl_arg_params(
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
-                let _args = py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
-                let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = py.from_borrowed_ptr_or_opt(_kwargs);
+                let _args = _pyo3::impl_::extract_argument::PyArg::from_ptr(py, _args);
+                let _kwargs = _pyo3::impl_::extract_argument::PyArg::from_ptr_or_opt(py, _kwargs);
             },
             arg_convert,
         ));
@@ -132,7 +132,7 @@ pub fn impl_arg_params(
                     keyword_only_parameters: &[#(#keyword_only_parameters),*],
                 };
                 let mut #args_array = [::std::option::Option::None; #num_params];
-                let (_args, _kwargs) = #extract_expression;
+                let (_args, _kwargs) = &#extract_expression;
         },
         param_conversion,
     ))
@@ -180,7 +180,8 @@ fn impl_arg_param(
         let holder = push_holder();
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_argument(
-                _args,
+                #[allow(clippy::useless_conversion)]
+                ::std::convert::From::from(_args),
                 &mut #holder,
                 #name_str
             )?
@@ -193,7 +194,8 @@ fn impl_arg_param(
         let holder = push_holder();
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_optional_argument(
-                _kwargs.map(::std::convert::AsRef::as_ref),
+                #[allow(clippy::useless_conversion, clippy::redundant_closure)]
+                _kwargs.as_ref().map(|kwargs| ::std::convert::From::from(kwargs)),
                 &mut #holder,
                 #name_str,
                 || ::std::option::Option::None
@@ -217,7 +219,7 @@ fn impl_arg_param(
             quote_arg_span! {
                 #[allow(clippy::redundant_closure)]
                 _pyo3::impl_::extract_argument::from_py_with_with_default(
-                    #arg_value.map(_pyo3::PyNativeType::as_borrowed).as_deref(),
+                    #arg_value.map(_pyo3::impl_::extract_argument::PyArg::as_borrowed).as_deref(),
                     #name_str,
                     #expr_path as fn(_) -> _,
                     || #default

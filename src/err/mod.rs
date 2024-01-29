@@ -7,7 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
+use crate::{Borrowed, IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -46,27 +46,29 @@ unsafe impl Sync for PyErr {}
 pub type PyResult<T> = Result<T, PyErr>;
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
-#[derive(Debug)]
-pub struct PyDowncastError<'a> {
-    from: &'a PyAny,
-    to: Cow<'static, str>,
-}
+pub struct PyDowncastError<'py>(DowncastError<'py, 'py>);
 
 impl<'a> PyDowncastError<'a> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a PyAny, to: impl Into<Cow<'static, str>>) -> Self {
-        PyDowncastError {
-            from,
-            to: to.into(),
-        }
+        PyDowncastError(DowncastError::new_from_borrowed(from.as_borrowed(), to))
+    }
+}
+
+impl std::fmt::Debug for PyDowncastError<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PyDowncastError")
+            .field("from", &self.0.from)
+            .field("to", &self.0.to)
+            .finish()
     }
 }
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
 pub struct DowncastError<'a, 'py> {
-    from: &'a Bound<'py, PyAny>,
+    from: Borrowed<'a, 'py, PyAny>,
     to: Cow<'static, str>,
 }
 
@@ -74,6 +76,17 @@ impl<'a, 'py> DowncastError<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
+        DowncastError {
+            from: from.as_borrowed(),
+            to: to.into(),
+        }
+    }
+
+    /// Similar to [`DowncastError::new`], but from a `Borrowed` instead of a `Bound`.
+    pub(crate) fn new_from_borrowed(
+        from: Borrowed<'a, 'py, PyAny>,
+        to: impl Into<Cow<'static, str>>,
+    ) -> Self {
         DowncastError {
             from,
             to: to.into(),
@@ -933,12 +946,7 @@ impl PyErrArguments for PyDowncastErrorArguments {
 /// Convert `PyDowncastError` to Python `TypeError`.
 impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
     fn from(err: PyDowncastError<'_>) -> PyErr {
-        let args = PyDowncastErrorArguments {
-            from: err.from.get_type().into(),
-            to: err.to,
-        };
-
-        exceptions::PyTypeError::new_err(args)
+        PyErr::from(err.0)
     }
 }
 
@@ -946,7 +954,7 @@ impl<'a> std::error::Error for PyDowncastError<'a> {}
 
 impl<'a> std::fmt::Display for PyDowncastError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, &self.from.as_borrowed(), &self.to)
+        self.0.fmt(f)
     }
 }
 
@@ -986,13 +994,13 @@ impl std::error::Error for DowncastIntoError<'_> {}
 
 impl std::fmt::Display for DowncastIntoError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, &self.from, &self.to)
+        display_downcast_error(f, self.from.as_borrowed(), &self.to)
     }
 }
 
 fn display_downcast_error(
     f: &mut std::fmt::Formatter<'_>,
-    from: &Bound<'_, PyAny>,
+    from: Borrowed<'_, '_, PyAny>,
     to: &str,
 ) -> std::fmt::Result {
     write!(

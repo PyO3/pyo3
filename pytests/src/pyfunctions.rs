@@ -4,62 +4,66 @@ use pyo3::types::{PyDict, PyTuple};
 #[pyfunction(signature = ())]
 fn none() {}
 
+type Any<'py> = Bound<'py, PyAny>;
+type Dict<'py> = Bound<'py, PyDict>;
+type Tuple<'py> = Bound<'py, PyTuple>;
+
 #[pyfunction(signature = (a, b = None, *, c = None))]
-fn simple<'a>(
-    a: &'a PyAny,
-    b: Option<&'a PyAny>,
-    c: Option<&'a PyAny>,
-) -> (&'a PyAny, Option<&'a PyAny>, Option<&'a PyAny>) {
+fn simple<'py>(
+    a: Any<'py>,
+    b: Option<Any<'py>>,
+    c: Option<Any<'py>>,
+) -> (Any<'py>, Option<Any<'py>>, Option<Any<'py>>) {
     (a, b, c)
 }
 
 #[pyfunction(signature = (a, b = None, *args, c = None))]
-fn simple_args<'a>(
-    a: &'a PyAny,
-    b: Option<&'a PyAny>,
-    args: &'a PyTuple,
-    c: Option<&'a PyAny>,
-) -> (&'a PyAny, Option<&'a PyAny>, &'a PyTuple, Option<&'a PyAny>) {
+fn simple_args<'py>(
+    a: Any<'py>,
+    b: Option<Any<'py>>,
+    args: Tuple<'py>,
+    c: Option<Any<'py>>,
+) -> (Any<'py>, Option<Any<'py>>, Tuple<'py>, Option<Any<'py>>) {
     (a, b, args, c)
 }
 
 #[pyfunction(signature = (a, b = None, c = None, **kwargs))]
-fn simple_kwargs<'a>(
-    a: &'a PyAny,
-    b: Option<&'a PyAny>,
-    c: Option<&'a PyAny>,
-    kwargs: Option<&'a PyDict>,
+fn simple_kwargs<'py>(
+    a: Any<'py>,
+    b: Option<Any<'py>>,
+    c: Option<Any<'py>>,
+    kwargs: Option<Dict<'py>>,
 ) -> (
-    &'a PyAny,
-    Option<&'a PyAny>,
-    Option<&'a PyAny>,
-    Option<&'a PyDict>,
+    Any<'py>,
+    Option<Any<'py>>,
+    Option<Any<'py>>,
+    Option<Dict<'py>>,
 ) {
     (a, b, c, kwargs)
 }
 
 #[pyfunction(signature = (a, b = None, *args, c = None, **kwargs))]
-fn simple_args_kwargs<'a>(
-    a: &'a PyAny,
-    b: Option<&'a PyAny>,
-    args: &'a PyTuple,
-    c: Option<&'a PyAny>,
-    kwargs: Option<&'a PyDict>,
+fn simple_args_kwargs<'py>(
+    a: Any<'py>,
+    b: Option<Any<'py>>,
+    args: Tuple<'py>,
+    c: Option<Any<'py>>,
+    kwargs: Option<Dict<'py>>,
 ) -> (
-    &'a PyAny,
-    Option<&'a PyAny>,
-    &'a PyTuple,
-    Option<&'a PyAny>,
-    Option<&'a PyDict>,
+    Any<'py>,
+    Option<Any<'py>>,
+    Tuple<'py>,
+    Option<Any<'py>>,
+    Option<Dict<'py>>,
 ) {
     (a, b, args, c, kwargs)
 }
 
 #[pyfunction(signature = (*args, **kwargs))]
-fn args_kwargs<'a>(
-    args: &'a PyTuple,
-    kwargs: Option<&'a PyDict>,
-) -> (&'a PyTuple, Option<&'a PyDict>) {
+fn args_kwargs<'py>(
+    args: Tuple<'py>,
+    kwargs: Option<Dict<'py>>,
+) -> (Tuple<'py>, Option<Dict<'py>>) {
     (args, kwargs)
 }
 

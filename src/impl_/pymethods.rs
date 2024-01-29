@@ -36,14 +36,15 @@ pub type ipowfunc = unsafe extern "C" fn(
 impl IPowModulo {
     #[cfg(Py_3_8)]
     #[inline]
-    pub fn to_borrowed_any(self, py: Python<'_>) -> &PyAny {
-        unsafe { py.from_borrowed_ptr::<PyAny>(self.0) }
+    pub fn as_ptr(self) -> *mut ffi::PyObject {
+        self.0
     }
 
     #[cfg(not(Py_3_8))]
     #[inline]
-    pub fn to_borrowed_any(self, py: Python<'_>) -> &PyAny {
-        unsafe { py.from_borrowed_ptr::<PyAny>(ffi::Py_None()) }
+    pub fn as_ptr(self) -> *mut ffi::PyObject {
+        // Safety: returning a borrowed pointer to Python `None` singleton
+        unsafe { ffi::Py_None() }
     }
 }
 
