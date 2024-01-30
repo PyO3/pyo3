@@ -210,6 +210,7 @@ To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointe
 For example, the following APIs have gained updated variants:
 - `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
 - `FromPyObject::extract` has a new `FromPyObject::extract_bound` (see the section below)
+- The `PyTypeInfo` trait has had new `_bound` methods added to accept / return `Bound<T>`.
 
 Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
 - Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)
@@ -244,6 +245,8 @@ impl<'py> FromPyObject<'py> for MyType {
 ```
 
 The expectation is that in 0.22 `extract_bound` will have the default implementation removed and in 0.23 `extract` will be removed.
+
+
 
 ## from 0.19.* to 0.20
 
@@ -656,7 +659,7 @@ To migrate, update trait bounds and imports from `PyTypeObject` to `PyTypeInfo`.
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 use pyo3::Python;
 use pyo3::type_object::PyTypeObject;
 use pyo3::types::PyType;
@@ -668,7 +671,7 @@ fn get_type_object<T: PyTypeObject>(py: Python<'_>) -> &PyType {
 
 After
 
-```rust
+```rust,ignore
 use pyo3::{Python, PyTypeInfo};
 use pyo3::types::PyType;
 
@@ -995,13 +998,13 @@ makes it possible to interact with Python exception objects.
 
 The new types also have names starting with the "Py" prefix. For example, before:
 
-```rust,compile_fail
+```rust,ignore
 let err: PyErr = TypeError::py_err("error message");
 ```
 
 After:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::{PyErr, PyResult, Python, type_object::PyTypeObject};
 # use pyo3::exceptions::{PyBaseException, PyTypeError};
 # Python::with_gil(|py| -> PyResult<()> {

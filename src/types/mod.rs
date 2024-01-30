@@ -207,9 +207,9 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of(ptr: &$crate::PyAny) -> bool {
+                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
                     #[allow(unused_unsafe)]
-                    unsafe { $checkfunction(ptr.as_ptr()) > 0 }
+                    unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
             )?
         }

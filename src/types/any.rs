@@ -733,7 +733,7 @@ impl PyAny {
     where
         T: PyTypeCheck<AsRefTarget = T>,
     {
-        if T::type_check(self) {
+        if T::type_check(&self.as_borrowed()) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -776,7 +776,7 @@ impl PyAny {
     where
         T: PyTypeInfo<AsRefTarget = T>,
     {
-        if T::is_exact_type_of(self) {
+        if T::is_exact_type_of_bound(&self.as_borrowed()) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -2100,7 +2100,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(self.as_gil_ref()) {
+        if T::type_check(self) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -2113,7 +2113,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(self.as_gil_ref()) {
+        if T::type_check(&self) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
@@ -2218,12 +2218,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_type_of(self.as_gil_ref())
+        T::is_type_of_bound(self)
     }
 
     #[inline]
     fn is_exact_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_exact_type_of(self.as_gil_ref())
+        T::is_exact_type_of_bound(self)
     }
 
     fn contains<V>(&self, value: V) -> PyResult<bool>

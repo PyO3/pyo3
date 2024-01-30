@@ -35,8 +35,7 @@
 //! ```
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
-use crate::types::any::PyAnyMethods;
-use crate::types::PyType;
+use crate::types::{any::PyAnyMethods, PyType};
 use crate::{
     intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
@@ -51,7 +50,7 @@ impl ToPyObject for Tz {
             .unwrap()
             .call1((self.name(),))
             .unwrap()
-            .into()
+            .unbind()
     }
 }
 

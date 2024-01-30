@@ -207,7 +207,7 @@ use crate::{
     type_object::get_tp_free,
     PyTypeInfo,
 };
-use crate::{ffi, IntoPy, PyErr, PyNativeType, PyObject, PyResult, PyTypeCheck, Python};
+use crate::{ffi, Bound, IntoPy, PyErr, PyNativeType, PyObject, PyResult, PyTypeCheck, Python};
 use std::cell::UnsafeCell;
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -553,7 +553,7 @@ where
 {
     const NAME: &'static str = <T as PyTypeCheck>::NAME;
 
-    fn type_check(object: &PyAny) -> bool {
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
         <T as PyTypeCheck>::type_check(object)
     }
 }

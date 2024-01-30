@@ -114,7 +114,7 @@ impl<'py> Borrowed<'_, 'py, PyIterator> {
 impl PyTypeCheck for PyIterator {
     const NAME: &'static str = "Iterator";
 
-    fn type_check(object: &PyAny) -> bool {
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
     }
 }
