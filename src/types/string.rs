@@ -2,6 +2,7 @@
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
+use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
@@ -159,6 +160,18 @@ impl PyString {
         }
     }
 
+    /// Deprecated form of [`PyString::intern_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyString::intern` will be replaced by `PyString::intern_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn intern<'py>(py: Python<'py>, s: &str) -> &'py Self {
+        Self::intern_bound(py, s).into_gil_ref()
+    }
+
     /// Intern the given string
     ///
     /// This will return a reference to the same Python string object if called repeatedly with the same string.
@@ -167,7 +180,7 @@ impl PyString {
     /// temporary Python string object and is thereby slower than [`PyString::new`].
     ///
     /// Panics if out of memory.
-    pub fn intern<'p>(py: Python<'p>, s: &str) -> &'p PyString {
+    pub fn intern_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
@@ -175,21 +188,38 @@ impl PyString {
             if !ob.is_null() {
                 ffi::PyUnicode_InternInPlace(&mut ob);
             }
-            py.from_owned_ptr(ob)
+            ob.assume_owned(py).downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated form of [`PyString::from_object_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyString::from_object` will be replaced by `PyString::from_object_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn from_object<'py>(src: &'py PyAny, encoding: &str, errors: &str) -> PyResult<&'py Self> {
+        Self::from_object_bound(&src.as_borrowed(), encoding, errors).map(Bound::into_gil_ref)
     }
 
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
-    pub fn from_object<'p>(src: &'p PyAny, encoding: &str, errors: &str) -> PyResult<&'p PyString> {
+    pub fn from_object_bound<'py>(
+        src: &Bound<'py, PyAny>,
+        encoding: &str,
+        errors: &str,
+    ) -> PyResult<Bound<'py, PyString>> {
         unsafe {
-            src.py()
-                .from_owned_ptr_or_err(ffi::PyUnicode_FromEncodedObject(
-                    src.as_ptr(),
-                    encoding.as_ptr() as *const c_char,
-                    errors.as_ptr() as *const c_char,
-                ))
+            ffi::PyUnicode_FromEncodedObject(
+                src.as_ptr(),
+                encoding.as_ptr() as *const c_char,
+                errors.as_ptr() as *const c_char,
+            )
+            .assume_owned_or_err(src.py())
+            .downcast_into_unchecked()
         }
     }
 
