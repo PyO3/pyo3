@@ -202,29 +202,14 @@ impl GILOnceCell<Py<PyType>> {
     }
 }
 
-/// Deprecated form of [intern_bound!][crate::intern_bound].
-#[cfg_attr(
-    not(feature = "gil-refs"),
-    deprecated(
-        since = "0.21.0",
-        note = "`intern_bound!` will be replaced by `intern_bound!` in a future PyO3 version"
-    )
-)]
-#[macro_export]
-macro_rules! intern {
-    ($py: expr, $text: expr) => {
-        $crate::intern_bound!($py, $text).as_gil_ref()
-    };
-}
-
 /// Interns `text` as a Python string and stores a reference to it in static storage.
 ///
 /// A reference to the same Python string is returned on each invocation.
 ///
-/// # Example: Using `intern_bound!` to avoid needlessly recreating the same Python string
+/// # Example: Using `intern!` to avoid needlessly recreating the same Python string
 ///
 /// ```
-/// use pyo3::intern_bound;
+/// use pyo3::intern;
 /// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python};
 ///
 /// #[pyfunction]
@@ -241,7 +226,7 @@ macro_rules! intern {
 ///     let dict = PyDict::new(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
-///     dict.set_item(intern_bound!(py, "foo"), 42)?;
+///     dict.set_item(intern!(py, "foo"), 42)?;
 ///     Ok(dict)
 /// }
 /// #
@@ -255,14 +240,14 @@ macro_rules! intern {
 /// # });
 /// ```
 #[macro_export]
-macro_rules! intern_bound {
+macro_rules! intern {
     ($py: expr, $text: expr) => {{
         static INTERNED: $crate::sync::Interned = $crate::sync::Interned::new($text);
         INTERNED.get($py)
     }};
 }
 
-/// Implementation detail for `intern_bound!` macro.
+/// Implementation detail for `intern!` macro.
 #[doc(hidden)]
 pub struct Interned(&'static str, GILOnceCell<Py<PyString>>);
 
@@ -291,8 +276,8 @@ mod tests {
     fn test_intern() {
         Python::with_gil(|py| {
             let foo1 = "foo";
-            let foo2 = intern_bound!(py, "foo");
-            let foo3 = intern_bound!(py, stringify!(foo));
+            let foo2 = intern!(py, "foo");
+            let foo3 = intern!(py, stringify!(foo));
 
             let dict = PyDict::new(py);
             dict.set_item(foo1, 42_usize).unwrap();

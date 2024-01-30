@@ -80,17 +80,17 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `hasattr(self, attr_name)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn has_version(sys: &PyModule) -> PyResult<bool> {
-    ///     sys.hasattr(intern_bound!(sys.py(), "version"))
+    ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -109,17 +109,17 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
-    ///     sys.getattr(intern_bound!(sys.py(), "version"))
+    ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -140,17 +140,17 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn set_answer(ob: &PyAny) -> PyResult<()> {
-    ///     ob.setattr(intern_bound!(ob.py(), "answer"), 42)
+    ///     ob.setattr(intern!(ob.py(), "answer"), 42)
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -170,7 +170,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python statement `del self.attr_name`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
     pub fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
@@ -465,7 +465,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
     /// # Examples
@@ -510,7 +510,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.name()`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
     /// # Examples
@@ -550,7 +550,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
     /// # Examples
@@ -950,17 +950,17 @@ pub trait PyAnyMethods<'py> {
     ///
     /// This is equivalent to the Python expression `hasattr(self, attr_name)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn has_version(sys: &PyModule) -> PyResult<bool> {
-    ///     sys.hasattr(intern_bound!(sys.py(), "version"))
+    ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -976,17 +976,17 @@ pub trait PyAnyMethods<'py> {
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
-    ///     sys.getattr(intern_bound!(sys.py(), "version"))
+    ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -1002,17 +1002,17 @@ pub trait PyAnyMethods<'py> {
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn set_answer(ob: &PyAny) -> PyResult<()> {
-    ///     ob.setattr(intern_bound!(ob.py(), "answer"), 42)
+    ///     ob.setattr(intern!(ob.py(), "answer"), 42)
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -1029,7 +1029,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// This is equivalent to the Python statement `del self.attr_name`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
@@ -1337,7 +1337,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
     /// # Examples
@@ -1382,7 +1382,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// This is equivalent to the Python expression `self.name()`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
     /// # Examples
@@ -1417,7 +1417,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `name`.
     ///
     /// # Examples
@@ -2257,7 +2257,7 @@ impl<'py> Bound<'py, PyAny> {
     /// typically a direct error for the special lookup to fail, as magic methods are optional in
     /// many situations in which they might be called.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`] macro can be used
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
     /// to intern `attr_name`.
     #[allow(dead_code)] // Currently only used with num-complex+abi3, so dead without that.
     pub(crate) fn lookup_special<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
@@ -2290,7 +2290,7 @@ impl<'py> Bound<'py, PyAny> {
         } else if let Ok(descr_get) = attr
             .get_type()
             .as_borrowed()
-            .getattr(crate::intern_bound!(py, "__get__"))
+            .getattr(crate::intern!(py, "__get__"))
         {
             descr_get.call1((attr, self, self_type)).map(Some)
         } else {
@@ -2349,7 +2349,7 @@ class NonHeapNonDescriptorInt:
             )
             .unwrap();
 
-            let int = crate::intern_bound!(py, "__int__");
+            let int = crate::intern!(py, "__int__");
             let eval_int = |obj: &PyAny| {
                 obj.as_borrowed()
                     .lookup_special(int)?

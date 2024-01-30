@@ -30,8 +30,8 @@ crate::import_exception!(socket, gaierror);
 
 #[allow(dead_code)]
 fn intern(py: crate::Python<'_>) {
-    let _foo = crate::intern_bound!(py, "foo");
-    let _bar = crate::intern_bound!(py, stringify!(bar));
+    let _foo = crate::intern!(py, "foo");
+    let _bar = crate::intern!(py, stringify!(bar));
 }
 
 #[allow(dead_code)]

@@ -153,7 +153,7 @@ macro_rules! complex_conversion {
                     let obj = if obj.is_instance_of::<PyComplex>() {
                         obj
                     } else if let Some(method) =
-                        obj.lookup_special(crate::intern_bound!(obj.py(), "__complex__"))?
+                        obj.lookup_special(crate::intern!(obj.py(), "__complex__"))?
                     {
                         complex = method.call0()?;
                         &complex

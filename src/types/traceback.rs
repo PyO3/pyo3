@@ -95,13 +95,13 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
     fn format(&self) -> PyResult<String> {
         let py = self.py();
         let string_io = py
-            .import(intern_bound!(py, "io"))?
-            .getattr(intern_bound!(py, "StringIO"))?
+            .import(intern!(py, "io"))?
+            .getattr(intern!(py, "StringIO"))?
             .call0()?;
         let result = unsafe { ffi::PyTraceBack_Print(self.as_ptr(), string_io.as_ptr()) };
         error_on_minusone(py, result)?;
         let formatted = string_io
-            .getattr(intern_bound!(py, "getvalue"))?
+            .getattr(intern!(py, "getvalue"))?
             .call0()?
             .downcast::<PyString>()?
             .to_str()?

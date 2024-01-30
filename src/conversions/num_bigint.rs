@@ -81,9 +81,7 @@ macro_rules! bigint_conversion {
                 let bytes_obj = PyBytes::new(py, &bytes);
                 let kwargs = if $is_signed > 0 {
                     let kwargs = PyDict::new(py);
-                    kwargs
-                        .set_item(crate::intern_bound!(py, "signed"), true)
-                        .unwrap();
+                    kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
                     Some(kwargs)
                 } else {
                     None
@@ -210,18 +208,18 @@ fn int_to_u32_vec(long: &PyLong, n_digits: usize, is_signed: bool) -> PyResult<V
 
 #[cfg(Py_LIMITED_API)]
 fn int_to_py_bytes(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<&PyBytes> {
-    use crate::intern_bound;
+    use crate::intern;
     let py = long.py();
     let kwargs = if is_signed {
         let kwargs = PyDict::new(py);
-        kwargs.set_item(intern_bound!(py, "signed"), true)?;
+        kwargs.set_item(intern!(py, "signed"), true)?;
         Some(kwargs)
     } else {
         None
     };
     let bytes = long.call_method(
-        intern_bound!(py, "to_bytes"),
-        (n_bytes, intern_bound!(py, "little")),
+        intern!(py, "to_bytes"),
+        (n_bytes, intern!(py, "little")),
         kwargs,
     )?;
     Ok(bytes.downcast()?)
@@ -243,7 +241,7 @@ fn int_n_bits(long: &PyLong) -> PyResult<usize> {
     #[cfg(Py_LIMITED_API)]
     {
         // slow path
-        long.call_method0(crate::intern_bound!(py, "bit_length"))
+        long.call_method0(crate::intern!(py, "bit_length"))
             .and_then(PyAny::extract)
     }
 }

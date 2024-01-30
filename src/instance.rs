@@ -971,18 +971,18 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
     ///
-    /// If calling this method becomes performance-critical, the [`intern_bound!`](crate::intern_bound) macro
+    /// If calling this method becomes performance-critical, the [`intern!`](crate::intern) macro
     /// can be used to intern `attr_name`, thereby avoiding repeated temporary allocations of
     /// Python strings.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, IntoPy, Py, Python, PyObject, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, Py, Python, PyObject, PyResult};
     /// #
     /// #[pyfunction]
     /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
-    ///     sys.getattr(py, intern_bound!(py, "version"))
+    ///     sys.getattr(py, intern!(py, "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -1001,17 +1001,17 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`](crate::intern_bound)
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `attr_name`.
     ///
-    /// # Example: `intern_bound!`ing the attribute name
+    /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern_bound, pyfunction, types::PyModule, IntoPy, PyObject, Python, PyResult};
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, PyObject, Python, PyResult};
     /// #
     /// #[pyfunction]
     /// fn set_answer(ob: PyObject, py: Python<'_>) -> PyResult<()> {
-    ///     ob.setattr(py, intern_bound!(py, "answer"), 42)
+    ///     ob.setattr(py, intern!(py, "answer"), 42)
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -1098,7 +1098,7 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`](crate::intern_bound)
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
     pub fn call_method_bound<N, A>(
         &self,
@@ -1121,7 +1121,7 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`](crate::intern_bound)
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
     pub fn call_method1<N, A>(&self, py: Python<'_>, name: N, args: A) -> PyResult<PyObject>
     where
@@ -1138,7 +1138,7 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.name()`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern_bound!`](crate::intern_bound)
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
     pub fn call_method0<N>(&self, py: Python<'_>, name: N) -> PyResult<PyObject>
     where
@@ -1644,8 +1644,8 @@ a = A()
             let module = PyModule::from_code(py, CODE, "", "")?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
-            let foo = crate::intern_bound!(py, "foo");
-            let bar = crate::intern_bound!(py, "bar");
+            let foo = crate::intern!(py, "foo");
+            let bar = crate::intern!(py, "bar");
 
             instance.getattr(py, foo).unwrap_err();
             instance.setattr(py, foo, bar)?;

@@ -22,6 +22,8 @@ The following sections are laid out in this order.
 
 To make the transition for the PyO3 ecosystem away from the GIL Refs API as smooth as possible, in PyO3 0.21 no APIs consuming or producing GIL Refs have been altered. Instead, variants using `Bound<T>` smart pointers have been introduced, for example `PyTuple::new_bound` which returns `Bound<PyTuple>` is the replacement form of `PyTuple::new`. The GIL Ref APIs have been deprecated, but to make migration easier it is possible to disable these deprecation warnings by enabling the `gil-refs` feature.
 
+> The one single exception where an existing API was changed in-place is the `pyo3::intern!` macro. Almost all uses of this macro did not need to update code to account it changing to return `&Bound<PyString>` immediately, and adding an `intern_bound!` replacement was perceived as adding more work for users.
+
 It is recommended that users do this as a first step of updating to PyO3 0.21 so that the deprecation warnings do not get in the way of resolving the rest of the migration steps.
 
 Before:
@@ -39,7 +41,6 @@ After:
 [dependencies]
 pyo3 = { version = "0.21", features = ["gil-refs"] }
 ```
-
 
 ### `PyTypeInfo` and `PyTryFrom` have been adjusted
 
@@ -242,7 +243,6 @@ To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointe
 For example, the following APIs have gained updated variants:
 - `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
 - `FromPyObject::extract` has a new `FromPyObject::extract_bound` (see the section below)
-- `pyo3::intern!` macro has a new replacement `pyo3::intern_bound!`
 
 Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
 - Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)

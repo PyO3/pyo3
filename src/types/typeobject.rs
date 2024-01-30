@@ -36,9 +36,7 @@ impl PyType {
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
     pub fn qualname(&self) -> PyResult<String> {
         #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
-        let name = self
-            .getattr(intern_bound!(self.py(), "__qualname__"))?
-            .extract();
+        let name = self.getattr(intern!(self.py(), "__qualname__"))?.extract();
 
         #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
         let name = {
@@ -73,10 +71,10 @@ impl PyType {
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
         {
-            let module = self.getattr(intern_bound!(self.py(), "__module__"))?;
+            let module = self.getattr(intern!(self.py(), "__module__"))?;
 
             #[cfg(not(Py_3_11))]
-            let name = self.getattr(intern_bound!(self.py(), "__name__"))?;
+            let name = self.getattr(intern!(self.py(), "__name__"))?;
 
             #[cfg(Py_3_11)]
             let name = {

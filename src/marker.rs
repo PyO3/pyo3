@@ -651,7 +651,7 @@ impl<'py> Python<'py> {
             // See also:
             // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
             // - https://github.com/PyO3/pyo3/issues/3370
-            let builtins_s = crate::intern_bound!(self, "__builtins__").as_ptr();
+            let builtins_s = crate::intern!(self, "__builtins__").as_ptr();
             let has_builtins = ffi::PyDict_Contains(globals, builtins_s);
             if has_builtins == -1 {
                 return Err(PyErr::fetch(self));
