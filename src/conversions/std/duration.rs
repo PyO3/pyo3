@@ -6,7 +6,7 @@ use crate::types::PyType;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
-use crate::{intern, Py};
+use crate::{intern_bound, Py};
 use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::time::Duration;
 
@@ -26,9 +26,10 @@ impl FromPyObject<'_> for Duration {
         #[cfg(Py_LIMITED_API)]
         let (days, seconds, microseconds): (i32, i32, i32) = {
             (
-                obj.getattr(intern!(obj.py(), "days"))?.extract()?,
-                obj.getattr(intern!(obj.py(), "seconds"))?.extract()?,
-                obj.getattr(intern!(obj.py(), "microseconds"))?.extract()?,
+                obj.getattr(intern_bound!(obj.py(), "days"))?.extract()?,
+                obj.getattr(intern_bound!(obj.py(), "seconds"))?.extract()?,
+                obj.getattr(intern_bound!(obj.py(), "microseconds"))?
+                    .extract()?,
             )
         };
 

@@ -242,6 +242,7 @@ To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointe
 For example, the following APIs have gained updated variants:
 - `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
 - `FromPyObject::extract` has a new `FromPyObject::extract_bound` (see the section below)
+- `pyo3::intern!` macro has a new replacement `pyo3::intern_bound!`
 
 Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
 - Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)
@@ -273,7 +274,6 @@ impl<'py> FromPyObject<'py> for MyType {
     }
 }
 ```
-
 
 The expectation is that in 0.22 `extract_bound` will have the default implementation removed and in 0.23 `extract` will be removed.
 

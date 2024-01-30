@@ -2,7 +2,7 @@ use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criter
 
 use pyo3::prelude::*;
 
-use pyo3::intern;
+use pyo3::intern_bound;
 
 fn getattr_direct(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -16,7 +16,7 @@ fn getattr_intern(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let sys = py.import("sys").unwrap();
 
-        b.iter(|| sys.getattr(intern!(py, "version")).unwrap());
+        b.iter(|| sys.getattr(intern_bound!(py, "version")).unwrap());
     });
 }
 

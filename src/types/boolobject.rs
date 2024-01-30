@@ -116,7 +116,7 @@ impl FromPyObject<'_> for bool {
             #[cfg(any(Py_LIMITED_API, PyPy))]
             {
                 let meth = obj
-                    .lookup_special(crate::intern!(obj.py(), "__bool__"))?
+                    .lookup_special(crate::intern_bound!(obj.py(), "__bool__"))?
                     .ok_or_else(|| missing_conversion(obj))?;
 
                 let obj = meth.call0()?.downcast_into::<PyBool>()?;

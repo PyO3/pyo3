@@ -1,6 +1,6 @@
 use crate::sync::GILOnceCell;
 use crate::types::PyCFunction;
-use crate::{intern, wrap_pyfunction, Py, PyAny, PyObject, PyResult, Python};
+use crate::{intern_bound, wrap_pyfunction, Py, PyAny, PyObject, PyResult, Python};
 use pyo3_macros::pyfunction;
 use std::sync::Arc;
 use std::task::Wake;
@@ -72,7 +72,7 @@ impl LoopAndFuture {
         // so it requires `call_soon_threadsafe`
         let call_soon_threadsafe = self.event_loop.call_method1(
             py,
-            intern!(py, "call_soon_threadsafe"),
+            intern_bound!(py, "call_soon_threadsafe"),
             (release_waiter, self.future.as_ref(py)),
         );
         if let Err(err) = call_soon_threadsafe {
@@ -93,9 +93,12 @@ impl LoopAndFuture {
 /// See <https://github.com/python/cpython/blob/main/Lib/asyncio/tasks.py#L452C5-L452C5>
 #[pyfunction(crate = "crate")]
 fn release_waiter(future: &PyAny) -> PyResult<()> {
-    let done = future.call_method0(intern!(future.py(), "done"))?;
+    let done = future.call_method0(intern_bound!(future.py(), "done"))?;
     if !done.extract::<bool>()? {
-        future.call_method1(intern!(future.py(), "set_result"), (future.py().None(),))?;
+        future.call_method1(
+            intern_bound!(future.py(), "set_result"),
+            (future.py().None(),),
+        )?;
     }
     Ok(())
 }

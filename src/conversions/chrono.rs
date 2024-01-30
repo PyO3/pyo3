@@ -52,7 +52,7 @@ use crate::types::{
     PyTzInfo, PyTzInfoAccess,
 };
 #[cfg(Py_LIMITED_API)]
-use crate::{intern, PyDowncastError};
+use crate::{intern_bound, PyDowncastError};
 use crate::{
     FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
 };
@@ -127,9 +127,10 @@ impl FromPyObject<'_> for Duration {
         let (days, seconds, microseconds) = {
             check_type(ob, &DatetimeTypes::get(ob.py()).timedelta, "PyDelta")?;
             (
-                ob.getattr(intern!(ob.py(), "days"))?.extract()?,
-                ob.getattr(intern!(ob.py(), "seconds"))?.extract()?,
-                ob.getattr(intern!(ob.py(), "microseconds"))?.extract()?,
+                ob.getattr(intern_bound!(ob.py(), "days"))?.extract()?,
+                ob.getattr(intern_bound!(ob.py(), "seconds"))?.extract()?,
+                ob.getattr(intern_bound!(ob.py(), "microseconds"))?
+                    .extract()?,
             )
         };
         Ok(
@@ -250,7 +251,7 @@ impl FromPyObject<'_> for NaiveDateTime {
         #[cfg(not(Py_LIMITED_API))]
         let has_tzinfo = dt.get_tzinfo_bound().is_some();
         #[cfg(Py_LIMITED_API)]
-        let has_tzinfo = !dt.getattr(intern!(dt.py(), "tzinfo"))?.is_none();
+        let has_tzinfo = !dt.getattr(intern_bound!(dt.py(), "tzinfo"))?.is_none();
         if has_tzinfo {
             return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
@@ -286,7 +287,7 @@ impl<Tz: TimeZone + for<'a> FromPyObject<'a>> FromPyObject<'_> for DateTime<Tz> 
         #[cfg(not(Py_LIMITED_API))]
         let tzinfo = dt.get_tzinfo_bound();
         #[cfg(Py_LIMITED_API)]
-        let tzinfo: Option<&PyAny> = dt.getattr(intern!(dt.py(), "tzinfo"))?.extract()?;
+        let tzinfo: Option<&PyAny> = dt.getattr(intern_bound!(dt.py(), "tzinfo"))?.extract()?;
 
         let tz = if let Some(tzinfo) = tzinfo {
             tzinfo.extract()?
@@ -482,9 +483,15 @@ fn py_date_to_naive_date(py_date: &impl PyDateAccess) -> PyResult<NaiveDate> {
 #[cfg(Py_LIMITED_API)]
 fn py_date_to_naive_date(py_date: &PyAny) -> PyResult<NaiveDate> {
     NaiveDate::from_ymd_opt(
-        py_date.getattr(intern!(py_date.py(), "year"))?.extract()?,
-        py_date.getattr(intern!(py_date.py(), "month"))?.extract()?,
-        py_date.getattr(intern!(py_date.py(), "day"))?.extract()?,
+        py_date
+            .getattr(intern_bound!(py_date.py(), "year"))?
+            .extract()?,
+        py_date
+            .getattr(intern_bound!(py_date.py(), "month"))?
+            .extract()?,
+        py_date
+            .getattr(intern_bound!(py_date.py(), "day"))?
+            .extract()?,
     )
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
 }
@@ -503,15 +510,17 @@ fn py_time_to_naive_time(py_time: &impl PyTimeAccess) -> PyResult<NaiveTime> {
 #[cfg(Py_LIMITED_API)]
 fn py_time_to_naive_time(py_time: &PyAny) -> PyResult<NaiveTime> {
     NaiveTime::from_hms_micro_opt(
-        py_time.getattr(intern!(py_time.py(), "hour"))?.extract()?,
         py_time
-            .getattr(intern!(py_time.py(), "minute"))?
+            .getattr(intern_bound!(py_time.py(), "hour"))?
             .extract()?,
         py_time
-            .getattr(intern!(py_time.py(), "second"))?
+            .getattr(intern_bound!(py_time.py(), "minute"))?
             .extract()?,
         py_time
-            .getattr(intern!(py_time.py(), "microsecond"))?
+            .getattr(intern_bound!(py_time.py(), "second"))?
+            .extract()?,
+        py_time
+            .getattr(intern_bound!(py_time.py(), "microsecond"))?
             .extract()?,
     )
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))

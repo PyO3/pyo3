@@ -522,7 +522,7 @@ impl<'a> FnSpec<'a> {
                 let mut call = quote! {{
                     let future = #future;
                     _pyo3::impl_::coroutine::new_coroutine(
-                        _pyo3::intern!(py, stringify!(#python_name)),
+                        _pyo3::intern_bound!(py, stringify!(#python_name)),
                         #qualname_prefix,
                         #throw_callback,
                         async move { _pyo3::impl_::wrap::OkWrap::wrap(future.await) },

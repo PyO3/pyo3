@@ -1,8 +1,8 @@
 error[E0435]: attempt to use a non-constant value in a constant
- --> tests/ui/invalid_intern_arg.rs:5:55
+ --> tests/ui/invalid_intern_arg.rs:5:61
   |
-5 |     Python::with_gil(|py| py.import(pyo3::intern!(py, foo)).unwrap());
-  |                                     ------------------^^^-
-  |                                     |                 |
-  |                                     |                 non-constant value
+5 |     Python::with_gil(|py| py.import(pyo3::intern_bound!(py, foo)).unwrap());
+  |                                     ------------------------^^^-
+  |                                     |                       |
+  |                                     |                       non-constant value
   |                                     help: consider using `let` instead of `static`: `let INTERNED`
