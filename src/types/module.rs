@@ -660,11 +660,11 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     }
 }
 
-fn __all__(py: Python<'_>) -> &PyString {
+fn __all__(py: Python<'_>) -> &Bound<'_, PyString> {
     intern!(py, "__all__")
 }
 
-fn __name__(py: Python<'_>) -> &PyString {
+fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
     intern!(py, "__name__")
 }
 

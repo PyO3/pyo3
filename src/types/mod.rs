@@ -290,7 +290,7 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
-mod iterator;
+pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
 mod memoryview;

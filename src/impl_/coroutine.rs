@@ -6,13 +6,14 @@ use std::{
 
 use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
+    instance::Bound,
     pyclass::boolean_struct::False,
     types::PyString,
     IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, Python,
 };
 
 pub fn new_coroutine<F, T, E>(
-    name: &PyString,
+    name: &Bound<'_, PyString>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     future: F,
@@ -22,7 +23,12 @@ where
     T: IntoPy<PyObject>,
     E: Into<PyErr>,
 {
-    Coroutine::new(Some(name.into()), qualname_prefix, throw_callback, future)
+    Coroutine::new(
+        Some(name.clone().into()),
+        qualname_prefix,
+        throw_callback,
+        future,
+    )
 }
 
 fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {

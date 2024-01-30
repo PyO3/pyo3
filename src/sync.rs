@@ -1,5 +1,5 @@
 //! Synchronization mechanisms based on the Python GIL.
-use crate::{types::PyString, types::PyType, Py, PyResult, PyVisit, Python};
+use crate::{instance::Bound, types::PyString, types::PyType, Py, PyResult, PyVisit, Python};
 use std::cell::UnsafeCell;
 
 /// Value with concurrent access protected by the GIL.
@@ -259,10 +259,10 @@ impl Interned {
 
     /// Gets or creates the interned `str` value.
     #[inline]
-    pub fn get<'py>(&'py self, py: Python<'py>) -> &'py PyString {
+    pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         self.1
-            .get_or_init(py, || PyString::intern(py, self.0).into())
-            .as_ref(py)
+            .get_or_init(py, || PyString::intern_bound(py, self.0).into())
+            .bind(py)
     }
 }
 

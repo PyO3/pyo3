@@ -66,7 +66,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// # Safety
     ///
-    /// `ptr`` must be a valid pointer to a Python object.
+    /// `ptr` must be a valid pointer to a Python object.
     pub(crate) unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
@@ -75,7 +75,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// # Safety
     ///
-    /// `ptr`` must be a valid pointer to a Python object, or NULL.
+    /// `ptr` must be a valid pointer to a Python object, or NULL.
     pub(crate) unsafe fn from_owned_ptr_or_opt(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
