@@ -29,7 +29,7 @@ The table below contains the Python type and the corresponding function argument
 | `type`        | -                               | `&PyType`            |
 | `module`      | -                               | `&PyModule`          |
 | `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |
-| `datetime.datetime` | -                         | `&PyDateTime`        |
+| `datetime.datetime` | `SystemTime`              | `&PyDateTime`        |
 | `datetime.date` | -                             | `&PyDate`            |
 | `datetime.time` | -                             | `&PyTime`            |
 | `datetime.tzinfo` | -                           | `&PyTzInfo`          |
