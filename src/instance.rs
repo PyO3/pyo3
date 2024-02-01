@@ -199,10 +199,7 @@ impl<'py, T> Bound<'py, T> {
     /// Helper to cast to `Bound<'py, PyAny>`, transferring ownership.
     pub fn into_any(self) -> Bound<'py, PyAny> {
         // Safety: all Bound<T> are valid Bound<PyAny>
-        Bound(
-            self.0,
-            ManuallyDrop::new(unsafe { Py::from_non_null(self.into_non_null()) }),
-        )
+        Bound(self.0, ManuallyDrop::new(self.unbind().into_any()))
     }
 
     /// Casts this `Bound<T>` to a `Borrowed<T>` smart pointer.
@@ -720,6 +717,19 @@ impl<T> Py<T> {
         let ptr = self.0.as_ptr();
         std::mem::forget(self);
         ptr
+    }
+
+    /// Helper to cast to `Py<PyAny>`.
+    pub fn as_any(&self) -> &Py<PyAny> {
+        // Safety: all Py<T> have the same memory layout, and all Py<T> are valid
+        // Py<PyAny>, so pointer casting is valid.
+        unsafe { &*(self as *const Self).cast::<Py<PyAny>>() }
+    }
+
+    /// Helper to cast to `Py<PyAny>`, transferring ownership.
+    pub fn into_any(self) -> Py<PyAny> {
+        // Safety: all Py<T> are valid Py<PyAny>
+        unsafe { Py::from_non_null(self.into_non_null()) }
     }
 }
 
