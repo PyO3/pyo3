@@ -24,8 +24,8 @@ impl Dummy {
         "Dummy"
     }
 
-    fn __bytes__<'py>(&self, py: crate::Python<'py>) -> &'py crate::types::PyBytes {
-        crate::types::PyBytes::new(py, &[0])
+    fn __bytes__<'py>(&self, py: crate::Python<'py>) -> crate::Bound<'py, crate::types::PyBytes> {
+        crate::types::PyBytes::new_bound(py, &[0])
     }
 
     fn __format__(&self, format_spec: ::std::string::String) -> ::std::string::String {
@@ -420,8 +420,8 @@ impl Dummy {
         "Dummy"
     }
 
-    fn __bytes__<'py>(&self, py: crate::Python<'py>) -> &'py crate::types::PyBytes {
-        crate::types::PyBytes::new(py, &[0])
+    fn __bytes__<'py>(&self, py: crate::Python<'py>) -> crate::Bound<'py, crate::types::PyBytes> {
+        crate::types::PyBytes::new_bound(py, &[0])
     }
 
     fn __format__(&self, format_spec: ::std::string::String) -> ::std::string::String {

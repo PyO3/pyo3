@@ -78,7 +78,7 @@ macro_rules! bigint_conversion {
             #[cfg(Py_LIMITED_API)]
             fn to_object(&self, py: Python<'_>) -> PyObject {
                 let bytes = $to_bytes(self);
-                let bytes_obj = PyBytes::new(py, &bytes);
+                let bytes_obj = PyBytes::new_bound(py, &bytes);
                 let kwargs = if $is_signed > 0 {
                     let kwargs = PyDict::new(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();

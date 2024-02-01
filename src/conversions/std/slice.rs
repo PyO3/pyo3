@@ -1,10 +1,10 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-use crate::{types::PyBytes, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{types::PyBytes, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBytes::new(py, self).to_object(py)
+        PyBytes::new_bound(py, self).unbind().into()
     }
 
     #[cfg(feature = "experimental-inspect")]

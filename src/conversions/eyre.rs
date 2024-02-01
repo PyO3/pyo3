@@ -76,7 +76,7 @@
 //!     let res = Python::with_gil(|py| {
 //!         let zlib = PyModule::import(py, "zlib")?;
 //!         let decompress = zlib.getattr("decompress")?;
-//!         let bytes = PyBytes::new(py, bytes);
+//!         let bytes = PyBytes::new_bound(py, bytes);
 //!         let value = decompress.call1((bytes,))?;
 //!         value.extract::<Vec<u8>>()
 //!     })?;
