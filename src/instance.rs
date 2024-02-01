@@ -11,7 +11,7 @@ use crate::{
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
-use std::mem::{self, ManuallyDrop};
+use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
@@ -35,10 +35,15 @@ pub unsafe trait PyNativeType: Sized {
     ///
     /// This is available as a migration tool to adjust code from the deprecated "GIL Refs"
     /// API to the `Bound` smart pointer API.
+    #[inline]
     fn as_borrowed(&self) -> Borrowed<'_, '_, Self::AsRefSource> {
         // Safety: &'py Self is expected to be a Python pointer,
         // so has the same layout as Borrowed<'py, 'py, T>
-        unsafe { std::mem::transmute(self) }
+        Borrowed(
+            unsafe { NonNull::new_unchecked(self as *const Self as *mut _) },
+            PhantomData,
+            self.py(),
+        )
     }
 
     /// Returns a GIL marker constrained to the lifetime of this type.
@@ -142,25 +147,29 @@ impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T>
 where
     T: AsRef<PyAny>,
 {
+    #[inline]
     fn as_ref(&self) -> &Bound<'py, PyAny> {
         self.as_any()
     }
 }
 
 impl<T> Clone for Bound<'_, T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self(self.0, ManuallyDrop::new(self.1.clone_ref(self.0)))
     }
 }
 
 impl<T> Drop for Bound<'_, T> {
+    #[inline]
     fn drop(&mut self) {
-        unsafe { ffi::Py_DECREF(self.1.as_ptr()) }
+        unsafe { ffi::Py_DECREF(self.as_ptr()) }
     }
 }
 
 impl<'py, T> Bound<'py, T> {
     /// Returns the GIL token associated with this object.
+    #[inline]
     pub fn py(&self) -> Python<'py> {
         self.0
     }
@@ -186,10 +195,11 @@ impl<'py, T> Bound<'py, T> {
     /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
-        self.into_non_null().as_ptr()
+        ManuallyDrop::new(self).as_ptr()
     }
 
     /// Helper to cast to `Bound<'py, PyAny>`.
+    #[inline]
     pub fn as_any(&self) -> &Bound<'py, PyAny> {
         // Safety: all Bound<T> have the same memory layout, and all Bound<T> are valid
         // Bound<PyAny>, so pointer casting is valid.
@@ -197,12 +207,14 @@ impl<'py, T> Bound<'py, T> {
     }
 
     /// Helper to cast to `Bound<'py, PyAny>`, transferring ownership.
+    #[inline]
     pub fn into_any(self) -> Bound<'py, PyAny> {
         // Safety: all Bound<T> are valid Bound<PyAny>
         Bound(self.0, ManuallyDrop::new(self.unbind().into_any()))
     }
 
     /// Casts this `Bound<T>` to a `Borrowed<T>` smart pointer.
+    #[inline]
     pub fn as_borrowed<'a>(&'a self) -> Borrowed<'a, 'py, T> {
         Borrowed(
             unsafe { NonNull::new_unchecked(self.as_ptr()) },
@@ -213,15 +225,18 @@ impl<'py, T> Bound<'py, T> {
 
     /// Removes the connection for this `Bound<T>` from the GIL, allowing
     /// it to cross thread boundaries.
+    #[inline]
     pub fn unbind(self) -> Py<T> {
         // Safety: the type T is known to be correct and the ownership of the
         // pointer is transferred to the new Py<T> instance.
-        unsafe { Py::from_non_null(self.into_non_null()) }
+        let non_null = (ManuallyDrop::new(self).1).0;
+        unsafe { Py::from_non_null(non_null) }
     }
 
     /// Casts this `Bound<T>` as the corresponding "GIL Ref" type.
     ///
     /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
+    #[inline]
     pub fn as_gil_ref(&'py self) -> &'py T::AsRefTarget
     where
         T: HasPyGilRef,
@@ -233,19 +248,12 @@ impl<'py, T> Bound<'py, T> {
     /// [release pool](Python::from_owned_ptr).
     ///
     /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
+    #[inline]
     pub fn into_gil_ref(self) -> &'py T::AsRefTarget
     where
         T: HasPyGilRef,
     {
         unsafe { self.py().from_owned_ptr(self.into_ptr()) }
-    }
-
-    // Internal helper to convert `self` into a `NonNull` which owns the
-    // Python reference.
-    pub(crate) fn into_non_null(self) -> NonNull<ffi::PyObject> {
-        // wrap in ManuallyDrop to avoid running Drop for self and decreasing
-        // the reference count
-        ManuallyDrop::new(self).1 .0
     }
 }
 
@@ -267,11 +275,7 @@ pub struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, 
 impl<'py, T> Borrowed<'_, 'py, T> {
     /// Creates a new owned `Bound` from this borrowed reference by increasing the reference count.
     pub(crate) fn to_owned(self) -> Bound<'py, T> {
-        unsafe { ffi::Py_INCREF(self.as_ptr()) };
-        Bound(
-            self.py(),
-            ManuallyDrop::new(unsafe { Py::from_non_null(self.0) }),
-        )
+        (*self).clone()
     }
 }
 
@@ -353,6 +357,7 @@ impl<'py, T> Deref for Borrowed<'_, 'py, T> {
 }
 
 impl<T> Clone for Borrowed<'_, '_, T> {
+    #[inline]
     fn clone(&self) -> Self {
         *self
     }
@@ -362,6 +367,7 @@ impl<T> Copy for Borrowed<'_, '_, T> {}
 
 impl<T> ToPyObject for Borrowed<'_, '_, T> {
     /// Converts `Py` instance -> PyObject.
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
         (*self).into_py(py)
     }
@@ -369,6 +375,7 @@ impl<T> ToPyObject for Borrowed<'_, '_, T> {
 
 impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
     /// Converts `Py` instance -> PyObject.
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_owned().into_py(py)
     }
@@ -714,12 +721,11 @@ impl<T> Py<T> {
     /// of the pointer or decrease the reference count (e.g. with [`pyo3::ffi::Py_DecRef`](crate::ffi::Py_DecRef)).
     #[inline]
     pub fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.0.as_ptr();
-        std::mem::forget(self);
-        ptr
+        ManuallyDrop::new(self).0.as_ptr()
     }
 
     /// Helper to cast to `Py<PyAny>`.
+    #[inline]
     pub fn as_any(&self) -> &Py<PyAny> {
         // Safety: all Py<T> have the same memory layout, and all Py<T> are valid
         // Py<PyAny>, so pointer casting is valid.
@@ -727,9 +733,10 @@ impl<T> Py<T> {
     }
 
     /// Helper to cast to `Py<PyAny>`, transferring ownership.
+    #[inline]
     pub fn into_any(self) -> Py<PyAny> {
         // Safety: all Py<T> are valid Py<PyAny>
-        unsafe { Py::from_non_null(self.into_non_null()) }
+        unsafe { Py::from_non_null(ManuallyDrop::new(self).0) }
     }
 }
 
@@ -886,17 +893,20 @@ where
 
 impl<T> Py<T> {
     /// Attaches this `Py` to the given Python context, allowing access to further Python APIs.
+    #[inline]
     pub fn bind<'py>(&self, _py: Python<'py>) -> &Bound<'py, T> {
         // Safety: `Bound` has the same layout as `Py`
         unsafe { &*(self as *const Py<T>).cast() }
     }
 
     /// Same as `bind` but takes ownership of `self`.
+    #[inline]
     pub fn into_bound(self, py: Python<'_>) -> Bound<'_, T> {
         Bound(py, ManuallyDrop::new(self))
     }
 
     /// Same as `bind` but produces a `Borrowed<T>` instead of a `Bound<T>`.
+    #[inline]
     pub fn bind_borrowed<'a, 'py>(&'a self, py: Python<'py>) -> Borrowed<'a, 'py, T> {
         Borrowed(self.0, PhantomData, py)
     }
@@ -1261,24 +1271,16 @@ impl<T> Py<T> {
     ///
     /// # Safety
     /// `ptr` must point to a Python object of type T.
-    #[inline]
-    pub(crate) unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
+    unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData)
-    }
-
-    /// Returns the inner pointer without decreasing the refcount.
-    #[inline]
-    fn into_non_null(self) -> NonNull<ffi::PyObject> {
-        let pointer = self.0;
-        mem::forget(self);
-        pointer
     }
 }
 
 impl<T> ToPyObject for Py<T> {
     /// Converts `Py` instance -> PyObject.
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+        self.clone_ref(py).into_any()
     }
 }
 
@@ -1287,7 +1289,7 @@ impl<T> IntoPy<PyObject> for Py<T> {
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_non_null(self.into_non_null()) }
+        self.into_any()
     }
 }
 
@@ -1299,15 +1301,15 @@ impl<T> IntoPy<PyObject> for &'_ Py<T> {
 }
 
 impl<T> ToPyObject for Bound<'_, T> {
-    /// Converts `Py` instance -> PyObject.
+    /// Converts `&Bound` instance -> PyObject, increasing the reference count.
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+        self.clone().into_py(py)
     }
 }
 
 impl<T> IntoPy<PyObject> for Bound<'_, T> {
-    /// Converts a `Py` instance to `PyObject`.
-    /// Consumes `self` without calling `Py_DECREF()`.
+    /// Converts a `Bound` instance to `PyObject`.
     #[inline]
     fn into_py(self, _py: Python<'_>) -> PyObject {
         self.into_any().unbind()
@@ -1315,11 +1317,10 @@ impl<T> IntoPy<PyObject> for Bound<'_, T> {
 }
 
 impl<T> IntoPy<PyObject> for &Bound<'_, T> {
-    /// Converts a `Py` instance to `PyObject`.
-    /// Consumes `self` without calling `Py_DECREF()`.
+    /// Converts `&Bound` instance -> PyObject, increasing the reference count.
     #[inline]
-    fn into_py(self, _py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_non_null(self.clone().into_non_null()) }
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.to_object(py)
     }
 }
 
@@ -1331,18 +1332,13 @@ unsafe impl<T> crate::AsPyPointer for Py<T> {
     }
 }
 
-impl std::convert::From<&'_ PyAny> for PyObject {
-    fn from(obj: &PyAny) -> Self {
-        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ptr()) }
-    }
-}
-
 impl<T> std::convert::From<&'_ T> for PyObject
 where
-    T: PyNativeType + AsRef<PyAny>,
+    T: PyNativeType,
 {
+    #[inline]
     fn from(obj: &T) -> Self {
-        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ref().as_ptr()) }
+        obj.as_borrowed().to_owned().into_any().unbind()
     }
 }
 
@@ -1352,7 +1348,7 @@ where
 {
     #[inline]
     fn from(other: Py<T>) -> Self {
-        unsafe { Self::from_non_null(other.into_non_null()) }
+        other.into_any()
     }
 }
 
@@ -1380,7 +1376,7 @@ where
     T: PyClass,
 {
     fn from(cell: &PyCell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(cell.py(), cell.as_ptr()) }
+        cell.as_borrowed().to_owned().unbind()
     }
 }
 
