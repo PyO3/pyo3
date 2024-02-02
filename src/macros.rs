@@ -134,6 +134,27 @@ macro_rules! wrap_pyfunction {
     }};
 }
 
+/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
+///
+/// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add free
+/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more information.
+#[macro_export]
+macro_rules! wrap_pyfunction_bound {
+    ($function:path) => {
+        &|py_or_module| {
+            use $function as wrapped_pyfunction;
+            $crate::impl_::pyfunction::_wrap_pyfunction_bound(
+                &wrapped_pyfunction::DEF,
+                py_or_module,
+            )
+        }
+    };
+    ($function:path, $py_or_module:expr) => {{
+        use $function as wrapped_pyfunction;
+        $crate::impl_::pyfunction::_wrap_pyfunction_bound(&wrapped_pyfunction::DEF, $py_or_module)
+    }};
+}
+
 /// Returns a function that takes a [`Python`](crate::Python) instance and returns a
 /// Python module.
 ///

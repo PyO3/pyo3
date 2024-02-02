@@ -7,7 +7,7 @@ use portable_atomic::{AtomicI64, Ordering};
 
 #[cfg(not(PyPy))]
 use crate::exceptions::PyImportError;
-use crate::{ffi, sync::GILOnceCell, types::PyModule, Py, PyResult, Python};
+use crate::{ffi, sync::GILOnceCell, types::PyModule, Bound, Py, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -22,7 +22,7 @@ pub struct ModuleDef {
 }
 
 /// Wrapper to enable initializer to be used in const fns.
-pub struct ModuleInitializer(pub for<'py> fn(Python<'py>, &PyModule) -> PyResult<()>);
+pub struct ModuleInitializer(pub for<'py> fn(Python<'py>, &Bound<'py, PyModule>) -> PyResult<()>);
 
 unsafe impl Sync for ModuleDef {}
 
@@ -125,7 +125,7 @@ impl ModuleDef {
                         ffi::PyModule_Create(self.ffi_def.get()),
                     )?
                 };
-                (self.initializer.0)(py, module.as_ref(py))?;
+                (self.initializer.0)(py, module.bind(py))?;
                 Ok(module)
             })
             .map(|py_module| py_module.clone_ref(py))
@@ -136,7 +136,9 @@ impl ModuleDef {
 mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    use crate::{types::PyModule, PyResult, Python};
+    use crate::{
+        types::module::PyModuleMethods, types::PyModule, Bound, PyNativeType, PyResult, Python,
+    };
 
     use super::{ModuleDef, ModuleInitializer};
 
@@ -191,7 +193,7 @@ mod tests {
         static INIT_CALLED: AtomicBool = AtomicBool::new(false);
 
         #[allow(clippy::unnecessary_wraps)]
-        fn init(_: Python<'_>, _: &PyModule) -> PyResult<()> {
+        fn init(_: Python<'_>, _: &Bound<'_, PyModule>) -> PyResult<()> {
             INIT_CALLED.store(true, Ordering::SeqCst);
             Ok(())
         }
@@ -202,7 +204,8 @@ mod tests {
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
 
             Python::with_gil(|py| {
-                module_def.initializer.0(py, py.import("builtins").unwrap()).unwrap();
+                module_def.initializer.0(py, &py.import("builtins").unwrap().as_borrowed())
+                    .unwrap();
                 assert!(INIT_CALLED.load(Ordering::SeqCst));
             })
         }

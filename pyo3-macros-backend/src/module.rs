@@ -93,7 +93,15 @@ pub fn pymodule_impl(
             use #krate::impl_::pymodule as impl_;
             impl #fnname::MakeDef {
                 const fn make_def() -> impl_::ModuleDef {
-                    const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(#fnname);
+                    /// Allow #[pymodule] to take any of &Bound<PyModule>, &PyModule, Py<PyModule>
+                    fn init_wrapper<'py>(py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
+                        #fnname(
+                            py,
+                            ::std::convert::Into::into(::pyo3::impl_::pymethods::BoundModule(m))
+                        )
+                    }
+
+                    const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(init_wrapper);
                     unsafe {
                         impl_::ModuleDef::new(#fnname::NAME, #doc, INITIALIZER)
                     }

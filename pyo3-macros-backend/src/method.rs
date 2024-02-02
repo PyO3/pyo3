@@ -134,9 +134,14 @@ impl FnType {
                 }
             }
             FnType::FnModule(span) => {
+                let py = syn::Ident::new("py", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf)),
+                    ::std::convert::Into::into(_pyo3::impl_::pymethods::BoundModule(
+                        _pyo3::impl_::pymethods::ptr_to_bound(#py, &#slf)
+                            .downcast_unchecked::<_pyo3::types::PyModule>()
+                    )),
                 }
             }
         }

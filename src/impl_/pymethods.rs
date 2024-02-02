@@ -3,7 +3,7 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
-use crate::types::PyType;
+use crate::types::{PyModule, PyType};
 use crate::{
     ffi, Bound, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit,
     Python,
@@ -501,6 +501,29 @@ impl<'a, 'py> From<BoundType<'a, 'py>> for &'a Bound<'py, PyType> {
 impl From<BoundType<'_, '_>> for Py<PyType> {
     #[inline]
     fn from(bound: BoundType<'_, '_>) -> Self {
+        bound.0.clone().unbind()
+    }
+}
+
+pub struct BoundModule<'a, 'py>(pub &'a Bound<'py, PyModule>);
+
+impl<'a> From<BoundModule<'a, 'a>> for &'a PyModule {
+    #[inline]
+    fn from(bound: BoundModule<'a, 'a>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py> From<BoundModule<'a, 'py>> for &'a Bound<'py, PyModule> {
+    #[inline]
+    fn from(bound: BoundModule<'a, 'py>) -> Self {
+        bound.0
+    }
+}
+
+impl From<BoundModule<'_, '_>> for Py<PyModule> {
+    #[inline]
+    fn from(bound: BoundModule<'_, '_>) -> Self {
         bound.0.clone().unbind()
     }
 }

@@ -1,6 +1,8 @@
-use crate::derive_utils::PyFunctionArguments;
+use crate::derive_utils::{PyFunctionArguments, PyFunctionArgumentsBound};
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::methods::PyMethodDefDestructor;
 use crate::prelude::*;
+use crate::py_result_ext::PyResultExt;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
@@ -130,6 +132,35 @@ impl PyCFunction {
                 mod_ptr,
                 module_name_ptr,
             ))
+        }
+    }
+
+    #[doc(hidden)]
+    pub(crate) fn internal_new_bound<'a, 'py>(
+        method_def: &PyMethodDef,
+        py_or_module: PyFunctionArgumentsBound<'a, 'py>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let (py, module) = py_or_module.into_py_and_maybe_module();
+        let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
+            let mod_ptr = m.as_ptr();
+            (mod_ptr, Some(m.name()?.into_py(py)))
+        } else {
+            (std::ptr::null_mut(), None)
+        };
+        let (def, destructor) = method_def.as_method_def()?;
+
+        // FIXME: stop leaking the def and destructor
+        let def = Box::into_raw(Box::new(def));
+        std::mem::forget(destructor);
+
+        let module_name_ptr = module_name
+            .as_ref()
+            .map_or(std::ptr::null_mut(), Py::as_ptr);
+
+        unsafe {
+            ffi::PyCFunction_NewEx(def, mod_ptr, module_name_ptr)
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 }
