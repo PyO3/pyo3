@@ -1419,27 +1419,22 @@ impl<T> Drop for Py<T> {
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Py<T>
+impl<T> FromPyObject<'_> for Py<T>
 where
-    T: PyTypeInfo,
-    &'a T::AsRefTarget: FromPyObject<'a>,
-    T::AsRefTarget: 'a + AsPyPointer,
+    T: PyTypeCheck,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        unsafe {
-            ob.extract::<&T::AsRefTarget>()
-                .map(|val| Py::from_borrowed_ptr(ob.py(), val.as_ptr()))
-        }
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        ob.extract::<Bound<'_, T>>().map(Bound::unbind)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Bound<'a, T>
+impl<'py, T> FromPyObject<'py> for Bound<'py, T>
 where
-    T: PyTypeInfo,
+    T: PyTypeCheck,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         ob.downcast().map(Clone::clone).map_err(Into::into)
     }
 }

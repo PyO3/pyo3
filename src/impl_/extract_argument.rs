@@ -3,7 +3,7 @@ use crate::{
     ffi,
     pyclass::boolean_struct::False,
     types::{PyDict, PyString, PyTuple},
-    FromPyObject, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, Python,
+    Bound, FromPyObject, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeCheck, Python,
 };
 
 /// A trait which is used to help PyO3 macros extract function arguments.
@@ -28,6 +28,18 @@ where
     #[inline]
     fn extract(obj: &'py PyAny, _: &'a mut ()) -> PyResult<Self> {
         obj.extract()
+    }
+}
+
+impl<'a, 'py, T> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
+where
+    T: PyTypeCheck,
+{
+    type Holder = Option<Bound<'py, T>>;
+
+    #[inline]
+    fn extract(obj: &'py PyAny, holder: &'a mut Option<Bound<'py, T>>) -> PyResult<Self> {
+        Ok(&*holder.insert(obj.extract()?))
     }
 }
 
