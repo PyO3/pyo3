@@ -37,7 +37,7 @@ impl IterAwaitable {
                 Ok(v) => Err(PyStopIteration::new_err(v)),
                 Err(err) => Err(err),
             },
-            _ => Ok(py.None().into()),
+            _ => Ok(py.None()),
         }
     }
 }
