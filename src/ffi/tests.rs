@@ -311,6 +311,8 @@ fn test_inc_dec_ref() {
 #[test]
 #[cfg(Py_3_12)]
 fn test_inc_dec_ref_immortal() {
+    use crate::types::any::PyAnyMethods;
+
     Python::with_gil(|py| {
         let obj = py.None();
 
