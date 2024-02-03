@@ -98,7 +98,7 @@ Before:
 Python::with_gil(|py| {
     let a: PyObject = py.None();
 
-    let b: &PyAny = py.None().as_ref(py);  // or into_ref(py)
+    // let b: &PyAny = py.None().as_ref(py);  // or into_ref(py)
 });
 ```
 
@@ -111,7 +111,7 @@ Python::with_gil(|py| {
     let a: PyObject = py.None().into_py(py);
 
     // For uses needing &PyAny, remove `.as_ref(py)`
-    let b: &PyAny = py.None();
+    // let b: &PyAny = py.None();
 });
 ```
 

@@ -474,7 +474,7 @@ class House(object):
             Ok(_) => {
                 let none = py.None();
                 house
-                    .call_method1("__exit__", (&none, &none, &none))
+                    .call_method1("__exit__", (none, none, none))
                     .unwrap();
             }
             Err(e) => {
