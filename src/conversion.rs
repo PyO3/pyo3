@@ -594,7 +594,6 @@ mod test_no_clone {}
 #[cfg(test)]
 mod tests {
     use crate::conversion::IntoPy;
-    use crate::prelude::PyAnyMethods;
     use crate::{PyObject, Python};
 
     #[allow(deprecated)]

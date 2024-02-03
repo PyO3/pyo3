@@ -526,7 +526,7 @@ mod tests {
     use crate::types::bytearray::PyByteArrayMethods;
     use crate::types::string::PyStringMethods;
     use crate::types::PyByteArray;
-    use crate::{exceptions, Bound, PyAny, PyNativeType};
+    use crate::{exceptions, Bound, PyAny};
     use crate::{PyObject, Python};
 
     #[test]
