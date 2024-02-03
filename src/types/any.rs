@@ -759,9 +759,9 @@ impl PyAny {
     /// use pyo3::types::{PyBool, PyLong};
     ///
     /// Python::with_gil(|py| {
-    ///     let b = PyBool::new(py, true);
+    ///     let b = PyBool::new_bound(py, true);
     ///     assert!(b.is_instance_of::<PyBool>());
-    ///     let any: &PyAny = b.as_ref();
+    ///     let any: &Bound<'_, PyAny> = b.as_any();
     ///
     ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
     ///     // but `downcast_exact` will not.
@@ -1583,9 +1583,9 @@ pub trait PyAnyMethods<'py> {
     /// use pyo3::types::{PyBool, PyLong};
     ///
     /// Python::with_gil(|py| {
-    ///     let b = PyBool::new(py, true);
+    ///     let b = PyBool::new_bound(py, true);
     ///     assert!(b.is_instance_of::<PyBool>());
-    ///     let any: &PyAny = b.as_ref();
+    ///     let any: &Bound<'_, PyAny> = b.as_any();
     ///
     ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
     ///     // but `downcast_exact` will not.
@@ -2530,7 +2530,7 @@ class SimpleClass:
             let x = 5.to_object(py).into_ref(py);
             assert!(x.is_exact_instance_of::<PyLong>());
 
-            let t = PyBool::new(py, true);
+            let t = PyBool::new_bound(py, true);
             assert!(t.is_instance_of::<PyLong>());
             assert!(!t.is_exact_instance_of::<PyLong>());
             assert!(t.is_exact_instance_of::<PyBool>());
@@ -2543,10 +2543,12 @@ class SimpleClass:
     #[test]
     fn test_any_is_exact_instance() {
         Python::with_gil(|py| {
-            let t = PyBool::new(py, true);
-            assert!(t.is_instance(py.get_type::<PyLong>()).unwrap());
-            assert!(!t.is_exact_instance(py.get_type::<PyLong>()));
-            assert!(t.is_exact_instance(py.get_type::<PyBool>()));
+            let t = PyBool::new_bound(py, true);
+            assert!(t
+                .is_instance(&py.get_type::<PyLong>().as_borrowed())
+                .unwrap());
+            assert!(!t.is_exact_instance(&py.get_type::<PyLong>().as_borrowed()));
+            assert!(t.is_exact_instance(&py.get_type::<PyBool>().as_borrowed()));
         });
     }
 
