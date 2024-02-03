@@ -11,7 +11,7 @@ pyobject_native_type_extract!(PyNone);
 impl PyNone {
     /// Returns the `None` object.
     #[inline]
-    pub fn get<'py>(py: Python<'py>) -> Borrowed<'py, 'py, PyNone> {
+    pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
         unsafe {
             let bound = ffi::Py_None().assume_borrowed(py);
             std::mem::transmute(bound)
