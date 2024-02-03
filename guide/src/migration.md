@@ -108,7 +108,7 @@ After:
 # use pyo3::prelude::*;
 Python::with_gil(|py| {
     // For uses needing a PyObject, add `.into()`
-    let a: PyObject = py.None().into();
+    let a: PyObject = py.None().into_py(py);
 
     // For uses needing &PyAny, remove `.as_ref(py)`
     let b: &PyAny = py.None();

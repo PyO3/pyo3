@@ -123,7 +123,7 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, FromPyPointer, IntoPy, Py, PyObject, PyTypeCheck, PyTypeInfo};
+use crate::{ffi, Borrowed, FromPyPointer, IntoPy, Py, PyObject, PyTypeCheck, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -698,7 +698,7 @@ impl<'py> Python<'py> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> &'py PyNone {
+    pub fn None(self) -> Borrowed<'py, 'py, PyNone> {
         PyNone::get(self)
     }
 

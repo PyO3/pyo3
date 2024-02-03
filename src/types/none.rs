@@ -1,4 +1,5 @@
-use crate::{ffi, IntoPy, PyAny, PyObject, PyTypeInfo, Python, ToPyObject};
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::{ffi, Borrowed, IntoPy, PyAny, PyObject, PyTypeInfo, Python, ToPyObject};
 
 /// Represents the Python `None` object.
 #[repr(transparent)]
@@ -10,8 +11,11 @@ pyobject_native_type_extract!(PyNone);
 impl PyNone {
     /// Returns the `None` object.
     #[inline]
-    pub fn get(py: Python<'_>) -> &PyNone {
-        unsafe { py.from_borrowed_ptr(ffi::Py_None()) }
+    pub fn get<'py>(py: Python<'py>) -> Borrowed<'py, 'py, PyNone> {
+        unsafe {
+            let bound = ffi::Py_None().assume_borrowed(py);
+            std::mem::transmute(bound)
+        }
     }
 }
 
@@ -32,29 +36,30 @@ unsafe impl PyTypeInfo for PyNone {
 
     #[inline]
     fn is_exact_type_of(object: &PyAny) -> bool {
-        object.is(Self::get(object.py()))
+        let none = Self::get(object.py());
+        object.is(none.as_ref())
     }
 }
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into()
+        PyNone::get(py).into_py(py)
     }
 }
 
 impl IntoPy<PyObject> for () {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into()
+        PyNone::get(py).into_py(py)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::types::any::PyAnyMethods;
     use crate::types::{PyDict, PyNone};
     use crate::{IntoPy, PyObject, PyTypeInfo, Python, ToPyObject};
-
     #[test]
     fn test_none_is_itself() {
         Python::with_gil(|py| {

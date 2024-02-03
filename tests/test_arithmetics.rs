@@ -556,7 +556,7 @@ mod return_not_implemented {
         }
 
         fn __richcmp__(&self, other: PyRef<'_, Self>, _op: CompareOp) -> PyObject {
-            other.py().None().into()
+            other.py().None().into_py(other.py())
         }
 
         fn __add__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
