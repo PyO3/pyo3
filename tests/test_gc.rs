@@ -89,7 +89,7 @@ impl GcIntegration {
 
     fn __clear__(&mut self) {
         Python::with_gil(|py| {
-            self.self_ref = py.None().into();
+            self.self_ref = py.None();
         });
     }
 }
@@ -102,7 +102,7 @@ fn gc_integration() {
         let inst = PyCell::new(
             py,
             GcIntegration {
-                self_ref: py.None().into(),
+                self_ref: py.None(),
                 dropped: TestDropCall {
                     drop_called: Arc::clone(&drop_called),
                 },
@@ -286,9 +286,7 @@ struct PartialTraverse {
 
 impl PartialTraverse {
     fn new(py: Python<'_>) -> Self {
-        Self {
-            member: py.None().into(),
-        }
+        Self { member: py.None() }
     }
 }
 
@@ -324,9 +322,7 @@ struct PanickyTraverse {
 
 impl PanickyTraverse {
     fn new(py: Python<'_>) -> Self {
-        Self {
-            member: py.None().into(),
-        }
+        Self { member: py.None() }
     }
 }
 

@@ -486,7 +486,7 @@ impl RichComparisons2 {
         match op {
             CompareOp::Eq => true.into_py(other.py()),
             CompareOp::Ne => false.into_py(other.py()),
-            _ => other.py().NotImplemented().into(),
+            _ => other.py().NotImplemented(),
         }
     }
 }
@@ -556,7 +556,7 @@ mod return_not_implemented {
         }
 
         fn __richcmp__(&self, other: PyRef<'_, Self>, _op: CompareOp) -> PyObject {
-            other.py().None().into()
+            other.py().None()
         }
 
         fn __add__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
