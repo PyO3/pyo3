@@ -566,6 +566,7 @@ fn timezone_utc(py: Python<'_>) -> &PyAny {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::any::PyAnyMethods;
     use crate::{types::PyTuple, Py};
     use std::{cmp::Ordering, panic};
 
