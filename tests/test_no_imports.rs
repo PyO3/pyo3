@@ -2,12 +2,10 @@
 
 #![cfg(feature = "macros")]
 
-use pyo3::IntoPy;
-
 #[pyo3::pyfunction]
 #[pyo3(name = "identity", signature = (x = None))]
 fn basic_function(py: pyo3::Python<'_>, x: Option<pyo3::PyObject>) -> pyo3::PyObject {
-    x.unwrap_or_else(|| py.None().into_py(py))
+    x.unwrap_or_else(|| py.None())
 }
 
 #[pyo3::pymodule]

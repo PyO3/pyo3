@@ -743,7 +743,7 @@ fn impl_simple_enum(
                             return Ok((self_val == other.__pyo3__int__()).to_object(py));
                         }
 
-                        return Ok(::std::convert::Into::into(py.NotImplemented()));
+                        return Ok(py.NotImplemented());
                     }
                     _pyo3::basic::CompareOp::Ne => {
                         let self_val = self.__pyo3__int__();
@@ -754,9 +754,9 @@ fn impl_simple_enum(
                             return Ok((self_val != other.__pyo3__int__()).to_object(py));
                         }
 
-                        return Ok(::std::convert::Into::into(py.NotImplemented()));
+                        return Ok(py.NotImplemented());
                     }
-                    _ => Ok(::std::convert::Into::into(py.NotImplemented())),
+                    _ => Ok(py.NotImplemented()),
                 }
             }
         };

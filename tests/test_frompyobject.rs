@@ -352,7 +352,7 @@ fn test_enum() {
             _ => panic!("Expected extracting Foo::TransparentTuple, got {:?}", f),
         }
         let none = py.None();
-        let f = Foo::extract_bound(none.as_ref()).expect("Failed to extract Foo from int");
+        let f = Foo::extract(none.as_ref(py)).expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentStructVar { a } => assert!(a.is_none()),
             _ => panic!("Expected extracting Foo::TransparentStructVar, got {:?}", f),

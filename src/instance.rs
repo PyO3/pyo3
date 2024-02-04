@@ -321,6 +321,14 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
     }
+
+    /// Converts this `PyAny` to a concrete Python type without checking validity.
+    ///
+    /// # Safety
+    /// Callers must ensure that the type is valid or risk type confusion.
+    pub(crate) unsafe fn downcast_unchecked<T>(self) -> Borrowed<'a, 'py, T> {
+        Borrowed(self.0, PhantomData, self.2)
+    }
 }
 
 impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {

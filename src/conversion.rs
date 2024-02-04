@@ -141,7 +141,7 @@ pub trait ToPyObject {
 ///         match self {
 ///             Self::Integer(val) => val.into_py(py),
 ///             Self::String(val) => val.into_py(py),
-///             Self::None => py.None().into_py(py),
+///             Self::None => py.None(),
 ///         }
 ///     }
 /// }
@@ -266,7 +266,7 @@ where
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_ref()
-            .map_or_else(|| py.None().into_py(py), |val| val.to_object(py))
+            .map_or_else(|| py.None(), |val| val.to_object(py))
     }
 }
 
@@ -275,7 +275,7 @@ where
     T: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.map_or_else(|| py.None().into_py(py), |val| val.into_py(py))
+        self.map_or_else(|| py.None(), |val| val.into_py(py))
     }
 }
 
@@ -593,7 +593,6 @@ mod test_no_clone {}
 
 #[cfg(test)]
 mod tests {
-    use crate::conversion::IntoPy;
     use crate::{PyObject, Python};
 
     #[allow(deprecated)]
@@ -648,13 +647,13 @@ mod tests {
             assert_eq!(option.as_ptr(), std::ptr::null_mut());
 
             let none = py.None();
-            option = Some(none.into_py(py));
+            option = Some(none.clone());
 
-            let ref_cnt = none.into_py(py).get_refcnt(py);
+            let ref_cnt = none.get_refcnt(py);
             assert_eq!(option.as_ptr(), none.as_ptr());
 
             // Ensure ref count not changed by as_ptr call
-            assert_eq!(none.into_py(py).get_refcnt(py), ref_cnt);
+            assert_eq!(none.get_refcnt(py), ref_cnt);
         });
     }
 }

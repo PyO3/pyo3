@@ -219,7 +219,7 @@ impl PyErr {
         } else {
             // Assume obj is Type[Exception]; let later normalization handle if this
             // is not the case
-            PyErrState::lazy(obj, Option::<PyObject>::None)
+            PyErrState::lazy(obj, obj.py().None())
         };
 
         PyErr::from_state(state)

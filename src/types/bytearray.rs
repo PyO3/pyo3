@@ -596,7 +596,7 @@ mod tests {
     #[test]
     fn test_from_err() {
         Python::with_gil(|py| {
-            if let Err(err) = PyByteArray::from_bound(&py.None().as_borrowed()) {
+            if let Err(err) = PyByteArray::from_bound(py.None().bind(py)) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
                 panic!("error");
