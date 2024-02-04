@@ -93,7 +93,7 @@ fn sequence_from_tuple(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
         let tuple = PyTuple::new_bound(py, 0..LEN).to_object(py);
-        b.iter(|| tuple.extract::<&PySequence>(py).unwrap());
+        b.iter(|| tuple.downcast::<PySequence>(py).unwrap());
     });
 }
 

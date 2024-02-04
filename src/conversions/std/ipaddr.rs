@@ -1,12 +1,15 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use crate::exceptions::PyValueError;
+use crate::instance::Bound;
 use crate::sync::GILOnceCell;
+use crate::types::any::PyAnyMethods;
+use crate::types::string::PyStringMethods;
 use crate::types::PyType;
 use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
 
 impl FromPyObject<'_> for IpAddr {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         match obj.getattr(intern!(obj.py(), "packed")) {
             Ok(packed) => {
                 if let Ok(packed) = packed.extract::<[u8; 4]>() {
@@ -19,7 +22,7 @@ impl FromPyObject<'_> for IpAddr {
             }
             Err(_) => {
                 // We don't have a .packed attribute, so we try to construct an IP from str().
-                obj.str()?.to_str()?.parse().map_err(PyValueError::new_err)
+                obj.str()?.to_cow()?.parse().map_err(PyValueError::new_err)
             }
         }
     }

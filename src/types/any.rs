@@ -801,9 +801,9 @@ impl PyAny {
     ///
     /// This is a wrapper function around [`FromPyObject::extract()`].
     #[inline]
-    pub fn extract<'a, D>(&'a self) -> PyResult<D>
+    pub fn extract<'py, D>(&'py self) -> PyResult<D>
     where
-        D: FromPyObject<'a>,
+        D: FromPyObject<'py>,
     {
         FromPyObject::extract(self)
     }

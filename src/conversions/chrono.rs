@@ -42,7 +42,6 @@
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::sync::GILOnceCell;
-#[cfg(not(Py_LIMITED_API))]
 use crate::types::any::PyAnyMethods;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::timezone_from_offset;
@@ -52,9 +51,9 @@ use crate::types::{
     PyTzInfo, PyTzInfoAccess,
 };
 #[cfg(Py_LIMITED_API)]
-use crate::{intern, PyDowncastError};
+use crate::{intern, DowncastError};
 use crate::{
-    FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
+    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
 };
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
@@ -109,14 +108,14 @@ impl IntoPy<PyObject> for Duration {
 }
 
 impl FromPyObject<'_> for Duration {
-    fn extract(ob: &PyAny) -> PyResult<Duration> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
         // Python size are much lower than rust size so we do not need bound checks.
         // 0 <= microseconds < 1000000
         // 0 <= seconds < 3600*24
         // -999999999 <= days <= 999999999
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
-            let delta: &PyDelta = ob.downcast()?;
+            let delta = ob.downcast::<PyDelta>()?;
             (
                 delta.get_days().into(),
                 delta.get_seconds().into(),
@@ -166,10 +165,10 @@ impl IntoPy<PyObject> for NaiveDate {
 }
 
 impl FromPyObject<'_> for NaiveDate {
-    fn extract(ob: &PyAny) -> PyResult<NaiveDate> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
         #[cfg(not(Py_LIMITED_API))]
         {
-            let date: &PyDate = ob.downcast()?;
+            let date = ob.downcast::<PyDate>()?;
             py_date_to_naive_date(date)
         }
         #[cfg(Py_LIMITED_API)]
@@ -211,10 +210,10 @@ impl IntoPy<PyObject> for NaiveTime {
 }
 
 impl FromPyObject<'_> for NaiveTime {
-    fn extract(ob: &PyAny) -> PyResult<NaiveTime> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
         #[cfg(not(Py_LIMITED_API))]
         {
-            let time: &PyTime = ob.downcast()?;
+            let time = ob.downcast::<PyTime>()?;
             py_time_to_naive_time(time)
         }
         #[cfg(Py_LIMITED_API)]
@@ -238,9 +237,9 @@ impl IntoPy<PyObject> for NaiveDateTime {
 }
 
 impl FromPyObject<'_> for NaiveDateTime {
-    fn extract(dt: &PyAny) -> PyResult<NaiveDateTime> {
+    fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<NaiveDateTime> {
         #[cfg(not(Py_LIMITED_API))]
-        let dt: &PyDateTime = dt.downcast()?;
+        let dt = dt.downcast::<PyDateTime>()?;
         #[cfg(Py_LIMITED_API)]
         check_type(dt, &DatetimeTypes::get(dt.py()).datetime, "PyDateTime")?;
 
@@ -276,10 +275,10 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     }
 }
 
-impl<Tz: TimeZone + for<'a> FromPyObject<'a>> FromPyObject<'_> for DateTime<Tz> {
-    fn extract(dt: &PyAny) -> PyResult<DateTime<Tz>> {
+impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz> {
+    fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<DateTime<Tz>> {
         #[cfg(not(Py_LIMITED_API))]
-        let dt: &PyDateTime = dt.downcast()?;
+        let dt = dt.downcast::<PyDateTime>()?;
         #[cfg(Py_LIMITED_API)]
         check_type(dt, &DatetimeTypes::get(dt.py()).datetime, "PyDateTime")?;
 
@@ -339,7 +338,7 @@ impl FromPyObject<'_> for FixedOffset {
     ///
     /// Note that the conversion will result in precision lost in microseconds as chrono offset
     /// does not supports microseconds.
-    fn extract(ob: &PyAny) -> PyResult<FixedOffset> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<FixedOffset> {
         #[cfg(not(Py_LIMITED_API))]
         let ob: &PyTzInfo = ob.extract()?;
         #[cfg(Py_LIMITED_API)]
@@ -378,7 +377,7 @@ impl IntoPy<PyObject> for Utc {
 }
 
 impl FromPyObject<'_> for Utc {
-    fn extract(ob: &PyAny) -> PyResult<Utc> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
         let py_utc = timezone_utc(ob.py());
         if ob.eq(py_utc)? {
             Ok(Utc)
@@ -480,7 +479,7 @@ fn py_date_to_naive_date(py_date: &impl PyDateAccess) -> PyResult<NaiveDate> {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn py_date_to_naive_date(py_date: &PyAny) -> PyResult<NaiveDate> {
+fn py_date_to_naive_date(py_date: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
     NaiveDate::from_ymd_opt(
         py_date.getattr(intern!(py_date.py(), "year"))?.extract()?,
         py_date.getattr(intern!(py_date.py(), "month"))?.extract()?,
@@ -501,7 +500,7 @@ fn py_time_to_naive_time(py_time: &impl PyTimeAccess) -> PyResult<NaiveTime> {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn py_time_to_naive_time(py_time: &PyAny) -> PyResult<NaiveTime> {
+fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
     NaiveTime::from_hms_micro_opt(
         py_time.getattr(intern!(py_time.py(), "hour"))?.extract()?,
         py_time
@@ -518,9 +517,9 @@ fn py_time_to_naive_time(py_time: &PyAny) -> PyResult<NaiveTime> {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn check_type(value: &PyAny, t: &PyObject, type_name: &'static str) -> PyResult<()> {
-    if !value.is_instance(t.as_ref(value.py()))? {
-        return Err(PyDowncastError::new(value, type_name).into());
+fn check_type(value: &Bound<'_, PyAny>, t: &PyObject, type_name: &'static str) -> PyResult<()> {
+    if !value.is_instance(t.bind(value.py()))? {
+        return Err(DowncastError::new(value, type_name).into());
     }
     Ok(())
 }

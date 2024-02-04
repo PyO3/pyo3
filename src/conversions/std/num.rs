@@ -1,7 +1,9 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::types::any::PyAnyMethods;
 use crate::{
-    exceptions, ffi, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    exceptions, ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use std::convert::TryFrom;
 use std::num::{
@@ -29,8 +31,8 @@ macro_rules! int_fits_larger_int {
             }
         }
 
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        impl FromPyObject<'_> for $rust_type {
+            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -94,8 +96,8 @@ macro_rules! int_convert_u64_or_i64 {
                 TypeInfo::builtin("int")
             }
         }
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<$rust_type> {
+        impl FromPyObject<'_> for $rust_type {
+            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
             }
 
@@ -125,8 +127,8 @@ macro_rules! int_fits_c_long {
             }
         }
 
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        impl<'py> FromPyObject<'py> for $rust_type {
+            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -210,8 +212,8 @@ mod fast_128bit_int_conversion {
                 }
             }
 
-            impl<'source> FromPyObject<'source> for $rust_type {
-                fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+            impl FromPyObject<'_> for $rust_type {
+                fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                     let num = unsafe {
                         PyObject::from_owned_ptr_or_err(ob.py(), ffi::PyNumber_Index(ob.as_ptr()))?
                     };
@@ -279,8 +281,8 @@ mod slow_128bit_int_conversion {
                 }
             }
 
-            impl<'source> FromPyObject<'source> for $rust_type {
-                fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+            impl FromPyObject<'_> for $rust_type {
+                fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                     let py = ob.py();
                     unsafe {
                         let lower = err_if_invalid_value(
@@ -338,8 +340,8 @@ macro_rules! nonzero_int_impl {
             }
         }
 
-        impl<'source> FromPyObject<'source> for $nonzero_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        impl FromPyObject<'_> for $nonzero_type {
+            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: $primitive_type = obj.extract()?;
                 <$nonzero_type>::try_from(val)
                     .map_err(|_| exceptions::PyValueError::new_err("invalid zero value"))

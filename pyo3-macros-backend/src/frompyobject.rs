@@ -568,8 +568,8 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let lt_param = if let Some(lt) = verify_and_get_lifetime(generics)? {
         lt.clone()
     } else {
-        trait_generics.params.push(parse_quote!('source));
-        parse_quote!('source)
+        trait_generics.params.push(parse_quote!('py));
+        parse_quote!('py)
     };
     let mut where_clause: syn::WhereClause = parse_quote!(where);
     for param in generics.type_params() {

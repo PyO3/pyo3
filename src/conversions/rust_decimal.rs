@@ -51,18 +51,22 @@
 
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
+use crate::types::any::PyAnyMethods;
+use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
 impl FromPyObject<'_> for Decimal {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         // use the string representation to not be lossy
         if let Ok(val) = obj.extract() {
             Ok(Decimal::new(val, 0))
         } else {
-            Decimal::from_str(obj.str()?.to_str()?)
+            Decimal::from_str(&obj.str()?.to_cow()?)
                 .map_err(|e| PyValueError::new_err(e.to_string()))
         }
     }
@@ -131,7 +135,7 @@ mod test_rust_decimal {
                     .unwrap();
                     // Checks if Python Decimal -> Rust Decimal conversion is correct
                     let py_dec = locals.get_item("py_dec").unwrap().unwrap();
-                    let py_result: Decimal = FromPyObject::extract(py_dec).unwrap();
+                    let py_result: Decimal = py_dec.extract().unwrap();
                     assert_eq!(rs_orig, py_result);
                 })
             }
@@ -193,7 +197,7 @@ mod test_rust_decimal {
             )
             .unwrap();
             let py_dec = locals.get_item("py_dec").unwrap().unwrap();
-            let roundtripped: Result<Decimal, PyErr> = FromPyObject::extract(py_dec);
+            let roundtripped: Result<Decimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
         })
     }
@@ -209,7 +213,7 @@ mod test_rust_decimal {
             )
             .unwrap();
             let py_dec = locals.get_item("py_dec").unwrap().unwrap();
-            let roundtripped: Result<Decimal, PyErr> = FromPyObject::extract(py_dec);
+            let roundtripped: Result<Decimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
         })
     }

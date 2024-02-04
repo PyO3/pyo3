@@ -3,6 +3,7 @@ use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criter
 use pyo3::types::IntoPyDict;
 use pyo3::{prelude::*, types::PyMapping};
 use std::collections::{BTreeMap, HashMap};
+use std::hint::black_box;
 
 fn iter_dict(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -71,13 +72,12 @@ fn extract_hashbrown_map(b: &mut Bencher<'_>) {
 fn mapping_from_dict(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let dict = (0..LEN as u64)
+        let dict = &(0..LEN as u64)
             .map(|i| (i, i * 2))
             .into_py_dict(py)
-            .to_object(py);
-        b.iter(|| {
-            let _: &PyMapping = dict.extract(py).unwrap();
-        });
+            .to_object(py)
+            .into_bound(py);
+        b.iter(|| black_box(dict).downcast::<PyMapping>().unwrap());
     });
 }
 
