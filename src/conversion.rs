@@ -629,14 +629,14 @@ mod tests {
             });
         }
 
-        // #[test]
-        // fn test_try_from_unchecked() {
-        //     Python::with_gil(|py| {
-        //         let list = PyList::new(py, [1, 2, 3]);
-        //         let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-        //         assert!(list.is(val));
-        //     });
-        // }
+        #[test]
+        fn test_try_from_unchecked() {
+            Python::with_gil(|py| {
+                let list = PyList::new(py, [1, 2, 3]);
+                let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
+                assert!(list.is(val));
+            });
+        }
     }
 
     #[test]
