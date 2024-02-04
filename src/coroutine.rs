@@ -118,7 +118,7 @@ impl Coroutine {
         }
         // if waker has been waken during future polling, this is roughly equivalent to
         // `await asyncio.sleep(0)`, so just yield `None`.
-        Ok(py.None().into())
+        Ok(py.None().into_py(py))
     }
 }
 
