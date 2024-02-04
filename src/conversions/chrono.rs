@@ -275,7 +275,7 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     }
 }
 
-impl<Tz: TimeZone + for<'a> FromPyObject<'a>> FromPyObject<'_> for DateTime<Tz> {
+impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz> {
     fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<DateTime<Tz>> {
         #[cfg(not(Py_LIMITED_API))]
         let dt = dt.downcast::<PyDateTime>()?;

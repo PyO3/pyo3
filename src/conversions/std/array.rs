@@ -45,18 +45,18 @@ where
     }
 }
 
-impl<'a, T, const N: usize> FromPyObject<'a> for [T; N]
+impl<'py, T, const N: usize> FromPyObject<'py> for [T; N]
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'py>,
 {
-    fn extract_bound(obj: &Bound<'a, PyAny>) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         create_array_from_obj(obj)
     }
 }
 
-fn create_array_from_obj<'s, T, const N: usize>(obj: &Bound<'s, PyAny>) -> PyResult<[T; N]>
+fn create_array_from_obj<'py, T, const N: usize>(obj: &Bound<'py, PyAny>) -> PyResult<[T; N]>
 where
-    T: FromPyObject<'s>,
+    T: FromPyObject<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.

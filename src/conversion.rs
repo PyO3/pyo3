@@ -209,7 +209,7 @@ pub trait IntoPy<T>: Sized {
 /// depend on the lifetime of the `obj` or the `prepared` variable.
 ///
 /// For example, when extracting `&str` from a Python byte string, the resulting string slice will
-/// point to the existing string data (lifetime: `'source`).
+/// point to the existing string data (lifetime: `'py`).
 /// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
 /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
 /// Since which case applies depends on the runtime type of the Python object,
@@ -219,12 +219,12 @@ pub trait IntoPy<T>: Sized {
 /// has two methods `extract` and `extract_bound` which are defaulted to call each other. To avoid
 /// infinite recursion, implementors must implement at least one of these methods. The recommendation
 /// is to implement `extract_bound` and leave `extract` as the default implementation.
-pub trait FromPyObject<'source>: Sized {
+pub trait FromPyObject<'py>: Sized {
     /// Extracts `Self` from the source GIL Ref `obj`.
     ///
     /// Implementors are encouraged to implement `extract_bound` and leave this method as the
     /// default implementation, which will forward calls to `extract_bound`.
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
         Self::extract_bound(&ob.as_borrowed())
     }
 
@@ -232,7 +232,7 @@ pub trait FromPyObject<'source>: Sized {
     ///
     /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
     /// this will be most compatible with PyO3's future API.
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         Self::extract(ob.clone().into_gil_ref())
     }
 
@@ -308,56 +308,56 @@ impl<T: Copy + IntoPy<PyObject>> IntoPy<PyObject> for Cell<T> {
     }
 }
 
-impl<'a, T: FromPyObject<'a>> FromPyObject<'a> for Cell<T> {
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+impl<'py, T: FromPyObject<'py>> FromPyObject<'py> for Cell<T> {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
         T::extract(ob).map(Cell::new)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for &'a PyCell<T>
+impl<'py, T> FromPyObject<'py> for &'py PyCell<T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         obj.downcast().map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for T
+impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         let cell: &PyCell<Self> = obj.downcast()?;
         Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
     }
 }
 
-impl<'a, T> FromPyObject<'a> for PyRef<'a, T>
+impl<'py, T> FromPyObject<'py> for PyRef<'py, T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         let cell: &PyCell<T> = obj.downcast()?;
         cell.try_borrow().map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
+impl<'py, T> FromPyObject<'py> for PyRefMut<'py, T>
 where
     T: PyClass<Frozen = False>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         let cell: &PyCell<T> = obj.downcast()?;
         cell.try_borrow_mut().map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Option<T>
+impl<'py, T> FromPyObject<'py> for Option<T>
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {

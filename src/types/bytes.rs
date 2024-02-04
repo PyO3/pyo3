@@ -203,8 +203,8 @@ impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
 /// If the source object is a `bytes` object, the `Cow` will be borrowed and
 /// pointing into the source object, and no copying or heap allocations will happen.
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
-impl<'source> FromPyObject<'source> for Cow<'source, [u8]> {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for Cow<'py, [u8]> {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
         if let Ok(bytes) = ob.downcast::<PyBytes>() {
             return Ok(Cow::Borrowed(bytes.as_bytes()));
         }

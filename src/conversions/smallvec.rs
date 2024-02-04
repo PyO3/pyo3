@@ -54,12 +54,12 @@ where
     }
 }
 
-impl<'a, A> FromPyObject<'a> for SmallVec<A>
+impl<'py, A> FromPyObject<'py> for SmallVec<A>
 where
     A: Array,
-    A::Item: FromPyObject<'a>,
+    A::Item: FromPyObject<'py>,
 {
-    fn extract_bound(obj: &Bound<'a, PyAny>) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `SmallVec`"));
         }
@@ -72,10 +72,10 @@ where
     }
 }
 
-fn extract_sequence<'s, A>(obj: &Bound<'s, PyAny>) -> PyResult<SmallVec<A>>
+fn extract_sequence<'py, A>(obj: &Bound<'py, PyAny>) -> PyResult<SmallVec<A>>
 where
     A: Array,
-    A::Item: FromPyObject<'s>,
+    A::Item: FromPyObject<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.

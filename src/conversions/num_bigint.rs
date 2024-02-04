@@ -111,8 +111,8 @@ bigint_conversion!(BigUint, 0, BigUint::to_bytes_le);
 bigint_conversion!(BigInt, 1, BigInt::to_signed_bytes_le);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-impl<'source> FromPyObject<'source> for BigInt {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<BigInt> {
+impl<'py> FromPyObject<'py> for BigInt {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigInt> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyLong>;
@@ -159,8 +159,8 @@ impl<'source> FromPyObject<'source> for BigInt {
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-impl<'source> FromPyObject<'source> for BigUint {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<BigUint> {
+impl<'py> FromPyObject<'py> for BigUint {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigUint> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyLong>;

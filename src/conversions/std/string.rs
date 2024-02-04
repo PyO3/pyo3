@@ -114,8 +114,8 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> FromPyObject<'source> for &'source str {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for &'py str {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
     }
 

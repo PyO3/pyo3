@@ -127,7 +127,7 @@ macro_rules! int_fits_c_long {
             }
         }
 
-        impl<'source> FromPyObject<'source> for $rust_type {
+        impl<'py> FromPyObject<'py> for $rust_type {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
                 <$rust_type>::try_from(val)

@@ -82,13 +82,13 @@ where
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-impl<'source, L, R> FromPyObject<'source> for Either<L, R>
+impl<'py, L, R> FromPyObject<'py> for Either<L, R>
 where
-    L: FromPyObject<'source>,
-    R: FromPyObject<'source>,
+    L: FromPyObject<'py>,
+    R: FromPyObject<'py>,
 {
     #[inline]
-    fn extract_bound(obj: &Bound<'source, PyAny>) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if let Ok(l) = obj.extract::<L>() {
             Ok(Either::Left(l))
         } else if let Ok(r) = obj.extract::<R>() {

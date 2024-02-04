@@ -479,11 +479,11 @@ fn sequence_slice(seq: &PySequence, start: usize, end: usize) -> &PySequence {
 
 index_impls!(PySequence, "sequence", sequence_len, sequence_slice);
 
-impl<'a, T> FromPyObject<'a> for Vec<T>
+impl<'py, T> FromPyObject<'py> for Vec<T>
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'py>,
 {
-    fn extract_bound(obj: &Bound<'a, PyAny>) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
@@ -496,9 +496,9 @@ where
     }
 }
 
-fn extract_sequence<'s, T>(obj: &Bound<'s, PyAny>) -> PyResult<Vec<T>>
+fn extract_sequence<'py, T>(obj: &Bound<'py, PyAny>) -> PyResult<Vec<T>>
 where
-    T: FromPyObject<'s>,
+    T: FromPyObject<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.

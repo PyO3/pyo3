@@ -51,12 +51,12 @@ where
     }
 }
 
-impl<'source, K, S> FromPyObject<'source> for collections::HashSet<K, S>
+impl<'py, K, S> FromPyObject<'py> for collections::HashSet<K, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
+    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
             Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
@@ -91,11 +91,11 @@ where
     }
 }
 
-impl<'source, K> FromPyObject<'source> for collections::BTreeSet<K>
+impl<'py, K> FromPyObject<'py> for collections::BTreeSet<K>
 where
-    K: FromPyObject<'source> + cmp::Ord,
+    K: FromPyObject<'py> + cmp::Ord,
 {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
             Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {

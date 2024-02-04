@@ -13,8 +13,8 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
     }
 }
 
-impl<'a> FromPyObject<'a> for &'a [u8] {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for &'py [u8] {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         Ok(obj.downcast::<PyBytes>()?.as_bytes())
     }
 

@@ -666,8 +666,8 @@ fn type_output() -> TypeInfo {
         }
     }
 
-    impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract_bound(obj: &Bound<'s, PyAny>) -> PyResult<Self>
+    impl<'py, $($T: FromPyObject<'py>),+> FromPyObject<'py> for ($($T,)+) {
+        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
         {
             let t = obj.downcast::<PyTuple>()?;
             if t.len() == $length {

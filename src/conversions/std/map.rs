@@ -67,13 +67,13 @@ where
     }
 }
 
-impl<'source, K, V, S> FromPyObject<'source> for collections::HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'py> for collections::HashMap<K, V, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObject<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> Result<Self, PyErr> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
@@ -88,12 +88,12 @@ where
     }
 }
 
-impl<'source, K, V> FromPyObject<'source> for collections::BTreeMap<K, V>
+impl<'py, K, V> FromPyObject<'py> for collections::BTreeMap<K, V>
 where
-    K: FromPyObject<'source> + cmp::Ord,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'py> + cmp::Ord,
+    V: FromPyObject<'py>,
 {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> Result<Self, PyErr> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
         for (k, v) in dict.iter() {

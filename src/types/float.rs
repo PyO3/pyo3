@@ -95,10 +95,10 @@ impl IntoPy<PyObject> for f64 {
     }
 }
 
-impl<'source> FromPyObject<'source> for f64 {
+impl<'py> FromPyObject<'py> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #![allow(clippy::float_cmp)]
-    fn extract_bound(obj: &Bound<'source, PyAny>) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
@@ -142,8 +142,8 @@ impl IntoPy<PyObject> for f32 {
     }
 }
 
-impl<'source> FromPyObject<'source> for f32 {
-    fn extract_bound(obj: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for f32 {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
 
