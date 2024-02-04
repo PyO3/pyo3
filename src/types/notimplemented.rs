@@ -1,4 +1,4 @@
-use crate::{ffi, PyAny, PyTypeInfo, Python};
+use crate::{ffi, ffi_ptr_ext::FfiPtrExt, Borrowed, PyAny, PyTypeInfo, Python};
 
 /// Represents the Python `NotImplemented` object.
 #[repr(transparent)]
@@ -9,9 +9,26 @@ pyobject_native_type_extract!(PyNotImplemented);
 
 impl PyNotImplemented {
     /// Returns the `NotImplemented` object.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyNotImplemented::get` will be replaced by `PyNotImplemented::get_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     pub fn get(py: Python<'_>) -> &PyNotImplemented {
         unsafe { py.from_borrowed_ptr(ffi::Py_NotImplemented()) }
+    }
+
+    /// Returns the `NotImplemented` object.
+    #[inline]
+    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
+        unsafe {
+            ffi::Py_NotImplemented()
+                .assume_borrowed(py)
+                .downcast_unchecked()
+        }
     }
 }
 
@@ -31,27 +48,28 @@ unsafe impl PyTypeInfo for PyNotImplemented {
 
     #[inline]
     fn is_exact_type_of(object: &PyAny) -> bool {
-        object.is(Self::get(object.py()))
+        object.is(Self::get_bound(object.py()).as_ref())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::types::any::PyAnyMethods;
     use crate::types::{PyDict, PyNotImplemented};
     use crate::{PyTypeInfo, Python};
 
     #[test]
     fn test_notimplemented_is_itself() {
         Python::with_gil(|py| {
-            assert!(PyNotImplemented::get(py).is_instance_of::<PyNotImplemented>());
-            assert!(PyNotImplemented::get(py).is_exact_instance_of::<PyNotImplemented>());
+            assert!(PyNotImplemented::get_bound(py).is_instance_of::<PyNotImplemented>());
+            assert!(PyNotImplemented::get_bound(py).is_exact_instance_of::<PyNotImplemented>());
         })
     }
 
     #[test]
     fn test_notimplemented_type_object_consistent() {
         Python::with_gil(|py| {
-            assert!(PyNotImplemented::get(py)
+            assert!(PyNotImplemented::get_bound(py)
                 .get_type()
                 .is(PyNotImplemented::type_object(py)));
         })
