@@ -10,12 +10,23 @@ pyobject_native_type_extract!(PyNone);
 
 impl PyNone {
     /// Returns the `None` object.
+    /// Deprecated form of [`PyNone::get_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyNone::get` will be replaced by `PyBool::get_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
-    pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
-        unsafe {
-            let bound = ffi::Py_None().assume_borrowed(py);
-            std::mem::transmute(bound)
-        }
+    pub fn get(py: Python<'_>) -> &PyNone {
+        unsafe { py.from_borrowed_ptr(ffi::Py_None()) }
+    }
+
+    /// Returns the `None` object.
+    #[inline]
+    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
+        unsafe { ffi::Py_None().assume_borrowed(py).downcast_unchecked() }
     }
 }
 
@@ -36,7 +47,7 @@ unsafe impl PyTypeInfo for PyNone {
 
     #[inline]
     fn is_exact_type_of(object: &PyAny) -> bool {
-        let none = Self::get(object.py());
+        let none = Self::get_bound(object.py());
         object.is(none.as_ref())
     }
 }
@@ -44,14 +55,14 @@ unsafe impl PyTypeInfo for PyNone {
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into_py(py)
+        PyNone::get_bound(py).into_py(py)
     }
 }
 
 impl IntoPy<PyObject> for () {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into_py(py)
+        PyNone::get_bound(py).into_py(py)
     }
 }
 
@@ -63,22 +74,25 @@ mod tests {
     #[test]
     fn test_none_is_itself() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py).is_instance_of::<PyNone>());
-            assert!(PyNone::get(py).is_exact_instance_of::<PyNone>());
+            assert!(PyNone::get_bound(py).is_instance_of::<PyNone>());
+            assert!(PyNone::get_bound(py).is_exact_instance_of::<PyNone>());
         })
     }
 
     #[test]
     fn test_none_type_object_consistent() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py).get_type().is(PyNone::type_object(py)));
+            assert!(PyNone::get_bound(py).get_type().is(PyNone::type_object(py)));
         })
     }
 
     #[test]
     fn test_none_is_none() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py).downcast::<PyNone>().unwrap().is_none());
+            assert!(PyNone::get_bound(py)
+                .downcast::<PyNone>()
+                .unwrap()
+                .is_none());
         })
     }
 
