@@ -706,14 +706,14 @@ impl<'py> Python<'py> {
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn Ellipsis(self) -> PyObject {
-        PyEllipsis::get(self).into()
+        PyEllipsis::get_bound(self).into_py(self)
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn NotImplemented(self) -> PyObject {
-        PyNotImplemented::get(self).into()
+        PyNotImplemented::get_bound(self).into_py(self)
     }
 
     /// Gets the running Python interpreter version as a string.
