@@ -1443,6 +1443,9 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        // TODO update MSRV past 1.59 and use .cloned() to make
+        // clippy happy
+        #[allow(clippy::map_clone)]
         ob.downcast().map(Clone::clone).map_err(Into::into)
     }
 }
