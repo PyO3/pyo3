@@ -264,13 +264,13 @@ impl Sequence {
         self.values.len()
     }
 
-    fn __getitem__(&self, index: SequenceIndex<'_>) -> PyResult<PyObject> {
+    fn __getitem__(&self, index: SequenceIndex<'_>, py: Python<'_>) -> PyResult<PyObject> {
         match index {
             SequenceIndex::Integer(index) => {
                 let uindex = self.usize_index(index)?;
                 self.values
                     .get(uindex)
-                    .map(Clone::clone)
+                    .map(|o| o.clone_ref(py))
                     .ok_or_else(|| PyIndexError::new_err(index))
             }
             // Just to prove that slicing can be implemented
