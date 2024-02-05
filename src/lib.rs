@@ -426,6 +426,7 @@ pub mod marshal;
 pub mod sync;
 pub mod panic;
 pub mod prelude;
+pub mod py_backed;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
