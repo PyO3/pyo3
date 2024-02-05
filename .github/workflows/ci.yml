@@ -381,11 +381,12 @@ jobs:
         if: steps.should-skip.outputs.skip != 'true'
       - run: nox -s coverage
         if: steps.should-skip.outputs.skip != 'true'
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         if: steps.should-skip.outputs.skip != 'true'
         with:
           file: coverage.json
           name: ${{ matrix.os }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   emscripten:
     name: emscripten
