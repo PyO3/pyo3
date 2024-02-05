@@ -18,7 +18,7 @@ impl PyEllipsis {
     )]
     #[inline]
     pub fn get(py: Python<'_>) -> &PyEllipsis {
-        unsafe { py.from_borrowed_ptr(ffi::Py_Ellipsis()) }
+        Self::get_bound(py).into_gil_ref()
     }
 
     /// Returns the `Ellipsis` object.

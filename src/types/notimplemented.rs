@@ -18,7 +18,7 @@ impl PyNotImplemented {
     )]
     #[inline]
     pub fn get(py: Python<'_>) -> &PyNotImplemented {
-        unsafe { py.from_borrowed_ptr(ffi::Py_NotImplemented()) }
+        Self::get_bound(py).into_gil_ref()
     }
 
     /// Returns the `NotImplemented` object.
