@@ -15,12 +15,12 @@ impl PyNone {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "`PyNone::get` will be replaced by `PyBool::get_bound` in a future PyO3 version"
+            note = "`PyNone::get` will be replaced by `PyNone::get_bound` in a future PyO3 version"
         )
     )]
     #[inline]
     pub fn get(py: Python<'_>) -> &PyNone {
-        unsafe { py.from_borrowed_ptr(ffi::Py_None()) }
+        Self::get_bound(py).into_gil_ref()
     }
 
     /// Returns the `None` object.
