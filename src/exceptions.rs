@@ -800,8 +800,9 @@ pub mod socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{PyErr, Python};
+    use crate::{PyErr, PyNativeType, Python};
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);
@@ -863,13 +864,14 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).as_borrowed();
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
+            let ctx = ctx.as_gil_ref();
             py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
@@ -886,9 +888,9 @@ mod tests {
         create_exception!(mymodule.exceptions, CustomError, PyException);
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).as_borrowed();
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -905,13 +907,14 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).as_borrowed();
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
+            let ctx = ctx.as_gil_ref();
             py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
@@ -934,13 +937,14 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py).as_borrowed();
             let type_description: String = py
-                .eval("str(CustomError)", None, Some(ctx))
+                .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
+            let ctx = ctx.as_gil_ref();
             py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
@@ -1077,7 +1081,7 @@ mod tests {
         PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
     });
     test_exception!(PyUnicodeEncodeError, |py| py
-        .eval("chr(40960).encode('ascii')", None, None)
+        .eval_bound("chr(40960).encode('ascii')", None, None)
         .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
         PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))

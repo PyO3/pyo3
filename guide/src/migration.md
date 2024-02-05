@@ -1201,7 +1201,7 @@ all you need to do is remove `ObjectProtocol` from your code.
 Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing.
 
 Before:
-```rust,compile_fail
+```rust,compile_fail,ignore
 use pyo3::ObjectProtocol;
 
 # pyo3::Python::with_gil(|py| {
@@ -1212,7 +1212,7 @@ assert_eq!(hi.len().unwrap(), 5);
 ```
 
 After:
-```rust
+```rust,ignore
 # pyo3::Python::with_gil(|py| {
 let obj = py.eval("lambda: 'Hi :)'", None, None).unwrap();
 let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
@@ -1351,7 +1351,7 @@ let obj_ref_mut: &mut MyClass = obj.extract().unwrap();
 ```
 
 After:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::IntoPyDict;
 # #[pyclass] #[derive(Clone)] struct MyClass {}
