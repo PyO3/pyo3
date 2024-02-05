@@ -211,6 +211,7 @@ impl GILOnceCell<Py<PyType>> {
 /// ```
 /// use pyo3::intern;
 /// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python};
+/// use crate::pyo3::prelude::PyAnyMethods;
 ///
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {

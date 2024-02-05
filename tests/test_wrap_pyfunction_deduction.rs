@@ -5,7 +5,7 @@ use pyo3::{prelude::*, types::PyCFunction};
 #[pyfunction]
 fn f() {}
 
-pub fn add_wrapped(wrapper: &impl Fn(Python<'_>) -> PyResult<&PyCFunction>) {
+pub fn add_wrapped(wrapper: &impl Fn(Python<'_>) -> PyResult<Bound<'_, PyCFunction>>) {
     let _ = wrapper;
 }
 

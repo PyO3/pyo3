@@ -348,7 +348,7 @@ impl PyModule {
     ///
     /// [1]: crate::prelude::pyfunction
     /// [2]: crate::wrap_pyfunction
-    pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
+    pub fn add_function<'a>(&'a self, fun: Bound<'a, PyCFunction>) -> PyResult<()> {
         self.as_borrowed().add_function(&fun.as_borrowed())
     }
 }
