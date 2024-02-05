@@ -386,6 +386,7 @@ jobs:
         with:
           file: coverage.json
           name: ${{ matrix.os }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   emscripten:
     name: emscripten
