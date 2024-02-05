@@ -1,6 +1,8 @@
 use crate::derive_utils::PyFunctionArguments;
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::methods::PyMethodDefDestructor;
 use crate::prelude::*;
+use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
 use crate::{
     ffi,
@@ -17,13 +19,30 @@ pub struct PyCFunction(PyAny);
 pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), #checkfunction=ffi::PyCFunction_Check);
 
 impl PyCFunction {
-    /// Create a new built-in function with keywords (*args and/or **kwargs).
+    /// Deprecated form of [`PyCFunction::new_with_keywords_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyCFunction::new_with_keywords` will be replaced by `PyCFunction::new_with_keywords_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
         name: &'static str,
         doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
+        Self::new_with_keywords_bound(fun, name, doc, py_or_module).map(Bound::into_gil_ref)
+    }
+
+    /// Create a new built-in function with keywords (*args and/or **kwargs).
+    pub fn new_with_keywords_bound<'a>(
+        fun: ffi::PyCFunctionWithKeywords,
+        name: &'static str,
+        doc: &'static str,
+        py_or_module: PyFunctionArguments<'a>,
+    ) -> PyResult<Bound<'a, Self>> {
         Self::internal_new(
             &PyMethodDef::cfunction_with_keywords(
                 name,
@@ -34,17 +53,55 @@ impl PyCFunction {
         )
     }
 
-    /// Create a new built-in function which takes no arguments.
+    /// Deprecated form of [`PyCFunction::new`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyCFunction::new` will be replaced by `PyCFunction::new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new<'a>(
         fun: ffi::PyCFunction,
         name: &'static str,
         doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
+        Self::new_bound(fun, name, doc, py_or_module).map(Bound::into_gil_ref)
+    }
+
+    /// Create a new built-in function which takes no arguments.
+    pub fn new_bound<'a>(
+        fun: ffi::PyCFunction,
+        name: &'static str,
+        doc: &'static str,
+        py_or_module: PyFunctionArguments<'a>,
+    ) -> PyResult<Bound<'a, Self>> {
         Self::internal_new(
             &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
             py_or_module,
         )
+    }
+
+    /// Deprecated form of [`PyCFunction::new_closure`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyCFunction::new_closure` will be replaced by `PyCFunction::new_closure_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn new_closure<'a, F, R>(
+        py: Python<'a>,
+        name: Option<&'static str>,
+        doc: Option<&'static str>,
+        closure: F,
+    ) -> PyResult<&'a PyCFunction>
+    where
+        F: Fn(&PyTuple, Option<&PyDict>) -> R + Send + 'static,
+        R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        Self::new_closure_bound(py, name, doc, closure).map(Bound::into_gil_ref)
     }
 
     /// Create a new function from a closure.
@@ -60,16 +117,16 @@ impl PyCFunction {
     ///         let i = args.extract::<(i64,)>()?.0;
     ///         Ok(i+1)
     ///     };
-    ///     let add_one = PyCFunction::new_closure(py, None, None, add_one).unwrap();
+    ///     let add_one = PyCFunction::new_closure_bound(py, None, None, add_one).unwrap();
     ///     py_run!(py, add_one, "assert add_one(42) == 43");
     /// });
     /// ```
-    pub fn new_closure<'a, F, R>(
+    pub fn new_closure_bound<'a, F, R>(
         py: Python<'a>,
         name: Option<&'static str>,
         doc: Option<&'static str>,
         closure: F,
-    ) -> PyResult<&'a PyCFunction>
+    ) -> PyResult<Bound<'a, Self>>
     where
         F: Fn(&PyTuple, Option<&PyDict>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
@@ -95,11 +152,9 @@ impl PyCFunction {
         let data = unsafe { capsule.reference::<ClosureDestructor<F>>() };
 
         unsafe {
-            py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(
-                data.def.get(),
-                capsule.as_ptr(),
-                std::ptr::null_mut(),
-            ))
+            ffi::PyCFunction_NewEx(data.def.get(), capsule.as_ptr(), std::ptr::null_mut())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 
@@ -107,7 +162,7 @@ impl PyCFunction {
     pub fn internal_new<'py>(
         method_def: &PyMethodDef,
         py_or_module: PyFunctionArguments<'py>,
-    ) -> PyResult<&'py Self> {
+    ) -> PyResult<Bound<'py, Self>> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
@@ -126,11 +181,9 @@ impl PyCFunction {
             .map_or(std::ptr::null_mut(), Py::as_ptr);
 
         unsafe {
-            py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(
-                def,
-                mod_ptr,
-                module_name_ptr,
-            ))
+            ffi::PyCFunction_NewEx(def, mod_ptr, module_name_ptr)
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 }
