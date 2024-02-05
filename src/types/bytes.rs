@@ -1,14 +1,11 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyNativeType, PyResult, Python, ToPyObject};
-use std::borrow::Cow;
+use crate::{ffi, Py, PyAny, PyNativeType, PyResult, Python};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
 use std::str;
-
-use super::bytearray::PyByteArray;
 
 /// Represents a Python `bytes` object.
 ///
@@ -198,34 +195,6 @@ impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
     }
 }
 
-/// Special-purpose trait impl to efficiently handle both `bytes` and `bytearray`
-///
-/// If the source object is a `bytes` object, the `Cow` will be borrowed and
-/// pointing into the source object, and no copying or heap allocations will happen.
-/// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
-impl<'py> FromPyObject<'py> for Cow<'py, [u8]> {
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
-        if let Ok(bytes) = ob.downcast::<PyBytes>() {
-            return Ok(Cow::Borrowed(bytes.as_bytes()));
-        }
-
-        let byte_array = ob.downcast::<PyByteArray>()?;
-        Ok(Cow::Owned(byte_array.to_vec()))
-    }
-}
-
-impl ToPyObject for Cow<'_, [u8]> {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new_bound(py, self.as_ref()).into()
-    }
-}
-
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.to_object(py)
-    }
-}
-
 #[cfg(test)]
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
@@ -257,7 +226,7 @@ mod tests {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
             })?;
-            let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+            let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, b"Hello Rust");
             Ok(())
         })
@@ -267,7 +236,7 @@ mod tests {
     fn test_bytes_new_with_zero_initialised() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
             let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
-            let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+            let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, &[0; 10]);
             Ok(())
         })
@@ -285,30 +254,6 @@ mod tests {
                 .err()
                 .unwrap()
                 .is_instance_of::<PyValueError>(py));
-        });
-    }
-
-    #[test]
-    fn test_cow_impl() {
-        Python::with_gil(|py| {
-            let bytes = py.eval(r#"b"foobar""#, None, None).unwrap();
-            let cow = bytes.extract::<Cow<'_, [u8]>>().unwrap();
-            assert_eq!(cow, Cow::<[u8]>::Borrowed(b"foobar"));
-
-            let byte_array = py.eval(r#"bytearray(b"foobar")"#, None, None).unwrap();
-            let cow = byte_array.extract::<Cow<'_, [u8]>>().unwrap();
-            assert_eq!(cow, Cow::<[u8]>::Owned(b"foobar".to_vec()));
-
-            let something_else_entirely = py.eval("42", None, None).unwrap();
-            something_else_entirely
-                .extract::<Cow<'_, [u8]>>()
-                .unwrap_err();
-
-            let cow = Cow::<[u8]>::Borrowed(b"foobar").to_object(py);
-            assert!(cow.as_ref(py).is_instance_of::<PyBytes>());
-
-            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
-            assert!(cow.as_ref(py).is_instance_of::<PyBytes>());
         });
     }
 }
