@@ -12,14 +12,16 @@ fn _get_subclasses<'py>(
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 
-    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(py);
+    let locals = [(py_type, datetime.getattr(py_type)?)]
+        .into_py_dict(py)
+        .as_borrowed();
 
     let make_subclass_py = format!("class Subklass({}):\n    pass", py_type);
 
     let make_sub_subclass_py = "class SubSubklass(Subklass):\n    pass";
 
-    py.run(&make_subclass_py, None, Some(locals))?;
-    py.run(make_sub_subclass_py, None, Some(locals))?;
+    py.run_bound(&make_subclass_py, None, Some(&locals))?;
+    py.run_bound(make_sub_subclass_py, None, Some(&locals))?;
 
     let locals = locals.as_borrowed();
     // Construct an instance of the base class

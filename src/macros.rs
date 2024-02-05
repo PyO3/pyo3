@@ -104,12 +104,13 @@ macro_rules! py_run_impl {
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
-        if let ::std::result::Result::Err(e) = $py.run($code, None, Some($dict)) {
+        use $crate::PyNativeType;
+        if let ::std::result::Result::Err(e) = $py.run_bound($code, None, Some(&$dict.as_borrowed())) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
-            $py.run("import sys; sys.stderr.flush()", None, None)
+            $py.run_bound("import sys; sys.stderr.flush()", None, None)
                 .unwrap();
             ::std::panic!("{}", $code)
         }

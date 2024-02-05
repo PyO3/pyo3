@@ -20,12 +20,12 @@ fn test_datetime_fromtimestamp() {
             PyDateTime_IMPORT();
             py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr()))
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -41,12 +41,12 @@ fn test_date_fromtimestamp() {
             PyDateTime_IMPORT();
             py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr()))
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert dt == datetime.date.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -61,12 +61,12 @@ fn test_utc_timezone() {
             PyDateTime_IMPORT();
             py.from_borrowed_ptr(PyDateTime_TimeZone_UTC())
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert utc_timezone is datetime.timezone.utc",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })

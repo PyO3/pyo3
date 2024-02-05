@@ -165,18 +165,18 @@ macro_rules! import_exception {
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
-/// #         let locals = pyo3::types::PyDict::new(py);
+/// #         let locals = pyo3::types::PyDict::new_bound(py);
 /// #         locals.set_item("MyError", py.get_type::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
-/// #         py.run(
+/// #         py.run_bound(
 /// # "try:
 /// #     raise_myerror()
 /// # except MyError as e:
 /// #     assert e.__doc__ == 'Some description.'
 /// #     assert str(e) == 'Some error happened.'",
 /// #             None,
-/// #             Some(locals),
+/// #             Some(&locals),
 /// #         )?;
 /// #
 /// #         Ok(())
@@ -338,7 +338,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::Py", $name, ";
 
 Python::with_gil(|py| {
-    let result: PyResult<()> = py.run(\"raise ", $name, "\", None, None);
+    let result: PyResult<()> = py.run_bound(\"raise ", $name, "\", None, None);
 
     let error_type = match result {
         Ok(_) => \"Not an error\",
@@ -816,7 +816,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
-            let d = PyDict::new(py);
+            let d = PyDict::new_bound(py);
             d.set_item("socket", socket)
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
@@ -825,7 +825,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
+            py.run_bound("assert isinstance(exc, socket.gaierror)", None, Some(&d))
                 .map_err(|e| e.display(py))
                 .expect("assertion failed");
         });
@@ -840,7 +840,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not import email");
 
-            let d = PyDict::new(py);
+            let d = PyDict::new_bound(py);
             d.set_item("email", email)
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
@@ -848,10 +848,10 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run(
+            py.run_bound(
                 "assert isinstance(exc, email.errors.MessageError)",
                 None,
-                Some(d),
+                Some(&d),
             )
             .map_err(|e| e.display(py))
             .expect("assertion failed");
@@ -871,14 +871,13 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            let ctx = ctx.as_gil_ref();
-            py.run(
+            py.run_bound(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
-                Some(ctx),
+                Some(&ctx),
             )
             .unwrap();
-            py.run("assert CustomError.__doc__ is None", None, Some(ctx))
+            py.run_bound("assert CustomError.__doc__ is None", None, Some(&ctx))
                 .unwrap();
         });
     }
@@ -914,15 +913,18 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            let ctx = ctx.as_gil_ref();
-            py.run(
+            py.run_bound(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
-                Some(ctx),
+                Some(&ctx),
             )
             .unwrap();
-            py.run("assert CustomError.__doc__ == 'Some docs'", None, Some(ctx))
-                .unwrap();
+            py.run_bound(
+                "assert CustomError.__doc__ == 'Some docs'",
+                None,
+                Some(&ctx),
+            )
+            .unwrap();
         });
     }
 
@@ -944,17 +946,16 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            let ctx = ctx.as_gil_ref();
-            py.run(
+            py.run_bound(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
-                Some(ctx),
+                Some(&ctx),
             )
             .unwrap();
-            py.run(
+            py.run_bound(
                 "assert CustomError.__doc__ == 'Some more docs'",
                 None,
-                Some(ctx),
+                Some(&ctx),
             )
             .unwrap();
         });
@@ -964,7 +965,7 @@ mod tests {
     fn native_exception_debug() {
         Python::with_gil(|py| {
             let exc = py
-                .run("raise Exception('banana')", None, None)
+                .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_ref(py);
@@ -979,7 +980,7 @@ mod tests {
     fn native_exception_display() {
         Python::with_gil(|py| {
             let exc = py
-                .run("raise Exception('banana')", None, None)
+                .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_ref(py);
@@ -996,7 +997,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let exc = py
-                .run(
+                .run_bound(
                     "raise Exception('banana') from TypeError('peach')",
                     None,
                     None,
