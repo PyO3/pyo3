@@ -487,5 +487,26 @@ class House(object):
 }
 ```
 
+## Handling system signals/interrupts (Ctrl-C)
+
+The best way to handle system signals when running Rust code is to periodically call `Python::check_signals` to handle any signals captured by Python's signal handler. See also [the FAQ entry](./faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-is-executing).
+
+Alternatively, set Python's `signal` module to take the default action for a signal:
+
+```rust
+use pyo3::prelude::*;
+
+# fn main() -> PyResult<()> {
+Python::with_gil(|py| -> PyResult<()> {
+    let signal = py.import("signal")?;
+    // Set SIGINT to have the default action
+    signal
+        .getattr("signal")?
+        .call1((signal.getattr("SIGINT")?, signal.getattr("SIG_DFL")?))?;
+    Ok(())
+})
+# }
+```
+
 
 [`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new
