@@ -24,3 +24,4 @@ valgrind-python.supp
 lcov.info
 netlify_build/
 .nox/
+.vscode/
