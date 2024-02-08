@@ -19,6 +19,7 @@
 //! defined as the following:
 //!
 //! ```rust
+//! # #![allow(dead_code)]
 //! pub unsafe trait Ungil {}
 //!
 //! unsafe impl<T: Send> Ungil for T {}
