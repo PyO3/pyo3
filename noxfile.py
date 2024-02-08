@@ -134,13 +134,19 @@ def bench(session: nox.Session) -> bool:
 
 @nox.session()
 def codspeed(session: nox.Session) -> bool:
+    # set configuration variables for codspeed flamegraphs to get full symbols
+    build_env = os.environ.copy()
+    build_env["CARGO_PROFILE_RELEASE_DEBUG"] = "true"
+    build_env["CARGO_PROFILE_RELEASE_STRIP"] = "false"
+
     # rust benchmarks
     os.chdir(PYO3_DIR / "pyo3-benches")
-    _run_cargo(session, "codspeed", "build")
+    _run_cargo(session, "codspeed", "build", env=build_env)
     _run_cargo(session, "codspeed", "run")
+
     # python benchmarks
     os.chdir(PYO3_DIR / "pytests")
-    session.install(".[dev]", "pytest-codspeed")
+    session.install(".[dev]", "pytest-codspeed", env=build_env)
     _run(session, "pytest", "--codspeed", external=True)
 
 
