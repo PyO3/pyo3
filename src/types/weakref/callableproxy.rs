@@ -66,7 +66,7 @@ impl PyWeakCallableProxy {
     ///     let weakref = PyWeakCallableProxy::new_bound(py, foo.clone())?;
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.get_object()?
+    ///         weakref.get_object()
     ///             .is_some_and(|obj| obj.is(&foo))
     ///     );
     ///
@@ -77,7 +77,7 @@ impl PyWeakCallableProxy {
     ///
     ///     drop(foo);
     ///
-    ///     assert!(weakref.get_object()?.is_none());
+    ///     assert!(weakref.get_object().is_none());
     ///     assert!(weakref.call0().is_err_and(|err| err.is_instance_of::<PyReferenceError>(py)));
     ///
     ///     Ok(())
@@ -167,7 +167,7 @@ impl PyWeakCallableProxy {
     ///     assert!(weakref.upgrade::<Foo>()?.is_some());
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.get_object()?
+    ///         weakref.get_object()
     ///             .is_some_and(|obj| obj.is(&foo))
     ///     );
     ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
@@ -271,6 +271,10 @@ impl PyWeakCallableProxy {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.CallableProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
@@ -339,6 +343,10 @@ impl PyWeakCallableProxy {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.CallableProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
@@ -375,7 +383,7 @@ impl PyWeakCallableProxy {
     /// }
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakCallableProxy>) -> PyResult<String> {
-    ///     if let Some(object) = reference.get_object()? {
+    ///     if let Some(object) = reference.get_object() {
     ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
     ///     } else {
     ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
@@ -406,11 +414,15 @@ impl PyWeakCallableProxy {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ProxyCallableType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
-    pub fn get_object(&self) -> PyResult<Option<&'_ PyAny>> {
-        Ok(self.as_borrowed().get_object()?.map(Bound::into_gil_ref))
+    pub fn get_object(&self) -> Option<&'_ PyAny> {
+        self.as_borrowed().get_object().map(Bound::into_gil_ref)
     }
 
     /// Retrieve to a object pointed to by the weakref.
@@ -437,7 +449,7 @@ impl PyWeakCallableProxy {
     ///
     /// fn get_class(reference: Borrowed<'_, '_, PyWeakCallableProxy>) -> PyResult<String> {
     ///     reference
-    ///         .get_object_raw()?
+    ///         .get_object_raw()
     ///         .getattr("__class__")?
     ///         .repr()?
     ///         .to_str()
@@ -465,17 +477,23 @@ impl PyWeakCallableProxy {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.CallableProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
-    pub fn get_object_raw(&self) -> PyResult<&'_ PyAny> {
-        self.as_borrowed().get_object_raw().map(Bound::into_gil_ref)
+    pub fn get_object_raw(&self) -> &'_ PyAny {
+        self.as_borrowed().get_object_raw().into_gil_ref()
     }
 }
 
 impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakCallableProxy> {
-    fn borrow_object_raw(&self) -> PyResult<Borrowed<'_, 'py, PyAny>> {
+    fn borrow_object_raw(&self) -> Borrowed<'_, 'py, PyAny> {
+        // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
+            .expect("The 'weakref.CallableProxyType' instance should be valid (non-null and actually a weakref reference)")
     }
 }
 
@@ -504,7 +522,7 @@ mod tests {
             let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
 
             assert!(!reference.is(&object));
-            assert!(reference.get_object_raw()?.is(&object));
+            assert!(reference.get_object_raw().is(&object));
             assert_eq!(
                 reference.get_type().to_string(),
                 "<class 'weakref.CallableProxyType'>"
@@ -531,7 +549,7 @@ mod tests {
 
             drop(object);
 
-            assert!(reference.get_object_raw()?.is_none());
+            assert!(reference.get_object_raw().is_none());
             assert!(reference
                 .getattr("__class__")
                 .is_err_and(|err| err.is_instance_of::<PyReferenceError>(py)));
@@ -594,12 +612,12 @@ mod tests {
             let object = Py::new(py, WeakrefablePyClass {})?;
             let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
 
-            assert!(reference.get_object()?.is_some());
-            assert!(reference.get_object()?.is_some_and(|obj| obj.is(&object)));
+            assert!(reference.get_object().is_some());
+            assert!(reference.get_object().is_some_and(|obj| obj.is(&object)));
 
             drop(object);
 
-            assert!(reference.get_object()?.is_none());
+            assert!(reference.get_object().is_none());
 
             Ok(())
         })
@@ -611,14 +629,12 @@ mod tests {
             let object = Py::new(py, WeakrefablePyClass {})?;
             let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
 
-            assert!(reference.borrow_object()?.is_some());
-            assert!(reference
-                .borrow_object()?
-                .is_some_and(|obj| obj.is(&object)));
+            assert!(reference.borrow_object().is_some());
+            assert!(reference.borrow_object().is_some_and(|obj| obj.is(&object)));
 
             drop(object);
 
-            assert!(reference.borrow_object()?.is_none());
+            assert!(reference.borrow_object().is_none());
 
             Ok(())
         })
@@ -630,11 +646,11 @@ mod tests {
             let object = Py::new(py, WeakrefablePyClass {})?;
             let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
 
-            assert!(reference.get_object_raw()?.is(&object));
+            assert!(reference.get_object_raw().is(&object));
 
             drop(object);
 
-            assert!(reference.get_object_raw()?.is_none());
+            assert!(reference.get_object_raw().is_none());
 
             Ok(())
         })
@@ -646,11 +662,11 @@ mod tests {
             let object = Py::new(py, WeakrefablePyClass {})?;
             let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
 
-            assert!(reference.borrow_object_raw()?.is(&object));
+            assert!(reference.borrow_object_raw().is(&object));
 
             drop(object);
 
-            assert!(reference.borrow_object_raw()?.is_none());
+            assert!(reference.borrow_object_raw().is_none());
 
             Ok(())
         })

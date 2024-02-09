@@ -55,7 +55,7 @@ impl PyWeakRef {
     ///     let weakref = PyWeakRef::new_bound(py, foo.clone())?;
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.get_object()?
+    ///         weakref.get_object()
     ///             .is_some_and(|obj| obj.is(&foo))
     ///     );
     ///
@@ -64,7 +64,7 @@ impl PyWeakRef {
     ///
     ///     drop(foo);
     ///
-    ///     assert!(weakref.get_object()?.is_none());
+    ///     assert!(weakref.get_object().is_none());
     ///     Ok(())
     /// })
     /// # }
@@ -132,7 +132,7 @@ impl PyWeakRef {
     ///     assert!(weakref.upgrade::<Foo>()?.is_some());
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
-    ///         weakref.get_object()?
+    ///         weakref.get_object()
     ///             .is_some_and(|obj| obj.is(&foo))
     ///     );
     ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
@@ -223,6 +223,10 @@ impl PyWeakRef {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
@@ -285,6 +289,10 @@ impl PyWeakRef {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
@@ -314,7 +322,7 @@ impl PyWeakRef {
     /// struct Foo { /* fields omitted */ }
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
-    ///     if let Some(object) = reference.get_object()? {
+    ///     if let Some(object) = reference.get_object() {
     ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
     ///     } else {
     ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
@@ -343,11 +351,15 @@ impl PyWeakRef {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    pub fn get_object(&self) -> PyResult<Option<&'_ PyAny>> {
-        Ok(self.as_borrowed().get_object()?.map(Bound::into_gil_ref))
+    pub fn get_object(&self) -> Option<&'_ PyAny> {
+        self.as_borrowed().get_object().map(Bound::into_gil_ref)
     }
 
     /// Retrieve to a object pointed to by the weakref.
@@ -367,7 +379,7 @@ impl PyWeakRef {
     ///
     /// fn get_class(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
     ///     reference
-    ///         .get_object_raw()?
+    ///         .get_object_raw()
     ///         .getattr("__class__")?
     ///         .repr()?
     ///         .to_str()
@@ -393,11 +405,15 @@ impl PyWeakRef {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    pub fn get_object_raw(&self) -> PyResult<&'_ PyAny> {
-        self.as_borrowed().get_object_raw().map(Bound::into_gil_ref)
+    pub fn get_object_raw(&self) -> &'_ PyAny {
+        self.as_borrowed().get_object_raw().into_gil_ref()
     }
 }
 
@@ -460,6 +476,10 @@ pub trait PyWeakRefMethods<'py> {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
@@ -468,7 +488,7 @@ pub trait PyWeakRefMethods<'py> {
         T: PyTypeCheck,
     {
         Ok(self
-            .get_object()?
+            .get_object()
             .map(|obj| obj.downcast_into::<T>())
             .transpose()?)
     }
@@ -528,6 +548,10 @@ pub trait PyWeakRefMethods<'py> {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
@@ -536,7 +560,7 @@ pub trait PyWeakRefMethods<'py> {
         T: PyTypeInfo,
     {
         Ok(self
-            .get_object()?
+            .get_object()
             .map(|obj| obj.downcast_into_exact::<T>())
             .transpose()?)
     }
@@ -558,7 +582,7 @@ pub trait PyWeakRefMethods<'py> {
     /// struct Foo { /* fields omitted */ }
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
-    ///     if let Some(object) = reference.get_object()? {
+    ///     if let Some(object) = reference.get_object() {
     ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
     ///     } else {
     ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
@@ -587,13 +611,21 @@ pub trait PyWeakRefMethods<'py> {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn get_object(&self) -> PyResult<Option<Bound<'py, PyAny>>> {
-        let object = self.get_object_raw()?;
+    fn get_object(&self) -> Option<Bound<'py, PyAny>> {
+        let object = self.get_object_raw();
 
-        Ok(if object.is_none() { None } else { Some(object) })
+        if object.is_none() {
+            None
+        } else {
+            Some(object)
+        }
     }
 
     // TODO: NAMING-ALTERNATIVE: upgrade_any_borrowed
@@ -613,7 +645,7 @@ pub trait PyWeakRefMethods<'py> {
     /// struct Foo { /* fields omitted */ }
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
-    ///     if let Some(object) = reference.borrow_object()? {
+    ///     if let Some(object) = reference.borrow_object() {
     ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
     ///     } else {
     ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
@@ -642,16 +674,24 @@ pub trait PyWeakRefMethods<'py> {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn borrow_object<'a>(&'a self) -> PyResult<Option<Borrowed<'a, 'py, PyAny>>>
+    fn borrow_object<'a>(&'a self) -> Option<Borrowed<'a, 'py, PyAny>>
     where
         'py: 'a,
     {
-        let object = self.borrow_object_raw()?;
+        let object = self.borrow_object_raw();
 
-        Ok(if object.is_none() { None } else { Some(object) })
+        if object.is_none() {
+            None
+        } else {
+            Some(object)
+        }
     }
 
     // TODO: NAMING-ALTERNATIVE: get_any
@@ -672,7 +712,7 @@ pub trait PyWeakRefMethods<'py> {
     ///
     /// fn get_class(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
     ///     reference
-    ///         .get_object_raw()?
+    ///         .get_object_raw()
     ///         .getattr("__class__")?
     ///         .repr()?
     ///         .to_str()
@@ -698,13 +738,16 @@ pub trait PyWeakRefMethods<'py> {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn get_object_raw(&self) -> PyResult<Bound<'py, PyAny>> {
-        // Bound<'_, PyAny>::call0 could also be used in situations where ffi::PyWeakref_GetObject is not available.
-        // Only if it for weakref.ReferenceType
-        self.borrow_object_raw().map(Borrowed::to_owned)
+    fn get_object_raw(&self) -> Bound<'py, PyAny> {
+        // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
+        self.borrow_object_raw().to_owned()
     }
 
     // TODO: NAMING-ALTERNATIVE: get_any_borrowed
@@ -725,7 +768,7 @@ pub trait PyWeakRefMethods<'py> {
     ///
     /// fn get_class(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
     ///     reference
-    ///         .borrow_object_raw()?
+    ///         .borrow_object_raw()
     ///         .getattr("__class__")?
     ///         .repr()?
     ///         .to_str()
@@ -751,10 +794,14 @@ pub trait PyWeakRefMethods<'py> {
     /// # }
     /// ```
     ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn borrow_object_raw(&self) -> PyResult<Borrowed<'_, 'py, PyAny>>;
+    fn borrow_object_raw(&self) -> Borrowed<'_, 'py, PyAny>;
 }
 
 impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakRef> {
@@ -769,9 +816,10 @@ impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakRef> {
     }
     */
 
-    fn borrow_object_raw(&self) -> PyResult<Borrowed<'_, 'py, PyAny>> {
-        // &PyAny::call0 could also be used in situations where ffi::PyWeakref_GetObject is not available.
+    fn borrow_object_raw(&self) -> Borrowed<'_, 'py, PyAny> {
+        // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
+            .expect("The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)")
     }
 }
 
@@ -792,7 +840,7 @@ mod tests {
             let reference = PyWeakRef::new_bound(py, object.clone())?;
 
             assert!(!reference.is(&object));
-            assert!(reference.get_object_raw()?.is(&object));
+            assert!(reference.get_object_raw().is(&object));
             assert_eq!(
                 reference.get_type().to_string(),
                 "<class 'weakref.ReferenceType'>"
@@ -819,7 +867,7 @@ mod tests {
 
             drop(object);
 
-            assert!(reference.get_object_raw()?.is_none());
+            assert!(reference.get_object_raw().is_none());
             assert_eq!(
                 reference.getattr("__class__")?.to_string(),
                 "<class 'weakref.ReferenceType'>"
@@ -877,13 +925,13 @@ mod tests {
             let reference = PyWeakRef::new_bound(py, object.clone_ref(py))?;
 
             assert!(reference.call0()?.is(&object));
-            assert!(reference.get_object()?.is_some());
-            assert!(reference.get_object()?.is_some_and(|obj| obj.is(&object)));
+            assert!(reference.get_object().is_some());
+            assert!(reference.get_object().is_some_and(|obj| obj.is(&object)));
 
             drop(object);
 
             assert!(reference.call0()?.is_none());
-            assert!(reference.get_object()?.is_none());
+            assert!(reference.get_object().is_none());
 
             Ok(())
         })
@@ -896,15 +944,13 @@ mod tests {
             let reference = PyWeakRef::new_bound(py, object.clone_ref(py))?;
 
             assert!(reference.call0()?.is(&object));
-            assert!(reference.borrow_object()?.is_some());
-            assert!(reference
-                .borrow_object()?
-                .is_some_and(|obj| obj.is(&object)));
+            assert!(reference.borrow_object().is_some());
+            assert!(reference.borrow_object().is_some_and(|obj| obj.is(&object)));
 
             drop(object);
 
             assert!(reference.call0()?.is_none());
-            assert!(reference.borrow_object()?.is_none());
+            assert!(reference.borrow_object().is_none());
 
             Ok(())
         })
@@ -917,13 +963,13 @@ mod tests {
             let reference = PyWeakRef::new_bound(py, object.clone_ref(py))?;
 
             assert!(reference.call0()?.is(&object));
-            assert!(reference.get_object_raw()?.is(&object));
+            assert!(reference.get_object_raw().is(&object));
 
             drop(object);
 
-            assert!(reference.call0()?.is(&reference.get_object_raw()?));
+            assert!(reference.call0()?.is(&reference.get_object_raw()));
             assert!(reference.call0()?.is_none());
-            assert!(reference.get_object_raw()?.is_none());
+            assert!(reference.get_object_raw().is_none());
 
             Ok(())
         })
@@ -936,12 +982,12 @@ mod tests {
             let reference = PyWeakRef::new_bound(py, object.clone_ref(py))?;
 
             assert!(reference.call0()?.is(&object));
-            assert!(reference.borrow_object_raw()?.is(&object));
+            assert!(reference.borrow_object_raw().is(&object));
 
             drop(object);
 
             assert!(reference.call0()?.is_none());
-            assert!(reference.borrow_object_raw()?.is_none());
+            assert!(reference.borrow_object_raw().is_none());
 
             Ok(())
         })
