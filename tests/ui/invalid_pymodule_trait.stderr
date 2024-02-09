@@ -1,0 +1,5 @@
+error: only 'use' statements and and pymodule_init functions are allowed in #[pymodule]
+ --> tests/ui/invalid_pymodule_trait.rs:5:5
+  |
+5 |     #[pyo3]
+  |     ^

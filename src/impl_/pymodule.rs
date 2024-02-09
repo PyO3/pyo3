@@ -7,7 +7,7 @@ use portable_atomic::{AtomicI64, Ordering};
 
 #[cfg(not(PyPy))]
 use crate::exceptions::PyImportError;
-use crate::{ffi, sync::GILOnceCell, types::PyModule, Py, PyResult, Python};
+use crate::{ffi, sync::GILOnceCell, types::PyModule, Py, PyResult, PyTypeInfo, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -130,6 +130,19 @@ impl ModuleDef {
                 Ok(module)
             })
             .map(|py_module| py_module.clone_ref(py))
+    }
+}
+
+/// Trait to add an element (class, function...) to a module.
+///
+/// Currently only implemented for classes.
+pub trait PyAddToModule {
+    fn add_to_module(module: &PyModule) -> PyResult<()>;
+}
+
+impl<T: PyTypeInfo> PyAddToModule for T {
+    fn add_to_module(module: &PyModule) -> PyResult<()> {
+        module.add(Self::NAME, Self::type_object(module.py()))
     }
 }
 

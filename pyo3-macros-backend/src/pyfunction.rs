@@ -269,6 +269,10 @@ pub fn impl_wrap_pyfunction(
         #vis mod #name {
             pub(crate) struct MakeDef;
             pub const DEF: #krate::impl_::pyfunction::PyMethodDef = MakeDef::DEF;
+
+            pub fn add_to_module(module: &#krate::types::PyModule) -> #krate::PyResult<()> {
+                module.add_function(#krate::impl_::pyfunction::_wrap_pyfunction(&DEF, module)?)
+            }
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -

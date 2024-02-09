@@ -169,8 +169,8 @@ macro_rules! append_to_inittab {
                 );
             }
             $crate::ffi::PyImport_AppendInittab(
-                $module::NAME.as_ptr() as *const ::std::os::raw::c_char,
-                ::std::option::Option::Some($module::init),
+                $module::__PYO3_NAME.as_ptr() as *const ::std::os::raw::c_char,
+                ::std::option::Option::Some($module::__pyo3_init),
             );
         }
     };

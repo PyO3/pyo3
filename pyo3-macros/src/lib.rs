@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    get_doc, process_functions_in_module, pymodule_impl, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions,
+    get_doc, process_functions_in_module, pymodule_function_impl, pymodule_module_impl,
+    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
 use syn::{parse::Nothing, parse_macro_input};
@@ -37,6 +37,12 @@ use syn::{parse::Nothing, parse_macro_input};
 pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
     parse_macro_input!(args as Nothing);
 
+    if let Ok(module) = syn::parse(input.clone()) {
+        return pymodule_module_impl(module)
+            .unwrap_or_compile_error()
+            .into();
+    }
+
     let mut ast = parse_macro_input!(input as syn::ItemFn);
     let options = match PyModuleOptions::from_attrs(&mut ast.attrs) {
         Ok(options) => options,
@@ -49,7 +55,7 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let doc = get_doc(&ast.attrs, None);
 
-    let expanded = pymodule_impl(&ast.sig.ident, options, doc, &ast.vis);
+    let expanded = pymodule_function_impl(&ast.sig.ident, options, doc, &ast.vis);
 
     quote!(
         #ast
