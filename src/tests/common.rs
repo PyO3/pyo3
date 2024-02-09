@@ -138,11 +138,11 @@ mod inner {
         ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
             $crate::tests::common::CatchWarnings::enter($py, |w| {
                 $body;
-                let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object($py), $message)),+];
+                let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object_bound($py), $message)),+];
                 assert_eq!(w.len(), expected_warnings.len());
                 for (warning, (category, message)) in w.iter().zip(expected_warnings) {
 
-                    assert!(warning.getattr("category").unwrap().is(category));
+                    assert!(warning.getattr("category").unwrap().is(&category));
                     assert_eq!(
                         warning.getattr("message").unwrap().str().unwrap().to_string_lossy(),
                         message

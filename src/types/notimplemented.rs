@@ -1,4 +1,7 @@
-use crate::{ffi, ffi_ptr_ext::FfiPtrExt, Borrowed, PyAny, PyTypeInfo, Python};
+use crate::{
+    ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
+    Python,
+};
 
 /// Represents the Python `NotImplemented` object.
 #[repr(transparent)]
@@ -41,14 +44,14 @@ unsafe impl PyTypeInfo for PyNotImplemented {
     }
 
     #[inline]
-    fn is_type_of(object: &PyAny) -> bool {
+    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
         // NotImplementedType is not usable as a base type
-        Self::is_exact_type_of(object)
+        Self::is_exact_type_of_bound(object)
     }
 
     #[inline]
-    fn is_exact_type_of(object: &PyAny) -> bool {
-        object.is(Self::get_bound(object.py()).as_ref())
+    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+        object.is(&**Self::get_bound(object.py()))
     }
 }
 
@@ -71,7 +74,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyNotImplemented::get_bound(py)
                 .get_type()
-                .is(PyNotImplemented::type_object(py)));
+                .is(&PyNotImplemented::type_object_bound(py)));
         })
     }
 

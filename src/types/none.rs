@@ -1,5 +1,8 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::{ffi, Borrowed, IntoPy, PyAny, PyObject, PyTypeInfo, Python, ToPyObject};
+use crate::{
+    ffi, types::any::PyAnyMethods, Borrowed, Bound, IntoPy, PyAny, PyObject, PyTypeInfo, Python,
+    ToPyObject,
+};
 
 /// Represents the Python `None` object.
 #[repr(transparent)]
@@ -40,15 +43,14 @@ unsafe impl PyTypeInfo for PyNone {
     }
 
     #[inline]
-    fn is_type_of(object: &PyAny) -> bool {
+    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
         // NoneType is not usable as a base type
-        Self::is_exact_type_of(object)
+        Self::is_exact_type_of_bound(object)
     }
 
     #[inline]
-    fn is_exact_type_of(object: &PyAny) -> bool {
-        let none = Self::get_bound(object.py());
-        object.is(none.as_ref())
+    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+        object.is(&**Self::get_bound(object.py()))
     }
 }
 
@@ -82,7 +84,9 @@ mod tests {
     #[test]
     fn test_none_type_object_consistent() {
         Python::with_gil(|py| {
-            assert!(PyNone::get_bound(py).get_type().is(PyNone::type_object(py)));
+            assert!(PyNone::get_bound(py)
+                .get_type()
+                .is(&PyNone::type_object_bound(py)));
         })
     }
 

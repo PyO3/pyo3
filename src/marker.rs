@@ -717,7 +717,7 @@ impl<'py> Python<'py> {
     where
         T: PyTypeInfo,
     {
-        T::type_object(self)
+        T::type_object_bound(self).into_gil_ref()
     }
 
     /// Imports the Python module with the specified name.
