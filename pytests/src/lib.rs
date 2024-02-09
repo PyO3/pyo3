@@ -17,37 +17,16 @@ pub mod subclassing;
 #[pymodule]
 mod pyo3_pytests {
     use super::*;
-    #[pyo3]
-    use awaitable::awaitable;
-    #[pyo3]
-    #[cfg(not(Py_LIMITED_API))]
-    use buf_and_str::buf_and_str;
-    #[pyo3]
-    use comparisons::comparisons;
-    #[cfg(not(Py_LIMITED_API))]
-    #[pyo3]
-    use datetime::datetime;
-    #[pyo3]
-    use dict_iter::dict_iter;
-    #[pyo3]
-    use enums::enums;
-    #[pyo3]
-    use misc::misc;
-    #[pyo3]
-    use objstore::objstore;
-    #[pyo3]
-    use othermod::othermod;
-    #[pyo3]
-    use path::path;
-    #[pyo3]
-    use pyclasses::pyclasses;
-    #[pyo3]
-    use pyfunctions::pyfunctions;
     use pyo3::types::PyDict;
     #[pyo3]
-    use sequence::sequence;
+    use {
+        awaitable::awaitable, comparisons::comparisons, dict_iter::dict_iter, enums::enums,
+        misc::misc, objstore::objstore, othermod::othermod, path::path, pyclasses::pyclasses,
+        pyfunctions::pyfunctions, sequence::sequence, subclassing::subclassing,
+    };
+    #[cfg(not(Py_LIMITED_API))]
     #[pyo3]
-    use subclassing::subclassing;
+    use {buf_and_str::buf_and_str, datetime::datetime};
 
     #[pymodule_init]
     fn init(m: &PyModule) -> PyResult<()> {
