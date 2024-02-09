@@ -236,10 +236,104 @@ impl PyWeakRef {
         Ok(self.as_borrowed().upgrade::<T>()?.map(Bound::into_gil_ref))
     }
 
+    /// Upgrade the weakref to a [`PyAny`] reference to the target if possible.
+    ///
+    /// This function returns `Some(&'py PyAny)` if the reference still exists, otherwise `None` will be returned.
+    ///
+    /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     if let Some(object) = reference.get_object()? {
+    ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
+    ///     } else {
+    ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
+    ///     
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The object 'Foo' refered by this reference still exists."
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The object, which this reference refered to, no longer exists"
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     pub fn get_object(&self) -> PyResult<Option<&'_ PyAny>> {
         Ok(self.as_borrowed().get_object()?.map(Bound::into_gil_ref))
     }
 
+    /// Retrieve to a object pointed to by the weakref.
+    ///
+    /// This function returns `&'py PyAny`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    ///
+    /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// fn get_class(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     reference
+    ///         .get_object_raw()?
+    ///         .getattr("__class__")?
+    ///         .repr()?
+    ///         .to_str()
+    ///         .map(ToOwned::to_owned)
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let object = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, object.clone())?;
+    ///     
+    ///     assert_eq!(
+    ///         get_class(reference.as_borrowed())?,
+    ///         "<class 'builtins.Foo'>"
+    ///     );
+    ///
+    ///     drop(object);
+    ///
+    ///     assert_eq!(get_class(reference.as_borrowed())?, "<class 'NoneType'>");
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     pub fn get_object_raw(&self) -> PyResult<&'_ PyAny> {
         self.as_borrowed().get_object_raw().map(Bound::into_gil_ref)
     }
@@ -252,7 +346,7 @@ impl PyWeakRef {
 /// `arbitrary_self_types`.
 #[doc(alias = "PyWeakRef")]
 pub trait PyWeakRefMethods<'py> {
-    /// Upgrade the weakref to a direct object reference.
+    /// Upgrade the weakref to a direct Bound object reference.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
     /// In Python it would be equivalent to [`PyWeakref_GetObject`] or calling the [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
@@ -318,13 +412,203 @@ pub trait PyWeakRefMethods<'py> {
     // fn borrowed_upgrade<T: PyTypeCheck>(&self) -> PyResult<Option<Borrowed<'_, 'py, T>>>;
 
     // TODO: NAMING-ALTERNATIVE: upgrade_any
+    /// Upgrade the weakref to a Bound [`PyAny`] reference to the target object if possible.
+    ///
+    /// This function returns `Some(Bound<'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
+    ///
+    /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     if let Some(object) = reference.get_object()? {
+    ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
+    ///     } else {
+    ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
+    ///     
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The object 'Foo' refered by this reference still exists."
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The object, which this reference refered to, no longer exists"
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn get_object(&self) -> PyResult<Option<Bound<'py, PyAny>>>;
+
     // TODO: NAMING-ALTERNATIVE: upgrade_any_borrowed
+    /// Upgrade the weakref to a Borrowed [`PyAny`] reference to the target object if possible.
+    ///
+    /// This function returns `Some(Borrowed<'_, 'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
+    ///
+    /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     if let Some(object) = reference.borrow_object()? {
+    ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
+    ///     } else {
+    ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
+    ///     
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The object 'Foo' refered by this reference still exists."
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The object, which this reference refered to, no longer exists"
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn borrow_object(&self) -> PyResult<Option<Borrowed<'_, 'py, PyAny>>>;
 
     // TODO: NAMING-ALTERNATIVE: get_any
+    /// Retrieve to a Bound object pointed to by the weakref.
+    ///
+    /// This function returns `Bound<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    ///
+    /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// fn get_class(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     reference
+    ///         .get_object_raw()?
+    ///         .getattr("__class__")?
+    ///         .repr()?
+    ///         .to_str()
+    ///         .map(ToOwned::to_owned)
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let object = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, object.clone())?;
+    ///     
+    ///     assert_eq!(
+    ///         get_class(reference.as_borrowed())?,
+    ///         "<class 'builtins.Foo'>"
+    ///     );
+    ///
+    ///     drop(object);
+    ///
+    ///     assert_eq!(get_class(reference.as_borrowed())?, "<class 'NoneType'>");
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn get_object_raw(&self) -> PyResult<Bound<'py, PyAny>>;
+
     // TODO: NAMING-ALTERNATIVE: get_any_borrowed
+    /// Retrieve to a Borrowed object pointed to by the weakref.
+    ///
+    /// This function returns `Borrowed<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    ///
+    /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// fn get_class(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     reference
+    ///         .borrow_object_raw()?
+    ///         .getattr("__class__")?
+    ///         .repr()?
+    ///         .to_str()
+    ///         .map(ToOwned::to_owned)
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let object = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, object.clone())?;
+    ///     
+    ///     assert_eq!(
+    ///         get_class(reference.as_borrowed())?,
+    ///         "<class 'builtins.Foo'>"
+    ///     );
+    ///
+    ///     drop(object);
+    ///
+    ///     assert_eq!(get_class(reference.as_borrowed())?, "<class 'NoneType'>");
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
     fn borrow_object_raw(&self) -> PyResult<Borrowed<'_, 'py, PyAny>>;
 }
 
