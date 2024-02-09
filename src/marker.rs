@@ -19,6 +19,7 @@
 //! defined as the following:
 //!
 //! ```rust
+//! # #![allow(dead_code)]
 //! pub unsafe trait Ungil {}
 //!
 //! unsafe impl<T: Send> Ungil for T {}
@@ -116,14 +117,19 @@
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, GILPool, SuspendGIL};
 use crate::impl_::not_send::NotSend;
+use crate::py_result_ext::PyResultExt;
 use crate::type_object::HasPyGilRef;
+use crate::types::any::PyAnyMethods;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, FromPyPointer, IntoPy, Py, PyObject, PyTypeCheck, PyTypeInfo};
+use crate::{
+    ffi, Bound, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTypeCheck, PyTypeInfo,
+};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -357,8 +363,8 @@ pub use nightly::Ungil;
 /// # fn main () -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
 ///     for _ in 0..10 {
-///         let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
-///         println!("Python says: {}", hello.to_str()?);
+///         let hello = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into::<PyString>()?;
+///         println!("Python says: {}", hello.to_cow()?);
 ///         // Normally variables in a loop scope are dropped here, but `hello` is a reference to
 ///         // something owned by the Python interpreter. Dropping this reference does nothing.
 ///     }
@@ -416,7 +422,7 @@ impl Python<'_> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval("5", None, None)?.extract()?;
+    ///     let x: i32 = py.eval_bound("5", None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -545,6 +551,28 @@ impl<'py> Python<'py> {
         f()
     }
 
+    /// Deprecated version of [`Python::eval_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`Python::eval` will be replaced by `Python::eval_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn eval(
+        self,
+        code: &str,
+        globals: Option<&'py PyDict>,
+        locals: Option<&'py PyDict>,
+    ) -> PyResult<&'py PyAny> {
+        self.eval_bound(
+            code,
+            globals.map(PyNativeType::as_borrowed).as_deref(),
+            locals.map(PyNativeType::as_borrowed).as_deref(),
+        )
+        .map(Bound::into_gil_ref)
+    }
+
     /// Evaluates a Python expression in the given context and returns the result.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
@@ -558,17 +586,17 @@ impl<'py> Python<'py> {
     /// ```
     /// # use pyo3::prelude::*;
     /// # Python::with_gil(|py| {
-    /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let result = py.eval_bound("[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
     /// ```
-    pub fn eval(
+    pub fn eval_bound(
         self,
         code: &str,
-        globals: Option<&PyDict>,
-        locals: Option<&PyDict>,
-    ) -> PyResult<&'py PyAny> {
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -612,7 +640,12 @@ impl<'py> Python<'py> {
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
     ) -> PyResult<()> {
-        let res = self.run_code(code, ffi::Py_file_input, globals, locals);
+        let res = self.run_code(
+            code,
+            ffi::Py_file_input,
+            globals.map(PyNativeType::as_borrowed).as_deref(),
+            locals.map(PyNativeType::as_borrowed).as_deref(),
+        );
         res.map(|obj| {
             debug_assert!(obj.is_none());
         })
@@ -629,9 +662,9 @@ impl<'py> Python<'py> {
         self,
         code: &str,
         start: c_int,
-        globals: Option<&PyDict>,
-        locals: Option<&PyDict>,
-    ) -> PyResult<&'py PyAny> {
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let code = CString::new(code)?;
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
@@ -674,7 +707,7 @@ impl<'py> Python<'py> {
             let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
             ffi::Py_DECREF(code_obj);
 
-            self.from_owned_ptr_or_err(res_ptr)
+            res_ptr.assume_owned_or_err(self).downcast_into_unchecked()
         }
     }
 
@@ -1076,18 +1109,18 @@ mod tests {
         Python::with_gil(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
-                .eval("min(1, 2)", None, None)
+                .eval_bound("min(1, 2)", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(v, 1);
 
-            let d = [("foo", 13)].into_py_dict(py);
+            let d = [("foo", 13)].into_py_dict(py).as_borrowed();
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval("foo + 29", Some(d), None)
+                .eval_bound("foo + 29", Some(&d), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1095,7 +1128,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval("foo + 29", None, Some(d))
+                .eval_bound("foo + 29", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1103,7 +1136,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval("min(foo, 2)", None, Some(d))
+                .eval_bound("min(foo, 2)", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1192,7 +1225,7 @@ mod tests {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
-                .eval("...", None, None)
+                .eval_bound("...", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 

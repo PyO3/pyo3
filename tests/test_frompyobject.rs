@@ -486,14 +486,14 @@ pub struct Zap {
 fn test_from_py_with() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(
+            .eval_bound(
                 r#"{"name": "whatever", "my_object": [1, 2, 3]}"#,
                 None,
                 None,
             )
             .expect("failed to create dict");
 
-        let zap = Zap::extract(py_zap).unwrap();
+        let zap = Zap::extract_bound(&py_zap).unwrap();
 
         assert_eq!(zap.name, "whatever");
         assert_eq!(zap.some_object_length, 3usize);
@@ -507,10 +507,10 @@ pub struct ZapTuple(String, #[pyo3(from_py_with = "PyAny::len")] usize);
 fn test_from_py_with_tuple_struct() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
-        let zap = ZapTuple::extract(py_zap).unwrap();
+        let zap = ZapTuple::extract_bound(&py_zap).unwrap();
 
         assert_eq!(zap.0, "whatever");
         assert_eq!(zap.1, 3usize);
@@ -521,10 +521,10 @@ fn test_from_py_with_tuple_struct() {
 fn test_from_py_with_tuple_struct_error() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3], "third")"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3], "third")"#, None, None)
             .expect("failed to create tuple");
 
-        let f = ZapTuple::extract(py_zap);
+        let f = ZapTuple::extract_bound(&py_zap);
 
         assert!(f.is_err());
         assert_eq!(
@@ -544,10 +544,10 @@ pub enum ZapEnum {
 fn test_from_py_with_enum() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
-        let zap = ZapEnum::extract(py_zap).unwrap();
+        let zap = ZapEnum::extract_bound(&py_zap).unwrap();
         let expected_zap = ZapEnum::Zip(2);
 
         assert_eq!(zap, expected_zap);

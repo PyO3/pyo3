@@ -507,6 +507,7 @@ fn decrement_gil_count() {
 #[cfg(test)]
 mod tests {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
+    use crate::types::any::PyAnyMethods;
     use crate::{ffi, gil, PyObject, Python, ToPyObject};
     #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::{const_mutex, Condvar, Mutex};
@@ -518,7 +519,7 @@ mod tests {
         let pool = unsafe { py.new_pool() };
         let py = pool.python();
 
-        let obj = py.eval("object()", None, None).unwrap();
+        let obj = py.eval_bound("object()", None, None).unwrap();
         obj.to_object(py)
     }
 
@@ -735,7 +736,7 @@ mod tests {
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
         Python::with_gil(|py| {
-            let obj = Python::with_gil(|_| py.eval("object()", None, None).unwrap());
+            let obj = Python::with_gil(|_| py.eval_bound("object()", None, None).unwrap());
 
             // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);

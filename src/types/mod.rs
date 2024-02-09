@@ -60,9 +60,9 @@ pub use self::weakref::{PyWeakCallableProxy, PyWeakProxy, PyWeakRef};
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast()?;
+///     let dict = py.eval_bound("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
 ///
-///     for (key, value) in dict {
+///     for (key, value) in dict.iter() {
 ///         println!("key: {}, value: {}", key, value);
 ///     }
 ///
