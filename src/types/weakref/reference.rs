@@ -15,7 +15,7 @@ pyobject_native_type!(
     ffi::PyWeakReference,
     pyobject_native_static_type_object!(ffi::_PyWeakref_RefType),
     #module=Some("weakref"),
-    #checkfunction=ffi::PyWeakref_CheckRef
+    #checkfunction=ffi::PyWeakref_CheckRefExact
 );
 
 impl PyWeakRef {
@@ -349,7 +349,7 @@ pub trait PyWeakRefMethods<'py> {
     /// Upgrade the weakref to a direct Bound object reference.
     ///
     /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
-    /// In Python it would be equivalent to [`PyWeakref_GetObject`] or calling the [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
     ///
     /// # Example
     /// ```rust
@@ -424,7 +424,7 @@ pub trait PyWeakRefMethods<'py> {
     /// This function returns `Some(Bound<'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     /// ```rust
@@ -479,7 +479,7 @@ pub trait PyWeakRefMethods<'py> {
     /// This function returns `Some(Borrowed<'_, 'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     /// ```rust
@@ -534,7 +534,7 @@ pub trait PyWeakRefMethods<'py> {
     /// This function returns `Bound<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     /// ```rust
@@ -587,7 +587,7 @@ pub trait PyWeakRefMethods<'py> {
     /// This function returns `Borrowed<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
-    /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.
+    /// It produces similair results to  using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
     /// ```rust
@@ -698,6 +698,8 @@ mod tests {
                 .getattr("__callback__")
                 .is_ok_and(|result| result.is_none()));
 
+            assert!(reference.call0()?.is(&object));
+
             drop(object);
 
             assert!(reference.get_object_raw()?.is_none());
@@ -713,6 +715,8 @@ mod tests {
             assert!(reference
                 .getattr("__callback__")
                 .is_ok_and(|result| result.is_none()));
+
+            assert!(reference.call0()?.is_none());
 
             Ok(())
         })

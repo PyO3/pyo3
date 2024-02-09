@@ -44,7 +44,7 @@ pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::traceback::PyTraceback;
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
-pub use self::weakref::{PyWeakProxy, PyWeakRef};
+pub use self::weakref::{PyWeakCallableProxy, PyWeakProxy, PyWeakRef};
 
 /// Iteration over Python collections.
 ///
