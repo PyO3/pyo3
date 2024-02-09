@@ -387,10 +387,10 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let globals = PyModule::import(py, "__main__")?.dict();
+#         let globals = PyModule::import(py, "__main__")?.dict().as_borrowed();
 #         globals.set_item("Number", Number::type_object_bound(py))?;
 #
-#         py.run(SCRIPT, Some(globals), None)?;
+#         py.run_bound(SCRIPT, Some(&globals), None)?;
 #         Ok(())
 #     })
 # }

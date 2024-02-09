@@ -377,6 +377,9 @@ mod test_128bit_integers {
     use crate::types::PyDict;
 
     #[cfg(not(target_arch = "wasm32"))]
+    use crate::types::dict::PyDictMethods;
+
+    #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -385,9 +388,9 @@ mod test_128bit_integers {
         fn test_i128_roundtrip(x: i128) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                let locals = PyDict::new(py);
+                let locals = PyDict::new_bound(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
+                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
                 let roundtripped: i128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -401,9 +404,9 @@ mod test_128bit_integers {
         ) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                let locals = PyDict::new(py);
+                let locals = PyDict::new_bound(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
+                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroI128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -416,9 +419,9 @@ mod test_128bit_integers {
         fn test_u128_roundtrip(x: u128) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                let locals = PyDict::new(py);
+                let locals = PyDict::new_bound(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
+                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
                 let roundtripped: u128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -432,9 +435,9 @@ mod test_128bit_integers {
         ) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                let locals = PyDict::new(py);
+                let locals = PyDict::new_bound(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
+                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroU128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })

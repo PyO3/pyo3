@@ -290,7 +290,7 @@ fn foo(_py: Python<'_>, foo_module: &PyModule) -> PyResult<()> {
 
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
-    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
+    Python::with_gil(|py| Python::run_bound(py, "import foo; foo.add_one(6)", None, None))
 }
 ```
 
@@ -321,7 +321,7 @@ fn main() -> PyResult<()> {
         py_modules.set_item("foo", foo_module)?;
 
         // Now we can import + run our python code
-        Python::run(py, "import foo; foo.add_one(6)", None, None)
+        Python::run_bound(py, "import foo; foo.add_one(6)", None, None)
     })
 }
 ```

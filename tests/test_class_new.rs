@@ -169,9 +169,12 @@ c = Class()
 assert c.from_rust is False
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .dict()
+            .as_borrowed();
         globals.set_item("SuperClass", super_cls).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
