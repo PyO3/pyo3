@@ -1,0 +1,5 @@
+pub use proxy::PyWeakProxy;
+pub use reference::{PyWeakRef, PyWeakRefMethods};
+
+pub(crate) mod proxy;
+pub(crate) mod reference;
