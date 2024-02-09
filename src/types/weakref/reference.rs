@@ -1,6 +1,6 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::type_object::PyTypeCheck;
+use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, PyAny, PyNativeType, Python, ToPyObject};
 
@@ -124,7 +124,7 @@ impl PyWeakRef {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     py.run("counter = 0", None, None)?;
-    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 0);
+    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
     ///     // This is fine.
@@ -135,8 +135,8 @@ impl PyWeakRef {
     ///         weakref.get_object()?
     ///             .is_some_and(|obj| obj.is(&foo))
     ///     );
-    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 0);
-    ///     
+    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
+    ///
     ///     let weakref2 = PyWeakRef::new_bound_with(py, foo.clone(), wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
     ///     assert!(weakref.eq(&weakref2)?);  // But Equal, since they point to the same object
@@ -144,7 +144,7 @@ impl PyWeakRef {
     ///     drop(foo);
     ///
     ///     assert!(weakref.upgrade::<Foo>()?.is_none());
-    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 1);
+    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 1);
     ///     Ok(())
     /// })
     /// # }
@@ -205,7 +205,7 @@ impl PyWeakRef {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
     ///         "Processing 'Dave': score = 10"
@@ -223,9 +223,6 @@ impl PyWeakRef {
     /// # }
     /// ```
     ///
-    /// # Panics
-    /// This function panics if the requested type `T` is not the the type of the instance refered to by this `weakref.ReferenceType`.
-    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
@@ -234,6 +231,71 @@ impl PyWeakRef {
         T: PyTypeCheck,
     {
         Ok(self.as_borrowed().upgrade::<T>()?.map(Bound::into_gil_ref))
+    }
+
+    /// Upgrade the weakref to an exact direct object reference.
+    ///
+    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// In Python it would be equivalent to [`PyWeakref_GetObject`] or calling the [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// #[pymethods]
+    /// impl Foo {
+    ///     fn get_data(&self) -> (&str, u32) {
+    ///         ("Dave", 10)
+    ///     }
+    /// }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     if let Some(data_src) = reference.upgrade_exact::<Foo>()? {
+    ///         let data = data_src.borrow();
+    ///         let (name, score) = data.get_data();
+    ///         Ok(format!("Processing '{}': score = {}", name, score))
+    ///     } else {
+    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "Processing 'Dave': score = 10"
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The supplied data reference is nolonger relavent."
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
+    pub fn upgrade_exact<T>(&self) -> PyResult<Option<&T::AsRefTarget>>
+    where
+        T: PyTypeInfo,
+    {
+        Ok(self
+            .as_borrowed()
+            .upgrade_exact::<T>()?
+            .map(Bound::into_gil_ref))
     }
 
     /// Upgrade the weakref to a [`PyAny`] reference to the target if possible.
@@ -263,7 +325,7 @@ impl PyWeakRef {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
     ///         "The object 'Foo' refered by this reference still exists."
@@ -316,7 +378,7 @@ impl PyWeakRef {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, object.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
     ///         "<class 'builtins.Foo'>"
@@ -380,7 +442,7 @@ pub trait PyWeakRefMethods<'py> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
     ///         "Processing 'Dave': score = 10"
@@ -398,9 +460,6 @@ pub trait PyWeakRefMethods<'py> {
     /// # }
     /// ```
     ///
-    /// # Panics
-    /// This function panics if the requested type `T` is not the the type of the instance refered to by this `weakref.ReferenceType`.
-    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
@@ -408,15 +467,79 @@ pub trait PyWeakRefMethods<'py> {
     where
         T: PyTypeCheck,
     {
-        {
-            Ok(self.get_object()?.map(|obj| obj.downcast_into::<T>().expect(
-                            "The `weakref.ReferenceType` (`PyWeakRef`) should refer to an instance of the specified class",
-                        )))
-        }
+        Ok(self
+            .get_object()?
+            .map(|obj| obj.downcast_into::<T>())
+            .transpose()?)
     }
 
     // TODO: Is this even possible?
     // fn borrowed_upgrade<T: PyTypeCheck>(&self) -> PyResult<Option<Borrowed<'_, 'py, T>>>;
+
+    /// Upgrade the weakref to a exact direct Bound object reference.
+    ///
+    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// #[pymethods]
+    /// impl Foo {
+    ///     fn get_data(&self) -> (&str, u32) {
+    ///         ("Dave", 10)
+    ///     }
+    /// }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     if let Some(data_src) = reference.upgrade_exact::<Foo>()? {
+    ///         let data = data_src.borrow();
+    ///         let (name, score) = data.get_data();
+    ///         Ok(format!("Processing '{}': score = {}", name, score))
+    ///     } else {
+    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "Processing 'Dave': score = 10"
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The supplied data reference is nolonger relavent."
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
+    fn upgrade_exact<T>(&self) -> PyResult<Option<Bound<'py, T>>>
+    where
+        T: PyTypeInfo,
+    {
+        Ok(self
+            .get_object()?
+            .map(|obj| obj.downcast_into_exact::<T>())
+            .transpose()?)
+    }
 
     // TODO: NAMING-ALTERNATIVE: upgrade_any
     /// Upgrade the weakref to a Bound [`PyAny`] reference to the target object if possible.
@@ -446,7 +569,7 @@ pub trait PyWeakRefMethods<'py> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
     ///         "The object 'Foo' refered by this reference still exists."
@@ -501,7 +624,7 @@ pub trait PyWeakRefMethods<'py> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, data.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
     ///         "The object 'Foo' refered by this reference still exists."
@@ -522,7 +645,10 @@ pub trait PyWeakRefMethods<'py> {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    fn borrow_object(&self) -> PyResult<Option<Borrowed<'_, 'py, PyAny>>> {
+    fn borrow_object<'a>(&'a self) -> PyResult<Option<Borrowed<'a, 'py, PyAny>>>
+    where
+        'py: 'a,
+    {
         let object = self.borrow_object_raw()?;
 
         Ok(if object.is_none() { None } else { Some(object) })
@@ -557,7 +683,7 @@ pub trait PyWeakRefMethods<'py> {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, object.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
     ///         "<class 'builtins.Foo'>"
@@ -610,7 +736,7 @@ pub trait PyWeakRefMethods<'py> {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakRef::new_bound(py, object.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
     ///         "<class 'builtins.Foo'>"
@@ -632,15 +758,6 @@ pub trait PyWeakRefMethods<'py> {
 }
 
 impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakRef> {
-    fn upgrade<T>(&self) -> PyResult<Option<Bound<'py, T>>>
-    where
-        T: PyTypeCheck,
-    {
-        Ok(self.get_object()?.map(|obj| obj.downcast_into::<T>().expect(
-                    "The `weakref.ReferenceType` (`PyWeakRef`) should refer to an instance of the specified class",
-                )))
-    }
-
     /*
     fn borrowed_upgrade<T>(&self) -> PyResult<Option<Borrowed<'_, 'py, T>>>
     where

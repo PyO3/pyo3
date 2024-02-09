@@ -1,9 +1,8 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAnyMethods;
-use crate::{
-    ffi, AsPyPointer, Borrowed, Bound, PyAny, PyNativeType, PyTypeCheck, Python, ToPyObject,
-};
+use crate::{ffi, AsPyPointer, Borrowed, Bound, PyAny, PyNativeType, Python, ToPyObject};
 
 use super::PyWeakRefMethods;
 
@@ -137,7 +136,7 @@ impl PyWeakProxy {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     py.run("counter = 0", None, None)?;
-    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 0);
+    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
     ///     // This is fine.
@@ -148,8 +147,8 @@ impl PyWeakProxy {
     ///         weakref.get_object()?
     ///             .is_some_and(|obj| obj.is(&foo))
     ///     );
-    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 0);
-    ///     
+    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
+    ///
     ///     let weakref2 = PyWeakProxy::new_bound_with(py, foo.clone(), wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
     ///     assert!(weakref.eq(&weakref2)?);  // But Equal, since they point to the same object
@@ -157,7 +156,7 @@ impl PyWeakProxy {
     ///     drop(foo);
     ///
     ///     assert!(weakref.upgrade::<Foo>()?.is_none());
-    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 1);
+    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 1);
     ///     Ok(())
     /// })
     /// # }
@@ -223,7 +222,7 @@ impl PyWeakProxy {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakProxy::new_bound(py, data.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
     ///         "Processing 'Dave': score = 10"
@@ -241,9 +240,6 @@ impl PyWeakProxy {
     /// # }
     /// ```
     ///
-    /// # Panics
-    /// This function panics if the requested type `T` is not the the type of the instance refered to by this `weakref.ProxyType`.
-    ///
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.ProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
@@ -252,6 +248,71 @@ impl PyWeakProxy {
         T: PyTypeCheck,
     {
         Ok(self.as_borrowed().upgrade::<T>()?.map(Bound::into_gil_ref))
+    }
+
+    /// Upgrade the weakref to an exact direct object reference.
+    ///
+    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
+    ///
+    /// # Example
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakProxy;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// #[pymethods]
+    /// impl Foo {
+    ///     fn get_data(&self) -> (&str, u32) {
+    ///         ("Dave", 10)
+    ///     }
+    /// }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakProxy>) -> PyResult<String> {
+    ///     if let Some(data_src) = reference.upgrade_exact::<Foo>()? {
+    ///         let data = data_src.borrow();
+    ///         let (name, score) = data.get_data();
+    ///         Ok(format!("Processing '{}': score = {}", name, score))
+    ///     } else {
+    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakProxy::new_bound(py, data.clone())?;
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "Processing 'Dave': score = 10"
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The supplied data reference is nolonger relavent."
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.ProxyType
+    /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
+    pub fn upgrade_exact<T>(&self) -> PyResult<Option<&T::AsRefTarget>>
+    where
+        T: PyTypeInfo,
+    {
+        Ok(self
+            .as_borrowed()
+            .upgrade_exact::<T>()?
+            .map(Bound::into_gil_ref))
     }
 
     /// Upgrade the weakref to a [`PyAny`] reference to the target if possible.
@@ -281,7 +342,7 @@ impl PyWeakProxy {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakProxy::new_bound(py, data.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
     ///         "The object 'Foo' refered by this reference still exists."
@@ -334,7 +395,7 @@ impl PyWeakProxy {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
     ///     let reference = PyWeakProxy::new_bound(py, object.clone())?;
-    ///     
+    ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
     ///         "<class 'builtins.Foo'>"
