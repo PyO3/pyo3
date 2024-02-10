@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn test_dict_is_not_ellipsis() {
         Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyEllipsis>().is_err());
+            assert!(PyDict::new_bound(py).downcast::<PyEllipsis>().is_err());
         })
     }
 }

@@ -365,17 +365,21 @@ fn test_enum() {
             _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {:?}", f),
         }
 
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item("a", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = dict
+            .extract::<Foo<'_>>()
+            .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItem { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItem, got {:?}", f),
         }
 
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item("foo", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = dict
+            .extract::<Foo<'_>>()
+            .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItemArg { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {:?}", f),
@@ -386,8 +390,8 @@ fn test_enum() {
 #[test]
 fn test_enum_error() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let err = Foo::extract(dict.as_ref()).unwrap_err();
+        let dict = PyDict::new_bound(py);
+        let err = dict.extract::<Foo<'_>>().unwrap_err();
         assert_eq!(
             err.to_string(),
             "\
@@ -430,8 +434,9 @@ enum EnumWithCatchAll<'a> {
 #[test]
 fn test_enum_catch_all() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let f = EnumWithCatchAll::extract(dict.as_ref())
+        let dict = PyDict::new_bound(py);
+        let f = dict
+            .extract::<EnumWithCatchAll<'_>>()
             .expect("Failed to extract EnumWithCatchAll from dict");
         match f {
             EnumWithCatchAll::CatchAll(any) => {
@@ -459,8 +464,8 @@ pub enum Bar {
 #[test]
 fn test_err_rename() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let f = Bar::extract(dict.as_ref());
+        let dict = PyDict::new_bound(py);
+        let f = dict.extract::<Bar>();
         assert!(f.is_err());
         assert_eq!(
             f.unwrap_err().to_string(),
