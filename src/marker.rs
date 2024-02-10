@@ -1132,7 +1132,7 @@ mod tests {
                 .unwrap();
             assert_eq!(v, 1);
 
-            let d = [("foo", 13)].into_py_dict(py).as_borrowed();
+            let d = [("foo", 13)].into_py_dict_bound(py);
 
             // Inject our own global namespace
             let v: i32 = py

@@ -94,17 +94,17 @@ fn main() -> PyResult<()> {
         .into();
 
         // call object with PyDict
-        let kwargs = [(key1, val1)].into_py_dict(py);
-        fun.call_bound(py, (), Some(&kwargs.as_borrowed()))?;
+        let kwargs = [(key1, val1)].into_py_dict_bound(py);
+        fun.call_bound(py, (), Some(&kwargs))?;
 
         // pass arguments as Vec
         let kwargs = vec![(key1, val1), (key2, val2)];
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py).as_borrowed()))?;
+        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
 
         // pass arguments as HashMap
         let mut kwargs = HashMap::<&str, i32>::new();
         kwargs.insert(key1, 1);
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py).as_borrowed()))?;
+        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
 
         Ok(())
     })
@@ -250,10 +250,10 @@ def leaky_relu(x, slope=0.01):
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
-    let kwargs = [("slope", 0.2)].into_py_dict(py);
+    let kwargs = [("slope", 0.2)].into_py_dict_bound(py);
     let lrelu_result: f64 = activators
         .getattr("leaky_relu")?
-        .call((-1.0,), Some(kwargs))?
+        .call((-1.0,), Some(kwargs.as_gil_ref()))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())

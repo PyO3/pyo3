@@ -1765,7 +1765,7 @@ mod tests {
                 "{'x': 1}",
             );
             assert_repr(
-                obj.call(py, (), Some([('x', 1)].into_py_dict(py)))
+                obj.call_bound(py, (), Some(&[('x', 1)].into_py_dict_bound(py)))
                     .unwrap()
                     .as_ref(py),
                 "{'x': 1}",

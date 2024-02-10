@@ -24,7 +24,7 @@ use pyo3::exceptions::PyException;
 create_exception!(mymodule, CustomError, PyException);
 
 Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py);
+    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict_bound(py);
     pyo3::py_run!(
         py,
         *ctx,

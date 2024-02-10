@@ -147,7 +147,7 @@ mod test_anyhow {
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py).as_borrowed();
+            let locals = [("err", pyerr)].into_py_dict_bound(py);
             let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
             assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
@@ -164,7 +164,7 @@ mod test_anyhow {
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py).as_borrowed();
+            let locals = [("err", pyerr)].into_py_dict_bound(py);
             let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
             assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })

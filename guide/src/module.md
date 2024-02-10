@@ -93,7 +93,7 @@ fn func() -> String {
 #    use pyo3::wrap_pymodule;
 #    use pyo3::types::IntoPyDict;
 #    let parent_module = wrap_pymodule!(parent_module)(py);
-#    let ctx = [("parent_module", parent_module)].into_py_dict(py).as_borrowed();
+#    let ctx = [("parent_module", parent_module)].into_py_dict_bound(py);
 #
 #    py.run_bound("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
 # })

@@ -35,12 +35,11 @@ mod inner {
         // Case1: idents & no err_msg
         ($py:expr, $($val:ident)+, $code:expr, $err:ident) => {{
             use pyo3::types::IntoPyDict;
-            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict_bound($py);
             py_expect_exception!($py, *d, $code, $err)
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
-            use pyo3::PyNativeType;
             let res = $py.run_bound($code, None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
             if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
@@ -117,8 +116,10 @@ mod inner {
     impl<'py> CatchWarnings<'py> {
         pub fn enter<R>(py: Python<'py>, f: impl FnOnce(&PyList) -> PyResult<R>) -> PyResult<R> {
             let warnings = py.import("warnings")?;
-            let kwargs = [("record", true)].into_py_dict(py);
-            let catch_warnings = warnings.getattr("catch_warnings")?.call((), Some(kwargs))?;
+            let kwargs = [("record", true)].into_py_dict_bound(py);
+            let catch_warnings = warnings
+                .getattr("catch_warnings")?
+                .call((), Some(kwargs.as_gil_ref()))?;
             let list = catch_warnings.call_method0("__enter__")?.extract()?;
             let _guard = Self { catch_warnings };
             f(list)
