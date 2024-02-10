@@ -241,7 +241,7 @@ impl PyErr {
     ///
     /// # Examples
     /// ```rust
-    /// use pyo3::{exceptions::PyTypeError, types::PyType, PyErr, Python};
+    /// use pyo3::{exceptions::PyTypeError, types::PyType, PyErr, Python, prelude::PyAnyMethods};
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
@@ -693,7 +693,7 @@ impl PyErr {
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
-    ///     assert!(err.get_type(py).is(err_clone.get_type(py)));
+    ///     assert!(err.get_type_bound(py).is(&err_clone.get_type_bound(py)));
     ///     assert!(err.value(py).is(err_clone.value(py)));
     ///     match err.traceback_bound(py) {
     ///         None => assert!(err_clone.traceback_bound(py).is_none()),
