@@ -16,7 +16,7 @@ You can also debug classic `!`-macros by adding `-Z trace-macros`:
 cargo rustc --profile=check -- -Z unstable-options --pretty=expanded -Z trace-macros > expanded.rs; rustfmt expanded.rs
 ```
 
-See [cargo expand](https://github.com/dtolnay/cargo-expand) for a more elaborate version of those commands.
+Note that those commands require using the nightly build of rust and may occasionally have bugs. See [cargo expand](https://github.com/dtolnay/cargo-expand) for a more elaborate and stable version of those commands.
 
 ## Running with Valgrind
 
