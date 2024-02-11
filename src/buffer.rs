@@ -689,6 +689,7 @@ impl_element!(f64, Float);
 mod tests {
     use super::PyBuffer;
     use crate::ffi;
+    use crate::types::any::PyAnyMethods;
     use crate::Python;
 
     #[test]
@@ -890,11 +891,11 @@ mod tests {
     fn test_array_buffer() {
         Python::with_gil(|py| {
             let array = py
-                .import("array")
+                .import_bound("array")
                 .unwrap()
                 .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
                 .unwrap();
-            let buffer = PyBuffer::get(array).unwrap();
+            let buffer = PyBuffer::get(array.as_gil_ref()).unwrap();
             assert_eq!(buffer.dimensions(), 1);
             assert_eq!(buffer.item_count(), 4);
             assert_eq!(buffer.format().to_str().unwrap(), "f");
@@ -924,7 +925,7 @@ mod tests {
             assert_eq!(buffer.to_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
 
             // F-contiguous fns
-            let buffer = PyBuffer::get(array).unwrap();
+            let buffer = PyBuffer::get(array.as_gil_ref()).unwrap();
             let slice = buffer.as_fortran_slice(py).unwrap();
             assert_eq!(slice.len(), 4);
             assert_eq!(slice[1].get(), 11.0);

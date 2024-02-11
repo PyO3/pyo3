@@ -1,6 +1,6 @@
 #![cfg(not(Py_LIMITED_API))]
 
-use pyo3::{types::PyDate, Python};
+use pyo3::{prelude::PyAnyMethods, types::PyDate, Python};
 
 #[test]
 #[should_panic(expected = "module 'datetime' has no attribute 'datetime_CAPI'")]
@@ -14,7 +14,7 @@ fn test_bad_datetime_module_panic() {
     std::fs::File::create(tmpdir.join("datetime.py")).unwrap();
 
     Python::with_gil(|py: Python<'_>| {
-        let sys = py.import("sys").unwrap();
+        let sys = py.import_bound("sys").unwrap();
         sys.getattr("path")
             .unwrap()
             .call_method1("insert", (0, tmpdir))

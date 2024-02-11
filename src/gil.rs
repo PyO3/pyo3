@@ -143,7 +143,7 @@ where
 
     // Import the threading module - this ensures that it will associate this thread as the "main"
     // thread, which is important to avoid an `AssertionError` at finalization.
-    pool.python().import("threading").unwrap();
+    pool.python().import_bound("threading").unwrap();
 
     // Execute the closure.
     let result = f(pool.python());

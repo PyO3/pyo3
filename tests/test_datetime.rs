@@ -10,7 +10,7 @@ fn _get_subclasses<'py>(
     args: &str,
 ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>, Bound<'py, PyAny>)> {
     // Import the class from Python and create some subclasses
-    let datetime = py.import("datetime")?;
+    let datetime = py.import_bound("datetime")?;
 
     let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict_bound(py);
 

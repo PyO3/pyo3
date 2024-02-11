@@ -134,7 +134,7 @@ impl PickleSupport {
 }
 
 fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
-    py.import("sys")?
+    py.import_bound("sys")?
         .dict()
         .get_item("modules")
         .unwrap()

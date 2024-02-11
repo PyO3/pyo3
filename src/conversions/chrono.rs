@@ -540,15 +540,15 @@ impl DatetimeTypes {
         static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
         TYPES
             .get_or_try_init(py, || {
-                let datetime = py.import("datetime")?;
+                let datetime = py.import_bound("datetime")?;
                 let timezone = datetime.getattr("timezone")?;
                 Ok::<_, PyErr>(Self {
                     date: datetime.getattr("date")?.into(),
                     datetime: datetime.getattr("datetime")?.into(),
                     time: datetime.getattr("time")?.into(),
                     timedelta: datetime.getattr("timedelta")?.into(),
-                    timezone: timezone.into(),
                     timezone_utc: timezone.getattr("utc")?.into(),
+                    timezone: timezone.into(),
                     tzinfo: datetime.getattr("tzinfo")?.into(),
                 })
             })
@@ -683,7 +683,7 @@ mod tests {
                 let delta = delta.to_object(py);
                 let py_delta = new_py_datetime_ob(py, "timedelta", (py_days, py_seconds, py_ms));
                 assert!(
-                    delta.as_ref(py).eq(py_delta).unwrap(),
+                    delta.bind(py).eq(&py_delta).unwrap(),
                     "{}: {} != {}",
                     name,
                     delta,
@@ -779,7 +779,7 @@ mod tests {
                     .to_object(py);
                 let py_date = new_py_datetime_ob(py, "date", (year, month, day));
                 assert_eq!(
-                    date.as_ref(py).compare(py_date).unwrap(),
+                    date.bind(py).compare(&py_date).unwrap(),
                     Ordering::Equal,
                     "{}: {} != {}",
                     name,
@@ -838,7 +838,7 @@ mod tests {
                         ),
                     );
                     assert_eq!(
-                        datetime.as_ref(py).compare(py_datetime).unwrap(),
+                        datetime.bind(py).compare(&py_datetime).unwrap(),
                         Ordering::Equal,
                         "{}: {} != {}",
                         name,
@@ -880,7 +880,7 @@ mod tests {
                         (year, month, day, hour, minute, second, py_ms, py_tz),
                     );
                     assert_eq!(
-                        datetime.as_ref(py).compare(py_datetime).unwrap(),
+                        datetime.bind(py).compare(&py_datetime).unwrap(),
                         Ordering::Equal,
                         "{}: {} != {}",
                         name,
@@ -1005,7 +1005,7 @@ mod tests {
         Python::with_gil(|py| {
             let utc = Utc.to_object(py);
             let py_utc = python_utc(py);
-            assert!(utc.as_ref(py).is(py_utc));
+            assert!(utc.bind(py).is(&py_utc));
         })
     }
 
@@ -1036,7 +1036,7 @@ mod tests {
                     .to_object(py);
                 let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, py_ms));
                 assert!(
-                    time.as_ref(py).eq(py_time).unwrap(),
+                    time.bind(py).eq(&py_time).unwrap(),
                     "{}: {} != {}",
                     name,
                     time,
@@ -1071,12 +1071,12 @@ mod tests {
         })
     }
 
-    fn new_py_datetime_ob<'a>(
-        py: Python<'a>,
+    fn new_py_datetime_ob<'py>(
+        py: Python<'py>,
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
-    ) -> &'a PyAny {
-        py.import("datetime")
+    ) -> Bound<'py, PyAny> {
+        py.import_bound("datetime")
             .unwrap()
             .getattr(name)
             .unwrap()
@@ -1084,8 +1084,8 @@ mod tests {
             .unwrap()
     }
 
-    fn python_utc(py: Python<'_>) -> &PyAny {
-        py.import("datetime")
+    fn python_utc(py: Python<'_>) -> Bound<'_, PyAny> {
+        py.import_bound("datetime")
             .unwrap()
             .getattr("timezone")
             .unwrap()
@@ -1108,7 +1108,7 @@ mod tests {
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
                 Python::with_gil(|py| {
 
-                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict_bound(py);
+                    let globals = [("datetime", py.import_bound("datetime").unwrap())].into_py_dict_bound(py);
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
                     let t = py.eval_bound(&code, Some(&globals), None).unwrap();
 

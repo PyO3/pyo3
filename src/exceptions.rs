@@ -101,13 +101,14 @@ macro_rules! import_exception {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::GILOnceCell;
                 use $crate::prelude::PyTracebackMethods;
+                use $crate::prelude::PyAnyMethods;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 
                 TYPE_OBJECT
                     .get_or_init(py, || {
                         let imp = py
-                            .import(stringify!($module))
+                            .import_bound(stringify!($module))
                             .unwrap_or_else(|err| {
                                 let traceback = err
                                     .traceback_bound(py)
@@ -812,7 +813,7 @@ mod tests {
         Python::with_gil(|py| {
             let err: PyErr = gaierror::new_err(());
             let socket = py
-                .import("socket")
+                .import_bound("socket")
                 .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
@@ -836,7 +837,7 @@ mod tests {
         Python::with_gil(|py| {
             let err: PyErr = MessageError::new_err(());
             let email = py
-                .import("email")
+                .import_bound("email")
                 .map_err(|e| e.display(py))
                 .expect("could not import email");
 
