@@ -538,12 +538,25 @@ impl PyErr {
     where
         T: ToPyObject,
     {
-        self.is_instance(py, exc.to_object(py).as_ref(py))
+        self.is_instance_bound(py, exc.to_object(py).bind(py).clone())
+    }
+
+    /// Deprecated form of `PyErr::is_instance_bound`.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::is_instance` will be replaced by `PyErr::is_instance_bound` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
+        self.is_instance_bound(py, ty.into_py(py).into_bound(py))
     }
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
-    pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
+    pub fn is_instance_bound(&self, py: Python<'_>, ty: Bound<'_, PyAny>) -> bool {
         let type_bound = self.get_type_bound(py);
         (unsafe { ffi::PyErr_GivenExceptionMatches(type_bound.as_ptr(), ty.as_ptr()) }) != 0
     }
@@ -554,7 +567,7 @@ impl PyErr {
     where
         T: PyTypeInfo,
     {
-        self.is_instance(py, T::type_object_bound(py).as_gil_ref())
+        self.is_instance_bound(py, T::type_object_bound(py).as_any().clone())
     }
 
     /// Writes the error back to the Python interpreter's global state.
