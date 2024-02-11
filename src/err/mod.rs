@@ -248,7 +248,7 @@ impl PyErr {
     ///     assert!(err.get_type_bound(py).is(PyType::new::<PyTypeError>(py)));
     /// });
     /// ```
-    pub fn get_type_bound<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyType> {
+    pub fn get_type_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
         self.normalized(py).ptype(py)
     }
 
