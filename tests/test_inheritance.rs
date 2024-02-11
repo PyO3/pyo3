@@ -20,12 +20,12 @@ struct SubclassAble {}
 #[test]
 fn subclass() {
     Python::with_gil(|py| {
-        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
+        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict_bound(py);
 
-        py.run(
+        py.run_bound(
             "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
             None,
-            Some(d),
+            Some(&d),
         )
         .map_err(|e| e.display(py))
         .unwrap();
@@ -97,9 +97,13 @@ fn call_base_and_sub_methods() {
 fn mutation_fails() {
     Python::with_gil(|py| {
         let obj = PyCell::new(py, SubClass::new()).unwrap();
-        let global = Some([("obj", obj)].into_py_dict(py));
+        let global = [("obj", obj)].into_py_dict_bound(py);
         let e = py
-            .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
+            .run_bound(
+                "obj.base_set(lambda: obj.sub_set_and_ret(1))",
+                Some(&global),
+                None,
+            )
             .unwrap_err();
         assert_eq!(&e.to_string(), "RuntimeError: Already borrowed");
     });
@@ -240,7 +244,7 @@ mod inheriting_native_type {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
-            let item = py.eval("object()", None, None).unwrap();
+            let item = &py.eval_bound("object()", None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
             dict_sub.as_ref(py).set_item("foo", item).unwrap();
@@ -271,11 +275,11 @@ mod inheriting_native_type {
     fn custom_exception() {
         Python::with_gil(|py| {
             let cls = py.get_type::<CustomException>();
-            let dict = [("cls", cls)].into_py_dict(py);
-            let res = py.run(
+            let dict = [("cls", cls)].into_py_dict_bound(py);
+            let res = py.run_bound(
             "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
             None,
-            Some(dict)
+            Some(&dict)
             );
             let err = res.unwrap_err();
             assert!(err.matches(py, cls), "{}", err);

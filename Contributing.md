@@ -48,7 +48,7 @@ There are some specific areas of focus where help is currently needed for the do
 - Issues requesting documentation improvements are tracked with the [documentation](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation) label.
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
 
-You can build the docs (including all features) with
+To build the docs (including all features), install [`nox`][nox] and then run
 
 ```shell
 nox -s docs -- open

@@ -36,7 +36,7 @@ impl ToPyObject for Ipv4Addr {
             .expect("failed to load ipaddress.IPv4Address")
             .call1((u32::from_be_bytes(self.octets()),))
             .expect("failed to construct ipaddress.IPv4Address")
-            .to_object(py)
+            .unbind()
     }
 }
 
@@ -48,7 +48,7 @@ impl ToPyObject for Ipv6Addr {
             .expect("failed to load ipaddress.IPv6Address")
             .call1((u128::from_be_bytes(self.octets()),))
             .expect("failed to construct ipaddress.IPv6Address")
-            .to_object(py)
+            .unbind()
     }
 }
 

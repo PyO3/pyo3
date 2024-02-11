@@ -573,12 +573,15 @@ mod tests {
     // tzdata there to make this work.
     #[cfg(all(Py_3_9, not(target_os = "windows")))]
     fn test_zoneinfo_is_not_fixed_offset() {
+        use crate::types::any::PyAnyMethods;
+        use crate::types::dict::PyDictMethods;
+
         Python::with_gil(|py| {
-            let locals = crate::types::PyDict::new(py);
-            py.run(
+            let locals = crate::types::PyDict::new_bound(py);
+            py.run_bound(
                 "import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,
-                Some(locals),
+                Some(&locals),
             )
             .unwrap();
             let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().unwrap().extract();
@@ -1094,6 +1097,7 @@ mod tests {
     mod proptests {
         use super::*;
         use crate::tests::common::CatchWarnings;
+        use crate::types::any::PyAnyMethods;
         use crate::types::IntoPyDict;
         use proptest::prelude::*;
 
@@ -1104,9 +1108,9 @@ mod tests {
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
                 Python::with_gil(|py| {
 
-                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py);
+                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict_bound(py);
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
-                    let t = py.eval(&code, Some(globals), None).unwrap();
+                    let t = py.eval_bound(&code, Some(&globals), None).unwrap();
 
                     // Get ISO 8601 string from python
                     let py_iso_str = t.call_method0("isoformat").unwrap();

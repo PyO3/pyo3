@@ -261,6 +261,8 @@ fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
 
 #[cfg(test)]
 mod tests {
+    use self::{any::PyAnyMethods, dict::PyDictMethods};
+
     use super::*;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
@@ -340,9 +342,9 @@ mod tests {
     fn convert_index_class() {
         Python::with_gil(|py| {
             let index = python_index_class(py);
-            let locals = PyDict::new(py);
+            let locals = PyDict::new_bound(py);
             locals.set_item("index", index).unwrap();
-            let ob = py.eval("index.C(10)", None, Some(locals)).unwrap();
+            let ob = py.eval_bound("index.C(10)", None, Some(&locals)).unwrap();
             let _: BigInt = ob.extract().unwrap();
         });
     }

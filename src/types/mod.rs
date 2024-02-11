@@ -59,9 +59,9 @@ pub use self::typeobject::PyType;
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast()?;
+///     let dict = py.eval_bound("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
 ///
-///     for (key, value) in dict {
+///     for (key, value) in dict.iter() {
 ///         println!("key: {}, value: {}", key, value);
 ///     }
 ///
@@ -207,9 +207,9 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of(ptr: &$crate::PyAny) -> bool {
+                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
                     #[allow(unused_unsafe)]
-                    unsafe { $checkfunction(ptr.as_ptr()) > 0 }
+                    unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
             )?
         }

@@ -733,7 +733,7 @@ impl PyAny {
     where
         T: PyTypeCheck<AsRefTarget = T>,
     {
-        if T::type_check(self) {
+        if T::type_check(&self.as_borrowed()) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -776,7 +776,7 @@ impl PyAny {
     where
         T: PyTypeInfo<AsRefTarget = T>,
     {
-        if T::is_exact_type_of(self) {
+        if T::is_exact_type_of_bound(&self.as_borrowed()) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -2100,7 +2100,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(self.as_gil_ref()) {
+        if T::type_check(self) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -2113,7 +2113,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(self.as_gil_ref()) {
+        if T::type_check(&self) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
@@ -2218,12 +2218,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_type_of(self.as_gil_ref())
+        T::is_type_of_bound(self)
     }
 
     #[inline]
     fn is_exact_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_exact_type_of(self.as_gil_ref())
+        T::is_exact_type_of_bound(self)
     }
 
     fn contains<V>(&self, value: V) -> PyResult<bool>
@@ -2400,8 +2400,8 @@ class NonHeapNonDescriptorInt:
     fn test_call_with_kwargs() {
         Python::with_gil(|py| {
             let list = vec![3, 6, 5, 4, 7].to_object(py);
-            let dict = vec![("reverse", true)].into_py_dict(py);
-            list.call_method(py, "sort", (), Some(dict)).unwrap();
+            let dict = vec![("reverse", true)].into_py_dict_bound(py);
+            list.call_method_bound(py, "sort", (), Some(&dict)).unwrap();
             assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
         });
     }

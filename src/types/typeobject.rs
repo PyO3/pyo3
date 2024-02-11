@@ -14,7 +14,7 @@ impl PyType {
     /// Creates a new type object.
     #[inline]
     pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
-        T::type_object(py)
+        T::type_object_bound(py).into_gil_ref()
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
@@ -104,7 +104,7 @@ impl PyType {
     where
         T: PyTypeInfo,
     {
-        self.is_subclass(T::type_object(self.py()))
+        self.is_subclass(T::type_object_bound(self.py()).as_gil_ref())
     }
 }
 

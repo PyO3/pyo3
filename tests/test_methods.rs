@@ -89,7 +89,7 @@ impl ClassMethod {
 #[test]
 fn class_method() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
         py_assert!(
@@ -116,7 +116,7 @@ impl ClassMethodWithArgs {
 #[test]
 fn class_method_with_args() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(
             py,
             *d,
@@ -147,7 +147,7 @@ fn static_method() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
-        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
@@ -171,7 +171,7 @@ fn static_method_with_args() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
-        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method(1337) == '0x539'");
     });
 }
@@ -669,7 +669,7 @@ impl MethDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<MethDocs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
             py,
@@ -753,7 +753,7 @@ fn method_with_pyclassarg() {
     Python::with_gil(|py| {
         let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
+        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict_bound(py);
         py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.optional_add(); assert obj.value == 20");

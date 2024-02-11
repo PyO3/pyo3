@@ -28,7 +28,7 @@ impl PyTraceback {
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
-    ///         .run("raise Exception('banana')", None, None)
+    ///         .run_bound("raise Exception('banana')", None, None)
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
@@ -71,7 +71,7 @@ pub trait PyTracebackMethods<'py> {
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
-    ///         .run("raise Exception('banana')", None, None)
+    ///         .run_bound("raise Exception('banana')", None, None)
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
@@ -121,7 +121,7 @@ mod tests {
     fn format_traceback() {
         Python::with_gil(|py| {
             let err = py
-                .run("raise Exception('banana')", None, None)
+                .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
             assert_eq!(
@@ -134,9 +134,9 @@ mod tests {
     #[test]
     fn test_err_from_value() {
         Python::with_gil(|py| {
-            let locals = PyDict::new(py);
+            let locals = PyDict::new_bound(py);
             // Produce an error from python so that it has a traceback
-            py.run(
+            py.run_bound(
                 r"
 try:
     raise ValueError('raised exception')
@@ -144,10 +144,10 @@ except Exception as e:
     err = e
 ",
                 None,
-                Some(locals),
+                Some(&locals),
             )
             .unwrap();
-            let err = PyErr::from_value(locals.get_item("err").unwrap().unwrap());
+            let err = PyErr::from_value(locals.get_item("err").unwrap().unwrap().into_gil_ref());
             let traceback = err.value(py).getattr("__traceback__").unwrap();
             assert!(err.traceback_bound(py).unwrap().is(traceback));
         })
@@ -156,15 +156,15 @@ except Exception as e:
     #[test]
     fn test_err_into_py() {
         Python::with_gil(|py| {
-            let locals = PyDict::new(py);
+            let locals = PyDict::new_bound(py);
             // Produce an error from python so that it has a traceback
-            py.run(
+            py.run_bound(
                 r"
 def f():
     raise ValueError('raised exception')
 ",
                 None,
-                Some(locals),
+                Some(&locals),
             )
             .unwrap();
             let f = locals.get_item("f").unwrap().unwrap();

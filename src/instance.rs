@@ -1,4 +1,5 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
@@ -66,38 +67,219 @@ pub unsafe trait PyNativeType: Sized {
 #[repr(transparent)]
 pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
 
+impl<'py, T> Bound<'py, T>
+where
+    T: PyClass,
+{
+    /// Creates a new instance `Bound<T>` of a `#[pyclass]` on the Python heap.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Foo {/* fields omitted */}
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<Py<Foo>> {
+    ///     let foo: Bound<'_, Foo> = Bound::new(py, Foo {})?;
+    ///     Ok(foo.into())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(
+        py: Python<'py>,
+        value: impl Into<PyClassInitializer<T>>,
+    ) -> PyResult<Bound<'py, T>> {
+        let initializer = value.into();
+        let obj = initializer.create_cell(py)?;
+        let ob = unsafe {
+            obj.cast::<ffi::PyObject>()
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        };
+        Ok(ob)
+    }
+}
+
 impl<'py> Bound<'py, PyAny> {
-    /// Constructs a new Bound from a pointer. Panics if ptr is null.
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer. Panics if `ptr` is null.
     ///
     /// # Safety
     ///
-    /// `ptr` must be a valid pointer to a Python object.
-    pub(crate) unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+    /// - `ptr` must be a valid pointer to a Python object
+    /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
 
-    /// Constructs a new Bound from a pointer. Returns None if ptr is null.
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer. Returns `None`` if `ptr` is null.
     ///
     /// # Safety
     ///
-    /// `ptr` must be a valid pointer to a Python object, or NULL.
-    pub(crate) unsafe fn from_owned_ptr_or_opt(
-        py: Python<'py>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<Self> {
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    pub unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
         Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
 
-    /// Constructs a new Bound from a pointer. Returns error if ptr is null.
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer. Returns an `Err` by calling `PyErr::fetch`
+    /// if `ptr` is null.
     ///
     /// # Safety
     ///
-    /// `ptr` must be a valid pointer to a Python object, or NULL.
-    pub(crate) unsafe fn from_owned_ptr_or_err(
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    pub unsafe fn from_owned_ptr_or_err(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
+}
+
+impl<'py, T> Bound<'py, T>
+where
+    T: PyClass,
+{
+    /// Immutably borrows the value `T`.
+    ///
+    /// This borrow lasts while the returned [`PyRef`] exists.
+    /// Multiple immutable borrows can be taken out at the same time.
+    ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// #
+    /// #[pyclass]
+    /// struct Foo {
+    ///     inner: u8,
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let foo: Bound<'_, Foo> = Bound::new(py, Foo { inner: 73 })?;
+    ///     let inner: &u8 = &foo.borrow().inner;
+    ///
+    ///     assert_eq!(*inner, 73);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// [`try_borrow`](#method.try_borrow).
+    pub fn borrow(&'py self) -> PyRef<'py, T> {
+        self.get_cell().borrow()
+    }
+
+    /// Mutably borrows the value `T`.
+    ///
+    /// This borrow lasts while the returned [`PyRefMut`] exists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #
+    /// #[pyclass]
+    /// struct Foo {
+    ///     inner: u8,
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let foo: Bound<'_, Foo> = Bound::new(py, Foo { inner: 73 })?;
+    ///     foo.borrow_mut().inner = 35;
+    ///
+    ///     assert_eq!(foo.borrow().inner, 35);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    ///  ```
+    ///
+    /// # Panics
+    /// Panics if the value is currently borrowed. For a non-panicking variant, use
+    /// [`try_borrow_mut`](#method.try_borrow_mut).
+    pub fn borrow_mut(&'py self) -> PyRefMut<'py, T>
+    where
+        T: PyClass<Frozen = False>,
+    {
+        self.get_cell().borrow_mut()
+    }
+
+    /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyRef`] exists.
+    ///
+    /// This is the non-panicking variant of [`borrow`](#method.borrow).
+    ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
+    pub fn try_borrow(&'py self) -> Result<PyRef<'py, T>, PyBorrowError> {
+        self.get_cell().try_borrow()
+    }
+
+    /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyRefMut`] exists.
+    ///
+    /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
+    pub fn try_borrow_mut(&'py self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
+    where
+        T: PyClass<Frozen = False>,
+    {
+        self.get_cell().try_borrow_mut()
+    }
+
+    /// Provide an immutable borrow of the value `T` without acquiring the GIL.
+    ///
+    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// # use pyo3::prelude::*;
+    ///
+    /// #[pyclass(frozen)]
+    /// struct FrozenCounter {
+    ///     value: AtomicUsize,
+    /// }
+    ///
+    /// Python::with_gil(|py| {
+    ///     let counter = FrozenCounter { value: AtomicUsize::new(0) };
+    ///
+    ///     let py_counter = Bound::new(py, counter).unwrap();
+    ///
+    ///     py_counter.get().value.fetch_add(1, Ordering::Relaxed);
+    /// });
+    /// ```
+    pub fn get(&self) -> &T
+    where
+        T: PyClass<Frozen = True> + Sync,
+    {
+        let cell = self.get_cell();
+        // SAFETY: The class itself is frozen and `Sync` and we do not access anything but `cell.contents.value`.
+        unsafe { &*cell.get_ptr() }
+    }
+
+    fn get_cell(&'py self) -> &'py PyCell<T> {
+        let cell = self.as_ptr().cast::<PyCell<T>>();
+        // SAFETY: Bound<T> is known to contain an object which is laid out in memory as a
+        // PyCell<T>.
+        //
+        // Strictly speaking for now `&'py PyCell<T>` is part of the "GIL Ref" API, so this
+        // could use some further refactoring later to avoid going through this reference.
+        unsafe { &*cell }
     }
 }
 
@@ -1443,6 +1625,9 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        // TODO update MSRV past 1.59 and use .cloned() to make
+        // clippy happy
+        #[allow(clippy::map_clone)]
         ob.downcast().map(Clone::clone).map_err(Into::into)
     }
 }
@@ -1580,7 +1765,7 @@ mod tests {
                 "{'x': 1}",
             );
             assert_repr(
-                obj.call(py, (), Some([('x', 1)].into_py_dict(py)))
+                obj.call_bound(py, (), Some(&[('x', 1)].into_py_dict_bound(py)))
                     .unwrap()
                     .as_ref(py),
                 "{'x': 1}",
@@ -1765,12 +1950,11 @@ a = A()
 
         use super::*;
 
-        #[crate::pyclass]
-        #[pyo3(crate = "crate")]
+        #[crate::pyclass(crate = "crate")]
         struct SomeClass(i32);
 
         #[test]
-        fn instance_borrow_methods() {
+        fn py_borrow_methods() {
             // More detailed tests of the underlying semantics in pycell.rs
             Python::with_gil(|py| {
                 let instance = Py::new(py, SomeClass(0)).unwrap();
@@ -1785,6 +1969,40 @@ a = A()
                 assert_eq!(instance.try_borrow(py).unwrap().0, 123);
                 assert_eq!(instance.borrow_mut(py).0, 123);
                 assert_eq!(instance.try_borrow_mut(py).unwrap().0, 123);
+            })
+        }
+
+        #[test]
+        fn bound_borrow_methods() {
+            // More detailed tests of the underlying semantics in pycell.rs
+            Python::with_gil(|py| {
+                let instance = Bound::new(py, SomeClass(0)).unwrap();
+                assert_eq!(instance.borrow().0, 0);
+                assert_eq!(instance.try_borrow().unwrap().0, 0);
+                assert_eq!(instance.borrow_mut().0, 0);
+                assert_eq!(instance.try_borrow_mut().unwrap().0, 0);
+
+                instance.borrow_mut().0 = 123;
+
+                assert_eq!(instance.borrow().0, 123);
+                assert_eq!(instance.try_borrow().unwrap().0, 123);
+                assert_eq!(instance.borrow_mut().0, 123);
+                assert_eq!(instance.try_borrow_mut().unwrap().0, 123);
+            })
+        }
+
+        #[crate::pyclass(frozen, crate = "crate")]
+        struct FrozenClass(i32);
+
+        #[test]
+        fn test_frozen_get() {
+            Python::with_gil(|py| {
+                for i in 0..10 {
+                    let instance = Py::new(py, FrozenClass(i)).unwrap();
+                    assert_eq!(instance.get().0, i);
+
+                    assert_eq!(instance.bind(py).get().0, i);
+                }
             })
         }
 
