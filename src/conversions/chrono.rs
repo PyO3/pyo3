@@ -47,8 +47,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
-    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
-    PyTzInfo, PyTzInfoAccess,
+    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
+    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
@@ -365,7 +365,7 @@ impl FromPyObject<'_> for FixedOffset {
 
 impl ToPyObject for Utc {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        timezone_utc(py).into()
+        timezone_utc_bound(py).into()
     }
 }
 
@@ -377,7 +377,7 @@ impl IntoPy<PyObject> for Utc {
 
 impl FromPyObject<'_> for Utc {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
-        let py_utc = timezone_utc(ob.py());
+        let py_utc = timezone_utc_bound(ob.py());
         if ob.eq(py_utc)? {
             Ok(Utc)
         } else {
@@ -557,8 +557,8 @@ impl DatetimeTypes {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn timezone_utc(py: Python<'_>) -> &PyAny {
-    DatetimeTypes::get(py).timezone_utc.as_ref(py)
+fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyAny> {
+    DatetimeTypes::get(py).timezone_utc.bind(py).clone()
 }
 
 #[cfg(test)]
@@ -912,7 +912,7 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let tz_utc = timezone_utc(py);
+            let tz_utc = timezone_utc_bound(py);
             let py_datetime = new_py_datetime_ob(
                 py,
                 "datetime",
