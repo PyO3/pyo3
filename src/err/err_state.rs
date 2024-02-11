@@ -22,13 +22,7 @@ impl PyErrStateNormalized {
 
     #[cfg(Py_3_12)]
     pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
-        use crate::ffi_ptr_ext::FfiPtrExt;
-        use crate::types::any::PyAnyMethods;
-        unsafe {
-            ffi::PyExceptionInstance_Class(self.pvalue.as_ptr())
-                .assume_owned(py)
-                .downcast_into_unchecked()
-        }
+        self.pvalue.bind(py).get_type().as_borrowed().to_owned()
     }
 
     #[cfg(not(Py_3_12))]
