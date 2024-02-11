@@ -479,7 +479,7 @@ class House(object):
             }
             Err(e) => {
                 house
-                    .call_method1("__exit__", (e.get_type(py), e.value(py), e.traceback_bound(py)))
+                    .call_method1("__exit__", (e.get_type_bound(py), e.value(py), e.traceback_bound(py)))
                     .unwrap();
             }
         }
