@@ -16,12 +16,12 @@ pub(crate) struct PyErrStateNormalized {
 
 impl PyErrStateNormalized {
     #[cfg(not(Py_3_12))]
-    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyType> {
+    pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
         self.ptype.bind(py).clone()
     }
 
     #[cfg(Py_3_12)]
-    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyType> {
+    pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
         use crate::ffi_ptr_ext::FfiPtrExt;
         use crate::types::any::PyAnyMethods;
         unsafe {
