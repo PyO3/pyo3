@@ -538,7 +538,7 @@ impl PyErr {
     where
         T: ToPyObject,
     {
-        self.is_instance_bound(py, exc.to_object(py).bind(py).clone())
+        self.is_instance_bound(py, exc.to_object(py).bind(py))
     }
 
     /// Deprecated form of `PyErr::is_instance_bound`.
