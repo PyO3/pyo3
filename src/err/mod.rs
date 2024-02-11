@@ -190,6 +190,19 @@ impl PyErr {
         PyErr::from_state(PyErrState::lazy(ty, args))
     }
 
+    /// Deprecated form of [`PyErr::from_value_bound`].
+    //#[cfg_attr(
+    //    not(feature = "gil-refs"),
+    //    deprecated(
+    //        since = "0.21.0",
+    //        note = "`PyErr::from_value` will be replaced by `PyErr::from_value_bound` in a future PyO3 version"
+    //    )
+    //)]
+    pub fn from_value(obj: &PyAny) -> PyErr {
+        let py = obj.py();
+        PyErr::from_value_bound(obj.into_py(py).into_bound(py))
+    }
+
     /// Creates a new PyErr.
     ///
     /// If `obj` is a Python exception object, the PyErr will contain that object.
@@ -201,35 +214,35 @@ impl PyErr {
     /// # Examples
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::PyTypeInfo;
     /// use pyo3::exceptions::PyTypeError;
-    /// use pyo3::types::{PyType, PyString};
+    /// use pyo3::types::PyString;
     ///
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
-    ///     let err = PyErr::from_value(PyTypeError::new_err("some type error")
-    ///         .value_bound(py)
-    ///         .into_gil_ref());
+    ///     let err = PyErr::from_value_bound(PyTypeError::new_err("some type error")
+    ///         .value_bound(py).into_any());
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
-    ///     let err = PyErr::from_value(PyType::new::<PyTypeError>(py));
+    ///     let err = PyErr::from_value_bound(PyTypeError::type_object_bound(py).into_any());
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
-    ///     let err = PyErr::from_value(PyString::new_bound(py, "foo").as_gil_ref());
+    ///     let err = PyErr::from_value_bound(PyString::new_bound(py, "foo").into_any());
     ///     assert_eq!(
     ///         err.to_string(),
     ///         "TypeError: exceptions must derive from BaseException"
     ///     );
     /// });
     /// ```
-    pub fn from_value(obj: &PyAny) -> PyErr {
+    pub fn from_value_bound(obj: Bound<'_, PyAny>) -> PyErr {
         let state = if let Ok(obj) = obj.downcast::<PyBaseException>() {
-            PyErrState::normalized(obj)
+            PyErrState::normalized(obj.clone())
         } else {
             // Assume obj is Type[Exception]; let later normalization handle if this
             // is not the case
-            PyErrState::lazy(obj, obj.py().None())
+            PyErrState::lazy_bound(obj.clone(), obj.py().None())
         };
 
         PyErr::from_state(state)
