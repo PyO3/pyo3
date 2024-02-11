@@ -551,12 +551,12 @@ impl PyErr {
     )]
     #[inline]
     pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
-        self.is_instance_bound(py, ty.into_py(py).into_bound(py))
+        self.is_instance_bound(py, &ty.as_borrowed())
     }
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
-    pub fn is_instance_bound(&self, py: Python<'_>, ty: Bound<'_, PyAny>) -> bool {
+    pub fn is_instance_bound(&self, py: Python<'_>, ty: &Bound<'_, PyAny>) -> bool {
         let type_bound = self.get_type_bound(py);
         (unsafe { ffi::PyErr_GivenExceptionMatches(type_bound.as_ptr(), ty.as_ptr()) }) != 0
     }
@@ -567,7 +567,7 @@ impl PyErr {
     where
         T: PyTypeInfo,
     {
-        self.is_instance_bound(py, T::type_object_bound(py).as_any().clone())
+        self.is_instance_bound(py, &T::type_object_bound(py))
     }
 
     /// Writes the error back to the Python interpreter's global state.
