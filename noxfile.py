@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import json
 import os
 import re
@@ -564,6 +565,33 @@ def ffi_check(session: nox.Session):
     _run_cargo(session, "run", _FFI_CHECK)
 
 
+@nox.session(name="test-version-limits")
+def test_version_limits(session: nox.Session):
+    env = os.environ.copy()
+    with _config_file() as config_file:
+        env["PYO3_CONFIG_FILE"] = config_file.name
+
+        assert "3.6" not in PY_VERSIONS
+        config_file.set("CPython", "3.6")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        assert "3.13" not in PY_VERSIONS
+        config_file.set("CPython", "3.13")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.13 CPython should build with forward compatibility
+        env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+
+        assert "3.6" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.6")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        assert "3.11" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.11")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
     # pyo3-ffi-check needs to scrape docs of pyo3-ffi
     _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
@@ -652,7 +680,13 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
         print("::endgroup::", file=sys.stderr)
 
 
-def _run_cargo(session: nox.Session, *args: str, **kwargs: Any) -> None:
+def _run_cargo(
+    session: nox.Session, *args: str, expect_error: bool = False, **kwargs: Any
+) -> None:
+    if expect_error:
+        if "success_codes" in kwargs:
+            raise ValueError("expect_error overrides success_codes")
+        kwargs["success_codes"] = [101]
     _run(session, "cargo", *args, **kwargs, external=True)
 
 
@@ -700,30 +734,49 @@ def _get_output(*args: str) -> str:
 def _for_all_version_configs(
     session: nox.Session, job: Callable[[Dict[str, str]], None]
 ) -> None:
-    with tempfile.NamedTemporaryFile("r+") as config:
-        env = os.environ.copy()
-        env["PYO3_CONFIG_FILE"] = config.name
+    env = os.environ.copy()
+    with _config_file() as config_file:
+        env["PYO3_CONFIG_FILE"] = config_file
 
-        def _job_with_config(implementation, version) -> bool:
-            config.seek(0)
-            config.truncate(0)
-            config.write(
-                f"""\
-implementation={implementation}
-version={version}
-suppress_build_script_link_lines=true
-"""
-            )
-            config.flush()
-
+        def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
-            return job(env)
+            config_file.set(implementation, version)
+            job(env)
 
         for version in PY_VERSIONS:
             _job_with_config("CPython", version)
 
         for version in PYPY_VERSIONS:
             _job_with_config("PyPy", version)
+
+
+class _ConfigFile:
+    def __init__(self, config_file) -> None:
+        self._config_file = config_file
+
+    def set(self, implementation: str, version: str) -> None:
+        """Set the contents of this config file to the given implementation and version."""
+        self._config_file.seek(0)
+        self._config_file.truncate(0)
+        self._config_file.write(
+            f"""\
+implementation={implementation}
+version={version}
+suppress_build_script_link_lines=true
+"""
+        )
+        self._config_file.flush()
+
+    @property
+    def name(self) -> str:
+        return self._config_file.name
+
+
+@contextmanager
+def _config_file() -> _ConfigFile:
+    """Creates a temporary config file which can be repeatedly set to different values."""
+    with tempfile.NamedTemporaryFile("r+") as config:
+        yield _ConfigFile(config)
 
 
 _BENCHES = "--manifest-path=pyo3-benches/Cargo.toml"
