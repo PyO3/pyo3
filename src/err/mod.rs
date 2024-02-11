@@ -241,7 +241,7 @@ impl PyErr {
     ///
     /// # Examples
     /// ```rust
-    /// use pyo3::{exceptions::PyTypeError, types::PyType, PyErr, Python, prelude::PyAnyMethods};
+    /// use pyo3::{prelude::*, exceptions::PyTypeError, types::PyType};
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
