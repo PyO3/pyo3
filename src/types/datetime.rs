@@ -218,8 +218,9 @@ impl PyDate {
     pub fn new_bound(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
         let api = ensure_datetime_api(py)?;
         unsafe {
-            let ptr = (api.Date_FromDate)(year, c_int::from(month), c_int::from(day), api.DateType);
-            ptr.assume_owned_or_err(py).downcast_into_unchecked()
+            (api.Date_FromDate)(year, c_int::from(month), c_int::from(day), api.DateType)
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 
@@ -245,8 +246,9 @@ impl PyDate {
         let _api = ensure_datetime_api(py)?;
 
         unsafe {
-            let ptr = PyDate_FromTimestamp(time_tuple.as_ptr());
-            ptr.assume_owned_or_err(py).downcast_into_unchecked()
+            PyDate_FromTimestamp(time_tuple.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 }
@@ -300,8 +302,8 @@ impl PyDateTime {
         )
     )]
     #[allow(clippy::too_many_arguments)]
-    pub fn new<'p>(
-        py: Python<'p>,
+    pub fn new<'py>(
+        py: Python<'py>,
         year: i32,
         month: u8,
         day: u8,
@@ -309,8 +311,8 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
-    ) -> PyResult<&'p PyDateTime> {
+        tzinfo: Option<&'py PyTzInfo>,
+    ) -> PyResult<&'py PyDateTime> {
         Self::new_bound(
             py,
             year,
@@ -327,8 +329,8 @@ impl PyDateTime {
 
     /// Creates a new `datetime.datetime` object.
     #[allow(clippy::too_many_arguments)]
-    pub fn new_bound<'p>(
-        py: Python<'p>,
+    pub fn new_bound<'py>(
+        py: Python<'py>,
         year: i32,
         month: u8,
         day: u8,
@@ -336,8 +338,8 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&Bound<'_, PyTzInfo>>,
-    ) -> PyResult<Bound<'p, PyDateTime>> {
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyDateTime>> {
         let api = ensure_datetime_api(py)?;
         unsafe {
             (api.DateTime_FromDateAndTime)(
@@ -357,9 +359,16 @@ impl PyDateTime {
     }
 
     /// Deprecated form of [`PyDateTime::new_bound_with_fold`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDateTime::new_with_fold` will be replaced by `PyDateTime::new_bound_with_fold` in a future PyO3 version"
+        )
+    )]
     #[allow(clippy::too_many_arguments)]
-    pub fn new_with_fold<'p>(
-        py: Python<'p>,
+    pub fn new_with_fold<'py>(
+        py: Python<'py>,
         year: i32,
         month: u8,
         day: u8,
@@ -367,9 +376,9 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
+        tzinfo: Option<&'py PyTzInfo>,
         fold: bool,
-    ) -> PyResult<&'p PyDateTime> {
+    ) -> PyResult<&'py PyDateTime> {
         Self::new_bound_with_fold(
             py,
             year,
@@ -393,8 +402,8 @@ impl PyDateTime {
     /// represented time is ambiguous.
     /// See [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[allow(clippy::too_many_arguments)]
-    pub fn new_bound_with_fold<'p>(
-        py: Python<'p>,
+    pub fn new_bound_with_fold<'py>(
+        py: Python<'py>,
         year: i32,
         month: u8,
         day: u8,
@@ -402,9 +411,9 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&Bound<'_, PyTzInfo>>,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
         fold: bool,
-    ) -> PyResult<Bound<'p, PyDateTime>> {
+    ) -> PyResult<Bound<'py, PyDateTime>> {
         let api = ensure_datetime_api(py)?;
         unsafe {
             (api.DateTime_FromDateAndTimeAndFold)(
@@ -432,11 +441,11 @@ impl PyDateTime {
             note = "`PyDateTime::from_timestamp` will be replaced by `PyDateTime::from_timestamp_bound` in a future PyO3 version"
         )
     )]
-    pub fn from_timestamp<'p>(
-        py: Python<'p>,
+    pub fn from_timestamp<'py>(
+        py: Python<'py>,
         timestamp: f64,
-        tzinfo: Option<&PyTzInfo>,
-    ) -> PyResult<&'p PyDateTime> {
+        tzinfo: Option<&'py PyTzInfo>,
+    ) -> PyResult<&'py PyDateTime> {
         Self::from_timestamp_bound(py, timestamp, tzinfo.map(PyTzInfo::as_borrowed).as_deref())
             .map(Bound::into_gil_ref)
     }
@@ -444,11 +453,11 @@ impl PyDateTime {
     /// Construct a `datetime` object from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.datetime.fromtimestamp`
-    pub fn from_timestamp_bound<'p>(
-        py: Python<'p>,
+    pub fn from_timestamp_bound<'py>(
+        py: Python<'py>,
         timestamp: f64,
-        tzinfo: Option<&Bound<'_, PyTzInfo>>,
-    ) -> PyResult<Bound<'p, PyDateTime>> {
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyDateTime>> {
         let args = IntoPy::<Py<PyTuple>>::into_py((timestamp, tzinfo), py).into_bound(py);
 
         // safety ensure API is loaded
@@ -579,14 +588,14 @@ impl PyTime {
             note = "`PyTime::new` will be replaced by `PyTime::new_bound` in a future PyO3 version"
         )
     )]
-    pub fn new<'p>(
-        py: Python<'p>,
+    pub fn new<'py>(
+        py: Python<'py>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
-    ) -> PyResult<&'p PyTime> {
+        tzinfo: Option<&'py PyTzInfo>,
+    ) -> PyResult<&'py PyTime> {
         Self::new_bound(
             py,
             hour,
@@ -599,14 +608,14 @@ impl PyTime {
     }
 
     /// Creates a new `datetime.time` object.
-    pub fn new_bound<'p>(
-        py: Python<'p>,
+    pub fn new_bound<'py>(
+        py: Python<'py>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&Bound<'_, PyTzInfo>>,
-    ) -> PyResult<Bound<'p, PyTime>> {
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyTime>> {
         let api = ensure_datetime_api(py)?;
         unsafe {
             (api.Time_FromTime)(
@@ -630,15 +639,15 @@ impl PyTime {
             note = "`PyTime::new_with_fold` will be replaced by `PyTime::new_bound_with_fold` in a future PyO3 version"
         )
     )]
-    pub fn new_with_fold<'p>(
-        py: Python<'p>,
+    pub fn new_with_fold<'py>(
+        py: Python<'py>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
+        tzinfo: Option<&'py PyTzInfo>,
         fold: bool,
-    ) -> PyResult<&'p PyTime> {
+    ) -> PyResult<&'py PyTime> {
         Self::new_bound_with_fold(
             py,
             hour,
@@ -652,15 +661,15 @@ impl PyTime {
     }
 
     /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
-    pub fn new_bound_with_fold<'p>(
-        py: Python<'p>,
+    pub fn new_bound_with_fold<'py>(
+        py: Python<'py>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&Bound<'_, PyTzInfo>>,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
         fold: bool,
-    ) -> PyResult<Bound<'p, PyTime>> {
+    ) -> PyResult<Bound<'py, PyTime>> {
         let api = ensure_datetime_api(py)?;
         unsafe {
             (api.Time_FromTimeAndFold)(
@@ -762,9 +771,16 @@ pyobject_native_type!(
     #checkfunction=PyTZInfo_Check
 );
 
-/// Equivalent to `datetime.timezone.utc`
+/// Deprecated form of [`timezone_utc_bound`].
+#[cfg_attr(
+    not(feature = "gil-refs"),
+    deprecated(
+        since = "0.21.0",
+        note = "`timezone_utc` will be replaced by `timezone_utc_bound` in a future PyO3 version"
+    )
+)]
 pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
-    unsafe { &*(expect_datetime_api(py).TimeZone_UTC as *const PyTzInfo) }
+    timezone_utc_bound(py).into_gil_ref()
 }
 
 /// Equivalent to `datetime.timezone.utc`
