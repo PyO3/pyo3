@@ -505,8 +505,9 @@ impl PyErr {
             // after the argument got evaluated, leading to call with a dangling
             // pointer.
             let traceback = self.traceback_bound(py);
+            let type_bound = self.get_type_bound(py);
             ffi::PyErr_Display(
-                self.get_type_bound(py).as_ptr(),
+                type_bound.as_ptr(),
                 self.value(py).as_ptr(),
                 traceback
                     .as_ref()
@@ -543,8 +544,8 @@ impl PyErr {
     /// Returns true if the current exception is instance of `T`.
     #[inline]
     pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
-        (unsafe { ffi::PyErr_GivenExceptionMatches(self.get_type_bound(py).as_ptr(), ty.as_ptr()) })
-            != 0
+        let type_bound = self.get_type_bound(py);
+        (unsafe { ffi::PyErr_GivenExceptionMatches(type_bound.as_ptr(), ty.as_ptr()) }) != 0
     }
 
     /// Returns true if the current exception is instance of `T`.
