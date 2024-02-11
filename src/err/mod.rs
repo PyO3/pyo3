@@ -206,7 +206,9 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
-    ///     let err = PyErr::from_value(PyTypeError::new_err("some type error").value(py));
+    ///     let err = PyErr::from_value(PyTypeError::new_err("some type error")
+    ///         .value_bound(py)
+    ///         .into_gil_ref());
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
@@ -260,6 +262,18 @@ impl PyErr {
         self.normalized(py).ptype(py)
     }
 
+    /// Deprecated form of [`PyErr::value_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::value` will be replaced by `PyErr::value_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
+        self.value_bound(py).into_gil_ref()
+    }
+
     /// Returns the value of this exception.
     ///
     /// # Examples
@@ -270,11 +284,11 @@ impl PyErr {
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert!(err.is_instance_of::<PyTypeError>(py));
-    ///     assert_eq!(err.value(py).to_string(), "some type error");
+    ///     assert_eq!(err.value_bound(py).to_string(), "some type error");
     /// });
     /// ```
-    pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
-        self.normalized(py).pvalue.as_ref(py)
+    pub fn value_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyBaseException> {
+        self.normalized(py).pvalue.bind(py).clone()
     }
 
     /// Consumes self to take ownership of the exception value contained in this error.
@@ -525,9 +539,10 @@ impl PyErr {
 
     /// Prints a standard traceback to `sys.stderr`.
     pub fn display(&self, py: Python<'_>) {
+        let value_bound = self.value_bound(py);
         #[cfg(Py_3_12)]
         unsafe {
-            ffi::PyErr_DisplayException(self.value(py).as_ptr())
+            ffi::PyErr_DisplayException(value_bound.as_ptr())
         }
 
         #[cfg(not(Py_3_12))]
@@ -540,7 +555,7 @@ impl PyErr {
             let type_bound = self.get_type_bound(py);
             ffi::PyErr_Display(
                 type_bound.as_ptr(),
-                self.value(py).as_ptr(),
+                value_bound.as_ptr(),
                 traceback
                     .as_ref()
                     .map_or(std::ptr::null_mut(), |traceback| traceback.as_ptr()),
@@ -785,7 +800,7 @@ impl PyErr {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
     ///     assert!(err.get_type_bound(py).is(&err_clone.get_type_bound(py)));
-    ///     assert!(err.value(py).is(err_clone.value(py)));
+    ///     assert!(err.value_bound(py).is(&err_clone.value_bound(py)));
     ///     match err.traceback_bound(py) {
     ///         None => assert!(err_clone.traceback_bound(py).is_none()),
     ///         Some(tb) => assert!(err_clone.traceback_bound(py).unwrap().is(&tb)),
@@ -800,7 +815,7 @@ impl PyErr {
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
-        let value = self.value(py);
+        let value = self.value_bound(py);
         let obj =
             unsafe { py.from_owned_ptr_or_opt::<PyAny>(ffi::PyException_GetCause(value.as_ptr())) };
         obj.map(Self::from_value)
@@ -808,7 +823,7 @@ impl PyErr {
 
     /// Set the cause associated with the exception, pass `None` to clear it.
     pub fn set_cause(&self, py: Python<'_>, cause: Option<Self>) {
-        let value = self.value(py);
+        let value = self.value_bound(py);
         let cause = cause.map(|err| err.into_value(py));
         unsafe {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
@@ -868,7 +883,7 @@ impl std::fmt::Debug for PyErr {
         Python::with_gil(|py| {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type_bound(py))
-                .field("value", self.value(py))
+                .field("value", &self.value_bound(py))
                 .field("traceback", &self.traceback_bound(py))
                 .finish()
         })
@@ -877,8 +892,9 @@ impl std::fmt::Debug for PyErr {
 
 impl std::fmt::Display for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
-            let value = self.value(py);
+            let value = self.value_bound(py);
             let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
             write!(f, "{}", type_name)?;
             if let Ok(s) = value.str() {
@@ -1237,6 +1253,7 @@ mod tests {
 
     #[test]
     fn warnings() {
+        use crate::types::any::PyAnyMethods;
         // Note: although the warning filter is interpreter global, keeping the
         // GIL locked should prevent effects to be visible to other testing
         // threads.
@@ -1284,7 +1301,7 @@ mod tests {
             )
             .unwrap_err();
             assert!(err
-                .value(py)
+                .value_bound(py)
                 .getattr("args")
                 .unwrap()
                 .get_item(0)

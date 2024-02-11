@@ -151,8 +151,8 @@ except Exception as e:
             )
             .unwrap();
             let err = PyErr::from_value(locals.get_item("err").unwrap().unwrap().into_gil_ref());
-            let traceback = err.value(py).getattr("__traceback__").unwrap();
-            assert!(err.traceback_bound(py).unwrap().is(traceback));
+            let traceback = err.value_bound(py).getattr("__traceback__").unwrap();
+            assert!(err.traceback_bound(py).unwrap().is(&traceback));
         })
     }
 
