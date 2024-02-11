@@ -37,8 +37,8 @@ impl Count5 {
 }
 
 /// Return a dict with `s = Count5()`.
-fn test_dict(py: Python<'_>) -> &pyo3::types::PyDict {
-    let d = [("Count5", py.get_type::<Count5>())].into_py_dict(py);
+fn test_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
+    let d = [("Count5", py.get_type::<Count5>())].into_py_dict_bound(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = Count5()");
     d
