@@ -38,14 +38,14 @@ pub fn dumps<'py>(
 ///
 /// # Examples
 /// ```
-/// # use pyo3::{marshal, types::PyDict};
+/// # use pyo3::{marshal, types::PyDict, prelude::PyDictMethods};
 /// # pyo3::Python::with_gil(|py| {
-/// let dict = PyDict::new(py);
+/// let dict = PyDict::new_bound(py);
 /// dict.set_item("aap", "noot").unwrap();
 /// dict.set_item("mies", "wim").unwrap();
 /// dict.set_item("zus", "jet").unwrap();
 ///
-/// let bytes = marshal::dumps_bound(py, dict, marshal::VERSION);
+/// let bytes = marshal::dumps_bound(py, &dict, marshal::VERSION);
 /// # });
 /// ```
 pub fn dumps_bound<'py>(
@@ -90,20 +90,20 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{bytes::PyBytesMethods, PyDict};
+    use crate::types::{bytes::PyBytesMethods, dict::PyDictMethods, PyDict};
 
     #[test]
     fn marshal_roundtrip() {
         Python::with_gil(|py| {
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             dict.set_item("aap", "noot").unwrap();
             dict.set_item("mies", "wim").unwrap();
             dict.set_item("zus", "jet").unwrap();
 
-            let pybytes = dumps_bound(py, dict, VERSION).expect("marshalling failed");
+            let pybytes = dumps_bound(py, &dict, VERSION).expect("marshalling failed");
             let deserialized = loads_bound(py, pybytes.as_bytes()).expect("unmarshalling failed");
 
-            assert!(equal(py, dict, &deserialized));
+            assert!(equal(py, &dict, &deserialized));
         });
     }
 

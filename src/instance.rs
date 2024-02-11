@@ -634,7 +634,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///     #[new]
 ///     fn __new__() -> Foo {
 ///         Python::with_gil(|py| {
-///             let dict: Py<PyDict> = PyDict::new(py).into();
+///             let dict: Py<PyDict> = PyDict::new_bound(py).unbind();
 ///             Foo { inner: dict }
 ///         })
 ///     }
@@ -706,7 +706,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 /// # fn main() {
 /// Python::with_gil(|py| {
-///     let first: Py<PyDict> = PyDict::new(py).into();
+///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
 ///
 ///     // All of these are valid syntax
 ///     let second = Py::clone_ref(&first, py);
@@ -1130,7 +1130,7 @@ impl<T> Py<T> {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    ///     let first: Py<PyDict> = PyDict::new(py).into();
+    ///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
     ///     let second = Py::clone_ref(&first, py);
     ///
     ///     // Both point to the same object
@@ -1683,7 +1683,7 @@ impl PyObject {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let any: PyObject = PyDict::new(py).into();
+    ///     let any: PyObject = PyDict::new_bound(py).into();
     ///
     ///     assert!(any.downcast::<PyDict>(py).is_ok());
     ///     assert!(any.downcast::<PyList>(py).is_err());

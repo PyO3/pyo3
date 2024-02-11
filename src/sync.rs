@@ -210,11 +210,11 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// ```
 /// use pyo3::intern;
-/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python};
+/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python, prelude::PyDictMethods, Bound};
 ///
 /// #[pyfunction]
-/// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {
-///     let dict = PyDict::new(py);
+/// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+///     let dict = PyDict::new_bound(py);
 ///     //             👇 A new `PyString` is created
 ///     //                for every call of this function.
 ///     dict.set_item("foo", 42)?;
@@ -222,8 +222,8 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 ///
 /// #[pyfunction]
-/// fn create_dict_faster(py: Python<'_>) -> PyResult<&PyDict> {
-///     let dict = PyDict::new(py);
+/// fn create_dict_faster(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+///     let dict = PyDict::new_bound(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
 ///     dict.set_item(intern!(py, "foo"), 42)?;
@@ -270,7 +270,7 @@ impl Interned {
 mod tests {
     use super::*;
 
-    use crate::types::PyDict;
+    use crate::types::{any::PyAnyMethods, dict::PyDictMethods, PyDict};
 
     #[test]
     fn test_intern() {
@@ -279,7 +279,7 @@ mod tests {
             let foo2 = intern!(py, "foo");
             let foo3 = intern!(py, stringify!(foo));
 
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             dict.set_item(foo1, 42_usize).unwrap();
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(

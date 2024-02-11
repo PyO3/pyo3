@@ -681,7 +681,7 @@ impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
         _function_description: &FunctionDescription,
     ) -> PyResult<()> {
         varkeywords
-            .get_or_insert_with(|| PyDict::new(name.py()))
+            .get_or_insert_with(|| PyDict::new_bound(name.py()).into_gil_ref())
             .set_item(name, value)
     }
 }

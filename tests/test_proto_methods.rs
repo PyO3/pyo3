@@ -216,7 +216,7 @@ fn mapping() {
         let inst = Py::new(
             py,
             Mapping {
-                values: PyDict::new(py).into(),
+                values: PyDict::new_bound(py).into(),
             },
         )
         .unwrap();
