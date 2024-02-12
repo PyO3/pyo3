@@ -8,9 +8,10 @@ import tempfile
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 import nox
+import nox.command
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
 
@@ -101,7 +102,7 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
                 "--deny=warnings",
                 env=env,
             )
-        except Exception:
+        except nox.command.CommandFailed:
             success = False
     return success
 
@@ -736,7 +737,7 @@ def _for_all_version_configs(
 ) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:
-        env["PYO3_CONFIG_FILE"] = config_file
+        env["PYO3_CONFIG_FILE"] = config_file.name
 
         def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
@@ -773,7 +774,7 @@ suppress_build_script_link_lines=true
 
 
 @contextmanager
-def _config_file() -> _ConfigFile:
+def _config_file() -> Iterator[_ConfigFile]:
     """Creates a temporary config file which can be repeatedly set to different values."""
     with tempfile.NamedTemporaryFile("r+") as config:
         yield _ConfigFile(config)
