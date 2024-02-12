@@ -502,7 +502,7 @@ pub struct Zap {
     #[pyo3(item)]
     name: String,
 
-    #[pyo3(from_py_with = "PyAny::len", item("my_object"))]
+    #[pyo3(from_py_with = "PyAnyMethods::len", item("my_object"))]
     some_object_length: usize,
 }
 
@@ -525,7 +525,7 @@ fn test_from_py_with() {
 }
 
 #[derive(Debug, FromPyObject)]
-pub struct ZapTuple(String, #[pyo3(from_py_with = "PyAny::len")] usize);
+pub struct ZapTuple(String, #[pyo3(from_py_with = "PyAnyMethods::len")] usize);
 
 #[test]
 fn test_from_py_with_tuple_struct() {
@@ -560,8 +560,8 @@ fn test_from_py_with_tuple_struct_error() {
 
 #[derive(Debug, FromPyObject, PartialEq, Eq)]
 pub enum ZapEnum {
-    Zip(#[pyo3(from_py_with = "PyAny::len")] usize),
-    Zap(String, #[pyo3(from_py_with = "PyAny::len")] usize),
+    Zip(#[pyo3(from_py_with = "PyAnyMethods::len")] usize),
+    Zap(String, #[pyo3(from_py_with = "PyAnyMethods::len")] usize),
 }
 
 #[test]
@@ -581,7 +581,7 @@ fn test_from_py_with_enum() {
 #[derive(Debug, FromPyObject, PartialEq, Eq)]
 #[pyo3(transparent)]
 pub struct TransparentFromPyWith {
-    #[pyo3(from_py_with = "PyAny::len")]
+    #[pyo3(from_py_with = "PyAnyMethods::len")]
     len: usize,
 }
 

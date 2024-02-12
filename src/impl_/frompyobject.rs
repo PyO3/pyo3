@@ -1,3 +1,5 @@
+use crate::types::any::PyAnyMethods;
+use crate::Bound;
 use crate::{exceptions::PyTypeError, FromPyObject, PyAny, PyErr, PyResult, Python};
 
 #[cold]
@@ -41,7 +43,7 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
 }
 
 pub fn extract_struct_field<'py, T>(
-    obj: &'py PyAny,
+    obj: &Bound<'py, PyAny>,
     struct_name: &str,
     field_name: &str,
 ) -> PyResult<T>
@@ -60,8 +62,8 @@ where
 }
 
 pub fn extract_struct_field_with<'py, T>(
-    extractor: impl FnOnce(&'py PyAny) -> PyResult<T>,
-    obj: &'py PyAny,
+    extractor: impl FnOnce(&Bound<'py, PyAny>) -> PyResult<T>,
+    obj: &Bound<'py, PyAny>,
     struct_name: &str,
     field_name: &str,
 ) -> PyResult<T> {
@@ -92,7 +94,7 @@ fn failed_to_extract_struct_field(
 }
 
 pub fn extract_tuple_struct_field<'py, T>(
-    obj: &'py PyAny,
+    obj: &Bound<'py, PyAny>,
     struct_name: &str,
     index: usize,
 ) -> PyResult<T>
@@ -111,8 +113,8 @@ where
 }
 
 pub fn extract_tuple_struct_field_with<'py, T>(
-    extractor: impl FnOnce(&'py PyAny) -> PyResult<T>,
-    obj: &'py PyAny,
+    extractor: impl FnOnce(&Bound<'py, PyAny>) -> PyResult<T>,
+    obj: &Bound<'py, PyAny>,
     struct_name: &str,
     index: usize,
 ) -> PyResult<T> {
