@@ -221,7 +221,7 @@ impl PyErr {
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
     ///     let err = PyErr::from_value_bound(PyTypeError::new_err("some type error")
-    ///         .value_bound(py).into_any());
+    ///         .value_bound(py).clone().into_any());
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
@@ -284,7 +284,7 @@ impl PyErr {
         )
     )]
     pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
-        self.value_bound(py).into_gil_ref()
+        self.value_bound(py).clone().into_gil_ref()
     }
 
     /// Returns the value of this exception.
@@ -300,8 +300,8 @@ impl PyErr {
     ///     assert_eq!(err.value_bound(py).to_string(), "some type error");
     /// });
     /// ```
-    pub fn value_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyBaseException> {
-        self.normalized(py).pvalue.bind(py).clone()
+    pub fn value_bound<'py>(&self, py: Python<'py>) -> &Bound<'py, PyBaseException> {
+        self.normalized(py).pvalue.bind(py)
     }
 
     /// Consumes self to take ownership of the exception value contained in this error.
@@ -552,10 +552,9 @@ impl PyErr {
 
     /// Prints a standard traceback to `sys.stderr`.
     pub fn display(&self, py: Python<'_>) {
-        let value_bound = self.value_bound(py);
         #[cfg(Py_3_12)]
         unsafe {
-            ffi::PyErr_DisplayException(value_bound.as_ptr())
+            ffi::PyErr_DisplayException(self.value_bound(py).as_ptr())
         }
 
         #[cfg(not(Py_3_12))]
@@ -568,7 +567,7 @@ impl PyErr {
             let type_bound = self.get_type_bound(py);
             ffi::PyErr_Display(
                 type_bound.as_ptr(),
-                value_bound.as_ptr(),
+                self.value_bound(py).as_ptr(),
                 traceback
                     .as_ref()
                     .map_or(std::ptr::null_mut(), |traceback| traceback.as_ptr()),
@@ -813,7 +812,7 @@ impl PyErr {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
     ///     assert!(err.get_type_bound(py).is(&err_clone.get_type_bound(py)));
-    ///     assert!(err.value_bound(py).is(&err_clone.value_bound(py)));
+    ///     assert!(err.value_bound(py).is(err_clone.value_bound(py)));
     ///     match err.traceback_bound(py) {
     ///         None => assert!(err_clone.traceback_bound(py).is_none()),
     ///         Some(tb) => assert!(err_clone.traceback_bound(py).unwrap().is(&tb)),

@@ -745,7 +745,7 @@ macro_rules! test_exception {
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value: &$exc_ty = err.value_bound(py).into_gil_ref().downcast().unwrap();
+                let value: &$exc_ty = err.value_bound(py).clone().into_gil_ref().downcast().unwrap();
                 assert!(value.source().is_none());
 
                 err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
