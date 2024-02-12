@@ -4,7 +4,7 @@ use crate::types::any::PyAnyMethods;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyType;
 #[cfg(not(Py_LIMITED_API))]
-use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
+use crate::types::{timezone_utc_bound, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
 use crate::{
@@ -59,7 +59,7 @@ impl ToPyObject for Duration {
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDelta::new(
+            PyDelta::new_bound(
                 py,
                 days.try_into()
                     .expect("Too large Rust duration for timedelta"),
@@ -130,7 +130,18 @@ fn unix_epoch_py(py: Python<'_>) -> &PyObject {
             #[cfg(not(Py_LIMITED_API))]
             {
                 Ok::<_, PyErr>(
-                    PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(timezone_utc(py)))?.into(),
+                    PyDateTime::new_bound(
+                        py,
+                        1970,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        Some(&timezone_utc_bound(py)),
+                    )?
+                    .into(),
                 )
             }
             #[cfg(Py_LIMITED_API)]

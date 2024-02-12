@@ -21,6 +21,6 @@ fn test_bad_datetime_module_panic() {
             .unwrap();
 
         // This should panic because the "datetime" module is empty
-        PyDate::new(py, 2018, 1, 1).unwrap();
+        PyDate::new_bound(py, 2018, 1, 1).unwrap();
     });
 }
