@@ -1561,6 +1561,27 @@ pub trait PyAnyMethods<'py> {
         T: PyTypeCheck;
 
     /// Like `downcast` but takes ownership of `self`.
+    ///
+    /// In case of an error, it is possible to retrieve `self` again via [`DowncastIntoError::into_inner`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let obj: Bound<'_, PyAny> = PyDict::new_bound(py).into_any();
+    ///
+    ///     let obj: Bound<'_, PyAny> = match obj.downcast_into::<PyList>() {
+    ///         Ok(_) => panic!("obj should not be a list"),
+    ///         Err(err) => err.into_inner(),
+    ///     };
+    ///
+    ///     // obj is a dictionary
+    ///     assert!(obj.downcast_into::<PyDict>().is_ok());
+    /// })
+    /// ```
     fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeCheck;
