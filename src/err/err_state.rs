@@ -124,7 +124,6 @@ impl PyErrState {
         Self::Normalized(PyErrStateNormalized {
             #[cfg(not(Py_3_12))]
             ptype: pvalue.get_type().into(),
-            pvalue: pvalue.clone().into(),
             #[cfg(not(Py_3_12))]
             ptraceback: unsafe {
                 Py::from_owned_ptr_or_opt(
@@ -132,6 +131,7 @@ impl PyErrState {
                     ffi::PyException_GetTraceback(pvalue.as_ptr()),
                 )
             },
+            pvalue: pvalue.into(),
         })
     }
 
