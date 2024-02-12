@@ -74,7 +74,8 @@ mod inner {
     #[pymethods(crate = "pyo3")]
     impl UnraisableCapture {
         pub fn hook(&mut self, unraisable: &PyAny) {
-            let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
+            let err =
+                PyErr::from_value_bound(&unraisable.getattr("exc_value").unwrap().as_borrowed());
             let instance = unraisable.getattr("object").unwrap();
             self.capture = Some((err, instance.into()));
         }

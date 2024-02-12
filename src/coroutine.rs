@@ -78,7 +78,7 @@ impl Coroutine {
             (Some(exc), Some(cb)) => cb.throw(exc.as_ref(py)),
             (Some(exc), None) => {
                 self.close();
-                return Err(PyErr::from_value(exc.as_ref(py)));
+                return Err(PyErr::from_value_bound(exc.bind(py)));
             }
             (None, _) => {}
         }

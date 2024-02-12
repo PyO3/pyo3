@@ -109,8 +109,11 @@ impl PyErrState {
         }))
     }
 
-    pub(crate) fn lazy_bound(ptype: Bound<'_, PyAny>, args: impl PyErrArguments + 'static) -> Self {
-        let ptype = ptype.into();
+    pub(crate) fn lazy_bound(
+        ptype: &Bound<'_, PyAny>,
+        args: impl PyErrArguments + 'static,
+    ) -> Self {
+        let ptype = (*ptype).clone().into();
         PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
             ptype,
             pvalue: args.arguments(py),

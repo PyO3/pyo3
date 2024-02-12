@@ -22,7 +22,8 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
-                $crate::PyErr::from_value(err)
+                use $crate::PyNativeType;
+                $crate::PyErr::from_value_bound(&err.as_borrowed())
             }
         }
 
@@ -1081,7 +1082,11 @@ mod tests {
         let invalid_utf8 = b"fo\xd8o";
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-        PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
+        PyErr::from_value_bound(
+            &PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)
+                .unwrap()
+                .as_borrowed(),
+        )
     });
     test_exception!(PyUnicodeEncodeError, |py| py
         .eval_bound("chr(40960).encode('ascii')", None, None)

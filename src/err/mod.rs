@@ -191,16 +191,15 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::from_value_bound`].
-    //#[cfg_attr(
-    //    not(feature = "gil-refs"),
-    //    deprecated(
-    //        since = "0.21.0",
-    //        note = "`PyErr::from_value` will be replaced by `PyErr::from_value_bound` in a future PyO3 version"
-    //    )
-    //)]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::from_value` will be replaced by `PyErr::from_value_bound` in a future PyO3 version"
+        )
+    )]
     pub fn from_value(obj: &PyAny) -> PyErr {
-        let py = obj.py();
-        PyErr::from_value_bound(obj.into_py(py).into_bound(py))
+        PyErr::from_value_bound(&obj.as_borrowed())
     }
 
     /// Creates a new PyErr.
@@ -220,23 +219,23 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
-    ///     let err = PyErr::from_value_bound(PyTypeError::new_err("some type error")
-    ///         .value_bound(py).clone().into_any());
+    ///     let err = PyErr::from_value_bound(&PyTypeError::new_err("some type error")
+    ///         .value_bound(py).as_borrowed());
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
-    ///     let err = PyErr::from_value_bound(PyTypeError::type_object_bound(py).into_any());
+    ///     let err = PyErr::from_value_bound(&PyTypeError::type_object_bound(py).as_borrowed());
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
-    ///     let err = PyErr::from_value_bound(PyString::new_bound(py, "foo").into_any());
+    ///     let err = PyErr::from_value_bound(&PyString::new_bound(py, "foo").as_borrowed());
     ///     assert_eq!(
     ///         err.to_string(),
     ///         "TypeError: exceptions must derive from BaseException"
     ///     );
     /// });
     /// ```
-    pub fn from_value_bound(obj: Bound<'_, PyAny>) -> PyErr {
+    pub fn from_value_bound(obj: &Bound<'_, PyAny>) -> PyErr {
         let state = if let Ok(obj) = obj.downcast::<PyBaseException>() {
             PyErrState::normalized(obj.clone())
         } else {
@@ -828,10 +827,12 @@ impl PyErr {
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
-        let value = self.value_bound(py);
-        let obj =
-            unsafe { py.from_owned_ptr_or_opt::<PyAny>(ffi::PyException_GetCause(value.as_ptr())) };
-        obj.map(Self::from_value)
+        let obj = unsafe {
+            py.from_owned_ptr_or_opt::<PyAny>(ffi::PyException_GetCause(
+                self.value_bound(py).as_ptr(),
+            ))
+        };
+        obj.map(|inner| Self::from_value_bound(&inner.as_borrowed()))
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
