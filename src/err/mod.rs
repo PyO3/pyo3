@@ -242,7 +242,8 @@ impl PyErr {
         } else {
             // Assume obj is Type[Exception]; let later normalization handle if this
             // is not the case
-            PyErrState::lazy_bound(obj.clone(), obj.py().None())
+            let none = obj.py().None();
+            PyErrState::lazy_bound(obj, none)
         };
 
         PyErr::from_state(state)
