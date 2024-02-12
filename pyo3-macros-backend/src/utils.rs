@@ -168,7 +168,5 @@ pub fn apply_renaming_rule(rule: RenamingRule, name: &str) -> String {
 }
 
 pub(crate) fn is_abi3() -> bool {
-    cfg!(feature = "abi3")
-        || std::env::var_os("PYO3_USE_ABI3_FORWARD_COMPATIBILITY")
-            .map_or(false, |os_str| os_str == "1")
+    pyo3_build_config::get().abi3
 }
