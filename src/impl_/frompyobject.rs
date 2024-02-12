@@ -2,6 +2,32 @@ use crate::types::any::PyAnyMethods;
 use crate::Bound;
 use crate::{exceptions::PyTypeError, FromPyObject, PyAny, PyErr, PyResult, Python};
 
+pub enum Extractor<'a, 'py, T> {
+    Bound(fn(&'a Bound<'py, PyAny>) -> PyResult<T>),
+    GilRef(fn(&'a PyAny) -> PyResult<T>),
+}
+
+impl<'a, 'py, T> From<fn(&'a Bound<'py, PyAny>) -> PyResult<T>> for Extractor<'a, 'py, T> {
+    fn from(value: fn(&'a Bound<'py, PyAny>) -> PyResult<T>) -> Self {
+        Self::Bound(value)
+    }
+}
+
+impl<'a, T> From<fn(&'a PyAny) -> PyResult<T>> for Extractor<'a, '_, T> {
+    fn from(value: fn(&'a PyAny) -> PyResult<T>) -> Self {
+        Self::GilRef(value)
+    }
+}
+
+impl<'a, 'py, T> Extractor<'a, 'py, T> {
+    fn call(self, obj: &'a Bound<'py, PyAny>) -> PyResult<T> {
+        match self {
+            Extractor::Bound(f) => f(obj),
+            Extractor::GilRef(f) => f(obj.as_gil_ref()),
+        }
+    }
+}
+
 #[cold]
 pub fn failed_to_extract_enum(
     py: Python<'_>,
@@ -61,13 +87,13 @@ where
     }
 }
 
-pub fn extract_struct_field_with<'py, T>(
-    extractor: impl FnOnce(&Bound<'py, PyAny>) -> PyResult<T>,
-    obj: &Bound<'py, PyAny>,
+pub fn extract_struct_field_with<'a, 'py, T>(
+    extractor: impl Into<Extractor<'a, 'py, T>>,
+    obj: &'a Bound<'py, PyAny>,
     struct_name: &str,
     field_name: &str,
 ) -> PyResult<T> {
-    match extractor(obj) {
+    match extractor.into().call(obj) {
         Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_struct_field(
             obj.py(),
@@ -112,13 +138,13 @@ where
     }
 }
 
-pub fn extract_tuple_struct_field_with<'py, T>(
-    extractor: impl FnOnce(&Bound<'py, PyAny>) -> PyResult<T>,
-    obj: &Bound<'py, PyAny>,
+pub fn extract_tuple_struct_field_with<'a, 'py, T>(
+    extractor: impl Into<Extractor<'a, 'py, T>>,
+    obj: &'a Bound<'py, PyAny>,
     struct_name: &str,
     index: usize,
 ) -> PyResult<T> {
-    match extractor(obj) {
+    match extractor.into().call(obj) {
         Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_tuple_struct_field(
             obj.py(),

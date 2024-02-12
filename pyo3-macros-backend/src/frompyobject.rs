@@ -271,7 +271,7 @@ impl<'a> Container<'a> {
                     value: expr_path, ..
                 }) => quote! {
                     Ok(#self_ty {
-                        #ident: _pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path, obj, #struct_name, #field_name)?
+                        #ident: _pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, obj, #struct_name, #field_name)?
                     })
                 },
             }
@@ -283,7 +283,7 @@ impl<'a> Container<'a> {
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => quote! (
-                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path, obj, #struct_name, 0).map(#self_ty)
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path as fn(_) -> _, obj, #struct_name, 0).map(#self_ty)
                 ),
             }
         }
@@ -303,7 +303,7 @@ impl<'a> Container<'a> {
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => quote! (
-                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path, &#ident, #struct_name, #index)?
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path as fn(_) -> _, &#ident, #struct_name, #index)?
                 ),
             }
         });
@@ -344,7 +344,7 @@ impl<'a> Container<'a> {
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => {
-                    quote! (_pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path, &obj.#getter?, #struct_name, #field_name)?)
+                    quote! (_pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, &obj.#getter?, #struct_name, #field_name)?)
                 }
             };
 
