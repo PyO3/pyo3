@@ -176,3 +176,7 @@ pub fn apply_renaming_rule(rule: RenamingRule, name: &str) -> String {
         RenamingRule::Uppercase => name.to_uppercase(),
     }
 }
+
+pub(crate) fn is_abi3() -> bool {
+    pyo3_build_config::get().abi3
+}
