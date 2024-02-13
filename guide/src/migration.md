@@ -217,6 +217,12 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 - `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
+- To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+
+```rust,ignore
+let gil_ref: &PyAny = ...;
+let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
+```
 
 #### Migrating `FromPyObject` implementations
 
