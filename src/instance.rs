@@ -138,6 +138,14 @@ impl<'py> Bound<'py, PyAny> {
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
+
+    #[inline]
+    pub(crate) unsafe fn from_ref_to_ptr<'a>(
+        _py: Python<'py>,
+        ptr: &'a *mut ffi::PyObject,
+    ) -> &'a Self {
+        &*(ptr as *const *mut ffi::PyObject).cast::<Bound<'py, PyAny>>()
+    }
 }
 
 impl<'py, T> Bound<'py, T>

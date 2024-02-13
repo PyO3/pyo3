@@ -35,7 +35,7 @@ impl PyClassWithMultiplePyMethods {
 #[pymethods]
 impl PyClassWithMultiplePyMethods {
     #[classmethod]
-    fn classmethod(_ty: &PyType) -> &'static str {
+    fn classmethod(_ty: &Bound<'_, PyType>) -> &'static str {
         "classmethod"
     }
 }

@@ -299,7 +299,18 @@ impl ClassWithFromPyWithMethods {
         argument
     }
     #[classmethod]
-    fn classmethod(_cls: &PyType, #[pyo3(from_py_with = "PyAny::len")] argument: usize) -> usize {
+    fn classmethod(
+        _cls: &Bound<'_, PyType>,
+        #[pyo3(from_py_with = "PyAny::len")] argument: usize,
+    ) -> usize {
+        argument
+    }
+
+    #[classmethod]
+    fn classmethod_gil_ref(
+        _cls: &PyType,
+        #[pyo3(from_py_with = "PyAny::len")] argument: usize,
+    ) -> usize {
         argument
     }
 
@@ -322,6 +333,7 @@ fn test_pymethods_from_py_with() {
 
         assert instance.instance_method(arg) == 2
         assert instance.classmethod(arg) == 2
+        assert instance.classmethod_gil_ref(arg) == 2
         assert instance.staticmethod(arg) == 2
         "#
         );

@@ -115,7 +115,7 @@ fn test_auto_test_signature_function() {
     }
 
     #[pyfunction(pass_module)]
-    fn my_function_2(module: &PyModule, a: i32, b: i32, c: i32) {
+    fn my_function_2(module: &Bound<'_, PyModule>, a: i32, b: i32, c: i32) {
         let _ = (module, a, b, c);
     }
 
@@ -232,7 +232,7 @@ fn test_auto_test_signature_method() {
         }
 
         #[classmethod]
-        fn classmethod(cls: &PyType, a: i32, b: i32, c: i32) {
+        fn classmethod(cls: &Bound<'_, PyType>, a: i32, b: i32, c: i32) {
             let _ = (cls, a, b, c);
         }
     }
@@ -311,7 +311,7 @@ fn test_auto_test_signature_opt_out() {
 
         #[classmethod]
         #[pyo3(text_signature = None)]
-        fn classmethod(cls: &PyType, a: i32, b: i32, c: i32) {
+        fn classmethod(cls: &Bound<'_, PyType>, a: i32, b: i32, c: i32) {
             let _ = (cls, a, b, c);
         }
     }
@@ -372,7 +372,7 @@ fn test_methods() {
         }
         #[classmethod]
         #[pyo3(text_signature = "($cls, c)")]
-        fn class_method(_cls: &PyType, c: i32) {
+        fn class_method(_cls: &Bound<'_, PyType>, c: i32) {
             let _ = c;
         }
         #[staticmethod]
