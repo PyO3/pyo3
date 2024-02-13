@@ -6,7 +6,7 @@ use crate::params::impl_arg_params;
 use crate::pyfunction::{FunctionSignature, PyFunctionArgPyO3Attributes};
 use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
 use crate::quotes;
-use crate::utils::{self, PythonDoc};
+use crate::utils::{self, is_abi3, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use quote::{quote, quote_spanned};
@@ -213,8 +213,8 @@ impl CallingConvention {
         } else if signature.python_signature.kwargs.is_some() {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if cfg!(not(feature = "abi3")) {
-            // Not available in the Stable ABI as of Python 3.10
+        } else if !is_abi3() {
+            // FIXME: available in the stable ABI since 3.10
             Self::Fastcall
         } else {
             Self::Varargs
