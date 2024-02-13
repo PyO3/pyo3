@@ -1,6 +1,6 @@
 #![cfg(not(Py_LIMITED_API))]
 
-use pyo3::{prelude::PyAnyMethods, types::PyDate, Python};
+use pyo3::{prelude::*, types::PyDate};
 
 #[test]
 #[should_panic(expected = "module 'datetime' has no attribute 'datetime_CAPI'")]
