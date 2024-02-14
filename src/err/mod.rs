@@ -974,6 +974,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
+    use crate::types::any::PyAnyMethods;
     use crate::{PyErr, PyTypeInfo, Python};
 
     #[test]
@@ -1174,7 +1175,7 @@ mod tests {
             let cls = py.get_type::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
-            let warnings = py.import("warnings").unwrap();
+            let warnings = py.import_bound("warnings").unwrap();
             warnings.call_method0("resetwarnings").unwrap();
 
             // First, test the warning is emitted

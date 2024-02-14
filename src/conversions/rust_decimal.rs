@@ -77,7 +77,7 @@ static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&PyType> {
     DECIMAL_CLS
         .get_or_try_init(py, || {
-            py.import(intern!(py, "decimal"))?
+            py.import_bound(intern!(py, "decimal"))?
                 .getattr(intern!(py, "Decimal"))?
                 .extract()
         })
