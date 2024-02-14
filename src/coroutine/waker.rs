@@ -1,4 +1,5 @@
 use crate::sync::GILOnceCell;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyCFunction;
 use crate::{intern, wrap_pyfunction, Py, PyAny, PyObject, PyResult, Python};
 use pyo3_macros::pyfunction;
@@ -56,7 +57,7 @@ impl LoopAndFuture {
     fn new(py: Python<'_>) -> PyResult<Self> {
         static GET_RUNNING_LOOP: GILOnceCell<PyObject> = GILOnceCell::new();
         let import = || -> PyResult<_> {
-            let module = py.import("asyncio")?;
+            let module = py.import_bound("asyncio")?;
             Ok(module.getattr("get_running_loop")?.into())
         };
         let event_loop = GET_RUNNING_LOOP.get_or_try_init(py, import)?.call0(py)?;

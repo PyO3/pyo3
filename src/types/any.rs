@@ -86,16 +86,16 @@ impl PyAny {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    /// fn has_version(sys: &Bound<'_, PyModule>) -> PyResult<bool> {
     ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    has_version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -115,16 +115,16 @@ impl PyAny {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
+    /// fn version<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
     ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    version(&sys).unwrap();
     /// # });
     /// ```
     pub fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
@@ -956,16 +956,16 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    /// fn has_version(sys: &Bound<'_, PyModule>) -> PyResult<bool> {
     ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    has_version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -982,16 +982,16 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
+    /// fn version<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
     ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    version(&sys).unwrap();
     /// # });
     /// ```
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>

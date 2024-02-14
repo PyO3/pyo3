@@ -284,7 +284,7 @@ fn panic_unsendable_child() {
     test_unsendable::<UnsendableChild>().unwrap();
 }
 
-fn get_length(obj: &PyAny) -> PyResult<usize> {
+fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
     let length = obj.len()?;
 
     Ok(length)
@@ -301,7 +301,7 @@ impl ClassWithFromPyWithMethods {
     #[classmethod]
     fn classmethod(
         _cls: &Bound<'_, PyType>,
-        #[pyo3(from_py_with = "PyAny::len")] argument: usize,
+        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] argument: usize,
     ) -> usize {
         argument
     }

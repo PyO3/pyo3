@@ -468,6 +468,18 @@ jobs:
           echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
       - run: python3 -m nox -s test
 
+  test-version-limits:
+    needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        continue-on-error: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m nox -s test-version-limits
+
   conclusion:
     needs:
       - fmt
@@ -480,6 +492,8 @@ jobs:
       - docsrs
       - coverage
       - emscripten
+      - test-debug
+      - test-version-limits
     if: always()
     runs-on: ubuntu-latest
     steps:

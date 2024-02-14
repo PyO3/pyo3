@@ -81,7 +81,7 @@ multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 extension-module = ["pyo3-ffi/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
-abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3", "pyo3-macros/abi3"]
+abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
 abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37", "pyo3-ffi/abi3-py37"]
