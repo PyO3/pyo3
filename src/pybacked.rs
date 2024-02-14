@@ -14,20 +14,14 @@ use crate::{
 pub struct PyBackedStr {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: Py<PyAny>,
-    data: NonNull<u8>,
-    length: usize,
+    data: NonNull<[u8]>,
 }
 
 impl Deref for PyBackedStr {
     type Target = str;
     fn deref(&self) -> &str {
-        unsafe {
-            // Safety: `data` is a pointer to the start of a valid UTF-8 string of length `length`.
-            std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-                self.data.as_ptr(),
-                self.length,
-            ))
-        }
+        // Safety: `data` is known to be immutable utf8 string and owned by self
+        unsafe { std::str::from_utf8_unchecked(self.data.as_ref()) }
     }
 }
 
@@ -37,24 +31,21 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
         {
             let s = py_string.to_str()?;
-            let data = unsafe { NonNull::new_unchecked(dbg!(s.as_ptr() as _)) };
-            let length = s.len();
+            let data = NonNull::from(s.as_bytes());
             Ok(Self {
                 storage: py_string.as_any().to_owned().unbind(),
                 data,
-                length,
             })
         }
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
             let bytes = string.encode_utf8()?;
             let b = bytes.as_bytes();
-            let data = unsafe { NonNull::new_unchecked(b.as_ptr()) };
+            let data = NonNull::from(b);
             let length = b.len();
             Ok(Self {
                 storage: bytes.into_any().unbind(),
                 data,
-                length,
             })
         }
     }
@@ -73,8 +64,7 @@ impl FromPyObject<'_> for PyBackedStr {
 pub struct PyBackedBytes {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: PyBackedBytesStorage,
-    data: NonNull<u8>,
-    length: usize,
+    data: NonNull<[u8]>,
 }
 
 enum PyBackedBytesStorage {
@@ -85,22 +75,18 @@ enum PyBackedBytesStorage {
 impl Deref for PyBackedBytes {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
-        unsafe {
-            // Safety: `data` is a pointer to the start of a buffer of length `length`.
-            std::slice::from_raw_parts(self.data.as_ptr(), self.length)
-        }
+        // Safety: `data` is known to be immutable and owned by self
+        unsafe { self.data.as_ref() }
     }
 }
 
 impl From<Bound<'_, PyBytes>> for PyBackedBytes {
     fn from(py_bytes: Bound<'_, PyBytes>) -> Self {
         let b = py_bytes.as_bytes();
-        let data = unsafe { NonNull::new_unchecked(b.as_ptr() as _) };
-        let length = b.len();
+        let data = NonNull::from(b);
         Self {
             storage: PyBackedBytesStorage::Python(py_bytes.to_owned().unbind()),
             data,
-            length,
         }
     }
 }
@@ -108,12 +94,10 @@ impl From<Bound<'_, PyBytes>> for PyBackedBytes {
 impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
     fn from(py_bytearray: Bound<'_, PyByteArray>) -> Self {
         let s = py_bytearray.to_vec().into_boxed_slice();
-        let data = unsafe { NonNull::new_unchecked(s.as_ptr() as _) };
-        let length = s.len();
+        let data = NonNull::from(s.as_ref());
         Self {
             storage: PyBackedBytesStorage::Rust(s),
             data,
-            length,
         }
     }
 }
