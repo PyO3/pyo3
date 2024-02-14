@@ -4,7 +4,7 @@ use crate::types::any::PyAnyMethods;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyType;
 #[cfg(not(Py_LIMITED_API))]
-use crate::types::{timezone_utc, PyDateTime, PyDelta, PyDeltaAccess};
+use crate::types::{timezone_utc_bound, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
 use crate::{
@@ -59,7 +59,7 @@ impl ToPyObject for Duration {
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDelta::new(
+            PyDelta::new_bound(
                 py,
                 days.try_into()
                     .expect("Too large Rust duration for timedelta"),
@@ -130,12 +130,23 @@ fn unix_epoch_py(py: Python<'_>) -> &PyObject {
             #[cfg(not(Py_LIMITED_API))]
             {
                 Ok::<_, PyErr>(
-                    PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(timezone_utc(py)))?.into(),
+                    PyDateTime::new_bound(
+                        py,
+                        1970,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        Some(&timezone_utc_bound(py)),
+                    )?
+                    .into(),
                 )
             }
             #[cfg(Py_LIMITED_API)]
             {
-                let datetime = py.import("datetime")?;
+                let datetime = py.import_bound("datetime")?;
                 let utc = datetime.getattr("timezone")?.getattr("utc")?;
                 Ok::<_, PyErr>(
                     datetime
@@ -205,8 +216,8 @@ mod tests {
     #[test]
     fn test_duration_topyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: &PyAny| {
-                assert!(l.as_ref(py).eq(r).unwrap());
+            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
+                assert!(l.bind(py).eq(r).unwrap());
             };
 
             assert_eq(
@@ -289,8 +300,8 @@ mod tests {
     #[test]
     fn test_time_topyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: &PyAny| {
-                assert!(l.as_ref(py).eq(r).unwrap());
+            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
+                assert!(l.bind(py).eq(r).unwrap());
             };
 
             assert_eq(
@@ -320,7 +331,7 @@ mod tests {
         minute: u8,
         second: u8,
         microsecond: u32,
-    ) -> &PyAny {
+    ) -> Bound<'_, PyAny> {
         datetime_class(py)
             .call1((
                 year,
@@ -335,11 +346,11 @@ mod tests {
             .unwrap()
     }
 
-    fn max_datetime(py: Python<'_>) -> &PyAny {
+    fn max_datetime(py: Python<'_>) -> Bound<'_, PyAny> {
         let naive_max = datetime_class(py).getattr("max").unwrap();
-        let kargs = PyDict::new(py);
+        let kargs = PyDict::new_bound(py);
         kargs.set_item("tzinfo", tz_utc(py)).unwrap();
-        naive_max.call_method("replace", (), Some(kargs)).unwrap()
+        naive_max.call_method("replace", (), Some(&kargs)).unwrap()
     }
 
     #[test]
@@ -352,8 +363,8 @@ mod tests {
         })
     }
 
-    fn tz_utc(py: Python<'_>) -> &PyAny {
-        py.import("datetime")
+    fn tz_utc(py: Python<'_>) -> Bound<'_, PyAny> {
+        py.import_bound("datetime")
             .unwrap()
             .getattr("timezone")
             .unwrap()
@@ -361,17 +372,28 @@ mod tests {
             .unwrap()
     }
 
-    fn new_timedelta(py: Python<'_>, days: i32, seconds: i32, microseconds: i32) -> &PyAny {
+    fn new_timedelta(
+        py: Python<'_>,
+        days: i32,
+        seconds: i32,
+        microseconds: i32,
+    ) -> Bound<'_, PyAny> {
         timedelta_class(py)
             .call1((days, seconds, microseconds))
             .unwrap()
     }
 
-    fn datetime_class(py: Python<'_>) -> &PyAny {
-        py.import("datetime").unwrap().getattr("datetime").unwrap()
+    fn datetime_class(py: Python<'_>) -> Bound<'_, PyAny> {
+        py.import_bound("datetime")
+            .unwrap()
+            .getattr("datetime")
+            .unwrap()
     }
 
-    fn timedelta_class(py: Python<'_>) -> &PyAny {
-        py.import("datetime").unwrap().getattr("timedelta").unwrap()
+    fn timedelta_class(py: Python<'_>) -> Bound<'_, PyAny> {
+        py.import_bound("datetime")
+            .unwrap()
+            .getattr("timedelta")
+            .unwrap()
     }
 }

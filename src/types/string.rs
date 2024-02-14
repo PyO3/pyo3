@@ -305,6 +305,9 @@ pub trait PyStringMethods<'py> {
     /// replaced with `U+FFFD REPLACEMENT CHARACTER`.
     fn to_string_lossy(&self) -> Cow<'_, str>;
 
+    /// Encodes this string as a Python `bytes` object, using UTF-8 encoding.
+    fn encode_utf8(&self) -> PyResult<Bound<'py, PyBytes>>;
+
     /// Obtains the raw data backing the Python string.
     ///
     /// If the Python string object was created through legacy APIs, its internal storage format
@@ -335,6 +338,14 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
 
     fn to_string_lossy(&self) -> Cow<'_, str> {
         self.as_borrowed().to_string_lossy()
+    }
+
+    fn encode_utf8(&self) -> PyResult<Bound<'py, PyBytes>> {
+        unsafe {
+            ffi::PyUnicode_AsUTF8String(self.as_ptr())
+                .assume_owned_or_err(self.py())
+                .downcast_into_unchecked::<PyBytes>()
+        }
     }
 
     #[cfg(not(Py_LIMITED_API))]
@@ -371,11 +382,7 @@ impl<'a> Borrowed<'a, '_, PyString> {
 
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
-            let bytes = unsafe {
-                ffi::PyUnicode_AsUTF8String(self.as_ptr())
-                    .assume_owned_or_err(self.py())?
-                    .downcast_into_unchecked::<PyBytes>()
-            };
+            let bytes = self.encode_utf8()?;
             Ok(Cow::Owned(
                 unsafe { str::from_utf8_unchecked(bytes.as_bytes()) }.to_owned(),
             ))
@@ -532,6 +539,28 @@ mod tests {
             let obj: PyObject = PyString::new(py, s).into();
             let py_string: &PyString = obj.downcast(py).unwrap();
             assert_eq!(s, py_string.to_str().unwrap());
+        })
+    }
+
+    #[test]
+    fn test_encode_utf8_unicode() {
+        Python::with_gil(|py| {
+            let s = "哈哈🐈";
+            let obj = PyString::new_bound(py, s);
+            assert_eq!(s.as_bytes(), obj.encode_utf8().unwrap().as_bytes());
+        })
+    }
+
+    #[test]
+    fn test_encode_utf8_surrogate() {
+        Python::with_gil(|py| {
+            let obj: PyObject = py.eval(r"'\ud800'", None, None).unwrap().into();
+            assert!(obj
+                .bind(py)
+                .downcast::<PyString>()
+                .unwrap()
+                .encode_utf8()
+                .is_err());
         })
     }
 

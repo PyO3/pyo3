@@ -216,7 +216,7 @@ fn mapping() {
         let inst = Py::new(
             py,
             Mapping {
-                values: PyDict::new(py).into(),
+                values: PyDict::new_bound(py).into(),
             },
         )
         .unwrap();
@@ -687,9 +687,12 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .dict()
+            .as_borrowed();
         globals.set_item("Once", once).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -741,12 +744,15 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .dict()
+            .as_borrowed();
         globals.set_item("Once", once).unwrap();
         globals
             .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -813,9 +819,12 @@ del c.counter
 assert c.counter.count == 1
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .dict()
+            .as_borrowed();
         globals.set_item("Counter", counter).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });

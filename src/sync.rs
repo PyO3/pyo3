@@ -1,5 +1,8 @@
 //! Synchronization mechanisms based on the Python GIL.
-use crate::{instance::Bound, types::PyString, types::PyType, Py, PyResult, PyVisit, Python};
+use crate::{
+    types::{any::PyAnyMethods, PyString, PyType},
+    Bound, Py, PyResult, PyVisit, Python,
+};
 use std::cell::UnsafeCell;
 
 /// Value with concurrent access protected by the GIL.
@@ -196,9 +199,11 @@ impl GILOnceCell<Py<PyType>> {
         py: Python<'py>,
         module_name: &str,
         attr_name: &str,
-    ) -> PyResult<&'py PyType> {
-        self.get_or_try_init(py, || py.import(module_name)?.getattr(attr_name)?.extract())
-            .map(|ty| ty.as_ref(py))
+    ) -> PyResult<&Bound<'py, PyType>> {
+        self.get_or_try_init(py, || {
+            py.import_bound(module_name)?.getattr(attr_name)?.extract()
+        })
+        .map(|ty| ty.bind(py))
     }
 }
 
@@ -210,11 +215,11 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// ```
 /// use pyo3::intern;
-/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python};
+/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python, prelude::PyDictMethods, Bound};
 ///
 /// #[pyfunction]
-/// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {
-///     let dict = PyDict::new(py);
+/// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+///     let dict = PyDict::new_bound(py);
 ///     //             👇 A new `PyString` is created
 ///     //                for every call of this function.
 ///     dict.set_item("foo", 42)?;
@@ -222,8 +227,8 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 ///
 /// #[pyfunction]
-/// fn create_dict_faster(py: Python<'_>) -> PyResult<&PyDict> {
-///     let dict = PyDict::new(py);
+/// fn create_dict_faster(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+///     let dict = PyDict::new_bound(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
 ///     dict.set_item(intern!(py, "foo"), 42)?;
@@ -270,7 +275,7 @@ impl Interned {
 mod tests {
     use super::*;
 
-    use crate::types::PyDict;
+    use crate::types::{any::PyAnyMethods, dict::PyDictMethods, PyDict};
 
     #[test]
     fn test_intern() {
@@ -279,7 +284,7 @@ mod tests {
             let foo2 = intern!(py, "foo");
             let foo3 = intern!(py, stringify!(foo));
 
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             dict.set_item(foo1, 42_usize).unwrap();
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(

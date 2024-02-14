@@ -90,7 +90,7 @@ fn test_basic() {
     pyo3::Python::with_gil(|py| {
         let module = pyo3::wrap_pymodule!(basic_module)(py);
         let cls = py.get_type::<BasicClass>();
-        let d = pyo3::types::IntoPyDict::into_py_dict(
+        let d = pyo3::types::IntoPyDict::into_py_dict_bound(
             [
                 ("mod", module.as_ref(py).as_ref()),
                 ("cls", cls.as_ref()),

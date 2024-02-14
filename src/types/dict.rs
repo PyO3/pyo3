@@ -57,6 +57,13 @@ pyobject_native_type_core!(
 
 impl PyDict {
     /// Deprecated form of [`new_bound`][PyDict::new_bound].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDict::new` will be replaced by `PyDict::new_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     pub fn new(py: Python<'_>) -> &PyDict {
         Self::new_bound(py).into_gil_ref()
@@ -146,13 +153,13 @@ impl PyDict {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, IntoPyDict};
+    /// use pyo3::types::{IntoPyDict};
     /// use pyo3::exceptions::{PyTypeError, PyKeyError};
     ///
     /// # fn main() {
     /// # let _ =
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let dict: &PyDict = [("a", 1)].into_py_dict(py);
+    ///     let dict = &[("a", 1)].into_py_dict_bound(py);
     ///     // `a` is in the dictionary, with value 1
     ///     assert!(dict.get_item("a")?.map_or(Ok(false), |x| x.eq(1))?);
     ///     // `b` is not in the dictionary
@@ -161,7 +168,7 @@ impl PyDict {
     ///     assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
     ///
     ///     // `PyAny::get_item("b")` will raise a `KeyError` instead of returning `None`
-    ///     let any: &PyAny = dict.as_ref();
+    ///     let any = dict.as_any();
     ///     assert!(any.get_item("b").unwrap_err().is_instance_of::<PyKeyError>(py));
     ///     Ok(())
     /// });
@@ -650,10 +657,23 @@ impl<'py> IntoIterator for Bound<'py, PyDict> {
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyDict`
 /// Primary use case for this trait is `call` and `call_method` methods as keywords argument.
-pub trait IntoPyDict {
+pub trait IntoPyDict: Sized {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict;
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`IntoPyDict::into_py_dict` will be replaced by `IntoPyDict::into_py_dict_bound` in a future PyO3 version"
+        )
+    )]
+    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
+        Self::into_py_dict_bound(self, py).into_gil_ref()
+    }
+
+    /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
+    /// depends on implementation.
+    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict>;
 }
 
 impl<T, I> IntoPyDict for I
@@ -661,8 +681,8 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
-        let dict = PyDict::new(py);
+    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
+        let dict = PyDict::new_bound(py);
         for item in self {
             dict.set_item(item.key(), item.value())
                 .expect("Failed to set_item on dict");
@@ -723,7 +743,7 @@ mod tests {
     #[test]
     fn test_new() {
         Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py);
+            let dict = [(7, 32)].into_py_dict_bound(py);
             assert_eq!(
                 32,
                 dict.get_item(7i32)
@@ -783,7 +803,7 @@ mod tests {
     #[test]
     fn test_copy() {
         Python::with_gil(|py| {
-            let dict = [(7, 32)].into_py_dict(py);
+            let dict = [(7, 32)].into_py_dict_bound(py);
 
             let ndict = dict.copy().unwrap();
             assert_eq!(
@@ -905,7 +925,7 @@ mod tests {
             {
                 let _pool = unsafe { crate::GILPool::new() };
                 cnt = obj.get_refcnt();
-                let _dict = [(10, obj)].into_py_dict(py);
+                let _dict = [(10, obj)].into_py_dict_bound(py);
             }
             {
                 assert_eq!(cnt, obj.get_refcnt());
@@ -1150,7 +1170,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict_bound(py);
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -1171,7 +1191,7 @@ mod tests {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict_bound(py);
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -1190,7 +1210,7 @@ mod tests {
     fn test_vec_into_dict() {
         Python::with_gil(|py| {
             let vec = vec![("a", 1), ("b", 2), ("c", 3)];
-            let py_map = vec.into_py_dict(py);
+            let py_map = vec.into_py_dict_bound(py);
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(
@@ -1209,7 +1229,7 @@ mod tests {
     fn test_slice_into_dict() {
         Python::with_gil(|py| {
             let arr = [("a", 1), ("b", 2), ("c", 3)];
-            let py_map = arr.into_py_dict(py);
+            let py_map = arr.into_py_dict_bound(py);
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(
@@ -1230,7 +1250,7 @@ mod tests {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict_bound(py);
 
             assert_eq!(py_map.as_mapping().len().unwrap(), 1);
             assert_eq!(
@@ -1246,12 +1266,12 @@ mod tests {
     }
 
     #[cfg(not(PyPy))]
-    fn abc_dict(py: Python<'_>) -> &PyDict {
+    fn abc_dict(py: Python<'_>) -> Bound<'_, PyDict> {
         let mut map = HashMap::<&'static str, i32>::new();
         map.insert("a", 1);
         map.insert("b", 2);
         map.insert("c", 3);
-        map.into_py_dict(py)
+        map.into_py_dict_bound(py)
     }
 
     #[test]
@@ -1260,7 +1280,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
-            assert!(keys.is_instance(py.get_type::<PyDictKeys>()).unwrap());
+            assert!(keys
+                .is_instance(&py.get_type::<PyDictKeys>().as_borrowed())
+                .unwrap());
         })
     }
 
@@ -1270,7 +1292,9 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
-            assert!(values.is_instance(py.get_type::<PyDictValues>()).unwrap());
+            assert!(values
+                .is_instance(&py.get_type::<PyDictValues>().as_borrowed())
+                .unwrap());
         })
     }
 
@@ -1280,15 +1304,17 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
-            assert!(items.is_instance(py.get_type::<PyDictItems>()).unwrap());
+            assert!(items
+                .is_instance(&py.get_type::<PyDictItems>().as_borrowed())
+                .unwrap());
         })
     }
 
     #[test]
     fn dict_update() {
         Python::with_gil(|py| {
-            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
-            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict_bound(py);
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict_bound(py);
             dict.update(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
             assert_eq!(
@@ -1358,8 +1384,8 @@ mod tests {
     #[test]
     fn dict_update_if_missing() {
         Python::with_gil(|py| {
-            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict(py);
-            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict(py);
+            let dict = [("a", 1), ("b", 2), ("c", 3)].into_py_dict_bound(py);
+            let other = [("b", 4), ("c", 5), ("d", 6)].into_py_dict_bound(py);
             dict.update_if_missing(other.as_mapping()).unwrap();
             assert_eq!(dict.len(), 4);
             assert_eq!(

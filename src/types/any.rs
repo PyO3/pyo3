@@ -86,16 +86,16 @@ impl PyAny {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    /// fn has_version(sys: &Bound<'_, PyModule>) -> PyResult<bool> {
     ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    has_version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -115,16 +115,16 @@ impl PyAny {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
+    /// fn version<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
     ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    version(&sys).unwrap();
     /// # });
     /// ```
     pub fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
@@ -388,9 +388,9 @@ impl PyAny {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = fun.call(args, Some(kwargs))?;
+    ///     let result = fun.call(args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -488,9 +488,9 @@ impl PyAny {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = instance.call_method("method", args, Some(kwargs))?;
+    ///     let result = instance.call_method("method", args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -691,9 +691,9 @@ impl PyAny {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new(py);
+    ///     let dict = PyDict::new_bound(py);
     ///     assert!(dict.is_instance_of::<PyAny>());
-    ///     let any: &PyAny = dict.as_ref();
+    ///     let any = dict.as_any();
     ///
     ///     assert!(any.downcast::<PyDict>().is_ok());
     ///     assert!(any.downcast::<PyList>().is_err());
@@ -733,7 +733,7 @@ impl PyAny {
     where
         T: PyTypeCheck<AsRefTarget = T>,
     {
-        if T::type_check(self) {
+        if T::type_check(&self.as_borrowed()) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -776,7 +776,7 @@ impl PyAny {
     where
         T: PyTypeInfo<AsRefTarget = T>,
     {
-        if T::is_exact_type_of(self) {
+        if T::is_exact_type_of_bound(&self.as_borrowed()) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -956,16 +956,16 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    /// fn has_version(sys: &Bound<'_, PyModule>) -> PyResult<bool> {
     ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    has_version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -982,16 +982,16 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
+    /// fn version<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
     ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    version(&sys).unwrap();
     /// # });
     /// ```
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
@@ -1268,9 +1268,9 @@ pub trait PyAnyMethods<'py> {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = fun.call(args, Some(kwargs))?;
+    ///     let result = fun.call(args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -1360,9 +1360,9 @@ pub trait PyAnyMethods<'py> {
     ///     let module = PyModule::from_code(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new(py);
+    ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = instance.call_method("method", args, Some(kwargs))?;
+    ///     let result = instance.call_method("method", args, Some(kwargs.as_gil_ref()))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -1519,9 +1519,9 @@ pub trait PyAnyMethods<'py> {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new(py);
+    ///     let dict = PyDict::new_bound(py);
     ///     assert!(dict.is_instance_of::<PyAny>());
-    ///     let any: &PyAny = dict.as_ref();
+    ///     let any = dict.as_any();
     ///
     ///     assert!(any.downcast::<PyDict>().is_ok());
     ///     assert!(any.downcast::<PyList>().is_err());
@@ -1561,6 +1561,27 @@ pub trait PyAnyMethods<'py> {
         T: PyTypeCheck;
 
     /// Like `downcast` but takes ownership of `self`.
+    ///
+    /// In case of an error, it is possible to retrieve `self` again via [`DowncastIntoError::into_inner`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let obj: Bound<'_, PyAny> = PyDict::new_bound(py).into_any();
+    ///
+    ///     let obj: Bound<'_, PyAny> = match obj.downcast_into::<PyList>() {
+    ///         Ok(_) => panic!("obj should not be a list"),
+    ///         Err(err) => err.into_inner(),
+    ///     };
+    ///
+    ///     // obj is a dictionary
+    ///     assert!(obj.downcast_into::<PyDict>().is_ok());
+    /// })
+    /// ```
     fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
     where
         T: PyTypeCheck;
@@ -2100,7 +2121,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(self.as_gil_ref()) {
+        if T::type_check(self) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_unchecked() })
         } else {
@@ -2113,7 +2134,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         T: PyTypeCheck,
     {
-        if T::type_check(self.as_gil_ref()) {
+        if T::type_check(&self) {
             // Safety: type_check is responsible for ensuring that the type is correct
             Ok(unsafe { self.downcast_into_unchecked() })
         } else {
@@ -2218,12 +2239,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_type_of(self.as_gil_ref())
+        T::is_type_of_bound(self)
     }
 
     #[inline]
     fn is_exact_instance_of<T: PyTypeInfo>(&self) -> bool {
-        T::is_exact_type_of(self.as_gil_ref())
+        T::is_exact_type_of_bound(self)
     }
 
     fn contains<V>(&self, value: V) -> PyResult<bool>
@@ -2400,8 +2421,8 @@ class NonHeapNonDescriptorInt:
     fn test_call_with_kwargs() {
         Python::with_gil(|py| {
             let list = vec![3, 6, 5, 4, 7].to_object(py);
-            let dict = vec![("reverse", true)].into_py_dict(py);
-            list.call_method(py, "sort", (), Some(dict)).unwrap();
+            let dict = vec![("reverse", true)].into_py_dict_bound(py);
+            list.call_method_bound(py, "sort", (), Some(&dict)).unwrap();
             assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
         });
     }

@@ -75,7 +75,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// # fn main() -> PyResult<()> {
 /// pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| py.run("print('Hello World')", None, None))
+/// Python::with_gil(|py| py.run_bound("print('Hello World')", None, None))
 /// # }
 /// ```
 #[cfg(not(PyPy))]
@@ -118,7 +118,7 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run("print('Hello World')", None, None) {
+///         if let Err(e) = py.run_bound("print('Hello World')", None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }
@@ -143,7 +143,7 @@ where
 
     // Import the threading module - this ensures that it will associate this thread as the "main"
     // thread, which is important to avoid an `AssertionError` at finalization.
-    pool.python().import("threading").unwrap();
+    pool.python().import_bound("threading").unwrap();
 
     // Execute the closure.
     let result = f(pool.python());

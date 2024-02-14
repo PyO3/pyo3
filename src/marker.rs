@@ -600,6 +600,27 @@ impl<'py> Python<'py> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
+    /// Deprecated version of [`Python::run_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`Python::run` will be replaced by `Python::run_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn run(
+        self,
+        code: &str,
+        globals: Option<&PyDict>,
+        locals: Option<&PyDict>,
+    ) -> PyResult<()> {
+        self.run_bound(
+            code,
+            globals.map(PyNativeType::as_borrowed).as_deref(),
+            locals.map(PyNativeType::as_borrowed).as_deref(),
+        )
+    }
+
     /// Executes one or more Python statements in the given context.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
@@ -615,37 +636,32 @@ impl<'py> Python<'py> {
     ///     types::{PyBytes, PyDict},
     /// };
     /// Python::with_gil(|py| {
-    ///     let locals = PyDict::new(py);
-    ///     py.run(
+    ///     let locals = PyDict::new_bound(py);
+    ///     py.run_bound(
     ///         r#"
     /// import base64
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
     /// "#,
     ///         None,
-    ///         Some(locals),
+    ///         Some(&locals),
     ///     )
     ///     .unwrap();
     ///     let ret = locals.get_item("ret").unwrap().unwrap();
-    ///     let b64: &PyBytes = ret.downcast().unwrap();
+    ///     let b64 = ret.downcast::<PyBytes>().unwrap();
     ///     assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// });
     /// ```
     ///
     /// You can use [`py_run!`](macro.py_run.html) for a handy alternative of `run`
     /// if you don't need `globals` and unwrapping is OK.
-    pub fn run(
+    pub fn run_bound(
         self,
         code: &str,
-        globals: Option<&PyDict>,
-        locals: Option<&PyDict>,
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let res = self.run_code(
-            code,
-            ffi::Py_file_input,
-            globals.map(PyNativeType::as_borrowed).as_deref(),
-            locals.map(PyNativeType::as_borrowed).as_deref(),
-        );
+        let res = self.run_code(code, ffi::Py_file_input, globals, locals);
         res.map(|obj| {
             debug_assert!(obj.is_none());
         })
@@ -717,15 +733,34 @@ impl<'py> Python<'py> {
     where
         T: PyTypeInfo,
     {
-        T::type_object(self)
+        T::type_object_bound(self).into_gil_ref()
     }
 
-    /// Imports the Python module with the specified name.
+    /// Deprecated form of [`Python::import_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`Python::import` will be replaced by `Python::import_bound` in a future PyO3 version"
+        )
+    )]
     pub fn import<N>(self, name: N) -> PyResult<&'py PyModule>
     where
         N: IntoPy<Py<PyString>>,
     {
         PyModule::import(self, name)
+    }
+
+    /// Imports the Python module with the specified name.
+    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        // FIXME: This should be replaced by `PyModule::import_bound` once thats
+        // implemented.
+        PyModule::import(self, name)
+            .map(PyNativeType::as_borrowed)
+            .map(crate::Borrowed::to_owned)
     }
 
     /// Gets the Python builtin value `None`.
@@ -1116,7 +1151,7 @@ mod tests {
                 .unwrap();
             assert_eq!(v, 1);
 
-            let d = [("foo", 13)].into_py_dict(py).as_borrowed();
+            let d = [("foo", 13)].into_py_dict_bound(py);
 
             // Inject our own global namespace
             let v: i32 = py
@@ -1235,9 +1270,11 @@ mod tests {
 
     #[test]
     fn test_py_run_inserts_globals() {
+        use crate::types::dict::PyDictMethods;
+
         Python::with_gil(|py| {
-            let namespace = PyDict::new(py);
-            py.run("class Foo: pass", Some(namespace), Some(namespace))
+            let namespace = PyDict::new_bound(py);
+            py.run_bound("class Foo: pass", Some(&namespace), Some(&namespace))
                 .unwrap();
             assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));

@@ -16,13 +16,15 @@ pub(crate) struct PyErrStateNormalized {
 
 impl PyErrStateNormalized {
     #[cfg(not(Py_3_12))]
-    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> &'py PyType {
-        self.ptype.as_ref(py)
+    pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
+        self.ptype.bind(py).clone()
     }
 
     #[cfg(Py_3_12)]
-    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> &'py PyType {
-        self.pvalue.as_ref(py).get_type()
+    pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
+        use crate::instance::PyNativeType;
+        use crate::types::any::PyAnyMethods;
+        self.pvalue.bind(py).get_type().as_borrowed().to_owned()
     }
 
     #[cfg(not(Py_3_12))]

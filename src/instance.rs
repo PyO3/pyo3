@@ -634,7 +634,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///     #[new]
 ///     fn __new__() -> Foo {
 ///         Python::with_gil(|py| {
-///             let dict: Py<PyDict> = PyDict::new(py).into();
+///             let dict: Py<PyDict> = PyDict::new_bound(py).unbind();
 ///             Foo { inner: dict }
 ///         })
 ///     }
@@ -706,7 +706,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 /// # fn main() {
 /// Python::with_gil(|py| {
-///     let first: Py<PyDict> = PyDict::new(py).into();
+///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
 ///
 ///     // All of these are valid syntax
 ///     let second = Py::clone_ref(&first, py);
@@ -1130,7 +1130,7 @@ impl<T> Py<T> {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    ///     let first: Py<PyDict> = PyDict::new(py).into();
+    ///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
     ///     let second = Py::clone_ref(&first, py);
     ///
     ///     // Both point to the same object
@@ -1196,7 +1196,7 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, Py, Python, PyObject, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
     /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
@@ -1204,7 +1204,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap().into_py(py);
+    /// #    let sys = py.import_bound("sys").unwrap().unbind();
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
@@ -1683,7 +1683,7 @@ impl PyObject {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let any: PyObject = PyDict::new(py).into();
+    ///     let any: PyObject = PyDict::new_bound(py).into();
     ///
     ///     assert!(any.downcast::<PyDict>(py).is_ok());
     ///     assert!(any.downcast::<PyList>(py).is_err());
@@ -1765,7 +1765,7 @@ mod tests {
                 "{'x': 1}",
             );
             assert_repr(
-                obj.call(py, (), Some([('x', 1)].into_py_dict(py)))
+                obj.call_bound(py, (), Some(&[('x', 1)].into_py_dict_bound(py)))
                     .unwrap()
                     .as_ref(py),
                 "{'x': 1}",

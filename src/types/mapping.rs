@@ -97,7 +97,7 @@ impl PyMapping {
     /// library). This is equvalent to `collections.abc.Mapping.register(T)` in Python.
     /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
-        let ty = T::type_object(py);
+        let ty = T::type_object_bound(py);
         get_mapping_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
     }
@@ -232,7 +232,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 }
 
-fn get_mapping_abc(py: Python<'_>) -> PyResult<&PyType> {
+fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
     MAPPING_ABC.get_or_try_init_type_ref(py, "collections.abc", "Mapping")
@@ -242,10 +242,10 @@ impl PyTypeCheck for PyMapping {
     const NAME: &'static str = "Mapping";
 
     #[inline]
-    fn type_check(object: &PyAny) -> bool {
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
         // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
         // optimized case dict as a well-known mapping
-        PyDict::is_type_of(object)
+        PyDict::is_type_of_bound(object)
             || get_mapping_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {
@@ -263,7 +263,7 @@ impl<'v> crate::PyTryFrom<'v> for PyMapping {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
 
-        if PyMapping::type_check(value) {
+        if PyMapping::type_check(&value.as_borrowed()) {
             unsafe { return Ok(value.downcast_unchecked()) }
         }
 

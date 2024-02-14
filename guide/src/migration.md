@@ -210,12 +210,19 @@ To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointe
 For example, the following APIs have gained updated variants:
 - `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
 - `FromPyObject::extract` has a new `FromPyObject::extract_bound` (see the section below)
+- The `PyTypeInfo` trait has had new `_bound` methods added to accept / return `Bound<T>`.
 
 Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
 - Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)
 - `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
+- To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+
+```rust,ignore
+let gil_ref: &PyAny = ...;
+let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
+```
 
 #### Migrating `FromPyObject` implementations
 
@@ -244,6 +251,8 @@ impl<'py> FromPyObject<'py> for MyType {
 ```
 
 The expectation is that in 0.22 `extract_bound` will have the default implementation removed and in 0.23 `extract` will be removed.
+
+
 
 ## from 0.19.* to 0.20
 
@@ -280,7 +289,7 @@ Python::with_gil(|py| {
 
 After:
 
-```rust
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyDict, IntoPyDict};
@@ -656,7 +665,7 @@ To migrate, update trait bounds and imports from `PyTypeObject` to `PyTypeInfo`.
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 use pyo3::Python;
 use pyo3::type_object::PyTypeObject;
 use pyo3::types::PyType;
@@ -668,7 +677,7 @@ fn get_type_object<T: PyTypeObject>(py: Python<'_>) -> &PyType {
 
 After
 
-```rust
+```rust,ignore
 use pyo3::{Python, PyTypeInfo};
 use pyo3::types::PyType;
 
@@ -995,13 +1004,13 @@ makes it possible to interact with Python exception objects.
 
 The new types also have names starting with the "Py" prefix. For example, before:
 
-```rust,compile_fail
+```rust,ignore
 let err: PyErr = TypeError::py_err("error message");
 ```
 
 After:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::{PyErr, PyResult, Python, type_object::PyTypeObject};
 # use pyo3::exceptions::{PyBaseException, PyTypeError};
 # Python::with_gil(|py| -> PyResult<()> {

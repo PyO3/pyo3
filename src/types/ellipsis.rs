@@ -1,4 +1,7 @@
-use crate::{ffi, ffi_ptr_ext::FfiPtrExt, Borrowed, PyAny, PyTypeInfo, Python};
+use crate::{
+    ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
+    Python,
+};
 
 /// Represents the Python `Ellipsis` object.
 #[repr(transparent)]
@@ -38,14 +41,14 @@ unsafe impl PyTypeInfo for PyEllipsis {
     }
 
     #[inline]
-    fn is_type_of(object: &PyAny) -> bool {
+    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
         // ellipsis is not usable as a base type
-        Self::is_exact_type_of(object)
+        Self::is_exact_type_of_bound(object)
     }
 
     #[inline]
-    fn is_exact_type_of(object: &PyAny) -> bool {
-        object.is(Self::get_bound(object.py()).as_ref())
+    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+        object.is(&**Self::get_bound(object.py()))
     }
 }
 
@@ -68,14 +71,14 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyEllipsis::get_bound(py)
                 .get_type()
-                .is(PyEllipsis::type_object(py)));
+                .is(&PyEllipsis::type_object_bound(py)));
         })
     }
 
     #[test]
     fn test_dict_is_not_ellipsis() {
         Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyEllipsis>().is_err());
+            assert!(PyDict::new_bound(py).downcast::<PyEllipsis>().is_err());
         })
     }
 }

@@ -6,20 +6,20 @@ use rust_decimal::Decimal;
 
 fn decimal_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let locals = PyDict::new(py);
-        py.run(
+        let locals = PyDict::new_bound(py);
+        py.run_bound(
             r#"
 import decimal
 py_dec = decimal.Decimal("0.0")
 "#,
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
         let py_dec = locals.get_item("py_dec").unwrap().unwrap();
 
         b.iter(|| {
-            let _: Decimal = black_box(py_dec).extract().unwrap();
+            let _: Decimal = black_box(&py_dec).extract().unwrap();
         });
     })
 }

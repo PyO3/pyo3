@@ -8,10 +8,13 @@ pub use self::capsule::PyCapsule;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::code::PyCode;
 pub use self::complex::PyComplex;
+#[allow(deprecated)]
+#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
-    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
-    PyTzInfo, PyTzInfoAccess,
+    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
+    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict};
 #[cfg(not(PyPy))]
@@ -208,9 +211,9 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of(ptr: &$crate::PyAny) -> bool {
+                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
                     #[allow(unused_unsafe)]
-                    unsafe { $checkfunction(ptr.as_ptr()) > 0 }
+                    unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
             )?
         }

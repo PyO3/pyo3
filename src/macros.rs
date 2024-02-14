@@ -73,7 +73,7 @@
 /// }
 ///
 /// Python::with_gil(|py| {
-///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py);
+///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict_bound(py);
 ///     pyo3::py_run!(py, *locals, "c = C()");
 /// });
 /// ```
@@ -99,17 +99,19 @@ macro_rules! py_run_impl {
     ($py:expr, $($val:ident)+, $code:expr) => {{
         use $crate::types::IntoPyDict;
         use $crate::ToPyObject;
-        let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+        let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict_bound($py);
         $crate::py_run_impl!($py, *d, $code)
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
-        if let ::std::result::Result::Err(e) = $py.run($code, None, Some($dict)) {
+        #[allow(unused_imports)]
+        use $crate::PyNativeType;
+        if let ::std::result::Result::Err(e) = $py.run_bound($code, None, Some(&$dict.as_borrowed())) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
-            $py.run("import sys; sys.stderr.flush()", None, None)
+            $py.run_bound("import sys; sys.stderr.flush()", None, None)
                 .unwrap();
             ::std::panic!("{}", $code)
         }

@@ -16,7 +16,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        IntoPyDict::into_py_dict_bound(self, py).into()
     }
 }
 
@@ -26,7 +26,7 @@ where
     V: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        IntoPyDict::into_py_dict_bound(self, py).into()
     }
 }
 
@@ -40,7 +40,7 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict_bound(iter, py).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -58,7 +58,7 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict_bound(iter, py).into()
     }
 
     #[cfg(feature = "experimental-inspect")]

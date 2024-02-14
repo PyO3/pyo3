@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_smallvec_from_py_object_fails() {
         Python::with_gil(|py| {
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             let sv: PyResult<SmallVec<[u64; 8]>> = dict.extract();
             assert_eq!(
                 sv.unwrap_err().to_string(),

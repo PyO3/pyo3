@@ -2,7 +2,6 @@ import importlib
 import platform
 import sys
 
-import gevent
 import pyo3_pytests.misc
 import pytest
 
@@ -83,6 +82,8 @@ class ArbitraryClass:
 
 
 def test_gevent():
+    gevent = pytest.importorskip("gevent")
+
     def worker(worker_id: int) -> None:
         for iteration in range(2):
             d = {"key": ArbitraryClass(worker_id, iteration)}

@@ -12,7 +12,7 @@ use crate::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
     quotes,
-    utils::{self, PythonDoc},
+    utils::{self, is_abi3, PythonDoc},
 };
 
 #[derive(Clone, Debug)]
@@ -234,8 +234,8 @@ impl CallingConvention {
         } else if signature.python_signature.kwargs.is_some() {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if cfg!(not(feature = "abi3")) {
-            // Not available in the Stable ABI as of Python 3.10
+        } else if !is_abi3() {
+            // FIXME: available in the stable ABI since 3.10
             Self::Fastcall
         } else {
             Self::Varargs

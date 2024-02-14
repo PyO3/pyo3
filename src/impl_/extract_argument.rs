@@ -165,7 +165,8 @@ pub fn from_py_with_with_default<'py, T>(
 #[doc(hidden)]
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
-    if error.get_type(py).is(py.get_type::<PyTypeError>()) {
+    use crate::types::any::PyAnyMethods;
+    if error.get_type_bound(py).is(py.get_type::<PyTypeError>()) {
         let remapped_error =
             PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
         remapped_error.set_cause(py, error.cause(py));
@@ -680,7 +681,7 @@ impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
         _function_description: &FunctionDescription,
     ) -> PyResult<()> {
         varkeywords
-            .get_or_insert_with(|| PyDict::new(name.py()))
+            .get_or_insert_with(|| PyDict::new_bound(name.py()).into_gil_ref())
             .set_item(name, value)
     }
 }
@@ -727,7 +728,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
-            let kwargs = [("foo", 0u8)].into_py_dict(py);
+            let kwargs = [("foo", 0u8)].into_py_dict_bound(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -758,7 +759,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
-            let kwargs = [(1u8, 1u8)].into_py_dict(py);
+            let kwargs = [(1u8, 1u8)].into_py_dict_bound(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

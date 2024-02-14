@@ -35,8 +35,7 @@
 //! ```
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
-use crate::types::any::PyAnyMethods;
-use crate::types::PyType;
+use crate::types::{any::PyAnyMethods, PyType};
 use crate::{
     intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
@@ -51,7 +50,7 @@ impl ToPyObject for Tz {
             .unwrap()
             .call1((self.name(),))
             .unwrap()
-            .into()
+            .unbind()
     }
 }
 
@@ -90,8 +89,8 @@ mod tests {
     #[test]
     fn test_topyobject() {
         Python::with_gil(|py| {
-            let assert_eq = |l: PyObject, r: &PyAny| {
-                assert!(l.as_ref(py).eq(r).unwrap());
+            let assert_eq = |l: PyObject, r: Bound<'_, PyAny>| {
+                assert!(l.bind(py).eq(r).unwrap());
             };
 
             assert_eq(
@@ -106,11 +105,14 @@ mod tests {
         });
     }
 
-    fn new_zoneinfo<'a>(py: Python<'a>, name: &str) -> &'a PyAny {
+    fn new_zoneinfo<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyAny> {
         zoneinfo_class(py).call1((name,)).unwrap()
     }
 
-    fn zoneinfo_class(py: Python<'_>) -> &PyAny {
-        py.import("zoneinfo").unwrap().getattr("ZoneInfo").unwrap()
+    fn zoneinfo_class(py: Python<'_>) -> Bound<'_, PyAny> {
+        py.import_bound("zoneinfo")
+            .unwrap()
+            .getattr("ZoneInfo")
+            .unwrap()
     }
 }
