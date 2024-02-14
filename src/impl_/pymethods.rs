@@ -479,8 +479,8 @@ impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
 pub struct BoundRef<'a, 'py, T>(pub &'a Bound<'py, T>);
 
 impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
-    pub unsafe fn from_ref_to_ptr(py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> Self {
-        BoundRef(Bound::from_ref_to_ptr(py, ptr))
+    pub unsafe fn ref_from_ptr(py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> Self {
+        BoundRef(Bound::ref_from_ptr(py, ptr))
     }
 
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {

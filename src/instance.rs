@@ -140,7 +140,7 @@ impl<'py> Bound<'py, PyAny> {
     }
 
     #[inline]
-    pub(crate) unsafe fn from_ref_to_ptr<'a>(
+    pub(crate) unsafe fn ref_from_ptr<'a>(
         _py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> &'a Self {
