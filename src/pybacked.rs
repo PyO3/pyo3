@@ -1,3 +1,5 @@
+//! Contains types for working with Python objects that own the underlying data.
+
 use std::{ops::Deref, ptr::NonNull};
 
 use crate::{
@@ -39,7 +41,7 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
         }
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
-            let bytes = string.encode_utf8()?;
+            let bytes = py_string.encode_utf8()?;
             let b = bytes.as_bytes();
             let data = NonNull::from(b);
             let length = b.len();
@@ -67,6 +69,7 @@ pub struct PyBackedBytes {
     data: NonNull<[u8]>,
 }
 
+#[allow(dead_code)]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
     Rust(Box<[u8]>),
