@@ -130,12 +130,12 @@ impl PyWeakProxy {
     /// fn callback(wref: Bound<'_, PyWeakProxy>) -> PyResult<()> {
     ///         let py = wref.py();
     ///         assert!(wref.upgrade::<Foo>()?.is_none());
-    ///         py.run("counter = 1", None, None)
+    ///         py.run_bound("counter = 1", None, None)
     /// }
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     py.run("counter = 0", None, None)?;
+    ///     py.run_bound("counter = 0", None, None)?;
     ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
