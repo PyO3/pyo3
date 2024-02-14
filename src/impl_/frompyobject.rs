@@ -20,7 +20,7 @@ impl<'a, T> From<fn(&'a PyAny) -> PyResult<T>> for Extractor<'a, '_, T> {
 }
 
 impl<'a, 'py, T> Extractor<'a, 'py, T> {
-    fn call(self, obj: &'a Bound<'py, PyAny>) -> PyResult<T> {
+    pub(crate) fn call(self, obj: &'a Bound<'py, PyAny>) -> PyResult<T> {
         match self {
             Extractor::Bound(f) => f(obj),
             Extractor::GilRef(f) => f(obj.as_gil_ref()),
