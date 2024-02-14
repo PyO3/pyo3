@@ -77,7 +77,7 @@ fn test_buffer_referenced() {
             }
             .into_py(py);
 
-            let buf = PyBuffer::<u8>::get(instance.as_ref(py)).unwrap();
+            let buf = PyBuffer::<u8>::get_bound(instance.bind(py)).unwrap();
             assert_eq!(buf.to_vec(py).unwrap(), input);
             drop(instance);
             buf
