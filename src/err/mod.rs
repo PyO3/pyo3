@@ -1073,7 +1073,6 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::types::any::PyAnyMethods;
     use crate::{PyErr, PyNativeType, PyTypeInfo, Python};
 
     #[test]
