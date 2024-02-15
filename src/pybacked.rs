@@ -44,7 +44,6 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
             let bytes = py_string.encode_utf8()?;
             let b = bytes.as_bytes();
             let data = NonNull::from(b);
-            let length = b.len();
             Ok(Self {
                 storage: bytes.into_any().unbind(),
                 data,
