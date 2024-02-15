@@ -724,7 +724,7 @@ impl PyErr {
     /// # use pyo3::prelude::*;
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>().as_borrowed();
+    ///     let user_warning = py.get_type_bound::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn_bound(py, &user_warning, "I am warning you", 0)?;
     ///     Ok(())
     /// })
@@ -1080,7 +1080,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::{PyErr, PyNativeType, PyTypeInfo, Python};
+    use crate::{PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -1278,7 +1278,7 @@ mod tests {
         // GIL locked should prevent effects to be visible to other testing
         // threads.
         Python::with_gil(|py| {
-            let cls = py.get_type::<exceptions::PyUserWarning>().as_borrowed();
+            let cls = py.get_type_bound::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
             let warnings = py.import_bound("warnings").unwrap();
@@ -1293,14 +1293,14 @@ mod tests {
 
             // Test with raising
             warnings
-                .call_method1("simplefilter", ("error", cls))
+                .call_method1("simplefilter", ("error", &cls))
                 .unwrap();
             PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap_err();
 
             // Test with error for an explicit module
             warnings.call_method0("resetwarnings").unwrap();
             warnings
-                .call_method1("filterwarnings", ("error", "", cls, "pyo3test"))
+                .call_method1("filterwarnings", ("error", "", &cls, "pyo3test"))
                 .unwrap();
 
             // This has the wrong module and will not raise, just be emitted

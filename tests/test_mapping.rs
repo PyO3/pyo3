@@ -69,7 +69,7 @@ impl Mapping {
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
 fn map_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict_bound(py);
+    let d = [("Mapping", py.get_type_bound::<Mapping>())].into_py_dict_bound(py);
     py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
     d
 }

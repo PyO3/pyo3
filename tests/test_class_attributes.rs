@@ -56,7 +56,7 @@ impl Foo {
 #[test]
 fn class_attributes() {
     Python::with_gil(|py| {
-        let foo_obj = py.get_type::<Foo>();
+        let foo_obj = py.get_type_bound::<Foo>();
         py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
         py_assert!(py, foo_obj, "foo_obj.RENAMED_CONST == 'foobar_2'");
         py_assert!(py, foo_obj, "foo_obj.a == 5");
@@ -72,7 +72,7 @@ fn class_attributes() {
 #[ignore]
 fn class_attributes_are_immutable() {
     Python::with_gil(|py| {
-        let foo_obj = py.get_type::<Foo>();
+        let foo_obj = py.get_type_bound::<Foo>();
         py_expect_exception!(py, foo_obj, "foo_obj.a = 6", PyTypeError);
     });
 }
@@ -88,8 +88,8 @@ impl Bar {
 #[test]
 fn recursive_class_attributes() {
     Python::with_gil(|py| {
-        let foo_obj = py.get_type::<Foo>();
-        let bar_obj = py.get_type::<Bar>();
+        let foo_obj = py.get_type_bound::<Foo>();
+        let bar_obj = py.get_type_bound::<Bar>();
         py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
         py_assert!(py, foo_obj, "foo_obj.bar.x == 2");
         py_assert!(py, bar_obj, "bar_obj.a_foo.x == 3");
@@ -145,7 +145,7 @@ fn test_fallible_class_attribute() {
 
     Python::with_gil(|py| {
         let stderr = CaptureStdErr::new(py).unwrap();
-        assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
+        assert!(std::panic::catch_unwind(|| py.get_type_bound::<BrokenClass>()).is_err());
         assert_eq!(
             stderr.reset().unwrap().trim(),
             "\
@@ -187,7 +187,7 @@ fn test_renaming_all_struct_fields() {
     use pyo3::types::PyBool;
 
     Python::with_gil(|py| {
-        let struct_class = py.get_type::<StructWithRenamedFields>();
+        let struct_class = py.get_type_bound::<StructWithRenamedFields>();
         let struct_obj = struct_class.call0().unwrap();
         assert!(struct_obj
             .setattr("firstField", PyBool::new_bound(py, false))
@@ -220,11 +220,11 @@ macro_rules! test_case {
             //use pyo3::types::PyInt;
 
             Python::with_gil(|py| {
-                let struct_class = py.get_type::<$struct_name>();
+                let struct_class = py.get_type_bound::<$struct_name>();
                 let struct_obj = struct_class.call0().unwrap();
                 assert!(struct_obj.setattr($renamed_field_name, 2).is_ok());
                 let attr = struct_obj.getattr($renamed_field_name).unwrap();
-                assert_eq!(2, PyAny::extract::<u8>(attr).unwrap());
+                assert_eq!(2, attr.extract().unwrap());
             });
         }
     };

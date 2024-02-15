@@ -72,7 +72,7 @@ macro_rules! impl_exception_boilerplate {
 /// import_exception!(socket, gaierror);
 ///
 /// Python::with_gil(|py| {
-///     let ctx = [("gaierror", py.get_type::<gaierror>())].into_py_dict_bound(py);
+///     let ctx = [("gaierror", py.get_type_bound::<gaierror>())].into_py_dict_bound(py);
 ///     pyo3::py_run!(py, *ctx, "import socket; assert gaierror is socket.gaierror");
 /// });
 ///
@@ -160,7 +160,7 @@ macro_rules! import_exception {
 ///
 /// #[pymodule]
 /// fn my_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-///     m.add("MyError", py.get_type::<MyError>())?;
+///     m.add("MyError", py.get_type_bound::<MyError>())?;
 ///     m.add_function(wrap_pyfunction!(raise_myerror, py)?)?;
 ///     Ok(())
 /// }
@@ -168,7 +168,7 @@ macro_rules! import_exception {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new_bound(py);
-/// #         locals.set_item("MyError", py.get_type::<MyError>())?;
+/// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
 /// #         py.run_bound(
@@ -241,7 +241,6 @@ macro_rules! create_exception_type_object {
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::GILOnceCell;
-                use $crate::PyNativeType;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 
@@ -251,7 +250,7 @@ macro_rules! create_exception_type_object {
                             py,
                             concat!(stringify!($module), ".", stringify!($name)),
                             $doc,
-                            ::std::option::Option::Some(&py.get_type::<$base>().as_borrowed()),
+                            ::std::option::Option::Some(&py.get_type_bound::<$base>()),
                             ::std::option::Option::None,
                         ).expect("Failed to initialize new exception type.")
                 ).as_ptr() as *mut $crate::ffi::PyTypeObject
@@ -904,7 +903,7 @@ mod tests {
         create_exception!(mymodule, CustomError, PyException);
 
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
@@ -927,7 +926,7 @@ mod tests {
     fn custom_exception_dotted_module() {
         create_exception!(mymodule.exceptions, CustomError, PyException);
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
@@ -946,7 +945,7 @@ mod tests {
         create_exception!(mymodule, CustomError, PyException, "Some docs");
 
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
@@ -979,7 +978,7 @@ mod tests {
         );
 
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
