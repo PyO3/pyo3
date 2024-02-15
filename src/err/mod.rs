@@ -828,11 +828,12 @@ impl PyErr {
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
         let obj = unsafe {
-            py.from_owned_ptr_or_opt::<PyAny>(ffi::PyException_GetCause(
-                self.value_bound(py).as_ptr(),
-            ))
+            Bound::from_owned_ptr_or_opt(
+                py,
+                ffi::PyException_GetCause(self.value_bound(py).as_ptr()),
+            )
         };
-        obj.map(|inner| Self::from_value_bound(&inner.as_borrowed()))
+        obj.map(|inner| Self::from_value_bound(&inner))
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
