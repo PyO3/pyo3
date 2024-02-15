@@ -74,7 +74,7 @@ impl<'a> PyStringData<'a> {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
                 Err(e) => Err(crate::PyErr::from_value_bound(
-                    &PyUnicodeDecodeError::new_utf8(py, data, e)?.as_borrowed(),
+                    PyUnicodeDecodeError::new_utf8_bound(py, data, e)?.as_any(),
                 )),
             },
             Self::Ucs2(data) => match String::from_utf16(data) {
@@ -84,28 +84,28 @@ impl<'a> PyStringData<'a> {
                     message.push(0);
 
                     Err(crate::PyErr::from_value_bound(
-                        &PyUnicodeDecodeError::new(
+                        PyUnicodeDecodeError::new_bound(
                             py,
                             CStr::from_bytes_with_nul(b"utf-16\0").unwrap(),
                             self.as_bytes(),
                             0..self.as_bytes().len(),
                             CStr::from_bytes_with_nul(&message).unwrap(),
                         )?
-                        .as_borrowed(),
+                        .as_any(),
                     ))
                 }
             },
             Self::Ucs4(data) => match data.iter().map(|&c| std::char::from_u32(c)).collect() {
                 Some(s) => Ok(Cow::Owned(s)),
                 None => Err(crate::PyErr::from_value_bound(
-                    &PyUnicodeDecodeError::new(
+                    PyUnicodeDecodeError::new_bound(
                         py,
                         CStr::from_bytes_with_nul(b"utf-32\0").unwrap(),
                         self.as_bytes(),
                         0..self.as_bytes().len(),
                         CStr::from_bytes_with_nul(b"error converting utf-32\0").unwrap(),
                     )?
-                    .as_borrowed(),
+                    .as_any(),
                 )),
             },
         }
