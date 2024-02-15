@@ -101,19 +101,7 @@ where
 }
 
 impl PyErrState {
-    pub(crate) fn lazy(ptype: &PyAny, args: impl PyErrArguments + 'static) -> Self {
-        let ptype = ptype.into();
-        PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
-            ptype,
-            pvalue: args.arguments(py),
-        }))
-    }
-
-    pub(crate) fn lazy_bound(
-        ptype: &Bound<'_, PyAny>,
-        args: impl PyErrArguments + 'static,
-    ) -> Self {
-        let ptype = (*ptype).clone().into();
+    pub(crate) fn lazy(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
         PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
             ptype,
             pvalue: args.arguments(py),

@@ -187,7 +187,7 @@ impl PyErr {
     where
         A: PyErrArguments + Send + Sync + 'static,
     {
-        PyErr::from_state(PyErrState::lazy(ty, args))
+        PyErr::from_state(PyErrState::lazy(ty.into(), args))
     }
 
     /// Deprecated form of [`PyErr::from_value_bound`].
@@ -241,8 +241,8 @@ impl PyErr {
         } else {
             // Assume obj is Type[Exception]; let later normalization handle if this
             // is not the case
-            let none = obj.py().None();
-            PyErrState::lazy_bound(obj, none)
+            let py = obj.py();
+            PyErrState::lazy(obj.into_py(py), py.None())
         };
 
         PyErr::from_state(state)
