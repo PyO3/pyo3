@@ -445,6 +445,30 @@ impl PyErr {
         }
     }
 
+    /// Deprecated form of [`PyErr::new_type_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::new_type` will be replaced by `PyErr::new_type_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn new_type(
+        py: Python<'_>,
+        name: &str,
+        doc: Option<&str>,
+        base: Option<&PyType>,
+        dict: Option<PyObject>,
+    ) -> PyResult<Py<PyType>> {
+        Self::new_type_bound(
+            py,
+            name,
+            doc,
+            base.map(PyNativeType::as_borrowed).as_deref(),
+            dict,
+        )
+    }
+
     /// Creates a new exception type with the given name and docstring.
     ///
     /// - `base` can be an existing exception type to subclass, or a tuple of classes.
@@ -459,11 +483,11 @@ impl PyErr {
     /// # Panics
     ///
     /// This function will panic if  `name` or `doc` cannot be converted to [`CString`]s.
-    pub fn new_type(
-        py: Python<'_>,
+    pub fn new_type_bound<'py>(
+        py: Python<'py>,
         name: &str,
         doc: Option<&str>,
-        base: Option<&PyType>,
+        base: Option<&Bound<'py, PyType>>,
         dict: Option<PyObject>,
     ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {

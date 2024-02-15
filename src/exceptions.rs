@@ -240,16 +240,17 @@ macro_rules! create_exception_type_object {
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::GILOnceCell;
+                use $crate::PyNativeType;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
                     GILOnceCell::new();
 
                 TYPE_OBJECT
                     .get_or_init(py, ||
-                        $crate::PyErr::new_type(
+                        $crate::PyErr::new_type_bound(
                             py,
                             concat!(stringify!($module), ".", stringify!($name)),
                             $doc,
-                            ::std::option::Option::Some(py.get_type::<$base>()),
+                            ::std::option::Option::Some(&py.get_type::<$base>().as_borrowed()),
                             ::std::option::Option::None,
                         ).expect("Failed to initialize new exception type.")
                 ).as_ptr() as *mut $crate::ffi::PyTypeObject
