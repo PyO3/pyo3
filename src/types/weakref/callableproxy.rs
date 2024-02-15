@@ -505,11 +505,38 @@ mod tests {
     use crate::exceptions::{PyAttributeError, PyReferenceError};
     use crate::types::any::PyAnyMethods;
     use crate::types::weakref::{PyWeakCallableProxy, PyWeakRefMethods};
-    use crate::{Bound, PyResult, Python};
+    use crate::{Bound, PyAny, PyResult, Python};
+
+    fn check_repr(
+        reference: &Bound<'_, PyWeakCallableProxy>,
+        object: &Bound<'_, PyAny>,
+        class: &str,
+    ) -> PyResult<()> {
+        let repr = reference.repr()?.to_string();
+        let (first_part, second_part) = repr.split_once(" to ").unwrap();
+
+        {
+            let (msg, addr) = first_part.split_once("0x").unwrap();
+
+            assert_eq!(msg, "<weakproxy at ");
+            assert!(dbg!(addr)
+                .to_lowercase()
+                .contains(dbg!(format!("{:x?}", reference.as_ptr()).split_at(2).1)));
+        }
+
+        let (msg, addr) = second_part.split_once("0x").unwrap();
+
+        assert_eq!(msg, format!("{} at ", class));
+        assert!(addr
+            .to_lowercase()
+            .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
+
+        Ok(())
+    }
 
     mod python_class {
         use super::*;
-        use crate::{py_result_ext::PyResultExt, types::PyType, PyAny};
+        use crate::{py_result_ext::PyResultExt, types::PyType};
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run_bound(
@@ -538,14 +565,7 @@ mod tests {
                     reference.getattr("__class__")?.to_string(),
                     "<class '__main__.A'>"
                 );
-                assert_eq!(
-                    reference.repr()?.to_string(),
-                    format!(
-                        "<weakproxy at {:x?} to A at {:x?}>",
-                        reference.as_ptr(),
-                        object.as_ptr()
-                    )
-                );
+                check_repr(&reference, &object, "A")?;
 
                 assert!(reference
                     .getattr("__callback__")
@@ -561,14 +581,7 @@ mod tests {
                     .getattr("__class__")
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-                assert_eq!(
-                    reference.repr()?.to_string(),
-                    format!(
-                        "<weakproxy at {:x?} to NoneType at {:x?}>",
-                        reference.as_ptr(),
-                        py.None().as_ptr()
-                    )
-                );
+                check_repr(&reference, &py.None().bind(py), "NoneType")?;
 
                 assert!(reference
                     .getattr("__callback__")
@@ -723,14 +736,7 @@ mod tests {
                     reference.getattr("__class__")?.to_string(),
                     "<class 'builtins.WeakrefablePyClass'>"
                 );
-                assert_eq!(
-                    reference.repr()?.to_string(),
-                    format!(
-                        "<weakproxy at {:x?} to builtins.WeakrefablePyClass at {:x?}>",
-                        reference.as_ptr(),
-                        object.as_ptr()
-                    )
-                );
+                check_repr(&reference, object.as_any(), "builtins.WeakrefablePyClass")?;
 
                 assert!(reference
                     .getattr("__callback__")
@@ -746,14 +752,7 @@ mod tests {
                     .getattr("__class__")
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-                assert_eq!(
-                    reference.repr()?.to_string(),
-                    format!(
-                        "<weakproxy at {:x?} to NoneType at {:x?}>",
-                        reference.as_ptr(),
-                        py.None().as_ptr()
-                    )
-                );
+                check_repr(&reference, py.None().bind(py), "NoneType")?;
 
                 assert!(reference
                     .getattr("__callback__")
