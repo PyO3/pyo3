@@ -52,7 +52,9 @@ use crate::types::{
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
-use crate::{Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
+};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
@@ -457,9 +459,9 @@ fn naive_datetime_to_py_datetime(
 
 fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
-    if let Err(e) = PyErr::warn(
+    if let Err(e) = PyErr::warn_bound(
         py,
-        py.get_type::<PyUserWarning>(),
+        &py.get_type::<PyUserWarning>().as_borrowed(),
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {

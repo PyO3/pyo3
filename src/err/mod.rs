@@ -659,6 +659,18 @@ impl PyErr {
         unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), Bound::as_ptr)) }
     }
 
+    /// Deprecated form of [`PyErr::warn_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::warn` will be replaced by `PyErr::warn_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
+        Self::warn_bound(py, &category.as_borrowed(), message, stacklevel)
+    }
+
     /// Issues a warning message.
     ///
     /// May return an `Err(PyErr)` if warnings-as-errors is enabled.
@@ -674,13 +686,18 @@ impl PyErr {
     /// # use pyo3::prelude::*;
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
-    ///     PyErr::warn(py, user_warning, "I am warning you", 0)?;
+    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>().as_borrowed();
+    ///     PyErr::warn_bound(py, &user_warning, "I am warning you", 0)?;
     ///     Ok(())
     /// })
     /// # }
     /// ```
-    pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
+    pub fn warn_bound<'py>(
+        py: Python<'py>,
+        category: &Bound<'py, PyAny>,
+        message: &str,
+        stacklevel: i32,
+    ) -> PyResult<()> {
         let message = CString::new(message)?;
         error_on_minusone(py, unsafe {
             ffi::PyErr_WarnEx(
@@ -691,14 +708,14 @@ impl PyErr {
         })
     }
 
-    /// Issues a warning message, with more control over the warning attributes.
-    ///
-    /// May return a `PyErr` if warnings-as-errors is enabled.
-    ///
-    /// Equivalent to `warnings.warn_explicit()` in Python.
-    ///
-    /// The `category` should be one of the `Warning` classes available in
-    /// [`pyo3::exceptions`](crate::exceptions), or a subclass.
+    /// Deprecated form of [`PyErr::warn_explicit_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::warn_explicit` will be replaced by `PyErr::warn_explicit_bound` in a future PyO3 version"
+        )
+    )]
     pub fn warn_explicit(
         py: Python<'_>,
         category: &PyAny,
@@ -707,6 +724,34 @@ impl PyErr {
         lineno: i32,
         module: Option<&str>,
         registry: Option<&PyAny>,
+    ) -> PyResult<()> {
+        Self::warn_explicit_bound(
+            py,
+            &category.as_borrowed(),
+            message,
+            filename,
+            lineno,
+            module,
+            registry.map(PyNativeType::as_borrowed).as_deref(),
+        )
+    }
+
+    /// Issues a warning message, with more control over the warning attributes.
+    ///
+    /// May return a `PyErr` if warnings-as-errors is enabled.
+    ///
+    /// Equivalent to `warnings.warn_explicit()` in Python.
+    ///
+    /// The `category` should be one of the `Warning` classes available in
+    /// [`pyo3::exceptions`](crate::exceptions), or a subclass.
+    pub fn warn_explicit_bound<'py>(
+        py: Python<'py>,
+        category: &Bound<'py, PyAny>,
+        message: &str,
+        filename: &str,
+        lineno: i32,
+        module: Option<&str>,
+        registry: Option<&Bound<'py, PyAny>>,
     ) -> PyResult<()> {
         let message = CString::new(message)?;
         let filename = CString::new(filename)?;
@@ -999,7 +1044,7 @@ mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
     use crate::types::any::PyAnyMethods;
-    use crate::{PyErr, PyTypeInfo, Python};
+    use crate::{PyErr, PyNativeType, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -1196,7 +1241,7 @@ mod tests {
         // GIL locked should prevent effects to be visible to other testing
         // threads.
         Python::with_gil(|py| {
-            let cls = py.get_type::<exceptions::PyUserWarning>();
+            let cls = py.get_type::<exceptions::PyUserWarning>().as_borrowed();
 
             // Reset warning filter to default state
             let warnings = py.import_bound("warnings").unwrap();
@@ -1205,7 +1250,7 @@ mod tests {
             // First, test the warning is emitted
             assert_warnings!(
                 py,
-                { PyErr::warn(py, cls, "I am warning you", 0).unwrap() },
+                { PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
@@ -1213,7 +1258,7 @@ mod tests {
             warnings
                 .call_method1("simplefilter", ("error", cls))
                 .unwrap();
-            PyErr::warn(py, cls, "I am warning you", 0).unwrap_err();
+            PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap_err();
 
             // Test with error for an explicit module
             warnings.call_method0("resetwarnings").unwrap();
@@ -1224,13 +1269,20 @@ mod tests {
             // This has the wrong module and will not raise, just be emitted
             assert_warnings!(
                 py,
-                { PyErr::warn(py, cls, "I am warning you", 0).unwrap() },
+                { PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
-            let err =
-                PyErr::warn_explicit(py, cls, "I am warning you", "pyo3test.py", 427, None, None)
-                    .unwrap_err();
+            let err = PyErr::warn_explicit_bound(
+                py,
+                &cls,
+                "I am warning you",
+                "pyo3test.py",
+                427,
+                None,
+                None,
+            )
+            .unwrap_err();
             assert!(err
                 .value(py)
                 .getattr("args")
