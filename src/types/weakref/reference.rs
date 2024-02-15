@@ -56,7 +56,7 @@ impl PyWeakRef {
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
     ///         weakref.get_object()
-    ///             .is_some_and(|obj| obj.is(&foo))
+    ///             .map_or(false, |obj| obj.is(&foo))
     ///     );
     ///
     ///     let weakref2 = PyWeakRef::new_bound(py, foo.clone())?;
@@ -133,7 +133,7 @@ impl PyWeakRef {
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
     ///         weakref.get_object()
-    ///             .is_some_and(|obj| obj.is(&foo))
+    ///             .map_or(false, |obj| obj.is(&foo))
     ///     );
     ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
     ///
@@ -861,7 +861,7 @@ mod tests {
 
             assert!(reference
                 .getattr("__callback__")
-                .is_ok_and(|result| result.is_none()));
+                .map_or(false, |result| result.is_none()));
 
             assert!(reference.call0()?.is(&object));
 
@@ -879,7 +879,7 @@ mod tests {
 
             assert!(reference
                 .getattr("__callback__")
-                .is_ok_and(|result| result.is_none()));
+                .map_or(false, |result| result.is_none()));
 
             assert!(reference.call0()?.is_none());
 
@@ -900,7 +900,7 @@ mod tests {
                 let obj = obj.unwrap();
 
                 assert!(obj.is_some());
-                assert!(obj.is_some_and(|obj| obj.as_ptr() == object.as_ptr()));
+                assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
             }
 
             drop(object);
@@ -926,7 +926,7 @@ mod tests {
 
             assert!(reference.call0()?.is(&object));
             assert!(reference.get_object().is_some());
-            assert!(reference.get_object().is_some_and(|obj| obj.is(&object)));
+            assert!(reference.get_object().map_or(false, |obj| obj.is(&object)));
 
             drop(object);
 
@@ -945,7 +945,9 @@ mod tests {
 
             assert!(reference.call0()?.is(&object));
             assert!(reference.borrow_object().is_some());
-            assert!(reference.borrow_object().is_some_and(|obj| obj.is(&object)));
+            assert!(reference
+                .borrow_object()
+                .map_or(false, |obj| obj.is(&object)));
 
             drop(object);
 

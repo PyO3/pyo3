@@ -67,7 +67,7 @@ impl PyWeakCallableProxy {
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
     ///         weakref.get_object()
-    ///             .is_some_and(|obj| obj.is(&foo))
+    ///             .map_or(false, |obj| obj.is(&foo))
     ///     );
     ///
     ///     let weakref2 = PyWeakCallableProxy::new_bound(py, foo.clone())?;
@@ -78,7 +78,10 @@ impl PyWeakCallableProxy {
     ///     drop(foo);
     ///
     ///     assert!(weakref.get_object().is_none());
-    ///     assert!(weakref.call0().is_err_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+    ///     assert!(weakref.call0()
+    ///                 .err()
+    ///                 .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py))
+    ///     );
     ///
     ///     Ok(())
     /// })
@@ -168,7 +171,7 @@ impl PyWeakCallableProxy {
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
     ///         weakref.get_object()
-    ///             .is_some_and(|obj| obj.is(&foo))
+    ///             .map_or(false, |obj| obj.is(&foo))
     ///     );
     ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
     ///
@@ -543,7 +546,8 @@ mod tests {
 
             assert!(reference
                 .getattr("__callback__")
-                .is_err_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+                .err()
+                .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
 
             assert_eq!(reference.call0()?.to_string(), "This class is callable!");
 
@@ -552,7 +556,8 @@ mod tests {
             assert!(reference.get_object_raw().is_none());
             assert!(reference
                 .getattr("__class__")
-                .is_err_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                .err()
+                .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
             assert_eq!(
                 reference.repr()?.to_string(),
                 format!(
@@ -564,12 +569,12 @@ mod tests {
 
             assert!(reference
                 .getattr("__callback__")
-                .is_err_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                .err()
+                .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-            assert!(reference
-                .call0()
-                .is_err_and(|err| err.is_instance_of::<PyReferenceError>(py)
-                    & (err.value(py).to_string() == "weakly-referenced object no longer exists")));
+            assert!(reference.call0().err().map_or(false, |err| err
+                .is_instance_of::<PyReferenceError>(py)
+                & (err.value(py).to_string() == "weakly-referenced object no longer exists")));
 
             Ok(())
         })
@@ -588,7 +593,7 @@ mod tests {
                 let obj = obj.unwrap();
 
                 assert!(obj.is_some());
-                assert!(obj.is_some_and(|obj| obj.as_ptr() == object.as_ptr()));
+                assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
             }
 
             drop(object);
@@ -613,7 +618,7 @@ mod tests {
             let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
 
             assert!(reference.get_object().is_some());
-            assert!(reference.get_object().is_some_and(|obj| obj.is(&object)));
+            assert!(reference.get_object().map_or(false, |obj| obj.is(&object)));
 
             drop(object);
 
@@ -630,7 +635,9 @@ mod tests {
             let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
 
             assert!(reference.borrow_object().is_some());
-            assert!(reference.borrow_object().is_some_and(|obj| obj.is(&object)));
+            assert!(reference
+                .borrow_object()
+                .map_or(false, |obj| obj.is(&object)));
 
             drop(object);
 
