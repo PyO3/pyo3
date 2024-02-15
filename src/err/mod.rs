@@ -220,15 +220,15 @@ impl PyErr {
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
     ///     let err = PyErr::from_value_bound(&PyTypeError::new_err("some type error")
-    ///         .value_bound(py).as_borrowed());
+    ///         .value_bound(py));
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
-    ///     let err = PyErr::from_value_bound(&PyTypeError::type_object_bound(py).as_borrowed());
+    ///     let err = PyErr::from_value_bound(&PyTypeError::type_object_bound(py));
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
-    ///     let err = PyErr::from_value_bound(&PyString::new_bound(py, "foo").as_borrowed());
+    ///     let err = PyErr::from_value_bound(&PyString::new_bound(py, "foo"));
     ///     assert_eq!(
     ///         err.to_string(),
     ///         "TypeError: exceptions must derive from BaseException"
