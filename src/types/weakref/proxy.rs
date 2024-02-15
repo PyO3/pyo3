@@ -445,174 +445,361 @@ impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakProxy> {
 #[cfg(test)]
 mod tests {
     use crate::exceptions::{PyAttributeError, PyReferenceError, PyTypeError};
-    use crate::prelude::{pyclass, Py, PyResult, Python};
     use crate::types::any::PyAnyMethods;
     use crate::types::weakref::{PyWeakProxy, PyWeakRefMethods};
-    use crate::Bound;
+    use crate::{Bound, PyResult, Python};
 
-    #[pyclass(weakref, crate = "crate")]
-    struct WeakrefablePyClass {}
+    mod python_class {
+        use super::*;
+        use crate::{py_result_ext::PyResultExt, types::PyType, PyAny};
 
-    #[test]
-    fn test_weakref_proxy_behavior() -> PyResult<()> {
-        Python::with_gil(|py| {
-            let object = Bound::new(py, WeakrefablePyClass {})?;
-            let reference = PyWeakProxy::new_bound(py, object.clone())?;
+        fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
+            py.run_bound("class A:\n    pass\n", None, None)?;
+            py.eval_bound("A", None, None).downcast_into::<PyType>()
+        }
 
-            assert!(!reference.is(&object));
-            assert!(reference.get_object_raw().is(&object));
-            assert_eq!(
-                reference.get_type().to_string(),
-                "<class 'weakref.ProxyType'>"
-            );
+        #[test]
+        fn test_weakref_proxy_behavior() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakProxy::new_bound(py, object.clone())?;
 
-            assert_eq!(
-                reference.getattr("__class__")?.to_string(),
-                "<class 'builtins.WeakrefablePyClass'>"
-            );
-            assert_eq!(
-                reference.repr()?.to_string(),
-                format!(
-                    "<weakproxy at {:x?} to builtins.WeakrefablePyClass at {:x?}>",
-                    reference.as_ptr(),
-                    object.as_ptr()
-                )
-            );
+                assert!(!reference.is(&object));
+                assert!(reference.get_object_raw().is(&object));
+                assert_eq!(
+                    reference.get_type().to_string(),
+                    "<class 'weakref.ProxyType'>"
+                );
 
-            assert!(reference
-                .getattr("__callback__")
-                .err()
-                .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
+                assert_eq!(
+                    reference.getattr("__class__")?.to_string(),
+                    "<class '__main__.A'>"
+                );
+                assert_eq!(
+                    reference.repr()?.to_string(),
+                    format!(
+                        "<weakproxy at {:x?} to A at {:x?}>",
+                        reference.as_ptr(),
+                        object.as_ptr()
+                    )
+                );
 
-            assert!(reference.call0().err().map_or(false, |err| err
-                .is_instance_of::<PyTypeError>(py)
-                & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
+                assert!(reference
+                    .getattr("__callback__")
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
 
-            drop(object);
+                assert!(reference.call0().err().map_or(false, |err| err
+                    .is_instance_of::<PyTypeError>(py)
+                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
 
-            assert!(reference.get_object_raw().is_none());
-            assert!(reference
-                .getattr("__class__")
-                .err()
-                .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-            assert_eq!(
-                reference.repr()?.to_string(),
-                format!(
-                    "<weakproxy at {:x?} to NoneType at {:x?}>",
-                    reference.as_ptr(),
-                    py.None().as_ptr()
-                )
-            );
+                drop(object);
 
-            assert!(reference
-                .getattr("__callback__")
-                .err()
-                .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                assert!(reference.get_object_raw().is_none());
+                assert!(reference
+                    .getattr("__class__")
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                assert_eq!(
+                    reference.repr()?.to_string(),
+                    format!(
+                        "<weakproxy at {:x?} to NoneType at {:x?}>",
+                        reference.as_ptr(),
+                        py.None().as_ptr()
+                    )
+                );
 
-            assert!(reference.call0().err().map_or(false, |err| err
-                .is_instance_of::<PyTypeError>(py)
-                & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
+                assert!(reference
+                    .getattr("__callback__")
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-            Ok(())
-        })
+                assert!(reference.call0().err().map_or(false, |err| err
+                    .is_instance_of::<PyTypeError>(py)
+                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_upgrade() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakProxy::new_bound(py, object.clone())?;
+
+                {
+                    // This test is a bit weird but ok.
+                    let obj = reference.upgrade::<PyAny>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_some());
+                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
+                        && obj.is_exact_instance(&class)));
+                }
+
+                drop(object);
+
+                {
+                    // This test is a bit weird but ok.
+                    let obj = reference.upgrade::<PyAny>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_none());
+                }
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_get_object() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakProxy::new_bound(py, object.clone())?;
+
+                assert!(reference.get_object().is_some());
+                assert!(reference.get_object().map_or(false, |obj| obj.is(&object)));
+
+                drop(object);
+
+                assert!(reference.get_object().is_none());
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_borrrow_object() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakProxy::new_bound(py, object.clone())?;
+
+                assert!(reference.borrow_object().is_some());
+                assert!(reference
+                    .borrow_object()
+                    .map_or(false, |obj| obj.is(&object)));
+
+                drop(object);
+
+                assert!(reference.borrow_object().is_none());
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_get_object_raw() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakProxy::new_bound(py, object.clone())?;
+
+                assert!(reference.get_object_raw().is(&object));
+
+                drop(object);
+
+                assert!(reference.get_object_raw().is_none());
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_borrow_object_raw() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakProxy::new_bound(py, object.clone())?;
+
+                assert!(reference.borrow_object_raw().is(&object));
+
+                drop(object);
+
+                assert!(reference.borrow_object_raw().is_none());
+
+                Ok(())
+            })
+        }
     }
 
-    #[test]
-    fn test_weakref_upgrade() -> PyResult<()> {
-        Python::with_gil(|py| {
-            let object = Py::new(py, WeakrefablePyClass {})?;
-            let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
+    #[cfg(feature = "macros")]
+    mod pyo3_pyclass {
+        use super::*;
+        use crate::{pyclass, Py};
 
-            {
-                let obj = reference.upgrade::<WeakrefablePyClass>();
+        #[pyclass(weakref, crate = "crate")]
+        struct WeakrefablePyClass {}
 
-                assert!(obj.is_ok());
-                let obj = obj.unwrap();
+        #[test]
+        fn test_weakref_proxy_behavior() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Bound::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakProxy::new_bound(py, object.clone())?;
 
-                assert!(obj.is_some());
-                assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
-            }
+                assert!(!reference.is(&object));
+                assert!(reference.get_object_raw().is(&object));
+                assert_eq!(
+                    reference.get_type().to_string(),
+                    "<class 'weakref.ProxyType'>"
+                );
 
-            drop(object);
+                assert_eq!(
+                    reference.getattr("__class__")?.to_string(),
+                    "<class 'builtins.WeakrefablePyClass'>"
+                );
+                assert_eq!(
+                    reference.repr()?.to_string(),
+                    format!(
+                        "<weakproxy at {:x?} to builtins.WeakrefablePyClass at {:x?}>",
+                        reference.as_ptr(),
+                        object.as_ptr()
+                    )
+                );
 
-            {
-                let obj = reference.upgrade::<WeakrefablePyClass>();
+                assert!(reference
+                    .getattr("__callback__")
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
 
-                assert!(obj.is_ok());
-                let obj = obj.unwrap();
+                assert!(reference.call0().err().map_or(false, |err| err
+                    .is_instance_of::<PyTypeError>(py)
+                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
 
-                assert!(obj.is_none());
-            }
+                drop(object);
 
-            Ok(())
-        })
-    }
+                assert!(reference.get_object_raw().is_none());
+                assert!(reference
+                    .getattr("__class__")
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
+                assert_eq!(
+                    reference.repr()?.to_string(),
+                    format!(
+                        "<weakproxy at {:x?} to NoneType at {:x?}>",
+                        reference.as_ptr(),
+                        py.None().as_ptr()
+                    )
+                );
 
-    #[test]
-    fn test_weakref_get_object() -> PyResult<()> {
-        Python::with_gil(|py| {
-            let object = Py::new(py, WeakrefablePyClass {})?;
-            let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
+                assert!(reference
+                    .getattr("__callback__")
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-            assert!(reference.get_object().is_some());
-            assert!(reference.get_object().map_or(false, |obj| obj.is(&object)));
+                assert!(reference.call0().err().map_or(false, |err| err
+                    .is_instance_of::<PyTypeError>(py)
+                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
 
-            drop(object);
+                Ok(())
+            })
+        }
 
-            assert!(reference.get_object().is_none());
+        #[test]
+        fn test_weakref_upgrade() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Py::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
 
-            Ok(())
-        })
-    }
+                {
+                    let obj = reference.upgrade::<WeakrefablePyClass>();
 
-    #[test]
-    fn test_weakref_borrrow_object() -> PyResult<()> {
-        Python::with_gil(|py| {
-            let object = Py::new(py, WeakrefablePyClass {})?;
-            let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
 
-            assert!(reference.borrow_object().is_some());
-            assert!(reference
-                .borrow_object()
-                .map_or(false, |obj| obj.is(&object)));
+                    assert!(obj.is_some());
+                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                }
 
-            drop(object);
+                drop(object);
 
-            assert!(reference.borrow_object().is_none());
+                {
+                    let obj = reference.upgrade::<WeakrefablePyClass>();
 
-            Ok(())
-        })
-    }
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
 
-    #[test]
-    fn test_weakref_get_object_raw() -> PyResult<()> {
-        Python::with_gil(|py| {
-            let object = Py::new(py, WeakrefablePyClass {})?;
-            let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
+                    assert!(obj.is_none());
+                }
 
-            assert!(reference.get_object_raw().is(&object));
+                Ok(())
+            })
+        }
 
-            drop(object);
+        #[test]
+        fn test_weakref_get_object() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Py::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
 
-            assert!(reference.get_object_raw().is_none());
+                assert!(reference.get_object().is_some());
+                assert!(reference.get_object().map_or(false, |obj| obj.is(&object)));
 
-            Ok(())
-        })
-    }
+                drop(object);
 
-    #[test]
-    fn test_weakref_borrow_object_raw() -> PyResult<()> {
-        Python::with_gil(|py| {
-            let object = Py::new(py, WeakrefablePyClass {})?;
-            let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
+                assert!(reference.get_object().is_none());
 
-            assert!(reference.borrow_object_raw().is(&object));
+                Ok(())
+            })
+        }
 
-            drop(object);
+        #[test]
+        fn test_weakref_borrrow_object() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Py::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
 
-            assert!(reference.borrow_object_raw().is_none());
+                assert!(reference.borrow_object().is_some());
+                assert!(reference
+                    .borrow_object()
+                    .map_or(false, |obj| obj.is(&object)));
 
-            Ok(())
-        })
+                drop(object);
+
+                assert!(reference.borrow_object().is_none());
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_get_object_raw() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Py::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
+
+                assert!(reference.get_object_raw().is(&object));
+
+                drop(object);
+
+                assert!(reference.get_object_raw().is_none());
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_borrow_object_raw() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Py::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakProxy::new_bound(py, object.clone_ref(py))?;
+
+                assert!(reference.borrow_object_raw().is(&object));
+
+                drop(object);
+
+                assert!(reference.borrow_object_raw().is_none());
+
+                Ok(())
+            })
+        }
     }
 }
