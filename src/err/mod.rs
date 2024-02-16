@@ -286,7 +286,7 @@ impl PyErr {
         )
     )]
     pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
-        self.value_bound(py).clone().into_gil_ref()
+        self.value_bound(py).as_gil_ref()
     }
 
     /// Returns the value of this exception.
