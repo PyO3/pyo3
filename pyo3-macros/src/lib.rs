@@ -6,11 +6,11 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    get_doc, process_functions_in_module, pymodule_function_impl, pymodule_module_impl,
-    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
+    pymodule_function_impl, pymodule_module_impl, PyClassArgs, PyClassMethodsType,
+    PyFunctionOptions,
 };
 use quote::quote;
-use syn::{parse::Nothing, parse_macro_input};
+use syn::{parse::Nothing, parse_macro_input, Item};
 
 /// A proc macro used to implement Python modules.
 ///
@@ -36,37 +36,20 @@ use syn::{parse::Nothing, parse_macro_input};
 #[proc_macro_attribute]
 pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
     parse_macro_input!(args as Nothing);
-
-    if let Ok(module) = syn::parse(input.clone()) {
-        return pymodule_module_impl(module)
-            .unwrap_or_compile_error()
-            .into();
+    match parse_macro_input!(input as Item) {
+        Item::Mod(module) => pymodule_module_impl(module),
+        Item::Fn(function) => pymodule_function_impl(function),
+        unsupported => Err(syn::Error::new_spanned(
+            unsupported,
+            "#[pymodule] only supports modules and functions.",
+        )),
     }
-
-    let mut ast = parse_macro_input!(input as syn::ItemFn);
-    let options = match PyModuleOptions::from_attrs(&mut ast.attrs) {
-        Ok(options) => options,
-        Err(e) => return e.into_compile_error().into(),
-    };
-
-    if let Err(err) = process_functions_in_module(&options, &mut ast) {
-        return err.into_compile_error().into();
-    }
-
-    let doc = get_doc(&ast.attrs, None);
-
-    let expanded = pymodule_function_impl(&ast.sig.ident, options, doc, &ast.vis);
-
-    quote!(
-        #ast
-        #expanded
-    )
+    .unwrap_or_compile_error()
     .into()
 }
 
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
-    use syn::Item;
     let item = parse_macro_input!(input as Item);
     match item {
         Item::Struct(struct_) => pyclass_impl(attr, struct_, methods_type()),
