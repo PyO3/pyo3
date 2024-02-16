@@ -270,8 +270,10 @@ pub fn impl_wrap_pyfunction(
             pub(crate) struct MakeDef;
             pub const DEF: #krate::impl_::pyfunction::PyMethodDef = MakeDef::DEF;
 
-            pub fn add_to_module(module: &#krate::types::PyModule) -> #krate::PyResult<()> {
-                module.add_function(#krate::impl_::pyfunction::_wrap_pyfunction(&DEF, module)?)
+            pub fn add_to_module(module: &#krate::Bound<'_, #krate::types::PyModule>) -> #krate::PyResult<()> {
+                use #krate::prelude::PyModuleMethods;
+                use ::std::convert::Into;
+                module.add_function(&#krate::types::PyCFunction::internal_new(&DEF, module.as_gil_ref().into())?)
             }
         }
 

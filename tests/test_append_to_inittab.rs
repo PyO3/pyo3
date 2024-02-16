@@ -37,7 +37,7 @@ assert module_fn_with_functions.foo() == 123
         .unwrap();
     });
     Python::with_gil(|py| {
-        py.run(
+        py.run_bound(
             r#"
 import module_mod_with_functions
 assert module_mod_with_functions.foo() == 123

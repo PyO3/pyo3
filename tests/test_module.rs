@@ -507,7 +507,7 @@ mod declarative_module {
     use super::{declarative_module2, double, MyError, ValueClass as Value};
 
     #[pymodule_init]
-    fn init(m: &PyModule) -> PyResult<()> {
+    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add("double2", m.getattr("double")?)
     }
 }

@@ -29,7 +29,7 @@ mod pyo3_pytests {
     use {buf_and_str::buf_and_str, datetime::datetime};
 
     #[pymodule_init]
-    fn init(m: &PyModule) -> PyResult<()> {
+    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         // Inserting to sys.modules allows importing submodules nicely from Python
         // e.g. import pyo3_pytests.buf_and_str as bas
         let sys = PyModule::import_bound(m.py(), "sys")?;
