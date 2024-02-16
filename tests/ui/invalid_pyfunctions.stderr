@@ -35,11 +35,11 @@ error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_modul
 19 | fn pass_module_but_no_arguments<'py>() {}
    |                                     ^^
 
-error[E0277]: the trait bound `&str: From<&pyo3::prelude::PyModule>` is not satisfied
+error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not satisfied
   --> tests/ui/invalid_pyfunctions.rs:22:43
    |
 22 | fn first_argument_not_module<'py>(string: &str, module: &'py PyModule) -> PyResult<&'py str> {
-   |                                           ^ the trait `From<&pyo3::prelude::PyModule>` is not implemented for `&str`
+   |                                           ^ the trait `From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not implemented for `&str`
    |
    = help: the following other types implement trait `From<T>`:
              <String as From<char>>
@@ -48,4 +48,4 @@ error[E0277]: the trait bound `&str: From<&pyo3::prelude::PyModule>` is not sati
              <String as From<&str>>
              <String as From<&mut str>>
              <String as From<&String>>
-   = note: required for `&pyo3::prelude::PyModule` to implement `Into<&str>`
+   = note: required for `BoundRef<'_, '_, pyo3::prelude::PyModule>` to implement `Into<&str>`

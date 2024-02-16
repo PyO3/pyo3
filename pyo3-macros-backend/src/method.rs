@@ -127,13 +127,21 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(#py, #slf.cast())),
+                    ::std::convert::Into::into(
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                            .downcast_unchecked::<_pyo3::types::PyType>()
+                    ),
                 }
             }
             FnType::FnModule(span) => {
+                let py = syn::Ident::new("py", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf)),
+                    ::std::convert::Into::into(
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                            .downcast_unchecked::<_pyo3::types::PyModule>()
+                    ),
                 }
             }
         }
@@ -409,7 +417,7 @@ impl<'a> FnSpec<'a> {
                     // will error on incorrect type.
                     Some(syn::FnArg::Typed(first_arg)) => first_arg.ty.span(),
                     Some(syn::FnArg::Receiver(_)) | None => bail_spanned!(
-                        sig.paren_token.span.join() => "Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`"
+                        sig.paren_token.span.join() => "Expected `&Bound<PyType>` or `Py<PyType>` as the first argument to `#[classmethod]`"
                     ),
                 };
                 FnType::FnClass(span)

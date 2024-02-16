@@ -73,7 +73,13 @@ impl ClassMethod {
 
     #[classmethod]
     /// Test class method.
-    fn method(cls: &PyType) -> PyResult<String> {
+    fn method(cls: &Bound<'_, PyType>) -> PyResult<String> {
+        Ok(format!("{}.method()!", cls.as_gil_ref().qualname()?))
+    }
+
+    #[classmethod]
+    /// Test class method.
+    fn method_gil_ref(cls: &PyType) -> PyResult<String> {
         Ok(format!("{}.method()!", cls.qualname()?))
     }
 
@@ -108,8 +114,12 @@ struct ClassMethodWithArgs {}
 #[pymethods]
 impl ClassMethodWithArgs {
     #[classmethod]
-    fn method(cls: &PyType, input: &PyString) -> PyResult<String> {
-        Ok(format!("{}.method({})", cls.qualname()?, input))
+    fn method(cls: &Bound<'_, PyType>, input: &PyString) -> PyResult<String> {
+        Ok(format!(
+            "{}.method({})",
+            cls.as_gil_ref().qualname()?,
+            input
+        ))
     }
 }
 
@@ -915,7 +925,7 @@ impl r#RawIdents {
     }
 
     #[classmethod]
-    pub fn r#class_method(_: &PyType, r#type: PyObject) -> PyObject {
+    pub fn r#class_method(_: &Bound<'_, PyType>, r#type: PyObject) -> PyObject {
         r#type
     }
 
@@ -1082,7 +1092,7 @@ issue_1506!(
 
         #[classmethod]
         fn issue_1506_class(
-            _cls: &PyType,
+            _cls: &Bound<'_, PyType>,
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,
