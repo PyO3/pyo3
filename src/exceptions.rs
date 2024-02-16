@@ -23,8 +23,8 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
-                use $crate::PyNativeType;
-                $crate::PyErr::from_value_bound(&err.as_borrowed())
+                #[allow(deprecated)]
+                $crate::PyErr::from_value(err)
             }
         }
 
@@ -1072,7 +1072,7 @@ mod tests {
             );
 
             // Restoring should preserve the same error
-            let e = PyErr::from_value_bound(&decode_err);
+            let e = PyErr::from_value_bound(decode_err.into_any());
             e.restore(py);
 
             assert_eq!(
@@ -1124,7 +1124,7 @@ mod tests {
         PyErr::from_value_bound(
             PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)
                 .unwrap()
-                .as_any(),
+                .into_any(),
         )
     });
     test_exception!(PyUnicodeEncodeError, |py| py

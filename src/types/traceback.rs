@@ -150,7 +150,7 @@ except Exception as e:
                 Some(&locals),
             )
             .unwrap();
-            let err = PyErr::from_value_bound(&locals.get_item("err").unwrap().unwrap());
+            let err = PyErr::from_value_bound(locals.get_item("err").unwrap().unwrap());
             let traceback = err.value_bound(py).getattr("__traceback__").unwrap();
             assert!(err.traceback_bound(py).unwrap().is(&traceback));
         })

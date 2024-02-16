@@ -74,7 +74,7 @@ impl<'a> PyStringData<'a> {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
                 Err(e) => Err(crate::PyErr::from_value_bound(
-                    PyUnicodeDecodeError::new_utf8_bound(py, data, e)?.as_any(),
+                    PyUnicodeDecodeError::new_utf8_bound(py, data, e)?.into_any(),
                 )),
             },
             Self::Ucs2(data) => match String::from_utf16(data) {
@@ -91,7 +91,7 @@ impl<'a> PyStringData<'a> {
                             0..self.as_bytes().len(),
                             CStr::from_bytes_with_nul(&message).unwrap(),
                         )?
-                        .as_any(),
+                        .into_any(),
                     ))
                 }
             },
@@ -105,7 +105,7 @@ impl<'a> PyStringData<'a> {
                         0..self.as_bytes().len(),
                         CStr::from_bytes_with_nul(b"error converting utf-32\0").unwrap(),
                     )?
-                    .as_any(),
+                    .into_any(),
                 )),
             },
         }
