@@ -199,8 +199,7 @@ impl PyErr {
         )
     )]
     pub fn from_value(obj: &PyAny) -> PyErr {
-        let py = obj.py();
-        PyErr::from_value_bound(obj.into_py(py).into_bound(py))
+        PyErr::from_value_bound(obj.as_borrowed().to_owned())
     }
 
     /// Creates a new PyErr.
