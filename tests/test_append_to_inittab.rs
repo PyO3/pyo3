@@ -18,7 +18,7 @@ fn test_module_append_to_inittab() {
     use pyo3::append_to_inittab;
     append_to_inittab!(module_with_functions);
     Python::with_gil(|py| {
-        py.run(
+        py.run_bound(
             r#"
 import module_with_functions
 assert module_with_functions.foo() == 123

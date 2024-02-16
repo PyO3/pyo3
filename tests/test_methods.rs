@@ -73,7 +73,13 @@ impl ClassMethod {
 
     #[classmethod]
     /// Test class method.
-    fn method(cls: &PyType) -> PyResult<String> {
+    fn method(cls: &Bound<'_, PyType>) -> PyResult<String> {
+        Ok(format!("{}.method()!", cls.as_gil_ref().qualname()?))
+    }
+
+    #[classmethod]
+    /// Test class method.
+    fn method_gil_ref(cls: &PyType) -> PyResult<String> {
         Ok(format!("{}.method()!", cls.qualname()?))
     }
 
@@ -89,7 +95,7 @@ impl ClassMethod {
 #[test]
 fn class_method() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
         py_assert!(
@@ -108,15 +114,19 @@ struct ClassMethodWithArgs {}
 #[pymethods]
 impl ClassMethodWithArgs {
     #[classmethod]
-    fn method(cls: &PyType, input: &PyString) -> PyResult<String> {
-        Ok(format!("{}.method({})", cls.qualname()?, input))
+    fn method(cls: &Bound<'_, PyType>, input: &PyString) -> PyResult<String> {
+        Ok(format!(
+            "{}.method({})",
+            cls.as_gil_ref().qualname()?,
+            input
+        ))
     }
 }
 
 #[test]
 fn class_method_with_args() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(
             py,
             *d,
@@ -147,7 +157,7 @@ fn static_method() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
-        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
@@ -171,7 +181,7 @@ fn static_method_with_args() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
-        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method(1337) == '0x539'");
     });
 }
@@ -669,7 +679,7 @@ impl MethDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
+        let d = [("C", py.get_type::<MethDocs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
             py,
@@ -689,12 +699,12 @@ struct MethodWithLifeTime {}
 
 #[pymethods]
 impl MethodWithLifeTime {
-    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<&'py PyList> {
+    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<Bound<'py, PyList>> {
         let mut items = vec![];
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());
         }
-        let list = PyList::new(py, items);
+        let list = PyList::new_bound(py, items);
         list.sort()?;
         Ok(list)
     }
@@ -753,7 +763,7 @@ fn method_with_pyclassarg() {
     Python::with_gil(|py| {
         let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
+        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict_bound(py);
         py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.optional_add(); assert obj.value == 20");
@@ -915,7 +925,7 @@ impl r#RawIdents {
     }
 
     #[classmethod]
-    pub fn r#class_method(_: &PyType, r#type: PyObject) -> PyObject {
+    pub fn r#class_method(_: &Bound<'_, PyType>, r#type: PyObject) -> PyObject {
         r#type
     }
 
@@ -1082,7 +1092,7 @@ issue_1506!(
 
         #[classmethod]
         fn issue_1506_class(
-            _cls: &PyType,
+            _cls: &Bound<'_, PyType>,
             _py: Python<'_>,
             _arg: &PyAny,
             _args: &PyTuple,

@@ -101,16 +101,16 @@ fn test_fallible_class_attribute() {
     use pyo3::{exceptions::PyValueError, types::PyString};
 
     struct CaptureStdErr<'py> {
-        oldstderr: &'py PyAny,
-        string_io: &'py PyAny,
+        oldstderr: Bound<'py, PyAny>,
+        string_io: Bound<'py, PyAny>,
     }
 
     impl<'py> CaptureStdErr<'py> {
         fn new(py: Python<'py>) -> PyResult<Self> {
-            let sys = py.import("sys")?;
+            let sys = py.import_bound("sys")?;
             let oldstderr = sys.getattr("stderr")?;
-            let string_io = py.import("io")?.getattr("StringIO")?.call0()?;
-            sys.setattr("stderr", string_io)?;
+            let string_io = py.import_bound("io")?.getattr("StringIO")?.call0()?;
+            sys.setattr("stderr", &string_io)?;
             Ok(Self {
                 oldstderr,
                 string_io,
@@ -124,9 +124,9 @@ fn test_fallible_class_attribute() {
                 .getattr("getvalue")?
                 .call0()?
                 .downcast::<PyString>()?
-                .to_str()?
-                .to_owned();
-            let sys = py.import("sys")?;
+                .to_cow()?
+                .into_owned();
+            let sys = py.import_bound("sys")?;
             sys.setattr("stderr", self.oldstderr)?;
             Ok(payload)
         }
@@ -190,12 +190,12 @@ fn test_renaming_all_struct_fields() {
         let struct_class = py.get_type::<StructWithRenamedFields>();
         let struct_obj = struct_class.call0().unwrap();
         assert!(struct_obj
-            .setattr("firstField", PyBool::new(py, false))
+            .setattr("firstField", PyBool::new_bound(py, false))
             .is_ok());
         py_assert!(py, struct_obj, "struct_obj.firstField == False");
         py_assert!(py, struct_obj, "struct_obj.secondField == 5");
         assert!(struct_obj
-            .setattr("third_field", PyBool::new(py, true))
+            .setattr("third_field", PyBool::new_bound(py, true))
             .is_ok());
         py_assert!(py, struct_obj, "struct_obj.third_field == True");
     });

@@ -8,10 +8,13 @@ pub use self::capsule::PyCapsule;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::code::PyCode;
 pub use self::complex::PyComplex;
+#[allow(deprecated)]
+#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
-    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
-    PyTzInfo, PyTzInfoAccess,
+    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
+    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict};
 #[cfg(not(PyPy))]
@@ -59,9 +62,9 @@ pub use self::typeobject::PyType;
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast()?;
+///     let dict = py.eval_bound("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
 ///
-///     for (key, value) in dict {
+///     for (key, value) in dict.iter() {
 ///         println!("key: {}, value: {}", key, value);
 ///     }
 ///
@@ -207,9 +210,9 @@ macro_rules! pyobject_native_type_info(
 
             $(
                 #[inline]
-                fn is_type_of(ptr: &$crate::PyAny) -> bool {
+                fn is_type_of_bound(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
                     #[allow(unused_unsafe)]
-                    unsafe { $checkfunction(ptr.as_ptr()) > 0 }
+                    unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }
             )?
         }
@@ -224,8 +227,8 @@ macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             #[inline]
-            fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
-                obj.downcast().map_err(::std::convert::Into::into)
+            fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {
+                ::std::clone::Clone::clone(obj).into_gil_ref().downcast().map_err(::std::convert::Into::into)
             }
         }
     }
@@ -277,7 +280,7 @@ pub(crate) mod any;
 pub(crate) mod boolobject;
 pub(crate) mod bytearray;
 pub(crate) mod bytes;
-mod capsule;
+pub(crate) mod capsule;
 #[cfg(not(Py_LIMITED_API))]
 mod code;
 mod complex;
@@ -290,7 +293,7 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
-mod iterator;
+pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
 mod memoryview;
@@ -304,6 +307,6 @@ pub(crate) mod sequence;
 pub(crate) mod set;
 mod slice;
 pub(crate) mod string;
-mod traceback;
+pub(crate) mod traceback;
 pub(crate) mod tuple;
 pub(crate) mod typeobject;

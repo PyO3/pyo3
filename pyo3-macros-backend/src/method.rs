@@ -12,7 +12,7 @@ use crate::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
     quotes,
-    utils::{self, PythonDoc},
+    utils::{self, is_abi3, PythonDoc},
 };
 
 #[derive(Clone, Debug)]
@@ -125,21 +125,23 @@ impl FnType {
             FnType::FnClass(span) | FnType::FnNewClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
-                let allow_deprecated = if cfg!(feature = "gil-refs") {
-                    quote!()
-                } else {
-                    quote!(#[allow(deprecated)])
-                };
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    #allow_deprecated
-                    ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(#py, #slf.cast())),
+                    ::std::convert::Into::into(
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                            .downcast_unchecked::<_pyo3::types::PyType>()
+                    ),
                 }
             }
             FnType::FnModule(span) => {
+                let py = syn::Ident::new("py", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf)),
+                    ::std::convert::Into::into(
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                            .downcast_unchecked::<_pyo3::types::PyModule>()
+                    ),
                 }
             }
         }
@@ -240,8 +242,8 @@ impl CallingConvention {
         } else if signature.python_signature.kwargs.is_some() {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if cfg!(not(feature = "abi3")) {
-            // Not available in the Stable ABI as of Python 3.10
+        } else if !is_abi3() {
+            // FIXME: available in the stable ABI since 3.10
             Self::Fastcall
         } else {
             Self::Varargs
@@ -415,7 +417,7 @@ impl<'a> FnSpec<'a> {
                     // will error on incorrect type.
                     Some(syn::FnArg::Typed(first_arg)) => first_arg.ty.span(),
                     Some(syn::FnArg::Receiver(_)) | None => bail_spanned!(
-                        sig.paren_token.span.join() => "Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`"
+                        sig.paren_token.span.join() => "Expected `&Bound<PyType>` or `Py<PyType>` as the first argument to `#[classmethod]`"
                     ),
                 };
                 FnType::FnClass(span)

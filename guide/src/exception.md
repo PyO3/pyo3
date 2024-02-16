@@ -24,7 +24,7 @@ use pyo3::exceptions::PyException;
 create_exception!(mymodule, CustomError, PyException);
 
 Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py);
+    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict_bound(py);
     pyo3::py_run!(
         py,
         *ctx,
@@ -75,12 +75,12 @@ Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#is
 In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`] methods which do the same thing.
 
 ```rust
-use pyo3::Python;
+use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
 Python::with_gil(|py| {
-    assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
-    let list = PyList::new(py, &[1, 2, 3, 4]);
+    assert!(PyBool::new_bound(py, true).is_instance_of::<PyBool>());
+    let list = PyList::new_bound(py, &[1, 2, 3, 4]);
     assert!(!list.is_instance_of::<PyBool>());
     assert!(list.is_instance_of::<PyList>());
 });

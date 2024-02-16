@@ -4,7 +4,9 @@ use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
-    Py, PyNativeType,
+    py_result_ext::PyResultExt,
+    types::any::PyAnyMethods,
+    PyNativeType,
 };
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
@@ -29,20 +31,45 @@ pyobject_native_type_core!(
 );
 
 impl PySet {
-    /// Creates a new set with elements from the given slice.
-    ///
-    /// Returns an error if some element is not hashable.
+    /// Deprecated form of [`PySet::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PySet::new` will be replaced by `PySet::new_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     pub fn new<'a, 'p, T: ToPyObject + 'a>(
         py: Python<'p>,
         elements: impl IntoIterator<Item = &'a T>,
     ) -> PyResult<&'p PySet> {
-        new_from_iter(py, elements).map(|set| set.into_ref(py))
+        Self::new_bound(py, elements).map(Bound::into_gil_ref)
+    }
+
+    /// Creates a new set with elements from the given slice.
+    ///
+    /// Returns an error if some element is not hashable.
+    #[inline]
+    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = &'a T>,
+    ) -> PyResult<Bound<'p, PySet>> {
+        new_from_iter(py, elements)
+    }
+
+    /// Deprecated form of [`PySet::empty_bound`].
+    pub fn empty(py: Python<'_>) -> PyResult<&'_ PySet> {
+        Self::empty_bound(py).map(Bound::into_gil_ref)
     }
 
     /// Creates a new empty set.
-    pub fn empty(py: Python<'_>) -> PyResult<&PySet> {
-        unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(ptr::null_mut())) }
+    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
+        unsafe {
+            ffi::PySet_New(ptr::null_mut())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Removes all elements from the set.
@@ -379,11 +406,16 @@ pub use impl_::*;
 pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
-) -> PyResult<Py<PySet>> {
-    fn inner(py: Python<'_>, elements: &mut dyn Iterator<Item = PyObject>) -> PyResult<Py<PySet>> {
-        let set: Py<PySet> = unsafe {
+) -> PyResult<Bound<'_, PySet>> {
+    fn inner<'py>(
+        py: Python<'py>,
+        elements: &mut dyn Iterator<Item = PyObject>,
+    ) -> PyResult<Bound<'py, PySet>> {
+        let set = unsafe {
             // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
-            Py::from_owned_ptr_or_err(py, ffi::PySet_New(std::ptr::null_mut()))?
+            ffi::PySet_New(std::ptr::null_mut())
+                .assume_owned_or_err(py)?
+                .downcast_into_unchecked()
         };
         let ptr = set.as_ptr();
 
@@ -399,6 +431,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::PySet;
     use crate::{Python, ToPyObject};

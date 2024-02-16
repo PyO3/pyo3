@@ -339,7 +339,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-careful
@@ -381,11 +381,12 @@ jobs:
         if: steps.should-skip.outputs.skip != 'true'
       - run: nox -s coverage
         if: steps.should-skip.outputs.skip != 'true'
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         if: steps.should-skip.outputs.skip != 'true'
         with:
           file: coverage.json
           name: ${{ matrix.os }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   emscripten:
     name: emscripten
@@ -407,7 +408,7 @@ jobs:
         with:
           node-version: 14
       - run: python -m pip install --upgrade pip && pip install nox
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache
         with:
           path: |
@@ -467,6 +468,18 @@ jobs:
           echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
       - run: python3 -m nox -s test
 
+  test-version-limits:
+    needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        continue-on-error: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m nox -s test-version-limits
+
   conclusion:
     needs:
       - fmt
@@ -479,6 +492,8 @@ jobs:
       - docsrs
       - coverage
       - emscripten
+      - test-debug
+      - test-version-limits
     if: always()
     runs-on: ubuntu-latest
     steps:

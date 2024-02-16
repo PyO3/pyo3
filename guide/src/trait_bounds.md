@@ -64,6 +64,7 @@ class Model:
 The following wrapper will call the Python model from Rust, using a struct to hold the model as a `PyAny` object:
 
 ```rust
+# #![allow(dead_code)]
 use pyo3::prelude::*;
 
 # pub trait Model {
@@ -162,6 +163,7 @@ However, we can write a second wrapper around these functions to call them direc
 This wrapper will also perform the type conversions between Python and Rust.
 
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 #
 # pub trait Model {
@@ -330,6 +332,7 @@ Let's modify the code performing the type conversion to give a helpful error mes
 We used in our `get_results` method the following call that performs the type conversion:
 
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 #
 # pub trait Model {
@@ -382,6 +385,7 @@ impl Model for UserModel {
 Let's break it down in order to perform better error handling:
 
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 #
 # pub trait Model {
@@ -460,6 +464,7 @@ Because of this, we can write a function wrapper that takes the `UserModel`--whi
 It is also required to make the struct public.
 
 ```rust
+# #![allow(dead_code)]
 use pyo3::prelude::*;
 
 pub trait Model {

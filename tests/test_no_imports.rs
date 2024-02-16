@@ -5,7 +5,7 @@
 #[pyo3::pyfunction]
 #[pyo3(name = "identity", signature = (x = None))]
 fn basic_function(py: pyo3::Python<'_>, x: Option<pyo3::PyObject>) -> pyo3::PyObject {
-    x.unwrap_or_else(|| py.None().into())
+    x.unwrap_or_else(|| py.None())
 }
 
 #[pyo3::pymodule]
@@ -60,7 +60,9 @@ impl BasicClass {
 
     /// Some documentation here
     #[classmethod]
-    fn classmethod(cls: &pyo3::types::PyType) -> &pyo3::types::PyType {
+    fn classmethod<'a, 'py>(
+        cls: &'a pyo3::Bound<'py, pyo3::types::PyType>,
+    ) -> &'a pyo3::Bound<'py, pyo3::types::PyType> {
         cls
     }
 
@@ -90,7 +92,7 @@ fn test_basic() {
     pyo3::Python::with_gil(|py| {
         let module = pyo3::wrap_pymodule!(basic_module)(py);
         let cls = py.get_type::<BasicClass>();
-        let d = pyo3::types::IntoPyDict::into_py_dict(
+        let d = pyo3::types::IntoPyDict::into_py_dict_bound(
             [
                 ("mod", module.as_ref(py).as_ref()),
                 ("cls", cls.as_ref()),
@@ -132,8 +134,10 @@ struct NewClassMethod {
 impl NewClassMethod {
     #[new]
     #[classmethod]
-    fn new(cls: &pyo3::types::PyType) -> Self {
-        Self { cls: cls.into() }
+    fn new(cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+        Self {
+            cls: cls.clone().into_any().unbind(),
+        }
     }
 }
 

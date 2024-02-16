@@ -14,6 +14,7 @@ fn test_compile_errors() {
     #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
     t.compile_fail("tests/ui/invalid_pymethods_duplicates.rs");
+    t.compile_fail("tests/ui/invalid_pymethod_enum.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");

@@ -29,12 +29,12 @@ The table below contains the Python type and the corresponding function argument
 | `type`        | -                               | `&PyType`            |
 | `module`      | -                               | `&PyModule`          |
 | `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |
-| `datetime.datetime` | -                         | `&PyDateTime`        |
-| `datetime.date` | -                             | `&PyDate`            |
-| `datetime.time` | -                             | `&PyTime`            |
-| `datetime.tzinfo` | -                           | `&PyTzInfo`          |
-| `datetime.timedelta` | `Duration`               | `&PyDelta`           |
-| `decimal.Decimal` | `rust_decimal::Decimal`[^5] | -                    |
+| `datetime.datetime` | `SystemTime`, `chrono::DateTime<Tz>`[^5], `chrono::NaiveDateTime`[^5] | `&PyDateTime`        |
+| `datetime.date` | `chrono::NaiveDate`[^5]       | `&PyDate`            |
+| `datetime.time` | `chrono::NaiveTime`[^5]       | `&PyTime`            |
+| `datetime.tzinfo` | `chrono::FixedOffset`[^5], `chrono::Utc`[^5], `chrono_tz::TimeZone`[^6] | `&PyTzInfo`          |
+| `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `&PyDelta`           |
+| `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
 | `os.PathLike ` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
@@ -107,4 +107,8 @@ Finally, the following Rust types are also able to convert to Python as return v
 
 [^4]: Requires the `indexmap` optional feature.
 
-[^5]: Requires the `rust_decimal` optional feature.
+[^5]: Requires the `chrono` optional feature.
+
+[^6]: Requires the `chrono-tz` optional feature.
+
+[^7]: Requires the `rust_decimal` optional feature.

@@ -1,12 +1,15 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use crate::exceptions::PyValueError;
+use crate::instance::Bound;
 use crate::sync::GILOnceCell;
+use crate::types::any::PyAnyMethods;
+use crate::types::string::PyStringMethods;
 use crate::types::PyType;
 use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
 
 impl FromPyObject<'_> for IpAddr {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         match obj.getattr(intern!(obj.py(), "packed")) {
             Ok(packed) => {
                 if let Ok(packed) = packed.extract::<[u8; 4]>() {
@@ -19,7 +22,7 @@ impl FromPyObject<'_> for IpAddr {
             }
             Err(_) => {
                 // We don't have a .packed attribute, so we try to construct an IP from str().
-                obj.str()?.to_str()?.parse().map_err(PyValueError::new_err)
+                obj.str()?.to_cow()?.parse().map_err(PyValueError::new_err)
             }
         }
     }
@@ -33,7 +36,7 @@ impl ToPyObject for Ipv4Addr {
             .expect("failed to load ipaddress.IPv4Address")
             .call1((u32::from_be_bytes(self.octets()),))
             .expect("failed to construct ipaddress.IPv4Address")
-            .to_object(py)
+            .unbind()
     }
 }
 
@@ -45,7 +48,7 @@ impl ToPyObject for Ipv6Addr {
             .expect("failed to load ipaddress.IPv6Address")
             .call1((u128::from_be_bytes(self.octets()),))
             .expect("failed to construct ipaddress.IPv6Address")
-            .to_object(py)
+            .unbind()
     }
 }
 
@@ -99,11 +102,11 @@ mod test_ipaddr {
     #[test]
     fn test_from_pystring() {
         Python::with_gil(|py| {
-            let py_str = PyString::new(py, "0:0:0:0:0:0:0:1");
+            let py_str = PyString::new_bound(py, "0:0:0:0:0:0:0:1");
             let ip: IpAddr = py_str.to_object(py).extract(py).unwrap();
             assert_eq!(ip, IpAddr::from_str("::1").unwrap());
 
-            let py_str = PyString::new(py, "invalid");
+            let py_str = PyString::new_bound(py, "invalid");
             assert!(py_str.to_object(py).extract::<IpAddr>(py).is_err());
         });
     }

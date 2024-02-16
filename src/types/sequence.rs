@@ -1,4 +1,4 @@
-use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::err::{self, DowncastError, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -8,7 +8,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
+use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{ffi, FromPyObject, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
@@ -180,7 +180,7 @@ impl PySequence {
     /// library). This is equvalent to `collections.abc.Sequence.register(T)` in Python.
     /// This registration is required for a pyclass to be downcastable from `PyAny` to `PySequence`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
-        let ty = T::type_object(py);
+        let ty = T::type_object_bound(py);
         get_sequence_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
     }
@@ -477,11 +477,11 @@ fn sequence_slice(seq: &PySequence, start: usize, end: usize) -> &PySequence {
 
 index_impls!(PySequence, "sequence", sequence_len, sequence_slice);
 
-impl<'a, T> FromPyObject<'a> for Vec<T>
+impl<'py, T> FromPyObject<'py> for Vec<T>
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
@@ -494,17 +494,17 @@ where
     }
 }
 
-fn extract_sequence<'s, T>(obj: &'s PyAny) -> PyResult<Vec<T>>
+fn extract_sequence<'py, T>(obj: &Bound<'py, PyAny>) -> PyResult<Vec<T>>
 where
-    T: FromPyObject<'s>,
+    T: FromPyObject<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq: &PySequence = unsafe {
+    let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked()
+            obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(PyDowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new(obj, "Sequence").into());
         }
     };
 
@@ -515,7 +515,7 @@ where
     Ok(v)
 }
 
-fn get_sequence_abc(py: Python<'_>) -> PyResult<&PyType> {
+fn get_sequence_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
     SEQUENCE_ABC.get_or_try_init_type_ref(py, "collections.abc", "Sequence")
@@ -525,11 +525,11 @@ impl PyTypeCheck for PySequence {
     const NAME: &'static str = "Sequence";
 
     #[inline]
-    fn type_check(object: &PyAny) -> bool {
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
         // Using `is_instance` for `collections.abc.Sequence` is slow, so provide
         // optimized cases for list and tuples as common well-known sequences
-        PyList::is_type_of(object)
-            || PyTuple::is_type_of(object)
+        PyList::is_type_of_bound(object)
+            || PyTuple::is_type_of_bound(object)
             || get_sequence_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {
@@ -547,7 +547,7 @@ impl<'v> crate::PyTryFrom<'v> for PySequence {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
         let value = value.into();
 
-        if PySequence::type_check(value) {
+        if PySequence::type_check(&value.as_borrowed()) {
             unsafe { return Ok(value.downcast_unchecked::<PySequence>()) }
         }
 
@@ -566,6 +566,7 @@ impl<'v> crate::PyTryFrom<'v> for PySequence {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::types::{PyList, PySequence, PyTuple};
     use crate::{PyObject, Python, ToPyObject};
@@ -601,7 +602,6 @@ mod tests {
             let v = "London Calling";
             let ob = v.to_object(py);
 
-            assert!(ob.extract::<Vec<&str>>(py).is_err());
             assert!(ob.extract::<Vec<String>>(py).is_err());
             assert!(ob.extract::<Vec<char>>(py).is_err());
         });

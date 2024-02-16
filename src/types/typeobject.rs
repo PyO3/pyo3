@@ -24,13 +24,13 @@ impl PyType {
         )
     )]
     pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
-        T::type_object(py)
+        T::type_object_bound(py).into_gil_ref()
     }
 
     /// Creates a new type object.
     #[inline]
     pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
-        T::type_object(py).as_borrowed().to_owned()
+        T::type_object_bound(py)
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
@@ -69,7 +69,7 @@ impl PyType {
     ) -> Borrowed<'a, '_, PyType> {
         (p as *mut ffi::PyObject)
             .assume_borrowed_unchecked(py)
-            .downcast_into_unchecked()
+            .downcast_unchecked()
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
@@ -176,7 +176,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     where
         T: PyTypeInfo,
     {
-        self.is_subclass(&T::type_object(self.py()).as_borrowed())
+        self.is_subclass(&T::type_object_bound(self.py()))
     }
 }
 

@@ -5,7 +5,7 @@ use crate::pyclass::PyClass;
 use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
-use crate::{exceptions, ffi, Bound, IntoPy, Py, PyNativeType, PyObject, Python};
+use crate::{exceptions, ffi, Bound, FromPyObject, IntoPy, Py, PyNativeType, PyObject, Python};
 use std::ffi::CString;
 use std::str;
 
@@ -146,7 +146,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
-            <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            <&PyModule as FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
 
@@ -560,7 +560,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
             Ok(idx) => idx.downcast_into().map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
-                    let l = PyList::empty(self.py()).as_borrowed().to_owned();
+                    let l = PyList::empty_bound(self.py());
                     self.setattr(__all__, &l).map_err(PyErr::from)?;
                     Ok(l)
                 } else {
@@ -660,11 +660,11 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     }
 }
 
-fn __all__(py: Python<'_>) -> &PyString {
+fn __all__(py: Python<'_>) -> &Bound<'_, PyString> {
     intern!(py, "__all__")
 }
 
-fn __name__(py: Python<'_>) -> &PyString {
+fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
     intern!(py, "__name__")
 }
 

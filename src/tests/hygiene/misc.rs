@@ -2,7 +2,7 @@
 
 #[derive(crate::FromPyObject)]
 #[pyo3(crate = "crate")]
-struct Derive1(i32); // newtype case
+struct Derive1(#[allow(dead_code)] i32); // newtype case
 
 #[derive(crate::FromPyObject)]
 #[pyo3(crate = "crate")]

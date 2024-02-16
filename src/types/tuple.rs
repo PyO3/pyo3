@@ -629,7 +629,7 @@ impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
 }
 
 #[cold]
-fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
         "expected tuple of length {}, but got tuple of length {}",
         expected_length,
@@ -666,8 +666,8 @@ fn type_output() -> TypeInfo {
         }
     }
 
-    impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyAny) -> PyResult<Self>
+    impl<'py, $($T: FromPyObject<'py>),+> FromPyObject<'py> for ($($T,)+) {
+        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
         {
             let t = obj.downcast::<PyTuple>()?;
             if t.len() == $length {
@@ -917,13 +917,13 @@ mod tests {
 
             assert_eq!(iter.size_hint(), (3, Some(3)));
 
-            assert_eq!(1_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(1, iter.next().unwrap().extract::<i32>().unwrap());
             assert_eq!(iter.size_hint(), (2, Some(2)));
 
-            assert_eq!(2_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(2, iter.next().unwrap().extract::<i32>().unwrap());
             assert_eq!(iter.size_hint(), (1, Some(1)));
 
-            assert_eq!(3_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(3, iter.next().unwrap().extract::<i32>().unwrap());
             assert_eq!(iter.size_hint(), (0, Some(0)));
 
             assert!(iter.next().is_none());
@@ -940,13 +940,13 @@ mod tests {
 
             assert_eq!(iter.size_hint(), (3, Some(3)));
 
-            assert_eq!(3_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(3, iter.next().unwrap().extract::<i32>().unwrap());
             assert_eq!(iter.size_hint(), (2, Some(2)));
 
-            assert_eq!(2_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(2, iter.next().unwrap().extract::<i32>().unwrap());
             assert_eq!(iter.size_hint(), (1, Some(1)));
 
-            assert_eq!(1_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
+            assert_eq!(1, iter.next().unwrap().extract::<i32>().unwrap());
             assert_eq!(iter.size_hint(), (0, Some(0)));
 
             assert!(iter.next().is_none());

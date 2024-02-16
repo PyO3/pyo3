@@ -323,7 +323,7 @@ fn test_pycfunction_new() {
             ffi::PyLong_FromLong(4200)
         }
 
-        let py_fn = PyCFunction::new(
+        let py_fn = PyCFunction::new_bound(
             c_fn,
             "py_fn",
             "py_fn for test (this is the docstring)",
@@ -380,7 +380,7 @@ fn test_pycfunction_new_with_keywords() {
             ffi::PyLong_FromLong(foo * bar)
         }
 
-        let py_fn = PyCFunction::new_with_keywords(
+        let py_fn = PyCFunction::new_with_keywords_bound(
             c_fn,
             "py_fn",
             "py_fn for test (this is the docstring)",
@@ -422,7 +422,7 @@ fn test_closure() {
             })
         };
         let closure_py =
-            PyCFunction::new_closure(py, Some("test_fn"), Some("test_fn doc"), f).unwrap();
+            PyCFunction::new_closure_bound(py, Some("test_fn"), Some("test_fn doc"), f).unwrap();
 
         py_assert!(py, closure_py, "closure_py(42) == [43]");
         py_assert!(py, closure_py, "closure_py.__name__ == 'test_fn'");
@@ -445,7 +445,7 @@ fn test_closure_counter() {
                 *counter += 1;
                 Ok(*counter)
             };
-        let counter_py = PyCFunction::new_closure(py, None, None, counter_fn).unwrap();
+        let counter_py = PyCFunction::new_closure_bound(py, None, None, counter_fn).unwrap();
 
         py_assert!(py, counter_py, "counter_py() == 1");
         py_assert!(py, counter_py, "counter_py() == 2");
@@ -527,5 +527,22 @@ fn test_some_wrap_arguments() {
     Python::with_gil(|py| {
         let function = wrap_pyfunction!(some_wrap_arguments, py).unwrap();
         py_assert!(py, function, "function() == [1, 2, None, None]");
+    })
+}
+
+#[test]
+fn test_reference_to_bound_arguments() {
+    #[pyfunction]
+    fn reference_args<'py>(
+        x: &Bound<'py, PyAny>,
+        y: Option<&Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        y.map_or_else(|| Ok(x.clone()), |y| y.add(x))
+    }
+
+    Python::with_gil(|py| {
+        let function = wrap_pyfunction!(reference_args, py).unwrap();
+        py_assert!(py, function, "function(1) == 1");
+        py_assert!(py, function, "function(1, 2) == 3");
     })
 }

@@ -217,18 +217,18 @@ fn impl_arg_param(
             quote_arg_span! {
                 #[allow(clippy::redundant_closure)]
                 _pyo3::impl_::extract_argument::from_py_with_with_default(
-                    #arg_value,
+                    #arg_value.map(_pyo3::PyNativeType::as_borrowed).as_deref(),
                     #name_str,
-                    #expr_path,
+                    #expr_path as fn(_) -> _,
                     || #default
                 )?
             }
         } else {
             quote_arg_span! {
                 _pyo3::impl_::extract_argument::from_py_with(
-                    _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                    &_pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value).as_borrowed(),
                     #name_str,
-                    #expr_path,
+                    #expr_path as fn(_) -> _,
                 )?
             }
         }

@@ -6,7 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 use crate::{
-    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+    ffi, gil, Bound, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
 };
 use std::cell::Cell;
 use std::ptr::NonNull;
@@ -141,7 +141,7 @@ pub trait ToPyObject {
 ///         match self {
 ///             Self::Integer(val) => val.into_py(py),
 ///             Self::String(val) => val.into_py(py),
-///             Self::None => py.None().into(),
+///             Self::None => py.None(),
 ///         }
 ///     }
 /// }
@@ -190,7 +190,7 @@ pub trait IntoPy<T>: Sized {
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let obj: Py<PyString> = PyString::new(py, "blah").into();
+///     let obj: Py<PyString> = PyString::new_bound(py, "blah").into();
 ///
 ///     // Straight from an owned reference
 ///     let s: &str = obj.extract(py)?;
@@ -209,17 +209,32 @@ pub trait IntoPy<T>: Sized {
 /// depend on the lifetime of the `obj` or the `prepared` variable.
 ///
 /// For example, when extracting `&str` from a Python byte string, the resulting string slice will
-/// point to the existing string data (lifetime: `'source`).
+/// point to the existing string data (lifetime: `'py`).
 /// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
 /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
 /// Since which case applies depends on the runtime type of the Python object,
 /// both the `obj` and `prepared` variables must outlive the resulting string slice.
 ///
-/// The trait's conversion method takes a `&PyAny` argument but is called
-/// `FromPyObject` for historical reasons.
-pub trait FromPyObject<'source>: Sized {
-    /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'source PyAny) -> PyResult<Self>;
+/// During the migration of PyO3 from the "GIL Refs" API to the `Bound<T>` smart pointer, this trait
+/// has two methods `extract` and `extract_bound` which are defaulted to call each other. To avoid
+/// infinite recursion, implementors must implement at least one of these methods. The recommendation
+/// is to implement `extract_bound` and leave `extract` as the default implementation.
+pub trait FromPyObject<'py>: Sized {
+    /// Extracts `Self` from the source GIL Ref `obj`.
+    ///
+    /// Implementors are encouraged to implement `extract_bound` and leave this method as the
+    /// default implementation, which will forward calls to `extract_bound`.
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
+        Self::extract_bound(&ob.as_borrowed())
+    }
+
+    /// Extracts `Self` from the bound smart pointer `obj`.
+    ///
+    /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
+    /// this will be most compatible with PyO3's future API.
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        Self::extract(ob.clone().into_gil_ref())
+    }
 
     /// Extracts the type hint information for this type when it appears as an argument.
     ///
@@ -251,7 +266,7 @@ where
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_ref()
-            .map_or_else(|| py.None().into(), |val| val.to_object(py))
+            .map_or_else(|| py.None(), |val| val.to_object(py))
     }
 }
 
@@ -260,7 +275,7 @@ where
     T: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.map_or_else(|| py.None().into(), |val| val.into_py(py))
+        self.map_or_else(|| py.None(), |val| val.into_py(py))
     }
 }
 
@@ -293,56 +308,56 @@ impl<T: Copy + IntoPy<PyObject>> IntoPy<PyObject> for Cell<T> {
     }
 }
 
-impl<'a, T: FromPyObject<'a>> FromPyObject<'a> for Cell<T> {
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+impl<'py, T: FromPyObject<'py>> FromPyObject<'py> for Cell<T> {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
         T::extract(ob).map(Cell::new)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for &'a PyCell<T>
+impl<'py, T> FromPyObject<'py> for &'py PyCell<T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         obj.downcast().map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for T
+impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         let cell: &PyCell<Self> = obj.downcast()?;
         Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
     }
 }
 
-impl<'a, T> FromPyObject<'a> for PyRef<'a, T>
+impl<'py, T> FromPyObject<'py> for PyRef<'py, T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         let cell: &PyCell<T> = obj.downcast()?;
         cell.try_borrow().map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
+impl<'py, T> FromPyObject<'py> for PyRefMut<'py, T>
 where
     T: PyClass<Frozen = False>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         let cell: &PyCell<T> = obj.downcast()?;
         cell.try_borrow_mut().map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Option<T>
+impl<'py, T> FromPyObject<'py> for Option<T>
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {
@@ -632,13 +647,13 @@ mod tests {
             assert_eq!(option.as_ptr(), std::ptr::null_mut());
 
             let none = py.None();
-            option = Some(none.into());
+            option = Some(none.clone());
 
-            let ref_cnt = none.get_refcnt();
+            let ref_cnt = none.get_refcnt(py);
             assert_eq!(option.as_ptr(), none.as_ptr());
 
             // Ensure ref count not changed by as_ptr call
-            assert_eq!(none.get_refcnt(), ref_cnt);
+            assert_eq!(none.get_refcnt(py), ref_cnt);
         });
     }
 }

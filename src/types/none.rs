@@ -1,4 +1,8 @@
-use crate::{ffi, IntoPy, PyAny, PyObject, PyTypeInfo, Python, ToPyObject};
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::{
+    ffi, types::any::PyAnyMethods, Borrowed, Bound, IntoPy, PyAny, PyObject, PyTypeInfo, Python,
+    ToPyObject,
+};
 
 /// Represents the Python `None` object.
 #[repr(transparent)]
@@ -9,9 +13,23 @@ pyobject_native_type_extract!(PyNone);
 
 impl PyNone {
     /// Returns the `None` object.
+    /// Deprecated form of [`PyNone::get_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyNone::get` will be replaced by `PyNone::get_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     pub fn get(py: Python<'_>) -> &PyNone {
-        unsafe { py.from_borrowed_ptr(ffi::Py_None()) }
+        Self::get_bound(py).into_gil_ref()
+    }
+
+    /// Returns the `None` object.
+    #[inline]
+    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
+        unsafe { ffi::Py_None().assume_borrowed(py).downcast_unchecked() }
     }
 }
 
@@ -25,55 +43,60 @@ unsafe impl PyTypeInfo for PyNone {
     }
 
     #[inline]
-    fn is_type_of(object: &PyAny) -> bool {
+    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
         // NoneType is not usable as a base type
-        Self::is_exact_type_of(object)
+        Self::is_exact_type_of_bound(object)
     }
 
     #[inline]
-    fn is_exact_type_of(object: &PyAny) -> bool {
-        object.is(Self::get(object.py()))
+    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+        object.is(&**Self::get_bound(object.py()))
     }
 }
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into()
+        PyNone::get_bound(py).into_py(py)
     }
 }
 
 impl IntoPy<PyObject> for () {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyNone::get(py).into()
+        PyNone::get_bound(py).into_py(py)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::types::any::PyAnyMethods;
     use crate::types::{PyDict, PyNone};
     use crate::{IntoPy, PyObject, PyTypeInfo, Python, ToPyObject};
-
     #[test]
     fn test_none_is_itself() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py).is_instance_of::<PyNone>());
-            assert!(PyNone::get(py).is_exact_instance_of::<PyNone>());
+            assert!(PyNone::get_bound(py).is_instance_of::<PyNone>());
+            assert!(PyNone::get_bound(py).is_exact_instance_of::<PyNone>());
         })
     }
 
     #[test]
     fn test_none_type_object_consistent() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py).get_type().is(PyNone::type_object(py)));
+            assert!(PyNone::get_bound(py)
+                .get_type()
+                .is(&PyNone::type_object_bound(py)));
         })
     }
 
     #[test]
     fn test_none_is_none() {
         Python::with_gil(|py| {
-            assert!(PyNone::get(py).downcast::<PyNone>().unwrap().is_none());
+            assert!(PyNone::get_bound(py)
+                .downcast::<PyNone>()
+                .unwrap()
+                .is_none());
         })
     }
 
@@ -95,7 +118,7 @@ mod tests {
     #[test]
     fn test_dict_is_not_none() {
         Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyNone>().is_err());
+            assert!(PyDict::new_bound(py).downcast::<PyNone>().is_err());
         })
     }
 }

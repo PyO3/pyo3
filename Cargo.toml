@@ -35,6 +35,7 @@ inventory = { version = "0.3.0", optional = true }
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
 chrono = { version = "0.4.25", default-features = false, optional = true }
+chrono-tz = { version = ">= 0.6, < 0.9", default-features = false, optional = true }
 either = { version = "1.9", optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.15", optional = true }
@@ -47,7 +48,8 @@ smallvec = { version = "1.0", optional = true }
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-chrono = { version = "0.4.25" }
+chrono = "0.4.25"
+chrono-tz = ">= 0.6, < 0.9"
 # Required for "and $N others" normalization
 trybuild = ">=1.0.70"
 proptest = { version = "1.0", default-features = false, features = ["std"] }
@@ -55,7 +57,6 @@ send_wrapper = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 rayon = "1.6.1"
-widestring = "0.5.1"
 futures = "0.3.28"
 
 [build-dependencies]
@@ -80,7 +81,7 @@ multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 extension-module = ["pyo3-ffi/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
-abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3", "pyo3-macros/abi3"]
+abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
 abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37", "pyo3-ffi/abi3-py37"]
@@ -97,7 +98,7 @@ generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 auto-initialize = []
 
 # Allows use of the deprecated "GIL Refs" APIs.
-gil-refs = ["pyo3-macros/gil-refs"]
+gil-refs = []
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
@@ -108,6 +109,7 @@ full = [
     "macros",
     # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
     "chrono",
+    "chrono-tz",
     "num-bigint",
     "num-complex",
     "hashbrown",

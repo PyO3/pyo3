@@ -170,8 +170,8 @@ impl Number {
         self.0 as f64
     }
 
-    fn __complex__<'py>(&self, py: Python<'py>) -> &'py PyComplex {
-        PyComplex::from_doubles(py, self.0 as f64, 0.0)
+    fn __complex__<'py>(&self, py: Python<'py>) -> Bound<'py, PyComplex> {
+        PyComplex::from_doubles_bound(py, self.0 as f64, 0.0)
     }
 }
 ```
@@ -321,8 +321,8 @@ impl Number {
         self.0 as f64
     }
 
-    fn __complex__<'py>(&self, py: Python<'py>) -> &'py PyComplex {
-        PyComplex::from_doubles(py, self.0 as f64, 0.0)
+    fn __complex__<'py>(&self, py: Python<'py>) -> Bound<'py, PyComplex> {
+        PyComplex::from_doubles_bound(py, self.0 as f64, 0.0)
     }
 }
 
@@ -387,10 +387,10 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let globals = PyModule::import(py, "__main__")?.dict();
-#         globals.set_item("Number", Number::type_object(py))?;
+#         let globals = PyModule::import(py, "__main__")?.dict().as_borrowed();
+#         globals.set_item("Number", Number::type_object_bound(py))?;
 #
-#         py.run(SCRIPT, Some(globals), None)?;
+#         py.run_bound(SCRIPT, Some(&globals), None)?;
 #         Ok(())
 #     })
 # }

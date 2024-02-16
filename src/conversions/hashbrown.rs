@@ -17,9 +17,12 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
-    types::set::new_from_iter,
+    types::any::PyAnyMethods,
+    types::dict::PyDictMethods,
+    types::frozenset::PyFrozenSetMethods,
+    types::set::{new_from_iter, PySetMethods},
     types::{IntoPyDict, PyDict, PyFrozenSet, PySet},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
 
@@ -30,7 +33,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        IntoPyDict::into_py_dict_bound(self, py).into()
     }
 }
 
@@ -44,21 +47,21 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict_bound(iter, py).into()
     }
 }
 
-impl<'source, K, V, S> FromPyObject<'source> for hashbrown::HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'py> for hashbrown::HashMap<K, V, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObject<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        for (k, v) in dict.iter() {
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
@@ -87,17 +90,17 @@ where
     }
 }
 
-impl<'source, K, S> FromPyObject<'source> for hashbrown::HashSet<K, S>
+impl<'py, K, S> FromPyObject<'py> for hashbrown::HashSet<K, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
+    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
-            Ok(set) => set.iter().map(K::extract).collect(),
+            Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {
                 if let Ok(frozen_set) = ob.downcast::<PyFrozenSet>() {
-                    frozen_set.iter().map(K::extract).collect()
+                    frozen_set.iter().map(|any| any.extract()).collect()
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -109,6 +112,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::any::PyAnyMethods;
 
     #[test]
     fn test_hashbrown_hashmap_to_python() {
@@ -160,7 +164,7 @@ mod tests {
             let mut map = hashbrown::HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict_bound(py);
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -178,11 +182,11 @@ mod tests {
     #[test]
     fn test_extract_hashbrown_hashset() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
             let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
-            let set = PyFrozenSet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
             let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });

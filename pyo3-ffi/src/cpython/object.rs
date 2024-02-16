@@ -1,5 +1,7 @@
 #[cfg(Py_3_8)]
 use crate::vectorcallfunc;
+#[cfg(Py_3_11)]
+use crate::PyModuleDef;
 use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
@@ -20,9 +22,6 @@ mod bufferinfo {
     use std::os::raw::{c_char, c_int, c_void};
     use std::ptr;
 
-    #[cfg(PyPy)]
-    const Py_MAX_NDIMS: usize = 36;
-
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub struct Py_buffer {
@@ -41,9 +40,9 @@ mod bufferinfo {
         #[cfg(PyPy)]
         pub flags: c_int,
         #[cfg(PyPy)]
-        pub _strides: [Py_ssize_t; Py_MAX_NDIMS],
+        pub _strides: [Py_ssize_t; PyBUF_MAX_NDIM as usize],
         #[cfg(PyPy)]
-        pub _shape: [Py_ssize_t; Py_MAX_NDIMS],
+        pub _shape: [Py_ssize_t; PyBUF_MAX_NDIM as usize],
     }
 
     impl Py_buffer {
@@ -63,9 +62,9 @@ mod bufferinfo {
                 #[cfg(PyPy)]
                 flags: 0,
                 #[cfg(PyPy)]
-                _strides: [0; Py_MAX_NDIMS],
+                _strides: [0; PyBUF_MAX_NDIM as usize],
                 #[cfg(PyPy)]
-                _shape: [0; Py_MAX_NDIMS],
+                _shape: [0; PyBUF_MAX_NDIM as usize],
             }
         }
     }
@@ -79,7 +78,7 @@ mod bufferinfo {
         unsafe extern "C" fn(arg1: *mut crate::PyObject, arg2: *mut Py_buffer);
 
     /// Maximum number of dimensions
-    pub const PyBUF_MAX_NDIM: c_int = 64;
+    pub const PyBUF_MAX_NDIM: c_int = if cfg!(PyPy) { 36 } else { 64 };
 
     /* Flags for getting buffers */
     pub const PyBUF_SIMPLE: c_int = 0;
@@ -339,9 +338,12 @@ pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMem
 // skipped _PyType_CalculateMetaclass
 // skipped _PyType_GetDocFromInternalDoc
 // skipped _PyType_GetTextSignatureFromInternalDoc
-// skipped _PyType_GetModuleByDef
 
 extern "C" {
+    #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleByDef")]
+    pub fn PyType_GetModuleByDef(ty: *mut PyTypeObject, def: *mut PyModuleDef) -> *mut PyObject;
+
     #[cfg(Py_3_12)]
     pub fn PyType_GetDict(o: *mut PyTypeObject) -> *mut PyObject;
 

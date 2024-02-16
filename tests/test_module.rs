@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 
 use pyo3::py_run;
+use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
 
 #[path = "../src/tests/common.rs"]
@@ -74,7 +75,7 @@ fn test_module_with_functions() {
             "module_with_functions",
             wrap_pymodule!(module_with_functions)(py),
         )]
-        .into_py_dict(py);
+        .into_py_dict_bound(py);
 
         py_assert!(
             py,
@@ -127,7 +128,7 @@ fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
     Python::with_gil(|py| {
-        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
+        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict_bound(py);
 
         py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
     });
@@ -344,47 +345,59 @@ fn test_module_with_constant() {
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
+fn pyfunction_with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyString>> {
     module.name()
 }
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_owned(module: Py<PyModule>) -> PyResult<String> {
-    Python::with_gil(|gil| module.as_ref(gil).name().map(Into::into))
-}
-
-#[pyfunction]
-#[pyo3(pass_module)]
-fn pyfunction_with_module_and_py<'a>(
-    module: &'a PyModule,
-    _python: Python<'a>,
-) -> PyResult<&'a str> {
+fn pyfunction_with_module_gil_ref(module: &PyModule) -> PyResult<&str> {
     module.name()
 }
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_and_arg(module: &PyModule, string: String) -> PyResult<(&str, String)> {
+fn pyfunction_with_module_owned(
+    module: Py<PyModule>,
+    py: Python<'_>,
+) -> PyResult<Bound<'_, PyString>> {
+    module.bind(py).name()
+}
+
+#[pyfunction]
+#[pyo3(pass_module)]
+fn pyfunction_with_module_and_py<'py>(
+    module: &Bound<'py, PyModule>,
+    _python: Python<'py>,
+) -> PyResult<Bound<'py, PyString>> {
+    module.name()
+}
+
+#[pyfunction]
+#[pyo3(pass_module)]
+fn pyfunction_with_module_and_arg<'py>(
+    module: &Bound<'py, PyModule>,
+    string: String,
+) -> PyResult<(Bound<'py, PyString>, String)> {
     module.name().map(|s| (s, string))
 }
 
 #[pyfunction(signature = (string="foo"))]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_and_default_arg<'a>(
-    module: &'a PyModule,
+fn pyfunction_with_module_and_default_arg<'py>(
+    module: &Bound<'py, PyModule>,
     string: &str,
-) -> PyResult<(&'a str, String)> {
+) -> PyResult<(Bound<'py, PyString>, String)> {
     module.name().map(|s| (s, string.into()))
 }
 
 #[pyfunction(signature = (*args, **kwargs))]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_and_args_kwargs<'a>(
-    module: &'a PyModule,
-    args: &PyTuple,
-    kwargs: Option<&PyDict>,
-) -> PyResult<(&'a str, usize, Option<usize>)> {
+fn pyfunction_with_module_and_args_kwargs<'py>(
+    module: &Bound<'py, PyModule>,
+    args: &Bound<'py, PyTuple>,
+    kwargs: Option<&Bound<'py, PyDict>>,
+) -> PyResult<(Bound<'py, PyString>, usize, Option<usize>)> {
     module
         .name()
         .map(|s| (s, args.len(), kwargs.map(|d| d.len())))
@@ -399,6 +412,7 @@ fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str>
 #[pymodule]
 fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
+    m.add_function(wrap_pyfunction!(pyfunction_with_module_gil_ref, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_owned, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_py, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_arg, m)?)?;
@@ -420,6 +434,11 @@ fn test_module_functions_with_module() {
             py,
             m,
             "m.pyfunction_with_module() == 'module_with_functions_with_module'"
+        );
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_module_gil_ref() == 'module_with_functions_with_module'"
         );
         py_assert!(
             py,

@@ -87,8 +87,10 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
+use crate::types::any::PyAnyMethods;
+use crate::types::dict::PyDictMethods;
 use crate::types::*;
-use crate::{FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
+use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
@@ -98,7 +100,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        IntoPyDict::into_py_dict_bound(self, py).into()
     }
 }
 
@@ -112,21 +114,21 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict_bound(iter, py).into()
     }
 }
 
-impl<'source, K, V, S> FromPyObject<'source> for indexmap::IndexMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'py> for indexmap::IndexMap<K, V, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObject<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        for (k, v) in dict.iter() {
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
@@ -135,6 +137,8 @@ where
 #[cfg(test)]
 mod test_indexmap {
 
+    use crate::types::any::PyAnyMethods;
+    use crate::types::dict::PyDictMethods;
     use crate::types::*;
     use crate::{IntoPy, PyObject, Python, ToPyObject};
 
@@ -192,7 +196,7 @@ mod test_indexmap {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict(py);
+            let py_map = map.into_py_dict_bound(py);
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -221,7 +225,7 @@ mod test_indexmap {
                 }
             }
 
-            let py_map = map.clone().into_py_dict(py);
+            let py_map = map.clone().into_py_dict_bound(py);
 
             let trip_map = py_map.extract::<indexmap::IndexMap<i32, i32>>().unwrap();
 

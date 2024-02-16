@@ -3,7 +3,9 @@ use std::borrow::Cow;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    types::PyString, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    instance::Bound,
+    types::{any::PyAnyMethods, string::PyStringMethods, PyString},
+    FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Converts a Rust `str` to a Python object.
@@ -11,14 +13,14 @@ use crate::{
 impl ToPyObject for str {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -30,7 +32,7 @@ impl<'a> IntoPy<PyObject> for &'a str {
 impl<'a> IntoPy<Py<PyString>> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -44,7 +46,7 @@ impl<'a> IntoPy<Py<PyString>> for &'a str {
 impl ToPyObject for Cow<'_, str> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 }
 
@@ -65,7 +67,7 @@ impl IntoPy<PyObject> for Cow<'_, str> {
 impl ToPyObject for String {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 }
 
@@ -78,7 +80,7 @@ impl ToPyObject for char {
 impl IntoPy<PyObject> for char {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let mut bytes = [0u8; 4];
-        PyString::new(py, self.encode_utf8(&mut bytes)).into()
+        PyString::new_bound(py, self.encode_utf8(&mut bytes)).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -89,7 +91,7 @@ impl IntoPy<PyObject> for char {
 
 impl IntoPy<PyObject> for String {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, &self).into()
+        PyString::new_bound(py, &self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -101,7 +103,7 @@ impl IntoPy<PyObject> for String {
 impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new(py, self).into()
+        PyString::new_bound(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -112,22 +114,22 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> FromPyObject<'source> for &'source str {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for &'py str {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
     }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
-        <String>::type_input()
+        <String as crate::FromPyObject>::type_input()
     }
 }
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl FromPyObject<'_> for String {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
-        obj.downcast::<PyString>()?.to_str().map(ToOwned::to_owned)
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        obj.downcast::<PyString>()?.to_cow().map(Cow::into_owned)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -137,8 +139,8 @@ impl FromPyObject<'_> for String {
 }
 
 impl FromPyObject<'_> for char {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
-        let s = obj.downcast::<PyString>()?.to_str()?;
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let s = obj.downcast::<PyString>()?.to_cow()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {
             Ok(ch)
@@ -158,7 +160,7 @@ impl FromPyObject<'_> for char {
 #[cfg(test)]
 mod tests {
     use crate::Python;
-    use crate::{FromPyObject, IntoPy, PyObject, ToPyObject};
+    use crate::{IntoPy, PyObject, ToPyObject};
     use std::borrow::Cow;
 
     #[test]
@@ -198,7 +200,7 @@ mod tests {
             let s = "Hello Python";
             let py_string = s.to_object(py);
 
-            let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+            let s2: &str = py_string.as_ref(py).extract().unwrap();
             assert_eq!(s, s2);
         })
     }
@@ -208,7 +210,7 @@ mod tests {
         Python::with_gil(|py| {
             let ch = '😃';
             let py_string = ch.to_object(py);
-            let ch2: char = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+            let ch2: char = py_string.as_ref(py).extract().unwrap();
             assert_eq!(ch, ch2);
         })
     }
@@ -218,7 +220,7 @@ mod tests {
         Python::with_gil(|py| {
             let s = "Hello Python";
             let py_string = s.to_object(py);
-            let err: crate::PyResult<char> = FromPyObject::extract(py_string.as_ref(py));
+            let err: crate::PyResult<char> = py_string.as_ref(py).extract();
             assert!(err
                 .unwrap_err()
                 .to_string()

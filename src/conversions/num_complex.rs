@@ -59,10 +59,10 @@
 //! #
 //! #         module.add_function(wrap_pyfunction!(get_eigenvalues, module)?)?;
 //! #
-//! #         let m11 = PyComplex::from_doubles(py, 0_f64, -1_f64);
-//! #         let m12 = PyComplex::from_doubles(py, 1_f64, 0_f64);
-//! #         let m21 = PyComplex::from_doubles(py, 2_f64, -1_f64);
-//! #         let m22 = PyComplex::from_doubles(py, -1_f64, 0_f64);
+//! #         let m11 = PyComplex::from_doubles_bound(py, 0_f64, -1_f64);
+//! #         let m12 = PyComplex::from_doubles_bound(py, 1_f64, 0_f64);
+//! #         let m21 = PyComplex::from_doubles_bound(py, 2_f64, -1_f64);
+//! #         let m22 = PyComplex::from_doubles_bound(py, -1_f64, 0_f64);
 //! #
 //! #         let result = module
 //! #             .getattr("get_eigenvalues")?
@@ -93,8 +93,11 @@
 //! result = get_eigenvalues(m11,m12,m21,m22)
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
+#[cfg(any(Py_LIMITED_API, PyPy))]
+use crate::types::any::PyAnyMethods;
 use crate::{
-    ffi, types::PyComplex, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    ffi, types::PyComplex, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
@@ -131,8 +134,8 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
-        impl<'source> FromPyObject<'source> for Complex<$float> {
-            fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
+        impl FromPyObject<'_> for Complex<$float> {
+            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Complex<$float>> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
@@ -146,12 +149,14 @@ macro_rules! complex_conversion {
 
                 #[cfg(any(Py_LIMITED_API, PyPy))]
                 unsafe {
+                    let complex;
                     let obj = if obj.is_instance_of::<PyComplex>() {
                         obj
                     } else if let Some(method) =
                         obj.lookup_special(crate::intern!(obj.py(), "__complex__"))?
                     {
-                        method.call0()?
+                        complex = method.call0()?;
+                        &complex
                     } else {
                         // `obj` might still implement `__float__` or `__index__`, which will be
                         // handled by `PyComplex_{Real,Imag}AsDouble`, including propagating any

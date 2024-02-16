@@ -216,7 +216,7 @@ fn mapping() {
         let inst = Py::new(
             py,
             Mapping {
-                values: PyDict::new(py).into(),
+                values: PyDict::new_bound(py).into(),
             },
         )
         .unwrap();
@@ -264,13 +264,13 @@ impl Sequence {
         self.values.len()
     }
 
-    fn __getitem__(&self, index: SequenceIndex<'_>) -> PyResult<PyObject> {
+    fn __getitem__(&self, index: SequenceIndex<'_>, py: Python<'_>) -> PyResult<PyObject> {
         match index {
             SequenceIndex::Integer(index) => {
                 let uindex = self.usize_index(index)?;
                 self.values
                     .get(uindex)
-                    .map(Clone::clone)
+                    .map(|o| o.clone_ref(py))
                     .ok_or_else(|| PyIndexError::new_err(index))
             }
             // Just to prove that slicing can be implemented
@@ -687,9 +687,12 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .dict()
+            .as_borrowed();
         globals.set_item("Once", once).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -741,12 +744,15 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .dict()
+            .as_borrowed();
         globals.set_item("Once", once).unwrap();
         globals
             .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -813,9 +819,12 @@ del c.counter
 assert c.counter.count == 1
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import(py, "__main__")
+            .unwrap()
+            .dict()
+            .as_borrowed();
         globals.set_item("Counter", counter).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -850,7 +859,7 @@ struct DefaultedContains;
 #[pymethods]
 impl DefaultedContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
-        PyList::new(py, ["a", "b", "c"])
+        PyList::new_bound(py, ["a", "b", "c"])
             .as_ref()
             .iter()
             .unwrap()
@@ -864,7 +873,7 @@ struct NoContains;
 #[pymethods]
 impl NoContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
-        PyList::new(py, ["a", "b", "c"])
+        PyList::new_bound(py, ["a", "b", "c"])
             .as_ref()
             .iter()
             .unwrap()
