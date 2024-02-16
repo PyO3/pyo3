@@ -1,5 +1,4 @@
 use crate::err::{self, PyResult};
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Bound, PyAny, PyNativeType, PyTypeInfo, Python};
@@ -148,6 +147,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
         #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
         let name = {
+            use crate::ffi_ptr_ext::FfiPtrExt;
             let obj = unsafe {
                 ffi::PyType_GetQualName(self.as_type_ptr()).assume_owned_or_err(self.py())?
             };
@@ -204,6 +204,7 @@ impl<'a> Borrowed<'a, '_, PyType> {
 
             #[cfg(Py_3_11)]
             let name = {
+                use crate::ffi_ptr_ext::FfiPtrExt;
                 unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? }
             };
 
