@@ -39,37 +39,36 @@ impl PyType {
         self.as_borrowed().as_type_ptr()
     }
 
-    /// Deprecated form of [`PyType::from_type_ptr_borrowed`].
+    /// Deprecated form of [`PyType::from_type_ptr_bound`].
     ///
     /// # Safety
     ///
-    /// See [`PyType::from_type_ptr_borrowed`].
+    /// - The pointer must a valid non-null reference to a `PyTypeObject`.
     #[inline]
     #[cfg_attr(
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "`from_type_ptr` will be replaced by `from_type_ptr_borrowed` in a future PyO3 version"
+            note = "`from_type_ptr` will be replaced by `from_type_ptr_bound` in a future PyO3 version"
         )
     )]
     pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
-        Self::from_type_ptr_borrowed(py, p).into_gil_ref()
+        Self::from_type_ptr_bound(py, &p).to_owned().into_gil_ref()
     }
 
-    /// Retrieves the `PyType` instance for the given FFI pointer.
+    /// Converts the given FFI pointer into `&Bound<PyType>`, to use in safe code.
     ///
     /// # Safety
     /// - The pointer must be non-null.
     /// - The pointer must be valid for the entire of the lifetime 'a for which the reference is used,
     ///   as with `std::slice::from_raw_parts`.
     #[inline]
-    pub unsafe fn from_type_ptr_borrowed<'a>(
-        py: Python<'_>,
-        p: *mut ffi::PyTypeObject,
-    ) -> Borrowed<'a, '_, PyType> {
-        (p as *mut ffi::PyObject)
-            .assume_borrowed_unchecked(py)
-            .downcast_unchecked()
+    pub unsafe fn from_type_ptr_bound<'a, 'py>(
+        py: Python<'py>,
+        p: &'a *mut ffi::PyTypeObject,
+    ) -> &'a Bound<'py, PyType> {
+        let object_ptr = &*(p as *const *mut ffi::PyTypeObject as *const *mut ffi::PyObject);
+        Bound::ref_from_ptr(py, object_ptr).downcast_unchecked()
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
