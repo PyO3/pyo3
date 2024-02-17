@@ -1790,10 +1790,7 @@ impl PyObject {
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
-    pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T>
-    where
-        T: HasPyGilRef,
-    {
+    pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
         self.bind(py).downcast_unchecked()
     }
 }
