@@ -104,6 +104,13 @@ impl PyFrozenSet {
     }
 
     /// Deprecated form of [`PyFrozenSet::empty_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
+        )
+    )]
     pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
         Self::empty_bound(py).map(Bound::into_gil_ref)
     }
