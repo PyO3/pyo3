@@ -30,21 +30,13 @@ impl<'py> PyArg<'py> {
     }
 
     #[inline]
+    pub fn from_borrowed<T>(borrowed: Borrowed<'py, 'py, T>) -> Self {
+        Self(borrowed.into_any())
+    }
+
+    #[inline]
     pub fn as_borrowed(self) -> Borrowed<'py, 'py, PyAny> {
         self.0
-    }
-}
-
-// These two `From` implementations help make various macro code pieces compile
-impl<'py, T> From<&'py Bound<'py, T>> for PyArg<'py> {
-    fn from(other: &'py Bound<'py, T>) -> Self {
-        Self(Borrowed::from(other.as_any()))
-    }
-}
-
-impl<'py> From<&'_ Self> for PyArg<'py> {
-    fn from(other: &'_ Self) -> Self {
-        Self(other.0)
     }
 }
 

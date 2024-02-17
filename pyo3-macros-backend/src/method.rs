@@ -583,7 +583,8 @@ impl<'a> FnSpec<'a> {
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }
@@ -602,7 +603,8 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }
@@ -620,7 +622,8 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }

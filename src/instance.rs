@@ -479,6 +479,14 @@ impl<'py, T> Borrowed<'_, 'py, T> {
     }
 }
 
+impl<'a, 'py, T> Borrowed<'a, 'py, T> {
+    #[inline]
+    pub(crate) fn into_any(self) -> Borrowed<'a, 'py, PyAny> {
+        // Safety: all Borrowed<T> are valid Borrowed<PyAny>
+        Borrowed(self.0, PhantomData, self.2)
+    }
+}
+
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by

@@ -698,7 +698,8 @@ pub fn impl_py_getter_def(
             _slf: *mut _pyo3::ffi::PyObject
         ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
             #( #holders )*
-            #body
+            let result = #body;
+            result
         }
     };
 

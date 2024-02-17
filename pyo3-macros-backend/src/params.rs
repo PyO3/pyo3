@@ -132,7 +132,7 @@ pub fn impl_arg_params(
                     keyword_only_parameters: &[#(#keyword_only_parameters),*],
                 };
                 let mut #args_array = [::std::option::Option::None; #num_params];
-                let (_args, _kwargs) = &#extract_expression;
+                let (_args, _kwargs) = #extract_expression;
         },
         param_conversion,
     ))
@@ -180,8 +180,7 @@ fn impl_arg_param(
         let holder = push_holder();
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_argument(
-                #[allow(clippy::useless_conversion)]
-                ::std::convert::From::from(_args),
+                _pyo3::impl_::extract_argument::PyArg::from_borrowed(_args.as_borrowed()),
                 &mut #holder,
                 #name_str
             )?
@@ -194,8 +193,7 @@ fn impl_arg_param(
         let holder = push_holder();
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_optional_argument(
-                #[allow(clippy::useless_conversion, clippy::redundant_closure)]
-                _kwargs.as_ref().map(|kwargs| ::std::convert::From::from(kwargs)),
+                _kwargs.as_ref().map(|kwargs| _pyo3::impl_::extract_argument::PyArg::from_borrowed(kwargs.as_borrowed())),
                 &mut #holder,
                 #name_str,
                 || ::std::option::Option::None
