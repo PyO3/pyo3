@@ -194,16 +194,16 @@ impl Mapping {
         self.values.bind(py).len()
     }
 
-    fn __getitem__<'py>(&self, key: &'py PyAny) -> PyResult<Bound<'py, PyAny>> {
+    fn __getitem__<'py>(&self, key: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
         let any: &Bound<'py, PyAny> = self.values.bind(key.py());
         any.get_item(key)
     }
 
-    fn __setitem__(&self, key: &PyAny, value: &PyAny) -> PyResult<()> {
+    fn __setitem__<'py>(&self, key: &Bound<'py, PyAny>, value: &Bound<'py, PyAny>) -> PyResult<()> {
         self.values.bind(key.py()).set_item(key, value)
     }
 
-    fn __delitem__(&self, key: &PyAny) -> PyResult<()> {
+    fn __delitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<()> {
         self.values.bind(key.py()).del_item(key)
     }
 }
