@@ -75,7 +75,7 @@ impl Coroutine {
         };
         // reraise thrown exception it
         match (throw, &self.throw_callback) {
-            (Some(exc), Some(cb)) => cb.throw(exc.into_bound(py)),
+            (Some(exc), Some(cb)) => cb.throw(exc),
             (Some(exc), None) => {
                 self.close();
                 return Err(PyErr::from_value_bound(exc.into_bound(py)));
