@@ -76,10 +76,7 @@ impl<'a, 'py> DowncastError<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        DowncastError {
-            from: from.as_borrowed(),
-            to: to.into(),
-        }
+        Self::new_from_borrowed(from.as_borrowed(), to)
     }
 
     /// Similar to [`DowncastError::new`], but from a `Borrowed` instead of a `Bound`.
