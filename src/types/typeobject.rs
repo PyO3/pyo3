@@ -38,7 +38,7 @@ impl PyType {
         self.as_borrowed().as_type_ptr()
     }
 
-    /// Deprecated form of [`PyType::from_type_ptr_bound`].
+    /// Deprecated form of [`PyType::from_borrowed_type_ptr`].
     ///
     /// # Safety
     ///
