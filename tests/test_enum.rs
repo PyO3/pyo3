@@ -214,3 +214,18 @@ fn test_renaming_all_enum_variants() {
         );
     });
 }
+
+#[test]
+fn test_complex_enum_py_new_into_py() {
+    #[pyclass]
+    enum MyEnum {
+        Variant { i: i32 },
+    }
+
+    Python::with_gil(|py| {
+        let x = Py::new(py, MyEnum::Variant { i: 42 }).unwrap();
+        let cls = py.get_type::<MyEnum>();
+        py_assert!(py, x cls, "isinstance(x, cls)");
+        py_assert!(py, x cls, "isinstance(x, cls.Variant)");
+    });
+}

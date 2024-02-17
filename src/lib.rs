@@ -309,7 +309,7 @@ pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpret
 pub use crate::instance::{Borrowed, Bound, Py, PyNativeType, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
-pub use crate::pyclass::PyClass;
+pub use crate::pyclass::{PyClass, PyInitializable};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
