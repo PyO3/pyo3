@@ -194,8 +194,8 @@ impl Mapping {
         self.values.bind(py).len()
     }
 
-    fn __getitem__<'a>(&'a self, key: &'a PyAny) -> PyResult<Bound<'a, PyAny>> {
-        let any: &Bound<'a, PyAny> = self.values.bind(key.py());
+    fn __getitem__<'py>(&self, key: &'py PyAny) -> PyResult<Bound<'py, PyAny>> {
+        let any: &Bound<'py, PyAny> = self.values.bind(key.py());
         any.get_item(key)
     }
 
@@ -658,7 +658,7 @@ impl OnceFuture {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__<'py>(&'py mut self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
+    fn __next__<'py>(&mut self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
         if !self.polled {
             self.polled = true;
             Some(self.future.bind(py))

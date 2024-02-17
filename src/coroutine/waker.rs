@@ -25,10 +25,10 @@ impl AsyncioWaker {
         self.0.take();
     }
 
-    pub(super) fn initialize_future<'a>(
-        &'a self,
-        py: Python<'a>,
-    ) -> PyResult<Option<&Bound<'a, PyAny>>> {
+    pub(super) fn initialize_future<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Option<&Bound<'py, PyAny>>> {
         let init = || LoopAndFuture::new(py).map(Some);
         let loop_and_future = self.0.get_or_try_init(py, init)?.as_ref();
         Ok(loop_and_future.map(|LoopAndFuture { future, .. }| future.bind(py)))
