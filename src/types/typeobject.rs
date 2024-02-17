@@ -1,5 +1,5 @@
 use crate::err::{self, PyResult};
-use crate::{ffi, PyAny, PyTypeInfo, Python};
+use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
 use std::borrow::Cow;
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use std::ffi::CStr;
@@ -105,6 +105,41 @@ impl PyType {
         T: PyTypeInfo,
     {
         self.is_subclass(T::type_object_bound(self.py()).as_gil_ref())
+    }
+}
+
+/// Implementation of functionality for [`PyType`].
+///
+/// These methods are defined for the `Bound<'py, PyType>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+pub trait PyTypeMethods<'py> {
+    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
+    fn qualname(&self) -> PyResult<String>;
+}
+
+impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
+    fn qualname(&self) -> PyResult<String> {
+        use crate::types::any::PyAnyMethods;
+        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
+        let name = self
+            .as_any()
+            .getattr(intern!(self.py(), "__qualname__"))?
+            .extract();
+
+        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
+        let name = {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+
+            let obj = unsafe {
+                ffi::PyType_GetQualName(self.as_ptr() as *mut ffi::PyTypeObject)
+                    .assume_owned_or_err(self.py())?
+            };
+
+            obj.extract()
+        };
+
+        name
     }
 }
 

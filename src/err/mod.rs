@@ -946,10 +946,11 @@ struct PyDowncastErrorArguments {
 
 impl PyErrArguments for PyDowncastErrorArguments {
     fn arguments(self, py: Python<'_>) -> PyObject {
+        use crate::types::typeobject::PyTypeMethods;
         format!(
             "'{}' object cannot be converted to '{}'",
             self.from
-                .as_ref(py)
+                .bind(py)
                 .qualname()
                 .as_deref()
                 .unwrap_or("<failed to extract type name>"),
