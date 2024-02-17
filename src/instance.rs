@@ -480,33 +480,43 @@ impl<'py, T> Borrowed<'_, 'py, T> {
 }
 
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
+    /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Panics if `ptr` is null.
+    ///
     /// # Safety
-    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
-    /// the caller and it's the caller's responsibility to ensure that the reference this is
-    /// derived from is valid for the lifetime `'a`.
-    pub(crate) unsafe fn from_ptr_or_err(
-        py: Python<'py>,
-        ptr: *mut ffi::PyObject,
-    ) -> PyResult<Self> {
+    ///
+    /// - `ptr` must be a valid pointer to a Python object
+    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    ///   the caller and it is the caller's responsibility to ensure that the reference this is
+    ///   derived from is valid for the lifetime `'a`.
+    pub unsafe fn from_ptr_or_err(py: Python<'py>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
         NonNull::new(ptr).map_or_else(
             || Err(PyErr::fetch(py)),
             |ptr| Ok(Self(ptr, PhantomData, py)),
         )
     }
 
+    /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
+    ///
     /// # Safety
-    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
-    /// the caller and it's the caller's responsibility to ensure that the reference this is
-    /// derived from is valid for the lifetime `'a`.
-    pub(crate) unsafe fn from_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    ///   the caller and it is the caller's responsibility to ensure that the reference this is
+    ///   derived from is valid for the lifetime `'a`.
+    pub unsafe fn from_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
         NonNull::new(ptr).map(|ptr| Self(ptr, PhantomData, py))
     }
 
+    /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Returns an `Err` by calling `PyErr::fetch`
+    /// if `ptr` is null.
+    ///
     /// # Safety
-    /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
-    /// the caller and it's the caller's responsibility to ensure that the reference this is
-    /// derived from is valid for the lifetime `'a`.
-    pub(crate) unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    ///   the caller and it is the caller's responsibility to ensure that the reference this is
+    ///   derived from is valid for the lifetime `'a`.
+    pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(
             NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
             PhantomData,
@@ -1762,8 +1772,9 @@ impl PyObject {
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::{Bound, Py, PyObject};
+    use crate::types::PyCapsule;
     use crate::types::{dict::IntoPyDict, PyDict, PyString};
-    use crate::{PyAny, PyNativeType, PyResult, Python, ToPyObject};
+    use crate::{ffi, Borrowed, PyAny, PyNativeType, PyResult, Python, ToPyObject};
 
     #[test]
     fn test_call() {
@@ -1960,6 +1971,42 @@ a = A()
             let any = obj.clone().into_any();
             assert_eq!(any.as_ptr(), obj.as_ptr());
         });
+    }
+
+    #[test]
+    fn borrowed_ptr_constructors() {
+        // More detailed tests of the underlying semantics in pycell.rs
+        Python::with_gil(|py| {
+            fn check_drop<'py>(
+                py: Python<'py>,
+                method: impl FnOnce(&*mut ffi::PyObject) -> Borrowed<'_, 'py, PyAny>,
+            ) {
+                let mut dropped = false;
+                let capsule = PyCapsule::new_bound_with_destructor(
+                    py,
+                    (&mut dropped) as *mut _ as usize,
+                    None,
+                    |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
+                )
+                .unwrap();
+
+                let ptr = &capsule.as_ptr();
+                let _borrowed = method(ptr);
+                assert_eq!(dropped, false);
+
+                // creating the borrow should not have increased the refcount
+                drop(capsule);
+                assert_eq!(dropped, true);
+            }
+
+            check_drop(py, |&ptr| unsafe { Borrowed::from_ptr(py, ptr) });
+            check_drop(py, |&ptr| unsafe {
+                Borrowed::from_ptr_or_opt(py, ptr).unwrap()
+            });
+            check_drop(py, |&ptr| unsafe {
+                Borrowed::from_ptr_or_err(py, ptr).unwrap()
+            });
+        })
     }
 
     #[cfg(feature = "macros")]
