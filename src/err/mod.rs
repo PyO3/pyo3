@@ -900,7 +900,7 @@ impl std::fmt::Debug for PyErr {
         Python::with_gil(|py| {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type_bound(py))
-                .field("value", &self.value_bound(py))
+                .field("value", self.value_bound(py))
                 .field("traceback", &self.traceback_bound(py))
                 .finish()
         })
