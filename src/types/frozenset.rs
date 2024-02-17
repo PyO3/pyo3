@@ -1,4 +1,3 @@
-#[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
@@ -205,6 +204,13 @@ impl<'py> Iterator for PyFrozenSetIterator<'py> {
     }
 }
 
+impl ExactSizeIterator for PyFrozenSetIterator<'_> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 impl<'py> IntoIterator for &'py PyFrozenSet {
     type Item = &'py PyAny;
     type IntoIter = PyFrozenSetIterator<'py>;
@@ -224,89 +230,41 @@ impl<'py> IntoIterator for Bound<'py, PyFrozenSet> {
     }
 }
 
-#[cfg(Py_LIMITED_API)]
-mod impl_ {
-    use super::*;
+/// PyO3 implementation of an iterator for a Python `frozenset` object.
+pub struct BoundFrozenSetIterator<'p> {
+    it: Bound<'p, PyIterator>,
+    // Remaining elements in the frozenset
+    remaining: usize,
+}
 
-    /// PyO3 implementation of an iterator for a Python `set` object.
-    pub struct BoundFrozenSetIterator<'p> {
-        it: Bound<'p, PyIterator>,
-    }
-
-    impl<'py> BoundFrozenSetIterator<'py> {
-        pub(super) fn new(frozenset: Bound<'py, PyFrozenSet>) -> Self {
-            Self {
-                it: PyIterator::from_bound_object(&frozenset).unwrap(),
-            }
-        }
-    }
-
-    impl<'py> Iterator for BoundFrozenSetIterator<'py> {
-        type Item = Bound<'py, super::PyAny>;
-
-        /// Advances the iterator and returns the next value.
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            self.it.next().map(Result::unwrap)
+impl<'py> BoundFrozenSetIterator<'py> {
+    pub(super) fn new(set: Bound<'py, PyFrozenSet>) -> Self {
+        Self {
+            it: PyIterator::from_bound_object(&set).unwrap(),
+            remaining: set.len(),
         }
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
-mod impl_ {
-    use super::*;
+impl<'py> Iterator for BoundFrozenSetIterator<'py> {
+    type Item = Bound<'py, super::PyAny>;
 
-    /// PyO3 implementation of an iterator for a Python `frozenset` object.
-    pub struct BoundFrozenSetIterator<'py> {
-        set: Bound<'py, PyFrozenSet>,
-        pos: ffi::Py_ssize_t,
+    /// Advances the iterator and returns the next value.
+    fn next(&mut self) -> Option<Self::Item> {
+        self.remaining = self.remaining.saturating_sub(1);
+        self.it.next().map(Result::unwrap)
     }
 
-    impl<'py> BoundFrozenSetIterator<'py> {
-        pub(super) fn new(set: Bound<'py, PyFrozenSet>) -> Self {
-            Self { set, pos: 0 }
-        }
-    }
-
-    impl<'py> Iterator for BoundFrozenSetIterator<'py> {
-        type Item = Bound<'py, PyAny>;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            unsafe {
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut hash: ffi::Py_hash_t = 0;
-                if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0
-                {
-                    // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
-                    Some(key.assume_borrowed(self.set.py()).to_owned())
-                } else {
-                    None
-                }
-            }
-        }
-
-        #[inline]
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            let len = self.len();
-            (len, Some(len))
-        }
-    }
-
-    impl<'py> ExactSizeIterator for BoundFrozenSetIterator<'py> {
-        fn len(&self) -> usize {
-            self.set.len().saturating_sub(self.pos as usize)
-        }
-    }
-
-    impl<'py> ExactSizeIterator for PyFrozenSetIterator<'py> {
-        fn len(&self) -> usize {
-            self.0.len()
-        }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
     }
 }
 
-pub use impl_::*;
+impl<'py> ExactSizeIterator for BoundFrozenSetIterator<'py> {
+    fn len(&self) -> usize {
+        self.remaining
+    }
+}
 
 #[inline]
 pub(crate) fn new_from_iter<T: ToPyObject>(
@@ -387,7 +345,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
     fn test_frozenset_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, &[1]).unwrap();
@@ -399,18 +356,6 @@ mod tests {
             iter.next();
             assert_eq!(iter.len(), 0);
             assert_eq!(iter.size_hint(), (0, Some(0)));
-        });
-    }
-
-    #[test]
-    #[cfg(Py_LIMITED_API)]
-    fn test_frozenset_iter_size_hint() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
-            let iter = set.iter();
-
-            // No known bounds
-            assert_eq!(iter.size_hint(), (0, None));
         });
     }
 
