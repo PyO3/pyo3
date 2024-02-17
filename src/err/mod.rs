@@ -61,6 +61,15 @@ impl<'a> PyDowncastError<'a> {
             to: to.into(),
         }
     }
+
+    /// Compatibility API to convert the Bound variant `DowncastError` into the
+    /// gil-ref variant
+    pub(crate) fn from_downcast_err(DowncastError { from, to }: DowncastError<'a, 'a>) -> Self {
+        Self {
+            from: from.as_gil_ref(),
+            to,
+        }
+    }
 }
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.

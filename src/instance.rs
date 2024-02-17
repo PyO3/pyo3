@@ -7,8 +7,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
-    PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -1686,6 +1686,23 @@ impl<T> std::fmt::Debug for Py<T> {
 pub type PyObject = Py<PyAny>;
 
 impl PyObject {
+    /// Deprecated form of [`PyObject::downcast_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyObject::downcast` will be replaced by `PyObject::downcast_bound` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub fn downcast<'py, T>(&'py self, py: Python<'py>) -> Result<&'py T, PyDowncastError<'py>>
+    where
+        T: PyTypeCheck<AsRefTarget = T>,
+    {
+        self.downcast_bound::<T>(py)
+            .map(Bound::as_gil_ref)
+            .map_err(PyDowncastError::from_downcast_err)
+    }
     /// Downcast this `PyObject` to a concrete Python type or pyclass.
     ///
     /// Note that you can often avoid downcasting yourself by just specifying
@@ -1703,8 +1720,8 @@ impl PyObject {
     /// Python::with_gil(|py| {
     ///     let any: PyObject = PyDict::new_bound(py).into();
     ///
-    ///     assert!(any.downcast::<PyDict>(py).is_ok());
-    ///     assert!(any.downcast::<PyList>(py).is_err());
+    ///     assert!(any.downcast_bound::<PyDict>(py).is_ok());
+    ///     assert!(any.downcast_bound::<PyList>(py).is_err());
     /// });
     /// ```
     ///
@@ -1725,9 +1742,9 @@ impl PyObject {
     /// Python::with_gil(|py| {
     ///     let class: PyObject = Py::new(py, Class { i: 0 }).unwrap().into_py(py);
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast(py)?;
+    ///     let class_bound = class.downcast_bound::<Class>(py)?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
@@ -1737,11 +1754,34 @@ impl PyObject {
     /// # }
     /// ```
     #[inline]
-    pub fn downcast<'py, T>(&'py self, py: Python<'py>) -> Result<&'py T, PyDowncastError<'py>>
+    pub fn downcast_bound<'py, T>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
-        T: PyTypeCheck<AsRefTarget = T>,
+        T: PyTypeCheck,
     {
-        self.as_ref(py).downcast()
+        self.bind(py).downcast()
+    }
+
+    /// Deprecated form of [`PyObject::downcast_bound_unchecked`]
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyObject::downcast_unchecked` will be replaced by `PyObject::downcast_bound_unchecked` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub unsafe fn downcast_unchecked<'py, T>(&'py self, py: Python<'py>) -> &T
+    where
+        T: HasPyGilRef<AsRefTarget = T>,
+    {
+        self.downcast_bound_unchecked::<T>(py).as_gil_ref()
     }
 
     /// Casts the PyObject to a concrete Python object type without checking validity.
@@ -1750,11 +1790,11 @@ impl PyObject {
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
-    pub unsafe fn downcast_unchecked<'p, T>(&'p self, py: Python<'p>) -> &T
+    pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T>
     where
-        T: HasPyGilRef<AsRefTarget = T>,
+        T: HasPyGilRef,
     {
-        self.as_ref(py).downcast_unchecked()
+        self.bind(py).downcast_unchecked()
     }
 }
 
