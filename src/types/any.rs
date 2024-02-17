@@ -2108,7 +2108,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn get_type(&self) -> Bound<'py, PyType> {
-        unsafe { PyType::from_type_ptr_bound(self.py(), ffi::Py_TYPE(self.as_ptr())) }
+        unsafe { PyType::from_borrowed_type_ptr(self.py(), ffi::Py_TYPE(self.as_ptr())) }
     }
 
     #[inline]

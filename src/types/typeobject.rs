@@ -48,23 +48,22 @@ impl PyType {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "`PyType::from_type_ptr` will be replaced by `PyType::from_type_ptr_bound` in a future PyO3 version"
+            note = "Use `PyType::from_borrowed_type_ptr` instead"
         )
     )]
     pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
-        Self::from_type_ptr_bound(py, p).into_gil_ref()
+        Self::from_borrowed_type_ptr(py, p).into_gil_ref()
     }
 
     /// Converts the given FFI pointer into `Bound<PyType>`, to use in safe code.
     ///
-    /// This does not take ownership of the FFI pointer's "reference". The target type
-    /// object will have its reference count increased by 1, which will be released when
-    /// the `Bound` is dropped.
+    /// The function creates a new reference from the given pointer, and returns
+    /// it as a `Bound<PyType>`.
     ///
     /// # Safety
     /// - The pointer must be a valid non-null reference to a `PyTypeObject`
     #[inline]
-    pub unsafe fn from_type_ptr_bound<'py>(
+    pub unsafe fn from_borrowed_type_ptr<'py>(
         py: Python<'py>,
         p: *mut ffi::PyTypeObject,
     ) -> Bound<'py, PyType> {
