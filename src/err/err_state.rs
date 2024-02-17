@@ -100,19 +100,20 @@ where
 }
 
 impl PyErrState {
-    pub(crate) fn lazy(ptype: &PyAny, args: impl PyErrArguments + 'static) -> Self {
-        let ptype = ptype.into();
+    pub(crate) fn lazy(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
         PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
             ptype,
             pvalue: args.arguments(py),
         }))
     }
 
-    pub(crate) fn normalized(pvalue: &PyBaseException) -> Self {
+    pub(crate) fn normalized(pvalue: Bound<'_, PyBaseException>) -> Self {
+        #[cfg(not(Py_3_12))]
+        use crate::types::any::PyAnyMethods;
+
         Self::Normalized(PyErrStateNormalized {
             #[cfg(not(Py_3_12))]
             ptype: pvalue.get_type().into(),
-            pvalue: pvalue.into(),
             #[cfg(not(Py_3_12))]
             ptraceback: unsafe {
                 Py::from_owned_ptr_or_opt(
@@ -120,6 +121,7 @@ impl PyErrState {
                     ffi::PyException_GetTraceback(pvalue.as_ptr()),
                 )
             },
+            pvalue: pvalue.into(),
         })
     }
 

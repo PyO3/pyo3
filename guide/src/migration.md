@@ -224,6 +224,22 @@ let gil_ref: &PyAny = ...;
 let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
 ```
 
+> Because of the ownership changes, code which uses `.as_ptr()` to convert `&PyAny` and other GIL Refs to a `*mut pyo3_ffi::PyObject` should take care to avoid creating dangling pointers now that `Bound<PyAny>` carries ownership.
+>
+> For example, the following pattern with `Option<&PyAny>` can easily create a dangling pointer when migrating to the `Bound<PyAny>` smart pointer:
+>
+> ```rust,ignore
+> let opt: Option<&PyAny> = ...;
+> let p: *mut ffi::PyObject = opt.map_or(std::ptr::null_mut(), |any| any.as_ptr());
+> ```
+>
+> The correct way to migrate this code is to use `.as_ref()` to avoid dropping the `Bound<PyAny>` in the `map_or` closure:
+>
+> ```rust,ignore
+> let opt: Option<Bound<PyAny>> = ...;
+> let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
+> ```
+
 #### Migrating `FromPyObject` implementations
 
 `FromPyObject` has had a new method `extract_bound` which takes `&Bound<'py, PyAny>` as an argument instead of `&PyAny`. Both `extract` and `extract_bound` have been given default implementations in terms of the other, to avoid breaking code immediately on update to 0.21.

@@ -187,7 +187,19 @@ impl PyErr {
     where
         A: PyErrArguments + Send + Sync + 'static,
     {
-        PyErr::from_state(PyErrState::lazy(ty, args))
+        PyErr::from_state(PyErrState::lazy(ty.into(), args))
+    }
+
+    /// Deprecated form of [`PyErr::from_value_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::from_value` will be replaced by `PyErr::from_value_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn from_value(obj: &PyAny) -> PyErr {
+        PyErr::from_value_bound(obj.as_borrowed().to_owned())
     }
 
     /// Creates a new PyErr.
@@ -201,33 +213,38 @@ impl PyErr {
     /// # Examples
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::PyTypeInfo;
     /// use pyo3::exceptions::PyTypeError;
-    /// use pyo3::types::{PyType, PyString};
+    /// use pyo3::types::PyString;
     ///
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
-    ///     let err = PyErr::from_value(PyTypeError::new_err("some type error").value(py));
+    ///     let err = PyErr::from_value_bound(PyTypeError::new_err("some type error")
+    ///         .value_bound(py).clone().into_any());
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
     ///     // Case #2: Exception type
-    ///     let err = PyErr::from_value(PyType::new_bound::<PyTypeError>(py).as_gil_ref());
+    ///     let err = PyErr::from_value_bound(PyTypeError::type_object_bound(py).into_any());
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
-    ///     let err = PyErr::from_value(PyString::new_bound(py, "foo").as_gil_ref());
+    ///     let err = PyErr::from_value_bound(PyString::new_bound(py, "foo").into_any());
     ///     assert_eq!(
     ///         err.to_string(),
     ///         "TypeError: exceptions must derive from BaseException"
     ///     );
     /// });
     /// ```
-    pub fn from_value(obj: &PyAny) -> PyErr {
-        let state = if let Ok(obj) = obj.downcast::<PyBaseException>() {
-            PyErrState::normalized(obj)
-        } else {
-            // Assume obj is Type[Exception]; let later normalization handle if this
-            // is not the case
-            PyErrState::lazy(obj, obj.py().None())
+    pub fn from_value_bound(obj: Bound<'_, PyAny>) -> PyErr {
+        let state = match obj.downcast_into::<PyBaseException>() {
+            Ok(obj) => PyErrState::normalized(obj),
+            Err(err) => {
+                // Assume obj is Type[Exception]; let later normalization handle if this
+                // is not the case
+                let obj = err.into_inner();
+                let py = obj.py();
+                PyErrState::lazy(obj.into_py(py), py.None())
+            }
         };
 
         PyErr::from_state(state)
@@ -260,6 +277,18 @@ impl PyErr {
         self.normalized(py).ptype(py)
     }
 
+    /// Deprecated form of [`PyErr::value_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::value` will be replaced by `PyErr::value_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
+        self.value_bound(py).as_gil_ref()
+    }
+
     /// Returns the value of this exception.
     ///
     /// # Examples
@@ -270,11 +299,11 @@ impl PyErr {
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert!(err.is_instance_of::<PyTypeError>(py));
-    ///     assert_eq!(err.value(py).to_string(), "some type error");
+    ///     assert_eq!(err.value_bound(py).to_string(), "some type error");
     /// });
     /// ```
-    pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
-        self.normalized(py).pvalue.as_ref(py)
+    pub fn value_bound<'py>(&self, py: Python<'py>) -> &Bound<'py, PyBaseException> {
+        self.normalized(py).pvalue.bind(py)
     }
 
     /// Consumes self to take ownership of the exception value contained in this error.
@@ -527,7 +556,7 @@ impl PyErr {
     pub fn display(&self, py: Python<'_>) {
         #[cfg(Py_3_12)]
         unsafe {
-            ffi::PyErr_DisplayException(self.value(py).as_ptr())
+            ffi::PyErr_DisplayException(self.value_bound(py).as_ptr())
         }
 
         #[cfg(not(Py_3_12))]
@@ -540,7 +569,7 @@ impl PyErr {
             let type_bound = self.get_type_bound(py);
             ffi::PyErr_Display(
                 type_bound.as_ptr(),
-                self.value(py).as_ptr(),
+                self.value_bound(py).as_ptr(),
                 traceback
                     .as_ref()
                     .map_or(std::ptr::null_mut(), |traceback| traceback.as_ptr()),
@@ -785,7 +814,7 @@ impl PyErr {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
     ///     assert!(err.get_type_bound(py).is(&err_clone.get_type_bound(py)));
-    ///     assert!(err.value(py).is(err_clone.value(py)));
+    ///     assert!(err.value_bound(py).is(err_clone.value_bound(py)));
     ///     match err.traceback_bound(py) {
     ///         None => assert!(err_clone.traceback_bound(py).is_none()),
     ///         Some(tb) => assert!(err_clone.traceback_bound(py).unwrap().is(&tb)),
@@ -800,15 +829,14 @@ impl PyErr {
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
-        let value = self.value(py);
-        let obj =
-            unsafe { py.from_owned_ptr_or_opt::<PyAny>(ffi::PyException_GetCause(value.as_ptr())) };
-        obj.map(Self::from_value)
+        use crate::ffi_ptr_ext::FfiPtrExt;
+        unsafe { ffi::PyException_GetCause(self.value_bound(py).as_ptr()).assume_owned_or_opt(py) }
+            .map(Self::from_value_bound)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
     pub fn set_cause(&self, py: Python<'_>, cause: Option<Self>) {
-        let value = self.value(py);
+        let value = self.value_bound(py);
         let cause = cause.map(|err| err.into_value(py));
         unsafe {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
@@ -868,7 +896,7 @@ impl std::fmt::Debug for PyErr {
         Python::with_gil(|py| {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type_bound(py))
-                .field("value", self.value(py))
+                .field("value", self.value_bound(py))
                 .field("traceback", &self.traceback_bound(py))
                 .finish()
         })
@@ -877,8 +905,9 @@ impl std::fmt::Debug for PyErr {
 
 impl std::fmt::Display for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
-            let value = self.value(py);
+            let value = self.value_bound(py);
             let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
             write!(f, "{}", type_name)?;
             if let Ok(s) = value.str() {
@@ -1043,7 +1072,6 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::types::any::PyAnyMethods;
     use crate::{PyErr, PyNativeType, PyTypeInfo, Python};
 
     #[test]
@@ -1237,6 +1265,7 @@ mod tests {
 
     #[test]
     fn warnings() {
+        use crate::types::any::PyAnyMethods;
         // Note: although the warning filter is interpreter global, keeping the
         // GIL locked should prevent effects to be visible to other testing
         // threads.
@@ -1284,7 +1313,7 @@ mod tests {
             )
             .unwrap_err();
             assert!(err
-                .value(py)
+                .value_bound(py)
                 .getattr("args")
                 .unwrap()
                 .get_item(0)
