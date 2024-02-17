@@ -9,7 +9,6 @@
 //! yourself to import Python classes that are ultimately derived from
 //! `BaseException`.
 
-use crate::types::any::PyAnyMethods;
 use crate::{ffi, Bound, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
@@ -641,20 +640,20 @@ impl PyUnicodeDecodeError {
         range: ops::Range<usize>,
         reason: &CStr,
     ) -> PyResult<Bound<'p, PyUnicodeDecodeError>> {
-        let bound = unsafe {
-            Bound::from_owned_ptr_or_err(
-                py,
-                ffi::PyUnicodeDecodeError_Create(
-                    encoding.as_ptr(),
-                    input.as_ptr() as *const c_char,
-                    input.len() as ffi::Py_ssize_t,
-                    range.start as ffi::Py_ssize_t,
-                    range.end as ffi::Py_ssize_t,
-                    reason.as_ptr(),
-                ),
+        use crate::ffi_ptr_ext::FfiPtrExt;
+        use crate::py_result_ext::PyResultExt;
+        unsafe {
+            ffi::PyUnicodeDecodeError_Create(
+                encoding.as_ptr(),
+                input.as_ptr() as *const c_char,
+                input.len() as ffi::Py_ssize_t,
+                range.start as ffi::Py_ssize_t,
+                range.end as ffi::Py_ssize_t,
+                reason.as_ptr(),
             )
-        };
-        Ok(bound?.downcast_into()?)
+            .assume_owned_or_err(py)
+        }
+        .downcast_into()
     }
 
     /// Deprecated form of [`PyUnicodeDecodeError::new_utf8_bound`].
