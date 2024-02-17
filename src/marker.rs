@@ -826,6 +826,13 @@ impl<'py> Python<'py> {
     }
 
     /// Registers the object in the release pool, and tries to downcast to specific type.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`Python::checked_cast_as` will be replaced by `PyObject::downcast_bound` in a future PyO3 version"
+        )
+    )]
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
     where
         T: PyTypeCheck<AsRefTarget = T>,
@@ -839,6 +846,13 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`Python::cast_as` will be replaced by `PyObject::downcast_bound_unchecked` in a future PyO3 version"
+        )
+    )]
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
     where
         T: HasPyGilRef<AsRefTarget = T>,
