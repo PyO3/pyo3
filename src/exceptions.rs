@@ -9,7 +9,7 @@
 //! yourself to import Python classes that are ultimately derived from
 //! `BaseException`.
 
-use crate::{ffi, PyResult, Python};
+use crate::{ffi, Bound, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
 use std::os::raw::c_char;
@@ -22,6 +22,7 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
+                #[allow(deprecated)]
                 $crate::PyErr::from_value(err)
             }
         }
@@ -613,7 +614,14 @@ impl_windows_native_exception!(
 );
 
 impl PyUnicodeDecodeError {
-    /// Creates a Python `UnicodeDecodeError`.
+    /// Deprecated form of [`PyUnicodeDecodeError::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyUnicodeDecodeError::new` will be replaced by `PyUnicodeDecodeError::new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new<'p>(
         py: Python<'p>,
         encoding: &CStr,
@@ -621,16 +629,47 @@ impl PyUnicodeDecodeError {
         range: ops::Range<usize>,
         reason: &CStr,
     ) -> PyResult<&'p PyUnicodeDecodeError> {
+        Ok(PyUnicodeDecodeError::new_bound(py, encoding, input, range, reason)?.into_gil_ref())
+    }
+
+    /// Creates a Python `UnicodeDecodeError`.
+    pub fn new_bound<'p>(
+        py: Python<'p>,
+        encoding: &CStr,
+        input: &[u8],
+        range: ops::Range<usize>,
+        reason: &CStr,
+    ) -> PyResult<Bound<'p, PyUnicodeDecodeError>> {
+        use crate::ffi_ptr_ext::FfiPtrExt;
+        use crate::py_result_ext::PyResultExt;
         unsafe {
-            py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
+            ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
                 input.as_ptr() as *const c_char,
                 input.len() as ffi::Py_ssize_t,
                 range.start as ffi::Py_ssize_t,
                 range.end as ffi::Py_ssize_t,
                 reason.as_ptr(),
-            ))
+            )
+            .assume_owned_or_err(py)
         }
+        .downcast_into()
+    }
+
+    /// Deprecated form of [`PyUnicodeDecodeError::new_utf8_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyUnicodeDecodeError::new_utf8` will be replaced by `PyUnicodeDecodeError::new_utf8_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn new_utf8<'p>(
+        py: Python<'p>,
+        input: &[u8],
+        err: std::str::Utf8Error,
+    ) -> PyResult<&'p PyUnicodeDecodeError> {
+        Ok(PyUnicodeDecodeError::new_utf8_bound(py, input, err)?.into_gil_ref())
     }
 
     /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
@@ -646,7 +685,7 @@ impl PyUnicodeDecodeError {
     /// Python::with_gil(|py| {
     ///     let invalid_utf8 = b"fo\xd8o";
     ///     let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-    ///     let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)?;
+    ///     let decode_err = PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)?;
     ///     assert_eq!(
     ///         decode_err.to_string(),
     ///         "'utf-8' codec can't decode byte 0xd8 in position 2: invalid utf-8"
@@ -654,13 +693,13 @@ impl PyUnicodeDecodeError {
     ///     Ok(())
     /// })
     /// # }
-    pub fn new_utf8<'p>(
+    pub fn new_utf8_bound<'p>(
         py: Python<'p>,
         input: &[u8],
         err: std::str::Utf8Error,
-    ) -> PyResult<&'p PyUnicodeDecodeError> {
+    ) -> PyResult<Bound<'p, PyUnicodeDecodeError>> {
         let pos = err.valid_up_to();
-        PyUnicodeDecodeError::new(
+        PyUnicodeDecodeError::new_bound(
             py,
             CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
             input,
@@ -745,7 +784,7 @@ macro_rules! test_exception {
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value: &$exc_ty = err.value(py).downcast().unwrap();
+                let value: &$exc_ty = err.value_bound(py).clone().into_gil_ref().downcast().unwrap();
                 assert!(value.source().is_none());
 
                 err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
@@ -1025,14 +1064,14 @@ mod tests {
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         Python::with_gil(|py| {
-            let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
+            let decode_err = PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err).unwrap();
             assert_eq!(
                 format!("{:?}", decode_err),
                 "UnicodeDecodeError('utf-8', b'fo\\xd8o', 2, 3, 'invalid utf-8')"
             );
 
             // Restoring should preserve the same error
-            let e: PyErr = decode_err.into();
+            let e = PyErr::from_value_bound(decode_err.into_any());
             e.restore(py);
 
             assert_eq!(
@@ -1081,7 +1120,11 @@ mod tests {
         let invalid_utf8 = b"fo\xd8o";
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-        PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
+        PyErr::from_value_bound(
+            PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)
+                .unwrap()
+                .into_any(),
+        )
     });
     test_exception!(PyUnicodeEncodeError, |py| py
         .eval_bound("chr(40960).encode('ascii')", None, None)

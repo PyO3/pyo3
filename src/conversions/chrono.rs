@@ -590,7 +590,7 @@ mod tests {
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect
-            let msg = res.value(py).repr().unwrap().to_string();
+            let msg = res.value_bound(py).repr().unwrap().to_string();
             assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
         });
     }
@@ -605,7 +605,7 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<NaiveDateTime> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime without tzinfo')"
             );
         });
@@ -620,14 +620,14 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<Utc>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
 
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<FixedOffset>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
         });
