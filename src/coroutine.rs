@@ -135,7 +135,7 @@ impl Coroutine {
     #[getter]
     fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
         match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.bind(py).to_str()?)
+            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.bind(py).to_cow()?)
                 .as_str()
                 .into_py(py)),
             (Some(name), None) => Ok(name.clone_ref(py)),
