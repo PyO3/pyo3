@@ -54,11 +54,11 @@ impl ToPyObject for OsStr {
 
 impl FromPyObject<'_> for OsString {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        use crate::types::bytes::PyBytesMethods;
         let pystring = ob.downcast::<PyString>()?;
 
         #[cfg(not(windows))]
         {
+            use crate::types::bytes::PyBytesMethods;
             // Decode from Python's lossless bytes string representation back into raw bytes
             let fs_encoded_bytes = unsafe {
                 crate::Py::<crate::types::PyBytes>::from_owned_ptr(
