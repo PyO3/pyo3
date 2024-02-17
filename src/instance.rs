@@ -115,7 +115,7 @@ impl<'py> Bound<'py, PyAny> {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
 
-    /// Constructs a new `Bound<'py, PyAny>` from a pointer. Returns `None`` if `ptr` is null.
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
     ///
     /// # Safety
     ///
@@ -137,6 +137,42 @@ impl<'py> Bound<'py, PyAny> {
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
+
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
+    /// Panics if `ptr` is null.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be a valid pointer to a Python object
+    pub unsafe fn from_borrowed_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self(py, ManuallyDrop::new(Py::from_borrowed_ptr(py, ptr)))
+    }
+
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
+    /// Returns `None` if `ptr` is null.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    pub unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<Self> {
+        Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
+
+    /// Constructs a new `Bound<'py, PyAny>` from a pointer by creating a new Python reference.
+    /// Returns an `Err` by calling `PyErr::fetch` if `ptr` is null.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be a valid pointer to a Python object, or null
+    pub unsafe fn from_borrowed_ptr_or_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        Py::from_borrowed_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
 
     /// This slightly strange method is used to obtain `&Bound<PyAny>` from a pointer in macro code
@@ -482,6 +518,9 @@ impl<'py, T> Borrowed<'_, 'py, T> {
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Panics if `ptr` is null.
     ///
+    /// Prefer to use [`Bound::from_borrowed_ptr_or_err`], as that avoids the major safety risk
+    /// of needing to precisely define the lifetime `'a` for which the borrow is valid.
+    ///
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object
@@ -497,6 +536,9 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
 
     /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
     ///
+    /// Prefer to use [`Bound::from_borrowed_ptr_or_opt`], as that avoids the major safety risk
+    /// of needing to precisely define the lifetime `'a` for which the borrow is valid.
+    ///
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
@@ -509,6 +551,9 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
 
     /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Returns an `Err` by calling `PyErr::fetch`
     /// if `ptr` is null.
+    ///
+    /// Prefer to use [`Bound::from_borrowed_ptr`], as that avoids the major safety risk
+    /// of needing to precisely define the lifetime `'a` for which the borrow is valid.
     ///
     /// # Safety
     ///
@@ -1971,6 +2016,45 @@ a = A()
             let any = obj.clone().into_any();
             assert_eq!(any.as_ptr(), obj.as_ptr());
         });
+    }
+
+    #[test]
+    fn bound_from_borrowed_ptr_constructors() {
+        // More detailed tests of the underlying semantics in pycell.rs
+        Python::with_gil(|py| {
+            fn check_drop<'py>(
+                py: Python<'py>,
+                method: impl FnOnce(*mut ffi::PyObject) -> Bound<'py, PyAny>,
+            ) {
+                let mut dropped = false;
+                let capsule = PyCapsule::new_bound_with_destructor(
+                    py,
+                    (&mut dropped) as *mut _ as usize,
+                    None,
+                    |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
+                )
+                .unwrap();
+
+                let bound = method(capsule.as_ptr());
+                assert_eq!(dropped, false);
+
+                // creating the bound should have increased the refcount
+                drop(capsule);
+                assert_eq!(dropped, false);
+
+                // dropping the bound should now also decrease the refcount and free the object
+                drop(bound);
+                assert_eq!(dropped, true);
+            }
+
+            check_drop(py, |ptr| unsafe { Bound::from_borrowed_ptr(py, ptr) });
+            check_drop(py, |ptr| unsafe {
+                Bound::from_borrowed_ptr_or_opt(py, ptr).unwrap()
+            });
+            check_drop(py, |ptr| unsafe {
+                Bound::from_borrowed_ptr_or_err(py, ptr).unwrap()
+            });
+        })
     }
 
     #[test]
