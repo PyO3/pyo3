@@ -63,10 +63,10 @@ impl PyType {
     /// # Safety
     /// - The pointer must be a valid non-null reference to a `PyTypeObject`
     #[inline]
-    pub unsafe fn from_borrowed_type_ptr<'py>(
-        py: Python<'py>,
+    pub unsafe fn from_borrowed_type_ptr(
+        py: Python<'_>,
         p: *mut ffi::PyTypeObject,
-    ) -> Bound<'py, PyType> {
+    ) -> Bound<'_, PyType> {
         Borrowed::from_ptr_unchecked(py, p.cast())
             .downcast_unchecked()
             .to_owned()
