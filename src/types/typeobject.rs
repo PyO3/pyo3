@@ -19,7 +19,7 @@ impl PyType {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "`new` will be replaced by `new_bound` in a future PyO3 version"
+            note = "`PyType::new` will be replaced by `PyType::new_bound` in a future PyO3 version"
         )
     )]
     pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
@@ -52,22 +52,25 @@ impl PyType {
         )
     )]
     pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
-        Self::from_type_ptr_bound(py, &p).to_owned().into_gil_ref()
+        Self::from_type_ptr_bound(py, p).into_gil_ref()
     }
 
     /// Converts the given FFI pointer into `&Bound<PyType>`, to use in safe code.
     ///
+    /// This does not take ownership of the FFI pointer's "reference". The target type
+    /// object will have its reference count increased by 1, which will be released when
+    /// the `Bound` is dropped.
+    ///
     /// # Safety
-    /// - The pointer must be non-null.
-    /// - The pointer must be valid for the entire of the lifetime 'a for which the reference is used,
-    ///   as with `std::slice::from_raw_parts`.
+    /// - The pointer must be a valid non-null reference to a `PyTypeObject`
     #[inline]
-    pub unsafe fn from_type_ptr_bound<'a, 'py>(
+    pub unsafe fn from_type_ptr_bound<'py>(
         py: Python<'py>,
-        p: &'a *mut ffi::PyTypeObject,
-    ) -> &'a Bound<'py, PyType> {
-        let object_ptr = &*(p as *const *mut ffi::PyTypeObject as *const *mut ffi::PyObject);
-        Bound::ref_from_ptr(py, object_ptr).downcast_unchecked()
+        p: *mut ffi::PyTypeObject,
+    ) -> Bound<'py, PyType> {
+        Borrowed::from_ptr_unchecked(py, p.cast())
+            .downcast_unchecked()
+            .to_owned()
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
