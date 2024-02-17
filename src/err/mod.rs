@@ -829,13 +829,9 @@ impl PyErr {
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
-        let obj = unsafe {
-            Bound::from_owned_ptr_or_opt(
-                py,
-                ffi::PyException_GetCause(self.value_bound(py).as_ptr()),
-            )
-        };
-        obj.map(|inner| Self::from_value_bound(inner))
+        use crate::ffi_ptr_ext::FfiPtrExt;
+        unsafe { ffi::PyException_GetCause(self.value_bound(py).as_ptr()).assume_owned_or_opt(py) }
+            .map(Self::from_value_bound)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
