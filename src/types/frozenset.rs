@@ -11,7 +11,7 @@ use std::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
 pub struct PyFrozenSetBuilder<'py> {
-    py_frozen_set: &'py PyFrozenSet,
+    py_frozen_set: Bound<'py, PyFrozenSet>,
 }
 
 impl<'py> PyFrozenSetBuilder<'py> {
@@ -20,7 +20,7 @@ impl<'py> PyFrozenSetBuilder<'py> {
     /// panic when running out of memory.
     pub fn new(py: Python<'py>) -> PyResult<PyFrozenSetBuilder<'py>> {
         Ok(PyFrozenSetBuilder {
-            py_frozen_set: PyFrozenSet::empty(py)?,
+            py_frozen_set: PyFrozenSet::empty_bound(py)?,
         })
     }
 
@@ -29,17 +29,29 @@ impl<'py> PyFrozenSetBuilder<'py> {
     where
         K: ToPyObject,
     {
-        fn inner(frozenset: &PyFrozenSet, key: PyObject) -> PyResult<()> {
+        fn inner(frozenset: &Bound<'_, PyFrozenSet>, key: PyObject) -> PyResult<()> {
             err::error_on_minusone(frozenset.py(), unsafe {
                 ffi::PySet_Add(frozenset.as_ptr(), key.as_ptr())
             })
         }
 
-        inner(self.py_frozen_set, key.to_object(self.py_frozen_set.py()))
+        inner(&self.py_frozen_set, key.to_object(self.py_frozen_set.py()))
+    }
+
+    /// Deprecated form of [`PyFrozenSetBuilder::finalize_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyFrozenSetBuilder::finalize` will be replaced by `PyFrozenSetBuilder::finalize_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn finalize(self) -> &'py PyFrozenSet {
+        self.finalize_bound().into_gil_ref()
     }
 
     /// Finish building the set and take ownership of its current value
-    pub fn finalize(self) -> &'py PyFrozenSet {
+    pub fn finalize_bound(self) -> Bound<'py, PyFrozenSet> {
         self.py_frozen_set
     }
 }
@@ -372,7 +384,7 @@ mod tests {
             builder.add(2).unwrap();
 
             // finalize it
-            let set = builder.finalize();
+            let set = builder.finalize_bound();
 
             assert!(set.contains(1).unwrap());
             assert!(set.contains(2).unwrap());
