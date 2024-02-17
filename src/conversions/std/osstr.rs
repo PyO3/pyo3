@@ -54,6 +54,7 @@ impl ToPyObject for OsStr {
 
 impl FromPyObject<'_> for OsString {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        use crate::types::bytes::PyBytesMethods;
         let pystring = ob.downcast::<PyString>()?;
 
         #[cfg(not(windows))]
@@ -68,13 +69,11 @@ impl FromPyObject<'_> for OsString {
 
             // Create an OsStr view into the raw bytes from Python
             #[cfg(target_os = "wasi")]
-            let os_str: &OsStr = std::os::wasi::ffi::OsStrExt::from_bytes(
-                fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
-            );
+            let os_str: &OsStr =
+                std::os::wasi::ffi::OsStrExt::from_bytes(fs_encoded_bytes.bind(ob.py()).as_bytes());
             #[cfg(not(target_os = "wasi"))]
-            let os_str: &OsStr = std::os::unix::ffi::OsStrExt::from_bytes(
-                fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
-            );
+            let os_str: &OsStr =
+                std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.bind(ob.py()).as_bytes());
 
             Ok(os_str.to_os_string())
         }

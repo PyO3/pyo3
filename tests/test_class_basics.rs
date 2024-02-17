@@ -235,7 +235,10 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
         // Accessing the value inside this thread should not panic
         let caught_panic =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> PyResult<_> {
-                assert_eq!(obj.as_ref(py).getattr("value")?.extract::<usize>()?, 5);
+                assert_eq!(
+                    obj.bind(py).as_any().getattr("value")?.extract::<usize>()?,
+                    5
+                );
                 Ok(())
             }))
             .is_err();

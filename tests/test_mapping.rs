@@ -123,7 +123,7 @@ fn mapping_is_not_sequence() {
 
         PyMapping::register::<Mapping>(py).unwrap();
 
-        assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
-        assert!(m.as_ref(py).downcast::<PySequence>().is_err());
+        assert!(m.bind(py).as_any().downcast::<PyMapping>().is_ok());
+        assert!(m.bind(py).as_any().downcast::<PySequence>().is_err());
     });
 }

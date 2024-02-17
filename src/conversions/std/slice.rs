@@ -94,10 +94,10 @@ mod tests {
                 .unwrap_err();
 
             let cow = Cow::<[u8]>::Borrowed(b"foobar").to_object(py);
-            assert!(cow.as_ref(py).is_instance_of::<PyBytes>());
+            assert!(cow.bind(py).is_instance_of::<PyBytes>());
 
             let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
-            assert!(cow.as_ref(py).is_instance_of::<PyBytes>());
+            assert!(cow.bind(py).is_instance_of::<PyBytes>());
         });
     }
 }

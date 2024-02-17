@@ -1,4 +1,4 @@
-use crate::{PyAny, PyObject};
+use crate::{Bound, PyAny, PyObject};
 use parking_lot::Mutex;
 use std::future::Future;
 use std::pin::Pin;
@@ -68,9 +68,9 @@ impl Future for Cancelled<'_> {
 pub struct ThrowCallback(Arc<Mutex<Inner>>);
 
 impl ThrowCallback {
-    pub(super) fn throw(&self, exc: &PyAny) {
+    pub(super) fn throw(&self, exc: Bound<'_, PyAny>) {
         let mut inner = self.0.lock();
-        inner.exception = Some(exc.into());
+        inner.exception = Some(exc.unbind());
         if let Some(waker) = inner.waker.take() {
             waker.wake();
         }
