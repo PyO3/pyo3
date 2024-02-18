@@ -149,7 +149,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -175,7 +175,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
