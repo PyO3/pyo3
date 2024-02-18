@@ -117,12 +117,11 @@ fn is_subclass_and_is_instance() {
         assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
         assert!(sub_ty.is_subclass(&base_ty).unwrap());
 
-        // FIXME: Whats the new API to do this?
-        let obj = PyCell::new(py, SubClass::new()).unwrap();
+        let obj = Bound::new(py, SubClass::new()).unwrap().into_any();
         assert!(obj.is_instance_of::<SubClass>());
         assert!(obj.is_instance_of::<BaseClass>());
-        assert!(obj.is_instance(sub_ty.as_gil_ref()).unwrap());
-        assert!(obj.is_instance(base_ty.as_gil_ref()).unwrap());
+        assert!(obj.is_instance(&sub_ty).unwrap());
+        assert!(obj.is_instance(&base_ty).unwrap());
     });
 }
 
