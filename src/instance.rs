@@ -2036,15 +2036,15 @@ a = A()
                 .unwrap();
 
                 let bound = method(capsule.as_ptr());
-                assert_eq!(dropped, false);
+                assert!(!dropped);
 
                 // creating the bound should have increased the refcount
                 drop(capsule);
-                assert_eq!(dropped, false);
+                assert!(!dropped);
 
                 // dropping the bound should now also decrease the refcount and free the object
                 drop(bound);
-                assert_eq!(dropped, true);
+                assert!(dropped);
             }
 
             check_drop(py, |ptr| unsafe { Bound::from_borrowed_ptr(py, ptr) });
@@ -2076,11 +2076,11 @@ a = A()
 
                 let ptr = &capsule.as_ptr();
                 let _borrowed = method(ptr);
-                assert_eq!(dropped, false);
+                assert!(!dropped);
 
                 // creating the borrow should not have increased the refcount
                 drop(capsule);
-                assert_eq!(dropped, true);
+                assert!(dropped);
             }
 
             check_drop(py, |&ptr| unsafe { Borrowed::from_ptr(py, ptr) });
