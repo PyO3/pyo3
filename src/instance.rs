@@ -988,7 +988,7 @@ where
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
-        self.as_ref(py).borrow()
+        self.bind(py).borrow()
     }
 
     /// Mutably borrows the value `T`.
@@ -1027,7 +1027,7 @@ where
     where
         T: PyClass<Frozen = False>,
     {
-        self.as_ref(py).borrow_mut()
+        self.bind(py).borrow_mut()
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -1041,7 +1041,7 @@ where
     /// Equivalent to `self.as_ref(py).borrow_mut()` -
     /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
-        self.as_ref(py).try_borrow()
+        self.bind(py).try_borrow()
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -1059,7 +1059,7 @@ where
     where
         T: PyClass<Frozen = False>,
     {
-        self.as_ref(py).try_borrow_mut()
+        self.bind(py).try_borrow_mut()
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
@@ -1666,7 +1666,7 @@ where
     T::AsRefTarget: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Python::with_gil(|py| std::fmt::Display::fmt(self.as_ref(py), f))
+        Python::with_gil(|py| std::fmt::Display::fmt(self.bind(py), f))
     }
 }
 

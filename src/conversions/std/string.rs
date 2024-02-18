@@ -159,6 +159,7 @@ impl FromPyObject<'_> for char {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::any::PyAnyMethods;
     use crate::Python;
     use crate::{IntoPy, PyObject, ToPyObject};
     use std::borrow::Cow;
@@ -200,7 +201,7 @@ mod tests {
             let s = "Hello Python";
             let py_string = s.to_object(py);
 
-            let s2: &str = py_string.as_ref(py).extract().unwrap();
+            let s2: &str = py_string.bind(py).extract().unwrap();
             assert_eq!(s, s2);
         })
     }
@@ -210,7 +211,7 @@ mod tests {
         Python::with_gil(|py| {
             let ch = '😃';
             let py_string = ch.to_object(py);
-            let ch2: char = py_string.as_ref(py).extract().unwrap();
+            let ch2: char = py_string.bind(py).extract().unwrap();
             assert_eq!(ch, ch2);
         })
     }
@@ -220,7 +221,7 @@ mod tests {
         Python::with_gil(|py| {
             let s = "Hello Python";
             let py_string = s.to_object(py);
-            let err: crate::PyResult<char> = py_string.as_ref(py).extract();
+            let err: crate::PyResult<char> = py_string.bind(py).extract();
             assert!(err
                 .unwrap_err()
                 .to_string()

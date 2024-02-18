@@ -87,7 +87,8 @@ mod test_ipaddr {
                 };
 
                 let pyobj = ip.into_py(py);
-                let repr = pyobj.as_ref(py).repr().unwrap().to_string_lossy();
+                let repr = pyobj.bind(py).repr().unwrap();
+                let repr = repr.to_string_lossy();
                 assert_eq!(repr, format!("{}('{}')", py_cls, ip));
 
                 let ip2: IpAddr = pyobj.extract(py).unwrap();
