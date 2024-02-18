@@ -830,7 +830,7 @@ impl<'py> Python<'py> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "`Python::checked_cast_as` will be replaced by `PyObject::downcast_bound` in a future PyO3 version"
+            note = "part of the deprecated GIL Ref API; to migrate use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
         )
     )]
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
@@ -850,7 +850,7 @@ impl<'py> Python<'py> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "`Python::cast_as` will be replaced by `PyObject::downcast_bound_unchecked` in a future PyO3 version"
+            note = "part of the deprecated GIL Ref API; to migrate use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
         )
     )]
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
