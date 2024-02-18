@@ -74,7 +74,7 @@ impl ClassMethod {
     #[classmethod]
     /// Test class method.
     fn method(cls: &Bound<'_, PyType>) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.as_gil_ref().qualname()?))
+        Ok(format!("{}.method()!", cls.qualname()?))
     }
 
     #[classmethod]
@@ -85,10 +85,8 @@ impl ClassMethod {
 
     #[classmethod]
     fn method_owned(cls: Py<PyType>) -> PyResult<String> {
-        Ok(format!(
-            "{}.method_owned()!",
-            Python::with_gil(|gil| cls.as_ref(gil).qualname())?
-        ))
+        let qualname = Python::with_gil(|gil| cls.bind(gil).qualname())?;
+        Ok(format!("{}.method_owned()!", qualname))
     }
 }
 

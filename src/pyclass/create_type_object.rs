@@ -11,6 +11,7 @@ use crate::{
         pymethods::{get_doc, get_name, Getter, Setter},
         trampoline::trampoline,
     },
+    types::typeobject::PyTypeMethods,
     types::PyType,
     Py, PyCell, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
@@ -435,7 +436,7 @@ impl PyTypeBuilder {
         bpo_45315_workaround(py, class_name);
 
         for cleanup in std::mem::take(&mut self.cleanup) {
-            cleanup(&self, type_object.as_ref(py).as_type_ptr());
+            cleanup(&self, type_object.bind(py).as_type_ptr());
         }
 
         Ok(PyClassTypeObject {
