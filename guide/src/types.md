@@ -92,6 +92,7 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 # use pyo3::prelude::*;
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
+# #[allow(deprecated)]
 let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
 
 // To &PyCell<MyClass> with PyAny::downcast
@@ -182,6 +183,7 @@ let _: &PyList = list.as_ref(py);
 
 # let list_clone = list.clone(); // Because `.into_ref()` will consume `list`.
 // To &PyList with Py::into_ref() (moves the pointer into PyO3's object storage)
+# #[allow(deprecated)]
 let _: &PyList = list.into_ref(py);
 
 # let list = list_clone;
@@ -204,6 +206,7 @@ let _: &PyCell<MyClass> = my_class.as_ref(py);
 
 # let my_class_clone = my_class.clone(); // Because `.into_ref()` will consume `my_class`.
 // To &PyCell<MyClass> with Py::into_ref() (moves the pointer into PyO3's object storage)
+# #[allow(deprecated)]
 let _: &PyCell<MyClass> = my_class.into_ref(py);
 
 # let my_class = my_class_clone.clone();

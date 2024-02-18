@@ -1036,6 +1036,7 @@ mod tests {
         use std::error::Error;
 
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let exc = py
                 .run_bound(
                     "raise Exception('banana') from TypeError('peach')",
