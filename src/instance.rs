@@ -914,6 +914,7 @@ where
     /// #
     /// Python::with_gil(|py| {
     ///     let list: Py<PyList> = PyList::empty_bound(py).into();
+    ///     # #[allow(deprecated)]
     ///     let list: &PyList = list.as_ref(py);
     ///     assert_eq!(list.len(), 0);
     /// });
@@ -929,10 +930,18 @@ where
     ///
     /// Python::with_gil(|py| {
     ///     let my_class: Py<MyClass> = Py::new(py, MyClass {}).unwrap();
+    ///     # #[allow(deprecated)]
     ///     let my_class_cell: &PyCell<MyClass> = my_class.as_ref(py);
     ///     assert!(my_class_cell.try_borrow().is_ok());
     /// });
     /// ```
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`Py::as_ref` will be replaced by `Py::bind` in a future PyO3 version"
+        )
+    )]
     pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py T::AsRefTarget {
         let any = self.as_ptr() as *const PyAny;
         unsafe { PyNativeType::unchecked_downcast(&*any) }

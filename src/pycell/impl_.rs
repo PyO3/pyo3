@@ -284,6 +284,7 @@ mod tests {
             )
             .unwrap();
 
+            #[allow(deprecated)]
             let mmm_cell: &PyCell<MutableChildOfMutableChildOfMutableBase> = mmm.as_ref(py);
 
             let mmm_refmut = mmm_cell.borrow_mut();
@@ -335,6 +336,7 @@ mod tests {
             )
             .unwrap();
 
+            #[allow(deprecated)]
             let mmm_cell: &PyCell<MutableChildOfMutableChildOfMutableBase> = mmm.as_ref(py);
 
             let mmm_refmut = mmm_cell.borrow();
