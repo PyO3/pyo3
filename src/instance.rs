@@ -195,8 +195,8 @@ where
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
-    pub fn borrow(&'py self) -> PyRef<'py, T> {
-        self.get_cell().borrow()
+    pub fn borrow(&self) -> PyRef<'py, T> {
+        PyCell::borrow_bound(self)
     }
 
     /// Mutably borrows the value `T`.
@@ -228,11 +228,11 @@ where
     /// # Panics
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
-    pub fn borrow_mut(&'py self) -> PyRefMut<'py, T>
+    pub fn borrow_mut(&self) -> PyRefMut<'py, T>
     where
         T: PyClass<Frozen = False>,
     {
-        self.get_cell().borrow_mut()
+        PyCell::borrow_mut_bound(self)
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -242,8 +242,8 @@ where
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
-    pub fn try_borrow(&'py self) -> Result<PyRef<'py, T>, PyBorrowError> {
-        self.get_cell().try_borrow()
+    pub fn try_borrow(&self) -> Result<PyRef<'py, T>, PyBorrowError> {
+        PyCell::try_borrow_bound(self)
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -251,11 +251,11 @@ where
     /// The borrow lasts while the returned [`PyRefMut`] exists.
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
-    pub fn try_borrow_mut(&'py self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
+    pub fn try_borrow_mut(&self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
     where
         T: PyClass<Frozen = False>,
     {
-        self.get_cell().try_borrow_mut()
+        PyCell::try_borrow_mut_bound(self)
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.

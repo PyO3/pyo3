@@ -4,6 +4,7 @@ use crate::err::{self, PyDowncastError, PyResult};
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{
     ffi, gil, Bound, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
@@ -337,9 +338,8 @@ impl<'py, T> FromPyObject<'py> for PyRef<'py, T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        let cell: &PyCell<T> = obj.downcast()?;
-        cell.try_borrow().map_err(Into::into)
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        obj.downcast::<T>()?.try_borrow().map_err(Into::into)
     }
 }
 
@@ -347,9 +347,8 @@ impl<'py, T> FromPyObject<'py> for PyRefMut<'py, T>
 where
     T: PyClass<Frozen = False>,
 {
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        let cell: &PyCell<T> = obj.downcast()?;
-        cell.try_borrow_mut().map_err(Into::into)
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
     }
 }
 
