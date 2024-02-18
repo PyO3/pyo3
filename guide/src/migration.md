@@ -217,6 +217,28 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 - `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
+- To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+
+```rust,ignore
+let gil_ref: &PyAny = ...;
+let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
+```
+
+> Because of the ownership changes, code which uses `.as_ptr()` to convert `&PyAny` and other GIL Refs to a `*mut pyo3_ffi::PyObject` should take care to avoid creating dangling pointers now that `Bound<PyAny>` carries ownership.
+>
+> For example, the following pattern with `Option<&PyAny>` can easily create a dangling pointer when migrating to the `Bound<PyAny>` smart pointer:
+>
+> ```rust,ignore
+> let opt: Option<&PyAny> = ...;
+> let p: *mut ffi::PyObject = opt.map_or(std::ptr::null_mut(), |any| any.as_ptr());
+> ```
+>
+> The correct way to migrate this code is to use `.as_ref()` to avoid dropping the `Bound<PyAny>` in the `map_or` closure:
+>
+> ```rust,ignore
+> let opt: Option<Bound<PyAny>> = ...;
+> let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
+> ```
 
 #### Migrating `FromPyObject` implementations
 

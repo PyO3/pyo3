@@ -149,10 +149,10 @@ use pyo3::types::IntoPyDict;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let sys = py.import("sys")?;
+        let sys = py.import_bound("sys")?;
         let version: String = sys.getattr("version")?.extract()?;
 
-        let locals = [("os", py.import("os")?)].into_py_dict_bound(py);
+        let locals = [("os", py.import_bound("os")?)].into_py_dict_bound(py);
         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
         let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
 
@@ -196,6 +196,7 @@ about this topic.
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._
 - [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
+- [johnnycanencrypt](https://github.com/kushaldas/johnnycanencrypt) OpenPGP library with Yubikey support.
 - [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python) _Fast JSON Schema validation library._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._

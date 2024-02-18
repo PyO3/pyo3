@@ -60,7 +60,9 @@ impl BasicClass {
 
     /// Some documentation here
     #[classmethod]
-    fn classmethod(cls: &pyo3::types::PyType) -> &pyo3::types::PyType {
+    fn classmethod<'a, 'py>(
+        cls: &'a pyo3::Bound<'py, pyo3::types::PyType>,
+    ) -> &'a pyo3::Bound<'py, pyo3::types::PyType> {
         cls
     }
 
@@ -132,8 +134,10 @@ struct NewClassMethod {
 impl NewClassMethod {
     #[new]
     #[classmethod]
-    fn new(cls: &pyo3::types::PyType) -> Self {
-        Self { cls: cls.into() }
+    fn new(cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+        Self {
+            cls: cls.clone().into_any().unbind(),
+        }
     }
 }
 

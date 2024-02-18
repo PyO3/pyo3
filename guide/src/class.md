@@ -691,7 +691,7 @@ This is the equivalent of the Python decorator `@classmethod`.
 #[pymethods]
 impl MyClass {
     #[classmethod]
-    fn cls_method(cls: &PyType) -> PyResult<i32> {
+    fn cls_method(cls: &Bound<'_, PyType>) -> PyResult<i32> {
         Ok(10)
     }
 }
@@ -719,10 +719,10 @@ To create a constructor which takes a positional class argument, you can combine
 impl BaseClass {
     #[new]
     #[classmethod]
-    fn py_new<'p>(cls: &'p PyType, py: Python<'p>) -> PyResult<Self> {
+    fn py_new(cls: &Bound<'_, PyType>) -> PyResult<Self> {
         // Get an abstract attribute (presumably) declared on a subclass of this class.
-        let subclass_attr = cls.getattr("a_class_attr")?;
-        Ok(Self(subclass_attr.to_object(py)))
+        let subclass_attr: Bound<'_, PyAny> = cls.getattr("a_class_attr")?;
+        Ok(Self(subclass_attr.unbind()))
     }
 }
 ```
@@ -928,7 +928,7 @@ impl MyClass {
     // similarly for classmethod arguments, use $cls
     #[classmethod]
     #[pyo3(text_signature = "($cls, e, f)")]
-    fn my_class_method(cls: &PyType, e: i32, f: i32) -> i32 {
+    fn my_class_method(cls: &Bound<'_, PyType>, e: i32, f: i32) -> i32 {
         e + f
     }
     #[staticmethod]

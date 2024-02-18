@@ -271,7 +271,7 @@ impl<'a> Container<'a> {
                     value: expr_path, ..
                 }) => quote! {
                     Ok(#self_ty {
-                        #ident: _pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path, obj, #struct_name, #field_name)?
+                        #ident: _pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, obj, #struct_name, #field_name)?
                     })
                 },
             }
@@ -283,7 +283,7 @@ impl<'a> Container<'a> {
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => quote! (
-                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path, obj, #struct_name, 0).map(#self_ty)
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path as fn(_) -> _, obj, #struct_name, 0).map(#self_ty)
                 ),
             }
         }
@@ -298,12 +298,12 @@ impl<'a> Container<'a> {
         let fields = struct_fields.iter().zip(&field_idents).enumerate().map(|(index, (field, ident))| {
             match &field.from_py_with {
                 None => quote!(
-                    _pyo3::impl_::frompyobject::extract_tuple_struct_field(#ident, #struct_name, #index)?
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field(&#ident, #struct_name, #index)?
                 ),
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => quote! (
-                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path, #ident, #struct_name, #index)?
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path as fn(_) -> _, &#ident, #struct_name, #index)?
                 ),
             }
         });
@@ -339,12 +339,12 @@ impl<'a> Container<'a> {
             };
             let extractor = match &field.from_py_with {
                 None => {
-                    quote!(_pyo3::impl_::frompyobject::extract_struct_field(obj.#getter?, #struct_name, #field_name)?)
+                    quote!(_pyo3::impl_::frompyobject::extract_struct_field(&obj.#getter?, #struct_name, #field_name)?)
                 }
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => {
-                    quote! (_pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path, obj.#getter?, #struct_name, #field_name)?)
+                    quote! (_pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, &obj.#getter?, #struct_name, #field_name)?)
                 }
             };
 
@@ -606,10 +606,11 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     Ok(quote!(
         const _: () = {
             use #krate as _pyo3;
+            use _pyo3::prelude::PyAnyMethods;
 
             #[automatically_derived]
             impl #trait_generics _pyo3::FromPyObject<#lt_param> for #ident #generics #where_clause {
-                fn extract(obj: &#lt_param _pyo3::PyAny) -> _pyo3::PyResult<Self>  {
+                fn extract_bound(obj: &_pyo3::Bound<#lt_param, _pyo3::PyAny>) -> _pyo3::PyResult<Self>  {
                     #derives
                 }
             }

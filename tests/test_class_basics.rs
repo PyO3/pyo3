@@ -230,12 +230,12 @@ impl UnsendableChild {
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
     let obj = Python::with_gil(|py| -> PyResult<_> {
-        let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
+        let obj: Py<T> = PyType::new_bound::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
         let caught_panic =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> PyResult<_> {
-                assert_eq!(obj.as_ref(py).getattr("value")?.extract::<usize>()?, 5);
+                assert_eq!(obj.getattr(py, "value")?.extract::<usize>(py)?, 5);
                 Ok(())
             }))
             .is_err();
@@ -284,7 +284,7 @@ fn panic_unsendable_child() {
     test_unsendable::<UnsendableChild>().unwrap();
 }
 
-fn get_length(obj: &PyAny) -> PyResult<usize> {
+fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
     let length = obj.len()?;
 
     Ok(length)
@@ -299,7 +299,18 @@ impl ClassWithFromPyWithMethods {
         argument
     }
     #[classmethod]
-    fn classmethod(_cls: &PyType, #[pyo3(from_py_with = "PyAny::len")] argument: usize) -> usize {
+    fn classmethod(
+        _cls: &Bound<'_, PyType>,
+        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] argument: usize,
+    ) -> usize {
+        argument
+    }
+
+    #[classmethod]
+    fn classmethod_gil_ref(
+        _cls: &PyType,
+        #[pyo3(from_py_with = "PyAny::len")] argument: usize,
+    ) -> usize {
         argument
     }
 
@@ -322,6 +333,7 @@ fn test_pymethods_from_py_with() {
 
         assert instance.instance_method(arg) == 2
         assert instance.classmethod(arg) == 2
+        assert instance.classmethod_gil_ref(arg) == 2
         assert instance.staticmethod(arg) == 2
         "#
         );

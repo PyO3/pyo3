@@ -47,8 +47,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
-    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
-    PyTzInfo, PyTzInfoAccess,
+    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
+    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
@@ -81,7 +81,7 @@ impl ToPyObject for Duration {
             // We pass true as the `normalize` parameter since we'd need to do several checks here to
             // avoid that, and it shouldn't have a big performance impact.
             // The seconds and microseconds cast should never overflow since it's at most the number of seconds per day
-            PyDelta::new(
+            PyDelta::new_bound(
                 py,
                 days.try_into().unwrap_or(i32::MAX),
                 secs.try_into().unwrap(),
@@ -144,7 +144,7 @@ impl ToPyObject for NaiveDate {
         let DateArgs { year, month, day } = self.into();
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDate::new(py, year, month, day)
+            PyDate::new_bound(py, year, month, day)
                 .expect("failed to construct date")
                 .into()
         }
@@ -189,15 +189,16 @@ impl ToPyObject for NaiveTime {
             truncated_leap_second,
         } = self.into();
         #[cfg(not(Py_LIMITED_API))]
-        let time = PyTime::new(py, hour, min, sec, micro, None).expect("Failed to construct time");
+        let time =
+            PyTime::new_bound(py, hour, min, sec, micro, None).expect("Failed to construct time");
         #[cfg(Py_LIMITED_API)]
         let time = DatetimeTypes::get(py)
             .time
-            .as_ref(py)
+            .bind(py)
             .call1((hour, min, sec, micro))
             .expect("failed to construct datetime.time");
         if truncated_leap_second {
-            warn_truncated_leap_second(time);
+            warn_truncated_leap_second(&time);
         }
         time.into()
     }
@@ -264,7 +265,7 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
         // FIXME: convert to better timezone representation here than just convert to fixed offset
         // See https://github.com/PyO3/pyo3/issues/3266
         let tz = self.offset().fix().to_object(py);
-        let tz = tz.downcast(py).unwrap();
+        let tz = tz.bind(py).downcast().unwrap();
         naive_datetime_to_py_datetime(py, &self.naive_local(), Some(tz))
     }
 }
@@ -310,9 +311,9 @@ impl ToPyObject for FixedOffset {
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            let td = PyDelta::new(py, 0, seconds_offset, 0, true)
+            let td = PyDelta::new_bound(py, 0, seconds_offset, 0, true)
                 .expect("failed to construct timedelta");
-            timezone_from_offset(py, td)
+            timezone_from_offset(&td)
                 .expect("Failed to construct PyTimezone")
                 .into()
         }
@@ -366,7 +367,7 @@ impl FromPyObject<'_> for FixedOffset {
 
 impl ToPyObject for Utc {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        timezone_utc(py).into()
+        timezone_utc_bound(py).into()
     }
 }
 
@@ -378,7 +379,7 @@ impl IntoPy<PyObject> for Utc {
 
 impl FromPyObject<'_> for Utc {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
-        let py_utc = timezone_utc(ob.py());
+        let py_utc = timezone_utc_bound(ob.py());
         if ob.eq(py_utc)? {
             Ok(Utc)
         } else {
@@ -430,8 +431,8 @@ impl From<&NaiveTime> for TimeArgs {
 fn naive_datetime_to_py_datetime(
     py: Python<'_>,
     naive_datetime: &NaiveDateTime,
-    #[cfg(not(Py_LIMITED_API))] tzinfo: Option<&PyTzInfo>,
-    #[cfg(Py_LIMITED_API)] tzinfo: Option<&PyAny>,
+    #[cfg(not(Py_LIMITED_API))] tzinfo: Option<&Bound<'_, PyTzInfo>>,
+    #[cfg(Py_LIMITED_API)] tzinfo: Option<&Bound<'_, PyAny>>,
 ) -> PyObject {
     let DateArgs { year, month, day } = (&naive_datetime.date()).into();
     let TimeArgs {
@@ -442,25 +443,25 @@ fn naive_datetime_to_py_datetime(
         truncated_leap_second,
     } = (&naive_datetime.time()).into();
     #[cfg(not(Py_LIMITED_API))]
-    let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, tzinfo)
+    let datetime = PyDateTime::new_bound(py, year, month, day, hour, min, sec, micro, tzinfo)
         .expect("failed to construct datetime");
     #[cfg(Py_LIMITED_API)]
     let datetime = DatetimeTypes::get(py)
         .datetime
-        .as_ref(py)
+        .bind(py)
         .call1((year, month, day, hour, min, sec, micro, tzinfo))
         .expect("failed to construct datetime.datetime");
     if truncated_leap_second {
-        warn_truncated_leap_second(datetime);
+        warn_truncated_leap_second(&datetime);
     }
     datetime.into()
 }
 
-fn warn_truncated_leap_second(obj: &PyAny) {
+fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
-    if let Err(e) = PyErr::warn(
+    if let Err(e) = PyErr::warn_bound(
         py,
-        py.get_type::<PyUserWarning>(),
+        &py.get_type::<PyUserWarning>().as_borrowed(),
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
@@ -541,15 +542,15 @@ impl DatetimeTypes {
         static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
         TYPES
             .get_or_try_init(py, || {
-                let datetime = py.import("datetime")?;
+                let datetime = py.import_bound("datetime")?;
                 let timezone = datetime.getattr("timezone")?;
                 Ok::<_, PyErr>(Self {
                     date: datetime.getattr("date")?.into(),
                     datetime: datetime.getattr("datetime")?.into(),
                     time: datetime.getattr("time")?.into(),
                     timedelta: datetime.getattr("timedelta")?.into(),
-                    timezone: timezone.into(),
                     timezone_utc: timezone.getattr("utc")?.into(),
+                    timezone: timezone.into(),
                     tzinfo: datetime.getattr("tzinfo")?.into(),
                 })
             })
@@ -558,8 +559,8 @@ impl DatetimeTypes {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn timezone_utc(py: Python<'_>) -> &PyAny {
-    DatetimeTypes::get(py).timezone_utc.as_ref(py)
+fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyAny> {
+    DatetimeTypes::get(py).timezone_utc.bind(py).clone()
 }
 
 #[cfg(test)]
@@ -589,7 +590,7 @@ mod tests {
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect
-            let msg = res.value(py).repr().unwrap().to_string();
+            let msg = res.value_bound(py).repr().unwrap().to_string();
             assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
         });
     }
@@ -604,7 +605,7 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<NaiveDateTime> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime without tzinfo')"
             );
         });
@@ -619,14 +620,14 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<Utc>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
 
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<FixedOffset>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
         });
@@ -684,7 +685,7 @@ mod tests {
                 let delta = delta.to_object(py);
                 let py_delta = new_py_datetime_ob(py, "timedelta", (py_days, py_seconds, py_ms));
                 assert!(
-                    delta.as_ref(py).eq(py_delta).unwrap(),
+                    delta.bind(py).eq(&py_delta).unwrap(),
                     "{}: {} != {}",
                     name,
                     delta,
@@ -780,7 +781,7 @@ mod tests {
                     .to_object(py);
                 let py_date = new_py_datetime_ob(py, "date", (year, month, day));
                 assert_eq!(
-                    date.as_ref(py).compare(py_date).unwrap(),
+                    date.bind(py).compare(&py_date).unwrap(),
                     Ordering::Equal,
                     "{}: {} != {}",
                     name,
@@ -839,7 +840,7 @@ mod tests {
                         ),
                     );
                     assert_eq!(
-                        datetime.as_ref(py).compare(py_datetime).unwrap(),
+                        datetime.bind(py).compare(&py_datetime).unwrap(),
                         Ordering::Equal,
                         "{}: {} != {}",
                         name,
@@ -881,7 +882,7 @@ mod tests {
                         (year, month, day, hour, minute, second, py_ms, py_tz),
                     );
                     assert_eq!(
-                        datetime.as_ref(py).compare(py_datetime).unwrap(),
+                        datetime.bind(py).compare(&py_datetime).unwrap(),
                         Ordering::Equal,
                         "{}: {} != {}",
                         name,
@@ -913,7 +914,7 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let tz_utc = timezone_utc(py);
+            let tz_utc = timezone_utc_bound(py);
             let py_datetime = new_py_datetime_ob(
                 py,
                 "datetime",
@@ -1006,7 +1007,7 @@ mod tests {
         Python::with_gil(|py| {
             let utc = Utc.to_object(py);
             let py_utc = python_utc(py);
-            assert!(utc.as_ref(py).is(py_utc));
+            assert!(utc.bind(py).is(&py_utc));
         })
     }
 
@@ -1037,7 +1038,7 @@ mod tests {
                     .to_object(py);
                 let py_time = new_py_datetime_ob(py, "time", (hour, minute, second, py_ms));
                 assert!(
-                    time.as_ref(py).eq(py_time).unwrap(),
+                    time.bind(py).eq(&py_time).unwrap(),
                     "{}: {} != {}",
                     name,
                     time,
@@ -1072,12 +1073,12 @@ mod tests {
         })
     }
 
-    fn new_py_datetime_ob<'a>(
-        py: Python<'a>,
+    fn new_py_datetime_ob<'py>(
+        py: Python<'py>,
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
-    ) -> &'a PyAny {
-        py.import("datetime")
+    ) -> Bound<'py, PyAny> {
+        py.import_bound("datetime")
             .unwrap()
             .getattr(name)
             .unwrap()
@@ -1085,8 +1086,8 @@ mod tests {
             .unwrap()
     }
 
-    fn python_utc(py: Python<'_>) -> &PyAny {
-        py.import("datetime")
+    fn python_utc(py: Python<'_>) -> Bound<'_, PyAny> {
+        py.import_bound("datetime")
             .unwrap()
             .getattr("timezone")
             .unwrap()
@@ -1109,7 +1110,7 @@ mod tests {
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
                 Python::with_gil(|py| {
 
-                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict_bound(py);
+                    let globals = [("datetime", py.import_bound("datetime").unwrap())].into_py_dict_bound(py);
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
                     let t = py.eval_bound(&code, Some(&globals), None).unwrap();
 

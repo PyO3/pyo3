@@ -35,7 +35,7 @@ Helping others often reveals bugs, documentation weaknesses, and missing APIs. I
 
 ### Implement issues ready for development
 
-Issues where the solution is clear and work is not in progress use the [needs-implementer](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Aneeds-implemeter) label.
+Issues where the solution is clear and work is not in progress use the [needs-implementer](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Aneeds-implementer) label.
 
 Don't be afraid if the solution is not clear to you! The core PyO3 contributors will be happy to mentor you through any questions you have to help you write the solution.
 

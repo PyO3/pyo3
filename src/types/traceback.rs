@@ -3,6 +3,9 @@ use crate::types::PyString;
 use crate::{ffi, Bound};
 use crate::{PyAny, PyNativeType};
 
+use super::any::PyAnyMethods;
+use super::string::PyStringMethods;
+
 /// Represents a Python traceback.
 #[repr(transparent)]
 pub struct PyTraceback(PyAny);
@@ -95,7 +98,7 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
     fn format(&self) -> PyResult<String> {
         let py = self.py();
         let string_io = py
-            .import(intern!(py, "io"))?
+            .import_bound(intern!(py, "io"))?
             .getattr(intern!(py, "StringIO"))?
             .call0()?;
         let result = unsafe { ffi::PyTraceBack_Print(self.as_ptr(), string_io.as_ptr()) };
@@ -104,8 +107,8 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
             .getattr(intern!(py, "getvalue"))?
             .call0()?
             .downcast::<PyString>()?
-            .to_str()?
-            .to_owned();
+            .to_cow()?
+            .into_owned();
         Ok(formatted)
     }
 }
@@ -147,9 +150,9 @@ except Exception as e:
                 Some(&locals),
             )
             .unwrap();
-            let err = PyErr::from_value(locals.get_item("err").unwrap().unwrap().into_gil_ref());
-            let traceback = err.value(py).getattr("__traceback__").unwrap();
-            assert!(err.traceback_bound(py).unwrap().is(traceback));
+            let err = PyErr::from_value_bound(locals.get_item("err").unwrap().unwrap());
+            let traceback = err.value_bound(py).getattr("__traceback__").unwrap();
+            assert!(err.traceback_bound(py).unwrap().is(&traceback));
         })
     }
 

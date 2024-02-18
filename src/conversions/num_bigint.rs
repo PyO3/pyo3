@@ -85,14 +85,18 @@ macro_rules! bigint_conversion {
                 let bytes = $to_bytes(self);
                 let bytes_obj = PyBytes::new_bound(py, &bytes);
                 let kwargs = if $is_signed > 0 {
-                    let kwargs = PyDict::new(py);
+                    let kwargs = PyDict::new_bound(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
                     Some(kwargs)
                 } else {
                     None
                 };
                 py.get_type::<PyLong>()
-                    .call_method("from_bytes", (bytes_obj, "little"), kwargs)
+                    .call_method(
+                        "from_bytes",
+                        (bytes_obj, "little"),
+                        kwargs.as_ref().map(crate::Bound::as_gil_ref),
+                    )
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
             }

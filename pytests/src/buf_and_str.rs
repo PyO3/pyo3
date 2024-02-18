@@ -35,8 +35,8 @@ impl BytesExtractor {
     }
 
     #[staticmethod]
-    pub fn from_buffer(buf: &PyAny) -> PyResult<usize> {
-        let buf = PyBuffer::<u8>::get(buf)?;
+    pub fn from_buffer(buf: &Bound<'_, PyAny>) -> PyResult<usize> {
+        let buf = PyBuffer::<u8>::get_bound(buf)?;
         Ok(buf.item_count())
     }
 }

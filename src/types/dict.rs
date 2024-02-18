@@ -57,6 +57,13 @@ pyobject_native_type_core!(
 
 impl PyDict {
     /// Deprecated form of [`new_bound`][PyDict::new_bound].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDict::new` will be replaced by `PyDict::new_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     pub fn new(py: Python<'_>) -> &PyDict {
         Self::new_bound(py).into_gil_ref()

@@ -414,7 +414,7 @@ fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = fs::read_to_string(path.join("app.py"))?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        let syspath: &PyList = py.import("sys")?.getattr("path")?.downcast()?;
+        let syspath = py.import_bound("sys")?.getattr("path")?.downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
         let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
             .getattr("run")?
@@ -479,7 +479,7 @@ class House(object):
             }
             Err(e) => {
                 house
-                    .call_method1("__exit__", (e.get_type(py), e.value(py), e.traceback_bound(py)))
+                    .call_method1("__exit__", (e.get_type_bound(py), e.value_bound(py), e.traceback_bound(py)))
                     .unwrap();
             }
         }
@@ -498,7 +498,7 @@ use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let signal = py.import("signal")?;
+    let signal = py.import_bound("signal")?;
     // Set SIGINT to have the default action
     signal
         .getattr("signal")?

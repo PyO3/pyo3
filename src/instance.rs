@@ -3,12 +3,11 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
-use crate::types::any::PyAnyMethods;
-use crate::types::string::PyStringMethods;
+use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
-    PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -137,6 +136,24 @@ impl<'py> Bound<'py, PyAny> {
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
+    }
+
+    /// This slightly strange method is used to obtain `&Bound<PyAny>` from a pointer in macro code
+    /// where we need to constrain the lifetime `'a` safely.
+    ///
+    /// Note that `'py` is required to outlive `'a` implicitly by the nature of the fact that
+    /// `&'a Bound<'py>` means that `Bound<'py>` exists for at least the lifetime `'a`.
+    ///
+    /// # Safety
+    /// - `ptr` must be a valid pointer to a Python object for the lifetime `'a`. The `ptr` can
+    ///   be either a borrowed reference or an owned reference, it does not matter, as this is
+    ///   just `&Bound` there will never be any ownership transfer.
+    #[inline]
+    pub(crate) unsafe fn ref_from_ptr<'a>(
+        _py: Python<'py>,
+        ptr: &'a *mut ffi::PyObject,
+    ) -> &'a Self {
+        &*(ptr as *const *mut ffi::PyObject).cast::<Bound<'py, PyAny>>()
     }
 }
 
@@ -634,7 +651,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///     #[new]
 ///     fn __new__() -> Foo {
 ///         Python::with_gil(|py| {
-///             let dict: Py<PyDict> = PyDict::new(py).into();
+///             let dict: Py<PyDict> = PyDict::new_bound(py).unbind();
 ///             Foo { inner: dict }
 ///         })
 ///     }
@@ -706,7 +723,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 /// # fn main() {
 /// Python::with_gil(|py| {
-///     let first: Py<PyDict> = PyDict::new(py).into();
+///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
 ///
 ///     // All of these are valid syntax
 ///     let second = Py::clone_ref(&first, py);
@@ -748,7 +765,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 /// # A note on `Send` and `Sync`
 ///
 /// Accessing this object is threadsafe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
-/// As you can only get this by acquiring the GIL, `Py<...>` "implements [`Send`] and [`Sync`].
+/// As you can only get this by acquiring the GIL, `Py<...>` implements [`Send`] and [`Sync`].
 ///
 /// [`Rc`]: std::rc::Rc
 /// [`RefCell`]: std::cell::RefCell
@@ -971,7 +988,7 @@ where
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
-        self.as_ref(py).borrow()
+        self.bind(py).borrow()
     }
 
     /// Mutably borrows the value `T`.
@@ -1010,7 +1027,7 @@ where
     where
         T: PyClass<Frozen = False>,
     {
-        self.as_ref(py).borrow_mut()
+        self.bind(py).borrow_mut()
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -1024,7 +1041,7 @@ where
     /// Equivalent to `self.as_ref(py).borrow_mut()` -
     /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
-        self.as_ref(py).try_borrow()
+        self.bind(py).try_borrow()
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -1042,7 +1059,7 @@ where
     where
         T: PyClass<Frozen = False>,
     {
-        self.as_ref(py).try_borrow_mut()
+        self.bind(py).try_borrow_mut()
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
@@ -1130,7 +1147,7 @@ impl<T> Py<T> {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    ///     let first: Py<PyDict> = PyDict::new(py).into();
+    ///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
     ///     let second = Py::clone_ref(&first, py);
     ///
     ///     // Both point to the same object
@@ -1196,7 +1213,7 @@ impl<T> Py<T> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, Py, Python, PyObject, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
     /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
@@ -1204,7 +1221,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap().into_py(py);
+    /// #    let sys = py.import_bound("sys").unwrap().unbind();
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
@@ -1649,7 +1666,7 @@ where
     T::AsRefTarget: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Python::with_gil(|py| std::fmt::Display::fmt(self.as_ref(py), f))
+        Python::with_gil(|py| std::fmt::Display::fmt(self.bind(py), f))
     }
 }
 
@@ -1668,6 +1685,23 @@ impl<T> std::fmt::Debug for Py<T> {
 pub type PyObject = Py<PyAny>;
 
 impl PyObject {
+    /// Deprecated form of [`PyObject::downcast_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyObject::downcast` will be replaced by `PyObject::downcast_bound` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub fn downcast<'py, T>(&'py self, py: Python<'py>) -> Result<&'py T, PyDowncastError<'py>>
+    where
+        T: PyTypeCheck<AsRefTarget = T>,
+    {
+        self.downcast_bound::<T>(py)
+            .map(Bound::as_gil_ref)
+            .map_err(PyDowncastError::from_downcast_err)
+    }
     /// Downcast this `PyObject` to a concrete Python type or pyclass.
     ///
     /// Note that you can often avoid downcasting yourself by just specifying
@@ -1683,10 +1717,10 @@ impl PyObject {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let any: PyObject = PyDict::new(py).into();
+    ///     let any: PyObject = PyDict::new_bound(py).into();
     ///
-    ///     assert!(any.downcast::<PyDict>(py).is_ok());
-    ///     assert!(any.downcast::<PyList>(py).is_err());
+    ///     assert!(any.downcast_bound::<PyDict>(py).is_ok());
+    ///     assert!(any.downcast_bound::<PyList>(py).is_err());
     /// });
     /// ```
     ///
@@ -1707,9 +1741,9 @@ impl PyObject {
     /// Python::with_gil(|py| {
     ///     let class: PyObject = Py::new(py, Class { i: 0 }).unwrap().into_py(py);
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast(py)?;
+    ///     let class_bound = class.downcast_bound::<Class>(py)?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
@@ -1719,11 +1753,34 @@ impl PyObject {
     /// # }
     /// ```
     #[inline]
-    pub fn downcast<'py, T>(&'py self, py: Python<'py>) -> Result<&'py T, PyDowncastError<'py>>
+    pub fn downcast_bound<'py, T>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
     where
-        T: PyTypeCheck<AsRefTarget = T>,
+        T: PyTypeCheck,
     {
-        self.as_ref(py).downcast()
+        self.bind(py).downcast()
+    }
+
+    /// Deprecated form of [`PyObject::downcast_bound_unchecked`]
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyObject::downcast_unchecked` will be replaced by `PyObject::downcast_bound_unchecked` in a future PyO3 version"
+        )
+    )]
+    #[inline]
+    pub unsafe fn downcast_unchecked<'py, T>(&'py self, py: Python<'py>) -> &T
+    where
+        T: HasPyGilRef<AsRefTarget = T>,
+    {
+        self.downcast_bound_unchecked::<T>(py).as_gil_ref()
     }
 
     /// Casts the PyObject to a concrete Python object type without checking validity.
@@ -1732,11 +1789,8 @@ impl PyObject {
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
     #[inline]
-    pub unsafe fn downcast_unchecked<'p, T>(&'p self, py: Python<'p>) -> &T
-    where
-        T: HasPyGilRef<AsRefTarget = T>,
-    {
-        self.as_ref(py).downcast_unchecked()
+    pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
+        self.bind(py).downcast_unchecked()
     }
 }
 

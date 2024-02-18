@@ -736,12 +736,31 @@ impl<'py> Python<'py> {
         T::type_object_bound(self).into_gil_ref()
     }
 
-    /// Imports the Python module with the specified name.
+    /// Deprecated form of [`Python::import_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`Python::import` will be replaced by `Python::import_bound` in a future PyO3 version"
+        )
+    )]
     pub fn import<N>(self, name: N) -> PyResult<&'py PyModule>
     where
         N: IntoPy<Py<PyString>>,
     {
         PyModule::import(self, name)
+    }
+
+    /// Imports the Python module with the specified name.
+    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        // FIXME: This should be replaced by `PyModule::import_bound` once thats
+        // implemented.
+        PyModule::import(self, name)
+            .map(PyNativeType::as_borrowed)
+            .map(crate::Borrowed::to_owned)
     }
 
     /// Gets the Python builtin value `None`.
@@ -807,6 +826,13 @@ impl<'py> Python<'py> {
     }
 
     /// Registers the object in the release pool, and tries to downcast to specific type.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
+        )
+    )]
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
     where
         T: PyTypeCheck<AsRefTarget = T>,
@@ -820,6 +846,13 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
+        )
+    )]
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
     where
         T: HasPyGilRef<AsRefTarget = T>,

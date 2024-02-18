@@ -1,8 +1,9 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject,
-    IntoPy, PyAny, PyNativeType, PyObject, PyResult, Python, ToPyObject,
+    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyNativeType,
+    PyObject, PyResult, Python, ToPyObject,
 };
 
 use super::any::PyAnyMethods;

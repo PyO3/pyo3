@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_unit_to_object_is_none() {
         Python::with_gil(|py| {
-            assert!(().to_object(py).downcast::<PyNone>(py).is_ok());
+            assert!(().to_object(py).downcast_bound::<PyNone>(py).is_ok());
         })
     }
 
@@ -111,14 +111,14 @@ mod tests {
     fn test_unit_into_py_is_none() {
         Python::with_gil(|py| {
             let obj: PyObject = ().into_py(py);
-            assert!(obj.downcast::<PyNone>(py).is_ok());
+            assert!(obj.downcast_bound::<PyNone>(py).is_ok());
         })
     }
 
     #[test]
     fn test_dict_is_not_none() {
         Python::with_gil(|py| {
-            assert!(PyDict::new(py).downcast::<PyNone>().is_err());
+            assert!(PyDict::new_bound(py).downcast::<PyNone>().is_err());
         })
     }
 }
