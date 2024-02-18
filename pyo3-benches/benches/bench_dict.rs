@@ -69,6 +69,7 @@ fn extract_hashbrown_map(b: &mut Bencher<'_>) {
     });
 }
 
+#[cfg(not(codspeed))]
 fn mapping_from_dict(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
@@ -87,6 +88,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     #[cfg(feature = "hashbrown")]
     c.bench_function("extract_hashbrown_map", extract_hashbrown_map);
 
+    #[cfg(not(codspeed))]
     c.bench_function("mapping_from_dict", mapping_from_dict);
 }
 

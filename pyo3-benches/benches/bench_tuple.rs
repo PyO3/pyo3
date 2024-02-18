@@ -89,6 +89,7 @@ fn tuple_get_borrowed_item_unchecked(b: &mut Bencher<'_>) {
     });
 }
 
+#[cfg(not(codspeed))]
 fn sequence_from_tuple(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
@@ -131,6 +132,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "tuple_get_borrowed_item_unchecked",
         tuple_get_borrowed_item_unchecked,
     );
+    #[cfg(not(codspeed))]
     c.bench_function("sequence_from_tuple", sequence_from_tuple);
     c.bench_function("tuple_new_list", tuple_new_list);
     c.bench_function("tuple_to_list", tuple_to_list);
