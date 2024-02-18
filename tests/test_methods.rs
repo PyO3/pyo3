@@ -3,7 +3,6 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
-use pyo3::PyCell;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -29,7 +28,7 @@ impl InstanceMethod {
 #[test]
 fn instance_method() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, InstanceMethod { member: 42 }).unwrap();
+        let obj = Bound::new(py, InstanceMethod { member: 42 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(), 42);
         py_assert!(py, obj, "obj.method() == 42");
@@ -53,7 +52,7 @@ impl InstanceMethodWithArgs {
 #[test]
 fn instance_method_with_args() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
+        let obj = Bound::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(6), 42);
         py_assert!(py, obj, "obj.method(3) == 21");
@@ -713,7 +712,7 @@ impl MethodWithLifeTime {
 #[test]
 fn method_with_lifetime() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, MethodWithLifeTime {}).unwrap();
+        let obj = Py::new(py, MethodWithLifeTime {}).unwrap();
         py_run!(
             py,
             obj,
@@ -761,8 +760,8 @@ impl MethodWithPyClassArg {
 #[test]
 fn method_with_pyclassarg() {
     Python::with_gil(|py| {
-        let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+        let obj1 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+        let obj2 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict_bound(py);
         py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");

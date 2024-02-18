@@ -1317,7 +1317,7 @@ impl Names {
     }
 }
 # Python::with_gil(|py| {
-#     let names = PyCell::new(py, Names::new()).unwrap();
+#     let names = Py::new(py, Names::new()).unwrap();
 #     pyo3::py_run!(py, names, r"
 #     try:
 #        names.merge(names)
@@ -1352,7 +1352,7 @@ let obj_ref = PyRef::new(py, MyClass {}).unwrap();
 ```
 
 After:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}

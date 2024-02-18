@@ -242,6 +242,7 @@ so it also exposes all of the methods on `PyAny`.
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
+# #[allow(deprecated)]
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // To PyRef<T> with .borrow() or .try_borrow()
@@ -262,6 +263,7 @@ let _: &mut MyClass = &mut *py_ref_mut;
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
+# #[allow(deprecated)]
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // Use methods from PyAny on PyCell<T> with Deref implementation

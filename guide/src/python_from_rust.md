@@ -181,7 +181,7 @@ quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyCell, py_run};
+use pyo3::py_run;
 
 # fn main() {
 #[pyclass]
@@ -206,7 +206,7 @@ Python::with_gil(|py| {
         id: 34,
         name: "Yu".to_string(),
     };
-    let userdata = PyCell::new(py, userdata).unwrap();
+    let userdata = Py::new(py, userdata).unwrap();
     let userdata_as_tuple = (34, "Yu");
     py_run!(py, userdata userdata_as_tuple, r#"
 assert repr(userdata) == "User Yu(id: 34)"

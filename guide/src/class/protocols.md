@@ -207,7 +207,7 @@ impl Container {
 
 # Python::with_gil(|py| {
 #     let container = Container { iter: vec![1, 2, 3, 4] };
-#     let inst = pyo3::PyCell::new(py, container).unwrap();
+#     let inst = pyo3::Py::new(py, container).unwrap();
 #     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
 #     pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
 # });

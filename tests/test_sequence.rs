@@ -268,7 +268,7 @@ fn test_generic_list_get() {
 #[test]
 fn test_generic_list_set() {
     Python::with_gil(|py| {
-        let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
+        let list = Bound::new(py, GenericList { items: vec![] }).unwrap();
 
         py_run!(py, list, "list.items = [1, 2, 3]");
         assert!(list
@@ -304,7 +304,7 @@ impl OptionList {
 fn test_option_list_get() {
     // Regression test for #798
     Python::with_gil(|py| {
-        let list = PyCell::new(
+        let list = Py::new(
             py,
             OptionList {
                 items: vec![Some(1), None],
@@ -321,31 +321,33 @@ fn test_option_list_get() {
 #[test]
 fn sequence_is_not_mapping() {
     Python::with_gil(|py| {
-        let list = PyCell::new(
+        let list = Bound::new(
             py,
             OptionList {
                 items: vec![Some(1), None],
             },
         )
-        .unwrap();
+        .unwrap()
+        .into_any();
 
         PySequence::register::<OptionList>(py).unwrap();
 
-        assert!(list.as_ref().downcast::<PyMapping>().is_err());
-        assert!(list.as_ref().downcast::<PySequence>().is_ok());
+        assert!(list.downcast::<PyMapping>().is_err());
+        assert!(list.downcast::<PySequence>().is_ok());
     })
 }
 
 #[test]
 fn sequence_length() {
     Python::with_gil(|py| {
-        let list = PyCell::new(
+        let list = Bound::new(
             py,
             OptionList {
                 items: vec![Some(1), None],
             },
         )
-        .unwrap();
+        .unwrap()
+        .into_any();
 
         assert_eq!(list.len().unwrap(), 2);
         assert_eq!(unsafe { ffi::PySequence_Length(list.as_ptr()) }, 2);

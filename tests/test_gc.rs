@@ -3,7 +3,7 @@
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
-use pyo3::{py_run, PyCell};
+use pyo3::py_run;
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -99,7 +99,7 @@ fn gc_integration() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
     Python::with_gil(|py| {
-        let inst = PyCell::new(
+        let inst = Bound::new(
             py,
             GcIntegration {
                 self_ref: py.None(),
@@ -260,7 +260,7 @@ fn gc_during_borrow() {
 
             // create an object and check that traversing it works normally
             // when it's not borrowed
-            let cell = PyCell::new(py, TraversableClass::new()).unwrap();
+            let cell = Bound::new(py, TraversableClass::new()).unwrap();
             let obj = cell.to_object(py);
             assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
             traverse(obj.as_ptr(), novisit, std::ptr::null_mut());
@@ -268,7 +268,7 @@ fn gc_during_borrow() {
 
             // create an object and check that it is not traversed if the GC
             // is invoked while it is already borrowed mutably
-            let cell2 = PyCell::new(py, TraversableClass::new()).unwrap();
+            let cell2 = Bound::new(py, TraversableClass::new()).unwrap();
             let obj2 = cell2.to_object(py);
             let guard = cell2.borrow_mut();
             assert!(!guard.traversed.load(Ordering::Relaxed));
@@ -416,7 +416,7 @@ fn traverse_cannot_be_hijacked() {
         let ty = py.get_type_bound::<HijackedTraverse>();
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
-        let cell = PyCell::new(py, HijackedTraverse::new()).unwrap();
+        let cell = Bound::new(py, HijackedTraverse::new()).unwrap();
         let obj = cell.to_object(py);
         assert_eq!(cell.borrow().traversed_and_hijacked(), (false, false));
         traverse(obj.as_ptr(), novisit, std::ptr::null_mut());

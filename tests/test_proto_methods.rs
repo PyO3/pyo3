@@ -437,7 +437,7 @@ impl SetItem {
 #[test]
 fn setitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
+        let c = Bound::new(py, SetItem { key: 0, val: 0 }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
@@ -463,7 +463,7 @@ impl DelItem {
 #[test]
 fn delitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
+        let c = Bound::new(py, DelItem { key: 0 }).unwrap();
         py_run!(py, c, "del c[1]");
         {
             let c = c.borrow();
@@ -492,7 +492,7 @@ impl SetDelItem {
 #[test]
 fn setdelitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
+        let c = Bound::new(py, SetDelItem { val: None }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
@@ -570,7 +570,7 @@ impl ClassWithGetAttr {
 #[test]
 fn getattr_doesnt_override_member() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
+        let inst = Py::new(py, ClassWithGetAttr { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 4");
         py_assert!(py, inst, "inst.a == 8");
     });
@@ -592,7 +592,7 @@ impl ClassWithGetAttribute {
 #[test]
 fn getattribute_overrides_member() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
+        let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
         py_assert!(py, inst, "inst.y == 8");
     });
@@ -625,7 +625,7 @@ impl ClassWithGetAttrAndGetAttribute {
 #[test]
 fn getattr_and_getattribute() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
+        let inst = Py::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
         py_assert!(py, inst, "inst.exists == 42");
         py_assert!(py, inst, "inst.lucky == 57");
         py_expect_exception!(py, inst, "inst.error", PyValueError);
