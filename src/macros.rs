@@ -73,7 +73,7 @@
 /// }
 ///
 /// Python::with_gil(|py| {
-///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict_bound(py);
+///     let locals = [("C", py.get_type_bound::<MyClass>())].into_py_dict_bound(py);
 ///     pyo3::py_run!(py, *locals, "c = C()");
 /// });
 /// ```
