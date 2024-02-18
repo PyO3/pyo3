@@ -309,4 +309,4 @@ mod slice;
 pub(crate) mod string;
 pub(crate) mod traceback;
 pub(crate) mod tuple;
-mod typeobject;
+pub(crate) mod typeobject;

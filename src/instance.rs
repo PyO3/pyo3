@@ -3,8 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
-use crate::types::any::PyAnyMethods;
-use crate::types::string::PyStringMethods;
+use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,

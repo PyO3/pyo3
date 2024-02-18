@@ -2,8 +2,7 @@ use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::string::PyStringMethods;
-use crate::types::{PyTraceback, PyType};
+use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -280,7 +279,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.get_type_bound(py).is(PyType::new::<PyTypeError>(py)));
+    ///     assert!(err.get_type_bound(py).is(&PyType::new_bound::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
