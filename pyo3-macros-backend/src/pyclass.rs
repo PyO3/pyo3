@@ -1283,6 +1283,7 @@ fn impl_pytypeinfo(
 
             #[inline]
             fn type_object_raw(py: _pyo3::Python<'_>) -> *mut _pyo3::ffi::PyTypeObject {
+                use _pyo3::prelude::PyTypeMethods;
                 #deprecations
 
                 <#cls as _pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
