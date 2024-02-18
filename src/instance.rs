@@ -516,9 +516,9 @@ impl<'py, T> Borrowed<'_, 'py, T> {
 }
 
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
-    /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Panics if `ptr` is null.
+    /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Panics if `ptr` is null.
     ///
-    /// Prefer to use [`Bound::from_borrowed_ptr_or_err`], as that avoids the major safety risk
+    /// Prefer to use [`Bound::from_borrowed_ptr`], as that avoids the major safety risk
     /// of needing to precisely define the lifetime `'a` for which the borrow is valid.
     ///
     /// # Safety
@@ -527,14 +527,15 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
-    pub unsafe fn from_ptr_or_err(py: Python<'py>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
-        NonNull::new(ptr).map_or_else(
-            || Err(PyErr::fetch(py)),
-            |ptr| Ok(Self(ptr, PhantomData, py)),
+    pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self(
+            NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
+            PhantomData,
+            py,
         )
     }
 
-    /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
+    /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Returns `None` if `ptr` is null.
     ///
     /// Prefer to use [`Bound::from_borrowed_ptr_or_opt`], as that avoids the major safety risk
     /// of needing to precisely define the lifetime `'a` for which the borrow is valid.
@@ -549,10 +550,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
         NonNull::new(ptr).map(|ptr| Self(ptr, PhantomData, py))
     }
 
-    /// Constructs a new `Borrowed<'py, PyAny>` from a pointer. Returns an `Err` by calling `PyErr::fetch`
+    /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Returns an `Err` by calling `PyErr::fetch`
     /// if `ptr` is null.
     ///
-    /// Prefer to use [`Bound::from_borrowed_ptr`], as that avoids the major safety risk
+    /// Prefer to use [`Bound::from_borrowed_ptr_or_err`], as that avoids the major safety risk
     /// of needing to precisely define the lifetime `'a` for which the borrow is valid.
     ///
     /// # Safety
@@ -561,11 +562,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
-    pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self(
-            NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
-            PhantomData,
-            py,
+    pub unsafe fn from_ptr_or_err(py: Python<'py>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
+        NonNull::new(ptr).map_or_else(
+            || Err(PyErr::fetch(py)),
+            |ptr| Ok(Self(ptr, PhantomData, py)),
         )
     }
 
