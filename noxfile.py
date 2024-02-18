@@ -58,7 +58,7 @@ def coverage(session: nox.Session) -> None:
     output_file = "coverage.json"
 
     if "lcov" in session.posargs:
-        cov_format = "posargs"
+        cov_format = "lcov"
         output_file = "lcov.info"
 
     _run_cargo(

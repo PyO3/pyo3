@@ -182,9 +182,9 @@ You can view what code is and isn't covered by PyO3's tests. We aim to have 100%
 cargo install cargo-llvm-cov
 cargo llvm-cov
 ```
-- Then, generate a `lcov.info` file with
+- Then, generate an `lcov.info` file with
 ```shell
-nox -s coverage
+nox -s coverage -- lcov
 ```
 You can install an IDE plugin to view the coverage. For example, if you use VSCode:
 - Add the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) plugin.
