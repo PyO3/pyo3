@@ -275,7 +275,7 @@ impl Interned {
 mod tests {
     use super::*;
 
-    use crate::types::{any::PyAnyMethods, dict::PyDictMethods, PyDict};
+    use crate::types::{dict::PyDictMethods, PyDict};
 
     #[test]
     fn test_intern() {

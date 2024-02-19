@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{types::PyType, wrap_pymodule, PyCell};
+use pyo3::{types::PyType, wrap_pymodule};
 
 #[path = "../src/tests/common.rs"]
 mod common;
