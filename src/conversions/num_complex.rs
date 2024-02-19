@@ -93,21 +93,37 @@
 //! result = get_eigenvalues(m11,m12,m21,m22)
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
-#[cfg(any(Py_LIMITED_API, PyPy))]
-use crate::types::any::PyAnyMethods;
 use crate::{
-    ffi, types::PyComplex, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
-    ToPyObject,
+    ffi,
+    ffi_ptr_ext::FfiPtrExt,
+    types::{any::PyAnyMethods, PyComplex},
+    Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
 
 impl PyComplex {
-    /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].
+    /// Deprecated form of [`PyComplex::from_complex_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyComplex::from_complex` will be replaced by `PyComplex::from_complex_bound` in a future PyO3 version"
+        )
+    )]
     pub fn from_complex<F: Into<c_double>>(py: Python<'_>, complex: Complex<F>) -> &PyComplex {
+        Self::from_complex_bound(py, complex).into_gil_ref()
+    }
+
+    /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].
+    pub fn from_complex_bound<F: Into<c_double>>(
+        py: Python<'_>,
+        complex: Complex<F>,
+    ) -> Bound<'_, PyComplex> {
         unsafe {
-            let ptr = ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into());
-            py.from_owned_ptr(ptr)
+            ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into())
+                .assume_owned(py)
+                .downcast_into_unchecked()
         }
     }
 }
@@ -183,13 +199,13 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{any::PyAnyMethods, PyModule};
+    use crate::types::{any::PyAnyMethods, complex::PyComplexMethods, PyModule};
 
     #[test]
     fn from_complex() {
         Python::with_gil(|py| {
             let complex = Complex::new(3.0, 1.2);
-            let py_c = PyComplex::from_complex(py, complex);
+            let py_c = PyComplex::from_complex_bound(py, complex);
             assert_eq!(py_c.real(), 3.0);
             assert_eq!(py_c.imag(), 1.2);
         });
