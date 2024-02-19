@@ -6,7 +6,7 @@ use pyo3::intern;
 
 fn getattr_direct(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let sys = py.import("sys").unwrap();
+        let sys = py.import_bound("sys").unwrap();
 
         b.iter(|| sys.getattr("version").unwrap());
     });
@@ -14,7 +14,7 @@ fn getattr_direct(b: &mut Bencher<'_>) {
 
 fn getattr_intern(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let sys = py.import("sys").unwrap();
+        let sys = py.import_bound("sys").unwrap();
 
         b.iter(|| sys.getattr(intern!(py, "version")).unwrap());
     });
