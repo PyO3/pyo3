@@ -2,6 +2,7 @@ mod array;
 mod ipaddr;
 mod map;
 mod num;
+mod option;
 mod osstr;
 mod path;
 mod set;
