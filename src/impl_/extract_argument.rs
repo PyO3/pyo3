@@ -1,51 +1,16 @@
 use crate::{
     exceptions::PyTypeError,
     ffi,
-    ffi_ptr_ext::FfiPtrExt,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
     Borrowed, Bound, FromPyObject, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeCheck,
     Python,
 };
-use crate::{PyObject, ToPyObject};
 
-/// Function argument extraction borrows input arguments.
+/// Helper type used to keep implementation more concise.
 ///
-/// This might potentially be removed in favour of just using `Borrowed` directly in future,
-/// for now it's used just to control the traits and methods available while the `Bound` API
-/// is being rounded out.
-#[derive(Copy, Clone)]
-#[repr(transparent)]
-pub struct PyArg<'py>(Borrowed<'py, 'py, PyAny>);
-
-impl<'py> PyArg<'py> {
-    #[inline]
-    pub unsafe fn from_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        ptr.assume_borrowed_or_opt(py).map(Self)
-    }
-
-    #[inline]
-    pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self(ptr.assume_borrowed(py))
-    }
-
-    #[inline]
-    pub fn from_borrowed<T>(borrowed: Borrowed<'py, 'py, T>) -> Self {
-        Self(borrowed.into_any())
-    }
-
-    #[inline]
-    pub fn as_borrowed(self) -> Borrowed<'py, 'py, PyAny> {
-        self.0
-    }
-}
-
-impl ToPyObject for PyArg<'_> {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.0.to_object(py)
-    }
-}
+/// (Function argument extraction borrows input arguments.)
+type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 
 /// A trait which is used to help PyO3 macros extract function arguments.
 ///
@@ -57,7 +22,7 @@ impl ToPyObject for PyArg<'_> {
 /// There exists a trivial blanket implementation for `T: FromPyObject` with `Holder = ()`.
 pub trait PyFunctionArgument<'a, 'py>: Sized + 'a {
     type Holder: FunctionArgumentHolder;
-    fn extract(obj: PyArg<'py>, holder: &'a mut Self::Holder) -> PyResult<Self>;
+    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> PyResult<Self>;
 }
 
 impl<'a, 'py, T> PyFunctionArgument<'a, 'py> for T
@@ -67,8 +32,8 @@ where
     type Holder = ();
 
     #[inline]
-    fn extract(obj: PyArg<'py>, _: &'a mut ()) -> PyResult<Self> {
-        obj.0.extract()
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
+        obj.extract()
     }
 }
 
@@ -76,11 +41,14 @@ impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
 where
     T: PyTypeCheck,
 {
-    type Holder = Option<Borrowed<'py, 'py, T>>;
+    type Holder = Option<&'a Bound<'py, T>>;
 
     #[inline]
-    fn extract(obj: PyArg<'py>, holder: &'a mut Option<Borrowed<'py, 'py, T>>) -> PyResult<Self> {
-        Ok(&*holder.insert(obj.0.downcast()?))
+    fn extract(
+        obj: &'a Bound<'py, PyAny>,
+        holder: &'a mut Option<&'a Bound<'py, T>>,
+    ) -> PyResult<Self> {
+        Ok(&*holder.insert(obj.downcast()?))
     }
 }
 
@@ -100,24 +68,24 @@ impl<T> FunctionArgumentHolder for Option<T> {
 
 #[inline]
 pub fn extract_pyclass_ref<'a, 'py: 'a, T: PyClass>(
-    obj: PyArg<'py>,
+    obj: &'a Bound<'py, PyAny>,
     holder: &'a mut Option<PyRef<'py, T>>,
 ) -> PyResult<&'a T> {
-    Ok(&*holder.insert(obj.0.extract()?))
+    Ok(&*holder.insert(obj.extract()?))
 }
 
 #[inline]
 pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
-    obj: PyArg<'py>,
+    obj: &'a Bound<'py, PyAny>,
     holder: &'a mut Option<PyRefMut<'py, T>>,
 ) -> PyResult<&'a mut T> {
-    Ok(&mut *holder.insert(obj.0.extract()?))
+    Ok(&mut *holder.insert(obj.extract()?))
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 #[doc(hidden)]
 pub fn extract_argument<'a, 'py, T>(
-    obj: PyArg<'py>,
+    obj: &'a Bound<'py, PyAny>,
     holder: &'a mut T::Holder,
     arg_name: &str,
 ) -> PyResult<T>
@@ -126,7 +94,7 @@ where
 {
     match PyFunctionArgument::extract(obj, holder) {
         Ok(value) => Ok(value),
-        Err(e) => Err(argument_extraction_error(obj.0.py(), arg_name, e)),
+        Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
     }
 }
 
@@ -134,7 +102,7 @@ where
 /// does not implement `PyFunctionArgument` for `T: PyClass`.
 #[doc(hidden)]
 pub fn extract_optional_argument<'a, 'py, T>(
-    obj: Option<PyArg<'py>>,
+    obj: Option<&'a Bound<'py, PyAny>>,
     holder: &'a mut T::Holder,
     arg_name: &str,
     default: fn() -> Option<T>,
@@ -144,7 +112,7 @@ where
 {
     match obj {
         Some(obj) => {
-            if obj.0.is_none() {
+            if obj.is_none() {
                 // Explicit `None` will result in None being used as the function argument
                 Ok(None)
             } else {
@@ -158,7 +126,7 @@ where
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
 #[doc(hidden)]
 pub fn extract_argument_with_default<'a, 'py, T>(
-    obj: Option<PyArg<'py>>,
+    obj: Option<&'a Bound<'py, PyAny>>,
     holder: &'a mut T::Holder,
     arg_name: &str,
     default: fn() -> T,
@@ -325,10 +293,7 @@ impl FunctionDescription {
             );
 
             self.handle_kwargs::<K, _>(
-                kwnames
-                    .iter_borrowed()
-                    .map(PyArg)
-                    .zip(kwargs.iter().copied()),
+                kwnames.iter_borrowed().zip(kwargs.iter().copied()),
                 &mut varkeywords,
                 num_positional_parameters,
                 output,
@@ -387,7 +352,7 @@ impl FunctionDescription {
             .take(num_positional_parameters)
             .enumerate()
         {
-            output[i] = Some(PyArg(arg));
+            output[i] = Some(arg);
         }
 
         // If any arguments remain, push them to varargs (if possible) or error
@@ -397,7 +362,7 @@ impl FunctionDescription {
         let mut varkeywords = K::Varkeywords::default();
         if let Some(kwargs) = kwargs {
             self.handle_kwargs::<K, _>(
-                kwargs.iter_borrowed().map(|(k, v)| (PyArg(k), PyArg(v))),
+                kwargs.iter_borrowed(),
                 &mut varkeywords,
                 num_positional_parameters,
                 output,
@@ -437,15 +402,11 @@ impl FunctionDescription {
             // Safety: All keyword arguments should be UTF-8 strings, but if it's not, `.to_str()`
             // will return an error anyway.
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-            let kwarg_name = unsafe {
-                kwarg_name_py
-                    .0
-                    .downcast_unchecked::<crate::types::PyString>()
-            }
-            .to_str();
+            let kwarg_name =
+                unsafe { kwarg_name_py.downcast_unchecked::<crate::types::PyString>() }.to_str();
 
             #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
-            let kwarg_name = kwarg_name_py.0.extract::<crate::pybacked::PyBackedStr>();
+            let kwarg_name = kwarg_name_py.extract::<crate::pybacked::PyBackedStr>();
 
             if let Ok(kwarg_name_owned) = kwarg_name {
                 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -580,7 +541,7 @@ impl FunctionDescription {
         PyTypeError::new_err(format!(
             "{} got an unexpected keyword argument '{}'",
             self.full_name(),
-            argument.0.as_any()
+            argument.as_any()
         ))
     }
 
@@ -766,7 +727,7 @@ impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
         _function_description: &FunctionDescription,
     ) -> PyResult<()> {
         varkeywords
-            .get_or_insert_with(|| PyDict::new_bound(name.0.py()))
+            .get_or_insert_with(|| PyDict::new_bound(name.py()))
             .set_item(name, value)
     }
 }

@@ -990,7 +990,7 @@ fn extract_object(
     });
     extract_error_mode.handle_error(quote! {
         _pyo3::impl_::extract_argument::extract_argument(
-            _pyo3::impl_::extract_argument::PyArg::from_ptr(py, #source_ptr),
+            &_pyo3::Borrowed::from_ptr(py, #source_ptr),
             &mut #holder,
             #name
         )

@@ -514,14 +514,6 @@ impl<'py, T> Borrowed<'_, 'py, T> {
     }
 }
 
-impl<'a, 'py, T> Borrowed<'a, 'py, T> {
-    #[inline]
-    pub(crate) fn into_any(self) -> Borrowed<'a, 'py, PyAny> {
-        // Safety: all Borrowed<T> are valid Borrowed<PyAny>
-        Borrowed(self.0, PhantomData, self.2)
-    }
-}
-
 impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// Constructs a new `Borrowed<'a, 'py, PyAny>` from a pointer. Panics if `ptr` is null.
     ///
@@ -582,19 +574,6 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// derived from is valid for the lifetime `'a`.
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
-    }
-
-    #[inline]
-    pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
-    where
-        T: PyTypeCheck,
-    {
-        if T::type_check(&self) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
-        } else {
-            Err(DowncastError::new_from_borrowed(self, T::NAME))
-        }
     }
 
     /// Converts this `PyAny` to a concrete Python type without checking validity.

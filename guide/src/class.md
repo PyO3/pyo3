@@ -1253,7 +1253,7 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a
     type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: pyo3::impl_::extract_argument::PyArg<'py>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
     }
 }
@@ -1263,7 +1263,7 @@ impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a
     type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: pyo3::impl_::extract_argument::PyArg<'py>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+    fn extract(obj: &'a pyo3::Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
         pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
     }
 }

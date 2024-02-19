@@ -44,8 +44,8 @@ pub fn impl_arg_params(
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
-                let _args = _pyo3::impl_::extract_argument::PyArg::from_ptr(py, _args);
-                let _kwargs = _pyo3::impl_::extract_argument::PyArg::from_ptr_or_opt(py, _kwargs);
+                let _args = _pyo3::Borrowed::from_ptr(py, _args);
+                let _kwargs = _pyo3::Borrowed::from_ptr_or_opt(py, _kwargs);
             },
             arg_convert,
         ));
@@ -180,7 +180,7 @@ fn impl_arg_param(
         let holder = push_holder();
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_argument(
-                _pyo3::impl_::extract_argument::PyArg::from_borrowed(_args.as_borrowed()),
+                &_args,
                 &mut #holder,
                 #name_str
             )?
@@ -193,7 +193,7 @@ fn impl_arg_param(
         let holder = push_holder();
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_optional_argument(
-                _kwargs.as_ref().map(|kwargs| _pyo3::impl_::extract_argument::PyArg::from_borrowed(kwargs.as_borrowed())),
+                _kwargs.as_deref(),
                 &mut #holder,
                 #name_str,
                 || ::std::option::Option::None
@@ -217,7 +217,7 @@ fn impl_arg_param(
             quote_arg_span! {
                 #[allow(clippy::redundant_closure)]
                 _pyo3::impl_::extract_argument::from_py_with_with_default(
-                    #arg_value.map(_pyo3::impl_::extract_argument::PyArg::as_borrowed).as_deref(),
+                    #arg_value.as_deref(),
                     #name_str,
                     #expr_path as fn(_) -> _,
                     || #default
@@ -226,7 +226,7 @@ fn impl_arg_param(
         } else {
             quote_arg_span! {
                 _pyo3::impl_::extract_argument::from_py_with(
-                    &_pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value).as_borrowed(),
+                    &_pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
                     #name_str,
                     #expr_path as fn(_) -> _,
                 )?
@@ -237,7 +237,7 @@ fn impl_arg_param(
         quote_arg_span! {
             #[allow(clippy::redundant_closure)]
             _pyo3::impl_::extract_argument::extract_optional_argument(
-                #arg_value,
+                #arg_value.as_deref(),
                 &mut #holder,
                 #name_str,
                 || #default
@@ -248,7 +248,7 @@ fn impl_arg_param(
         quote_arg_span! {
             #[allow(clippy::redundant_closure)]
             _pyo3::impl_::extract_argument::extract_argument_with_default(
-                #arg_value,
+                #arg_value.as_deref(),
                 &mut #holder,
                 #name_str,
                 || #default
@@ -258,7 +258,7 @@ fn impl_arg_param(
         let holder = push_holder();
         quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_argument(
-                _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                &_pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
                 &mut #holder,
                 #name_str
             )?
