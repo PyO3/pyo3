@@ -239,8 +239,8 @@ fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
-fn submodule(module: &PyModule) -> PyResult<()> {
-    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
+fn submodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(&wrap_pyfunction!(subfunction, module.as_gil_ref())?.as_borrowed())?;
     Ok(())
 }
 
@@ -259,7 +259,7 @@ fn superfunction() -> String {
 fn supermodule(py: Python<'_>, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
     let module_to_add = PyModule::new_bound(py, "submodule")?;
-    submodule(module_to_add.as_gil_ref())?;
+    submodule(&module_to_add)?;
     module.add_submodule(module_to_add.as_gil_ref())?;
     let module_to_add = PyModule::new_bound(py, "submodule_with_init_fn")?;
     submodule_with_init_fn(py, module_to_add.as_gil_ref())?;

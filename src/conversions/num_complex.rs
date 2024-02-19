@@ -27,7 +27,7 @@
 //! ```ignore
 //! # // not tested because nalgebra isn't supported on msrv
 //! # // please file an issue if it breaks!
-//! use nalgebra::base::{dimension::Const, storage::Storage, Matrix};
+//! use nalgebra::base::{dimension::Const, Matrix};
 //! use num_complex::Complex;
 //! use pyo3::prelude::*;
 //!
@@ -57,7 +57,7 @@
 //! #     Python::with_gil(|py| -> PyResult<()> {
 //! #         let module = PyModule::new_bound(py, "my_module")?;
 //! #
-//! #         module.add_function(wrap_pyfunction!(get_eigenvalues, module)?)?;
+//! #         module.add_function(&wrap_pyfunction!(get_eigenvalues, module.as_gil_ref())?.as_borrowed())?;
 //! #
 //! #         let m11 = PyComplex::from_doubles_bound(py, 0_f64, -1_f64);
 //! #         let m12 = PyComplex::from_doubles_bound(py, 1_f64, 0_f64);

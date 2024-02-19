@@ -28,7 +28,7 @@ fn maturin_starter(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // e.g. from maturin_starter.submodule import SubmoduleClass
 
     let sys = PyModule::import_bound(py, "sys")?;
-    let sys_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+    let sys_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
     sys_modules.set_item("maturin_starter.submodule", m.getattr("submodule")?)?;
 
     Ok(())

@@ -32,7 +32,7 @@ impl PyModule {
             note = "`PyModule::new` will be replaced by `PyModule::new_bound` in a future PyO3 version"
         )
     )]
-    pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+    pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<&'py PyModule> {
         Self::new_bound(py, name).map(Bound::into_gil_ref)
     }
 

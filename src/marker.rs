@@ -764,8 +764,7 @@ impl<'py> Python<'py> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        #[allow(deprecated)]
-        PyModule::import(self, name)
+        Self::import_bound(self, name).map(Bound::into_gil_ref)
     }
 
     /// Imports the Python module with the specified name.
