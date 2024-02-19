@@ -817,6 +817,10 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 /// Otherwise, the reference count will be decreased the next time the GIL is
 /// reacquired.
 ///
+/// If you happen to be already holding the GIL, [`Py::drop_ref`] will decrease
+/// the Python reference count immediately and will execute slightly faster than
+/// relying on implicit [`Drop`]s.
+///
 /// # A note on `Send` and `Sync`
 ///
 /// Accessing this object is threadsafe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
@@ -1213,6 +1217,35 @@ impl<T> Py<T> {
     #[inline]
     pub fn clone_ref(&self, py: Python<'_>) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
+    }
+
+    /// Drops `self` and immediately decreases its reference count.
+    ///
+    /// This method is a micro-optimisation over [`Drop`] if you happen to be holding the GIL
+    /// already.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyDict;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let object: Py<PyDict> = PyDict::new_bound(py).unbind();
+    ///
+    ///     // some usage of object
+    ///
+    ///     object.drop_ref(py);
+    /// });
+    /// # }
+    /// ```
+    #[inline]
+    pub fn drop_ref(self, py: Python<'_>) {
+        let _py = py;
+
+        // Safety: we hold the GIL and forget `self` to not trigger a double free
+        unsafe { pyo3::ffi::Py_DECREF(self.into_ptr()) };
     }
 
     /// Returns whether the object is considered to be None.
