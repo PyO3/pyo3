@@ -1224,6 +1224,9 @@ impl<T> Py<T> {
     /// This method is a micro-optimisation over [`Drop`] if you happen to be holding the GIL
     /// already.
     ///
+    /// Note that if you are using [`Bound`], you do not need to use [`Self::drop_ref`] since
+    /// [`Bound`] guarantees that the GIL is held.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -1242,10 +1245,7 @@ impl<T> Py<T> {
     /// ```
     #[inline]
     pub fn drop_ref(self, py: Python<'_>) {
-        let _py = py;
-
-        // Safety: we hold the GIL and forget `self` to not trigger a double free
-        unsafe { ffi::Py_DECREF(self.into_ptr()) };
+        let _ = self.into_bound(py);
     }
 
     /// Returns whether the object is considered to be None.
