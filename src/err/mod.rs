@@ -957,7 +957,7 @@ impl PyErrArguments for PyDowncastErrorArguments {
         format!(
             "'{}' object cannot be converted to '{}'",
             self.from
-                .as_ref(py)
+                .bind(py)
                 .qualname()
                 .as_deref()
                 .unwrap_or("<failed to extract type name>"),
