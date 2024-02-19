@@ -78,10 +78,7 @@ impl PySlice {
         )
     )]
     pub fn full(py: Python<'_>) -> &PySlice {
-        unsafe {
-            let ptr = ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None());
-            py.from_owned_ptr(ptr)
-        }
+        PySlice::full_bound(py).into_gil_ref()
     }
 
     /// Constructs a new full slice that is equivalent to `::`.

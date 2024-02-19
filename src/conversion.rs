@@ -434,13 +434,28 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// Implementations must ensure the object does not get freed during `'p`
     /// and ensure that `ptr` is of the correct type.
     /// Note that it must be safe to decrement the reference count of `ptr`.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
     /// Convert from an arbitrary `PyObject` or panic.
     ///
     /// # Safety
     ///
     /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+        #[allow(deprecated)]
         Self::from_owned_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
     /// Convert from an arbitrary `PyObject` or panic.
@@ -448,7 +463,15 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+        #[allow(deprecated)]
         Self::from_owned_ptr_or_panic(py, ptr)
     }
     /// Convert from an arbitrary `PyObject`.
@@ -456,7 +479,15 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
+        #[allow(deprecated)]
         Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
     }
     /// Convert from an arbitrary borrowed `PyObject`.

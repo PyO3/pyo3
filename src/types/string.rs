@@ -242,6 +242,7 @@ impl PyString {
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
             let bytes = unsafe {
+                #[allow(deprecated)]
                 self.py()
                     .from_owned_ptr_or_err::<PyBytes>(ffi::PyUnicode_AsUTF8String(self.as_ptr()))
             }?;
