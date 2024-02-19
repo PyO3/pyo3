@@ -17,7 +17,6 @@ use crate::{
 use std::{
     borrow::Cow,
     collections::HashMap,
-    convert::TryInto,
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_ulong, c_void},
     ptr,

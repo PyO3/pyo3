@@ -3,7 +3,6 @@
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::PyCell;
 use std::collections::HashMap;
 
 #[path = "../src/tests/common.rs"]

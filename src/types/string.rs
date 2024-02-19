@@ -514,10 +514,7 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
-    use crate::Python;
     use crate::{PyObject, ToPyObject};
-    #[cfg(not(Py_LIMITED_API))]
-    use std::borrow::Cow;
 
     #[test]
     fn test_to_str_utf8() {

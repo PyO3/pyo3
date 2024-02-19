@@ -3,7 +3,6 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
-use pyo3::PyCell;
 
 #[path = "../src/tests/common.rs"]
 mod common;

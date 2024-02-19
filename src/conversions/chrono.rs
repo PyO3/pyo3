@@ -1097,7 +1097,6 @@ mod tests {
     mod proptests {
         use super::*;
         use crate::tests::common::CatchWarnings;
-        use crate::types::any::PyAnyMethods;
         use crate::types::IntoPyDict;
         use proptest::prelude::*;
 

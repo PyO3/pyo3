@@ -177,7 +177,7 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
-    use pyo3::types::{IntoPyDict, PyDict};
+    use pyo3::types::PyDict;
 
     #[cfg(not(PyPy))]
     #[test]
