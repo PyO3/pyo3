@@ -1086,7 +1086,7 @@ pub fn gen_complex_enum_variant_attr(
     let associated_method = quote! {
         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
             #deprecations
-            ::std::result::Result::Ok(py.get_type::<#variant_cls>().into())
+            ::std::result::Result::Ok(py.get_type_bound::<#variant_cls>().into_any().unbind())
         }
     };
 
@@ -1283,6 +1283,7 @@ fn impl_pytypeinfo(
 
             #[inline]
             fn type_object_raw(py: _pyo3::Python<'_>) -> *mut _pyo3::ffi::PyTypeObject {
+                use _pyo3::prelude::PyTypeMethods;
                 #deprecations
 
                 <#cls as _pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()

@@ -91,12 +91,8 @@ macro_rules! bigint_conversion {
                 } else {
                     None
                 };
-                py.get_type::<PyLong>()
-                    .call_method(
-                        "from_bytes",
-                        (bytes_obj, "little"),
-                        kwargs.as_ref().map(crate::Bound::as_gil_ref),
-                    )
+                py.get_type_bound::<PyLong>()
+                    .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
             }

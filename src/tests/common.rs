@@ -42,7 +42,7 @@ mod inner {
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
             let res = $py.run_bound($code, None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
-            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
+            if !err.matches($py, $py.get_type_bound::<pyo3::exceptions::$err>()) {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
             }
             err
@@ -73,8 +73,8 @@ mod inner {
     #[cfg(all(feature = "macros", Py_3_8))]
     #[pymethods(crate = "pyo3")]
     impl UnraisableCapture {
-        pub fn hook(&mut self, unraisable: &PyAny) {
-            let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
+        pub fn hook(&mut self, unraisable: Bound<'_, PyAny>) {
+            let err = PyErr::from_value_bound(unraisable.getattr("exc_value").unwrap());
             let instance = unraisable.getattr("object").unwrap();
             self.capture = Some((err, instance.into()));
         }

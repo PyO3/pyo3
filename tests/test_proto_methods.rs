@@ -191,20 +191,20 @@ pub struct Mapping {
 #[pymethods]
 impl Mapping {
     fn __len__(&self, py: Python<'_>) -> usize {
-        self.values.as_ref(py).len()
+        self.values.bind(py).len()
     }
 
-    fn __getitem__<'a>(&'a self, key: &'a PyAny) -> PyResult<&'a PyAny> {
-        let any: &PyAny = self.values.as_ref(key.py()).as_ref();
+    fn __getitem__<'py>(&self, key: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+        let any: &Bound<'py, PyAny> = self.values.bind(key.py());
         any.get_item(key)
     }
 
-    fn __setitem__(&self, key: &PyAny, value: &PyAny) -> PyResult<()> {
-        self.values.as_ref(key.py()).set_item(key, value)
+    fn __setitem__<'py>(&self, key: &Bound<'py, PyAny>, value: &Bound<'py, PyAny>) -> PyResult<()> {
+        self.values.bind(key.py()).set_item(key, value)
     }
 
-    fn __delitem__(&self, key: &PyAny) -> PyResult<()> {
-        self.values.as_ref(key.py()).del_item(key)
+    fn __delitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<()> {
+        self.values.bind(key.py()).del_item(key)
     }
 }
 
@@ -221,7 +221,7 @@ fn mapping() {
         )
         .unwrap();
 
-        let mapping: &PyMapping = inst.as_ref(py).downcast().unwrap();
+        let mapping: &Bound<'_, PyMapping> = inst.bind(py).as_any().downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -323,7 +323,7 @@ fn sequence() {
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
-        let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
+        let sequence: &Bound<'_, PySequence> = inst.bind(py).as_any().downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -350,16 +350,16 @@ fn sequence() {
         // indices.
         assert!(sequence.len().is_err());
         // however regular python len() works thanks to mp_len slot
-        assert_eq!(inst.as_ref(py).len().unwrap(), 0);
+        assert_eq!(inst.bind(py).as_any().len().unwrap(), 0);
 
         py_run!(py, inst, "inst.append(0)");
         sequence.set_item(0, 5).unwrap();
-        assert_eq!(inst.as_ref(py).len().unwrap(), 1);
+        assert_eq!(inst.bind(py).as_any().len().unwrap(), 1);
 
         assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
         sequence.del_item(0).unwrap();
 
-        assert_eq!(inst.as_ref(py).len().unwrap(), 0);
+        assert_eq!(inst.bind(py).as_any().len().unwrap(), 0);
     });
 }
 
@@ -658,10 +658,10 @@ impl OnceFuture {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__<'py>(&'py mut self, py: Python<'py>) -> Option<&'py PyAny> {
+    fn __next__<'py>(&mut self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
         if !self.polled {
             self.polled = true;
-            Some(self.future.as_ref(py))
+            Some(self.future.bind(py))
         } else {
             None
         }
@@ -672,7 +672,7 @@ impl OnceFuture {
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_await() {
     Python::with_gil(|py| {
-        let once = py.get_type::<OnceFuture>();
+        let once = py.get_type_bound::<OnceFuture>();
         let source = r#"
 import asyncio
 import sys
@@ -725,7 +725,7 @@ impl AsyncIterator {
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_anext_aiter() {
     Python::with_gil(|py| {
-        let once = py.get_type::<OnceFuture>();
+        let once = py.get_type_bound::<OnceFuture>();
         let source = r#"
 import asyncio
 import sys
@@ -750,7 +750,7 @@ asyncio.run(main())
             .as_borrowed();
         globals.set_item("Once", once).unwrap();
         globals
-            .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
+            .set_item("AsyncIterator", py.get_type_bound::<AsyncIterator>())
             .unwrap();
         py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
@@ -793,7 +793,7 @@ impl DescrCounter {
 #[test]
 fn descr_getset() {
     Python::with_gil(|py| {
-        let counter = py.get_type::<DescrCounter>();
+        let counter = py.get_type_bound::<DescrCounter>();
         let source = pyo3::indoc::indoc!(
             r#"
 class Class:

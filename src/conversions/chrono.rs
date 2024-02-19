@@ -52,9 +52,7 @@ use crate::types::{
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
-use crate::{
-    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
@@ -461,7 +459,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
     if let Err(e) = PyErr::warn_bound(
         py,
-        &py.get_type::<PyUserWarning>().as_borrowed(),
+        &py.get_type_bound::<PyUserWarning>(),
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
@@ -590,7 +588,7 @@ mod tests {
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect
-            let msg = res.value(py).repr().unwrap().to_string();
+            let msg = res.value_bound(py).repr().unwrap().to_string();
             assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
         });
     }
@@ -605,7 +603,7 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<NaiveDateTime> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime without tzinfo')"
             );
         });
@@ -620,14 +618,14 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<Utc>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
 
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<FixedOffset>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
         });

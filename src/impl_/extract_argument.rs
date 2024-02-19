@@ -206,9 +206,15 @@ pub fn from_py_with_with_default<'a, 'py, T>(
 #[doc(hidden)]
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
-    if error.get_type_bound(py).is(py.get_type::<PyTypeError>()) {
-        let remapped_error =
-            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
+    if error
+        .get_type_bound(py)
+        .is(&py.get_type_bound::<PyTypeError>())
+    {
+        let remapped_error = PyTypeError::new_err(format!(
+            "argument '{}': {}",
+            arg_name,
+            error.value_bound(py)
+        ));
         remapped_error.set_cause(py, error.cause(py));
         remapped_error
     } else {

@@ -1,6 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(not(target_arch = "wasm32"))]
-use std::{ops::Deref, task::Poll, thread, time::Duration};
+use std::{task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};
 use pyo3::{
@@ -65,8 +65,11 @@ fn test_coroutine_qualname() {
             assert coro.__name__ == name and coro.__qualname__ == qualname
         "#;
         let locals = [
-            ("my_fn", wrap_pyfunction!(my_fn, gil).unwrap().deref()),
-            ("MyClass", gil.get_type::<MyClass>()),
+            (
+                "my_fn",
+                wrap_pyfunction!(my_fn, gil).unwrap().as_borrowed().as_any(),
+            ),
+            ("MyClass", gil.get_type_bound::<MyClass>().as_any()),
         ]
         .into_py_dict_bound(gil);
         py_run!(gil, *locals, &handle_windows(test));
@@ -137,7 +140,7 @@ fn cancelled_coroutine() {
             )
             .unwrap_err();
         assert_eq!(
-            err.value(gil).get_type().qualname().unwrap(),
+            err.value_bound(gil).get_type().qualname().unwrap(),
             "CancelledError"
         );
     })
@@ -286,7 +289,7 @@ fn test_async_method_receiver() {
             assert False
         assert asyncio.run(coro3) == 1
         "#;
-        let locals = [("Counter", gil.get_type::<Counter>())].into_py_dict_bound(gil);
+        let locals = [("Counter", gil.get_type_bound::<Counter>())].into_py_dict_bound(gil);
         py_run!(gil, *locals, test);
     })
 }

@@ -95,7 +95,7 @@ impl ClassMethod {
 #[test]
 fn class_method() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<ClassMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
         py_assert!(
@@ -126,7 +126,7 @@ impl ClassMethodWithArgs {
 #[test]
 fn class_method_with_args() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<ClassMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(
             py,
             *d,
@@ -157,7 +157,7 @@ fn static_method() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
-        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<StaticMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
@@ -181,7 +181,7 @@ fn static_method_with_args() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
-        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<StaticMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method(1337) == '0x539'");
     });
 }
@@ -679,7 +679,7 @@ impl MethDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<MethDocs>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<MethDocs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
             py,
@@ -866,7 +866,7 @@ impl FromSequence {
 #[test]
 fn test_from_sequence() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<FromSequence>();
+        let typeobj = py.get_type_bound::<FromSequence>();
         py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]");
     });
 }
@@ -946,7 +946,7 @@ impl r#RawIdents {
 #[test]
 fn test_raw_idents() {
     Python::with_gil(|py| {
-        let raw_idents_type = py.get_type::<r#RawIdents>();
+        let raw_idents_type = py.get_type_bound::<r#RawIdents>();
         assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
         py_run!(
             py,

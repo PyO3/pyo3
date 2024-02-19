@@ -63,12 +63,12 @@ impl Iter {
     }
 
     fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyObject>> {
-        let bytes = slf.keys.as_ref(slf.py()).as_bytes();
+        let bytes = slf.keys.bind(slf.py()).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
                 slf.idx += 1;
                 let py = slf.py();
-                let reader = slf.reader.as_ref(py);
+                let reader = slf.reader.bind(py);
                 let reader_ref = reader.try_borrow()?;
                 let res = reader_ref
                     .inner
