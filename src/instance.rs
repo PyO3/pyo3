@@ -1195,11 +1195,11 @@ impl<T> Py<T> {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around `FromPyObject::extract()`.
-    pub fn extract<'py, D>(&'py self, py: Python<'py>) -> PyResult<D>
+    pub fn extract<'py, D>(&self, py: Python<'py>) -> PyResult<D>
     where
         D: FromPyObject<'py>,
     {
-        FromPyObject::extract(unsafe { py.from_borrowed_ptr(self.as_ptr()) })
+        self.bind(py).as_any().extract()
     }
 
     /// Retrieves an attribute value.
