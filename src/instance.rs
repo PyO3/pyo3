@@ -1245,7 +1245,7 @@ impl<T> Py<T> {
         let _py = py;
 
         // Safety: we hold the GIL and forget `self` to not trigger a double free
-        unsafe { pyo3::ffi::Py_DECREF(self.into_ptr()) };
+        unsafe { ffi::Py_DECREF(self.into_ptr()) };
     }
 
     /// Returns whether the object is considered to be None.
