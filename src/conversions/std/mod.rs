@@ -1,4 +1,5 @@
 mod array;
+mod cell;
 mod ipaddr;
 mod map;
 mod num;
