@@ -5,7 +5,7 @@ use crate::Python;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
     types::{PyDict, PyString},
-    IntoPy, Py, PyAny,
+    Bound, IntoPy, Py, PyAny,
 };
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
@@ -57,9 +57,9 @@ fn test_date_fromtimestamp() {
 #[test]
 fn test_utc_timezone() {
     Python::with_gil(|py| {
-        let utc_timezone: &PyAny = unsafe {
+        let utc_timezone: Bound<'_, PyAny> = unsafe {
             PyDateTime_IMPORT();
-            py.from_borrowed_ptr(PyDateTime_TimeZone_UTC())
+            Bound::from_borrowed_ptr(py, PyDateTime_TimeZone_UTC())
         };
         let locals = PyDict::new_bound(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
@@ -254,35 +254,33 @@ fn test_get_tzinfo() {
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
-        use crate::PyAny;
 
         let utc = &timezone_utc_bound(py);
 
         let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is(utc)
         );
 
         let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is_none()
         );
 
         let t = PyTime::new_bound(py, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
-                .is(utc)
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }.is(utc)
         );
 
         let t = PyTime::new_bound(py, 0, 0, 0, 0, None).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
                 .is_none()
         );
     })
