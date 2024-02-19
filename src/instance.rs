@@ -656,9 +656,14 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 /// These require passing in the [`Python<'py>`](crate::Python) token but are otherwise similar to the corresponding
 /// methods on [`PyAny`].
 ///
-/// # Example: Storing Python objects in structs
+/// # Example: Storing Python objects in `#[pyclass]` structs
 ///
-/// As all the native Python objects only appear as references, storing them in structs doesn't work well.
+/// Usually `Bound<'py, T>` is recommended for interacting with Python objects as its lifetime `'py`
+/// is an association to the GIL and that enables many operations to be done as efficiently as possible.
+///
+/// However, `#[pyclass]` structs cannot carry a lifetime, so `Py<T>` is the only way to store
+/// a Python object in a `#[pyclass]` struct.
+///
 /// For example, this won't compile:
 ///
 /// ```compile_fail
@@ -667,7 +672,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 /// #
 /// #[pyclass]
 /// struct Foo<'py> {
-///     inner: &'py PyDict,
+///     inner: Bound<'py, PyDict>,
 /// }
 ///
 /// impl Foo {
@@ -675,9 +680,9 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///         let foo = Python::with_gil(|py| {
 ///             // `py` will only last for this scope.
 ///
-///             // `&PyDict` derives its lifetime from `py` and
+///             // `Bound<'py, PyDict>` inherits the GIL lifetime from `py` and
 ///             // so won't be able to outlive this closure.
-///             let dict: &PyDict = PyDict::new(py);
+///             let dict: Bound<'_, PyDict> = PyDict::new_bound(py);
 ///
 ///             // because `Foo` contains `dict` its lifetime
 ///             // is now also tied to `py`.
