@@ -180,7 +180,7 @@ pub trait IntoPy<T>: Sized {
 /// Extract a type from a Python object.
 ///
 ///
-/// Normal usage is through the `extract` methods on [`Py`] and  [`PyAny`], which forward to this trait.
+/// Normal usage is through the `extract` methods on [`Bound`] and [`Py`], which forward to this trait.
 ///
 /// # Examples
 ///
@@ -190,30 +190,32 @@ pub trait IntoPy<T>: Sized {
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let obj: Py<PyString> = PyString::new_bound(py, "blah").into();
-///
-///     // Straight from an owned reference
-///     let s: &str = obj.extract(py)?;
+///     // Calling `.extract()` on a `Bound` smart pointer
+///     let obj: Bound<'_, PyString> = PyString::new_bound(py, "blah");
+///     let s: &str = obj.extract()?;
 /// #   assert_eq!(s, "blah");
 ///
-///     // Or from a borrowed reference
-///     let obj: &PyString = obj.as_ref(py);
-///     let s: &str = obj.extract()?;
+///     // Calling `.extract(py)` on a `Py` smart pointer
+///     let obj: Py<PyString> = obj.unbind();
+///     let s: &str = obj.extract(py)?;
 /// #   assert_eq!(s, "blah");
 /// #   Ok(())
 /// })
 /// # }
 /// ```
 ///
-/// Note: depending on the implementation, the lifetime of the extracted result may
-/// depend on the lifetime of the `obj` or the `prepared` variable.
-///
-/// For example, when extracting `&str` from a Python byte string, the resulting string slice will
-/// point to the existing string data (lifetime: `'py`).
-/// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
-/// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
-/// Since which case applies depends on the runtime type of the Python object,
-/// both the `obj` and `prepared` variables must outlive the resulting string slice.
+// /// FIXME: until `FromPyObject` can pick up a second lifetime, the below commentary is no longer
+// /// true. Update and restore this documentation at that time.
+// ///
+// /// Note: depending on the implementation, the lifetime of the extracted result may
+// /// depend on the lifetime of the `obj` or the `prepared` variable.
+// ///
+// /// For example, when extracting `&str` from a Python byte string, the resulting string slice will
+// /// point to the existing string data (lifetime: `'py`).
+// /// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
+// /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
+// /// Since which case applies depends on the runtime type of the Python object,
+// /// both the `obj` and `prepared` variables must outlive the resulting string slice.
 ///
 /// During the migration of PyO3 from the "GIL Refs" API to the `Bound<T>` smart pointer, this trait
 /// has two methods `extract` and `extract_bound` which are defaulted to call each other. To avoid
