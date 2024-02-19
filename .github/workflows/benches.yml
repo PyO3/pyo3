@@ -9,6 +9,10 @@ on:
   # performance analysis in order to generate initial data.
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}-benches
+  cancel-in-progress: true
+
 jobs:
   benchmarks:
     runs-on: ubuntu-latest
