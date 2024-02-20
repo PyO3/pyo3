@@ -81,7 +81,6 @@ fn test_getattr() {
         let example_py = make_example(py);
         assert_eq!(
             example_py
-                .as_any()
                 .getattr("value")
                 .unwrap()
                 .extract::<i32>()
@@ -90,7 +89,6 @@ fn test_getattr() {
         );
         assert_eq!(
             example_py
-                .as_any()
                 .getattr("special_custom_attr")
                 .unwrap()
                 .extract::<i32>()
@@ -98,7 +96,6 @@ fn test_getattr() {
             20,
         );
         assert!(example_py
-            .as_any()
             .getattr("other_attr")
             .unwrap_err()
             .is_instance_of::<PyAttributeError>(py));
@@ -109,13 +106,9 @@ fn test_getattr() {
 fn test_setattr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        example_py
-            .as_any()
-            .setattr("special_custom_attr", 15)
-            .unwrap();
+        example_py.setattr("special_custom_attr", 15).unwrap();
         assert_eq!(
             example_py
-                .as_any()
                 .getattr("special_custom_attr")
                 .unwrap()
                 .extract::<i32>()
@@ -129,12 +122,8 @@ fn test_setattr() {
 fn test_delattr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        example_py.as_any().delattr("special_custom_attr").unwrap();
-        assert!(example_py
-            .as_any()
-            .getattr("special_custom_attr")
-            .unwrap()
-            .is_none());
+        example_py.delattr("special_custom_attr").unwrap();
+        assert!(example_py.getattr("special_custom_attr").unwrap().is_none());
     })
 }
 
@@ -142,7 +131,7 @@ fn test_delattr() {
 fn test_str() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.as_any().str().unwrap().to_cow().unwrap(), "5");
+        assert_eq!(example_py.str().unwrap().to_cow().unwrap(), "5");
     })
 }
 
@@ -151,7 +140,7 @@ fn test_repr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
         assert_eq!(
-            example_py.as_any().repr().unwrap().to_cow().unwrap(),
+            example_py.repr().unwrap().to_cow().unwrap(),
             "ExampleClass(value=5)"
         );
     })
@@ -161,7 +150,7 @@ fn test_repr() {
 fn test_hash() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.as_any().hash().unwrap(), 5);
+        assert_eq!(example_py.hash().unwrap(), 5);
     })
 }
 
@@ -169,9 +158,9 @@ fn test_hash() {
 fn test_bool() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert!(example_py.as_any().is_truthy().unwrap());
+        assert!(example_py.is_truthy().unwrap());
         example_py.borrow_mut().value = 0;
-        assert!(!example_py.as_any().is_truthy().unwrap());
+        assert!(!example_py.is_truthy().unwrap());
     })
 }
 
@@ -231,7 +220,7 @@ fn mapping() {
         )
         .unwrap();
 
-        let mapping: &Bound<'_, PyMapping> = inst.bind(py).as_any().downcast().unwrap();
+        let mapping: &Bound<'_, PyMapping> = inst.bind(py).downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -333,7 +322,7 @@ fn sequence() {
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
-        let sequence: &Bound<'_, PySequence> = inst.bind(py).as_any().downcast().unwrap();
+        let sequence: &Bound<'_, PySequence> = inst.bind(py).downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -360,16 +349,16 @@ fn sequence() {
         // indices.
         assert!(sequence.len().is_err());
         // however regular python len() works thanks to mp_len slot
-        assert_eq!(inst.bind(py).as_any().len().unwrap(), 0);
+        assert_eq!(inst.bind(py).len().unwrap(), 0);
 
         py_run!(py, inst, "inst.append(0)");
         sequence.set_item(0, 5).unwrap();
-        assert_eq!(inst.bind(py).as_any().len().unwrap(), 1);
+        assert_eq!(inst.bind(py).len().unwrap(), 1);
 
         assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
         sequence.del_item(0).unwrap();
 
-        assert_eq!(inst.bind(py).as_any().len().unwrap(), 0);
+        assert_eq!(inst.bind(py).len().unwrap(), 0);
     });
 }
 

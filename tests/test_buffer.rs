@@ -96,11 +96,11 @@ fn test_get_buffer_errors() {
         )
         .unwrap();
 
-        assert!(PyBuffer::<u32>::get_bound(instance.bind(py).as_any()).is_ok());
+        assert!(PyBuffer::<u32>::get_bound(instance.bind(py)).is_ok());
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::NullShape);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py).as_any())
+            PyBuffer::<u32>::get_bound(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: shape is null"
@@ -108,7 +108,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::NullStrides);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py).as_any())
+            PyBuffer::<u32>::get_bound(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: strides is null"
@@ -116,7 +116,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectItemSize);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py).as_any())
+            PyBuffer::<u32>::get_bound(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: buffer contents are not compatible with u32"
@@ -124,7 +124,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectFormat);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py).as_any())
+            PyBuffer::<u32>::get_bound(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: buffer contents are not compatible with u32"
@@ -132,7 +132,7 @@ fn test_get_buffer_errors() {
 
         instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectAlignment);
         assert_eq!(
-            PyBuffer::<u32>::get_bound(instance.bind(py).as_any())
+            PyBuffer::<u32>::get_bound(instance.bind(py))
                 .unwrap_err()
                 .to_string(),
             "BufferError: buffer contents are insufficiently aligned for u32"

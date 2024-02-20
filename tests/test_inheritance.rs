@@ -247,7 +247,7 @@ mod inheriting_native_type {
             let item = &py.eval_bound("object()", None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
-            dict_sub.bind(py).as_any().set_item("foo", item).unwrap();
+            dict_sub.bind(py).set_item("foo", item).unwrap();
             assert_eq!(item.get_refcnt(), 2);
 
             drop(dict_sub);
