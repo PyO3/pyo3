@@ -517,12 +517,12 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 }
 
-impl<'py> Bound<'py, PyDict> {
+impl<'a, 'py> Borrowed<'a, 'py, PyDict> {
     /// Iterates over the contents of this dictionary without incrementing reference counts.
     ///
     /// # Safety
     /// It must be known that this dictionary will not be modified during iteration.
-    pub(crate) unsafe fn iter_borrowed<'a>(&'a self) -> BorrowedDictIter<'a, 'py> {
+    pub(crate) unsafe fn iter_borrowed(self) -> BorrowedDictIter<'a, 'py> {
         BorrowedDictIter::new(self)
     }
 }
@@ -672,7 +672,7 @@ mod borrowed_iter {
     /// without incrementing reference counts. This is only safe if it's known
     /// that the dictionary will not be modified during iteration.
     pub struct BorrowedDictIter<'a, 'py> {
-        dict: &'a Bound<'py, PyDict>,
+        dict: Borrowed<'a, 'py, PyDict>,
         ppos: ffi::Py_ssize_t,
         len: ffi::Py_ssize_t,
     }
@@ -710,8 +710,8 @@ mod borrowed_iter {
     }
 
     impl<'a, 'py> BorrowedDictIter<'a, 'py> {
-        pub(super) fn new(dict: &'a Bound<'py, PyDict>) -> Self {
-            let len = dict_len(dict);
+        pub(super) fn new(dict: Borrowed<'a, 'py, PyDict>) -> Self {
+            let len = dict_len(&dict);
             BorrowedDictIter { dict, ppos: 0, len }
         }
     }

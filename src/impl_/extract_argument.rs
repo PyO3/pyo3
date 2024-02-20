@@ -48,7 +48,7 @@ where
         obj: &'a Bound<'py, PyAny>,
         holder: &'a mut Option<&'a Bound<'py, T>>,
     ) -> PyResult<Self> {
-        Ok(&*holder.insert(obj.downcast()?))
+        Ok(holder.insert(obj.downcast()?))
     }
 }
 
@@ -261,7 +261,9 @@ impl FunctionDescription {
         );
 
         // Handle positional arguments
-        // Safety: Option<PyArg> has the same memory layout as `*mut ffi::PyObject`
+        // Safety:
+        //  - Option<PyArg> has the same memory layout as `*mut ffi::PyObject`
+        //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
         let args: *const Option<PyArg<'py>> = args.cast();
         let positional_args_provided = nargs as usize;
         let remaining_positional_args = if args.is_null() {
@@ -284,9 +286,11 @@ impl FunctionDescription {
         let mut varkeywords = K::Varkeywords::default();
 
         // Safety: kwnames is known to be a pointer to a tuple, or null
-        let kwnames: &'py Option<Bound<'py, PyTuple>> = std::mem::transmute(&kwnames);
-        if let Some(kwnames) = kwnames.as_ref() {
-            // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
+        //  - we both have the GIL and can borrow this input reference for the `'py` lifetime.
+        let kwnames: Option<Borrowed<'_, '_, PyTuple>> =
+            Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.downcast_unchecked());
+        if let Some(kwnames) = kwnames {
+            // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
             let kwargs = ::std::slice::from_raw_parts(
                 (args as *const PyArg<'py>).offset(nargs),
                 kwnames.len(),
@@ -322,7 +326,7 @@ impl FunctionDescription {
     /// - `kwargs` must be a pointer to a PyDict, or NULL.
     pub unsafe fn extract_arguments_tuple_dict<'py, V, K>(
         &self,
-        _py: Python<'py>,
+        py: Python<'py>,
         args: *mut ffi::PyObject,
         kwargs: *mut ffi::PyObject,
         output: &mut [Option<PyArg<'py>>],
@@ -331,11 +335,14 @@ impl FunctionDescription {
         V: VarargsHandler<'py>,
         K: VarkeywordsHandler<'py>,
     {
-        // Safety: Bound has the same layout as a raw pointer, and reference is known to be
-        // borrowed for 'py.
-        let args: &'py Bound<'py, PyTuple> = std::mem::transmute(&args);
-        let kwargs: &'py Option<Bound<'py, PyDict>> = std::mem::transmute(&kwargs);
-        let kwargs = kwargs.as_ref();
+        // Safety:
+        //  - `args` is known to be a tuple
+        //  - `kwargs` is known to be a dict or null
+        //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
+        let args: Borrowed<'py, 'py, PyTuple> =
+            Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>();
+        let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
+            Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked());
 
         let num_positional_parameters = self.positional_parameter_names.len();
 
@@ -356,7 +363,7 @@ impl FunctionDescription {
         }
 
         // If any arguments remain, push them to varargs (if possible) or error
-        let varargs = V::handle_varargs_tuple(args, self)?;
+        let varargs = V::handle_varargs_tuple(&args, self)?;
 
         // Handle keyword arguments
         let mut varkeywords = K::Varkeywords::default();
