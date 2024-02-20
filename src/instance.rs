@@ -366,6 +366,9 @@ fn python_format(
     }
 }
 
+// The trait bound is needed to avoid running into the auto-deref recursion
+// limit (error[E0055]), because `Bound<PyAny>` would deref into itself. See:
+// https://github.com/rust-lang/rust/issues/19509
 impl<'py, T> Deref for Bound<'py, T>
 where
     T: HasPyBaseType,
