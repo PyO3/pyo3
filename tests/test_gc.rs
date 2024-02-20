@@ -3,7 +3,7 @@
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
-use pyo3::{py_run, PyCell};
+use pyo3::py_run;
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -398,6 +398,7 @@ impl HijackedTraverse {
     }
 }
 
+#[allow(dead_code)]
 trait Traversable {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
 }

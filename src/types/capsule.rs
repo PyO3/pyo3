@@ -1,8 +1,8 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny, PyNativeType};
-use crate::{pyobject_native_type_core, PyErr, PyResult};
 use crate::{Bound, Python};
+use crate::{PyErr, PyResult};
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
 

@@ -206,7 +206,6 @@ assert hash_djb2('l50_50') == Number(-1152549421)
 ```rust
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::convert::TryInto;
 
 use pyo3::exceptions::{PyValueError, PyZeroDivisionError};
 use pyo3::prelude::*;

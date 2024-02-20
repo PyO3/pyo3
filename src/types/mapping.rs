@@ -286,11 +286,7 @@ impl<'v> crate::PyTryFrom<'v> for PyMapping {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{
-        exceptions::PyKeyError,
-        types::{PyDict, PyTuple},
-        Python,
-    };
+    use crate::{exceptions::PyKeyError, types::PyTuple};
 
     use super::*;
 

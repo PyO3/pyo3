@@ -181,7 +181,7 @@ quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyCell, py_run};
+use pyo3::py_run;
 
 # fn main() {
 #[pyclass]
@@ -228,7 +228,7 @@ to this function!
 ```rust
 use pyo3::{
     prelude::*,
-    types::{IntoPyDict, PyModule},
+    types::IntoPyDict,
 };
 
 # fn main() -> PyResult<()> {
@@ -437,7 +437,6 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyModule;
 
 fn main() {
     Python::with_gil(|py| {

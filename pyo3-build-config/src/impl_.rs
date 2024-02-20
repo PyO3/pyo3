@@ -8,7 +8,6 @@ mod import_lib;
 
 use std::{
     collections::{HashMap, HashSet},
-    convert::AsRef,
     env,
     ffi::{OsStr, OsString},
     fmt::Display,
@@ -1785,7 +1784,6 @@ fn unescape(escaped: &str) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::FromIterator;
     use target_lexicon::triple;
 
     use super::*;

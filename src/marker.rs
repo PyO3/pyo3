@@ -1162,7 +1162,7 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{any::PyAnyMethods, IntoPyDict, PyDict, PyList};
+    use crate::types::{IntoPyDict, PyList};
     use std::sync::Arc;
 
     #[test]

@@ -842,7 +842,7 @@ mod tests {
     use super::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{PyErr, PyNativeType, Python};
+    use crate::{PyErr, PyNativeType};
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);

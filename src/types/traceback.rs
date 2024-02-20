@@ -113,8 +113,8 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        prelude::*,
-        types::{traceback::PyTracebackMethods, PyDict},
+        types::{any::PyAnyMethods, dict::PyDictMethods, traceback::PyTracebackMethods, PyDict},
+        IntoPy, PyErr, Python,
     };
 
     #[test]

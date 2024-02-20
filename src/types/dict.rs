@@ -735,9 +735,7 @@ mod tests {
     use super::*;
     #[cfg(not(PyPy))]
     use crate::exceptions;
-    #[cfg(not(PyPy))]
-    use crate::types::PyList;
-    use crate::{types::PyTuple, Python, ToPyObject};
+    use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
