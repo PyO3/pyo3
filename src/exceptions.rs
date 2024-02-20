@@ -1008,7 +1008,7 @@ mod tests {
                 .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
-                .into_ref(py);
+                .into_bound(py);
             assert_eq!(
                 format!("{:?}", exc),
                 exc.repr().unwrap().extract::<String>().unwrap()
@@ -1023,7 +1023,7 @@ mod tests {
                 .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
-                .into_ref(py);
+                .into_bound(py);
             assert_eq!(
                 exc.to_string(),
                 exc.str().unwrap().extract::<String>().unwrap()
@@ -1036,6 +1036,7 @@ mod tests {
         use std::error::Error;
 
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let exc = py
                 .run_bound(
                     "raise Exception('banana') from TypeError('peach')",

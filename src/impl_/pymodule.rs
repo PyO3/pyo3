@@ -137,7 +137,7 @@ impl ModuleDef {
 mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    use crate::{types::PyModule, PyResult, Python};
+    use crate::{types::any::PyAnyMethods, types::PyModule, PyResult, Python};
 
     use super::{ModuleDef, ModuleInitializer};
 
@@ -154,7 +154,7 @@ mod tests {
             )
         };
         Python::with_gil(|py| {
-            let module = MODULE_DEF.make_module(py).unwrap().into_ref(py);
+            let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
             assert_eq!(
                 module
                     .getattr("__name__")

@@ -259,8 +259,8 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
-    ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
+    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
+    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
@@ -715,11 +715,11 @@ impl PyAny {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast()?;
+    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
@@ -1112,8 +1112,8 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
-    ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
+    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
+    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
@@ -1543,11 +1543,11 @@ pub trait PyAnyMethods<'py> {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast()?;
+    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;

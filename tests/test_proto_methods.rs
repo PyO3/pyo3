@@ -64,8 +64,8 @@ impl ExampleClass {
     }
 }
 
-fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
-    Py::new(
+fn make_example(py: Python<'_>) -> Bound<'_, ExampleClass> {
+    Bound::new(
         py,
         ExampleClass {
             value: 5,
@@ -73,7 +73,6 @@ fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
         },
     )
     .unwrap()
-    .into_ref(py)
 }
 
 #[test]
@@ -82,6 +81,7 @@ fn test_getattr() {
         let example_py = make_example(py);
         assert_eq!(
             example_py
+                .as_any()
                 .getattr("value")
                 .unwrap()
                 .extract::<i32>()
@@ -90,6 +90,7 @@ fn test_getattr() {
         );
         assert_eq!(
             example_py
+                .as_any()
                 .getattr("special_custom_attr")
                 .unwrap()
                 .extract::<i32>()
@@ -97,6 +98,7 @@ fn test_getattr() {
             20,
         );
         assert!(example_py
+            .as_any()
             .getattr("other_attr")
             .unwrap_err()
             .is_instance_of::<PyAttributeError>(py));
@@ -107,9 +109,13 @@ fn test_getattr() {
 fn test_setattr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        example_py.setattr("special_custom_attr", 15).unwrap();
+        example_py
+            .as_any()
+            .setattr("special_custom_attr", 15)
+            .unwrap();
         assert_eq!(
             example_py
+                .as_any()
                 .getattr("special_custom_attr")
                 .unwrap()
                 .extract::<i32>()
@@ -123,8 +129,12 @@ fn test_setattr() {
 fn test_delattr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        example_py.delattr("special_custom_attr").unwrap();
-        assert!(example_py.getattr("special_custom_attr").unwrap().is_none());
+        example_py.as_any().delattr("special_custom_attr").unwrap();
+        assert!(example_py
+            .as_any()
+            .getattr("special_custom_attr")
+            .unwrap()
+            .is_none());
     })
 }
 
@@ -132,7 +142,7 @@ fn test_delattr() {
 fn test_str() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.str().unwrap().to_str().unwrap(), "5");
+        assert_eq!(example_py.as_any().str().unwrap().to_cow().unwrap(), "5");
     })
 }
 
@@ -141,7 +151,7 @@ fn test_repr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
         assert_eq!(
-            example_py.repr().unwrap().to_str().unwrap(),
+            example_py.as_any().repr().unwrap().to_cow().unwrap(),
             "ExampleClass(value=5)"
         );
     })
@@ -151,7 +161,7 @@ fn test_repr() {
 fn test_hash() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.hash().unwrap(), 5);
+        assert_eq!(example_py.as_any().hash().unwrap(), 5);
     })
 }
 
@@ -159,9 +169,9 @@ fn test_hash() {
 fn test_bool() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert!(example_py.is_truthy().unwrap());
+        assert!(example_py.as_any().is_truthy().unwrap());
         example_py.borrow_mut().value = 0;
-        assert!(!example_py.is_truthy().unwrap());
+        assert!(!example_py.as_any().is_truthy().unwrap());
     })
 }
 

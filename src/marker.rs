@@ -853,6 +853,7 @@ impl<'py> Python<'py> {
     where
         T: PyTypeCheck<AsRefTarget = T>,
     {
+        #[allow(deprecated)]
         obj.into_ref(self).downcast()
     }
 
@@ -873,6 +874,7 @@ impl<'py> Python<'py> {
     where
         T: HasPyGilRef<AsRefTarget = T>,
     {
+        #[allow(deprecated)]
         obj.into_ref(self).downcast_unchecked()
     }
 

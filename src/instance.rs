@@ -958,9 +958,17 @@ where
     ///     // This reference's lifetime is determined by `py`'s lifetime.
     ///     // Because that originates from outside this function,
     ///     // this return value is allowed.
+    ///     # #[allow(deprecated)]
     ///     obj.into_ref(py)
     /// }
     /// ```
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
+        )
+    )]
     pub fn into_ref(self, py: Python<'_>) -> &T::AsRefTarget {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
