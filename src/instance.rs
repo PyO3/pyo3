@@ -4,7 +4,7 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
-use crate::types::{PyDict, PyString, PyTuple};
+use crate::types::{HasPyBaseType, PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
     PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
@@ -368,7 +368,7 @@ fn python_format(
 
 impl<'py, T> Deref for Bound<'py, T>
 where
-    T: AsRef<PyAny>,
+    T: HasPyBaseType,
 {
     type Target = Bound<'py, PyAny>;
 
@@ -380,7 +380,7 @@ where
 
 impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T>
 where
-    T: AsRef<PyAny>,
+    T: HasPyBaseType,
 {
     #[inline]
     fn as_ref(&self) -> &Bound<'py, PyAny> {

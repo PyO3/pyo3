@@ -86,6 +86,21 @@ pub mod iter {
     pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator, PyTupleIterator};
 }
 
+/// Python objects that have a base type.
+///
+/// This marks types that can be upcast into a [`PyAny`] and used in its place.
+/// This essentially includes every Python object except [`PyAny`] itself.
+///
+/// This is used to provide the [`AsRef<Bound<'_, PyAny>`](std::convert::AsRef)
+/// and [`Deref<Target = Bound<'_, PyAny>`](std::ops::Deref) implementations for
+/// [`Bound<'_, T>`](crate::Bound)
+///
+/// Users should not need to implement this trait directly. It's implementation
+/// is provided by the [`#[pyclass]`](macro@crate::pyclass) attribute.
+pub trait HasPyBaseType {
+    // Empty.
+}
+
 // Implementations core to all native types
 #[doc(hidden)]
 #[macro_export]
@@ -183,6 +198,8 @@ macro_rules! pyobject_native_type_named (
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
+
+        impl $crate::types::HasPyBaseType for $name {}
     };
 );
 
