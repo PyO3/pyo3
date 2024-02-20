@@ -249,6 +249,7 @@ unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
+/// #   #[allow(deprecated)]
 ///     let n = PyCell::new(py, Number { inner: 0 })?;
 ///
 ///     let n_mutable: &mut Number = &mut n.borrow_mut();
@@ -284,6 +285,13 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// In cases where the value in the cell does not need to be accessed immediately after
     /// creation, consider [`Py::new`](crate::Py::new) as a more efficient alternative.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Bound::new(py, value)` or `Py::new(py, value)` instead of `PyCell::new(py, value)`"
+        )
+    )]
     pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {
         unsafe {
             let initializer = value.into();
@@ -332,6 +340,7 @@ impl<T: PyClass> PyCell<T> {
     /// struct Class {}
     ///
     /// Python::with_gil(|py| {
+    /// #   #[allow(deprecated)]
     ///     let c = PyCell::new(py, Class {}).unwrap();
     ///     {
     ///         let m = c.borrow_mut();
@@ -371,6 +380,7 @@ impl<T: PyClass> PyCell<T> {
     /// #[pyclass]
     /// struct Class {}
     /// Python::with_gil(|py| {
+    /// #   #[allow(deprecated)]
     ///     let c = PyCell::new(py, Class {}).unwrap();
     ///     {
     ///         let m = c.borrow();
@@ -406,6 +416,7 @@ impl<T: PyClass> PyCell<T> {
     /// #[pyclass]
     /// struct Class {}
     /// Python::with_gil(|py| {
+    /// #   #[allow(deprecated)]
     ///     let c = PyCell::new(py, Class {}).unwrap();
     ///
     ///     {
@@ -448,6 +459,7 @@ impl<T: PyClass> PyCell<T> {
     /// Python::with_gil(|py| {
     ///     let counter = FrozenCounter { value: AtomicUsize::new(0) };
     ///
+    /// #   #[allow(deprecated)]
     ///     let cell = PyCell::new(py, counter).unwrap();
     ///
     ///     cell.get().value.fetch_add(1, Ordering::Relaxed);
@@ -640,7 +652,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 ///     }
 /// }
 /// # Python::with_gil(|py| {
-/// #     let sub = PyCell::new(py, Child::new()).unwrap();
+/// #     let sub = Py::new(py, Child::new()).unwrap();
 /// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
 /// # });
 /// ```
@@ -739,7 +751,7 @@ where
     ///     }
     /// }
     /// # Python::with_gil(|py| {
-    /// #     let sub = PyCell::new(py, Sub::new()).unwrap();
+    /// #     let sub = Py::new(py, Sub::new()).unwrap();
     /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
     /// ```
@@ -1069,6 +1081,7 @@ mod tests {
     #[test]
     fn pycell_replace() {
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let cell = PyCell::new(py, SomeClass(0)).unwrap();
             assert_eq!(*cell.borrow(), SomeClass(0));
 
@@ -1082,6 +1095,7 @@ mod tests {
     #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
     fn pycell_replace_panic() {
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let cell = PyCell::new(py, SomeClass(0)).unwrap();
             let _guard = cell.borrow();
 
@@ -1092,6 +1106,7 @@ mod tests {
     #[test]
     fn pycell_replace_with() {
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let cell = PyCell::new(py, SomeClass(0)).unwrap();
             assert_eq!(*cell.borrow(), SomeClass(0));
 
@@ -1108,6 +1123,7 @@ mod tests {
     #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
     fn pycell_replace_with_panic() {
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let cell = PyCell::new(py, SomeClass(0)).unwrap();
             let _guard = cell.borrow();
 
@@ -1118,7 +1134,9 @@ mod tests {
     #[test]
     fn pycell_swap() {
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            #[allow(deprecated)]
             let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
             assert_eq!(*cell.borrow(), SomeClass(0));
             assert_eq!(*cell2.borrow(), SomeClass(123));
@@ -1133,7 +1151,9 @@ mod tests {
     #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
     fn pycell_swap_panic() {
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            #[allow(deprecated)]
             let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
 
             let _guard = cell.borrow();
@@ -1145,7 +1165,9 @@ mod tests {
     #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
     fn pycell_swap_panic_other_borrowed() {
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            #[allow(deprecated)]
             let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
 
             let _guard = cell2.borrow();
@@ -1156,7 +1178,7 @@ mod tests {
     #[test]
     fn test_as_ptr() {
         Python::with_gil(|py| {
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
             assert_eq!(cell.borrow().as_ptr(), ptr);
@@ -1167,7 +1189,7 @@ mod tests {
     #[test]
     fn test_into_ptr() {
         Python::with_gil(|py| {
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let cell = Bound::new(py, SomeClass(0)).unwrap();
             let ptr = cell.as_ptr();
 
             assert_eq!(cell.borrow().into_ptr(), ptr);

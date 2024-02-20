@@ -216,6 +216,7 @@ struct MyClass {
     num: i32,
 }
 Python::with_gil(|py| {
+#   #[allow(deprecated)]
     let obj = PyCell::new(py, MyClass { num: 3 }).unwrap();
     {
         let obj_ref = obj.borrow(); // Get PyRef
@@ -397,7 +398,7 @@ impl SubSubClass {
     }
 }
 # Python::with_gil(|py| {
-#     let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
+#     let subsub = pyo3::Py::new(py, SubSubClass::new()).unwrap();
 #     pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000");
 #     let subsub = SubSubClass::factory_method(py, 2).unwrap();
 #     let subsubsub = SubSubClass::factory_method(py, 3).unwrap();
@@ -441,7 +442,7 @@ impl DictWithCounter {
     }
 }
 # Python::with_gil(|py| {
-#     let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
+#     let cnt = pyo3::Py::new(py, DictWithCounter::new()).unwrap();
 #     pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
 # });
 # }
