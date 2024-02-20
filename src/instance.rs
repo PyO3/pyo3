@@ -378,10 +378,7 @@ where
     }
 }
 
-impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T>
-where
-    T: HasPyBaseType,
-{
+impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T> {
     #[inline]
     fn as_ref(&self) -> &Bound<'py, PyAny> {
         self.as_any()

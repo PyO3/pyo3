@@ -91,9 +91,8 @@ pub mod iter {
 /// This marks types that can be upcast into a [`PyAny`] and used in its place.
 /// This essentially includes every Python object except [`PyAny`] itself.
 ///
-/// This is used to provide the [`AsRef<Bound<'_, PyAny>`](std::convert::AsRef)
-/// and [`Deref<Target = Bound<'_, PyAny>`](std::ops::Deref) implementations for
-/// [`Bound<'_, T>`](crate::Bound)
+/// This is used to provide the [`Deref<Target = Bound<'_, PyAny>>`](std::ops::Deref)
+/// implementations for [`Bound<'_, T>`](crate::Bound)
 ///
 /// Users should not need to implement this trait directly. It's implementation
 /// is provided by the [`#[pyclass]`](macro@crate::pyclass) attribute.
