@@ -8,7 +8,6 @@ mod import_lib;
 
 use std::{
     collections::{HashMap, HashSet},
-    convert::AsRef,
     env,
     ffi::{OsStr, OsString},
     fmt::Display,
@@ -701,6 +700,7 @@ fn have_python_interpreter() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
+        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1")
 }
 
 /// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
@@ -1784,7 +1784,6 @@ fn unescape(escaped: &str) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::FromIterator;
     use target_lexicon::triple;
 
     use super::*;

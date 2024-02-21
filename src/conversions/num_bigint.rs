@@ -48,11 +48,11 @@
 //! ```
 
 #[cfg(Py_LIMITED_API)]
-use crate::types::bytes::PyBytesMethods;
+use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
     ffi,
     instance::Bound,
-    types::{any::PyAnyMethods, *},
+    types::{any::PyAnyMethods, PyLong},
     FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
@@ -85,18 +85,14 @@ macro_rules! bigint_conversion {
                 let bytes = $to_bytes(self);
                 let bytes_obj = PyBytes::new_bound(py, &bytes);
                 let kwargs = if $is_signed > 0 {
-                    let kwargs = PyDict::new_bound(py);
+                    let kwargs = crate::types::PyDict::new_bound(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
                     Some(kwargs)
                 } else {
                     None
                 };
-                py.get_type::<PyLong>()
-                    .call_method(
-                        "from_bytes",
-                        (bytes_obj, "little"),
-                        kwargs.as_ref().map(crate::Bound::as_gil_ref),
-                    )
+                py.get_type_bound::<PyLong>()
+                    .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
             }
@@ -228,7 +224,7 @@ fn int_to_py_bytes<'py>(
     use crate::intern;
     let py = long.py();
     let kwargs = if is_signed {
-        let kwargs = PyDict::new_bound(py);
+        let kwargs = crate::types::PyDict::new_bound(py);
         kwargs.set_item(intern!(py, "signed"), true)?;
         Some(kwargs)
     } else {
@@ -265,8 +261,6 @@ fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
 
 #[cfg(test)]
 mod tests {
-    use self::{any::PyAnyMethods, dict::PyDictMethods};
-
     use super::*;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;

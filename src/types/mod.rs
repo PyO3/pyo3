@@ -283,7 +283,7 @@ pub(crate) mod bytes;
 pub(crate) mod capsule;
 #[cfg(not(Py_LIMITED_API))]
 mod code;
-mod complex;
+pub(crate) mod complex;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 pub(crate) mod dict;
@@ -309,4 +309,4 @@ mod slice;
 pub(crate) mod string;
 pub(crate) mod traceback;
 pub(crate) mod tuple;
-mod typeobject;
+pub(crate) mod typeobject;

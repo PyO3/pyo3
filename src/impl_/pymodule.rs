@@ -67,13 +67,14 @@ impl ModuleDef {
     pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
         #[cfg(all(PyPy, not(Py_3_8)))]
         {
+            use crate::types::any::PyAnyMethods;
             const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
             let version = py
-                .import("sys")?
+                .import_bound("sys")?
                 .getattr("implementation")?
                 .getattr("version")?;
             if version.lt(crate::types::PyTuple::new_bound(py, PYPY_GOOD_VERSION))? {
-                let warn = py.import("warnings")?.getattr("warn")?;
+                let warn = py.import_bound("warnings")?.getattr("warn")?;
                 warn.call1((
                     "PyPy 3.7 versions older than 7.3.8 are known to have binary \
                         compatibility issues which may cause segfaults. Please upgrade.",
@@ -136,7 +137,7 @@ impl ModuleDef {
 mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    use crate::{types::PyModule, PyResult, Python};
+    use crate::{types::any::PyAnyMethods, types::PyModule, PyResult, Python};
 
     use super::{ModuleDef, ModuleInitializer};
 
@@ -153,7 +154,7 @@ mod tests {
             )
         };
         Python::with_gil(|py| {
-            let module = MODULE_DEF.make_module(py).unwrap().into_ref(py);
+            let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
             assert_eq!(
                 module
                     .getattr("__name__")
@@ -202,7 +203,8 @@ mod tests {
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
 
             Python::with_gil(|py| {
-                module_def.initializer.0(py, py.import("builtins").unwrap()).unwrap();
+                module_def.initializer.0(py, py.import_bound("builtins").unwrap().into_gil_ref())
+                    .unwrap();
                 assert!(INIT_CALLED.load(Ordering::SeqCst));
             })
         }

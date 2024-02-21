@@ -3,7 +3,6 @@
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::PyCell;
 use std::collections::HashMap;
 
 #[path = "../src/tests/common.rs"]
@@ -63,12 +62,12 @@ impl Iter {
     }
 
     fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyObject>> {
-        let bytes = slf.keys.as_ref(slf.py()).as_bytes();
+        let bytes = slf.keys.bind(slf.py()).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
                 slf.idx += 1;
                 let py = slf.py();
-                let reader = slf.reader.as_ref(py);
+                let reader = slf.reader.bind(py);
                 let reader_ref = reader.try_borrow()?;
                 let res = reader_ref
                     .inner
@@ -112,7 +111,7 @@ fn test_clone_ref() {
 #[test]
 fn test_nested_iter_reset() {
     Python::with_gil(|py| {
-        let reader = PyCell::new(py, reader()).unwrap();
+        let reader = Bound::new(py, reader()).unwrap();
         py_assert!(
             py,
             reader,

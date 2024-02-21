@@ -73,9 +73,9 @@ impl<'a> PyStringData<'a> {
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
-                Err(e) => Err(crate::PyErr::from_value(PyUnicodeDecodeError::new_utf8(
-                    py, data, e,
-                )?)),
+                Err(e) => Err(crate::PyErr::from_value_bound(
+                    PyUnicodeDecodeError::new_utf8_bound(py, data, e)?.into_any(),
+                )),
             },
             Self::Ucs2(data) => match String::from_utf16(data) {
                 Ok(s) => Ok(Cow::Owned(s)),
@@ -83,24 +83,30 @@ impl<'a> PyStringData<'a> {
                     let mut message = e.to_string().as_bytes().to_vec();
                     message.push(0);
 
-                    Err(crate::PyErr::from_value(PyUnicodeDecodeError::new(
-                        py,
-                        CStr::from_bytes_with_nul(b"utf-16\0").unwrap(),
-                        self.as_bytes(),
-                        0..self.as_bytes().len(),
-                        CStr::from_bytes_with_nul(&message).unwrap(),
-                    )?))
+                    Err(crate::PyErr::from_value_bound(
+                        PyUnicodeDecodeError::new_bound(
+                            py,
+                            CStr::from_bytes_with_nul(b"utf-16\0").unwrap(),
+                            self.as_bytes(),
+                            0..self.as_bytes().len(),
+                            CStr::from_bytes_with_nul(&message).unwrap(),
+                        )?
+                        .into_any(),
+                    ))
                 }
             },
             Self::Ucs4(data) => match data.iter().map(|&c| std::char::from_u32(c)).collect() {
                 Some(s) => Ok(Cow::Owned(s)),
-                None => Err(crate::PyErr::from_value(PyUnicodeDecodeError::new(
-                    py,
-                    CStr::from_bytes_with_nul(b"utf-32\0").unwrap(),
-                    self.as_bytes(),
-                    0..self.as_bytes().len(),
-                    CStr::from_bytes_with_nul(b"error converting utf-32\0").unwrap(),
-                )?)),
+                None => Err(crate::PyErr::from_value_bound(
+                    PyUnicodeDecodeError::new_bound(
+                        py,
+                        CStr::from_bytes_with_nul(b"utf-32\0").unwrap(),
+                        self.as_bytes(),
+                        0..self.as_bytes().len(),
+                        CStr::from_bytes_with_nul(b"error converting utf-32\0").unwrap(),
+                    )?
+                    .into_any(),
+                )),
             },
         }
     }
@@ -508,10 +514,7 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
-    use crate::Python;
     use crate::{PyObject, ToPyObject};
-    #[cfg(not(Py_LIMITED_API))]
-    use std::borrow::Cow;
 
     #[test]
     fn test_to_str_utf8() {

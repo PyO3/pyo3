@@ -181,7 +181,7 @@ quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyCell, py_run};
+use pyo3::py_run;
 
 # fn main() {
 #[pyclass]
@@ -206,7 +206,7 @@ Python::with_gil(|py| {
         id: 34,
         name: "Yu".to_string(),
     };
-    let userdata = PyCell::new(py, userdata).unwrap();
+    let userdata = Py::new(py, userdata).unwrap();
     let userdata_as_tuple = (34, "Yu");
     py_run!(py, userdata userdata_as_tuple, r#"
 assert repr(userdata) == "User Yu(id: 34)"
@@ -228,7 +228,7 @@ to this function!
 ```rust
 use pyo3::{
     prelude::*,
-    types::{IntoPyDict, PyModule},
+    types::IntoPyDict,
 };
 
 # fn main() -> PyResult<()> {
@@ -414,7 +414,7 @@ fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = fs::read_to_string(path.join("app.py"))?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        let syspath: &PyList = py.import("sys")?.getattr("path")?.downcast()?;
+        let syspath = py.import_bound("sys")?.getattr("path")?.downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
         let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
             .getattr("run")?
@@ -437,7 +437,6 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyModule;
 
 fn main() {
     Python::with_gil(|py| {
@@ -479,7 +478,7 @@ class House(object):
             }
             Err(e) => {
                 house
-                    .call_method1("__exit__", (e.get_type_bound(py), e.value(py), e.traceback_bound(py)))
+                    .call_method1("__exit__", (e.get_type_bound(py), e.value_bound(py), e.traceback_bound(py)))
                     .unwrap();
             }
         }
@@ -498,7 +497,7 @@ use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let signal = py.import("signal")?;
+    let signal = py.import_bound("signal")?;
     // Set SIGINT to have the default action
     signal
         .getattr("signal")?

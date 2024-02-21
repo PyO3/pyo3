@@ -1,7 +1,6 @@
 use crate::derive_utils::PyFunctionArguments;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::methods::PyMethodDefDestructor;
-use crate::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
 use crate::{
@@ -9,6 +8,7 @@ use crate::{
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyString, PyTuple},
 };
+use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 

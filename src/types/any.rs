@@ -86,16 +86,16 @@ impl PyAny {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    /// fn has_version(sys: &Bound<'_, PyModule>) -> PyResult<bool> {
     ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    has_version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -115,16 +115,16 @@ impl PyAny {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
+    /// fn version<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
     ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    version(&sys).unwrap();
     /// # });
     /// ```
     pub fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
@@ -259,8 +259,8 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
-    ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
+    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
+    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
@@ -667,7 +667,7 @@ impl PyAny {
 
     /// Returns the Python type object for this object's type.
     pub fn get_type(&self) -> &PyType {
-        self.as_borrowed().get_type()
+        self.as_borrowed().get_type().into_gil_ref()
     }
 
     /// Returns the Python type pointer for this object.
@@ -715,11 +715,11 @@ impl PyAny {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast()?;
+    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
@@ -956,16 +956,16 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn has_version(sys: &PyModule) -> PyResult<bool> {
+    /// fn has_version(sys: &Bound<'_, PyModule>) -> PyResult<bool> {
     ///     sys.hasattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    has_version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
@@ -982,16 +982,16 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn version(sys: &PyModule) -> PyResult<&PyAny> {
+    /// fn version<'py>(sys: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
     ///     sys.getattr(intern!(sys.py(), "version"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import("sys").unwrap();
-    /// #    version(sys).unwrap();
+    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    version(&sys).unwrap();
     /// # });
     /// ```
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
@@ -1112,8 +1112,8 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
-    ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
+    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
+    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
@@ -1499,7 +1499,7 @@ pub trait PyAnyMethods<'py> {
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>>;
 
     /// Returns the Python type object for this object's type.
-    fn get_type(&self) -> &'py PyType;
+    fn get_type(&self) -> Bound<'py, PyType>;
 
     /// Returns the Python type pointer for this object.
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
@@ -1543,11 +1543,11 @@ pub trait PyAnyMethods<'py> {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast()?;
+    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
@@ -2107,8 +2107,8 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         PyIterator::from_bound_object(self)
     }
 
-    fn get_type(&self) -> &'py PyType {
-        unsafe { PyType::from_type_ptr(self.py(), ffi::Py_TYPE(self.as_ptr())) }
+    fn get_type(&self) -> Bound<'py, PyType> {
+        unsafe { PyType::from_borrowed_type_ptr(self.py(), ffi::Py_TYPE(self.as_ptr())) }
     }
 
     #[inline]
@@ -2265,7 +2265,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[cfg(not(PyPy))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
-        PySuper::new_bound(&self.get_type().as_borrowed(), self)
+        PySuper::new_bound(&self.get_type(), self)
     }
 }
 
@@ -2286,7 +2286,7 @@ impl<'py> Bound<'py, PyAny> {
         N: IntoPy<Py<PyString>>,
     {
         let py = self.py();
-        let self_type = self.get_type().as_borrowed();
+        let self_type = self.get_type();
         let attr = if let Ok(attr) = self_type.getattr(attr_name) {
             attr
         } else {

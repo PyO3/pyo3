@@ -22,8 +22,14 @@ fn test_cfg() {
     Python::with_gil(|py| {
         let cfg = CfgClass { b: 3 };
         let py_cfg = Py::new(py, cfg).unwrap();
-        assert!(py_cfg.as_ref(py).getattr("a").is_err());
-        let b: u32 = py_cfg.as_ref(py).getattr("b").unwrap().extract().unwrap();
+        assert!(py_cfg.bind(py).as_any().getattr("a").is_err());
+        let b: u32 = py_cfg
+            .bind(py)
+            .as_any()
+            .getattr("b")
+            .unwrap()
+            .extract()
+            .unwrap();
         assert_eq!(b, 3);
     });
 }

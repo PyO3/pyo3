@@ -133,12 +133,12 @@ where
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation.
 #[doc(hidden)]
-pub fn from_py_with<'py, T>(
-    obj: &'py PyAny,
+pub fn from_py_with<'a, 'py, T>(
+    obj: &'a Bound<'py, PyAny>,
     arg_name: &str,
-    extractor: fn(&'py PyAny) -> PyResult<T>,
+    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
 ) -> PyResult<T> {
-    match extractor(obj) {
+    match extractor.into().call(obj) {
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
     }
@@ -146,10 +146,10 @@ pub fn from_py_with<'py, T>(
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation and also a default value.
 #[doc(hidden)]
-pub fn from_py_with_with_default<'py, T>(
-    obj: Option<&'py PyAny>,
+pub fn from_py_with_with_default<'a, 'py, T>(
+    obj: Option<&'a Bound<'py, PyAny>>,
     arg_name: &str,
-    extractor: fn(&'py PyAny) -> PyResult<T>,
+    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
     default: fn() -> T,
 ) -> PyResult<T> {
     match obj {
@@ -166,9 +166,15 @@ pub fn from_py_with_with_default<'py, T>(
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
     use crate::types::any::PyAnyMethods;
-    if error.get_type_bound(py).is(py.get_type::<PyTypeError>()) {
-        let remapped_error =
-            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
+    if error
+        .get_type_bound(py)
+        .is(&py.get_type_bound::<PyTypeError>())
+    {
+        let remapped_error = PyTypeError::new_err(format!(
+            "argument '{}': {}",
+            arg_name,
+            error.value_bound(py)
+        ));
         remapped_error.set_cause(py, error.cause(py));
         remapped_error
     } else {

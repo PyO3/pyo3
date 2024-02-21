@@ -1,8 +1,8 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny, PyNativeType};
-use crate::{pyobject_native_type_core, PyErr, PyResult};
 use crate::{Bound, Python};
+use crate::{PyErr, PyResult};
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
 
@@ -491,7 +491,7 @@ mod tests {
         });
 
         Python::with_gil(|py| {
-            let f = unsafe { cap.as_ref(py).reference::<fn(u32) -> u32>() };
+            let f = unsafe { cap.bind(py).reference::<fn(u32) -> u32>() };
             assert_eq!(f(123), 123);
         });
     }
@@ -555,7 +555,7 @@ mod tests {
         });
 
         Python::with_gil(|py| {
-            let ctx: &Vec<u8> = unsafe { cap.as_ref(py).reference() };
+            let ctx: &Vec<u8> = unsafe { cap.bind(py).reference() };
             assert_eq!(ctx, &[1, 2, 3, 4]);
         })
     }
@@ -574,7 +574,7 @@ mod tests {
         });
 
         Python::with_gil(|py| {
-            let ctx_ptr: *mut c_void = cap.as_ref(py).context().unwrap();
+            let ctx_ptr: *mut c_void = cap.bind(py).context().unwrap();
             let ctx = unsafe { *Box::from_raw(ctx_ptr.cast::<&Vec<u8>>()) };
             assert_eq!(ctx, &vec![1_u8, 2, 3, 4]);
         })

@@ -3,8 +3,10 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
+use crate::types::{any::PyAnyMethods, PyModule, PyType};
 use crate::{
-    ffi, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit, Python,
+    ffi, Bound, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit,
+    Python,
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -466,3 +468,52 @@ pub trait AsyncIterResultOptionKind {
 }
 
 impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
+
+/// Used in `#[classmethod]` to pass the class object to the method
+/// and also in `#[pyfunction(pass_module)]`.
+///
+/// This is a wrapper to avoid implementing `From<Bound>` for GIL Refs.
+///
+/// Once the GIL Ref API is fully removed, it should be possible to simplify
+/// this to just `&'a Bound<'py, T>` and `From` implementations.
+pub struct BoundRef<'a, 'py, T>(pub &'a Bound<'py, T>);
+
+impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
+    pub unsafe fn ref_from_ptr(py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> Self {
+        BoundRef(Bound::ref_from_ptr(py, ptr))
+    }
+
+    pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
+        BoundRef(self.0.downcast_unchecked::<T>())
+    }
+}
+
+// GIL Ref implementations for &'a T ran into trouble with orphan rules,
+// so explicit implementations are used instead for the two relevant types.
+impl<'a> From<BoundRef<'a, 'a, PyType>> for &'a PyType {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'a, PyType>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a> From<BoundRef<'a, 'a, PyModule>> for &'a PyModule {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'a, PyModule>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py, T> From<BoundRef<'a, 'py, T>> for &'a Bound<'py, T> {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
+        bound.0
+    }
+}
+
+impl<T> From<BoundRef<'_, '_, T>> for Py<T> {
+    #[inline]
+    fn from(bound: BoundRef<'_, '_, T>) -> Self {
+        bound.0.clone().unbind()
+    }
+}
