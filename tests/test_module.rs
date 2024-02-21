@@ -496,14 +496,14 @@ create_exception!(
 /// A module written using declarative syntax.
 #[pymodule]
 mod declarative_module {
-    #[pyo3]
+    #[pymodule_export]
     use super::declarative_submodule;
-    #[pyo3]
+    #[pymodule_export]
     // This is not a real constraint but to test cfg attribute support
     #[cfg(not(Py_LIMITED_API))]
     use super::LocatedClass;
     use super::*;
-    #[pyo3]
+    #[pymodule_export]
     use super::{declarative_module2, double, MyError, ValueClass as Value};
 
     #[pymodule_init]
@@ -519,7 +519,7 @@ fn double_value(v: &ValueClass) -> usize {
 
 #[pymodule]
 mod declarative_submodule {
-    #[pyo3]
+    #[pymodule_export]
     use super::{double, double_value};
 }
 
@@ -527,7 +527,7 @@ mod declarative_submodule {
 #[pymodule]
 #[pyo3(name = "declarative_module_renamed")]
 mod declarative_module2 {
-    #[pyo3]
+    #[pymodule_export]
     use super::double;
 }
 

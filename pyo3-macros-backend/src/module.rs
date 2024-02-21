@@ -116,7 +116,7 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
             Item::Use(item_use) => {
                 let mut is_pyo3 = false;
                 item_use.attrs.retain(|attr| {
-                    let found = attr.path().is_ident("pyo3");
+                    let found = attr.path().is_ident("pymodule_export");
                     is_pyo3 |= found;
                     !found
                 });

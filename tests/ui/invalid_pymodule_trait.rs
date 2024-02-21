@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 #[pymodule]
 mod module {
-    #[pyo3]
+    #[pymodule_export]
     trait Foo {}
 }
 

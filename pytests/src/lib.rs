@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+
 pub mod awaitable;
 pub mod buf_and_str;
 pub mod comparisons;
@@ -18,14 +19,14 @@ pub mod subclassing;
 mod pyo3_pytests {
     use super::*;
     use pyo3::types::PyDict;
-    #[pyo3]
+    #[pymodule_export]
     use {
         awaitable::awaitable, comparisons::comparisons, dict_iter::dict_iter, enums::enums,
         misc::misc, objstore::objstore, othermod::othermod, path::path, pyclasses::pyclasses,
         pyfunctions::pyfunctions, sequence::sequence, subclassing::subclassing,
     };
     #[cfg(not(Py_LIMITED_API))]
-    #[pyo3]
+    #[pymodule_export]
     use {buf_and_str::buf_and_str, datetime::datetime};
 
     #[pymodule_init]

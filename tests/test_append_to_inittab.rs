@@ -1,4 +1,5 @@
 #![cfg(all(feature = "macros", not(PyPy)))]
+
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -14,7 +15,7 @@ fn module_fn_with_functions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 #[pymodule]
 mod module_mod_with_functions {
-    #[pyo3]
+    #[pymodule_export]
     use super::foo;
 }
 

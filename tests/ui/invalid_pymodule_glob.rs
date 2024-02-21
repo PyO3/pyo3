@@ -7,7 +7,7 @@ fn foo() -> usize {
 
 #[pymodule]
 mod module {
-    #[pyo3]
+    #[pymodule_export]
     use super::*;
 }
 
