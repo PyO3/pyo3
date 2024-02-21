@@ -1072,7 +1072,7 @@ mod tests {
             );
 
             // Restoring should preserve the same error
-            let e = PyErr::from_value_bound(decode_err.into_any());
+            let e: PyErr = decode_err.into();
             e.restore(py);
 
             assert_eq!(
