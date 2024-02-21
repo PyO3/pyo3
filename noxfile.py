@@ -487,7 +487,8 @@ def check_changelog(session: nox.Session):
 def set_minimal_package_versions(session: nox.Session):
     from collections import defaultdict
 
-    assert toml is not None, "requires Python 3.11 or toml package"
+    if toml is None:
+        session.error("requires Python 3.11 or `toml` to be installed")
 
     projects = (
         None,
@@ -600,7 +601,8 @@ def test_version_limits(session: nox.Session):
 
 @nox.session(name="test-feature-powerset", venv_backend="none")
 def test_feature_powerset(session: nox.Session):
-    assert toml is not None, "requires Python 3.11 or toml package"
+    if toml is None:
+        session.error("requires Python 3.11 or `toml` to be installed")
 
     with (PYO3_DIR / "Cargo.toml").open("rb") as cargo_toml_file:
         cargo_toml = toml.load(cargo_toml_file)
@@ -618,31 +620,34 @@ def test_feature_powerset(session: nox.Session):
     features = cargo_toml["features"]
 
     full_feature = set(features["full"])
-    expected_full_feature = {
-        feature
-        for feature in features
-        if not feature.startswith("abi3") and feature not in EXCLUDED_FROM_FULL
-    }
+    abi3_features = {feature for feature in features if feature.startswith("abi3")}
+    abi3_version_features = abi3_features - {"abi3"}
+
+    expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features
 
     uncovered_features = expected_full_feature - full_feature
-
-    assert not uncovered_features, uncovered_features
+    if uncovered_features:
+        session.error(
+            f"some features missing from `full` meta feature: {uncovered_features}"
+        )
 
     experimental_features = {
-        feature for feature in full_feature if feature.startswith("experimental-")
+        feature for feature in features if feature.startswith("experimental-")
     }
     full_without_experimental = full_feature - experimental_features
 
-    abi3_version_features = {
-        feature for feature in features if feature.startswith("abi3-")
-    }
-
-    # justification: we always assume that feature within these groups are
-    # mutually exclusive to simplify CI
-    features_to_group = [
-        full_without_experimental,
-        experimental_features,
-    ]
+    if len(experimental_features) >= 2:
+        # justification: we always assume that feature within these groups are
+        # mutually exclusive to simplify CI
+        features_to_group = [
+            full_without_experimental,
+            experimental_features,
+        ]
+    elif len(experimental_features) == 1:
+        # no need to make an experimental features group
+        features_to_group = [full_without_experimental]
+    else:
+        session.error("no experimental features exist; please simplify the noxfile")
 
     features_to_skip = [
         *EXCLUDED_FROM_FULL,
@@ -656,11 +661,7 @@ def test_feature_powerset(session: nox.Session):
         "--feature-powerset",
         '--optional-deps=""',
         f'--skip="{comma_join(features_to_skip)}"',
-        *(
-            f"--group-features={comma_join(group)}"
-            for group in features_to_group
-            if len(group) > 1
-        ),
+        *(f"--group-features={comma_join(group)}" for group in features_to_group),
         "test",
         "--lib",
         "--tests",
