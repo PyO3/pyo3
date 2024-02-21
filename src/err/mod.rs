@@ -982,6 +982,13 @@ impl PyErrArguments for PyDowncastErrorArguments {
     }
 }
 
+impl<'py, T> std::convert::From<Bound<'py, T>> for PyErr {
+    #[inline]
+    fn from(err: Bound<'py, T>) -> PyErr {
+        PyErr::from_value_bound(err.into_any())
+    }
+}
+
 /// Convert `PyDowncastError` to Python `TypeError`.
 impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
     fn from(err: PyDowncastError<'_>) -> PyErr {
