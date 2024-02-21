@@ -2,10 +2,9 @@
 
 use pyo3::prelude::*;
 
-use pyo3::exceptions::PyException;
+use pyo3::py_run;
 use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
-use pyo3::{create_exception, py_run};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -483,77 +482,5 @@ fn test_module_doc_hidden() {
     Python::with_gil(|py| {
         let m = pyo3::wrap_pymodule!(my_module)(py);
         py_assert!(py, m, "m.__doc__ == ''");
-    })
-}
-
-create_exception!(
-    declarative_module,
-    MyError,
-    PyException,
-    "Some description."
-);
-
-/// A module written using declarative syntax.
-#[pymodule]
-mod declarative_module {
-    #[pymodule_export]
-    use super::declarative_submodule;
-    #[pymodule_export]
-    // This is not a real constraint but to test cfg attribute support
-    #[cfg(not(Py_LIMITED_API))]
-    use super::LocatedClass;
-    use super::*;
-    #[pymodule_export]
-    use super::{declarative_module2, double, MyError, ValueClass as Value};
-
-    #[pymodule_init]
-    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add("double2", m.getattr("double")?)
-    }
-}
-
-#[pyfunction]
-fn double_value(v: &ValueClass) -> usize {
-    v.value * 2
-}
-
-#[pymodule]
-mod declarative_submodule {
-    #[pymodule_export]
-    use super::{double, double_value};
-}
-
-/// A module written using declarative syntax.
-#[pymodule]
-#[pyo3(name = "declarative_module_renamed")]
-mod declarative_module2 {
-    #[pymodule_export]
-    use super::double;
-}
-
-#[test]
-fn test_declarative_module() {
-    Python::with_gil(|py| {
-        let m = pyo3::wrap_pymodule!(declarative_module)(py).into_ref(py);
-        py_assert!(
-            py,
-            m,
-            "m.__doc__ == 'A module written using declarative syntax.'"
-        );
-
-        py_assert!(py, m, "m.double(2) == 4");
-        py_assert!(py, m, "m.double2(3) == 6");
-        py_assert!(py, m, "m.declarative_submodule.double(4) == 8");
-        py_assert!(
-            py,
-            m,
-            "m.declarative_submodule.double_value(m.ValueClass(1)) == 2"
-        );
-        py_assert!(py, m, "str(m.MyError('foo')) == 'foo'");
-        py_assert!(py, m, "m.declarative_module_renamed.double(2) == 4");
-        #[cfg(Py_LIMITED_API)]
-        py_assert!(py, m, "not hasattr(m, 'LocatedClass')");
-        #[cfg(not(Py_LIMITED_API))]
-        py_assert!(py, m, "hasattr(m, 'LocatedClass')");
     })
 }
