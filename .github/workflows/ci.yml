@@ -490,6 +490,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         continue-on-error: true
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
       - uses: taiki-e/install-action@cargo-hack
       - run: python3 -m pip install --upgrade pip && pip install nox
       - run: python3 -m nox -s test-feature-powerset
