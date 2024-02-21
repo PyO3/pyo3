@@ -2168,11 +2168,12 @@ a = A()
             let object: Py<PyDict> = PyDict::new_bound(py).unbind();
             let object2 = object.clone_ref(py);
 
+            assert_eq!(object.as_ptr(), object2.as_ptr());
             assert_eq!(object.get_refcnt(py), 2);
 
             object.drop_ref(py);
 
-            assert_eq!(object.get_refcnt(py), 1);
+            assert_eq!(object2.get_refcnt(py), 1);
 
             object2.drop_ref(py);
         });
