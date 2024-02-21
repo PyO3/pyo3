@@ -2162,6 +2162,22 @@ a = A()
         })
     }
 
+    #[test]
+    fn explicit_drop_ref() {
+        Python::with_gil(|py| {
+            let object: Py<PyDict> = PyDict::new_bound(py).unbind();
+            let object2 = object.clone_ref(py);
+
+            assert_eq!(object.get_refcnt(), 2);
+
+            object.drop_ref(py);
+
+            assert_eq!(object.get_refcnt(), 1);
+
+            object2.drop_ref(py);
+        });
+    }
+
     #[cfg(feature = "macros")]
     mod using_macros {
         use crate::PyCell;
