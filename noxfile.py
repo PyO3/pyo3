@@ -13,6 +13,14 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 import nox
 import nox.command
 
+try:
+    import tomllib as toml
+except ImportError:
+    try:
+        import toml
+    except ImportError:
+        toml = None
+
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
 
 
@@ -479,10 +487,7 @@ def check_changelog(session: nox.Session):
 def set_minimal_package_versions(session: nox.Session):
     from collections import defaultdict
 
-    try:
-        import tomllib as toml
-    except ImportError:
-        import toml
+    assert toml is not None, "requires Python 3.11 or toml package"
 
     projects = (
         None,
@@ -591,6 +596,77 @@ def test_version_limits(session: nox.Session):
         assert "3.11" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.11")
         _run_cargo(session, "check", env=env, expect_error=True)
+
+
+@nox.session(name="test-feature-powerset", venv_backend="none")
+def test_feature_powerset(session: nox.Session):
+    assert toml is not None, "requires Python 3.11 or toml package"
+
+    with (PYO3_DIR / "Cargo.toml").open("rb") as cargo_toml_file:
+        cargo_toml = toml.load(cargo_toml_file)
+
+    EXCLUDED_FROM_FULL = {
+        "nightly",
+        "extension-module",
+        "full",
+        "default",
+        "auto-initialize",
+        "generate-import-lib",
+        "multiple-pymethods",  # TODO add this after MSRV 1.62
+    }
+
+    features = cargo_toml["features"]
+
+    full_feature = set(features["full"])
+    expected_full_feature = {
+        feature
+        for feature in features
+        if not feature.startswith("abi3") and feature not in EXCLUDED_FROM_FULL
+    }
+
+    uncovered_features = expected_full_feature - full_feature
+
+    assert not uncovered_features, uncovered_features
+
+    experimental_features = {
+        feature for feature in full_feature if feature.startswith("experimental-")
+    }
+    full_without_experimental = full_feature - experimental_features
+
+    abi3_version_features = {
+        feature for feature in features if feature.startswith("abi3-")
+    }
+
+    # justification: we always assume that feature within these groups are
+    # mutually exclusive to simplify CI
+    features_to_group = [
+        full_without_experimental,
+        experimental_features,
+    ]
+
+    features_to_skip = [
+        *EXCLUDED_FROM_FULL,
+        *abi3_version_features,
+    ]
+
+    comma_join = ",".join
+    _run_cargo(
+        session,
+        "hack",
+        "--feature-powerset",
+        '--optional-deps=""',
+        f'--skip="{comma_join(features_to_skip)}"',
+        *(
+            f"--group-features={comma_join(group)}"
+            for group in features_to_group
+            if len(group) > 1
+        ),
+        "test",
+        "--lib",
+        "--tests",
+        # don't run doctests here as it's unlikely they work with
+        # literally every combination, and the link times will cripple CI
+    )
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:

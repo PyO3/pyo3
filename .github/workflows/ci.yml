@@ -480,6 +480,20 @@ jobs:
       - run: python3 -m pip install --upgrade pip && pip install nox
       - run: python3 -m nox -s test-version-limits
 
+  test-feature-powerset:
+    needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - uses: Swatinem/rust-cache@v2
+        continue-on-error: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-hack
+      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m nox -s test-feature-powerset
+
   conclusion:
     needs:
       - fmt
