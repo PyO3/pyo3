@@ -519,9 +519,9 @@ mod tests {
             let (msg, addr) = first_part.split_once("0x").unwrap();
 
             assert_eq!(msg, "<weakproxy at ");
-            assert!(dbg!(addr)
+            assert!(addr
                 .to_lowercase()
-                .contains(dbg!(format!("{:x?}", reference.as_ptr()).split_at(2).1)));
+                .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1));
         }
 
         let (msg, addr) = second_part.split_once("0x").unwrap();
