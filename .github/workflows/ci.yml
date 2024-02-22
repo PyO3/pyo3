@@ -480,7 +480,7 @@ jobs:
       - run: python3 -m pip install --upgrade pip && pip install nox
       - run: python3 -m nox -s test-version-limits
 
-  test-feature-powerset:
+  check-feature-powerset:
     needs: [fmt]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
     runs-on: ubuntu-latest
@@ -494,7 +494,7 @@ jobs:
           components: rust-src
       - uses: taiki-e/install-action@cargo-hack
       - run: python3 -m pip install --upgrade pip && pip install nox
-      - run: python3 -m nox -s test-feature-powerset
+      - run: python3 -m nox -s check-feature-powerset
 
   conclusion:
     needs:
@@ -510,6 +510,7 @@ jobs:
       - emscripten
       - test-debug
       - test-version-limits
+      - check-feature-powerset
     if: always()
     runs-on: ubuntu-latest
     steps:

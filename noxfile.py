@@ -599,8 +599,8 @@ def test_version_limits(session: nox.Session):
         _run_cargo(session, "check", env=env, expect_error=True)
 
 
-@nox.session(name="test-feature-powerset", venv_backend="none")
-def test_feature_powerset(session: nox.Session):
+@nox.session(name="check-feature-powerset", venv_backend="none")
+def check_feature_powerset(session: nox.Session):
     if toml is None:
         session.error("requires Python 3.11 or `toml` to be installed")
 
@@ -662,11 +662,8 @@ def test_feature_powerset(session: nox.Session):
         '--optional-deps=""',
         f'--skip="{comma_join(features_to_skip)}"',
         *(f"--group-features={comma_join(group)}" for group in features_to_group),
-        "test",
-        "--lib",
-        "--tests",
-        # don't run doctests here as it's unlikely they work with
-        # literally every combination, and the link times will cripple CI
+        "check",
+        "--all-targets",
     )
 
 
