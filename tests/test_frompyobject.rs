@@ -421,7 +421,7 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 #[derive(Debug, FromPyObject)]
 enum EnumWithCatchAll<'a> {
     #[pyo3(transparent)]
-    Foo(Foo<'a>),
+    Foo(#[allow(dead_code)] Foo<'a>),
     #[pyo3(transparent)]
     CatchAll(&'a PyAny),
 }
