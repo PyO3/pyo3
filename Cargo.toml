@@ -107,20 +107,21 @@ nightly = []
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
     "macros",
+    "gil-refs",
     # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
+    "anyhow",
     "chrono",
     "chrono-tz",
+    "either",
+    "experimental-inspect",
+    "eyre",
+    "hashbrown",
+    "indexmap",
     "num-bigint",
     "num-complex",
-    "hashbrown",
-    "smallvec",
-    "serde",
-    "indexmap",
-    "either",
-    "eyre",
-    "anyhow",
-    "experimental-inspect",
     "rust_decimal",
+    "serde",
+    "smallvec",
 ]
 
 [workspace]
