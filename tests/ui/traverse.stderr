@@ -15,7 +15,7 @@ error[E0308]: mismatched types
    | |___________________^ expected fn pointer, found fn item
    |
    = note: expected fn pointer `for<'a, 'b> fn(&'a TraverseTriesToTakePyRef, PyVisit<'b>) -> Result<(), PyTraverseError>`
-                 found fn item `for<'a, 'b> fn(pyo3::PyRef<'a, TraverseTriesToTakePyRef>, PyVisit<'b>) {TraverseTriesToTakePyRef::__traverse__}`
+                 found fn item `for<'a, 'b> fn(pyo3::PyRef<'a, TraverseTriesToTakePyRef, >, PyVisit<'b>) {TraverseTriesToTakePyRef::__traverse__}`
 note: function defined here
   --> src/impl_/pymethods.rs
    |
