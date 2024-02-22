@@ -262,10 +262,7 @@ fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        types::{PyDict, PyModule},
-        Bound,
-    };
+    use crate::types::{PyDict, PyModule};
     use indoc::indoc;
 
     fn rust_fib<T>() -> impl Iterator<Item = T>
