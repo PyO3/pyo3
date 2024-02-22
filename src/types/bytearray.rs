@@ -112,10 +112,7 @@ impl PyByteArray {
         )
     )]
     pub fn from(src: &PyAny) -> PyResult<&PyByteArray> {
-        unsafe {
-            src.py()
-                .from_owned_ptr_or_err(ffi::PyByteArray_FromObject(src.as_ptr()))
-        }
+        PyByteArray::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Creates a new Python `bytearray` object from another Python object that

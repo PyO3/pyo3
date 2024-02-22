@@ -19,10 +19,7 @@ impl PyMemoryView {
         )
     )]
     pub fn from(src: &PyAny) -> PyResult<&PyMemoryView> {
-        unsafe {
-            src.py()
-                .from_owned_ptr_or_err(ffi::PyMemoryView_FromObject(src.as_ptr()))
-        }
+        PyMemoryView::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Creates a new Python `memoryview` object from another Python object that

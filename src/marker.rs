@@ -881,10 +881,18 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+        )
+    )]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
     where
         T: FromPyPointer<'py>,
     {
+        #[allow(deprecated)]
         FromPyPointer::from_owned_ptr(self, ptr)
     }
 
@@ -897,10 +905,18 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
+        )
+    )]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
     where
         T: FromPyPointer<'py>,
     {
+        #[allow(deprecated)]
         FromPyPointer::from_owned_ptr_or_err(self, ptr)
     }
 
@@ -913,10 +929,18 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
+        )
+    )]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
     where
         T: FromPyPointer<'py>,
     {
+        #[allow(deprecated)]
         FromPyPointer::from_owned_ptr_or_opt(self, ptr)
     }
 

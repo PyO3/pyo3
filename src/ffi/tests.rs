@@ -5,7 +5,7 @@ use crate::Python;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
     types::{PyDict, PyString},
-    IntoPy, Py, PyAny,
+    Bound, IntoPy, Py, PyAny,
 };
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
@@ -16,9 +16,9 @@ use libc::wchar_t;
 fn test_datetime_fromtimestamp() {
     Python::with_gil(|py| {
         let args: Py<PyAny> = (100,).into_py(py);
-        let dt: &PyAny = unsafe {
+        let dt = unsafe {
             PyDateTime_IMPORT();
-            py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr()))
+            Bound::from_owned_ptr(py, PyDateTime_FromTimestamp(args.as_ptr()))
         };
         let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
@@ -37,9 +37,9 @@ fn test_datetime_fromtimestamp() {
 fn test_date_fromtimestamp() {
     Python::with_gil(|py| {
         let args: Py<PyAny> = (100,).into_py(py);
-        let dt: &PyAny = unsafe {
+        let dt = unsafe {
             PyDateTime_IMPORT();
-            py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr()))
+            Bound::from_owned_ptr(py, PyDate_FromTimestamp(args.as_ptr()))
         };
         let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
