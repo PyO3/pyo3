@@ -146,13 +146,11 @@ fn test_pyref_as_base() {
 #[test]
 fn test_pycell_deref() {
     Python::with_gil(|py| {
-        let cell = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+        let obj = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // Should be able to deref as PyAny
-        // FIXME: This deref does _not_ work
         assert_eq!(
-            cell.as_any()
-                .call_method0("foo")
+            obj.call_method0("foo")
                 .and_then(|e| e.extract::<&str>())
                 .unwrap(),
             "SubClass"

@@ -365,6 +365,8 @@ fn impl_class(
         const _: () = {
             use #krate as _pyo3;
 
+            impl _pyo3::types::DerefToPyAny for #cls {}
+
             #pytypeinfo_impl
 
             #py_class_impl

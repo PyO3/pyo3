@@ -86,6 +86,31 @@ pub mod iter {
     pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator, PyTupleIterator};
 }
 
+/// Python objects that have a base type.
+///
+/// This marks types that can be upcast into a [`PyAny`] and used in its place.
+/// This essentially includes every Python object except [`PyAny`] itself.
+///
+/// This is used to provide the [`Deref<Target = Bound<'_, PyAny>>`](std::ops::Deref)
+/// implementations for [`Bound<'_, T>`](crate::Bound).
+///
+/// Users should not need to implement this trait directly. It's implementation
+/// is provided by the [`#[pyclass]`](macro@crate::pyclass) attribute.
+///
+/// ## Note
+/// This is needed because the compiler currently tries to figure out all the
+/// types in a deref-chain before starting to look for applicable method calls.
+/// So we need to prevent [`Bound<'_, PyAny`](crate::Bound) dereferencing to
+/// itself in order to avoid running into the recursion limit. This trait is
+/// used to exclude this from our blanket implementation. See [this Rust
+/// issue][1] for more details. If the compiler limitation gets resolved, this
+/// trait will be removed.
+///
+/// [1]: https://github.com/rust-lang/rust/issues/19509
+pub trait DerefToPyAny {
+    // Empty.
+}
+
 // Implementations core to all native types
 #[doc(hidden)]
 #[macro_export]
@@ -183,6 +208,8 @@ macro_rules! pyobject_native_type_named (
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
+
+        impl $crate::types::DerefToPyAny for $name {}
     };
 );
 

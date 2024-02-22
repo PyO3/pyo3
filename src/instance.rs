@@ -4,7 +4,7 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
-use crate::types::{PyDict, PyString, PyTuple};
+use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
     PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
@@ -366,9 +366,12 @@ fn python_format(
     }
 }
 
+// The trait bound is needed to avoid running into the auto-deref recursion
+// limit (error[E0055]), because `Bound<PyAny>` would deref into itself. See:
+// https://github.com/rust-lang/rust/issues/19509
 impl<'py, T> Deref for Bound<'py, T>
 where
-    T: AsRef<PyAny>,
+    T: DerefToPyAny,
 {
     type Target = Bound<'py, PyAny>;
 
@@ -378,10 +381,7 @@ where
     }
 }
 
-impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T>
-where
-    T: AsRef<PyAny>,
-{
+impl<'py, T> AsRef<Bound<'py, PyAny>> for Bound<'py, T> {
     #[inline]
     fn as_ref(&self) -> &Bound<'py, PyAny> {
         self.as_any()
