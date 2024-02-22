@@ -79,8 +79,8 @@ struct SimplePyClass {}
 fn intopytuple_pyclass() {
     Python::with_gil(|py| {
         let tup = (
-            PyCell::new(py, SimplePyClass {}).unwrap(),
-            PyCell::new(py, SimplePyClass {}).unwrap(),
+            Py::new(py, SimplePyClass {}).unwrap(),
+            Py::new(py, SimplePyClass {}).unwrap(),
         );
         py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
         py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
@@ -102,8 +102,8 @@ fn pytuple_pyclass_iter() {
         let tup = PyTuple::new_bound(
             py,
             [
-                PyCell::new(py, SimplePyClass {}).unwrap(),
-                PyCell::new(py, SimplePyClass {}).unwrap(),
+                Py::new(py, SimplePyClass {}).unwrap(),
+                Py::new(py, SimplePyClass {}).unwrap(),
             ]
             .iter(),
         );
@@ -150,7 +150,7 @@ fn test_pickle() {
         let module = PyModule::new_bound(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
         add_module(module).unwrap();
-        let inst = PyCell::new(py, PickleSupport {}).unwrap();
+        let inst = Py::new(py, PickleSupport {}).unwrap();
         py_run!(
             py,
             inst,

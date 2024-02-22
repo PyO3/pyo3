@@ -822,6 +822,10 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 /// Otherwise, the reference count will be decreased the next time the GIL is
 /// reacquired.
 ///
+/// If you happen to be already holding the GIL, [`Py::drop_ref`] will decrease
+/// the Python reference count immediately and will execute slightly faster than
+/// relying on implicit [`Drop`]s.
+///
 /// # A note on `Send` and `Sync`
 ///
 /// Accessing this object is threadsafe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
@@ -958,9 +962,17 @@ where
     ///     // This reference's lifetime is determined by `py`'s lifetime.
     ///     // Because that originates from outside this function,
     ///     // this return value is allowed.
+    ///     # #[allow(deprecated)]
     ///     obj.into_ref(py)
     /// }
     /// ```
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "part of the deprecated GIL Ref API; to migrate use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
+        )
+    )]
     pub fn into_ref(self, py: Python<'_>) -> &T::AsRefTarget {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
@@ -1218,6 +1230,35 @@ impl<T> Py<T> {
     #[inline]
     pub fn clone_ref(&self, py: Python<'_>) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
+    }
+
+    /// Drops `self` and immediately decreases its reference count.
+    ///
+    /// This method is a micro-optimisation over [`Drop`] if you happen to be holding the GIL
+    /// already.
+    ///
+    /// Note that if you are using [`Bound`], you do not need to use [`Self::drop_ref`] since
+    /// [`Bound`] guarantees that the GIL is held.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyDict;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let object: Py<PyDict> = PyDict::new_bound(py).unbind();
+    ///
+    ///     // some usage of object
+    ///
+    ///     object.drop_ref(py);
+    /// });
+    /// # }
+    /// ```
+    #[inline]
+    pub fn drop_ref(self, py: Python<'_>) {
+        let _ = self.into_bound(py);
     }
 
     /// Returns whether the object is considered to be None.
@@ -2133,6 +2174,23 @@ a = A()
                 Borrowed::from_ptr_or_err(py, ptr).unwrap()
             });
         })
+    }
+
+    #[test]
+    fn explicit_drop_ref() {
+        Python::with_gil(|py| {
+            let object: Py<PyDict> = PyDict::new_bound(py).unbind();
+            let object2 = object.clone_ref(py);
+
+            assert_eq!(object.as_ptr(), object2.as_ptr());
+            assert_eq!(object.get_refcnt(py), 2);
+
+            object.drop_ref(py);
+
+            assert_eq!(object2.get_refcnt(py), 1);
+
+            object2.drop_ref(py);
+        });
     }
 
     #[cfg(feature = "macros")]

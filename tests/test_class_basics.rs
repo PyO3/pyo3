@@ -376,7 +376,7 @@ struct DunderDictSupport {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn dunder_dict_support() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(
+        let inst = Py::new(
             py,
             DunderDictSupport {
                 _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
@@ -399,7 +399,7 @@ fn dunder_dict_support() {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn access_dunder_dict() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(
+        let inst = Py::new(
             py,
             DunderDictSupport {
                 _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
@@ -427,7 +427,7 @@ struct InheritDict {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn inherited_dict() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(
+        let inst = Py::new(
             py,
             (
                 InheritDict { _value: 0 },
@@ -458,7 +458,7 @@ struct WeakRefDunderDictSupport {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_dunder_dict_support() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(
+        let inst = Py::new(
             py,
             WeakRefDunderDictSupport {
                 _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
@@ -482,7 +482,7 @@ struct WeakRefSupport {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_support() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(
+        let inst = Py::new(
             py,
             WeakRefSupport {
                 _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
@@ -507,7 +507,7 @@ struct InheritWeakRef {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn inherited_weakref() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(
+        let inst = Py::new(
             py,
             (
                 InheritWeakRef { _value: 0 },
@@ -539,7 +539,7 @@ fn access_frozen_class_without_gil() {
             value: AtomicUsize::new(0),
         };
 
-        let cell = PyCell::new(py, counter).unwrap();
+        let cell = Bound::new(py, counter).unwrap();
 
         cell.get().value.fetch_add(1, Ordering::Relaxed);
 

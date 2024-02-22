@@ -170,7 +170,7 @@ def f():
             let f = locals.get_item("f").unwrap().unwrap();
             let err = f.call0().unwrap_err();
             let traceback = err.traceback_bound(py).unwrap();
-            let err_object = err.clone_ref(py).into_py(py).into_ref(py);
+            let err_object = err.clone_ref(py).into_py(py).into_bound(py);
 
             assert!(err_object.getattr("__traceback__").unwrap().is(&traceback));
         })

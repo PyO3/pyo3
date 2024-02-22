@@ -219,12 +219,8 @@ impl NewExisting {
         static PRE_BUILT: GILOnceCell<[pyo3::Py<NewExisting>; 2]> = GILOnceCell::new();
         let existing = PRE_BUILT.get_or_init(py, || {
             [
-                pyo3::PyCell::new(py, NewExisting { num: 0 })
-                    .unwrap()
-                    .into(),
-                pyo3::PyCell::new(py, NewExisting { num: 1 })
-                    .unwrap()
-                    .into(),
+                pyo3::Py::new(py, NewExisting { num: 0 }).unwrap(),
+                pyo3::Py::new(py, NewExisting { num: 1 }).unwrap(),
             ]
         });
 
@@ -232,9 +228,7 @@ impl NewExisting {
             return existing[val].clone_ref(py);
         }
 
-        pyo3::PyCell::new(py, NewExisting { num: val })
-            .unwrap()
-            .into()
+        pyo3::Py::new(py, NewExisting { num: val }).unwrap()
     }
 }
 
