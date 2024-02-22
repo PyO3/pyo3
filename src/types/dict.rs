@@ -75,6 +75,13 @@ impl PyDict {
     }
 
     /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
+    #[cfg_attr(
+        all(not(PyPy), not(feature = "gil-refs")),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDict::from_sequence` will be replaced by `PyDict::from_sequence_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     #[cfg(not(PyPy))]
     pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
