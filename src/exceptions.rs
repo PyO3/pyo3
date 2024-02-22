@@ -52,6 +52,8 @@ macro_rules! impl_exception_boilerplate {
                 }
             }
         }
+
+        impl $crate::ToPyErr for $name {}
     };
 }
 

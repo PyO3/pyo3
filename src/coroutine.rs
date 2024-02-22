@@ -78,7 +78,7 @@ impl Coroutine {
             (Some(exc), Some(cb)) => cb.throw(exc),
             (Some(exc), None) => {
                 self.close();
-                return Err(exc.into_bound(py).into());
+                return Err(PyErr::from_value_bound(exc.into_bound(py)));
             }
             (None, _) => {}
         }
