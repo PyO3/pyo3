@@ -488,7 +488,10 @@ impl<'py, T> Bound<'py, T> {
     where
         T: HasPyGilRef,
     {
-        unsafe { self.py().from_owned_ptr(self.into_ptr()) }
+        #[allow(deprecated)]
+        unsafe {
+            self.py().from_owned_ptr(self.into_ptr())
+        }
     }
 }
 
@@ -974,7 +977,10 @@ where
         )
     )]
     pub fn into_ref(self, py: Python<'_>) -> &T::AsRefTarget {
-        unsafe { py.from_owned_ptr(self.into_ptr()) }
+        #[allow(deprecated)]
+        unsafe {
+            py.from_owned_ptr(self.into_ptr())
+        }
     }
 }
 

@@ -41,7 +41,10 @@ impl PyModule {
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         // Could use PyModule_NewObject, but it doesn't exist on PyPy.
         let name = CString::new(name)?;
-        unsafe { py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr())) }
+        #[allow(deprecated)]
+        unsafe {
+            py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr()))
+        }
     }
 
     /// Imports the Python module with the specified name.
@@ -67,7 +70,10 @@ impl PyModule {
         N: IntoPy<Py<PyString>>,
     {
         let name: Py<PyString> = name.into_py(py);
-        unsafe { py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr())) }
+        #[allow(deprecated)]
+        unsafe {
+            py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr()))
+        }
     }
 
     /// Creates and loads a module named `module_name`,
@@ -146,6 +152,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
+            #[allow(deprecated)]
             <&PyModule as FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }

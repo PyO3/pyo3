@@ -296,6 +296,7 @@ impl<T: PyClass> PyCell<T> {
         unsafe {
             let initializer = value.into();
             let self_ = initializer.create_cell(py)?;
+            #[allow(deprecated)]
             FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
         }
     }
