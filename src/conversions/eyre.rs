@@ -74,7 +74,7 @@
 //!     // could call inside an application...
 //!     // This might return a `PyErr`.
 //!     let res = Python::with_gil(|py| {
-//!         let zlib = PyModule::import(py, "zlib")?;
+//!         let zlib = PyModule::import_bound(py, "zlib")?;
 //!         let decompress = zlib.getattr("decompress")?;
 //!         let bytes = PyBytes::new_bound(py, bytes);
 //!         let value = decompress.call1((bytes,))?;

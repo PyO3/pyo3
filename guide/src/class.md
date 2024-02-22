@@ -941,8 +941,8 @@ impl MyClass {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
-#         let module = PyModule::new(py, "my_module")?;
+#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
+#         let module = PyModule::new_bound(py, "my_module")?;
 #         module.add_class::<MyClass>()?;
 #         let class = module.getattr("MyClass")?;
 #
@@ -951,7 +951,7 @@ impl MyClass {
 #             assert_eq!(doc, "");
 #
 #             let sig: String = inspect
-#                 .call1((class,))?
+#                 .call1((&class,))?
 #                 .call_method0("__str__")?
 #                 .extract()?;
 #             assert_eq!(sig, "(c, d)");
@@ -959,7 +959,7 @@ impl MyClass {
 #             let doc: String = class.getattr("__doc__")?.extract()?;
 #             assert_eq!(doc, "");
 #
-#             inspect.call1((class,)).expect_err("`text_signature` on classes is not compatible with compilation in `abi3` mode until Python 3.10 or greater");
+#             inspect.call1((&class,)).expect_err("`text_signature` on classes is not compatible with compilation in `abi3` mode until Python 3.10 or greater");
 #          }
 #
 #         {

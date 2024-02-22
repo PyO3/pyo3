@@ -1,3 +1,5 @@
+use std::hint::black_box;
+
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
@@ -6,17 +8,17 @@ use pyo3::intern;
 
 fn getattr_direct(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let sys = py.import_bound("sys").unwrap();
+        let sys = &py.import_bound("sys").unwrap();
 
-        b.iter(|| sys.getattr("version").unwrap());
+        b.iter(|| black_box(sys).getattr("version").unwrap());
     });
 }
 
 fn getattr_intern(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let sys = py.import_bound("sys").unwrap();
+        let sys = &py.import_bound("sys").unwrap();
 
-        b.iter(|| sys.getattr(intern!(py, "version")).unwrap());
+        b.iter(|| black_box(sys).getattr(intern!(py, "version")).unwrap());
     });
 }
 

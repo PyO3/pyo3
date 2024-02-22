@@ -31,7 +31,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///
 ///     let capsule = PyCapsule::new_bound(py, foo, Some(name.clone()))?;
 ///
-///     let module = PyModule::import(py, "builtins")?;
+///     let module = PyModule::import_bound(py, "builtins")?;
 ///     module.add("capsule", capsule)?;
 ///
 ///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
@@ -441,11 +441,13 @@ fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use libc::c_void;
 
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
+    use crate::types::module::PyModuleMethods;
     use crate::{types::PyCapsule, Py, PyResult, Python};
     use std::ffi::CString;
     use std::sync::mpsc::{channel, Sender};
@@ -528,7 +530,7 @@ mod tests {
 
             let capsule = PyCapsule::new_bound(py, foo, Some(name.clone()))?;
 
-            let module = PyModule::import(py, "builtins")?;
+            let module = PyModule::import_bound(py, "builtins")?;
             module.add("capsule", capsule)?;
 
             // check error when wrong named passed for capsule.

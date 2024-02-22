@@ -764,7 +764,7 @@ impl<'py> Python<'py> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        PyModule::import(self, name)
+        Self::import_bound(self, name).map(Bound::into_gil_ref)
     }
 
     /// Imports the Python module with the specified name.
@@ -772,11 +772,7 @@ impl<'py> Python<'py> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        // FIXME: This should be replaced by `PyModule::import_bound` once thats
-        // implemented.
-        PyModule::import(self, name)
-            .map(PyNativeType::as_borrowed)
-            .map(crate::Borrowed::to_owned)
+        PyModule::import_bound(self, name)
     }
 
     /// Gets the Python builtin value `None`.

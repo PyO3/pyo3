@@ -697,10 +697,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__")
-            .unwrap()
-            .dict()
-            .as_borrowed();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
@@ -754,10 +751,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__")
-            .unwrap()
-            .dict()
-            .as_borrowed();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         globals
             .set_item("AsyncIterator", py.get_type_bound::<AsyncIterator>())
@@ -829,10 +823,7 @@ del c.counter
 assert c.counter.count == 1
 "#
         );
-        let globals = PyModule::import(py, "__main__")
-            .unwrap()
-            .dict()
-            .as_borrowed();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
         py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))

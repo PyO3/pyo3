@@ -564,7 +564,7 @@ fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyAny> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::PyTuple, Py};
+    use crate::{types::PyTuple, Bound, Py};
     use std::{cmp::Ordering, panic};
 
     #[test]
