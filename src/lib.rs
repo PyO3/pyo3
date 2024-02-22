@@ -10,7 +10,13 @@
         rust_2021_prelude_collisions,
         warnings
     ),
-    allow(unused_variables, unused_assignments, unused_extern_crates)
+    allow(
+        unused_variables,
+        unused_assignments,
+        unused_extern_crates,
+        unused_imports,
+        dead_code,
+    )
 )))]
 
 //! Rust bindings to the Python interpreter.

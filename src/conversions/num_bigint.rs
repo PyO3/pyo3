@@ -47,9 +47,7 @@
 //! assert n + 1 == value
 //! ```
 
-use crate::{
-    ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{ffi, types::*, FromPyObject, IntoPy, Py, PyObject, PyResult, Python, ToPyObject};
 
 use num_bigint::{BigInt, BigUint};
 

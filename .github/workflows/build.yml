@@ -25,7 +25,7 @@ on:
 
 jobs:
   build:
-    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) }}
+    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) || inputs.rust == 'beta' || inputs.rust == 'nightly' }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v4
