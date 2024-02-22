@@ -572,11 +572,12 @@ pub fn impl_py_setter_def(
             _slf: *mut _pyo3::ffi::PyObject,
             _value: *mut _pyo3::ffi::PyObject,
         ) -> _pyo3::PyResult<::std::os::raw::c_int> {
-            let _value = _pyo3::Bound::from_borrowed_ptr_or_opt(py, _value)
+            use ::std::convert::Into;
+            let _value = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
                     _pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
-            let _val = _pyo3::FromPyObject::extract_bound(&_value)?;
+            let _val = _pyo3::FromPyObject::extract_bound(_value.into())?;
             #( #holders )*
             _pyo3::callback::convert(py, #setter_impl)
         }

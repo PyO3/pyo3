@@ -483,6 +483,13 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         BoundRef(Bound::ref_from_ptr(py, ptr))
     }
 
+    pub unsafe fn ref_from_ptr_or_opt(
+        py: Python<'py>,
+        ptr: &'a *mut ffi::PyObject,
+    ) -> Option<Self> {
+        Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef)
+    }
+
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
         BoundRef(self.0.downcast_unchecked::<T>())
     }
