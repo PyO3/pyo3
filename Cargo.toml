@@ -153,6 +153,9 @@ invalid_doc_attributes = "warn"
 rust_2018_idioms = "warn"
 rust_2021_prelude_collisions = "warn"
 unused_lifetimes = "warn"
+# rust nightly got stricter about these since PyO3 0.20 was released
+dead_code = "allow"
+unused_imports = "allow"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"

@@ -51,7 +51,6 @@ use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
 };
 use pyo3_ffi::{PyDateTime_IMPORT, PyTimeZone_FromOffset};
-use std::convert::TryInto;
 
 impl ToPyObject for Duration {
     fn to_object(&self, py: Python<'_>) -> PyObject {
