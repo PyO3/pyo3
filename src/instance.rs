@@ -191,6 +191,18 @@ impl<'py> Bound<'py, PyAny> {
     ) -> &'a Self {
         &*(ptr as *const *mut ffi::PyObject).cast::<Bound<'py, PyAny>>()
     }
+
+    /// Variant of the above which returns `None` for null pointers.
+    ///
+    /// # Safety
+    /// - `ptr` must be a valid pointer to a Python object for the lifetime `'a, or null.
+    #[inline]
+    pub(crate) unsafe fn ref_from_ptr_or_opt<'a>(
+        _py: Python<'py>,
+        ptr: &'a *mut ffi::PyObject,
+    ) -> &'a Option<Self> {
+        &*(ptr as *const *mut ffi::PyObject).cast::<Option<Bound<'py, PyAny>>>()
+    }
 }
 
 impl<'py, T> Bound<'py, T>
