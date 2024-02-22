@@ -47,8 +47,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-${{ inputs.python-architecture }}
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
       - if: inputs.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
