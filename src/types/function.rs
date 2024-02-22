@@ -131,7 +131,7 @@ impl PyCFunction {
         closure: F,
     ) -> PyResult<Bound<'py, Self>>
     where
-        F: for<'py2> Fn(Bound<'py2, PyTuple>, Option<Bound<'py2, PyDict>>) -> R + Send + 'static,
+        F: Fn(Bound<'_, PyTuple>, Option<Bound<'_, PyDict>>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
         let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
@@ -202,7 +202,7 @@ unsafe extern "C" fn run_closure<F, R>(
     kwargs: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject
 where
-    F: for<'py> Fn(Bound<'py, PyTuple>, Option<Bound<'py, PyDict>>) -> R + Send + 'static,
+    F: Fn(Bound<'_, PyTuple>, Option<Bound<'_, PyDict>>) -> R + Send + 'static,
     R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
 {
     use crate::types::any::PyAnyMethods;
