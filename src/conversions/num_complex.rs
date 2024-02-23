@@ -199,7 +199,7 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{any::PyAnyMethods, complex::PyComplexMethods, PyModule};
+    use crate::types::{complex::PyComplexMethods, PyModule};
 
     #[test]
     fn from_complex() {

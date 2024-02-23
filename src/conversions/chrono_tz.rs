@@ -69,8 +69,6 @@ impl FromPyObject<'_> for Tz {
 
 #[cfg(all(test, not(windows)))] // Troubles loading timezones on Windows
 mod tests {
-    use crate::{types::any::PyAnyMethods, Bound};
-
     use super::*;
 
     #[test]

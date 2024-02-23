@@ -23,14 +23,11 @@ jobs:
         with:
           components: rust-src
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            pyo3-benches/target
-            target
-          key: cargo-${{ runner.os }}-bench-${{ hashFiles('**/Cargo.toml') }}
+          workspaces: |
+            .
+            pyo3-benches
         continue-on-error: true
 
       - name: Install cargo-codspeed

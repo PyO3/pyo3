@@ -44,7 +44,6 @@ jobs:
   check-msrv:
     needs: [fmt]
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -57,8 +56,7 @@ jobs:
           architecture: "x64"
       - uses: Swatinem/rust-cache@v2
         with:
-          key: check-msrv-1.56.0
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
       - run: python -m pip install --upgrade pip && pip install nox
       - name: Prepare minimal package versions
         run: nox -s set-minimal-package-versions
@@ -70,7 +68,6 @@ jobs:
   clippy:
     needs: [fmt]
     runs-on: ${{ matrix.platform.os }}
-    if: github.ref != 'refs/heads/main'
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
@@ -136,8 +133,7 @@ jobs:
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: clippy-${{ matrix.platform.rust-target }}-${{ matrix.platform.os }}-${{ matrix.rust }}
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s clippy-all
     env:
@@ -199,7 +195,7 @@ jobs:
               }
             extra-features: "nightly multiple-pymethods"
   build-full:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt]
     uses: ./.github/workflows/build.yml
@@ -293,7 +289,7 @@ jobs:
             extra-features: "multiple-pymethods"
 
   valgrind:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -301,8 +297,7 @@ jobs:
       - uses: actions/setup-python@v5
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-valgrind
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@valgrind
       - run: python -m pip install --upgrade pip && pip install nox
@@ -313,7 +308,7 @@ jobs:
       TRYBUILD: overwrite
 
   careful:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -321,8 +316,7 @@ jobs:
       - uses: actions/setup-python@v5
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-careful
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
@@ -334,7 +328,7 @@ jobs:
       TRYBUILD: overwrite
 
   docsrs:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -342,8 +336,7 @@ jobs:
       - uses: actions/setup-python@v5
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-careful
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
@@ -368,8 +361,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         if: steps.should-skip.outputs.skip != 'true'
         with:
-          key: coverage-cargo-${{ matrix.os }}
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@stable
         if: steps.should-skip.outputs.skip != 'true'
         with:
@@ -390,7 +382,7 @@ jobs:
 
   emscripten:
     name: emscripten
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -416,7 +408,7 @@ jobs:
           key: ${{ hashFiles('emscripten/*') }} - ${{ hashFiles('noxfile.py') }} - ${{ steps.setup-python.outputs.python-path }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-emscripten-wasm32
+          save-if: ${{ github.event_name != 'merge_group' }}
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
         run: nox -s build-emscripten
@@ -425,14 +417,12 @@ jobs:
 
   test-debug:
     needs: [fmt]
-    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-test-debug
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -470,25 +460,27 @@ jobs:
 
   test-version-limits:
     needs: [fmt]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-        continue-on-error: true
+        with:
+          save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@stable
       - run: python3 -m pip install --upgrade pip && pip install nox
       - run: python3 -m nox -s test-version-limits
 
   check-feature-powerset:
     needs: [fmt]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
       - uses: Swatinem/rust-cache@v2
-        continue-on-error: true
+        with:
+          save-if: ${{ github.event_name != 'merge_group' }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
