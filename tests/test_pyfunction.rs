@@ -401,8 +401,8 @@ fn test_pycfunction_new_with_keywords() {
 #[test]
 fn test_closure() {
     Python::with_gil(|py| {
-        let f = |args: Bound<'_, types::PyTuple>,
-                 _kwargs: Option<Bound<'_, types::PyDict>>|
+        let f = |args: &Bound<'_, types::PyTuple>,
+                 _kwargs: Option<&Bound<'_, types::PyDict>>|
          -> PyResult<_> {
             Python::with_gil(|py| {
                 let res: Vec<_> = args
@@ -441,8 +441,8 @@ fn test_closure() {
 fn test_closure_counter() {
     Python::with_gil(|py| {
         let counter = std::cell::RefCell::new(0);
-        let counter_fn = move |_args: Bound<'_, types::PyTuple>,
-                               _kwargs: Option<Bound<'_, types::PyDict>>|
+        let counter_fn = move |_args: &Bound<'_, types::PyTuple>,
+                               _kwargs: Option<&Bound<'_, types::PyDict>>|
               -> PyResult<i32> {
             let mut counter = counter.borrow_mut();
             *counter += 1;

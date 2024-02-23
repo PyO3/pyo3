@@ -7,7 +7,7 @@ fn main() {
         let ref_: &[u8] = &local_data;
 
         let closure_fn =
-            |_args: Bound<'_, PyTuple>, _kwargs: Option<Bound<'_, PyDict>>| -> PyResult<()> {
+            |_args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>| -> PyResult<()> {
                 println!("This is five: {:?}", ref_.len());
                 Ok(())
             };

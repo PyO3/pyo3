@@ -102,7 +102,7 @@ impl PyCFunction {
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
         Self::new_closure_bound(py, name, doc, move |args, kwargs| {
-            closure(args.as_gil_ref(), kwargs.as_ref().map(Bound::as_gil_ref))
+            closure(args.as_gil_ref(), kwargs.map(Bound::as_gil_ref))
         })
         .map(Bound::into_gil_ref)
     }
@@ -116,7 +116,7 @@ impl PyCFunction {
     /// # use pyo3::{py_run, types::{PyCFunction, PyDict, PyTuple}};
     ///
     /// Python::with_gil(|py| {
-    ///     let add_one = |args: Bound<'_, PyTuple>, _kwargs: Option<Bound<'_, PyDict>>| -> PyResult<_> {
+    ///     let add_one = |args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>| -> PyResult<_> {
     ///         let i = args.extract::<(i64,)>()?.0;
     ///         Ok(i+1)
     ///     };
@@ -131,7 +131,7 @@ impl PyCFunction {
         closure: F,
     ) -> PyResult<Bound<'py, Self>>
     where
-        F: Fn(Bound<'_, PyTuple>, Option<Bound<'_, PyDict>>) -> R + Send + 'static,
+        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
         let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
@@ -202,7 +202,7 @@ unsafe extern "C" fn run_closure<F, R>(
     kwargs: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject
 where
-    F: Fn(Bound<'_, PyTuple>, Option<Bound<'_, PyDict>>) -> R + Send + 'static,
+    F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
     R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
 {
     use crate::types::any::PyAnyMethods;
@@ -215,9 +215,10 @@ where
             let boxed_fn: &ClosureDestructor<F> =
                 &*(ffi::PyCapsule_GetPointer(capsule_ptr, closure_capsule_name().as_ptr())
                     as *mut ClosureDestructor<F>);
-            let args = Bound::from_borrowed_ptr(py, args).downcast_into_unchecked::<PyTuple>();
-            let kwargs = Bound::from_borrowed_ptr_or_opt(py, kwargs)
-                .map(|b| b.downcast_into_unchecked::<PyDict>());
+            let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
+            let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
+                .as_ref()
+                .map(|b| b.downcast_unchecked::<PyDict>());
             let result = (boxed_fn.closure)(args, kwargs);
             crate::callback::convert(py, result)
         },
