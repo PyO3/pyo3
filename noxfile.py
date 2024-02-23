@@ -61,6 +61,14 @@ def coverage(session: nox.Session) -> None:
     session.env.update(_get_coverage_env())
     _run_cargo(session, "llvm-cov", "clean", "--workspace")
     test(session)
+
+    cov_format = "codecov"
+    output_file = "coverage.json"
+
+    if "lcov" in session.posargs:
+        cov_format = "lcov"
+        output_file = "lcov.info"
+
     _run_cargo(
         session,
         "llvm-cov",
@@ -70,9 +78,9 @@ def coverage(session: nox.Session) -> None:
         "--package=pyo3-macros",
         "--package=pyo3-ffi",
         "report",
-        "--codecov",
+        f"--{cov_format}",
         "--output-path",
-        "coverage.json",
+        output_file,
     )
 
 

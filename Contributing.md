@@ -177,9 +177,14 @@ Second, there is a Python-based benchmark contained in the `pytests` subdirector
 
 You can view what code is and isn't covered by PyO3's tests. We aim to have 100% coverage - please check coverage and add tests if you notice a lack of coverage!
 
-- First, generate a `lcov.info` file with
+- First, ensure the llmv-cov cargo plugin is installed. You may need to run the plugin through cargo once before using it with `nox`.
 ```shell
-nox -s coverage
+cargo install cargo-llvm-cov
+cargo llvm-cov
+```
+- Then, generate an `lcov.info` file with
+```shell
+nox -s coverage -- lcov
 ```
 You can install an IDE plugin to view the coverage. For example, if you use VSCode:
 - Add the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) plugin.
