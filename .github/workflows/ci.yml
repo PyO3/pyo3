@@ -18,7 +18,6 @@ env:
 
 jobs:
   fmt:
-    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -383,6 +382,7 @@ jobs:
   emscripten:
     name: emscripten
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    needs: [fmt]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
