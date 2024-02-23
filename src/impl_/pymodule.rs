@@ -7,7 +7,7 @@ use portable_atomic::{AtomicI64, Ordering};
 
 #[cfg(not(PyPy))]
 use crate::exceptions::PyImportError;
-use crate::{ffi, sync::GILOnceCell, types::PyModule, Py, PyResult, Python};
+use crate::{ffi, sync::GILOnceCell, types::PyModule, Bound, Py, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -22,7 +22,33 @@ pub struct ModuleDef {
 }
 
 /// Wrapper to enable initializer to be used in const fns.
-pub struct ModuleInitializer(pub for<'py> fn(Python<'py>, &PyModule) -> PyResult<()>);
+pub enum ModuleInitializer {
+    Bound(for<'a, 'py> fn(Python<'py>, &'a Bound<'py, PyModule>) -> PyResult<()>),
+    GilRef(for<'a, 'py> fn(Python<'py>, &'a PyModule) -> PyResult<()>),
+}
+
+impl From<for<'a, 'py> fn(Python<'py>, &'a Bound<'py, PyModule>) -> PyResult<()>>
+    for ModuleInitializer
+{
+    fn from(value: for<'a, 'py> fn(Python<'py>, &'a Bound<'py, PyModule>) -> PyResult<()>) -> Self {
+        Self::Bound(value)
+    }
+}
+
+impl From<for<'a, 'py> fn(Python<'py>, &'a PyModule) -> PyResult<()>> for ModuleInitializer {
+    fn from(value: for<'a, 'py> fn(Python<'py>, &'a PyModule) -> PyResult<()>) -> Self {
+        Self::GilRef(value)
+    }
+}
+
+impl ModuleInitializer {
+    fn call(&self, py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
+        match self {
+            ModuleInitializer::Bound(f) => f(py, module),
+            ModuleInitializer::GilRef(f) => f(py, module.as_gil_ref()),
+        }
+    }
+}
 
 unsafe impl Sync for ModuleDef {}
 
@@ -126,7 +152,7 @@ impl ModuleDef {
                         ffi::PyModule_Create(self.ffi_def.get()),
                     )?
                 };
-                (self.initializer.0)(py, module.as_ref(py))?;
+                self.initializer.call(py, module.bind(py))?;
                 Ok(module)
             })
             .map(|py_module| py_module.clone_ref(py))
@@ -147,7 +173,7 @@ mod tests {
             ModuleDef::new(
                 "test_module\0",
                 "some doc\0",
-                ModuleInitializer(|_, m| {
+                ModuleInitializer::GilRef(|_, m| {
                     m.add("SOME_CONSTANT", 42)?;
                     Ok(())
                 }),
@@ -198,12 +224,14 @@ mod tests {
         }
 
         unsafe {
-            let module_def: ModuleDef = ModuleDef::new(NAME, DOC, ModuleInitializer(init));
+            let module_def: ModuleDef = ModuleDef::new(NAME, DOC, ModuleInitializer::GilRef(init));
             assert_eq!((*module_def.ffi_def.get()).m_name, NAME.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
 
             Python::with_gil(|py| {
-                module_def.initializer.0(py, py.import_bound("builtins").unwrap().into_gil_ref())
+                module_def
+                    .initializer
+                    .call(py, &py.import_bound("builtins").unwrap())
                     .unwrap();
                 assert!(INIT_CALLED.load(Ordering::SeqCst));
             })

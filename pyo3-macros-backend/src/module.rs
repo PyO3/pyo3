@@ -93,7 +93,7 @@ pub fn pymodule_impl(
             use #krate::impl_::pymodule as impl_;
             impl #fnname::MakeDef {
                 const fn make_def() -> impl_::ModuleDef {
-                    const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(#fnname);
+                    const INITIALIZER: impl_::ModuleInitializer = ::std::convert::Into::into(#fnname);
                     unsafe {
                         impl_::ModuleDef::new(#fnname::NAME, #doc, INITIALIZER)
                     }
