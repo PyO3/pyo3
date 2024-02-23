@@ -842,7 +842,7 @@ impl<'py> Python<'py> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
+            note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
         )
     )]
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
@@ -863,7 +863,7 @@ impl<'py> Python<'py> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
+            note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
         )
     )]
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
@@ -885,7 +885,7 @@ impl<'py> Python<'py> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+            note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
         )
     )]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
@@ -909,7 +909,7 @@ impl<'py> Python<'py> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
+            note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
         )
     )]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
@@ -933,7 +933,7 @@ impl<'py> Python<'py> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
+            note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
         )
     )]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>

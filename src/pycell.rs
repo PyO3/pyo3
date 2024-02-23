@@ -289,7 +289,7 @@ impl<T: PyClass> PyCell<T> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Bound::new(py, value)` or `Py::new(py, value)` instead of `PyCell::new(py, value)`"
+            note = "use `Bound::new(py, value)` or `Py::new(py, value)` instead of `PyCell::new(py, value)`"
         )
     )]
     pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {

@@ -985,7 +985,7 @@ where
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
+            note = "use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
         )
     )]
     pub fn into_ref(self, py: Python<'_>) -> &T::AsRefTarget {

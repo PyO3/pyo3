@@ -438,7 +438,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
+            note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
         )
     )]
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
@@ -451,7 +451,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+            note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
         )
     )]
     unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
@@ -467,7 +467,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+            note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
         )
     )]
     unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
@@ -483,7 +483,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "part of the deprecated GIL Ref API; to migrate use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
+            note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
         )
     )]
     unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
