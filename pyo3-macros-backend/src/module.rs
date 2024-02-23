@@ -114,19 +114,10 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
     for item in &mut *items {
         match item {
             Item::Use(item_use) => {
-                let mut is_pyo3 = false;
-                item_use.attrs.retain(|attr| {
-                    let found = attr.path().is_ident("pymodule_export");
-                    is_pyo3 |= found;
-                    !found
-                });
-                if is_pyo3 {
-                    let cfg_attrs = item_use
-                        .attrs
-                        .iter()
-                        .filter(|attr| attr.path().is_ident("cfg"))
-                        .cloned()
-                        .collect::<Vec<_>>();
+                let is_pymodule_export =
+                    find_and_remove_attribute(&mut item_use.attrs, "pymodule_export");
+                if is_pymodule_export {
+                    let cfg_attrs = get_cfg_attributes(&item_use.attrs);
                     extract_use_items(
                         &item_use.tree,
                         &cfg_attrs,
@@ -136,23 +127,116 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
                 }
             }
             Item::Fn(item_fn) => {
-                let mut is_module_init = false;
-                item_fn.attrs.retain(|attr| {
-                    let found = attr.path().is_ident("pymodule_init");
-                    is_module_init |= found;
-                    !found
-                });
-                if is_module_init {
-                    ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one pymodule_init may be specified");
-                    let ident = &item_fn.sig.ident;
+                ensure_spanned!(
+                    !has_attribute(&item_fn.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+                let is_pymodule_init =
+                    find_and_remove_attribute(&mut item_fn.attrs, "pymodule_init");
+                let ident = &item_fn.sig.ident;
+                if is_pymodule_init {
+                    ensure_spanned!(
+                        !has_attribute(&item_fn.attrs, "pyfunction"),
+                        item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_init]`"
+                    );
+                    ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
                     pymodule_init = Some(quote! { #ident(module)?; });
-                } else {
-                    bail_spanned!(item.span() => "only 'use' statements and and pymodule_init functions are allowed in #[pymodule]")
+                } else if has_attribute(&item_fn.attrs, "pyfunction") {
+                    module_items.push(ident.clone());
+                    module_items_cfg_attrs.push(get_cfg_attributes(&item_fn.attrs));
                 }
             }
-            item => {
-                bail_spanned!(item.span() => "only 'use' statements and and pymodule_init functions are allowed in #[pymodule]")
+            Item::Struct(item_struct) => {
+                ensure_spanned!(
+                    !has_attribute(&item_struct.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+                if has_attribute(&item_struct.attrs, "pyclass") {
+                    module_items.push(item_struct.ident.clone());
+                    module_items_cfg_attrs.push(get_cfg_attributes(&item_struct.attrs));
+                }
             }
+            Item::Enum(item_enum) => {
+                ensure_spanned!(
+                    !has_attribute(&item_enum.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+                if has_attribute(&item_enum.attrs, "pyclass") {
+                    module_items.push(item_enum.ident.clone());
+                    module_items_cfg_attrs.push(get_cfg_attributes(&item_enum.attrs));
+                }
+            }
+            Item::Mod(item_mod) => {
+                ensure_spanned!(
+                    !has_attribute(&item_mod.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+                if has_attribute(&item_mod.attrs, "pymodule") {
+                    module_items.push(item_mod.ident.clone());
+                    module_items_cfg_attrs.push(get_cfg_attributes(&item_mod.attrs));
+                }
+            }
+            Item::ForeignMod(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::Trait(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::Const(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::Static(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::Macro(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::ExternCrate(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::Impl(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::TraitAlias(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::Type(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            Item::Union(item) => {
+                ensure_spanned!(
+                    !has_attribute(&item.attrs, "pymodule_export"),
+                    item.span() => "`#[pymodule_export]` may only be used on `use` statements"
+                );
+            }
+            _ => (),
         }
     }
 
@@ -350,6 +434,31 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
     }
 
     Ok(pyfn_args)
+}
+
+fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<syn::Attribute> {
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("cfg"))
+        .cloned()
+        .collect()
+}
+
+fn find_and_remove_attribute(attrs: &mut Vec<syn::Attribute>, ident: &str) -> bool {
+    let mut found = false;
+    attrs.retain(|attr| {
+        if attr.path().is_ident(ident) {
+            found = true;
+            false
+        } else {
+            true
+        }
+    });
+    found
+}
+
+fn has_attribute(attrs: &[syn::Attribute], ident: &str) -> bool {
+    attrs.iter().any(|attr| attr.path().is_ident(ident))
 }
 
 enum PyModulePyO3Option {
