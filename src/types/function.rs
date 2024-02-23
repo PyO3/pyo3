@@ -101,7 +101,10 @@ impl PyCFunction {
         F: Fn(&PyTuple, Option<&PyDict>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
-        Self::new_closure_bound(py, name, doc, closure).map(Bound::into_gil_ref)
+        Self::new_closure_bound(py, name, doc, move |args, kwargs| {
+            closure(args.as_gil_ref(), kwargs.map(Bound::as_gil_ref))
+        })
+        .map(Bound::into_gil_ref)
     }
 
     /// Create a new function from a closure.
@@ -113,7 +116,7 @@ impl PyCFunction {
     /// # use pyo3::{py_run, types::{PyCFunction, PyDict, PyTuple}};
     ///
     /// Python::with_gil(|py| {
-    ///     let add_one = |args: &PyTuple, _kwargs: Option<&PyDict>| -> PyResult<_> {
+    ///     let add_one = |args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>| -> PyResult<_> {
     ///         let i = args.extract::<(i64,)>()?.0;
     ///         Ok(i+1)
     ///     };
@@ -121,14 +124,14 @@ impl PyCFunction {
     ///     py_run!(py, add_one, "assert add_one(42) == 43");
     /// });
     /// ```
-    pub fn new_closure_bound<'a, F, R>(
-        py: Python<'a>,
+    pub fn new_closure_bound<'py, F, R>(
+        py: Python<'py>,
         name: Option<&'static str>,
         doc: Option<&'static str>,
         closure: F,
-    ) -> PyResult<Bound<'a, Self>>
+    ) -> PyResult<Bound<'py, Self>>
     where
-        F: Fn(&PyTuple, Option<&PyDict>) -> R + Send + 'static,
+        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
         let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
@@ -199,9 +202,11 @@ unsafe extern "C" fn run_closure<F, R>(
     kwargs: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject
 where
-    F: Fn(&PyTuple, Option<&PyDict>) -> R + Send + 'static,
+    F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
     R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
 {
+    use crate::types::any::PyAnyMethods;
+
     crate::impl_::trampoline::cfunction_with_keywords(
         capsule_ptr,
         args,
@@ -210,9 +215,12 @@ where
             let boxed_fn: &ClosureDestructor<F> =
                 &*(ffi::PyCapsule_GetPointer(capsule_ptr, closure_capsule_name().as_ptr())
                     as *mut ClosureDestructor<F>);
-            let args = py.from_borrowed_ptr::<PyTuple>(args);
-            let kwargs = py.from_borrowed_ptr_or_opt::<PyDict>(kwargs);
-            crate::callback::convert(py, (boxed_fn.closure)(args, kwargs))
+            let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
+            let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
+                .as_ref()
+                .map(|b| b.downcast_unchecked::<PyDict>());
+            let result = (boxed_fn.closure)(args, kwargs);
+            crate::callback::convert(py, result)
         },
     )
 }
