@@ -146,6 +146,8 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one pymodule_init may be specified");
                     let ident = &item_fn.sig.ident;
                     pymodule_init = Some(quote! { #ident(module)?; });
+                } else {
+                    bail_spanned!(item.span() => "only 'use' statements and and pymodule_init functions are allowed in #[pymodule]")
                 }
             }
             item => {
