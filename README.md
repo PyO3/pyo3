@@ -5,7 +5,7 @@
 [![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
 [![minimum rustc 1.56](https://img.shields.io/badge/rustc-1.56+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
-[![dev chat](https://img.shields.io/gitter/room/PyO3/Lobby?logo=gitter)](https://gitter.im/PyO3/Lobby)
+[![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/c4BwayXQ)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
 [Rust](https://www.rust-lang.org/) bindings for [Python](https://www.python.org/), including tools for creating native Python extension modules. Running and interacting with Python code from a Rust binary is also supported.
@@ -237,7 +237,7 @@ about this topic.
 
 Everyone is welcomed to contribute to PyO3! There are many ways to support the project, such as:
 
-- help PyO3 users with issues on GitHub and Gitter
+- help PyO3 users with issues on GitHub and [Discord](https://discord.gg/c4BwayXQ)
 - improve documentation
 - write features and bugfixes
 - publish blogs and examples of how to use PyO3
