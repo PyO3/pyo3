@@ -654,7 +654,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// }
 /// # Python::with_gil(|py| {
 /// #     let sub = Py::new(py, Child::new()).unwrap();
-/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
+/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)'");
 /// # });
 /// ```
 ///

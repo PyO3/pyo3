@@ -207,12 +207,11 @@ impl SelfType {
             SelfType::TryFromPyCell(span) => {
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf).downcast::<_pyo3::PyCell<#cls>>()
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()
                             .map_err(::std::convert::Into::<_pyo3::PyErr>::into)
                             .and_then(
-                                #[allow(clippy::useless_conversion)]  // In case slf is PyCell<Self>
                                 #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
-                                |cell| ::std::convert::TryFrom::try_from(cell).map_err(::std::convert::Into::into)
+                                |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
                             )
 
                     }
