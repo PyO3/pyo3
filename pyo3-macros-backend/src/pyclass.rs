@@ -1188,7 +1188,7 @@ fn complex_enum_variant_field_getter<'a>(
 ) -> Result<MethodAndMethodDef> {
     let signature = crate::pyfunction::FunctionSignature::from_arguments(vec![])?;
 
-    let self_type = crate::method::SelfType::TryFromPyCell(field_span);
+    let self_type = crate::method::SelfType::TryFromBoundRef(field_span);
 
     let spec = FnSpec {
         tp: crate::method::FnType::Getter(self_type.clone()),

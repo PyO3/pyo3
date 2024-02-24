@@ -151,7 +151,7 @@ impl FnType {
 #[derive(Clone, Debug)]
 pub enum SelfType {
     Receiver { mutable: bool, span: Span },
-    TryFromPyCell(Span),
+    TryFromBoundRef(Span),
 }
 
 #[derive(Clone, Copy)]
@@ -204,7 +204,7 @@ impl SelfType {
                     )
                 })
             }
-            SelfType::TryFromPyCell(span) => {
+            SelfType::TryFromBoundRef(span) => {
                 error_mode.handle_error(
                     quote_spanned! { *span =>
                         _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()
@@ -290,7 +290,7 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
             if let syn::Type::ImplTrait(_) = &**ty {
                 bail_spanned!(ty.span() => IMPL_TRAIT_ERR);
             }
-            Ok(SelfType::TryFromPyCell(ty.span()))
+            Ok(SelfType::TryFromBoundRef(ty.span()))
         }
     }
 }
