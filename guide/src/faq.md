@@ -1,5 +1,7 @@
 # Frequently Asked Questions and troubleshooting
 
+Sorry that you're having trouble using PyO3. If you can't find the answer to your problem in the list below, you can also reach out for help on [GitHub Discussions](https://github.com/PyO3/pyo3/discussions) and on [Discord](https://discord.gg/c4BwayXQ).
+
 ## I'm experiencing deadlocks using PyO3 with lazy_static or once_cell!
 
 `lazy_static` and `once_cell::sync` both use locks to ensure that initialization is performed only by a single thread. Because the Python GIL is an additional lock this can lead to deadlocks in the following way:
@@ -183,7 +185,7 @@ struct MyClass;
 
 ## I'm trying to call Python from Rust but I get `STATUS_DLL_NOT_FOUND` or `STATUS_ENTRYPOINT_NOT_FOUND`!
 
-This happens on Windows when linking to the python DLL fails or the wrong one is linked. The Python DLL on Windows will usually be called something like: 
+This happens on Windows when linking to the python DLL fails or the wrong one is linked. The Python DLL on Windows will usually be called something like:
 - `python3X.dll` for Python 3.X, e.g. `python310.dll` for Python 3.10
 - `python3.dll` when using PyO3's `abi3` feature
 
