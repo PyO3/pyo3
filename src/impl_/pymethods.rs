@@ -492,9 +492,7 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef)
     }
 
-    pub unsafe fn downcast<T: PyTypeCheck>(
-        self,
-    ) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
+    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
         self.0.downcast::<T>().map(BoundRef)
     }
 
