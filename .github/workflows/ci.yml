@@ -490,7 +490,7 @@ jobs:
 
   test-cross-compilation:
     needs: [fmt]
-    # if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || (github.event_name != 'pull_request' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ${{ matrix.os }}
     name: test-cross-compilation ${{ matrix.os }} -> ${{ matrix.target }}
     strategy:
@@ -537,7 +537,7 @@ jobs:
 
   test-cross-compilation-windows:
     needs: [fmt]
-    # if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -567,8 +567,8 @@ jobs:
           export PYO3_CROSS_PYTHON_VERSION=3.12
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
-      # - if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: actions/cache/save@v4
+      - if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@v4
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
