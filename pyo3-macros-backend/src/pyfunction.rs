@@ -268,12 +268,12 @@ pub fn impl_wrap_pyfunction(
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
-            pub const DEF: #krate::impl_::pyfunction::PyMethodDef = MakeDef::DEF;
+            pub const DEF: #krate::impl_::pymethods::PyMethodDef = MakeDef::DEF;
 
             pub fn add_to_module(module: &#krate::Bound<'_, #krate::types::PyModule>) -> #krate::PyResult<()> {
                 use #krate::prelude::PyModuleMethods;
                 use ::std::convert::Into;
-                module.add_function(&#krate::types::PyCFunction::internal_new(&DEF, module.as_gil_ref().into())?)
+                module.add_function(#krate::types::PyCFunction::internal_new(&DEF, module.as_gil_ref().into())?)
             }
         }
 
@@ -284,7 +284,7 @@ pub fn impl_wrap_pyfunction(
         const _: () = {
             use #krate as _pyo3;
             impl #name::MakeDef {
-                const DEF: #krate::impl_::pyfunction::PyMethodDef = #methoddef;
+                const DEF: #krate::impl_::pymethods::PyMethodDef = #methoddef;
             }
 
             #[allow(non_snake_case)]

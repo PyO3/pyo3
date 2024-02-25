@@ -126,13 +126,42 @@ macro_rules! py_run_impl {
 macro_rules! wrap_pyfunction {
     ($function:path) => {
         &|py_or_module| {
+            use $crate::derive_utils::PyFunctionArguments;
             use $function as wrapped_pyfunction;
-            $crate::impl_::pyfunction::_wrap_pyfunction(&wrapped_pyfunction::DEF, py_or_module)
+            let function_arguments: PyFunctionArguments<'_> =
+                ::std::convert::Into::into(py_or_module);
+            function_arguments.wrap_pyfunction(&wrapped_pyfunction::DEF)
         }
     };
     ($function:path, $py_or_module:expr) => {{
+        use $crate::derive_utils::PyFunctionArguments;
         use $function as wrapped_pyfunction;
-        $crate::impl_::pyfunction::_wrap_pyfunction(&wrapped_pyfunction::DEF, $py_or_module)
+        let function_arguments: PyFunctionArguments<'_> = ::std::convert::Into::into($py_or_module);
+        function_arguments.wrap_pyfunction(&wrapped_pyfunction::DEF)
+    }};
+}
+
+/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
+///
+/// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add free
+/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more information.
+#[macro_export]
+macro_rules! wrap_pyfunction_bound {
+    ($function:path) => {
+        &|py_or_module| {
+            use $crate::derive_utils::PyFunctionArgumentsBound;
+            use $function as wrapped_pyfunction;
+            let function_arguments: PyFunctionArgumentsBound<'_, '_> =
+                ::std::convert::Into::into($py_or_module);
+            function_arguments.wrap_pyfunction(&wrapped_pyfunction::DEF)
+        }
+    };
+    ($function:path, $py_or_module:expr) => {{
+        use $crate::derive_utils::PyFunctionArgumentsBound;
+        use $function as wrapped_pyfunction;
+        let function_arguments: PyFunctionArgumentsBound<'_, '_> =
+            ::std::convert::Into::into($py_or_module);
+        function_arguments.wrap_pyfunction(&wrapped_pyfunction::DEF)
     }};
 }
 

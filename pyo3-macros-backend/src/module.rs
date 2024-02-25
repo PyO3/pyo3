@@ -194,7 +194,7 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
 /// module
 pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> {
     let options = PyModuleOptions::from_attrs(&mut function.attrs)?;
-    process_functions_in_module(&options, &mut function)?;
+    process_functions_in_module(&mut function)?;
     let krate = get_pyo3_crate(&options.krate);
     let ident = &function.sig.ident;
     let vis = &function.vis;
@@ -215,13 +215,13 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
             use #krate::impl_::pymodule as impl_;
 
             fn __pyo3_pymodule(module: &#krate::Bound<'_, #krate::types::PyModule>) -> #krate::PyResult<()> {
-                #ident(module.py(), module.as_gil_ref())
+                #ident(module.py(), ::std::convert::Into::into(impl_::BoundModule(module)))
             }
 
             impl #ident::MakeDef {
                 const fn make_def() -> impl_::ModuleDef {
+                    const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
                     unsafe {
-                        const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
                         impl_::ModuleDef::new(
                             #ident::__PYO3_NAME,
                             #doc,
@@ -260,9 +260,8 @@ fn module_initialization(options: PyModuleOptions, ident: &syn::Ident) -> TokenS
 }
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`
-fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn) -> Result<()> {
+fn process_functions_in_module(func: &mut syn::ItemFn) -> Result<()> {
     let mut stmts: Vec<syn::Stmt> = Vec::new();
-    let krate = get_pyo3_crate(&options.krate);
 
     for mut stmt in func.block.stmts.drain(..) {
         if let syn::Stmt::Item(Item::Fn(func)) = &mut stmt {
@@ -272,7 +271,7 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.add_function(#krate::impl_::pyfunction::_wrap_pyfunction(&#name::DEF, #module_name)?)?;
+                    #module_name.add_function(#module_name.wrap_pyfunction(&#name::DEF)?)?;
                 };
                 stmts.extend(statements);
             }

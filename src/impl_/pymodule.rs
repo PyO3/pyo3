@@ -147,6 +147,29 @@ impl<T: PyTypeInfo> PyAddToModule for T {
     }
 }
 
+pub struct BoundModule<'a, 'py>(pub &'a Bound<'py, PyModule>);
+
+impl<'a> From<BoundModule<'a, 'a>> for &'a PyModule {
+    #[inline]
+    fn from(bound: BoundModule<'a, 'a>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py> From<BoundModule<'a, 'py>> for &'a Bound<'py, PyModule> {
+    #[inline]
+    fn from(bound: BoundModule<'a, 'py>) -> Self {
+        bound.0
+    }
+}
+
+impl From<BoundModule<'_, '_>> for Py<PyModule> {
+    #[inline]
+    fn from(bound: BoundModule<'_, '_>) -> Self {
+        bound.0.clone().unbind()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
