@@ -3,10 +3,12 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
+use crate::pycell::{PyBorrowError, PyBorrowMutError};
+use crate::pyclass::boolean_struct::False;
 use crate::types::{any::PyAnyMethods, PyModule, PyType};
 use crate::{
-    ffi, Bound, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit,
-    Python,
+    ffi, Bound, DowncastError, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyRef, PyRefMut,
+    PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -490,6 +492,10 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef)
     }
 
+    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
+        self.0.downcast::<T>().map(BoundRef)
+    }
+
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
         BoundRef(self.0.downcast_unchecked::<T>())
     }
@@ -508,6 +514,36 @@ impl<'a> From<BoundRef<'a, 'a, PyModule>> for &'a PyModule {
     #[inline]
     fn from(bound: BoundRef<'a, 'a, PyModule>) -> Self {
         bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py, T: PyClass> From<BoundRef<'a, 'py, T>> for &'a PyCell<T> {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        value.0.clone().into_gil_ref().try_into()
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRefMut<'py, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        value.0.clone().into_gil_ref().try_into()
+    }
+}
+
+impl<'a, 'py, T> From<BoundRef<'a, 'py, T>> for Bound<'py, T> {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
+        bound.0.clone()
     }
 }
 
