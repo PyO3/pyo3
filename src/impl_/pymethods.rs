@@ -273,7 +273,7 @@ where
 
     let py = Python::assume_gil_acquired();
     let slf = Borrowed::from_ptr_unchecked(py, slf).downcast_unchecked::<T>();
-    let borrow = PyCell::try_borrow_threadsafe(&slf);
+    let borrow = PyRef::try_borrow_threadsafe(&slf);
     let visit = PyVisit::from_raw(visit, arg, py);
 
     let retval = if let Ok(borrow) = borrow {

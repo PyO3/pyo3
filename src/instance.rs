@@ -243,7 +243,7 @@ where
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     pub fn borrow(&self) -> PyRef<'py, T> {
-        PyCell::borrow_bound(self)
+        PyRef::borrow(self)
     }
 
     /// Mutably borrows the value `T`.
@@ -279,7 +279,7 @@ where
     where
         T: PyClass<Frozen = False>,
     {
-        PyCell::borrow_mut_bound(self)
+        PyRefMut::borrow(self)
     }
 
     /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
@@ -290,7 +290,7 @@ where
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
     pub fn try_borrow(&self) -> Result<PyRef<'py, T>, PyBorrowError> {
-        PyCell::try_borrow_bound(self)
+        PyRef::try_borrow(self)
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -302,7 +302,7 @@ where
     where
         T: PyClass<Frozen = False>,
     {
-        PyCell::try_borrow_mut_bound(self)
+        PyRefMut::try_borrow(self)
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
