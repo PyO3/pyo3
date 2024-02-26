@@ -111,7 +111,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{IntoPy, PyObject, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]

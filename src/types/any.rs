@@ -146,16 +146,16 @@ impl PyAny {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn set_answer(ob: &PyAny) -> PyResult<()> {
+    /// fn set_answer(ob: &Bound<'_, PyAny>) -> PyResult<()> {
     ///     ob.setattr(intern!(ob.py(), "answer"), 42)
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new(py, "empty").unwrap();
-    /// #    set_answer(ob).unwrap();
+    /// #    let ob = PyModule::new_bound(py, "empty").unwrap();
+    /// #    set_answer(&ob).unwrap();
     /// # });
     /// ```
     pub fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
@@ -259,8 +259,8 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
-    ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
+    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
+    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
@@ -346,7 +346,7 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let builtins = PyModule::import(py, "builtins")?;
+    ///     let builtins = PyModule::import_bound(py, "builtins")?;
     ///     let print = builtins.getattr("print")?;
     ///     assert!(print.is_callable());
     ///     Ok(())
@@ -385,12 +385,12 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = fun.call(args, Some(kwargs.as_gil_ref()))?;
+    ///     let result = fun.call(args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -417,7 +417,7 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let module = PyModule::import(py, "builtins")?;
+    ///     let module = PyModule::import_bound(py, "builtins")?;
     ///     let help = module.getattr("help")?;
     ///     help.call0()?;
     ///     Ok(())
@@ -448,7 +448,7 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let result = fun.call1(args)?;
@@ -485,12 +485,12 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = instance.call_method("method", args, Some(kwargs.as_gil_ref()))?;
+    ///     let result = instance.call_method("method", args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -529,7 +529,7 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let result = instance.call_method0("method")?;
     ///     assert_eq!(result.extract::<&str>()?, "called with no arguments");
@@ -569,7 +569,7 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let result = instance.call_method1("method", args)?;
@@ -715,11 +715,11 @@ impl PyAny {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast()?;
+    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
@@ -1008,16 +1008,16 @@ pub trait PyAnyMethods<'py> {
     /// # Example: `intern!`ing the attribute name
     ///
     /// ```
-    /// # use pyo3::{intern, pyfunction, types::PyModule, PyAny, Python, PyResult};
+    /// # use pyo3::{prelude::*, intern};
     /// #
     /// #[pyfunction]
-    /// fn set_answer(ob: &PyAny) -> PyResult<()> {
+    /// fn set_answer(ob: &Bound<'_, PyAny>) -> PyResult<()> {
     ///     ob.setattr(intern!(ob.py(), "answer"), 42)
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new(py, "empty").unwrap();
-    /// #    set_answer(ob).unwrap();
+    /// #    let ob = PyModule::new_bound(py, "empty").unwrap();
+    /// #    set_answer(&ob).unwrap();
     /// # });
     /// ```
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
@@ -1112,8 +1112,8 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
-    ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
+    ///     let a: Bound<'_, PyInt> = 0_u8.into_py(py).into_bound(py).downcast_into()?;
+    ///     let b: Bound<'_, PyInt> = 42_u8.into_py(py).into_bound(py).downcast_into()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_truthy()?);
     ///     Ok(())
     /// })?;
@@ -1228,7 +1228,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let builtins = PyModule::import(py, "builtins")?;
+    ///     let builtins = PyModule::import_bound(py, "builtins")?;
     ///     let print = builtins.getattr("print")?;
     ///     assert!(print.is_callable());
     ///     Ok(())
@@ -1265,12 +1265,12 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = fun.call(args, Some(kwargs.as_gil_ref()))?;
+    ///     let result = fun.call(args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -1293,7 +1293,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let module = PyModule::import(py, "builtins")?;
+    ///     let module = PyModule::import_bound(py, "builtins")?;
     ///     let help = module.getattr("help")?;
     ///     help.call0()?;
     ///     Ok(())
@@ -1322,7 +1322,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let result = fun.call1(args)?;
@@ -1357,12 +1357,12 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
-    ///     let result = instance.call_method("method", args, Some(kwargs.as_gil_ref()))?;
+    ///     let result = instance.call_method("method", args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
@@ -1401,7 +1401,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let result = instance.call_method0("method")?;
     ///     assert_eq!(result.extract::<&str>()?, "called with no arguments");
@@ -1436,7 +1436,7 @@ pub trait PyAnyMethods<'py> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let result = instance.call_method1("method", args)?;
@@ -1543,11 +1543,11 @@ pub trait PyAnyMethods<'py> {
     /// }
     ///
     /// Python::with_gil(|py| {
-    ///     let class: &PyAny = Py::new(py, Class { i: 0 }).unwrap().into_ref(py);
+    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
     ///
-    ///     let class_cell: &PyCell<Class> = class.downcast()?;
+    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
     ///
-    ///     class_cell.borrow_mut().i += 1;
+    ///     class_bound.borrow_mut().i += 1;
     ///
     ///     // Alternatively you can get a `PyRefMut` directly
     ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
@@ -2326,13 +2326,13 @@ mod tests {
     use crate::{
         basic::CompareOp,
         types::{any::PyAnyMethods, IntoPyDict, PyAny, PyBool, PyList, PyLong, PyModule},
-        PyNativeType, PyTypeInfo, Python, ToPyObject,
+        Bound, PyNativeType, PyTypeInfo, Python, ToPyObject,
     };
 
     #[test]
     fn test_lookup_special() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code(
+            let module = PyModule::from_code_bound(
                 py,
                 r#"
 class CustomCallable:
@@ -2371,13 +2371,8 @@ class NonHeapNonDescriptorInt:
             .unwrap();
 
             let int = crate::intern!(py, "__int__");
-            let eval_int = |obj: &PyAny| {
-                obj.as_borrowed()
-                    .lookup_special(int)?
-                    .unwrap()
-                    .call0()?
-                    .extract::<u32>()
-            };
+            let eval_int =
+                |obj: Bound<'_, PyAny>| obj.lookup_special(int)?.unwrap().call0()?.extract::<u32>();
 
             let simple = module.getattr("SimpleInt").unwrap().call0().unwrap();
             assert_eq!(eval_int(simple).unwrap(), 1);
@@ -2430,7 +2425,7 @@ class NonHeapNonDescriptorInt:
     #[test]
     fn test_call_method0() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code(
+            let module = PyModule::from_code_bound(
                 py,
                 r#"
 class SimpleClass:

@@ -3,7 +3,6 @@
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::PyCell;
 use std::collections::HashMap;
 
 #[path = "../src/tests/common.rs"]
@@ -112,7 +111,7 @@ fn test_clone_ref() {
 #[test]
 fn test_nested_iter_reset() {
     Python::with_gil(|py| {
-        let reader = PyCell::new(py, reader()).unwrap();
+        let reader = Bound::new(py, reader()).unwrap();
         py_assert!(
             py,
             reader,

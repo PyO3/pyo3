@@ -45,7 +45,7 @@
 /// }
 ///
 /// Python::with_gil(|py| {
-///     let time = PyCell::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
+///     let time = Py::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 ///     let time_as_tuple = (8, 43, 16);
 ///     py_run!(py, time time_as_tuple, r#"
 ///         assert time.hour == 8
@@ -169,8 +169,8 @@ macro_rules! append_to_inittab {
                 );
             }
             $crate::ffi::PyImport_AppendInittab(
-                $module::NAME.as_ptr() as *const ::std::os::raw::c_char,
-                ::std::option::Option::Some($module::init),
+                $module::__PYO3_NAME.as_ptr() as *const ::std::os::raw::c_char,
+                ::std::option::Option::Some($module::__pyo3_init),
             );
         }
     };

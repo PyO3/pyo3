@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
-use pyo3::{prelude::*, py_run, PyCell};
+use pyo3::{prelude::*, py_run};
 use std::{isize, iter};
 
 #[path = "../src/tests/common.rs"]
@@ -64,8 +64,8 @@ impl ExampleClass {
     }
 }
 
-fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
-    Py::new(
+fn make_example(py: Python<'_>) -> Bound<'_, ExampleClass> {
+    Bound::new(
         py,
         ExampleClass {
             value: 5,
@@ -73,7 +73,6 @@ fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
         },
     )
     .unwrap()
-    .into_ref(py)
 }
 
 #[test]
@@ -132,7 +131,7 @@ fn test_delattr() {
 fn test_str() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.str().unwrap().to_str().unwrap(), "5");
+        assert_eq!(example_py.str().unwrap().to_cow().unwrap(), "5");
     })
 }
 
@@ -141,7 +140,7 @@ fn test_repr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
         assert_eq!(
-            example_py.repr().unwrap().to_str().unwrap(),
+            example_py.repr().unwrap().to_cow().unwrap(),
             "ExampleClass(value=5)"
         );
     })
@@ -221,7 +220,7 @@ fn mapping() {
         )
         .unwrap();
 
-        let mapping: &Bound<'_, PyMapping> = inst.bind(py).as_any().downcast().unwrap();
+        let mapping: &Bound<'_, PyMapping> = inst.bind(py).downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -323,7 +322,7 @@ fn sequence() {
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
-        let sequence: &Bound<'_, PySequence> = inst.bind(py).as_any().downcast().unwrap();
+        let sequence: &Bound<'_, PySequence> = inst.bind(py).downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -350,16 +349,16 @@ fn sequence() {
         // indices.
         assert!(sequence.len().is_err());
         // however regular python len() works thanks to mp_len slot
-        assert_eq!(inst.bind(py).as_any().len().unwrap(), 0);
+        assert_eq!(inst.bind(py).len().unwrap(), 0);
 
         py_run!(py, inst, "inst.append(0)");
         sequence.set_item(0, 5).unwrap();
-        assert_eq!(inst.bind(py).as_any().len().unwrap(), 1);
+        assert_eq!(inst.bind(py).len().unwrap(), 1);
 
         assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
         sequence.del_item(0).unwrap();
 
-        assert_eq!(inst.bind(py).as_any().len().unwrap(), 0);
+        assert_eq!(inst.bind(py).len().unwrap(), 0);
     });
 }
 
@@ -437,7 +436,7 @@ impl SetItem {
 #[test]
 fn setitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
+        let c = Bound::new(py, SetItem { key: 0, val: 0 }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
@@ -463,7 +462,7 @@ impl DelItem {
 #[test]
 fn delitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
+        let c = Bound::new(py, DelItem { key: 0 }).unwrap();
         py_run!(py, c, "del c[1]");
         {
             let c = c.borrow();
@@ -492,7 +491,7 @@ impl SetDelItem {
 #[test]
 fn setdelitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
+        let c = Bound::new(py, SetDelItem { val: None }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
@@ -570,7 +569,7 @@ impl ClassWithGetAttr {
 #[test]
 fn getattr_doesnt_override_member() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
+        let inst = Py::new(py, ClassWithGetAttr { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 4");
         py_assert!(py, inst, "inst.a == 8");
     });
@@ -592,7 +591,7 @@ impl ClassWithGetAttribute {
 #[test]
 fn getattribute_overrides_member() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
+        let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
         py_assert!(py, inst, "inst.y == 8");
     });
@@ -625,7 +624,7 @@ impl ClassWithGetAttrAndGetAttribute {
 #[test]
 fn getattr_and_getattribute() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
+        let inst = Py::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
         py_assert!(py, inst, "inst.exists == 42");
         py_assert!(py, inst, "inst.lucky == 57");
         py_expect_exception!(py, inst, "inst.error", PyValueError);
@@ -687,10 +686,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__")
-            .unwrap()
-            .dict()
-            .as_borrowed();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
@@ -744,10 +740,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__")
-            .unwrap()
-            .dict()
-            .as_borrowed();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         globals
             .set_item("AsyncIterator", py.get_type_bound::<AsyncIterator>())
@@ -819,10 +812,7 @@ del c.counter
 assert c.counter.count == 1
 "#
         );
-        let globals = PyModule::import(py, "__main__")
-            .unwrap()
-            .dict()
-            .as_borrowed();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
         py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))

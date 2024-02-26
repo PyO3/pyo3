@@ -112,7 +112,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::any::PyAnyMethods;
 
     #[test]
     fn test_hashbrown_hashmap_to_python() {

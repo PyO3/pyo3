@@ -87,8 +87,6 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::types::any::PyAnyMethods;
-use crate::types::dict::PyDictMethods;
 use crate::types::*;
 use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
@@ -137,8 +135,6 @@ where
 #[cfg(test)]
 mod test_indexmap {
 
-    use crate::types::any::PyAnyMethods;
-    use crate::types::dict::PyDictMethods;
     use crate::types::*;
     use crate::{IntoPy, PyObject, Python, ToPyObject};
 

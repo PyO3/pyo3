@@ -5,7 +5,7 @@ contact_links:
     about: Ask and answer questions about PyO3 on Discussions
   - name: 🔧 Troubleshooting
     url: https://github.com/PyO3/pyo3/discussions
-    about: For troubleshooting help, see the Discussions 
+    about: For troubleshooting help, see the Discussions
   - name: 👋 Chat
-    url: https://gitter.im/PyO3/Lobby
-    about: Engage with PyO3's users and developers on Gitter
+    url: https://discord.gg/c4BwayXQ
+    about: Engage with PyO3's users and developers on Discord

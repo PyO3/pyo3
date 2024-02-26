@@ -6,8 +6,10 @@ use crate::{
     internal_tricks::extract_c_string,
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
+    types::any::PyAnyMethods,
     types::PyBool,
-    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    Borrowed, Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult,
+    PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
@@ -811,8 +813,8 @@ slot_fragment_trait! {
         other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
         // By default `__ne__` will try `__eq__` and invert the result
-        let slf: &PyAny = py.from_borrowed_ptr(slf);
-        let other: &PyAny = py.from_borrowed_ptr(other);
+        let slf = Borrowed::from_ptr(py, slf);
+        let other = Borrowed::from_ptr(py, other);
         slf.eq(other).map(|is_eq| PyBool::new_bound(py, !is_eq).to_owned().into_ptr())
     }
 }

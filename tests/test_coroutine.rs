@@ -262,7 +262,7 @@ fn test_async_method_receiver() {
     Python::with_gil(|gil| {
         let test = r#"
         import asyncio
-        
+
         obj = Counter()
         coro1 = obj.get()
         coro2 = obj.get()

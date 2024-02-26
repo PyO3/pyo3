@@ -20,6 +20,7 @@ fn enum_from_pyobject(b: &mut Bencher<'_>) {
     })
 }
 
+#[cfg(not(codspeed))]
 fn list_via_downcast(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let any: &Bound<'_, PyAny> = &PyList::empty_bound(py);
@@ -28,6 +29,7 @@ fn list_via_downcast(b: &mut Bencher<'_>) {
     })
 }
 
+#[cfg(not(codspeed))]
 fn list_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let any: &Bound<'_, PyAny> = &PyList::empty_bound(py);
@@ -36,6 +38,7 @@ fn list_via_extract(b: &mut Bencher<'_>) {
     })
 }
 
+#[cfg(not(codspeed))]
 fn not_a_list_via_downcast(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let any: &Bound<'_, PyAny> = &PyString::new_bound(py, "foobar");
@@ -70,6 +73,7 @@ fn not_a_list_via_extract_enum(b: &mut Bencher<'_>) {
     })
 }
 
+#[cfg(not(codspeed))]
 fn f64_from_pyobject(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let obj = &PyFloat::new_bound(py, 1.234);
@@ -79,11 +83,15 @@ fn f64_from_pyobject(b: &mut Bencher<'_>) {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("enum_from_pyobject", enum_from_pyobject);
+    #[cfg(not(codspeed))]
     c.bench_function("list_via_downcast", list_via_downcast);
+    #[cfg(not(codspeed))]
     c.bench_function("list_via_extract", list_via_extract);
+    #[cfg(not(codspeed))]
     c.bench_function("not_a_list_via_downcast", not_a_list_via_downcast);
     c.bench_function("not_a_list_via_extract", not_a_list_via_extract);
     c.bench_function("not_a_list_via_extract_enum", not_a_list_via_extract_enum);
+    #[cfg(not(codspeed))]
     c.bench_function("f64_from_pyobject", f64_from_pyobject);
 }
 

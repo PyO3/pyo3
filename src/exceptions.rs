@@ -19,6 +19,8 @@ use std::os::raw::c_char;
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
@@ -43,6 +45,7 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
                 unsafe {
+                    #[allow(deprecated)]
                     let cause: &$crate::exceptions::PyBaseException = self
                         .py()
                         .from_owned_ptr_or_opt($crate::ffi::PyException_GetCause(self.as_ptr()))?;
@@ -842,7 +845,7 @@ mod tests {
     use super::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{PyErr, PyNativeType, Python};
+    use crate::{PyErr, PyNativeType};
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);
@@ -1008,7 +1011,7 @@ mod tests {
                 .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
-                .into_ref(py);
+                .into_bound(py);
             assert_eq!(
                 format!("{:?}", exc),
                 exc.repr().unwrap().extract::<String>().unwrap()
@@ -1023,7 +1026,7 @@ mod tests {
                 .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
-                .into_ref(py);
+                .into_bound(py);
             assert_eq!(
                 exc.to_string(),
                 exc.str().unwrap().extract::<String>().unwrap()
@@ -1036,6 +1039,7 @@ mod tests {
         use std::error::Error;
 
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let exc = py
                 .run_bound(
                     "raise Exception('banana') from TypeError('peach')",

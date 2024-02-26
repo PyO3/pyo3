@@ -572,12 +572,12 @@ pub fn impl_py_setter_def(
             _slf: *mut _pyo3::ffi::PyObject,
             _value: *mut _pyo3::ffi::PyObject,
         ) -> _pyo3::PyResult<::std::os::raw::c_int> {
-            let _value = py
-                .from_borrowed_ptr_or_opt(_value)
+            use ::std::convert::Into;
+            let _value = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
                     _pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
-            let _val = _pyo3::FromPyObject::extract(_value)?;
+            let _val = _pyo3::FromPyObject::extract_bound(_value.into())?;
             #( #holders )*
             _pyo3::callback::convert(py, #setter_impl)
         }
@@ -1234,6 +1234,18 @@ impl SlotFragmentDef {
         )?;
         let ret_ty = ret_ty.ffi_type();
         Ok(quote! {
+            impl #cls {
+                unsafe fn #wrapper_ident(
+                    py: _pyo3::Python,
+                    _raw_slf: *mut _pyo3::ffi::PyObject,
+                    #(#arg_idents: #arg_types),*
+                ) -> _pyo3::PyResult<#ret_ty> {
+                    let _slf = _raw_slf;
+                    #( #holders )*
+                    #body
+                }
+            }
+
             impl _pyo3::impl_::pyclass::#fragment_trait<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
 
                 #[inline]
@@ -1243,17 +1255,6 @@ impl SlotFragmentDef {
                     _raw_slf: *mut _pyo3::ffi::PyObject,
                     #(#arg_idents: #arg_types),*
                 ) -> _pyo3::PyResult<#ret_ty> {
-                    impl #cls {
-                        unsafe fn #wrapper_ident(
-                            py: _pyo3::Python,
-                            _raw_slf: *mut _pyo3::ffi::PyObject,
-                            #(#arg_idents: #arg_types),*
-                        ) -> _pyo3::PyResult<#ret_ty> {
-                            let _slf = _raw_slf;
-                            #( #holders )*
-                            #body
-                        }
-                    }
                     #cls::#wrapper_ident(py, _raw_slf, #(#arg_idents),*)
                 }
             }

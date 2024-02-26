@@ -1,7 +1,6 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::ToPyObject;
 
 #[macro_use]
 #[path = "../src/tests/common.rs"]
@@ -64,7 +63,7 @@ struct PolymorphicContainer {
 #[test]
 fn test_polymorphic_container_stores_base_class() {
     Python::with_gil(|py| {
-        let p = PyCell::new(
+        let p = Py::new(
             py,
             PolymorphicContainer {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
@@ -80,7 +79,7 @@ fn test_polymorphic_container_stores_base_class() {
 #[test]
 fn test_polymorphic_container_stores_sub_class() {
     Python::with_gil(|py| {
-        let p = PyCell::new(
+        let p = Py::new(
             py,
             PolymorphicContainer {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
@@ -92,7 +91,7 @@ fn test_polymorphic_container_stores_sub_class() {
         p.bind(py)
             .setattr(
                 "inner",
-                PyCell::new(
+                Py::new(
                     py,
                     PyClassInitializer::from(BaseClass::default()).add_subclass(SubClass {}),
                 )
@@ -107,7 +106,7 @@ fn test_polymorphic_container_stores_sub_class() {
 #[test]
 fn test_polymorphic_container_does_not_accept_other_types() {
     Python::with_gil(|py| {
-        let p = PyCell::new(
+        let p = Py::new(
             py,
             PolymorphicContainer {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
@@ -127,7 +126,7 @@ fn test_polymorphic_container_does_not_accept_other_types() {
 #[test]
 fn test_pyref_as_base() {
     Python::with_gil(|py| {
-        let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+        let cell = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // First try PyRefMut
         let sub: PyRefMut<'_, SubClass> = cell.borrow_mut();
@@ -147,12 +146,12 @@ fn test_pyref_as_base() {
 #[test]
 fn test_pycell_deref() {
     Python::with_gil(|py| {
-        let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+        let obj = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // Should be able to deref as PyAny
         assert_eq!(
-            cell.call_method0("foo")
-                .and_then(PyAny::extract::<&str>)
+            obj.call_method0("foo")
+                .and_then(|e| e.extract::<&str>())
                 .unwrap(),
             "SubClass"
         );

@@ -81,7 +81,7 @@ fn inheritance_with_new_methods() {
 #[test]
 fn call_base_and_sub_methods() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, SubClass::new()).unwrap();
+        let obj = Py::new(py, SubClass::new()).unwrap();
         py_run!(
             py,
             obj,
@@ -96,7 +96,7 @@ fn call_base_and_sub_methods() {
 #[test]
 fn mutation_fails() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, SubClass::new()).unwrap();
+        let obj = Py::new(py, SubClass::new()).unwrap();
         let global = [("obj", obj)].into_py_dict_bound(py);
         let e = py
             .run_bound(
@@ -177,7 +177,7 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
-    use pyo3::types::{IntoPyDict, PyDict};
+    use pyo3::types::PyDict;
 
     #[cfg(not(PyPy))]
     #[test]
@@ -202,7 +202,7 @@ mod inheriting_native_type {
         }
 
         Python::with_gil(|py| {
-            let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();
+            let set_sub = pyo3::Py::new(py, SetWithName::new()).unwrap();
             py_run!(
                 py,
                 set_sub,
@@ -229,7 +229,7 @@ mod inheriting_native_type {
     #[test]
     fn inherit_dict() {
         Python::with_gil(|py| {
-            let dict_sub = pyo3::PyCell::new(py, DictWithName::new()).unwrap();
+            let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             py_run!(
                 py,
                 dict_sub,
@@ -247,7 +247,7 @@ mod inheriting_native_type {
             let item = &py.eval_bound("object()", None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
-            dict_sub.bind(py).as_any().set_item("foo", item).unwrap();
+            dict_sub.bind(py).set_item("foo", item).unwrap();
             assert_eq!(item.get_refcnt(), 2);
 
             drop(dict_sub);
@@ -354,7 +354,7 @@ fn module_add_class_inherit_bool_fails() {
     struct ExtendsBool;
 
     Python::with_gil(|py| {
-        let m = PyModule::new(py, "test_module").unwrap();
+        let m = PyModule::new_bound(py, "test_module").unwrap();
 
         let err = m.add_class::<ExtendsBool>().unwrap_err();
         assert_eq!(

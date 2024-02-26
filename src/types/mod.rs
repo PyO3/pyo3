@@ -1,13 +1,13 @@
 //! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
-pub use self::any::PyAny;
-pub use self::boolobject::PyBool;
-pub use self::bytearray::PyByteArray;
-pub use self::bytes::PyBytes;
-pub use self::capsule::PyCapsule;
+pub use self::any::{PyAny, PyAnyMethods};
+pub use self::boolobject::{PyBool, PyBoolMethods};
+pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
+pub use self::bytes::{PyBytes, PyBytesMethods};
+pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::code::PyCode;
-pub use self::complex::PyComplex;
+pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::timezone_utc;
@@ -16,37 +16,37 @@ pub use self::datetime::{
     timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
     PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
-pub use self::dict::{IntoPyDict, PyDict};
+pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(PyPy))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::ellipsis::PyEllipsis;
-pub use self::float::PyFloat;
+pub use self::float::{PyFloat, PyFloatMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
-pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder};
+pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
-pub use self::list::PyList;
-pub use self::mapping::PyMapping;
+pub use self::list::{PyList, PyListMethods};
+pub use self::mapping::{PyMapping, PyMappingMethods};
 pub use self::memoryview::PyMemoryView;
-pub use self::module::PyModule;
+pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
 #[cfg(not(PyPy))]
 pub use self::pysuper::PySuper;
-pub use self::sequence::PySequence;
-pub use self::set::PySet;
-pub use self::slice::{PySlice, PySliceIndices};
+pub use self::sequence::{PySequence, PySequenceMethods};
+pub use self::set::{PySet, PySetMethods};
+pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-pub use self::string::{PyString, PyString as PyUnicode};
-pub use self::traceback::PyTraceback;
-pub use self::tuple::PyTuple;
-pub use self::typeobject::PyType;
+pub use self::string::{PyString, PyString as PyUnicode, PyStringMethods};
+pub use self::traceback::{PyTraceback, PyTracebackMethods};
+pub use self::tuple::{PyTuple, PyTupleMethods};
+pub use self::typeobject::{PyType, PyTypeMethods};
 
 /// Iteration over Python collections.
 ///
@@ -84,6 +84,31 @@ pub mod iter {
     pub use super::list::{BoundListIterator, PyListIterator};
     pub use super::set::{BoundSetIterator, PySetIterator};
     pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator, PyTupleIterator};
+}
+
+/// Python objects that have a base type.
+///
+/// This marks types that can be upcast into a [`PyAny`] and used in its place.
+/// This essentially includes every Python object except [`PyAny`] itself.
+///
+/// This is used to provide the [`Deref<Target = Bound<'_, PyAny>>`](std::ops::Deref)
+/// implementations for [`Bound<'_, T>`](crate::Bound).
+///
+/// Users should not need to implement this trait directly. It's implementation
+/// is provided by the [`#[pyclass]`](macro@crate::pyclass) attribute.
+///
+/// ## Note
+/// This is needed because the compiler currently tries to figure out all the
+/// types in a deref-chain before starting to look for applicable method calls.
+/// So we need to prevent [`Bound<'_, PyAny`](crate::Bound) dereferencing to
+/// itself in order to avoid running into the recursion limit. This trait is
+/// used to exclude this from our blanket implementation. See [this Rust
+/// issue][1] for more details. If the compiler limitation gets resolved, this
+/// trait will be removed.
+///
+/// [1]: https://github.com/rust-lang/rust/issues/19509
+pub trait DerefToPyAny {
+    // Empty.
 }
 
 // Implementations core to all native types
@@ -163,6 +188,8 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
             fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
@@ -170,6 +197,8 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
@@ -178,11 +207,15 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
+
+        impl $crate::types::DerefToPyAny for $name {}
     };
 );
 
@@ -225,6 +258,8 @@ macro_rules! pyobject_native_type_info(
 #[macro_export]
 macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             #[inline]
             fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {
@@ -305,7 +340,7 @@ mod num;
 mod pysuper;
 pub(crate) mod sequence;
 pub(crate) mod set;
-mod slice;
+pub(crate) mod slice;
 pub(crate) mod string;
 pub(crate) mod traceback;
 pub(crate) mod tuple;

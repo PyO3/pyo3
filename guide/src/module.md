@@ -78,9 +78,9 @@ fn parent_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 }
 
 fn register_child_module(py: Python<'_>, parent_module: &PyModule) -> PyResult<()> {
-    let child_module = PyModule::new(py, "child_module")?;
-    child_module.add_function(wrap_pyfunction!(func, child_module)?)?;
-    parent_module.add_submodule(child_module)?;
+    let child_module = PyModule::new_bound(py, "child_module")?;
+    child_module.add_function(&wrap_pyfunction!(func, child_module.as_gil_ref())?.as_borrowed())?;
+    parent_module.add_submodule(child_module.as_gil_ref())?;
     Ok(())
 }
 

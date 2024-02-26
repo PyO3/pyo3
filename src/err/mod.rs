@@ -182,6 +182,21 @@ impl PyErr {
         })))
     }
 
+    /// Deprecated form of [`PyErr::from_type_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::from_type` will be replaced by `PyErr::from_type_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn from_type<A>(ty: &PyType, args: A) -> PyErr
+    where
+        A: PyErrArguments + Send + Sync + 'static,
+    {
+        PyErr::from_state(PyErrState::lazy(ty.into(), args))
+    }
+
     /// Constructs a new PyErr from the given Python type and arguments.
     ///
     /// `ty` is the exception type; usually one of the standard exceptions
@@ -192,11 +207,11 @@ impl PyErr {
     /// If `ty` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
     /// If calling `ty` with `args` raises an exception, that exception will be returned.
-    pub fn from_type<A>(ty: &PyType, args: A) -> PyErr
+    pub fn from_type_bound<A>(ty: Bound<'_, PyType>, args: A) -> PyErr
     where
         A: PyErrArguments + Send + Sync + 'static,
     {
-        PyErr::from_state(PyErrState::lazy(ty.into(), args))
+        PyErr::from_state(PyErrState::lazy(ty.unbind().into_any(), args))
     }
 
     /// Deprecated form of [`PyErr::from_value_bound`].
@@ -957,7 +972,7 @@ impl PyErrArguments for PyDowncastErrorArguments {
         format!(
             "'{}' object cannot be converted to '{}'",
             self.from
-                .as_ref(py)
+                .bind(py)
                 .qualname()
                 .as_deref()
                 .unwrap_or("<failed to extract type name>"),
@@ -1231,10 +1246,8 @@ mod tests {
             assert!(!err.matches(py, PyTypeError::type_object_bound(py)));
 
             // String is not a valid exception class, so we should get a TypeError
-            let err: PyErr = PyErr::from_type(
-                crate::types::PyString::type_object_bound(py).as_gil_ref(),
-                "foo",
-            );
+            let err: PyErr =
+                PyErr::from_type_bound(crate::types::PyString::type_object_bound(py), "foo");
             assert!(err.matches(py, PyTypeError::type_object_bound(py)));
         })
     }

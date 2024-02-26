@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::iter::FusedIterator;
 
 use crate::ffi::{self, Py_ssize_t};

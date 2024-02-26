@@ -241,10 +241,7 @@ impl PyString {
 
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
-            let bytes = unsafe {
-                self.py()
-                    .from_owned_ptr_or_err::<PyBytes>(ffi::PyUnicode_AsUTF8String(self.as_ptr()))
-            }?;
+            let bytes = self.as_borrowed().encode_utf8()?.into_gil_ref();
             Ok(unsafe { std::str::from_utf8_unchecked(bytes.as_bytes()) })
         }
     }
@@ -514,10 +511,7 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
-    use crate::Python;
     use crate::{PyObject, ToPyObject};
-    #[cfg(not(Py_LIMITED_API))]
-    use std::borrow::Cow;
 
     #[test]
     fn test_to_str_utf8() {

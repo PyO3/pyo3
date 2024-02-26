@@ -169,10 +169,7 @@ c = Class()
 assert c.from_rust is False
 "#
         );
-        let globals = PyModule::import(py, "__main__")
-            .unwrap()
-            .dict()
-            .as_borrowed();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
         py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
@@ -222,12 +219,8 @@ impl NewExisting {
         static PRE_BUILT: GILOnceCell<[pyo3::Py<NewExisting>; 2]> = GILOnceCell::new();
         let existing = PRE_BUILT.get_or_init(py, || {
             [
-                pyo3::PyCell::new(py, NewExisting { num: 0 })
-                    .unwrap()
-                    .into(),
-                pyo3::PyCell::new(py, NewExisting { num: 1 })
-                    .unwrap()
-                    .into(),
+                pyo3::Py::new(py, NewExisting { num: 0 }).unwrap(),
+                pyo3::Py::new(py, NewExisting { num: 1 }).unwrap(),
             ]
         });
 
@@ -235,9 +228,7 @@ impl NewExisting {
             return existing[val].clone_ref(py);
         }
 
-        pyo3::PyCell::new(py, NewExisting { num: val })
-            .unwrap()
-            .into()
+        pyo3::Py::new(py, NewExisting { num: val }).unwrap()
     }
 }
 
