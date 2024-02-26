@@ -152,7 +152,7 @@ macro_rules! wrap_pyfunction_bound {
             use $crate::derive_utils::PyFunctionArgumentsBound;
             use $function as wrapped_pyfunction;
             let function_arguments: PyFunctionArgumentsBound<'_, '_> =
-                ::std::convert::Into::into($py_or_module);
+                ::std::convert::Into::into(py_or_module);
             function_arguments.wrap_pyfunction(&wrapped_pyfunction::DEF)
         }
     };
