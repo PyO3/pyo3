@@ -1,22 +1,55 @@
-# GIL lifetimes, mutability and Python object types
+# Python object types
 
-On first glance, PyO3 provides a huge number of different types that can be used
+PyO3 offers two main sets of types to interact with Python objects. This section of the guide expands into detail about these types and how to choose which to use.
+
+The first set of types is are the "smart pointers" which all Python objects are wrapped in. These are `Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`. The [first section below](#pyo3s-smart-pointers) expands on each of these in detail and why there are three of them.
+
+The second set of types are types which fill in the generic parameter `T` of the smart pointers. The most common is `PyAny`, which represents any Python object (similar to Python's `typing.Any`). There are also concrete types for many Python built-in types, such as `PyList`, `PyDict`, and `PyTuple`. User defined `#[pyclass]` types also fit this category. The [second section below](#concrete-python-types) expands on how to use these types.
+
+Before PyO3 0.21, PyO3's main API to interact with Python objects was a deprecated API known as the "GIL Refs" API, containing reference types such as `&PyAny`, `&PyList`, and `&PyCell<T>` for user-defined `#[pyclass]` types. The [third section below](#the-gil-refs-api) details this deprecated API.
+
+## PyO3's smart pointers
+
+PyO3's API offers three generic smart pointers: `Py<T>`, `Bound<'py, T>` and `Borrowed<'a, 'py, T>`. For each of these the type parameter `T` will be filled by a [concrete Python type](#concrete-python-types). For example, a Python list object can be represented by `Py<PyList>`, `Bound<'py, PyList>`, and `Borrowed<'a, 'py, PyList>`.
+
+These smart pointers have different numbers of lifetime parameters, which defines how they behave. `Py<T>` has no lifetime parameters, `Bound<'py, T>` has a lifetime parameter `'py`, and `Borrowed<'a, 'py, T>` has two lifetime parameters `'a` and `'py`.
+
+Python objects are reference counted, like [`std::sync::Arc`](https://doc.rust-lang.org/stable/std/sync/struct.Arc.html). A major reason for these smart pointers is to bring Python's reference counting to a Rust API.
+
+The recommendation of when to use each of these smart pointers is as follows:
+
+- Use `Bound<'py, T>` for as much as possible, as it offers the most efficient and complete API.
+- Use `Py<T>` mostly just for storage inside Rust `struct`s which do not want to add a lifetime parameter for `Bound<'py, T>`.
+- `Borrowed<'a, 'py, T>` is almost never used. It is occasionally present at the boundary between Rust and the Python interpreter, for example when borrowing data from Python tuples (which is safe because they are immutable).
+
+The sections below also explain these smart pointers in a little more detail.
+
+### `Py<T>` (and `PyObject`)
+
+### `Bound<'py, T>`
+
+### `Borrowed<'a, 'py, T>`
+
+GIL lifetimes, mutability and Python object types
+
+At first glance, PyO3 provides a huge number of different types that can be used
 to wrap or refer to Python objects.  This page delves into the details and gives
 an overview of their intended meaning, with examples when each type is best
 used.
 
+## Concrete Python types
+
+
 
 ## The Python GIL, mutability, and Rust types
 
-Since Python has no concept of ownership, and works solely with boxed objects,
-any Python object can be referenced any number of times, and mutation is allowed
-from any reference.
+Python code differs from Rust in two key ways:
+- There is no concept of ownership; all Python objects are reference counted
+- There is no concept of exclusive (`&mut`) references; any reference can mutate a Python object
 
-The situation is helped a little by the Global Interpreter Lock (GIL), which
-ensures that only one thread can use the Python interpreter and its API at the
-same time, while non-Python operations (system calls and extension code) can
-unlock the GIL.  (See [the section on parallelism](parallelism.md) for how to do
-that in PyO3.)
+PyO3's API for interacting with Python objects is built with this in mind. There are two generic "smart pointers" to Python objects, `Py<T>` and `Bound<'py, T>`, which both use Python reference counting as their memory management. Almost all methods on these smart pointers use `&self` receivers, that is, a `&mut Py<T>` or `&mut Bound<'py, T>` are almost never used in PyO3 code.
+
+The situation is helped by the Global Interpreter Lock (GIL), which ensures that only one thread can use the Python interpreter and its API at the same time, while non-Python operations (system calls and extension code) can unlock the GIL. (See [the section on parallelism](parallelism.md) for how to do that in PyO3.)
 
 In PyO3, holding the GIL is modeled by acquiring a token of the type
 `Python<'py>`, which serves three purposes:
@@ -47,7 +80,7 @@ references is done at runtime using `PyCell`, a scheme very similar to
 
 To get hold of a `Python<'py>` token to prove the GIL is held, consult [PyO3's documentation][obtaining-py].
 
-## Object types
+## The GIL Refs API
 
 ### [`PyAny`][PyAny]
 
