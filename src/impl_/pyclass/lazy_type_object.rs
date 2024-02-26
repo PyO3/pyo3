@@ -12,7 +12,7 @@ use crate::{
     pyclass::{create_type_object, PyClassTypeObject},
     sync::{GILOnceCell, GILProtected},
     types::PyType,
-    PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
+    Bound, PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
 };
 
 use super::PyClassItemsIter;
@@ -46,7 +46,7 @@ impl<T> LazyTypeObject<T> {
 
 impl<T: PyClass> LazyTypeObject<T> {
     /// Gets the type object contained by this `LazyTypeObject`, initializing it if needed.
-    pub fn get_or_init<'py>(&'py self, py: Python<'py>) -> &'py PyType {
+    pub fn get_or_init<'py>(&self, py: Python<'py>) -> &Bound<'py, PyType> {
         self.get_or_try_init(py).unwrap_or_else(|err| {
             err.print(py);
             panic!("failed to create type object for {}", T::NAME)
@@ -54,7 +54,7 @@ impl<T: PyClass> LazyTypeObject<T> {
     }
 
     /// Fallible version of the above.
-    pub(crate) fn get_or_try_init<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyType> {
+    pub(crate) fn get_or_try_init<'py>(&self, py: Python<'py>) -> PyResult<&Bound<'py, PyType>> {
         self.0
             .get_or_try_init(py, create_type_object::<T>, T::NAME, T::items_iter())
     }
@@ -65,18 +65,18 @@ impl LazyTypeObjectInner {
     // so that this code is only instantiated once, instead of for every T
     // like the generic LazyTypeObject<T> methods above.
     fn get_or_try_init<'py>(
-        &'py self,
+        &self,
         py: Python<'py>,
         init: fn(Python<'py>) -> PyResult<PyClassTypeObject>,
         name: &str,
         items_iter: PyClassItemsIter,
-    ) -> PyResult<&'py PyType> {
+    ) -> PyResult<&Bound<'py, PyType>> {
         (|| -> PyResult<_> {
             let type_object = self
                 .value
                 .get_or_try_init(py, || init(py))?
                 .type_object
-                .as_ref(py);
+                .bind(py);
             self.ensure_init(type_object, name, items_iter)?;
             Ok(type_object)
         })()
@@ -91,7 +91,7 @@ impl LazyTypeObjectInner {
 
     fn ensure_init(
         &self,
-        type_object: &PyType,
+        type_object: &Bound<'_, PyType>,
         name: &str,
         items_iter: PyClassItemsIter,
     ) -> PyResult<()> {

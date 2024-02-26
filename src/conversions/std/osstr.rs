@@ -68,13 +68,11 @@ impl FromPyObject<'_> for OsString {
 
             // Create an OsStr view into the raw bytes from Python
             #[cfg(target_os = "wasi")]
-            let os_str: &OsStr = std::os::wasi::ffi::OsStrExt::from_bytes(
-                fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
-            );
+            let os_str: &OsStr =
+                std::os::wasi::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
             #[cfg(not(target_os = "wasi"))]
-            let os_str: &OsStr = std::os::unix::ffi::OsStrExt::from_bytes(
-                fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
-            );
+            let os_str: &OsStr =
+                std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
 
             Ok(os_str.to_os_string())
         }

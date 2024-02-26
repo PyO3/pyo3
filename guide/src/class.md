@@ -216,6 +216,7 @@ struct MyClass {
     num: i32,
 }
 Python::with_gil(|py| {
+#   #[allow(deprecated)]
     let obj = PyCell::new(py, MyClass { num: 3 }).unwrap();
     {
         let obj_ref = obj.borrow(); // Get PyRef
@@ -397,11 +398,11 @@ impl SubSubClass {
     }
 }
 # Python::with_gil(|py| {
-#     let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
+#     let subsub = pyo3::Py::new(py, SubSubClass::new()).unwrap();
 #     pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000");
 #     let subsub = SubSubClass::factory_method(py, 2).unwrap();
 #     let subsubsub = SubSubClass::factory_method(py, 3).unwrap();
-#     let cls = py.get_type::<SubSubClass>();
+#     let cls = py.get_type_bound::<SubSubClass>();
 #     pyo3::py_run!(py, subsub cls, "assert not isinstance(subsub, cls)");
 #     pyo3::py_run!(py, subsubsub cls, "assert isinstance(subsubsub, cls)");
 # });
@@ -441,7 +442,7 @@ impl DictWithCounter {
     }
 }
 # Python::with_gil(|py| {
-#     let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
+#     let cnt = pyo3::Py::new(py, DictWithCounter::new()).unwrap();
 #     pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
 # });
 # }
@@ -497,7 +498,7 @@ impl MyDict {
     // some custom methods that use `private` here...
 }
 # Python::with_gil(|py| {
-#     let cls = py.get_type::<MyDict>();
+#     let cls = py.get_type_bound::<MyDict>();
 #     pyo3::py_run!(py, cls, "cls(a=1, b=2)")
 # });
 # }
@@ -767,7 +768,7 @@ impl MyClass {
 }
 
 Python::with_gil(|py| {
-    let my_class = py.get_type::<MyClass>();
+    let my_class = py.get_type_bound::<MyClass>();
     pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
 });
 ```
@@ -940,8 +941,8 @@ impl MyClass {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
-#         let module = PyModule::new(py, "my_module")?;
+#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
+#         let module = PyModule::new_bound(py, "my_module")?;
 #         module.add_class::<MyClass>()?;
 #         let class = module.getattr("MyClass")?;
 #
@@ -950,7 +951,7 @@ impl MyClass {
 #             assert_eq!(doc, "");
 #
 #             let sig: String = inspect
-#                 .call1((class,))?
+#                 .call1((&class,))?
 #                 .call_method0("__str__")?
 #                 .extract()?;
 #             assert_eq!(sig, "(c, d)");
@@ -958,7 +959,7 @@ impl MyClass {
 #             let doc: String = class.getattr("__doc__")?.extract()?;
 #             assert_eq!(doc, "");
 #
-#             inspect.call1((class,)).expect_err("`text_signature` on classes is not compatible with compilation in `abi3` mode until Python 3.10 or greater");
+#             inspect.call1((&class,)).expect_err("`text_signature` on classes is not compatible with compilation in `abi3` mode until Python 3.10 or greater");
 #          }
 #
 #         {
@@ -1026,7 +1027,7 @@ enum MyEnum {
 Python::with_gil(|py| {
     let x = Py::new(py, MyEnum::Variant).unwrap();
     let y = Py::new(py, MyEnum::OtherVariant).unwrap();
-    let cls = py.get_type::<MyEnum>();
+    let cls = py.get_type_bound::<MyEnum>();
     pyo3::py_run!(py, x y cls, r#"
         assert x == cls.Variant
         assert y == cls.OtherVariant
@@ -1046,7 +1047,7 @@ enum MyEnum {
 }
 
 Python::with_gil(|py| {
-    let cls = py.get_type::<MyEnum>();
+    let cls = py.get_type_bound::<MyEnum>();
     let x = MyEnum::Variant as i32; // The exact value is assigned by the compiler.
     pyo3::py_run!(py, cls x, r#"
         assert int(cls.Variant) == x
@@ -1068,7 +1069,7 @@ enum MyEnum{
 }
 
 Python::with_gil(|py| {
-    let cls = py.get_type::<MyEnum>();
+    let cls = py.get_type_bound::<MyEnum>();
     let x = Py::new(py, MyEnum::Variant).unwrap();
     pyo3::py_run!(py, cls x, r#"
         assert repr(x) == 'MyEnum.Variant'
@@ -1094,7 +1095,7 @@ impl MyEnum {
 }
 
 Python::with_gil(|py| {
-    let cls = py.get_type::<MyEnum>();
+    let cls = py.get_type_bound::<MyEnum>();
     pyo3::py_run!(py, cls, "assert repr(cls.Answer) == '42'")
 })
 ```
@@ -1111,7 +1112,7 @@ enum MyEnum {
 
 Python::with_gil(|py| {
     let x = Py::new(py, MyEnum::Variant).unwrap();
-    let cls = py.get_type::<MyEnum>();
+    let cls = py.get_type_bound::<MyEnum>();
     pyo3::py_run!(py, x cls, r#"
         assert repr(x) == 'RenamedEnum.UPPERCASE'
         assert x == cls.UPPERCASE
@@ -1165,7 +1166,7 @@ enum Shape {
 Python::with_gil(|py| {
     let circle = Shape::Circle { radius: 10.0 }.into_py(py);
     let square = Shape::RegularPolygon { side_count: 4, radius: 10.0 }.into_py(py);
-    let cls = py.get_type::<Shape>();
+    let cls = py.get_type_bound::<Shape>();
     pyo3::py_run!(py, circle square cls, r#"
         assert isinstance(circle, cls)
         assert isinstance(circle, cls.Circle)
@@ -1204,7 +1205,7 @@ enum MyEnum {
 
 Python::with_gil(|py| {
     let x = Py::new(py, MyEnum::Variant { i: 42 }).unwrap();
-    let cls = py.get_type::<MyEnum>();
+    let cls = py.get_type_bound::<MyEnum>();
     pyo3::py_run!(py, x cls, r#"
         assert isinstance(x, cls)
         assert not isinstance(x, cls.Variant)
@@ -1308,7 +1309,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 }
 
 # Python::with_gil(|py| {
-#     let cls = py.get_type::<MyClass>();
+#     let cls = py.get_type_bound::<MyClass>();
 #     pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
 # });
 # }

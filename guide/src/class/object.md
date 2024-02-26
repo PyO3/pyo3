@@ -217,8 +217,8 @@ impl Number {
 
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let x = PyCell::new(py, Number(4))?;
-#         let y = PyCell::new(py, Number(4))?;
+#         let x = &Bound::new(py, Number(4))?;
+#         let y = &Bound::new(py, Number(4))?;
 #         assert!(x.eq(y)?);
 #         assert!(!x.ne(y)?);
 #         Ok(())

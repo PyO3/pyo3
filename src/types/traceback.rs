@@ -1,10 +1,7 @@
 use crate::err::{error_on_minusone, PyResult};
-use crate::types::PyString;
+use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound};
 use crate::{PyAny, PyNativeType};
-
-use super::any::PyAnyMethods;
-use super::string::PyStringMethods;
 
 /// Represents a Python traceback.
 #[repr(transparent)]
@@ -116,8 +113,8 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        prelude::*,
-        types::{traceback::PyTracebackMethods, PyDict},
+        types::{any::PyAnyMethods, dict::PyDictMethods, traceback::PyTracebackMethods, PyDict},
+        IntoPy, PyErr, Python,
     };
 
     #[test]
@@ -173,7 +170,7 @@ def f():
             let f = locals.get_item("f").unwrap().unwrap();
             let err = f.call0().unwrap_err();
             let traceback = err.traceback_bound(py).unwrap();
-            let err_object = err.clone_ref(py).into_py(py).into_ref(py);
+            let err_object = err.clone_ref(py).into_py(py).into_bound(py);
 
             assert!(err_object.getattr("__traceback__").unwrap().is(&traceback));
         })

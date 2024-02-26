@@ -73,7 +73,7 @@ property_rename_via_macro!(my_new_property_name);
 #[test]
 fn test_macro_rules_interactions() {
     Python::with_gil(|py| {
-        let my_base = py.get_type::<MyBaseClass>();
+        let my_base = py.get_type_bound::<MyBaseClass>();
         py_assert!(py, my_base, "my_base.__name__ == 'MyClass'");
 
         let my_func = wrap_pyfunction!(my_function_in_macro, py).unwrap();
@@ -83,7 +83,7 @@ fn test_macro_rules_interactions() {
             "my_func.__text_signature__ == '(a, b=None, *, c=42)'"
         );
 
-        let renamed_prop = py.get_type::<ClassWithProperty>();
+        let renamed_prop = py.get_type_bound::<ClassWithProperty>();
         py_assert!(
             py,
             renamed_prop,

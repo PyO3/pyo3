@@ -141,11 +141,7 @@ mod not_limited_impls {
     impl<'py> Neg for &'py PyComplex {
         type Output = &'py PyComplex;
         fn neg(self) -> &'py PyComplex {
-            unsafe {
-                let val = (*self.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-                self.py()
-                    .from_owned_ptr(ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val)))
-            }
+            (-self.as_borrowed()).into_gil_ref()
         }
     }
 

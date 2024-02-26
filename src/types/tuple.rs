@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::iter::FusedIterator;
 
 use crate::ffi::{self, Py_ssize_t};
@@ -169,7 +168,7 @@ impl PyTuple {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let ob = (1, 2, 3).to_object(py);
-    ///     let tuple: &PyTuple = ob.downcast(py).unwrap();
+    ///     let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
     ///     Ok(())
@@ -273,7 +272,7 @@ pub trait PyTupleMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let ob = (1, 2, 3).to_object(py);
-    ///     let tuple: &PyTuple = ob.downcast(py).unwrap();
+    ///     let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
     ///     Ok(())

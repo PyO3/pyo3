@@ -1,8 +1,9 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject,
-    IntoPy, PyAny, PyNativeType, PyObject, PyResult, Python, ToPyObject,
+    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyNativeType,
+    PyObject, PyResult, Python, ToPyObject,
 };
 
 use super::any::PyAnyMethods;
@@ -167,7 +168,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(PyBool::new_bound(py, true).is_true());
             let t = PyBool::new_bound(py, true);
-            assert!(t.as_any().extract::<bool>().unwrap());
+            assert!(t.extract::<bool>().unwrap());
             assert!(true.to_object(py).is(&*PyBool::new_bound(py, true)));
         });
     }
@@ -177,7 +178,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(!PyBool::new_bound(py, false).is_true());
             let t = PyBool::new_bound(py, false);
-            assert!(!t.as_any().extract::<bool>().unwrap());
+            assert!(!t.extract::<bool>().unwrap());
             assert!(false.to_object(py).is(&*PyBool::new_bound(py, false)));
         });
     }

@@ -9,7 +9,6 @@ use crate::types::PyTuple;
 use crate::{
     ffi, gil, Bound, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
 };
-use std::cell::Cell;
 use std::ptr::NonNull;
 
 /// Returns a borrowed pointer to a Python object.
@@ -62,18 +61,6 @@ use std::ptr::NonNull;
 pub unsafe trait AsPyPointer {
     /// Returns the underlying FFI pointer as a borrowed pointer.
     fn as_ptr(&self) -> *mut ffi::PyObject;
-}
-
-/// Convert `None` into a null pointer.
-unsafe impl<T> AsPyPointer for Option<T>
-where
-    T: AsPyPointer,
-{
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.as_ref()
-            .map_or_else(std::ptr::null_mut, |t| t.as_ptr())
-    }
 }
 
 /// Conversion trait that allows various objects to be converted into `PyObject`.
@@ -181,7 +168,7 @@ pub trait IntoPy<T>: Sized {
 /// Extract a type from a Python object.
 ///
 ///
-/// Normal usage is through the `extract` methods on [`Py`] and  [`PyAny`], which forward to this trait.
+/// Normal usage is through the `extract` methods on [`Bound`] and [`Py`], which forward to this trait.
 ///
 /// # Examples
 ///
@@ -191,30 +178,32 @@ pub trait IntoPy<T>: Sized {
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let obj: Py<PyString> = PyString::new_bound(py, "blah").into();
-///
-///     // Straight from an owned reference
-///     let s: &str = obj.extract(py)?;
+///     // Calling `.extract()` on a `Bound` smart pointer
+///     let obj: Bound<'_, PyString> = PyString::new_bound(py, "blah");
+///     let s: &str = obj.extract()?;
 /// #   assert_eq!(s, "blah");
 ///
-///     // Or from a borrowed reference
-///     let obj: &PyString = obj.as_ref(py);
-///     let s: &str = obj.extract()?;
+///     // Calling `.extract(py)` on a `Py` smart pointer
+///     let obj: Py<PyString> = obj.unbind();
+///     let s: &str = obj.extract(py)?;
 /// #   assert_eq!(s, "blah");
 /// #   Ok(())
 /// })
 /// # }
 /// ```
 ///
-/// Note: depending on the implementation, the lifetime of the extracted result may
-/// depend on the lifetime of the `obj` or the `prepared` variable.
-///
-/// For example, when extracting `&str` from a Python byte string, the resulting string slice will
-/// point to the existing string data (lifetime: `'py`).
-/// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
-/// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
-/// Since which case applies depends on the runtime type of the Python object,
-/// both the `obj` and `prepared` variables must outlive the resulting string slice.
+// /// FIXME: until `FromPyObject` can pick up a second lifetime, the below commentary is no longer
+// /// true. Update and restore this documentation at that time.
+// ///
+// /// Note: depending on the implementation, the lifetime of the extracted result may
+// /// depend on the lifetime of the `obj` or the `prepared` variable.
+// ///
+// /// For example, when extracting `&str` from a Python byte string, the resulting string slice will
+// /// point to the existing string data (lifetime: `'py`).
+// /// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
+// /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
+// /// Since which case applies depends on the runtime type of the Python object,
+// /// both the `obj` and `prepared` variables must outlive the resulting string slice.
 ///
 /// During the migration of PyO3 from the "GIL Refs" API to the `Bound<T>` smart pointer, this trait
 /// has two methods `extract` and `extract_bound` which are defaulted to call each other. To avoid
@@ -259,27 +248,6 @@ impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
     }
 }
 
-/// `Option::Some<T>` is converted like `T`.
-/// `Option::None` is converted to Python `None`.
-impl<T> ToPyObject for Option<T>
-where
-    T: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_ref()
-            .map_or_else(|| py.None(), |val| val.to_object(py))
-    }
-}
-
-impl<T> IntoPy<PyObject> for Option<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.map_or_else(|| py.None(), |val| val.into_py(py))
-    }
-}
-
 impl IntoPy<PyObject> for &'_ PyAny {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -294,24 +262,6 @@ where
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ref().as_ptr()) }
-    }
-}
-
-impl<T: Copy + ToPyObject> ToPyObject for Cell<T> {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.get().to_object(py)
-    }
-}
-
-impl<T: Copy + IntoPy<PyObject>> IntoPy<PyObject> for Cell<T> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.get().into_py(py)
-    }
-}
-
-impl<'py, T: FromPyObject<'py>> FromPyObject<'py> for Cell<T> {
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
-        T::extract(ob).map(Cell::new)
     }
 }
 
@@ -349,19 +299,6 @@ where
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
-    }
-}
-
-impl<'py, T> FromPyObject<'py> for Option<T>
-where
-    T: FromPyObject<'py>,
-{
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        if obj.as_ptr() == unsafe { ffi::Py_None() } {
-            Ok(None)
-        } else {
-            T::extract(obj).map(Some)
-        }
     }
 }
 
@@ -496,13 +433,28 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// Implementations must ensure the object does not get freed during `'p`
     /// and ensure that `ptr` is of the correct type.
     /// Note that it must be safe to decrement the reference count of `ptr`.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
     /// Convert from an arbitrary `PyObject` or panic.
     ///
     /// # Safety
     ///
     /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+        #[allow(deprecated)]
         Self::from_owned_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
     /// Convert from an arbitrary `PyObject` or panic.
@@ -510,7 +462,15 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+        #[allow(deprecated)]
         Self::from_owned_ptr_or_panic(py, ptr)
     }
     /// Convert from an arbitrary `PyObject`.
@@ -518,7 +478,15 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
+        #[allow(deprecated)]
         Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
     }
     /// Convert from an arbitrary borrowed `PyObject`.
@@ -592,8 +560,6 @@ mod test_no_clone {}
 
 #[cfg(test)]
 mod tests {
-    use crate::{PyObject, Python};
-
     #[allow(deprecated)]
     mod deprecated {
         use super::super::PyTryFrom;
@@ -636,23 +602,5 @@ mod tests {
                 assert!(list.is(val));
             });
         }
-    }
-
-    #[test]
-    fn test_option_as_ptr() {
-        Python::with_gil(|py| {
-            use crate::AsPyPointer;
-            let mut option: Option<PyObject> = None;
-            assert_eq!(option.as_ptr(), std::ptr::null_mut());
-
-            let none = py.None();
-            option = Some(none.clone());
-
-            let ref_cnt = none.get_refcnt(py);
-            assert_eq!(option.as_ptr(), none.as_ptr());
-
-            // Ensure ref count not changed by as_ptr call
-            assert_eq!(none.get_refcnt(py), ref_cnt);
-        });
     }
 }

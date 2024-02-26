@@ -3,7 +3,6 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
-use pyo3::PyCell;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -29,7 +28,7 @@ impl InstanceMethod {
 #[test]
 fn instance_method() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, InstanceMethod { member: 42 }).unwrap();
+        let obj = Bound::new(py, InstanceMethod { member: 42 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(), 42);
         py_assert!(py, obj, "obj.method() == 42");
@@ -53,7 +52,7 @@ impl InstanceMethodWithArgs {
 #[test]
 fn instance_method_with_args() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
+        let obj = Bound::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(6), 42);
         py_assert!(py, obj, "obj.method(3) == 21");
@@ -74,7 +73,7 @@ impl ClassMethod {
     #[classmethod]
     /// Test class method.
     fn method(cls: &Bound<'_, PyType>) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.as_gil_ref().qualname()?))
+        Ok(format!("{}.method()!", cls.qualname()?))
     }
 
     #[classmethod]
@@ -85,17 +84,15 @@ impl ClassMethod {
 
     #[classmethod]
     fn method_owned(cls: Py<PyType>) -> PyResult<String> {
-        Ok(format!(
-            "{}.method_owned()!",
-            Python::with_gil(|gil| cls.as_ref(gil).qualname())?
-        ))
+        let qualname = Python::with_gil(|gil| cls.bind(gil).qualname())?;
+        Ok(format!("{}.method_owned()!", qualname))
     }
 }
 
 #[test]
 fn class_method() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<ClassMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
         py_assert!(
@@ -126,7 +123,7 @@ impl ClassMethodWithArgs {
 #[test]
 fn class_method_with_args() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<ClassMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(
             py,
             *d,
@@ -157,7 +154,7 @@ fn static_method() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
-        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<StaticMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
@@ -181,7 +178,7 @@ fn static_method_with_args() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
-        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<StaticMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method(1337) == '0x539'");
     });
 }
@@ -679,7 +676,7 @@ impl MethDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<MethDocs>())].into_py_dict_bound(py);
+        let d = [("C", py.get_type_bound::<MethDocs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
             py,
@@ -713,7 +710,7 @@ impl MethodWithLifeTime {
 #[test]
 fn method_with_lifetime() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, MethodWithLifeTime {}).unwrap();
+        let obj = Py::new(py, MethodWithLifeTime {}).unwrap();
         py_run!(
             py,
             obj,
@@ -761,8 +758,8 @@ impl MethodWithPyClassArg {
 #[test]
 fn method_with_pyclassarg() {
     Python::with_gil(|py| {
-        let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+        let obj1 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+        let obj2 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
         let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict_bound(py);
         py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
@@ -866,7 +863,7 @@ impl FromSequence {
 #[test]
 fn test_from_sequence() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<FromSequence>();
+        let typeobj = py.get_type_bound::<FromSequence>();
         py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]");
     });
 }
@@ -946,7 +943,7 @@ impl r#RawIdents {
 #[test]
 fn test_raw_idents() {
     Python::with_gil(|py| {
-        let raw_idents_type = py.get_type::<r#RawIdents>();
+        let raw_idents_type = py.get_type_bound::<r#RawIdents>();
         assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
         py_run!(
             py,

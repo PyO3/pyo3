@@ -108,10 +108,8 @@ impl IntoPy<PyObject> for Decimal {
 mod test_rust_decimal {
     use super::*;
     use crate::err::PyErr;
-    use crate::types::any::PyAnyMethods;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
-    use rust_decimal::Decimal;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;

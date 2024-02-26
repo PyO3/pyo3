@@ -362,8 +362,12 @@ fn impl_class(
     .impl_all()?;
 
     Ok(quote! {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
+
+            impl _pyo3::types::DerefToPyAny for #cls {}
 
             #pytypeinfo_impl
 
@@ -781,6 +785,8 @@ fn impl_simple_enum(
     .impl_all()?;
 
     Ok(quote! {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
 
@@ -915,6 +921,8 @@ fn impl_complex_enum(
     }
 
     Ok(quote! {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
 
@@ -1086,7 +1094,7 @@ pub fn gen_complex_enum_variant_attr(
     let associated_method = quote! {
         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
             #deprecations
-            ::std::result::Result::Ok(py.get_type::<#variant_cls>().into())
+            ::std::result::Result::Ok(py.get_type_bound::<#variant_cls>().into_any().unbind())
         }
     };
 
@@ -1186,7 +1194,7 @@ fn complex_enum_variant_field_getter<'a>(
 ) -> Result<MethodAndMethodDef> {
     let signature = crate::pyfunction::FunctionSignature::from_arguments(vec![])?;
 
-    let self_type = crate::method::SelfType::TryFromPyCell(field_span);
+    let self_type = crate::method::SelfType::TryFromBoundRef(field_span);
 
     let spec = FnSpec {
         tp: crate::method::FnType::Getter(self_type.clone()),
@@ -1283,6 +1291,7 @@ fn impl_pytypeinfo(
 
             #[inline]
             fn type_object_raw(py: _pyo3::Python<'_>) -> *mut _pyo3::ffi::PyTypeObject {
+                use _pyo3::prelude::PyTypeMethods;
                 #deprecations
 
                 <#cls as _pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()

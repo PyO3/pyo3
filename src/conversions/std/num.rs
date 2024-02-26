@@ -5,7 +5,6 @@ use crate::{
     exceptions, ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
     ToPyObject,
 };
-use std::convert::TryFrom;
 use std::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
     NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
@@ -371,7 +370,6 @@ nonzero_int_impl!(NonZeroUsize, usize);
 #[cfg(test)]
 mod test_128bit_integers {
     use super::*;
-    use crate::types::any::PyAnyMethods;
 
     #[cfg(not(target_arch = "wasm32"))]
     use crate::types::PyDict;

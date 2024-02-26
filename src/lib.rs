@@ -10,7 +10,14 @@
         rust_2021_prelude_collisions,
         warnings
     ),
-    allow(unused_variables, unused_assignments, unused_extern_crates)
+    allow(
+        unused_variables,
+        unused_assignments,
+        unused_extern_crates,
+        // FIXME https://github.com/rust-lang/rust/issues/121621#issuecomment-1965156376
+        unknown_lints,
+        non_local_definitions,
+    )
 )))]
 
 //! Rust bindings to the Python interpreter.

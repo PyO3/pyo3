@@ -75,6 +75,13 @@ impl PyDict {
     }
 
     /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
+    #[cfg_attr(
+        all(not(PyPy), not(feature = "gil-refs")),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDict::from_sequence` will be replaced by `PyDict::from_sequence_bound` in a future PyO3 version"
+        )
+    )]
     #[inline]
     #[cfg(not(PyPy))]
     pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
@@ -735,9 +742,7 @@ mod tests {
     use super::*;
     #[cfg(not(PyPy))]
     use crate::exceptions;
-    #[cfg(not(PyPy))]
-    use crate::types::PyList;
-    use crate::{types::PyTuple, Python, ToPyObject};
+    use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]

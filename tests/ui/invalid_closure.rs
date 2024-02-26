@@ -6,10 +6,11 @@ fn main() {
         let local_data = vec![0, 1, 2, 3, 4];
         let ref_: &[u8] = &local_data;
 
-        let closure_fn = |_args: &PyTuple, _kwargs: Option<&PyDict>| -> PyResult<()> {
-            println!("This is five: {:?}", ref_.len());
-            Ok(())
-        };
+        let closure_fn =
+            |_args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>| -> PyResult<()> {
+                println!("This is five: {:?}", ref_.len());
+                Ok(())
+            };
         PyCFunction::new_closure_bound(py, None, None, closure_fn)
             .unwrap()
             .into()

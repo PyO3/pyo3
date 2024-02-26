@@ -206,7 +206,6 @@ assert hash_djb2('l50_50') == Number(-1152549421)
 ```rust
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::convert::TryInto;
 
 use pyo3::exceptions::{PyValueError, PyZeroDivisionError};
 use pyo3::prelude::*;
@@ -387,7 +386,7 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let globals = PyModule::import(py, "__main__")?.dict().as_borrowed();
+#         let globals = PyModule::import_bound(py, "__main__")?.dict();
 #         globals.set_item("Number", Number::type_object_bound(py))?;
 #
 #         py.run_bound(SCRIPT, Some(&globals), None)?;

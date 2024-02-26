@@ -52,9 +52,7 @@ use crate::types::{
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
-use crate::{
-    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
@@ -461,7 +459,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
     if let Err(e) = PyErr::warn_bound(
         py,
-        &py.get_type::<PyUserWarning>().as_borrowed(),
+        &py.get_type_bound::<PyUserWarning>(),
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
@@ -638,7 +636,7 @@ mod tests {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
         Python::with_gil(|py| {
-            let none = py.None().into_ref(py);
+            let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
                 "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"
@@ -1099,7 +1097,6 @@ mod tests {
     mod proptests {
         use super::*;
         use crate::tests::common::CatchWarnings;
-        use crate::types::any::PyAnyMethods;
         use crate::types::IntoPyDict;
         use proptest::prelude::*;
 

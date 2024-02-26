@@ -135,9 +135,9 @@ fn test_module_renaming() {
 }
 
 #[test]
-fn test_module_from_code() {
+fn test_module_from_code_bound() {
     Python::with_gil(|py| {
-        let adder_mod = PyModule::from_code(
+        let adder_mod = PyModule::from_code_bound(
             py,
             "def add(a,b):\n\treturn a+b",
             "adder_mod.py",
@@ -239,8 +239,8 @@ fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
-fn submodule(module: &PyModule) -> PyResult<()> {
-    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
+fn submodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(&wrap_pyfunction!(subfunction, module.as_gil_ref())?.as_borrowed())?;
     Ok(())
 }
 
@@ -258,12 +258,12 @@ fn superfunction() -> String {
 #[pymodule]
 fn supermodule(py: Python<'_>, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
-    let module_to_add = PyModule::new(py, "submodule")?;
-    submodule(module_to_add)?;
-    module.add_submodule(module_to_add)?;
-    let module_to_add = PyModule::new(py, "submodule_with_init_fn")?;
-    submodule_with_init_fn(py, module_to_add)?;
-    module.add_submodule(module_to_add)?;
+    let module_to_add = PyModule::new_bound(py, "submodule")?;
+    submodule(&module_to_add)?;
+    module.add_submodule(module_to_add.as_gil_ref())?;
+    let module_to_add = PyModule::new_bound(py, "submodule_with_init_fn")?;
+    submodule_with_init_fn(py, module_to_add.as_gil_ref())?;
+    module.add_submodule(module_to_add.as_gil_ref())?;
     Ok(())
 }
 

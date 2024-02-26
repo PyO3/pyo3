@@ -2,7 +2,7 @@ use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyTraceback, PyType};
+use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -59,6 +59,15 @@ impl<'a> PyDowncastError<'a> {
         PyDowncastError {
             from,
             to: to.into(),
+        }
+    }
+
+    /// Compatibility API to convert the Bound variant `DowncastError` into the
+    /// gil-ref variant
+    pub(crate) fn from_downcast_err(DowncastError { from, to }: DowncastError<'a, 'a>) -> Self {
+        Self {
+            from: from.as_gil_ref(),
+            to,
         }
     }
 }
@@ -173,6 +182,21 @@ impl PyErr {
         })))
     }
 
+    /// Deprecated form of [`PyErr::from_type_bound`]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyErr::from_type` will be replaced by `PyErr::from_type_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn from_type<A>(ty: &PyType, args: A) -> PyErr
+    where
+        A: PyErrArguments + Send + Sync + 'static,
+    {
+        PyErr::from_state(PyErrState::lazy(ty.into(), args))
+    }
+
     /// Constructs a new PyErr from the given Python type and arguments.
     ///
     /// `ty` is the exception type; usually one of the standard exceptions
@@ -183,11 +207,11 @@ impl PyErr {
     /// If `ty` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
     /// If calling `ty` with `args` raises an exception, that exception will be returned.
-    pub fn from_type<A>(ty: &PyType, args: A) -> PyErr
+    pub fn from_type_bound<A>(ty: Bound<'_, PyType>, args: A) -> PyErr
     where
         A: PyErrArguments + Send + Sync + 'static,
     {
-        PyErr::from_state(PyErrState::lazy(ty.into(), args))
+        PyErr::from_state(PyErrState::lazy(ty.unbind().into_any(), args))
     }
 
     /// Deprecated form of [`PyErr::from_value_bound`].
@@ -270,7 +294,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.get_type_bound(py).is(PyType::new::<PyTypeError>(py)));
+    ///     assert!(err.get_type_bound(py).is(&PyType::new_bound::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
@@ -403,7 +427,7 @@ impl PyErr {
         if ptype.as_ptr() == PanicException::type_object_raw(py).cast() {
             let msg = pvalue
                 .as_ref()
-                .and_then(|obj| obj.as_ref(py).str().ok())
+                .and_then(|obj| obj.bind(py).str().ok())
                 .map(|py_str| py_str.to_string_lossy().into())
                 .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
 
@@ -425,7 +449,7 @@ impl PyErr {
     #[cfg(Py_3_12)]
     fn _take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
-        let pvalue = state.pvalue.as_ref(py);
+        let pvalue = state.pvalue.bind(py);
         if pvalue.get_type().as_ptr() == PanicException::type_object_raw(py).cast() {
             let msg: String = pvalue
                 .str()
@@ -715,7 +739,7 @@ impl PyErr {
     /// # use pyo3::prelude::*;
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>().as_borrowed();
+    ///     let user_warning = py.get_type_bound::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn_bound(py, &user_warning, "I am warning you", 0)?;
     ///     Ok(())
     /// })
@@ -905,7 +929,6 @@ impl std::fmt::Debug for PyErr {
 
 impl std::fmt::Display for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
             let value = self.value_bound(py);
             let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
@@ -949,7 +972,7 @@ impl PyErrArguments for PyDowncastErrorArguments {
         format!(
             "'{}' object cannot be converted to '{}'",
             self.from
-                .as_ref(py)
+                .bind(py)
                 .qualname()
                 .as_deref()
                 .unwrap_or("<failed to extract type name>"),
@@ -1072,7 +1095,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::{PyErr, PyNativeType, PyTypeInfo, Python};
+    use crate::{PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -1223,10 +1246,8 @@ mod tests {
             assert!(!err.matches(py, PyTypeError::type_object_bound(py)));
 
             // String is not a valid exception class, so we should get a TypeError
-            let err: PyErr = PyErr::from_type(
-                crate::types::PyString::type_object_bound(py).as_gil_ref(),
-                "foo",
-            );
+            let err: PyErr =
+                PyErr::from_type_bound(crate::types::PyString::type_object_bound(py), "foo");
             assert!(err.matches(py, PyTypeError::type_object_bound(py)));
         })
     }
@@ -1270,7 +1291,7 @@ mod tests {
         // GIL locked should prevent effects to be visible to other testing
         // threads.
         Python::with_gil(|py| {
-            let cls = py.get_type::<exceptions::PyUserWarning>().as_borrowed();
+            let cls = py.get_type_bound::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
             let warnings = py.import_bound("warnings").unwrap();
@@ -1285,14 +1306,14 @@ mod tests {
 
             // Test with raising
             warnings
-                .call_method1("simplefilter", ("error", cls))
+                .call_method1("simplefilter", ("error", &cls))
                 .unwrap();
             PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap_err();
 
             // Test with error for an explicit module
             warnings.call_method0("resetwarnings").unwrap();
             warnings
-                .call_method1("filterwarnings", ("error", "", cls, "pyo3test"))
+                .call_method1("filterwarnings", ("error", "", &cls, "pyo3test"))
                 .unwrap();
 
             // This has the wrong module and will not raise, just be emitted

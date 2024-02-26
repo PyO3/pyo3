@@ -112,7 +112,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::any::PyAnyMethods;
 
     #[test]
     fn test_hashbrown_hashmap_to_python() {
@@ -121,7 +120,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -143,7 +142,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(

@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::{types::PyModule, Python};
 
 #[pyclass]
 struct Eq(i64);
