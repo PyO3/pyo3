@@ -982,6 +982,24 @@ impl PyErrArguments for PyDowncastErrorArguments {
     }
 }
 
+/// Python exceptions that can be converted to [`PyErr`].
+///
+/// This is used to implement [`From<Bound<'_, T>> for PyErr`].
+///
+/// Users should not need to implement this trait directly. It is implemented automatically in the
+/// [`crate::import_exception!`] and [`crate::create_exception!`] macros.
+pub trait ToPyErr {}
+
+impl<'py, T> std::convert::From<Bound<'py, T>> for PyErr
+where
+    T: ToPyErr,
+{
+    #[inline]
+    fn from(err: Bound<'py, T>) -> PyErr {
+        PyErr::from_value_bound(err.into_any())
+    }
+}
+
 /// Convert `PyDowncastError` to Python `TypeError`.
 impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
     fn from(err: PyDowncastError<'_>) -> PyErr {

@@ -308,7 +308,7 @@ pub use crate::conversion::{AsPyPointer, FromPyObject, FromPyPointer, IntoPy, To
 #[allow(deprecated)]
 pub use crate::conversion::{PyTryFrom, PyTryInto};
 pub use crate::err::{
-    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult,
+    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
 };
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
