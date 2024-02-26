@@ -201,6 +201,14 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     let doc = get_doc(&function.attrs, None);
 
     let initialization = module_initialization(options, ident);
+
+    // Module function called with optional Python<'_> marker as first arg, followed by the module.
+    let mut module_args = Vec::new();
+    if function.sig.inputs.len() == 2 {
+        module_args.push(quote!(module.py()));
+    }
+    module_args.push(quote!(::std::convert::Into::into(BoundRef(module))));
+
     Ok(quote! {
         #function
         #vis mod #ident {
@@ -218,7 +226,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
             use #krate::impl_::pymethods::BoundRef;
 
             fn __pyo3_pymodule(module: &#krate::Bound<'_, #krate::types::PyModule>) -> #krate::PyResult<()> {
-                #ident(module.py(), ::std::convert::Into::into(BoundRef(module)))
+                #ident(#(#module_args),*)
             }
 
             impl #ident::MakeDef {
