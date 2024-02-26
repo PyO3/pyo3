@@ -188,6 +188,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        #[allow(unknown_lints, non_local_definitions)]
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
             fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
@@ -195,6 +196,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        #[allow(unknown_lints, non_local_definitions)]
         impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
@@ -203,6 +205,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        #[allow(unknown_lints, non_local_definitions)]
         impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
@@ -252,6 +255,7 @@ macro_rules! pyobject_native_type_info(
 #[macro_export]
 macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
+        #[allow(unknown_lints, non_local_definitions)]
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             #[inline]
             fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {

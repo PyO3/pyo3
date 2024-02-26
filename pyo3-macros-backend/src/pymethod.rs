@@ -1241,6 +1241,18 @@ impl SlotFragmentDef {
         )?;
         let ret_ty = ret_ty.ffi_type();
         Ok(quote! {
+            impl #cls {
+                unsafe fn #wrapper_ident(
+                    py: _pyo3::Python,
+                    _raw_slf: *mut _pyo3::ffi::PyObject,
+                    #(#arg_idents: #arg_types),*
+                ) -> _pyo3::PyResult<#ret_ty> {
+                    let _slf = _raw_slf;
+                    #( #holders )*
+                    #body
+                }
+            }
+
             impl _pyo3::impl_::pyclass::#fragment_trait<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
 
                 #[inline]
@@ -1250,17 +1262,6 @@ impl SlotFragmentDef {
                     _raw_slf: *mut _pyo3::ffi::PyObject,
                     #(#arg_idents: #arg_types),*
                 ) -> _pyo3::PyResult<#ret_ty> {
-                    impl #cls {
-                        unsafe fn #wrapper_ident(
-                            py: _pyo3::Python,
-                            _raw_slf: *mut _pyo3::ffi::PyObject,
-                            #(#arg_idents: #arg_types),*
-                        ) -> _pyo3::PyResult<#ret_ty> {
-                            let _slf = _raw_slf;
-                            #( #holders )*
-                            #body
-                        }
-                    }
                     #cls::#wrapper_ident(py, _raw_slf, #(#arg_idents),*)
                 }
             }

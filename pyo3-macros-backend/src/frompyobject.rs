@@ -604,6 +604,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
 
     let ident = &tokens.ident;
     Ok(quote!(
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
             use _pyo3::prelude::PyAnyMethods;

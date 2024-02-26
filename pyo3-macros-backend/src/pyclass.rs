@@ -362,6 +362,7 @@ fn impl_class(
     .impl_all()?;
 
     Ok(quote! {
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
 
@@ -783,6 +784,7 @@ fn impl_simple_enum(
     .impl_all()?;
 
     Ok(quote! {
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
 
@@ -917,6 +919,7 @@ fn impl_complex_enum(
     }
 
     Ok(quote! {
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
 

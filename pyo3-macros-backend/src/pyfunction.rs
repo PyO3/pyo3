@@ -281,8 +281,10 @@ pub fn impl_wrap_pyfunction(
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
+
             impl #name::MakeDef {
                 const DEF: #krate::impl_::pyfunction::PyMethodDef = #methoddef;
             }

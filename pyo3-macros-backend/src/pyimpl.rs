@@ -168,6 +168,7 @@ pub fn impl_methods(
     };
 
     Ok(quote! {
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
 
