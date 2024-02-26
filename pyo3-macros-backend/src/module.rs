@@ -213,9 +213,10 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         // inside a function body)
         const _: () = {
             use #krate::impl_::pymodule as impl_;
+            use #krate::impl_::pymethods::BoundRef;
 
             fn __pyo3_pymodule(module: &#krate::Bound<'_, #krate::types::PyModule>) -> #krate::PyResult<()> {
-                #ident(module.py(), ::std::convert::Into::into(impl_::BoundModule(module)))
+                #ident(module.py(), ::std::convert::Into::into(BoundRef(module)))
             }
 
             impl #ident::MakeDef {
