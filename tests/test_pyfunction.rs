@@ -324,10 +324,11 @@ fn test_pycfunction_new() {
         }
 
         let py_fn = PyCFunction::new_bound(
+            py,
             c_fn,
             "py_fn",
             "py_fn for test (this is the docstring)",
-            py.into(),
+            None,
         )
         .unwrap();
 
@@ -381,10 +382,11 @@ fn test_pycfunction_new_with_keywords() {
         }
 
         let py_fn = PyCFunction::new_with_keywords_bound(
+            py,
             c_fn,
             "py_fn",
             "py_fn for test (this is the docstring)",
-            py.into(),
+            None,
         )
         .unwrap();
 

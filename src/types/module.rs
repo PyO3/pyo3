@@ -1,5 +1,5 @@
 use crate::callback::IntoPyCallbackOutput;
-use crate::derive_utils::{PyFunctionArguments, PyFunctionArgumentsBound};
+use crate::derive_utils::PyFunctionArguments;
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pymethods::PyMethodDef;
@@ -717,7 +717,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     }
 
     fn wrap_pyfunction(&self, method_def: &PyMethodDef) -> PyResult<Bound<'_, PyCFunction>> {
-        PyFunctionArgumentsBound::PyModule(self).wrap_pyfunction(method_def)
+        PyCFunction::internal_new_bound(self.py(), method_def, Some(self))
     }
 }
 

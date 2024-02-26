@@ -3,7 +3,7 @@
 use crate::impl_::pymethods::PyMethodDef;
 use crate::{
     types::{PyCFunction, PyModule},
-    Bound, PyResult, Python,
+    PyResult, Python,
 };
 
 /// Enum to abstract over the arguments of Python function wrappers.
@@ -37,39 +37,5 @@ impl<'a> From<Python<'a>> for PyFunctionArguments<'a> {
 impl<'a> From<&'a PyModule> for PyFunctionArguments<'a> {
     fn from(module: &'a PyModule) -> PyFunctionArguments<'a> {
         PyFunctionArguments::PyModule(module)
-    }
-}
-
-/// Enum to abstract over the arguments of Python function wrappers.
-pub enum PyFunctionArgumentsBound<'a, 'py> {
-    Python(Python<'py>),
-    PyModule(&'a Bound<'py, PyModule>),
-}
-
-impl<'a, 'py> PyFunctionArgumentsBound<'a, 'py> {
-    pub fn into_py_and_maybe_module(self) -> (Python<'py>, Option<&'a Bound<'py, PyModule>>) {
-        match self {
-            PyFunctionArgumentsBound::Python(py) => (py, None),
-            PyFunctionArgumentsBound::PyModule(module) => {
-                let py = module.py();
-                (py, Some(module))
-            }
-        }
-    }
-
-    pub fn wrap_pyfunction(self, method_def: &PyMethodDef) -> PyResult<Bound<'py, PyCFunction>> {
-        PyCFunction::internal_new_bound(method_def, self)
-    }
-}
-
-impl<'a, 'py> From<Python<'py>> for PyFunctionArgumentsBound<'a, 'py> {
-    fn from(py: Python<'py>) -> PyFunctionArgumentsBound<'a, 'py> {
-        PyFunctionArgumentsBound::Python(py)
-    }
-}
-
-impl<'a, 'py> From<&'a Bound<'py, PyModule>> for PyFunctionArgumentsBound<'a, 'py> {
-    fn from(module: &'a Bound<'py, PyModule>) -> PyFunctionArgumentsBound<'a, 'py> {
-        PyFunctionArgumentsBound::PyModule(module)
     }
 }
