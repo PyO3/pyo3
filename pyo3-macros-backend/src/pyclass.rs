@@ -362,6 +362,7 @@ fn impl_class(
     .impl_all()?;
 
     Ok(quote! {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
@@ -784,6 +785,7 @@ fn impl_simple_enum(
     .impl_all()?;
 
     Ok(quote! {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
@@ -919,6 +921,7 @@ fn impl_complex_enum(
     }
 
     Ok(quote! {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate as _pyo3;
