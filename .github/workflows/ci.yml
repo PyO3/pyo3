@@ -488,6 +488,90 @@ jobs:
       - run: python3 -m pip install --upgrade pip && pip install nox
       - run: python3 -m nox -s check-feature-powerset
 
+  test-cross-compilation:
+    needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    runs-on: ${{ matrix.os }}
+    name: test-cross-compilation ${{ matrix.os }} -> ${{ matrix.target }}
+    strategy:
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      matrix:
+        include:
+          # ubuntu "cross compile" to itself
+          - os: "ubuntu-latest"
+            target: "x86_64-unknown-linux-gnu"
+            flags: "-i python3.12"
+            manylinux: auto
+          # ubuntu x86_64 -> aarch64
+          - os: "ubuntu-latest"
+            target: "aarch64-unknown-linux-gnu"
+            flags: "-i python3.12"
+            manylinux: auto
+          # ubuntu x86_64 -> windows x86_64
+          - os: "ubuntu-latest"
+            target: "x86_64-pc-windows-gnu"
+            flags: "-i python3.12 --features abi3 --features generate-import-lib"
+            manylinux: off
+          # macos x86_64 -> aarch64
+          - os: "macos-13"  # last x86_64 macos runners
+            target: "aarch64-apple-darwin"
+          # macos aarch64 -> x86_64
+          - os: "macos-14"  # aarch64 macos runners
+            target: "x86_64-apple-darwin"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces:
+            examples/maturin-starter
+          save-if: ${{ github.event_name != 'merge_group' }}
+      - name: Setup cross-compiler
+        if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
+        run: sudo apt-get install -y mingw-w64 llvm
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
+
+  test-cross-compilation-windows:
+    needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces:
+            examples/maturin-starter
+          save-if: ${{ github.event_name != 'merge_group' }}
+      - uses: actions/cache/restore@v4
+        with:
+          # https://github.com/PyO3/maturin/discussions/1953
+          path: ~/.cache/cargo-xwin
+          key: cargo-xwin-cache
+      - name: Test cross compile to Windows
+        env:
+          XWIN_ARCH: x86_64
+        run: |
+          set -ex
+          sudo apt-get install -y mingw-w64 llvm
+          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
+          pip install cargo-xwin
+          # abi3
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
+          # non-abi3
+          export PYO3_CROSS_PYTHON_VERSION=3.12
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
+      - if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/cargo-xwin
+          key: cargo-xwin-cache
   conclusion:
     needs:
       - fmt
@@ -503,6 +587,8 @@ jobs:
       - test-debug
       - test-version-limits
       - check-feature-powerset
+      - test-cross-compilation
+      - test-cross-compilation-windows
     if: always()
     runs-on: ubuntu-latest
     steps:
