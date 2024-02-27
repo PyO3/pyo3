@@ -129,7 +129,7 @@ macro_rules! py_run_impl {
 /// argument.
 ///
 /// For backwards compatibility, if the second argument is `Python<'py>` then the return type will
-/// be `&'py PyModule` GIL Ref. To get `Bound<'py, PyModule>`, use the [`wrap_pyfunction_bound!`]
+/// be `&'py PyModule` GIL Ref. To get `Bound<'py, PyModule>`, use the [`crate::wrap_pyfunction_bound!`]
 /// macro instead.
 #[macro_export]
 macro_rules! wrap_pyfunction {
