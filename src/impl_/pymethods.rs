@@ -7,8 +7,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::{any::PyAnyMethods, PyModule, PyType};
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyRef, PyRefMut,
-    PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
+    ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyRef,
+    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -272,8 +272,8 @@ where
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
 
     let py = Python::assume_gil_acquired();
-    let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-    let borrow = slf.try_borrow_threadsafe();
+    let slf = Borrowed::from_ptr_unchecked(py, slf).downcast_unchecked::<T>();
+    let borrow = PyRef::try_borrow_threadsafe(&slf);
     let visit = PyVisit::from_raw(visit, arg, py);
 
     let retval = if let Ok(borrow) = borrow {
