@@ -56,7 +56,7 @@ impl PyTraceback {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyTraceback")]
-pub trait PyTracebackMethods<'py> {
+pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// Formats the traceback as a string.
     ///
     /// This does not include the exception type and value. The exception type and value can be

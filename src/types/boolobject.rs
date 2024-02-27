@@ -55,7 +55,7 @@ impl PyBool {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyBool")]
-pub trait PyBoolMethods<'py> {
+pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
     /// Gets whether this boolean is `true`.
     fn is_true(&self) -> bool;
 }

@@ -290,7 +290,7 @@ impl PyDict {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyDict")]
-pub trait PyDictMethods<'py> {
+pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `self.copy()`.

@@ -192,7 +192,7 @@ impl PySequence {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PySequence")]
-pub trait PySequenceMethods<'py> {
+pub trait PySequenceMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of objects in sequence.
     ///
     /// This is equivalent to the Python expression `len(self)`.

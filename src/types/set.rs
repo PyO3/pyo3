@@ -139,7 +139,7 @@ impl PySet {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PySet")]
-pub trait PySetMethods<'py> {
+pub trait PySetMethods<'py>: crate::sealed::Sealed {
     /// Removes all elements from the set.
     fn clear(&self);
 

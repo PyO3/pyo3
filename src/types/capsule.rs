@@ -263,7 +263,7 @@ impl PyCapsule {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyCapsule")]
-pub trait PyCapsuleMethods<'py> {
+pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Sets the context pointer in the capsule.
     ///
     /// Returns an error if this capsule is not valid.

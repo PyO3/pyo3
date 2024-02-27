@@ -107,7 +107,7 @@ impl PyType {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyType")]
-pub trait PyTypeMethods<'py> {
+pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     fn as_type_ptr(&self) -> *mut ffi::PyTypeObject;
 

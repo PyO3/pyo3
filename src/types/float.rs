@@ -58,7 +58,7 @@ impl PyFloat {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyFloat")]
-pub trait PyFloatMethods<'py> {
+pub trait PyFloatMethods<'py>: crate::sealed::Sealed {
     /// Gets the value of this float.
     fn value(&self) -> c_double;
 }
