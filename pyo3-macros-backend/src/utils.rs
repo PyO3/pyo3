@@ -144,11 +144,32 @@ pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
     ty
 }
 
-/// Extract the path to the pyo3 crate, or use the default (`::pyo3`).
-pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
-    match attr {
-        Some(attr) => attr.value.0.clone(),
-        None => syn::parse_str("::pyo3").unwrap(),
+pub struct Ctx {
+    pub pyo3_path: PyO3CratePath,
+}
+
+impl Ctx {
+    pub(crate) fn new(attr: &Option<CrateAttribute>) -> Self {
+        let pyo3_path = match attr {
+            Some(attr) => PyO3CratePath::Given(attr.value.0.clone()),
+            None => PyO3CratePath::Default,
+        };
+
+        Self { pyo3_path }
+    }
+}
+
+pub enum PyO3CratePath {
+    Given(syn::Path),
+    Default,
+}
+
+impl quote::ToTokens for PyO3CratePath {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Given(path) => path.to_tokens(tokens),
+            Self::Default => quote::quote! { ::pyo3 }.to_tokens(tokens),
+        }
     }
 }
 

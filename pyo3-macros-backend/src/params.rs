@@ -1,3 +1,4 @@
+use crate::utils::Ctx;
 use crate::{
     method::{FnArg, FnSpec},
     pyfunction::FunctionSignature,
@@ -30,8 +31,10 @@ pub fn impl_arg_params(
     self_: Option<&syn::Type>,
     fastcall: bool,
     holders: &mut Vec<TokenStream>,
+    ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<TokenStream>)> {
     let args_array = syn::Ident::new("output", Span::call_site());
+    let Ctx { pyo3_path } = ctx;
 
     if !fastcall && is_forwarded_args(&spec.signature) {
         // In the varargs convention, we can just pass though if the signature
@@ -40,12 +43,12 @@ pub fn impl_arg_params(
             .signature
             .arguments
             .iter()
-            .map(|arg| impl_arg_param(arg, &mut 0, &args_array, holders))
+            .map(|arg| impl_arg_param(arg, &mut 0, &args_array, holders, ctx))
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
-                let _args = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args);
-                let _kwargs = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
+                let _args = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args);
+                let _kwargs = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
             },
             arg_convert,
         ));
@@ -64,7 +67,7 @@ pub fn impl_arg_params(
         .iter()
         .map(|(name, required)| {
             quote! {
-                _pyo3::impl_::extract_argument::KeywordOnlyParameterDescription {
+                #pyo3_path::impl_::extract_argument::KeywordOnlyParameterDescription {
                     name: #name,
                     required: #required,
                 }
@@ -78,22 +81,22 @@ pub fn impl_arg_params(
         .signature
         .arguments
         .iter()
-        .map(|arg| impl_arg_param(arg, &mut option_pos, &args_array, holders))
+        .map(|arg| impl_arg_param(arg, &mut option_pos, &args_array, holders, ctx))
         .collect::<Result<_>>()?;
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
-        quote! { _pyo3::impl_::extract_argument::TupleVarargs }
+        quote! { #pyo3_path::impl_::extract_argument::TupleVarargs }
     } else {
-        quote! { _pyo3::impl_::extract_argument::NoVarargs }
+        quote! { #pyo3_path::impl_::extract_argument::NoVarargs }
     };
     let kwargs_handler = if spec.signature.python_signature.kwargs.is_some() {
-        quote! { _pyo3::impl_::extract_argument::DictVarkeywords }
+        quote! { #pyo3_path::impl_::extract_argument::DictVarkeywords }
     } else {
-        quote! { _pyo3::impl_::extract_argument::NoVarkeywords }
+        quote! { #pyo3_path::impl_::extract_argument::NoVarkeywords }
     };
 
     let cls_name = if let Some(cls) = self_ {
-        quote! { ::std::option::Option::Some(<#cls as _pyo3::type_object::PyTypeInfo>::NAME) }
+        quote! { ::std::option::Option::Some(<#cls as #pyo3_path::type_object::PyTypeInfo>::NAME) }
     } else {
         quote! { ::std::option::Option::None }
     };
@@ -123,7 +126,7 @@ pub fn impl_arg_params(
     // create array of arguments, and then parse
     Ok((
         quote! {
-                const DESCRIPTION: _pyo3::impl_::extract_argument::FunctionDescription = _pyo3::impl_::extract_argument::FunctionDescription {
+                const DESCRIPTION: #pyo3_path::impl_::extract_argument::FunctionDescription = #pyo3_path::impl_::extract_argument::FunctionDescription {
                     cls_name: #cls_name,
                     func_name: stringify!(#python_name),
                     positional_parameter_names: &[#(#positional_parameter_names),*],
@@ -145,7 +148,10 @@ fn impl_arg_param(
     option_pos: &mut usize,
     args_array: &syn::Ident,
     holders: &mut Vec<TokenStream>,
+    ctx: &Ctx,
 ) -> Result<TokenStream> {
+    let Ctx { pyo3_path } = ctx;
+
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
     macro_rules! quote_arg_span {
@@ -167,7 +173,7 @@ fn impl_arg_param(
         let holder = syn::Ident::new(&format!("holder_{}", holders.len()), arg.ty.span());
         holders.push(quote_arg_span! {
             #[allow(clippy::let_unit_value)]
-            let mut #holder = _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
+            let mut #holder = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;
         });
         holder
     };
@@ -179,7 +185,7 @@ fn impl_arg_param(
         );
         let holder = push_holder();
         return Ok(quote_arg_span! {
-            _pyo3::impl_::extract_argument::extract_argument(
+            #pyo3_path::impl_::extract_argument::extract_argument(
                 &_args,
                 &mut #holder,
                 #name_str
@@ -192,7 +198,7 @@ fn impl_arg_param(
         );
         let holder = push_holder();
         return Ok(quote_arg_span! {
-            _pyo3::impl_::extract_argument::extract_optional_argument(
+            #pyo3_path::impl_::extract_argument::extract_optional_argument(
                 _kwargs.as_deref(),
                 &mut #holder,
                 #name_str,
@@ -209,14 +215,17 @@ fn impl_arg_param(
     // Option<T> arguments have special treatment: the default should be specified _without_ the
     // Some() wrapper. Maybe this should be changed in future?!
     if arg.optional.is_some() {
-        default = Some(default.map_or_else(|| quote!(::std::option::Option::None), some_wrap));
+        default = Some(default.map_or_else(
+            || quote!(::std::option::Option::None),
+            |tokens| some_wrap(tokens, ctx),
+        ));
     }
 
     let tokens = if let Some(expr_path) = arg.attrs.from_py_with.as_ref().map(|attr| &attr.value) {
         if let Some(default) = default {
             quote_arg_span! {
                 #[allow(clippy::redundant_closure)]
-                _pyo3::impl_::extract_argument::from_py_with_with_default(
+                #pyo3_path::impl_::extract_argument::from_py_with_with_default(
                     #arg_value.as_deref(),
                     #name_str,
                     #expr_path as fn(_) -> _,
@@ -225,8 +234,8 @@ fn impl_arg_param(
             }
         } else {
             quote_arg_span! {
-                _pyo3::impl_::extract_argument::from_py_with(
-                    &_pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                #pyo3_path::impl_::extract_argument::from_py_with(
+                    &#pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
                     #name_str,
                     #expr_path as fn(_) -> _,
                 )?
@@ -236,7 +245,7 @@ fn impl_arg_param(
         let holder = push_holder();
         quote_arg_span! {
             #[allow(clippy::redundant_closure)]
-            _pyo3::impl_::extract_argument::extract_optional_argument(
+            #pyo3_path::impl_::extract_argument::extract_optional_argument(
                 #arg_value.as_deref(),
                 &mut #holder,
                 #name_str,
@@ -247,7 +256,7 @@ fn impl_arg_param(
         let holder = push_holder();
         quote_arg_span! {
             #[allow(clippy::redundant_closure)]
-            _pyo3::impl_::extract_argument::extract_argument_with_default(
+            #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                 #arg_value.as_deref(),
                 &mut #holder,
                 #name_str,
@@ -257,8 +266,8 @@ fn impl_arg_param(
     } else {
         let holder = push_holder();
         quote_arg_span! {
-            _pyo3::impl_::extract_argument::extract_argument(
-                &_pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+            #pyo3_path::impl_::extract_argument::extract_argument(
+                &#pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
                 &mut #holder,
                 #name_str
             )?
