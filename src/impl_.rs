@@ -16,6 +16,7 @@ pub(crate) mod not_send;
 pub mod panic;
 pub mod pycell;
 pub mod pyclass;
+pub mod pyfunction;
 pub mod pymethods;
 pub mod pymodule;
 #[doc(hidden)]

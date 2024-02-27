@@ -194,7 +194,7 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
 /// module
 pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> {
     let options = PyModuleOptions::from_attrs(&mut function.attrs)?;
-    process_functions_in_module(&mut function)?;
+    process_functions_in_module(&options, &mut function)?;
     let krate = get_pyo3_crate(&options.krate);
     let ident = &function.sig.ident;
     let vis = &function.vis;
@@ -261,8 +261,13 @@ fn module_initialization(options: PyModuleOptions, ident: &syn::Ident) -> TokenS
 }
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`
-fn process_functions_in_module(func: &mut syn::ItemFn) -> Result<()> {
-    let mut stmts: Vec<syn::Stmt> = Vec::new();
+fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn) -> Result<()> {
+    let krate = get_pyo3_crate(&options.krate);
+
+    let mut stmts: Vec<syn::Stmt> = vec![syn::parse_quote!(
+        #[allow(unknown_lints, unused_imports, redundant_imports)]
+        use #krate::{PyNativeType, types::PyModuleMethods};
+    )];
 
     for mut stmt in func.block.stmts.drain(..) {
         if let syn::Stmt::Item(Item::Fn(func)) = &mut stmt {
@@ -272,7 +277,7 @@ fn process_functions_in_module(func: &mut syn::ItemFn) -> Result<()> {
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.add_function(#module_name.wrap_pyfunction(&#name::DEF)?)?;
+                    #module_name.as_borrowed().add_function(#krate::wrap_pyfunction_bound!(#name, #module_name.as_borrowed())?)?;
                 };
                 stmts.extend(statements);
             }

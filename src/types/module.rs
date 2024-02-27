@@ -1,8 +1,6 @@
 use crate::callback::IntoPyCallbackOutput;
-use crate::derive_utils::PyFunctionArguments;
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::impl_::pymethods::PyMethodDef;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
@@ -404,11 +402,6 @@ impl PyModule {
         let name = fun.getattr(__name__(self.py()))?.extract()?;
         self.add(name, fun)
     }
-
-    #[doc(hidden)]
-    pub fn wrap_pyfunction<'a>(&'a self, method_def: &'a PyMethodDef) -> PyResult<&PyCFunction> {
-        PyFunctionArguments::PyModule(self).wrap_pyfunction(method_def)
-    }
 }
 
 /// Implementation of functionality for [`PyModule`].
@@ -599,9 +592,6 @@ pub trait PyModuleMethods<'py> {
     /// [1]: crate::prelude::pyfunction
     /// [2]: crate::wrap_pyfunction
     fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()>;
-
-    #[doc(hidden)]
-    fn wrap_pyfunction(&self, method_def: &PyMethodDef) -> PyResult<Bound<'_, PyCFunction>>;
 }
 
 impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
@@ -714,10 +704,6 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()> {
         let name = fun.getattr(__name__(self.py()))?;
         self.add(name.downcast_into::<PyString>()?, fun)
-    }
-
-    fn wrap_pyfunction(&self, method_def: &PyMethodDef) -> PyResult<Bound<'_, PyCFunction>> {
-        PyCFunction::internal_new_bound(self.py(), method_def, Some(self))
     }
 }
 

@@ -126,18 +126,13 @@ macro_rules! py_run_impl {
 macro_rules! wrap_pyfunction {
     ($function:path) => {
         &|py_or_module| {
-            use $crate::derive_utils::PyFunctionArguments;
             use $function as wrapped_pyfunction;
-            let function_arguments: PyFunctionArguments<'_> =
-                ::std::convert::Into::into(py_or_module);
-            function_arguments.wrap_pyfunction(&wrapped_pyfunction::DEF)
+            $crate::impl_::pyfunction::wrap_pyfunction(&wrapped_pyfunction::DEF, py_or_module)
         }
     };
     ($function:path, $py_or_module:expr) => {{
-        use $crate::derive_utils::PyFunctionArguments;
         use $function as wrapped_pyfunction;
-        let function_arguments: PyFunctionArguments<'_> = ::std::convert::Into::into($py_or_module);
-        function_arguments.wrap_pyfunction(&wrapped_pyfunction::DEF)
+        $crate::impl_::pyfunction::wrap_pyfunction(&wrapped_pyfunction::DEF, $py_or_module)
     }};
 }
 
@@ -148,14 +143,14 @@ macro_rules! wrap_pyfunction {
 #[macro_export]
 macro_rules! wrap_pyfunction_bound {
     ($function:path) => {
-        &|module| {
+        &|py_or_module| {
             use $function as wrapped_pyfunction;
-            module.wrap_pyfunction(&wrapped_pyfunction::DEF)
+            $crate::impl_::pyfunction::wrap_pyfunction_bound(&wrapped_pyfunction::DEF, py_or_module)
         }
     };
-    ($function:path, $module:expr) => {{
+    ($function:path, $py_or_module:expr) => {{
         use $function as wrapped_pyfunction;
-        $module.wrap_pyfunction(&wrapped_pyfunction::DEF)
+        $crate::impl_::pyfunction::wrap_pyfunction_bound(&wrapped_pyfunction::DEF, $py_or_module)
     }};
 }
 
