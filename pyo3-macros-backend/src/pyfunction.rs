@@ -273,7 +273,7 @@ pub fn impl_wrap_pyfunction(
             pub fn add_to_module(module: &#krate::Bound<'_, #krate::types::PyModule>) -> #krate::PyResult<()> {
                 use #krate::prelude::PyModuleMethods;
                 use ::std::convert::Into;
-                module.add_function(#krate::types::PyCFunction::internal_new(&DEF, module.as_gil_ref().into())?)
+                module.add_function(#krate::types::PyCFunction::internal_new(module.py(), &DEF, module.into())?)
             }
         }
 
