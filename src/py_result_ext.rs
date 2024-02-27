@@ -1,16 +1,6 @@
 use crate::{types::any::PyAnyMethods, Bound, PyAny, PyResult, PyTypeCheck};
 
-mod sealed {
-    use super::*;
-
-    pub trait Sealed {}
-
-    impl Sealed for PyResult<Bound<'_, PyAny>> {}
-}
-
-use sealed::Sealed;
-
-pub(crate) trait PyResultExt<'py>: Sealed {
+pub(crate) trait PyResultExt<'py>: crate::sealed::Sealed {
     fn downcast_into<T: PyTypeCheck>(self) -> PyResult<Bound<'py, T>>;
     unsafe fn downcast_into_unchecked<T>(self) -> PyResult<Bound<'py, T>>;
 }

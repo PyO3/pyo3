@@ -2,12 +2,15 @@ use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyModule, PySequence, PySet, PySlice, PyString, PyTraceback, PyTuple, PyType,
 };
-use crate::{ffi, Bound, PyAny};
+use crate::{ffi, Bound, PyAny, PyResult};
 
 pub trait Sealed {}
 
 // for FfiPtrExt
 impl Sealed for *mut ffi::PyObject {}
+
+// for PyResultExt
+impl Sealed for PyResult<Bound<'_, PyAny>> {}
 
 // for Py(...)Methods
 impl Sealed for Bound<'_, PyAny> {}
