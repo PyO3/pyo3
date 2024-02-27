@@ -22,6 +22,18 @@ fn basic_module(_py: pyo3::Python<'_>, m: &pyo3::types::PyModule) -> pyo3::PyRes
     Ok(())
 }
 
+#[pyo3::pymodule]
+fn basic_module_bound(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
+    #[pyfn(m)]
+    fn answer() -> usize {
+        42
+    }
+
+    m.add_function(pyo3::wrap_pyfunction_bound!(basic_function, m)?)?;
+
+    Ok(())
+}
+
 #[pyo3::pyclass]
 struct BasicClass {
     #[pyo3(get)]
