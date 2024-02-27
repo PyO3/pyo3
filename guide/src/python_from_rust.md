@@ -311,7 +311,7 @@ fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // Create new module
         let foo_module = PyModule::new_bound(py, "foo")?;
-        foo_module.add_function(wrap_pyfunction_bound!(add_one, &foo_module)?)?;
+        foo_module.add_function(wrap_pyfunction!(add_one, &foo_module)?)?;
 
         // Import and get sys.modules
         let sys = PyModule::import_bound(py, "sys")?;

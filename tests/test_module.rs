@@ -240,7 +240,7 @@ fn subfunction() -> String {
 }
 
 fn submodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_function(wrap_pyfunction_bound!(subfunction, module)?)?;
+    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
 
@@ -306,8 +306,7 @@ fn vararg_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         ext_vararg_fn(py, a, args)
     }
 
-    m.add_function(wrap_pyfunction_bound!(ext_vararg_fn, m)?)
-        .unwrap();
+    m.add_function(wrap_pyfunction!(ext_vararg_fn, m)?).unwrap();
     Ok(())
 }
 

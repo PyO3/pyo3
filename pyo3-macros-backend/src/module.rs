@@ -277,7 +277,7 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.as_borrowed().add_function(#krate::wrap_pyfunction_bound!(#name, #module_name.as_borrowed())?)?;
+                    #module_name.as_borrowed().add_function(#krate::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
                 };
                 stmts.extend(statements);
             }
