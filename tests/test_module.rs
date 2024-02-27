@@ -411,7 +411,7 @@ fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str>
 }
 
 #[pymodule]
-fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn module_with_functions_with_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_gil_ref, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_owned, m)?)?;
