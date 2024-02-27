@@ -3,10 +3,11 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::methods::PyMethodDefDestructor;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
+use crate::types::module::PyModuleMethods;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
-    types::{PyCapsule, PyDict, PyString, PyTuple},
+    types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
 use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
@@ -33,16 +34,6 @@ impl PyCFunction {
         doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
-        Self::new_with_keywords_bound(fun, name, doc, py_or_module).map(Bound::into_gil_ref)
-    }
-
-    /// Create a new built-in function with keywords (*args and/or **kwargs).
-    pub fn new_with_keywords_bound<'a>(
-        fun: ffi::PyCFunctionWithKeywords,
-        name: &'static str,
-        doc: &'static str,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<Bound<'a, Self>> {
         Self::internal_new(
             &PyMethodDef::cfunction_with_keywords(
                 name,
@@ -50,6 +41,26 @@ impl PyCFunction {
                 doc,
             ),
             py_or_module,
+        )
+        .map(Bound::into_gil_ref)
+    }
+
+    /// Create a new built-in function with keywords (*args and/or **kwargs).
+    pub fn new_with_keywords_bound<'py>(
+        py: Python<'py>,
+        fun: ffi::PyCFunctionWithKeywords,
+        name: &'static str,
+        doc: &'static str,
+        module: Option<&Bound<'py, PyModule>>,
+    ) -> PyResult<Bound<'py, Self>> {
+        Self::internal_new_bound(
+            py,
+            &PyMethodDef::cfunction_with_keywords(
+                name,
+                pymethods::PyCFunctionWithKeywords(fun),
+                doc,
+            ),
+            module,
         )
     }
 
@@ -67,19 +78,25 @@ impl PyCFunction {
         doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
-        Self::new_bound(fun, name, doc, py_or_module).map(Bound::into_gil_ref)
-    }
-
-    /// Create a new built-in function which takes no arguments.
-    pub fn new_bound<'a>(
-        fun: ffi::PyCFunction,
-        name: &'static str,
-        doc: &'static str,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<Bound<'a, Self>> {
         Self::internal_new(
             &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
             py_or_module,
+        )
+        .map(Bound::into_gil_ref)
+    }
+
+    /// Create a new built-in function which takes no arguments.
+    pub fn new_bound<'py>(
+        py: Python<'py>,
+        fun: ffi::PyCFunction,
+        name: &'static str,
+        doc: &'static str,
+        module: Option<&Bound<'py, PyModule>>,
+    ) -> PyResult<Bound<'py, Self>> {
+        Self::internal_new_bound(
+            py,
+            &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
+            module,
         )
     }
 
@@ -167,6 +184,35 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'py>,
     ) -> PyResult<Bound<'py, Self>> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
+        let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
+            let mod_ptr = m.as_ptr();
+            (mod_ptr, Some(m.name()?.into_py(py)))
+        } else {
+            (std::ptr::null_mut(), None)
+        };
+        let (def, destructor) = method_def.as_method_def()?;
+
+        // FIXME: stop leaking the def and destructor
+        let def = Box::into_raw(Box::new(def));
+        std::mem::forget(destructor);
+
+        let module_name_ptr = module_name
+            .as_ref()
+            .map_or(std::ptr::null_mut(), Py::as_ptr);
+
+        unsafe {
+            ffi::PyCFunction_NewEx(def, mod_ptr, module_name_ptr)
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
+        }
+    }
+
+    #[doc(hidden)]
+    pub(crate) fn internal_new_bound<'py>(
+        py: Python<'py>,
+        method_def: &PyMethodDef,
+        module: Option<&Bound<'py, PyModule>>,
+    ) -> PyResult<Bound<'py, Self>> {
         let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             (mod_ptr, Some(m.name()?.into_py(py)))

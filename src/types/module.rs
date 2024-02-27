@@ -399,7 +399,8 @@ impl PyModule {
     /// [1]: crate::prelude::pyfunction
     /// [2]: crate::wrap_pyfunction
     pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
-        self.as_borrowed().add_function(&fun.as_borrowed())
+        let name = fun.getattr(__name__(self.py()))?.extract()?;
+        self.add(name, fun)
     }
 }
 
@@ -590,7 +591,7 @@ pub trait PyModuleMethods<'py> {
     ///
     /// [1]: crate::prelude::pyfunction
     /// [2]: crate::wrap_pyfunction
-    fn add_function(&self, fun: &Bound<'_, PyCFunction>) -> PyResult<()>;
+    fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()>;
 }
 
 impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
@@ -700,7 +701,7 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         self.add(name, module)
     }
 
-    fn add_function(&self, fun: &Bound<'_, PyCFunction>) -> PyResult<()> {
+    fn add_function(&self, fun: Bound<'_, PyCFunction>) -> PyResult<()> {
         let name = fun.getattr(__name__(self.py()))?;
         self.add(name.downcast_into::<PyString>()?, fun)
     }

@@ -240,7 +240,7 @@ fn subfunction() -> String {
 }
 
 fn submodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_function(&wrap_pyfunction!(subfunction, module.as_gil_ref())?.as_borrowed())?;
+    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
 
@@ -295,14 +295,14 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(signature = (a=5, *args))]
-fn ext_vararg_fn(py: Python<'_>, a: i32, args: &PyTuple) -> PyObject {
-    [a.to_object(py), args.into()].to_object(py)
+fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
+    [a.to_object(py), args.into_py(py)].to_object(py)
 }
 
 #[pymodule]
-fn vararg_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn vararg_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m, signature = (a=5, *args))]
-    fn int_vararg_fn(py: Python<'_>, a: i32, args: &PyTuple) -> PyObject {
+    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
         ext_vararg_fn(py, a, args)
     }
 
@@ -410,7 +410,7 @@ fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str>
 }
 
 #[pymodule]
-fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn module_with_functions_with_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_gil_ref, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_owned, m)?)?;
