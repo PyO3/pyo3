@@ -75,7 +75,7 @@ impl ExampleContainer {
 
 #[pymodule]
 #[pyo3(name = "getitem")]
-fn example(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn example(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ? -https://github.com/PyO3/maturin/issues/475
     m.add_class::<ExampleContainer>()?;
     Ok(())

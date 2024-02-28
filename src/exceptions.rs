@@ -164,9 +164,9 @@ macro_rules! import_exception {
 /// }
 ///
 /// #[pymodule]
-/// fn my_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-///     m.add("MyError", py.get_type_bound::<MyError>())?;
-///     m.add_function(wrap_pyfunction!(raise_myerror, py)?)?;
+/// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+///     m.add("MyError", m.py().get_type_bound::<MyError>())?;
+///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;
 ///     Ok(())
 /// }
 /// # fn main() -> PyResult<()> {

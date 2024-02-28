@@ -283,7 +283,7 @@ fn add_one(x: i64) -> i64 {
 }
 
 #[pymodule]
-fn foo(_py: Python<'_>, foo_module: &PyModule) -> PyResult<()> {
+fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
     foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
     Ok(())
 }

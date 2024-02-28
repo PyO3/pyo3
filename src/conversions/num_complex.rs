@@ -44,7 +44,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+//! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(get_eigenvalues, m)?)?;
 //!     Ok(())
 //! }
@@ -57,7 +57,7 @@
 //! #     Python::with_gil(|py| -> PyResult<()> {
 //! #         let module = PyModule::new_bound(py, "my_module")?;
 //! #
-//! #         module.add_function(&wrap_pyfunction!(get_eigenvalues, module.as_gil_ref())?.as_borrowed())?;
+//! #         module.add_function(&wrap_pyfunction!(get_eigenvalues, module)?)?;
 //! #
 //! #         let m11 = PyComplex::from_doubles_bound(py, 0_f64, -1_f64);
 //! #         let m12 = PyComplex::from_doubles_bound(py, 1_f64, 0_f64);

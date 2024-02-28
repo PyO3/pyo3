@@ -239,7 +239,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
-    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add("c", 299_792_458)?;
     ///     Ok(())
     /// }
@@ -280,7 +280,7 @@ impl PyModule {
     /// struct Foo { /* fields omitted */ }
     ///
     /// #[pymodule]
-    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_class::<Foo>()?;
     ///     Ok(())
     /// }
@@ -377,7 +377,7 @@ impl PyModule {
     ///     println!("Hello world!")
     /// }
     /// #[pymodule]
-    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
     /// }
     /// ```
@@ -442,7 +442,7 @@ pub trait PyModuleMethods<'py> {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
-    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add("c", 299_792_458)?;
     ///     Ok(())
     /// }
@@ -481,7 +481,7 @@ pub trait PyModuleMethods<'py> {
     /// struct Foo { /* fields omitted */ }
     ///
     /// #[pymodule]
-    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_class::<Foo>()?;
     ///     Ok(())
     /// }
@@ -570,7 +570,7 @@ pub trait PyModuleMethods<'py> {
     ///     println!("Hello world!")
     /// }
     /// #[pymodule]
-    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
     /// }
     /// ```

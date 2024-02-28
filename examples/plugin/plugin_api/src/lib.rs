@@ -26,7 +26,7 @@ impl Gadget {
 
 /// A Python module for plugin interface types
 #[pymodule]
-pub fn plugin_api(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn plugin_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Gadget>()?;
     Ok(())
 }

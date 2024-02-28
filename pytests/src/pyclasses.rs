@@ -80,7 +80,7 @@ impl AssertingBaseClassGilRef {
 struct ClassWithoutConstructor;
 
 #[pymodule]
-pub fn pyclasses(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<EmptyClass>()?;
     m.add_class::<PyClassIter>()?;
     m.add_class::<AssertingBaseClass>()?;

@@ -326,7 +326,7 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }
