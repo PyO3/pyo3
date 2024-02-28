@@ -17,7 +17,7 @@ When PyO3 handles a magic method, a couple of changes apply compared to other `#
 The following sections list of all magic methods PyO3 currently handles.  The
 given signatures should be interpreted as follows:
  - All methods take a receiver as first argument, shown as `<self>`. It can be
-   `&self`, `&mut self` or a `PyCell` reference like `self_: PyRef<'_, Self>` and
+   `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and
    `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
  - An optional `Python<'py>` argument is always allowed as the first argument.
  - Return values can be optionally wrapped in `PyResult`.

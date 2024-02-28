@@ -187,26 +187,23 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 ```
 
-## PyCell and interior mutability
+## Bound and interior mutability
 
-You sometimes need to convert your `pyclass` into a Python object and access it
+You sometimes need to convert your `#[pyclass]` into a Python object and access it
 from Rust code (e.g., for testing it).
-[`PyCell`] is the primary interface for that.
+[`Bound`] is the primary interface for that.
 
-`PyCell<T: PyClass>` is always allocated in the Python heap, so Rust doesn't have ownership of it.
-In other words, Rust code can only extract a `&PyCell<T>`, not a `PyCell<T>`.
-
-Thus, to mutate data behind `&PyCell` safely, PyO3 employs the
+To mutate data behind a `Bound<'_, T>` safely, PyO3 employs the
 [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
 like [`RefCell`].
 
-Users who are familiar with `RefCell` can use `PyCell` just like `RefCell`.
+Users who are familiar with `RefCell` can use `Bound` just like `RefCell`.
 
 For users who are not very familiar with `RefCell`, here is a reminder of Rust's rules of borrowing:
 - At any given time, you can have either (but not both of) one mutable reference or any number of immutable references.
 - References must always be valid.
 
-`PyCell`, like `RefCell`, ensures these borrowing rules by tracking references at runtime.
+`Bound`, like `RefCell`, ensures these borrowing rules by tracking references at runtime.
 
 ```rust
 # use pyo3::prelude::*;
@@ -216,8 +213,7 @@ struct MyClass {
     num: i32,
 }
 Python::with_gil(|py| {
-#   #[allow(deprecated)]
-    let obj = PyCell::new(py, MyClass { num: 3 }).unwrap();
+    let obj = Bound::new(py, MyClass { num: 3 }).unwrap();
     {
         let obj_ref = obj.borrow(); // Get PyRef
         assert_eq!(obj_ref.num, 3);
@@ -232,12 +228,12 @@ Python::with_gil(|py| {
         assert!(obj.try_borrow_mut().is_err());
     }
 
-    // You can convert `&PyCell` to a Python object
+    // You can convert `Bound` to a Python object
     pyo3::py_run!(py, obj, "assert obj.num == 5");
 });
 ```
 
-`&PyCell<T>` is bounded by the same lifetime as a [`GILGuard`].
+A `Bound<'py, T>` is restricted to the GIL lifetime `'py`.
 To make the object longer lived (for example, to store it in a struct on the
 Rust side), you can use `Py<T>`, which stores an object longer than the GIL
 lifetime, and therefore needs a `Python<'_>` token to access.
@@ -256,9 +252,8 @@ fn return_myclass() -> Py<MyClass> {
 let obj = return_myclass();
 
 Python::with_gil(|py| {
-    #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-    let cell = obj.as_ref(py); // Py<MyClass>::as_ref returns &PyCell<MyClass>
-    let obj_ref = cell.borrow(); // Get PyRef<T>
+    let bound = obj.bind(py); // Py<MyClass>::bind returns &Bound<'_, MyClass>
+    let obj_ref = bound.borrow(); // Get PyRef<T>
     assert_eq!(obj_ref.num, 1);
 });
 ```
@@ -267,7 +262,7 @@ Python::with_gil(|py| {
 
 As detailed above, runtime borrow checking is currently enabled by default. But a class can opt of out it by declaring itself `frozen`. It can still use interior mutability via standard Rust types like `RefCell` or `Mutex`, but it is not bound to the implementation provided by PyO3 and can choose the most appropriate strategy on field-by-field basis.
 
-Classes which are `frozen` and also `Sync`, e.g. they do use `Mutex` but not `RefCell`, can be accessed without needing the Python GIL via the `PyCell::get` and `Py::get` methods:
+Classes which are `frozen` and also `Sync`, e.g. they do use `Mutex` but not `RefCell`, can be accessed without needing the Python GIL via the `Bound::get` and `Py::get` methods:
 
 ```rust
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -413,8 +408,9 @@ You can inherit native types such as `PyDict`, if they implement
 [`PySizedLayout`]({{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PySizedLayout.html).
 This is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
-However, because of some technical problems, we don't currently provide safe upcasting methods for types
-that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
+To convert between the Rust type and its native base class, you can take
+`slf` as a Python object. To access the Rust fields use `slf.borrow()` or
+`slf.borrow_mut()`, and to access the base class use `slf.downcast::<BaseClass>()`.
 
 ```rust
 # #[cfg(not(Py_LIMITED_API))] {
@@ -435,10 +431,9 @@ impl DictWithCounter {
         Self::default()
     }
 
-    fn set(mut self_: PyRefMut<'_, Self>, key: String, value: &PyAny) -> PyResult<()> {
-        self_.counter.entry(key.clone()).or_insert(0);
-        let py = self_.py();
-        let dict: &PyDict = unsafe { py.from_borrowed_ptr_or_err(self_.as_ptr())? };
+    fn set(slf: &Bound<'_, Self>, key: String, value: &PyAny) -> PyResult<()> {
+        slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
+        let dict = slf.downcast::<PyDict>()?;
         dict.set_item(key, value)
     }
 }
@@ -492,7 +487,7 @@ struct MyDict {
 impl MyDict {
     #[new]
     #[pyo3(signature = (*args, **kwargs))]
-    fn new(args: &PyAny, kwargs: Option<&PyAny>) -> Self {
+    fn new(args: &Bound<'_, PyAny>, kwargs: Option<&Bound<'_, PyAny>>) -> Self {
         Self { private: 0 }
     }
 
@@ -703,7 +698,7 @@ Declares a class method callable from Python.
 
 * The first parameter is the type object of the class on which the method is called.
   This may be the type object of a derived class.
-* The first parameter implicitly has type `&PyType`.
+* The first parameter implicitly has type `&Bound<'_, PyType>`.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
 * The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
 
@@ -803,23 +798,23 @@ struct MyClass {
     my_field: i32,
 }
 
-// Take a GIL-bound reference when the underlying `PyCell` is irrelevant.
+// Take a GIL-bound reference when the underlying `Bound` is irrelevant.
 #[pyfunction]
 fn increment_field(my_class: &mut MyClass) {
     my_class.my_field += 1;
 }
 
 // Take a GIL-bound reference wrapper when borrowing should be automatic,
-// but interaction with the underlying `PyCell` is desired.
+// but interaction with the underlying `Bound` is desired.
 #[pyfunction]
 fn print_field(my_class: PyRef<'_, MyClass>) {
     println!("{}", my_class.my_field);
 }
 
-// Take a GIL-bound reference to the underlying cell
+// Take a GIL-bound reference to the underlying Bound
 // when borrowing needs to be managed manually.
 #[pyfunction]
-fn increment_then_print_field(my_class: &PyCell<MyClass>) {
+fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
     my_class.borrow_mut().my_field += 1;
 
     println!("{}", my_class.borrow().my_field);
@@ -878,9 +873,9 @@ impl MyClass {
     fn method(
         &mut self,
         num: i32,
-        py_args: &PyTuple,
+        py_args: &Bound<'_, PyTuple>,
         name: &str,
-        py_kwargs: Option<&PyDict>,
+        py_kwargs: Option<&Bound<'_, PyDict>>,
     ) -> String {
         let num_before = self.num;
         self.num = num;
@@ -1232,6 +1227,9 @@ struct MyClass {
     # #[allow(dead_code)]
     num: i32,
 }
+
+impl pyo3::types::DerefToPyAny for MyClass {}
+
 unsafe impl pyo3::type_object::HasPyGilRef for MyClass {
     type AsRefTarget = pyo3::PyCell<Self>;
 }
@@ -1279,6 +1277,8 @@ impl pyo3::IntoPy<PyObject> for MyClass {
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
+    const IS_MAPPING: bool = false;
+    const IS_SEQUENCE: bool = false;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::SendablePyClass<MyClass>;
     type PyClassMutability = <<pyo3::PyAny as pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as pyo3::impl_::pycell::PyClassMutability>::MutableChild;
@@ -1304,7 +1304,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         static DOC: pyo3::sync::GILOnceCell<::std::borrow::Cow<'static, ::std::ffi::CStr>> = pyo3::sync::GILOnceCell::new();
         DOC.get_or_try_init(py, || {
             let collector = PyClassImplCollector::<Self>::new();
-            build_pyclass_doc(<MyClass as pyo3::PyTypeInfo>::NAME, "", None.or_else(|| collector.new_text_signature()))
+            build_pyclass_doc(<MyClass as pyo3::PyTypeInfo>::NAME, "\0", collector.new_text_signature())
         }).map(::std::ops::Deref::deref)
     }
 }
@@ -1317,11 +1317,10 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 ```
 
 
-[`GILGuard`]: {{#PYO3_DOCS_URL}}/pyo3/struct.GILGuard.html
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
 
 [`Py`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
-[`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
+[`Bound`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html

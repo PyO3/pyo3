@@ -35,7 +35,7 @@ and cast it to an `i32`.
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
-fn wrap(obj: &PyAny) -> Result<i32, PyErr> {
+fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     let val = obj.call_method1("__and__", (0xFFFFFFFF_u32,))?;
     let val: u32 = val.extract()?;
     //     👇 This intentionally overflows!
@@ -48,7 +48,7 @@ We also add documentation, via `///` comments, which are visible to Python users
 # #![allow(dead_code)]
 use pyo3::prelude::*;
 
-fn wrap(obj: &PyAny) -> Result<i32, PyErr> {
+fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     let val = obj.call_method1("__and__", (0xFFFFFFFF_u32,))?;
     let val: u32 = val.extract()?;
     Ok(val as i32)
@@ -212,7 +212,7 @@ use pyo3::prelude::*;
 use pyo3::class::basic::CompareOp;
 use pyo3::types::PyComplex;
 
-fn wrap(obj: &PyAny) -> Result<i32, PyErr> {
+fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     let val = obj.call_method1("__and__", (0xFFFFFFFF_u32,))?;
     let val: u32 = val.extract()?;
     Ok(val as i32)
@@ -229,7 +229,7 @@ impl Number {
         Self(value)
     }
 
-    fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
        // Get the class name dynamically in case `Number` is subclassed
        let class_name: String = slf.get_type().qualname()?;
         Ok(format!("{}({})", class_name, slf.borrow().0))
@@ -411,8 +411,8 @@ the contracts of this function. Let's review those contracts:
 - The GIL must be held. If it's not, calling this function causes a data race.
 - The pointer must be valid, i.e. it must be properly aligned and point to a valid Python object.
 
-Let's create that helper function. The signature has to be `fn(&PyAny) -> PyResult<T>`.
-- `&PyAny` represents a checked borrowed reference, so the pointer derived from it is valid (and not null).
+Let's create that helper function. The signature has to be `fn(&Bound<'_, PyAny>) -> PyResult<T>`.
+- `&Bound<'_, PyAny>` represents a checked borrowed reference, so the pointer derived from it is valid (and not null).
 - Whenever we have borrowed references to Python objects in scope, it is guaranteed that the GIL is held. This reference is also where we can get a [`Python`] token to use in our call to [`PyErr::take`].
 
 ```rust
@@ -421,7 +421,7 @@ use std::os::raw::c_ulong;
 use pyo3::prelude::*;
 use pyo3::ffi;
 
-fn wrap(obj: &PyAny) -> Result<i32, PyErr> {
+fn wrap(obj: &Bound<'_, PyAny>) -> Result<i32, PyErr> {
     let py: Python<'_> = obj.py();
 
     unsafe {
