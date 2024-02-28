@@ -130,7 +130,7 @@ fn test_module_with_explicit_py_arg() {
     Python::with_gil(|py| {
         let d = [(
             "module_with_explicit_py_arg",
-            wrap_pymodule!(module_with_functions)(py),
+            wrap_pymodule!(module_with_explicit_py_arg)(py),
         )]
         .into_py_dict_bound(py);
 
