@@ -173,7 +173,7 @@ let hello: Py<PyString> = Python::with_gil(|py| {
 Python::with_gil(|py| {
     #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
     let hello = hello.as_ref(py);
-    println!("Python says: {hello}");
+    println!("Python says: {}", hello);
 });
 // Now we're done with `hello`.
 drop(hello); // Memory *not* released here.
