@@ -248,7 +248,7 @@ index_impls!(PyTuple, "tuple", PyTuple::len, PyTuple::get_slice);
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyTuple")]
-pub trait PyTupleMethods<'py> {
+pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// Gets the length of the tuple.
     fn len(&self) -> usize;
 

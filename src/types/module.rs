@@ -410,7 +410,7 @@ impl PyModule {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyModule")]
-pub trait PyModuleMethods<'py> {
+pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Returns the module's `__dict__` attribute, which contains the module's symbol table.
     fn dict(&self) -> Bound<'py, PyDict>;
 

@@ -109,7 +109,7 @@ impl PyMapping {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyMapping")]
-pub trait PyMappingMethods<'py> {
+pub trait PyMappingMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of objects in the mapping.
     ///
     /// This is equivalent to the Python expression `len(self)`.

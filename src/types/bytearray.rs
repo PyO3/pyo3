@@ -293,7 +293,7 @@ impl PyByteArray {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyByteArray")]
-pub trait PyByteArrayMethods<'py> {
+pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// Gets the length of the bytearray.
     fn len(&self) -> usize;
 

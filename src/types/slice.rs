@@ -105,7 +105,7 @@ impl PySlice {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PySlice")]
-pub trait PySliceMethods<'py> {
+pub trait PySliceMethods<'py>: crate::sealed::Sealed {
     /// Retrieves the start, stop, and step indices from the slice object,
     /// assuming a sequence of length `length`, and stores the length of the
     /// slice in its `slicelength` member.

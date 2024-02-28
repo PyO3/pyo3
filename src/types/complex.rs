@@ -258,7 +258,7 @@ mod not_limited_impls {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyComplex")]
-pub trait PyComplexMethods<'py> {
+pub trait PyComplexMethods<'py>: crate::sealed::Sealed {
     /// Returns the real part of the complex number.
     fn real(&self) -> c_double;
     /// Returns the imaginary part of the complex number.

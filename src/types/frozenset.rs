@@ -157,7 +157,7 @@ impl PyFrozenSet {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyFrozenSet")]
-pub trait PyFrozenSetMethods<'py> {
+pub trait PyFrozenSetMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of items in the set.
     ///
     /// This is equivalent to the Python expression `len(self)`.

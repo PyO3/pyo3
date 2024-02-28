@@ -324,6 +324,7 @@ pub use crate::version::PythonVersionInfo;
 
 pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
+pub(crate) mod sealed;
 
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///

@@ -282,7 +282,7 @@ impl PyString {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyString")]
-pub trait PyStringMethods<'py> {
+pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     /// Gets the Python string as a Rust UTF-8 string slice.
     ///
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
