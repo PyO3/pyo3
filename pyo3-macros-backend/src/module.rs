@@ -201,6 +201,14 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     let doc = get_doc(&function.attrs, None);
 
     let initialization = module_initialization(options, ident);
+
+    // Module function called with optional Python<'_> marker as first arg, followed by the module.
+    let mut module_args = Vec::new();
+    if function.sig.inputs.len() == 2 {
+        module_args.push(quote!(module.py()));
+    }
+    module_args.push(quote!(::std::convert::Into::into(BoundRef(module))));
+
     Ok(quote! {
         #function
         #vis mod #ident {
@@ -215,15 +223,16 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
             use #krate::impl_::pymodule as impl_;
+            use #krate::impl_::pymethods::BoundRef;
 
             fn __pyo3_pymodule(module: &#krate::Bound<'_, #krate::types::PyModule>) -> #krate::PyResult<()> {
-                #ident(module.py(), module.as_gil_ref())
+                #ident(#(#module_args),*)
             }
 
             impl #ident::MakeDef {
                 const fn make_def() -> impl_::ModuleDef {
+                    const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
                     unsafe {
-                        const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
                         impl_::ModuleDef::new(
                             #ident::__PYO3_NAME,
                             #doc,
@@ -263,8 +272,12 @@ fn module_initialization(options: PyModuleOptions, ident: &syn::Ident) -> TokenS
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`
 fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn) -> Result<()> {
-    let mut stmts: Vec<syn::Stmt> = Vec::new();
     let krate = get_pyo3_crate(&options.krate);
+
+    let mut stmts: Vec<syn::Stmt> = vec![syn::parse_quote!(
+        #[allow(unknown_lints, unused_imports, redundant_imports)]
+        use #krate::{PyNativeType, types::PyModuleMethods};
+    )];
 
     for mut stmt in func.block.stmts.drain(..) {
         if let syn::Stmt::Item(Item::Fn(func)) = &mut stmt {
@@ -274,7 +287,7 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.add_function(#krate::impl_::pyfunction::_wrap_pyfunction(&#name::DEF, #module_name)?)?;
+                    #module_name.as_borrowed().add_function(#krate::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
                 };
                 stmts.extend(statements);
             }

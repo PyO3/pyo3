@@ -3,12 +3,13 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::methods::PyMethodDefDestructor;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
+use crate::types::module::PyModuleMethods;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
-    types::{PyCapsule, PyDict, PyString, PyTuple},
+    types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
-use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
+use crate::{Bound, IntoPy, Py, PyAny, PyNativeType, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
@@ -33,23 +34,35 @@ impl PyCFunction {
         doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
-        Self::new_with_keywords_bound(fun, name, doc, py_or_module).map(Bound::into_gil_ref)
-    }
-
-    /// Create a new built-in function with keywords (*args and/or **kwargs).
-    pub fn new_with_keywords_bound<'a>(
-        fun: ffi::PyCFunctionWithKeywords,
-        name: &'static str,
-        doc: &'static str,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<Bound<'a, Self>> {
+        let (py, module) = py_or_module.into_py_and_maybe_module();
         Self::internal_new(
+            py,
             &PyMethodDef::cfunction_with_keywords(
                 name,
                 pymethods::PyCFunctionWithKeywords(fun),
                 doc,
             ),
-            py_or_module,
+            module.map(PyNativeType::as_borrowed).as_deref(),
+        )
+        .map(Bound::into_gil_ref)
+    }
+
+    /// Create a new built-in function with keywords (*args and/or **kwargs).
+    pub fn new_with_keywords_bound<'py>(
+        py: Python<'py>,
+        fun: ffi::PyCFunctionWithKeywords,
+        name: &'static str,
+        doc: &'static str,
+        module: Option<&Bound<'py, PyModule>>,
+    ) -> PyResult<Bound<'py, Self>> {
+        Self::internal_new(
+            py,
+            &PyMethodDef::cfunction_with_keywords(
+                name,
+                pymethods::PyCFunctionWithKeywords(fun),
+                doc,
+            ),
+            module,
         )
     }
 
@@ -67,19 +80,27 @@ impl PyCFunction {
         doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
-        Self::new_bound(fun, name, doc, py_or_module).map(Bound::into_gil_ref)
+        let (py, module) = py_or_module.into_py_and_maybe_module();
+        Self::internal_new(
+            py,
+            &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
+            module.map(PyNativeType::as_borrowed).as_deref(),
+        )
+        .map(Bound::into_gil_ref)
     }
 
     /// Create a new built-in function which takes no arguments.
-    pub fn new_bound<'a>(
+    pub fn new_bound<'py>(
+        py: Python<'py>,
         fun: ffi::PyCFunction,
         name: &'static str,
         doc: &'static str,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<Bound<'a, Self>> {
+        module: Option<&Bound<'py, PyModule>>,
+    ) -> PyResult<Bound<'py, Self>> {
         Self::internal_new(
+            py,
             &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
-            py_or_module,
+            module,
         )
     }
 
@@ -163,10 +184,10 @@ impl PyCFunction {
 
     #[doc(hidden)]
     pub fn internal_new<'py>(
+        py: Python<'py>,
         method_def: &PyMethodDef,
-        py_or_module: PyFunctionArguments<'py>,
+        module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
-        let (py, module) = py_or_module.into_py_and_maybe_module();
         let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             (mod_ptr, Some(m.name()?.into_py(py)))
