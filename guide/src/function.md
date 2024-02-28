@@ -167,7 +167,7 @@ FFI-wrapper function. This wrapper handles extraction of the regular arguments a
 arguments from the input `PyObject`s.
 
 The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a
-`#[pyfunction]` and a `PyModule`: `wrap_pyfunction!(rust_fun, module)`.
+`#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
 
 ## `#[pyfn]` shorthand
 
