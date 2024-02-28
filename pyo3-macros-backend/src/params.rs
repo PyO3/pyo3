@@ -44,8 +44,8 @@ pub fn impl_arg_params(
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
-                let _args = _pyo3::Borrowed::from_ptr(py, _args);
-                let _kwargs = _pyo3::Borrowed::from_ptr_or_opt(py, _kwargs);
+                let _args = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args);
+                let _kwargs = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
             },
             arg_convert,
         ));

@@ -692,11 +692,15 @@ mod borrowed_iter {
             let mut key: *mut ffi::PyObject = std::ptr::null_mut();
             let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
+            // Safety: self.dict lives sufficiently long that the pointer is not dangling
             if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
                 != 0
             {
                 let py = self.dict.py();
                 self.len -= 1;
+                // Safety:
+                // - PyDict_Next returns borrowed values
+                // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
                 Some(unsafe { (key.assume_borrowed(py), value.assume_borrowed(py)) })
             } else {
                 None

@@ -196,7 +196,7 @@ impl SelfType {
                 holders.push(quote_spanned! { *span =>
                     #[allow(clippy::let_unit_value)]
                     let mut #holder = _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
-                    let mut #slf = _pyo3::Borrowed::from_ptr(#py, #slf);
+                    let mut #slf = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf);
                 });
                 error_mode.handle_error(quote_spanned! { *span =>
                     _pyo3::impl_::extract_argument::#method::<#cls>(

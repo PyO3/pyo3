@@ -561,3 +561,11 @@ impl<T> From<BoundRef<'_, '_, T>> for Py<T> {
         bound.0.clone().unbind()
     }
 }
+
+impl<'py, T> std::ops::Deref for BoundRef<'_, 'py, T> {
+    type Target = Bound<'py, T>;
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
