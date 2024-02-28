@@ -939,7 +939,7 @@ where
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "`Py::as_ref` will be replaced by `Py::bind` in a future PyO3 version"
+            note = "use `obj.bind(py)` instead of `obj.as_ref(py)`"
         )
     )]
     pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py T::AsRefTarget {
