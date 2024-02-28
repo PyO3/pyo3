@@ -116,6 +116,28 @@ fn test_module_with_functions() {
     });
 }
 
+/// This module uses a legacy two-argument module function.
+#[pymodule]
+fn module_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(double, m)?)?;
+    Ok(())
+}
+
+#[test]
+fn test_module_with_explicit_py_arg() {
+    use pyo3::wrap_pymodule;
+
+    Python::with_gil(|py| {
+        let d = [(
+            "module_with_explicit_py_arg",
+            wrap_pymodule!(module_with_functions)(py),
+        )]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *d, "module_with_explicit_py_arg.double(3) == 6");
+    });
+}
+
 #[pymodule]
 #[pyo3(name = "other_name")]
 fn some_name(m: &Bound<'_, PyModule>) -> PyResult<()> {
