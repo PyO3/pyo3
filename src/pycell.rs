@@ -62,6 +62,7 @@
 //! ) -> *mut pyo3::ffi::PyObject {
 //!     use :: pyo3 as _pyo3;
 //!     _pyo3::impl_::trampoline::noargs(_slf, _args, |py, _slf| {
+//!         # #[allow(deprecated)]
 //!         let _cell = py
 //!             .from_borrowed_ptr::<_pyo3::PyAny>(_slf)
 //!             .downcast::<_pyo3::PyCell<Number>>()?;
@@ -191,6 +192,8 @@
 //! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
+#[allow(deprecated)]
+use crate::conversion::FromPyPointer;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::{
@@ -205,7 +208,7 @@ use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::any::PyAnyMethods;
 use crate::types::PyAny;
 use crate::{
-    conversion::{AsPyPointer, FromPyPointer, ToPyObject},
+    conversion::{AsPyPointer, ToPyObject},
     type_object::get_tp_free,
     PyTypeInfo,
 };
@@ -573,7 +576,10 @@ impl<T: PyClass> ToPyObject for &PyCell<T> {
 
 impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
     fn as_ref(&self) -> &PyAny {
-        unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
+        #[allow(deprecated)]
+        unsafe {
+            self.py().from_borrowed_ptr(self.as_ptr())
+        }
     }
 }
 
@@ -581,7 +587,10 @@ impl<T: PyClass> Deref for PyCell<T> {
     type Target = PyAny;
 
     fn deref(&self) -> &PyAny {
-        unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
+        #[allow(deprecated)]
+        unsafe {
+            self.py().from_borrowed_ptr(self.as_ptr())
+        }
     }
 }
 

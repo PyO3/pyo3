@@ -304,9 +304,9 @@
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, FromPyPointer, IntoPy, ToPyObject};
+pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[allow(deprecated)]
-pub use crate::conversion::{PyTryFrom, PyTryInto};
+pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
 pub use crate::err::{
     DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
 };
