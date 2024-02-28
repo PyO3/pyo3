@@ -2,7 +2,7 @@
 
 To get started using PyO3 you will need three things: a Rust toolchain, a Python environment, and a way to build. We'll cover each of these below.
 
-> If you'd like to chat to the PyO3 maintainers and other PyO3 users, consider joining the [PyO3 Discord server](https://discord.gg/c4BwayXQ). We're keen to hear about your experience getting started, so we can make PyO3 as accessible as possible for everyone!
+> If you'd like to chat to the PyO3 maintainers and other PyO3 users, consider joining the [PyO3 Discord server](https://discord.gg/33kcChzH7f). We're keen to hear about your experience getting started, so we can make PyO3 as accessible as possible for everyone!
 
 ## Rust
 

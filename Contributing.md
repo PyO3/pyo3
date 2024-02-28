@@ -29,7 +29,7 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 
 ### Help users identify bugs
 
-The [PyO3 Discord server](https://discord.gg/c4BwayXQ) is very active with users who are new to PyO3, and often completely new to Rust. Helping them debug is a great way to get experience with the PyO3 codebase.
+The [PyO3 Discord server](https://discord.gg/33kcChzH7f) is very active with users who are new to PyO3, and often completely new to Rust. Helping them debug is a great way to get experience with the PyO3 codebase.
 
 Helping others often reveals bugs, documentation weaknesses, and missing APIs. It's a good idea to open GitHub issues for these immediately so the resolution can be designed and implemented!
 
@@ -203,7 +203,7 @@ You can install an IDE plugin to view the coverage. For example, if you use VSCo
 
 ## Sponsor this project
 
-At the moment there is no official organisation that accepts sponsorship on PyO3's behalf. If you're seeking to provide significant funding to the PyO3 ecosystem, please reach out to us on [GitHub](https://github.com/PyO3/pyo3/issues/new) or [Discord](https://discord.gg/c4BwayXQ) and we can discuss.
+At the moment there is no official organisation that accepts sponsorship on PyO3's behalf. If you're seeking to provide significant funding to the PyO3 ecosystem, please reach out to us on [GitHub](https://github.com/PyO3/pyo3/issues/new) or [Discord](https://discord.gg/33kcChzH7f) and we can discuss.
 
 In the meanwhile, some of our maintainers have personal GitHub sponsorship pages and would be grateful for your support:
 

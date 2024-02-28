@@ -1,6 +1,6 @@
 # Frequently Asked Questions and troubleshooting
 
-Sorry that you're having trouble using PyO3. If you can't find the answer to your problem in the list below, you can also reach out for help on [GitHub Discussions](https://github.com/PyO3/pyo3/discussions) and on [Discord](https://discord.gg/c4BwayXQ).
+Sorry that you're having trouble using PyO3. If you can't find the answer to your problem in the list below, you can also reach out for help on [GitHub Discussions](https://github.com/PyO3/pyo3/discussions) and on [Discord](https://discord.gg/33kcChzH7f).
 
 ## I'm experiencing deadlocks using PyO3 with lazy_static or once_cell!
 
