@@ -412,13 +412,13 @@ impl FunctionDescription {
             let kwarg_name =
                 unsafe { kwarg_name_py.downcast_unchecked::<crate::types::PyString>() }.to_str();
 
-            #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             let kwarg_name = kwarg_name_py.extract::<crate::pybacked::PyBackedStr>();
 
             if let Ok(kwarg_name_owned) = kwarg_name {
                 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
                 let kwarg_name = kwarg_name_owned;
-                #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+                #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
                 let kwarg_name: &str = &kwarg_name_owned;
 
                 // Try to place parameter in keyword only parameters
@@ -452,7 +452,7 @@ impl FunctionDescription {
         }
 
         if !positional_only_keyword_arguments.is_empty() {
-            #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             let positional_only_keyword_arguments: Vec<_> = positional_only_keyword_arguments
                 .iter()
                 .map(std::ops::Deref::deref)
