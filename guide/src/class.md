@@ -181,7 +181,7 @@ The next step is to create the module initializer and add our class to it:
 # struct Number(i32);
 #
 #[pymodule]
-fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }

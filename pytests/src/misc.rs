@@ -31,7 +31,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 }
 
 #[pymodule]
-pub fn misc(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(issue_219, m)?)?;
     m.add_function(wrap_pyfunction!(get_type_full_name, m)?)?;
     m.add_function(wrap_pyfunction!(accepts_bool, m)?)?;

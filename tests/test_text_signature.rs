@@ -335,7 +335,7 @@ fn test_auto_test_signature_opt_out() {
 #[test]
 fn test_pyfn() {
     #[pymodule]
-    fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
         #[pyfn(m, signature = (a, b=None, *, c=42))]
         #[pyo3(text_signature = "(a, b=None, *, c=42)")]
         fn my_function(a: i32, b: Option<i32>, c: i32) {

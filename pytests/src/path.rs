@@ -12,7 +12,7 @@ fn take_pathbuf(path: PathBuf) -> PathBuf {
 }
 
 #[pymodule]
-pub fn path(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn path(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_path, m)?)?;
     m.add_function(wrap_pyfunction!(take_pathbuf, m)?)?;
 

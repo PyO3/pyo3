@@ -205,7 +205,7 @@ impl TzClass {
 }
 
 #[pymodule]
-pub fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn datetime(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_date, m)?)?;
     m.add_function(wrap_pyfunction!(get_date_tuple, m)?)?;
     m.add_function(wrap_pyfunction!(date_from_timestamp, m)?)?;

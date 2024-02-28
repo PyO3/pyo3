@@ -68,7 +68,7 @@ fn args_kwargs<'py>(
 }
 
 #[pymodule]
-pub fn pyfunctions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn pyfunctions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(none, m)?)?;
     m.add_function(wrap_pyfunction!(simple, m)?)?;
     m.add_function(wrap_pyfunction!(simple_args, m)?)?;

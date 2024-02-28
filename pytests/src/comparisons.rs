@@ -101,7 +101,7 @@ impl OrderedDefaultNe {
 }
 
 #[pymodule]
-pub fn comparisons(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn comparisons(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Eq>()?;
     m.add_class::<EqDefaultNe>()?;
     m.add_class::<Ordered>()?;

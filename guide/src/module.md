@@ -12,7 +12,7 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
-fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
@@ -34,7 +34,7 @@ fn double(x: usize) -> usize {
 
 #[pymodule]
 #[pyo3(name = "custom_name")]
-fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }

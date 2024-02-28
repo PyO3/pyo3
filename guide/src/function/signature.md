@@ -21,7 +21,7 @@ fn num_kwds(kwds: Option<&PyDict>) -> usize {
 }
 
 #[pymodule]
-fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(num_kwds, m)?).unwrap();
     Ok(())
 }
