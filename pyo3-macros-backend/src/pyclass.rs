@@ -1378,7 +1378,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     type Holder = ::std::option::Option<_pyo3::PyRef<'py, #cls>>;
 
                     #[inline]
-                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                    fn extract(obj: &'a _pyo3::Bound<'py, _pyo3::PyAny>, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
                         _pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
                     }
                 }
@@ -1390,7 +1390,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     type Holder = ::std::option::Option<_pyo3::PyRef<'py, #cls>>;
 
                     #[inline]
-                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                    fn extract(obj: &'a _pyo3::Bound<'py, _pyo3::PyAny>, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
                         _pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
                     }
                 }
@@ -1400,7 +1400,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     type Holder = ::std::option::Option<_pyo3::PyRefMut<'py, #cls>>;
 
                     #[inline]
-                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                    fn extract(obj: &'a _pyo3::Bound<'py, _pyo3::PyAny>, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
                         _pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
                     }
                 }

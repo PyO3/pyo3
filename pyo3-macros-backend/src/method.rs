@@ -196,10 +196,11 @@ impl SelfType {
                 holders.push(quote_spanned! { *span =>
                     #[allow(clippy::let_unit_value)]
                     let mut #holder = _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
+                    let mut #slf = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf);
                 });
                 error_mode.handle_error(quote_spanned! { *span =>
                     _pyo3::impl_::extract_argument::#method::<#cls>(
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf),
+                        &#slf,
                         &mut #holder,
                     )
                 })
@@ -582,7 +583,8 @@ impl<'a> FnSpec<'a> {
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }
@@ -601,7 +603,8 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }
@@ -619,7 +622,8 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }

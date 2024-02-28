@@ -524,6 +524,16 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 }
 
+impl<'a, 'py> Borrowed<'a, 'py, PyDict> {
+    /// Iterates over the contents of this dictionary without incrementing reference counts.
+    ///
+    /// # Safety
+    /// It must be known that this dictionary will not be modified during iteration.
+    pub(crate) unsafe fn iter_borrowed(self) -> BorrowedDictIter<'a, 'py> {
+        BorrowedDictIter::new(self)
+    }
+}
+
 fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
     #[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
     unsafe {
@@ -661,6 +671,64 @@ impl<'py> IntoIterator for Bound<'py, PyDict> {
         BoundDictIterator::new(self)
     }
 }
+
+mod borrowed_iter {
+    use super::*;
+
+    /// Variant of the above which is used to iterate the items of the dictionary
+    /// without incrementing reference counts. This is only safe if it's known
+    /// that the dictionary will not be modified during iteration.
+    pub struct BorrowedDictIter<'a, 'py> {
+        dict: Borrowed<'a, 'py, PyDict>,
+        ppos: ffi::Py_ssize_t,
+        len: ffi::Py_ssize_t,
+    }
+
+    impl<'a, 'py> Iterator for BorrowedDictIter<'a, 'py> {
+        type Item = (Borrowed<'a, 'py, PyAny>, Borrowed<'a, 'py, PyAny>);
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+
+            // Safety: self.dict lives sufficiently long that the pointer is not dangling
+            if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
+                != 0
+            {
+                let py = self.dict.py();
+                self.len -= 1;
+                // Safety:
+                // - PyDict_Next returns borrowed values
+                // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
+                Some(unsafe { (key.assume_borrowed(py), value.assume_borrowed(py)) })
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let len = self.len();
+            (len, Some(len))
+        }
+    }
+
+    impl ExactSizeIterator for BorrowedDictIter<'_, '_> {
+        fn len(&self) -> usize {
+            self.len as usize
+        }
+    }
+
+    impl<'a, 'py> BorrowedDictIter<'a, 'py> {
+        pub(super) fn new(dict: Borrowed<'a, 'py, PyDict>) -> Self {
+            let len = dict_len(&dict);
+            BorrowedDictIter { dict, ppos: 0, len }
+        }
+    }
+}
+
+pub(crate) use borrowed_iter::BorrowedDictIter;
 
 /// Conversion trait that allows a sequence of tuples to be converted into `PyDict`
 /// Primary use case for this trait is `call` and `call_method` methods as keywords argument.

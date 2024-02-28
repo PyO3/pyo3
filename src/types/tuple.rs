@@ -411,7 +411,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     }
 
     fn iter_borrowed<'a>(&'a self) -> BorrowedTupleIterator<'a, 'py> {
-        BorrowedTupleIterator::new(self.as_borrowed())
+        self.as_borrowed().iter_borrowed()
     }
 
     fn to_list(&self) -> Bound<'py, PyList> {
@@ -432,6 +432,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+    }
+
+    pub(crate) fn iter_borrowed(self) -> BorrowedTupleIterator<'a, 'py> {
+        BorrowedTupleIterator::new(self)
     }
 }
 

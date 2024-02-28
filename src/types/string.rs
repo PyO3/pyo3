@@ -354,7 +354,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
 impl<'a> Borrowed<'a, '_, PyString> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[allow(clippy::wrong_self_convention)]
-    fn to_str(self) -> PyResult<&'a str> {
+    pub(crate) fn to_str(self) -> PyResult<&'a str> {
         // PyUnicode_AsUTF8AndSize only available on limited API starting with 3.10.
         let mut size: ffi::Py_ssize_t = 0;
         let data: *const u8 =
