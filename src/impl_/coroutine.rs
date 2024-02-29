@@ -39,10 +39,10 @@ fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {
 pub struct RefGuard<T: PyClass>(Py<T>);
 
 impl<T: PyClass> RefGuard<T> {
-    pub fn new(obj: Bound<'_, PyAny>) -> PyResult<Self> {
-        let owned = obj.downcast_into::<T>()?;
+    pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let owned = obj.downcast::<T>()?;
         mem::forget(owned.try_borrow()?);
-        Ok(RefGuard(owned.unbind()))
+        Ok(RefGuard(owned.clone().unbind()))
     }
 }
 
@@ -67,10 +67,10 @@ impl<T: PyClass> Drop for RefGuard<T> {
 pub struct RefMutGuard<T: PyClass<Frozen = False>>(Py<T>);
 
 impl<T: PyClass<Frozen = False>> RefMutGuard<T> {
-    pub fn new(obj: Bound<'_, PyAny>) -> PyResult<Self> {
-        let owned = obj.downcast_into::<T>()?;
+    pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let owned = obj.downcast::<T>()?;
         mem::forget(owned.try_borrow_mut()?);
-        Ok(RefMutGuard(owned.unbind()))
+        Ok(RefMutGuard(owned.clone().unbind()))
     }
 }
 

@@ -513,7 +513,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            let __guard = _pyo3::impl_::coroutine::RefGuard::<#cls>::new(_pyo3::Bound::from_borrowed_ptr(py, _slf))?;
+                            let __guard = _pyo3::impl_::coroutine::RefGuard::<#cls>::new(&_pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&__guard, #(#args),*).await }
                         }}
                     }
@@ -521,7 +521,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            let mut __guard = _pyo3::impl_::coroutine::RefMutGuard::<#cls>::new(_pyo3::Bound::from_borrowed_ptr(py, _slf))?;
+                            let mut __guard = _pyo3::impl_::coroutine::RefMutGuard::<#cls>::new(&_pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&mut __guard, #(#args),*).await }
                         }}
                     }
