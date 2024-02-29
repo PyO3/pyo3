@@ -145,6 +145,7 @@ let _ = list.repr()?;
 let _: &PyAny = list;
 
 // To &PyAny explicitly with .as_ref()
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyAny = list.as_ref();
 
 // To Py<T> with .into() or Py::from()
@@ -179,6 +180,7 @@ For a `Py<PyList>`, the conversions are as below:
 let list: Py<PyList> = PyList::empty_bound(py).unbind();
 
 // To &PyList with Py::as_ref() (borrows from the Py)
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyList = list.as_ref(py);
 
 # let list_clone = list.clone(); // Because `.into_ref()` will consume `list`.
@@ -202,6 +204,7 @@ For a `#[pyclass] struct MyClass`, the conversions for `Py<MyClass>` are below:
 let my_class: Py<MyClass> = Py::new(py, MyClass { })?;
 
 // To &PyCell<MyClass> with Py::as_ref() (borrows from the Py)
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyCell<MyClass> = my_class.as_ref(py);
 
 # let my_class_clone = my_class.clone(); // Because `.into_ref()` will consume `my_class`.
@@ -276,6 +279,7 @@ let _ = cell.repr()?;
 let _: &PyAny = cell;
 
 // To &PyAny explicitly with .as_ref()
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyAny = cell.as_ref();
 # Ok(())
 # }).unwrap();

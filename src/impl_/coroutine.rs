@@ -56,7 +56,11 @@ impl<T: PyClass> Deref for RefGuard<T> {
 
 impl<T: PyClass> Drop for RefGuard<T> {
     fn drop(&mut self) {
-        Python::with_gil(|gil| self.0.as_ref(gil).release_ref())
+        Python::with_gil(|gil| {
+            #[allow(deprecated)]
+            let self_ref = self.0.bind(gil);
+            self_ref.release_ref()
+        })
     }
 }
 
@@ -87,6 +91,10 @@ impl<T: PyClass<Frozen = False>> DerefMut for RefMutGuard<T> {
 
 impl<T: PyClass<Frozen = False>> Drop for RefMutGuard<T> {
     fn drop(&mut self) {
-        Python::with_gil(|gil| self.0.as_ref(gil).release_mut())
+        Python::with_gil(|gil| {
+            #[allow(deprecated)]
+            let self_ref = self.0.bind(gil);
+            self_ref.release_mut()
+        })
     }
 }

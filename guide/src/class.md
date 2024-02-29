@@ -256,6 +256,7 @@ fn return_myclass() -> Py<MyClass> {
 let obj = return_myclass();
 
 Python::with_gil(|py| {
+    #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
     let cell = obj.as_ref(py); // Py<MyClass>::as_ref returns &PyCell<MyClass>
     let obj_ref = cell.borrow(); // Get PyRef<T>
     assert_eq!(obj_ref.num, 1);

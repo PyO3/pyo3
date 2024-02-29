@@ -70,7 +70,11 @@ struct FooRef<'a>(&'a PyList);
 
 impl PartialEq<Foo> for FooRef<'_> {
     fn eq(&self, other: &Foo) -> bool {
-        Python::with_gil(|py| self.0.len() == other.0.as_ref(py).len())
+        Python::with_gil(|py| {
+            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
+            let len = other.0.as_ref(py).len();
+            self.0.len() == len
+        })
     }
 }
 ```
@@ -88,7 +92,9 @@ impl PartialEq<Foo> for FooRef<'_> {
     fn eq(&self, other: &Foo) -> bool {
         // Access to `&'a PyAny` implies access to `Python<'a>`.
         let py = self.0.py();
-        self.0.len() == other.0.as_ref(py).len()
+        #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
+        let len = other.0.as_ref(py).len();
+        self.0.len() == len
     }
 }
 ```
