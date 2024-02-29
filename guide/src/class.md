@@ -798,20 +798,20 @@ struct MyClass {
     my_field: i32,
 }
 
-// Take a GIL-bound reference when the underlying `Bound` is irrelevant.
+// Take a reference when the underlying `Bound` is irrelevant.
 #[pyfunction]
 fn increment_field(my_class: &mut MyClass) {
     my_class.my_field += 1;
 }
 
-// Take a GIL-bound reference wrapper when borrowing should be automatic,
+// Take a reference wrapper when borrowing should be automatic,
 // but interaction with the underlying `Bound` is desired.
 #[pyfunction]
 fn print_field(my_class: PyRef<'_, MyClass>) {
     println!("{}", my_class.my_field);
 }
 
-// Take a GIL-bound reference to the underlying Bound
+// Take a reference to the underlying Bound
 // when borrowing needs to be managed manually.
 #[pyfunction]
 fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
