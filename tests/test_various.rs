@@ -124,7 +124,7 @@ impl PickleSupport {
     }
 
     pub fn __reduce__<'py>(
-        slf: &'py PyCell<Self>,
+        slf: &Bound<'py, Self>,
         py: Python<'py>,
     ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
         let cls = slf.to_object(py).getattr(py, "__class__")?;

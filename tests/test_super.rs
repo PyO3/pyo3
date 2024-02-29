@@ -29,14 +29,14 @@ impl SubClass {
         (SubClass {}, BaseClass::new())
     }
 
-    fn method(self_: &PyCell<Self>) -> PyResult<&PyAny> {
+    fn method<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
         let super_ = self_.py_super()?;
         super_.call_method("method", (), None)
     }
 
-    fn method_super_new(self_: &PyCell<Self>) -> PyResult<&PyAny> {
+    fn method_super_new<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
         #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
-        let super_ = PySuper::new(self_.get_type(), self_)?;
+        let super_ = PySuper::new_bound(&self_.get_type(), self_)?;
         super_.call_method("method", (), None)
     }
 }

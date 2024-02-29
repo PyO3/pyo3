@@ -24,11 +24,11 @@ struct TestBufferClass {
 #[pymethods]
 impl TestBufferClass {
     unsafe fn __getbuffer__(
-        slf: &PyCell<Self>,
+        slf: Bound<'_, Self>,
         view: *mut ffi::Py_buffer,
         flags: c_int,
     ) -> PyResult<()> {
-        fill_view_from_readonly_data(view, flags, &slf.borrow().vec, slf)
+        fill_view_from_readonly_data(view, flags, &slf.borrow().vec, slf.into_any())
     }
 
     unsafe fn __releasebuffer__(&self, view: *mut ffi::Py_buffer) {
@@ -105,12 +105,12 @@ fn test_releasebuffer_unraisable_error() {
     #[pymethods]
     impl ReleaseBufferError {
         unsafe fn __getbuffer__(
-            slf: &PyCell<Self>,
+            slf: Bound<'_, Self>,
             view: *mut ffi::Py_buffer,
             flags: c_int,
         ) -> PyResult<()> {
             static BUF_BYTES: &[u8] = b"hello world";
-            fill_view_from_readonly_data(view, flags, BUF_BYTES, slf)
+            fill_view_from_readonly_data(view, flags, BUF_BYTES, slf.into_any())
         }
 
         unsafe fn __releasebuffer__(&self, _view: *mut ffi::Py_buffer) -> PyResult<()> {
@@ -145,7 +145,7 @@ unsafe fn fill_view_from_readonly_data(
     view: *mut ffi::Py_buffer,
     flags: c_int,
     data: &[u8],
-    owner: &PyAny,
+    owner: Bound<'_, PyAny>,
 ) -> PyResult<()> {
     if view.is_null() {
         return Err(PyBufferError::new_err("View is null"));

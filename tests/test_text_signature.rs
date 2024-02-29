@@ -367,7 +367,7 @@ fn test_methods() {
             let _ = a;
         }
         #[pyo3(text_signature = "($self, b)")]
-        fn pyself_method(_this: &PyCell<Self>, b: i32) {
+        fn pyself_method(_this: &Bound<'_, Self>, b: i32) {
             let _ = b;
         }
         #[classmethod]

@@ -29,7 +29,7 @@ fn py_get_of_mutable_class_fails(class: Py<MutableBase>) {
     class.get();
 }
 
-fn pyclass_get_of_mutable_class_fails(class: &PyCell<MutableBase>) {
+fn pyclass_get_of_mutable_class_fails(class: &Bound<'_, MutableBase>) {
     class.get();
 }
 

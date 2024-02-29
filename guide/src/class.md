@@ -1230,6 +1230,7 @@ struct MyClass {
 
 impl pyo3::types::DerefToPyAny for MyClass {}
 
+# #[allow(deprecated)]
 unsafe impl pyo3::type_object::HasPyGilRef for MyClass {
     type AsRefTarget = pyo3::PyCell<Self>;
 }
