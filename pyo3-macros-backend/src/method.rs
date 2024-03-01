@@ -129,6 +129,7 @@ impl FnType {
             FnType::FnClass(span) | FnType::FnNewClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
+                let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
@@ -140,6 +141,7 @@ impl FnType {
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
+                let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
@@ -200,6 +202,7 @@ impl SelfType {
                     syn::Ident::new("extract_pyclass_ref", *span)
                 };
                 let holder = syn::Ident::new(&format!("holder_{}", holders.len()), *span);
+                let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 holders.push(quote_spanned! { *span =>
                     #[allow(clippy::let_unit_value)]
                     let mut #holder = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;
@@ -216,6 +219,7 @@ impl SelfType {
                 )
             }
             SelfType::TryFromBoundRef(span) => {
+                let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()

@@ -31,4 +31,4 @@ error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
    | duplicate definitions for `__pymethod___richcmp____`
    | other definition for `__pymethod___richcmp____`
    |
-   = note: this error originates in the macro `_pyo3::impl_::pyclass::generate_pyclass_richcompare_slot` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `::pyo3::impl_::pyclass::generate_pyclass_richcompare_slot` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)

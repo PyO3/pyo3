@@ -151,6 +151,7 @@ fn impl_arg_param(
     ctx: &Ctx,
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path } = ctx;
+    let pyo3_path = pyo3_path.to_tokens_spanned(arg.ty.span());
 
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument

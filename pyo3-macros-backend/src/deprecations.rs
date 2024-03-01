@@ -32,6 +32,7 @@ impl<'ctx> ToTokens for Deprecations<'ctx> {
         let Self(deprecations, Ctx { pyo3_path }) = self;
 
         for (deprecation, span) in deprecations {
+            let pyo3_path = pyo3_path.to_tokens_spanned(*span);
             let ident = deprecation.ident(*span);
             quote_spanned!(
                 *span =>

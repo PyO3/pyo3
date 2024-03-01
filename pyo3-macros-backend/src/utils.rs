@@ -164,6 +164,15 @@ pub enum PyO3CratePath {
     Default,
 }
 
+impl PyO3CratePath {
+    pub fn to_tokens_spanned(&self, span: Span) -> TokenStream {
+        match self {
+            Self::Given(path) => quote::quote_spanned! { span => #path },
+            Self::Default => quote::quote_spanned! {  span => ::pyo3 },
+        }
+    }
+}
+
 impl quote::ToTokens for PyO3CratePath {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
