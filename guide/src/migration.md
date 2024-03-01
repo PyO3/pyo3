@@ -203,6 +203,10 @@ impl PyClassAsyncIter {
 
 `PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
 
+### `PyCell` has been deprecated
+
+Interactions with Python objects implemented in Rust no longer need to go though `PyCell<T>`. Instead iteractions with Python object now consistently go through `Bound<T>` or `Py<T>` independently of whether `T` is native Python object or a `#[pyclass]` implemented in Rust. Use `Bound::new` or `Py::new` respectively to create and `Bound::borrow(_mut)` / `Py::borrow(_mut)` to borrow the Rust object.
+
 ### Migrating from the GIL-Refs API to `Bound<T>`
 
 To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointer has been introduced by adding complements to all functions which accept or return GIL Refs. This allows code to migrate by replacing the deprecated APIs with the new ones.

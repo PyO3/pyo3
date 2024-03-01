@@ -76,7 +76,7 @@ In the `__repr__`, we used a hard-coded class name. This is sometimes not ideal,
 because if the class is subclassed in Python, we would like the repr to reflect
 the subclass name. This is typically done in Python code by accessing
 `self.__class__.__name__`. In order to be able to access the Python type information
-*and* the Rust struct, we need to use a `PyCell` as the `self` argument.
+*and* the Rust struct, we need to use a `Bound` as the `self` argument.
 
 ```rust
 # use pyo3::prelude::*;
@@ -86,7 +86,7 @@ the subclass name. This is typically done in Python code by accessing
 #
 #[pymethods]
 impl Number {
-    fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         // This is the equivalent of `self.__class__.__name__` in Python.
         let class_name: String = slf.get_type().qualname()?;
         // To access fields of the Rust struct, we need to borrow the `PyCell`.
@@ -263,7 +263,7 @@ impl Number {
         Self(value)
     }
 
-    fn __repr__(slf: &PyCell<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         let class_name: String = slf.get_type().qualname()?;
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }

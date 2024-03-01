@@ -40,8 +40,8 @@ impl PyCounter {
     fn __call__(
         &self,
         py: Python<'_>,
-        args: &PyTuple,
-        kwargs: Option<Bound<'_, PyDict>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Py<PyAny>> {
         let old_count = self.count.get();
         let new_count = old_count + 1;
@@ -51,7 +51,7 @@ impl PyCounter {
         println!("{} has been called {} time(s).", name, new_count);
 
         // After doing something, we finally forward the call to the wrapped function
-        let ret = self.wraps.call_bound(py, args, kwargs.as_ref())?;
+        let ret = self.wraps.call_bound(py, args, kwargs)?;
 
         // We could do something with the return value of
         // the function before returning it

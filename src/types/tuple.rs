@@ -631,6 +631,12 @@ impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
     }
 }
 
+impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
+    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
+        self.clone().unbind()
+    }
+}
+
 #[cold]
 fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
