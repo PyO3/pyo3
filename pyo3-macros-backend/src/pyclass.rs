@@ -78,7 +78,7 @@ pub struct PyClassPyO3Options {
     pub weakref: Option<kw::weakref>,
 }
 
-enum PyClassPyO3Option {
+pub enum PyClassPyO3Option {
     Crate(CrateAttribute),
     Dict(kw::dict),
     Eq(kw::eq),
