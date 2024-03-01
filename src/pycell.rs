@@ -251,7 +251,13 @@ use self::impl_::{PyClassObject, PyClassObjectLayout};
 /// ```
 /// For more information on how, when and why (not) to use `PyCell` please see the
 /// [module-level documentation](self).
-#[deprecated(since = "0.21.0")]
+#[cfg_attr(
+    not(feature = "gil-refs"),
+    deprecated(
+        since = "0.21.0",
+        note = "`PyCell` was merged into `Bound`, use that instead; see the migration guide for more info"
+    )
+)]
 #[repr(transparent)]
 pub struct PyCell<T: PyClassImpl>(PyClassObject<T>);
 
