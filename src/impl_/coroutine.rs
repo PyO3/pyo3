@@ -1,12 +1,12 @@
 use std::{
     future::Future,
-    mem,
     ops::{Deref, DerefMut},
 };
 
 use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
     instance::Bound,
+    pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
     types::{PyAnyMethods, PyString},
     IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, Python,
@@ -40,9 +40,9 @@ pub struct RefGuard<T: PyClass>(Py<T>);
 
 impl<T: PyClass> RefGuard<T> {
     pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let owned = obj.downcast::<T>()?;
-        mem::forget(owned.try_borrow()?);
-        Ok(RefGuard(owned.clone().unbind()))
+        let bound = obj.downcast::<T>()?;
+        bound.get_class_object().borrow_checker().try_borrow()?;
+        Ok(RefGuard(bound.clone().unbind()))
     }
 }
 
@@ -57,9 +57,11 @@ impl<T: PyClass> Deref for RefGuard<T> {
 impl<T: PyClass> Drop for RefGuard<T> {
     fn drop(&mut self) {
         Python::with_gil(|gil| {
-            #[allow(deprecated)]
-            let self_ref = self.0.bind(gil);
-            self_ref.release_ref()
+            self.0
+                .bind(gil)
+                .get_class_object()
+                .borrow_checker()
+                .release_borrow()
         })
     }
 }
@@ -68,9 +70,9 @@ pub struct RefMutGuard<T: PyClass<Frozen = False>>(Py<T>);
 
 impl<T: PyClass<Frozen = False>> RefMutGuard<T> {
     pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let owned = obj.downcast::<T>()?;
-        mem::forget(owned.try_borrow_mut()?);
-        Ok(RefMutGuard(owned.clone().unbind()))
+        let bound = obj.downcast::<T>()?;
+        bound.get_class_object().borrow_checker().try_borrow_mut()?;
+        Ok(RefMutGuard(bound.clone().unbind()))
     }
 }
 
@@ -92,9 +94,11 @@ impl<T: PyClass<Frozen = False>> DerefMut for RefMutGuard<T> {
 impl<T: PyClass<Frozen = False>> Drop for RefMutGuard<T> {
     fn drop(&mut self) {
         Python::with_gil(|gil| {
-            #[allow(deprecated)]
-            let self_ref = self.0.bind(gil);
-            self_ref.release_mut()
+            self.0
+                .bind(gil)
+                .get_class_object()
+                .borrow_checker()
+                .release_borrow_mut()
         })
     }
 }

@@ -4,10 +4,7 @@ use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, 
 use crate::{ffi, Py, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
-    pycell::{
-        impl_::{PyClassBorrowChecker, PyClassMutability},
-        PyCellContents,
-    },
+    pycell::impl_::{PyClassBorrowChecker, PyClassMutability, PyClassObjectContents},
     type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{
@@ -244,7 +241,7 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         #[repr(C)]
         struct PartiallyInitializedPyCell<T: PyClass> {
             _ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-            contents: MaybeUninit<PyCellContents<T>>,
+            contents: MaybeUninit<PyClassObjectContents<T>>,
         }
 
         let (init, super_init) = match self.0 {
@@ -257,7 +254,7 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         let cell: *mut PartiallyInitializedPyCell<T> = obj as _;
         std::ptr::write(
             (*cell).contents.as_mut_ptr(),
-            PyCellContents {
+            PyClassObjectContents {
                 value: ManuallyDrop::new(UnsafeCell::new(init)),
                 borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
                 thread_checker: T::ThreadChecker::new(),

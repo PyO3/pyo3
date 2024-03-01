@@ -1,5 +1,6 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pycell::PyClassObject;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
@@ -332,18 +333,14 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        let cell = self.get_cell();
-        // SAFETY: The class itself is frozen and `Sync` and we do not access anything but `cell.contents.value`.
-        unsafe { &*cell.get_ptr() }
+        // SAFETY: The class itself is frozen and `Sync`.
+        unsafe { &*self.get_class_object().get_ptr() }
     }
 
-    pub(crate) fn get_cell(&'py self) -> &'py PyCell<T> {
-        let cell = self.as_ptr().cast::<PyCell<T>>();
+    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
+        let cell = self.as_ptr().cast::<PyClassObject<T>>();
         // SAFETY: Bound<T> is known to contain an object which is laid out in memory as a
-        // PyCell<T>.
-        //
-        // Strictly speaking for now `&'py PyCell<T>` is part of the "GIL Ref" API, so this
-        // could use some further refactoring later to avoid going through this reference.
+        // PyClassObject<T>.
         unsafe { &*cell }
     }
 }
