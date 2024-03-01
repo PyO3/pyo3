@@ -87,6 +87,8 @@
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
 //! - [`indexmap`][indexmap_feature]: Enables conversions between Python dictionary and [indexmap]'s [`IndexMap`].
+//! - [`malachite`]: Enables conversions between Python objects and [malachite]’s [`Integer`] and [`Natural`] types.
+//! - [`malachite-32bit`]: Enables conversions between Python objects and [malachite]’s [`Integer`] and [`Natural`] types when using malachite with the `32_bit_limbs` feature.
 //! - [`num-bigint`]: Enables conversions between Python objects and [num-bigint]'s [`BigInt`] and
 //! [`BigUint`] types.
 //! - [`num-complex`]: Enables conversions between Python objects and [num-complex]'s [`Complex`]
@@ -266,6 +268,11 @@
 //! [`eyre`]: ./eyre/index.html "Documentation about the `eyre` feature."
 //! [`hashbrown`]: ./hashbrown/index.html "Documentation about the `hashbrown` feature."
 //! [indexmap_feature]: ./indexmap/index.html "Documentation about the `indexmap` feature."
+//! [malachite]: https://docs.rs/malachite
+//! [`malachite`]: ./malachite/index.html "Documentation about the `malachite` feature."
+//! [`malachite-32bit`]: ./malachite/index.html "Documentation about the `malachite-32bit` feature."
+//! [`Integer`]: https://docs.rs/malachite/latest/malachite/integer/struct.Integer.html
+//! [`Natural`]: https://docs.rs/malachite/latest/malachite/natural/struct.Natural.html
 //! [`maturin`]: https://github.com/PyO3/maturin "Build and publish crates with pyo3, rust-cpython and cffi bindings as well as rust binaries as python packages"
 //! [`num-bigint`]: ./num_bigint/index.html "Documentation about the `num-bigint` feature."
 //! [`num-complex`]: ./num_complex/index.html "Documentation about the `num-complex` feature."

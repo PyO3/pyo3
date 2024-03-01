@@ -1,5 +1,5 @@
 #![cfg(feature = "malachite")]
-//! Conversions to and from [malachite](https://docs.rs/malachite)’s [`Integer`] and [`Natural`] types.
+//! Conversions to and from [malachite]’s [`Integer`] and [`Natural`] types.
 //!
 //! This is useful for converting Python integers when they may not fit in Rust's built-in integer types.
 //!
@@ -13,9 +13,7 @@
 #![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"malachite\"] }")]
 //! ```
 //!
-//! Note that you must use compatible versions of malachite and PyO3.
-//! The required malachite version may vary based on the version of PyO3.
-//! You must not use `32_bit_limbs` feature of malachite.
+//! If you use the `32_bit_limbs` feature of malachite, you must use the `malachite-32bit` feature of PyO3 instead.
 //!
 //! ## Examples
 //!
@@ -51,13 +49,13 @@
 
 
 
+
+
 use crate::{ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject, PyErr, exceptions::PyValueError};
 use malachite::{Natural, Integer};
 use malachite::num::basic::traits::Zero;
-use malachite::num::arithmetic::traits::{DivisibleByPowerOf2, IsPowerOf2};
-use malachite::num::basic::integers::PrimitiveInt;
-use malachite::num::logic::traits::SignificantBits;
-use malachite::platform::Limb;
+
+
 
 
 
@@ -84,17 +82,35 @@ impl<'source> FromPyObject<'source> for Integer {
         }
 
         // the number of bytes needed to store the integer
-        let mut n_bytes = (n_bits + 7 + 1) >> 3;
-        // convert the number of bytes to a multiple of 8, because of 64-bit limbs
-        n_bytes = ((n_bytes + 7) >> 3) << 3;
+        let mut n_bytes = (n_bits + 7 + 1) >> 3;  // +1 for the sign bit
+
+        #[cfg(feature = "malachite-32bit")]
+        {
+            // convert the number of bytes to a multiple of 4, because of 32-bit limbs
+            n_bytes = ((n_bytes + 7) >> 2) << 2;
+        }
+        #[cfg(not(feature = "malachite-32bit"))]
+        {
+            // convert the number of bytes to a multiple of 8, because of 64-bit limbs
+            n_bytes = ((n_bytes + 7) >> 3) << 3;
+        }
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            let limbs_64 = int_to_u64_vec(num, n_bytes, true)?;
-            Ok(Integer::from_owned_twos_complement_limbs_asc(limbs_64))
+            let limbs = int_to_limbs(num, n_bytes, true)?;
+            Ok(Integer::from_owned_twos_complement_limbs_asc(limbs))
         }
-
-        #[cfg(Py_LIMITED_API)]
+        #[cfg(all(Py_LIMITED_API, feature = "malachite-32bit"))]
+        {
+            let bytes = int_to_py_bytes(num, n_bytes, true)?.as_bytes();
+            let n_limbs_32 = n_bytes >> 2;  // the number of 32-bit limbs needed to store the integer
+            let mut limbs_32 = Vec::with_capacity(n_limbs_32);
+            for i in (0..n_bytes).step_by(4) {
+                limbs_32.push(u32::from_le_bytes(bytes[i..(i + 4)].try_into().unwrap()));
+            }
+            Ok(Integer::from_owned_twos_complement_limbs_asc(limbs_32))
+        }
+        #[cfg(all(Py_LIMITED_API, not(feature = "malachite-32bit")))]
         {
             let bytes = int_to_py_bytes(num, n_bytes, true)?.as_bytes();
             let n_limbs_64 = n_bytes >> 3;  // the number of 64-bit limbs needed to store the integer
@@ -136,15 +152,34 @@ impl<'source> FromPyObject<'source> for Natural {
 
         // the number of bytes needed to store the integer
         let mut n_bytes = (n_bits + 7) >> 3;
-        // convert the number of bytes to a multiple of 8, because of 64-bit limbs
-        n_bytes = ((n_bytes + 7) >> 3) << 3;
+
+        #[cfg(feature = "malachite-32bit")]
+        {
+            // convert the number of bytes to a multiple of 4, because of 32-bit limbs
+            n_bytes = ((n_bytes + 7) >> 2) << 2;
+        }
+        #[cfg(not(feature = "malachite-32bit"))]
+        {
+            // convert the number of bytes to a multiple of 8, because of 64-bit limbs
+            n_bytes = ((n_bytes + 7) >> 3) << 3;
+        }
 
         #[cfg(not(Py_LIMITED_API))]
         {
-            let limbs_64 = int_to_u64_vec(num, n_bytes, false)?;
-            Ok(Natural::from_owned_limbs_asc(limbs_64))
+            let limbs = int_to_limbs(num, n_bytes, false)?;
+            Ok(Natural::from_owned_limbs_asc(limbs))
         }
-        #[cfg(Py_LIMITED_API)]
+        #[cfg(all(Py_LIMITED_API, feature = "malachite-32bit"))]
+        {
+            let bytes = int_to_py_bytes(num, n_bytes, false)?.as_bytes();
+            let n_limbs_32 = n_bytes >> 2;  // the number of 32-bit limbs needed to store the integer
+            let mut limbs_32 = Vec::with_capacity(n_limbs_32);
+            for i in (0..n_bytes).step_by(4) {
+                limbs_32.push(u32::from_le_bytes(bytes[i..(i + 4)].try_into().unwrap()));
+            }
+            Ok(Natural::from_owned_limbs_asc(limbs_32))
+        }
+        #[cfg(all(Py_LIMITED_API, not(feature = "malachite-32bit")))]
         {
             let bytes = int_to_py_bytes(num, n_bytes, false)?.as_bytes();
             let n_limbs_64 = n_bytes >> 3;  // the number of 64-bit limbs needed to store the integer
@@ -164,7 +199,7 @@ impl ToPyObject for Integer {
             return 0.to_object(py);
         }
 
-        let bytes = limbs_to_bytes(self.twos_complement_limbs(), twos_complement_limb_count(self));
+        let bytes = limbs_to_bytes(self.twos_complement_limbs(), self.twos_complement_limb_count());
 
         #[cfg(not(Py_LIMITED_API))]
         unsafe {
@@ -239,7 +274,25 @@ impl IntoPy<PyObject> for Natural {
 
 
 
-/// Convert 64-bit limbs used by malachite to bytes
+
+
+/// Convert 32-bit limbs (little endian) used by malachite to bytes (little endian)
+#[cfg(feature = "malachite-32bit")]
+#[inline]
+fn limbs_to_bytes(limbs: impl Iterator<Item = u32>, limb_count: u64) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity((limb_count << 3) as usize);
+
+    for limb in limbs {
+        for byte in limb.to_le_bytes() {
+            bytes.push(byte);
+        }
+    }
+
+    bytes
+}
+
+/// Convert 64-bit limbs (little endian) used by malachite to bytes (little endian)
+#[cfg(not(feature = "malachite-32bit"))]
 #[inline]
 fn limbs_to_bytes(limbs: impl Iterator<Item = u64>, limb_count: u64) -> Vec<u8> {
     let mut bytes = Vec::with_capacity((limb_count << 3) as usize);
@@ -253,25 +306,53 @@ fn limbs_to_bytes(limbs: impl Iterator<Item = u64>, limb_count: u64) -> Vec<u8> 
     bytes
 }
 
-/// Converts a Python integer to a Vec of u64s.
-/// Takes number of limbs to convert to.
-/// IF `is_signed` is true, the integer is treated as signed, and two's complement is returned.
-#[cfg(not(Py_LIMITED_API))]
+
+/// Converts a Python integer to a vector of 32-bit limbs (little endian).
+/// Takes number of bytes to convert to. Multiple of 4.
+/// If `is_signed` is true, the integer is treated as signed, and two's complement is returned.
+#[cfg(all(not(Py_LIMITED_API), feature = "malachite-32bit"))]
 #[inline]
-fn int_to_u64_vec(long: &PyLong, n_digits: usize, is_signed: bool) -> PyResult<Vec<u64>> {
-    let mut buffer = Vec::with_capacity(n_digits);
+fn int_to_limbs(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<Vec<u32>> {
+    let mut buffer = Vec::with_capacity(n_bytes);
     unsafe {
         crate::err::error_on_minusone(
             long.py(),
             ffi::_PyLong_AsByteArray(
-                long.as_ptr().cast(),  // ptr to PyLong object
+                long.as_ptr().cast(),            // ptr to PyLong object
                 buffer.as_mut_ptr() as *mut u8,  // ptr to first byte of buffer
-                n_digits << 3,  // 8 bytes per u64
-                1,  // little endian
-                is_signed.into(),  // signed flag
+                n_bytes << 2,                    // 4 bytes per u32
+                1,                               // little endian
+                is_signed.into(),                // signed flag
             ),
         )?;
-        buffer.set_len(n_digits)  // set buffer length to the number of digits
+        buffer.set_len(n_bytes)  // set buffer length to the number of bytes
+    };
+    buffer
+        .iter_mut()
+        .for_each(|chunk| *chunk = u32::from_le(*chunk));
+
+    Ok(buffer)
+}
+
+/// Converts a Python integer to a vector of 64-bit limbs (little endian).
+/// Takes number of bytes to convert to. Multiple of 8.
+/// If `is_signed` is true, the integer is treated as signed, and two's complement is returned.
+#[cfg(all(not(Py_LIMITED_API), not(feature = "malachite-32bit")))]
+#[inline]
+fn int_to_limbs(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<Vec<u64>> {
+    let mut buffer = Vec::with_capacity(n_bytes);
+    unsafe {
+        crate::err::error_on_minusone(
+            long.py(),
+            ffi::_PyLong_AsByteArray(
+                long.as_ptr().cast(),            // ptr to PyLong object
+                buffer.as_mut_ptr() as *mut u8,  // ptr to first byte of buffer
+                n_bytes << 3,                   // 8 bytes per u64
+                1,                               // little endian
+                is_signed.into(),                // signed flag
+            ),
+        )?;
+        buffer.set_len(n_bytes)  // set buffer length to the number of bytes
     };
     buffer
         .iter_mut()
@@ -280,9 +361,10 @@ fn int_to_u64_vec(long: &PyLong, n_digits: usize, is_signed: bool) -> PyResult<V
     Ok(buffer)
 }
 
-/// Converts a Python integer to a Python bytes object.
+
+/// Converts a Python integer to a Python bytes object. Bytes are in little endian order.
 /// Takes number of bytes to convert to (can be calculated from the number of bits in the integer).
-/// IF `is_signed` is true, the integer is treated as signed, and two's complement is returned.
+/// If `is_signed` is true, the integer is treated as signed, and two's complement is returned.
 #[cfg(Py_LIMITED_API)]
 #[inline]
 fn int_to_py_bytes(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<&PyBytes> {
@@ -311,6 +393,7 @@ fn int_to_py_bytes(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<&
     Ok(bytes.downcast()?)
 }
 
+
 /// Returns the number of bits in the absolute value of the given integer.
 /// The number of bits returned is the smallest number of bits that can represent the integer,
 /// not the multiple of 8 (bytes) that it would take up in memory.
@@ -323,7 +406,7 @@ fn int_n_bits(long: &PyLong) -> PyResult<usize> {
         // fast path
         let n_bits = unsafe { ffi::_PyLong_NumBits(long.as_ptr()) };
         if n_bits == (-1isize as usize) {
-            return Err(crate::PyErr::fetch(py));
+            return Err(PyErr::fetch(py));
         }
         Ok(n_bits)
     }
@@ -335,20 +418,7 @@ fn int_n_bits(long: &PyLong) -> PyResult<usize> {
     }
 }
 
-/// Return the count of limbs needed to store the two's complement representation of an Integer.
-#[inline]
-fn twos_complement_limb_count(n: &Integer) -> u64 {
-    let abs_limbs_count = n.unsigned_abs_ref().limb_count();
-    let highest_bit_of_highest_limb = n
-        .significant_bits()
-        .divisible_by_power_of_2(Limb::LOG_WIDTH);
-    if highest_bit_of_highest_limb && (*n > 0 || (*n < 0 && !n.unsigned_abs_ref().is_power_of_2()))
-    {
-        abs_limbs_count + 1
-    } else {
-        abs_limbs_count
-    }
-}
+
 
 
 
@@ -515,36 +585,5 @@ mod tests {
             assert_eq!(zero.extract::<Natural>(py).unwrap(), Natural::ZERO);
             assert!(minus_one.extract::<Natural>(py).unwrap_err().get_type(py).is(PyType::new::<PyValueError>(py)));
         });
-    }
-
-    /// Test twos_complement_limb_count function
-    #[test]
-    fn twos_limb_count() {
-        // assert that the number of limbs is zero for zero
-        assert_eq!(0, twos_complement_limb_count(&Integer::ZERO));
-        assert_eq!(0, twos_complement_limb_count(&-Integer::ZERO));
-
-        // test for the first 5000 fibonacci numbers
-        for int_fib in rust_fib::<Integer>().take(5000) {
-            // assert that the number of limbs is correct
-            assert_eq!(twos_complement_limb_count(&int_fib), int_fib.twos_complement_limbs().count() as u64);
-
-            // negate the number and assert that the number of limbs is correct
-            let neg_int_fib = -int_fib;
-            assert_eq!(twos_complement_limb_count(&neg_int_fib), neg_int_fib.twos_complement_limbs().count() as u64);
-        }
-
-        // test for first 5000 powers of 2
-        for i in 0..5000 {
-            // generate the power of 2
-            let int_pow2 = Integer::from(1) << i;
-
-            // assert that the number of limbs is correct
-            assert_eq!(twos_complement_limb_count(&int_pow2), int_pow2.twos_complement_limbs().count() as u64);
-
-            // negate the number and assert that the number of limbs is correct
-            let neg_int_pow2 = -int_pow2;
-            assert_eq!(twos_complement_limb_count(&neg_int_pow2), neg_int_pow2.twos_complement_limbs().count() as u64);
-        }
     }
 }

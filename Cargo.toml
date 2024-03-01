@@ -39,7 +39,7 @@ either = { version = "1.9", optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.15", optional = true }
 indexmap = { version = ">= 1.6, < 3", optional = true }
-malachite = { version = ">= 0.4", optional = true }
+malachite = { version = "0.4.5", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-complex = { version = ">= 0.2, < 0.5", optional = true }
 rust_decimal = { version = "1.0.0", default-features = false, optional = true }
@@ -102,6 +102,9 @@ gil-refs = []
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
+
+# Additional feature to enable 32-bit limbs in malachite
+malachite-32bit = ["malachite/32_bit_limbs"]
 
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
