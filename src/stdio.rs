@@ -1,7 +1,7 @@
 //! Enables direct write access to I/O streams in Python's `sys` module.
 
-//! In some cases printing to Rust's `std::io::stdout` or `std::io::stderr` will not appear 
-//! in the Python interpreter, e.g. in Jupyter notebooks. This module provides a way to write 
+//! In some cases printing to Rust's `std::io::stdout` or `std::io::stderr` will not appear
+//! in the Python interpreter, e.g. in Jupyter notebooks. This module provides a way to write
 //! directly to Python's I/O streams from Rust in such cases.
 
 //! ```rust
@@ -57,7 +57,7 @@ macro_rules! make_python_stdio {
             }
         }
 
-        #[doc=std::concat!("A handle to Python's `sys.", stringify!($stdio),"` stream.")]  
+        #[doc=std::concat!("A handle to Python's `sys.", stringify!($stdio),"` stream.")]
         pub struct $typename {
             inner: LineWriter<$rawtypename>,
         }
@@ -79,14 +79,13 @@ macro_rules! make_python_stdio {
             }
         }
 
-        #[doc=std::concat!("Construct a new handle to Python's `sys.", stringify!($stdio),"` stream.")]  
+        #[doc=std::concat!("Construct a new handle to Python's `sys.", stringify!($stdio),"` stream.")]
         pub fn $stdio() -> $typename {
             $typename::new()
         }
-        
+
     };
 
 }
 make_python_stdio!(PyStdoutRaw, PyStdout, PySys_WriteStdout, stdout);
 make_python_stdio!(PyStderrRaw, PyStderr, PySys_WriteStderr, stderr);
-
