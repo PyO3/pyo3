@@ -1,5 +1,4 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pycell::PyClassObject;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::pyclass::boolean_struct::{False, True};
@@ -93,14 +92,7 @@ where
         py: Python<'py>,
         value: impl Into<PyClassInitializer<T>>,
     ) -> PyResult<Bound<'py, T>> {
-        let initializer = value.into();
-        let obj = initializer.create_cell(py)?;
-        let ob = unsafe {
-            obj.cast::<ffi::PyObject>()
-                .assume_owned(py)
-                .downcast_into_unchecked()
-        };
-        Ok(ob)
+        value.into().create_class_object(py)
     }
 }
 
@@ -338,10 +330,10 @@ where
     }
 
     pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
-        let cell = self.as_ptr().cast::<PyClassObject<T>>();
+        let class_object = self.as_ptr().cast::<PyClassObject<T>>();
         // SAFETY: Bound<T> is known to contain an object which is laid out in memory as a
         // PyClassObject<T>.
-        unsafe { &*cell }
+        unsafe { &*class_object }
     }
 }
 
@@ -884,10 +876,7 @@ where
     /// # }
     /// ```
     pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>> {
-        let initializer = value.into();
-        let obj = initializer.create_cell(py)?;
-        let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
-        Ok(ob)
+        Bound::new(py, value).map(Bound::unbind)
     }
 }
 
@@ -1191,12 +1180,16 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        let any = self.as_ptr() as *const PyAny;
-        // SAFETY: The class itself is frozen and `Sync` and we do not access anything but `cell.contents.value`.
-        unsafe {
-            let cell: &PyCell<T> = PyNativeType::unchecked_downcast(&*any);
-            &*cell.get_ptr()
-        }
+        // SAFETY: The class itself is frozen and `Sync`
+        unsafe { &*self.get_class_object().get_ptr() }
+    }
+
+    /// Get a view on the underlying `PyClass` contents.
+    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
+        let class_object = self.as_ptr().cast::<PyClassObject<T>>();
+        // SAFETY: Bound<T> is known to contain an object which is laid out in memory as a
+        // PyClassObject<T>.
+        unsafe { &*class_object }
     }
 }
 

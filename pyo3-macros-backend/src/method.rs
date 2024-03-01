@@ -645,8 +645,7 @@ impl<'a> FnSpec<'a> {
                         #( #holders )*
                         let result = #call;
                         let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(py)?;
-                        let cell = initializer.create_cell_from_subtype(py, _slf)?;
-                        ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)
+                        _pyo3::impl_::pymethods::tp_new_impl(py, initializer, _slf)
                     }
                 }
             }

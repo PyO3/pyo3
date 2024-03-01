@@ -334,7 +334,6 @@ mod tests {
 
     use crate::prelude::*;
     use crate::pyclass::boolean_struct::{False, True};
-    use crate::PyClass;
 
     #[pyclass(crate = "crate", subclass)]
     struct MutableBase;

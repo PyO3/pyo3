@@ -9,7 +9,7 @@ use crate::{
     pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
     types::{PyAnyMethods, PyString},
-    IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, Python,
+    IntoPy, Py, PyAny, PyClass, PyErr, PyObject, PyResult, Python,
 };
 
 pub fn new_coroutine<F, T, E>(
@@ -32,8 +32,7 @@ where
 }
 
 fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {
-    // SAFETY: Py<T> can be casted as *const PyCell<T>
-    unsafe { &*(obj.as_ptr() as *const PyCell<T>) }.get_ptr()
+    obj.get_class_object().get_ptr()
 }
 
 pub struct RefGuard<T: PyClass>(Py<T>);

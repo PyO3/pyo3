@@ -192,8 +192,6 @@
 //! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
-#[allow(deprecated)]
-use crate::conversion::FromPyPointer;
 use crate::conversion::{AsPyPointer, ToPyObject};
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -272,12 +270,7 @@ impl<T: PyClass> PyCell<T> {
         )
     )]
     pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {
-        unsafe {
-            let initializer = value.into();
-            let self_ = initializer.create_cell(py)?;
-            #[allow(deprecated)]
-            FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
-        }
+        Bound::new(py, value).map(Bound::into_gil_ref)
     }
 
     /// Immutably borrows the value `T`. This borrow lasts as long as the returned `PyRef` exists.
@@ -482,16 +475,6 @@ impl<T: PyClass> PyCell<T> {
 
     pub(crate) fn get_ptr(&self) -> *mut T {
         self.0.get_ptr()
-    }
-
-    /// Gets the offset of the dictionary from the start of the struct in bytes.
-    pub(crate) fn dict_offset() -> ffi::Py_ssize_t {
-        PyClassObject::<T>::dict_offset()
-    }
-
-    /// Gets the offset of the weakref list from the start of the struct in bytes.
-    pub(crate) fn weaklist_offset() -> ffi::Py_ssize_t {
-        PyClassObject::<T>::weaklist_offset()
     }
 }
 

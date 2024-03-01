@@ -7,8 +7,8 @@ use crate::{
     pyclass_init::PyObjectInit,
     types::any::PyAnyMethods,
     types::PyBool,
-    Borrowed, Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult,
-    PyTypeInfo, Python,
+    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo,
+    Python,
 };
 use std::{
     borrow::Cow,
@@ -25,13 +25,13 @@ pub use lazy_type_object::LazyTypeObject;
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyCell::<T>::dict_offset()
+    PyClassObject::<T>::dict_offset()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
 pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyCell::<T>::weaklist_offset()
+    PyClassObject::<T>::weaklist_offset()
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
