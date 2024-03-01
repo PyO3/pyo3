@@ -127,9 +127,9 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{
-    ffi, Bound, FromPyPointer, IntoPy, Py, PyNativeType, PyObject, PyTypeCheck, PyTypeInfo,
-};
+#[allow(deprecated)]
+use crate::FromPyPointer;
+use crate::{ffi, Bound, IntoPy, Py, PyNativeType, PyObject, PyTypeCheck, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -880,7 +880,7 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention, deprecated)]
     #[cfg_attr(
         not(feature = "gil-refs"),
         deprecated(
@@ -892,7 +892,6 @@ impl<'py> Python<'py> {
     where
         T: FromPyPointer<'py>,
     {
-        #[allow(deprecated)]
         FromPyPointer::from_owned_ptr(self, ptr)
     }
 
@@ -904,7 +903,7 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention, deprecated)]
     #[cfg_attr(
         not(feature = "gil-refs"),
         deprecated(
@@ -916,7 +915,6 @@ impl<'py> Python<'py> {
     where
         T: FromPyPointer<'py>,
     {
-        #[allow(deprecated)]
         FromPyPointer::from_owned_ptr_or_err(self, ptr)
     }
 
@@ -928,7 +926,7 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention, deprecated)]
     #[cfg_attr(
         not(feature = "gil-refs"),
         deprecated(
@@ -940,7 +938,6 @@ impl<'py> Python<'py> {
     where
         T: FromPyPointer<'py>,
     {
-        #[allow(deprecated)]
         FromPyPointer::from_owned_ptr_or_opt(self, ptr)
     }
 
@@ -951,7 +948,14 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention, deprecated)]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
+        )
+    )]
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
     where
         T: FromPyPointer<'py>,
@@ -966,7 +970,14 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention, deprecated)]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_borrowed_ptr_or_err(py, ptr)` or `Bound::from_borrowed_ptr_or_err(py, ptr)` instead"
+        )
+    )]
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
     where
         T: FromPyPointer<'py>,
@@ -981,7 +992,14 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention, deprecated)]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_borrowed_ptr_or_opt(py, ptr)` or `Bound::from_borrowed_ptr_or_opt(py, ptr)` instead"
+        )
+    )]
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
     where
         T: FromPyPointer<'py>,

@@ -8,7 +8,7 @@ use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
     instance::Bound,
     pyclass::boolean_struct::False,
-    types::PyString,
+    types::{PyAnyMethods, PyString},
     IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, Python,
 };
 
@@ -39,10 +39,10 @@ fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {
 pub struct RefGuard<T: PyClass>(Py<T>);
 
 impl<T: PyClass> RefGuard<T> {
-    pub fn new(obj: &PyAny) -> PyResult<Self> {
-        let owned: Py<T> = obj.extract()?;
-        mem::forget(owned.try_borrow(obj.py())?);
-        Ok(RefGuard(owned))
+    pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let owned = obj.downcast::<T>()?;
+        mem::forget(owned.try_borrow()?);
+        Ok(RefGuard(owned.clone().unbind()))
     }
 }
 
@@ -67,10 +67,10 @@ impl<T: PyClass> Drop for RefGuard<T> {
 pub struct RefMutGuard<T: PyClass<Frozen = False>>(Py<T>);
 
 impl<T: PyClass<Frozen = False>> RefMutGuard<T> {
-    pub fn new(obj: &PyAny) -> PyResult<Self> {
-        let owned: Py<T> = obj.extract()?;
-        mem::forget(owned.try_borrow_mut(obj.py())?);
-        Ok(RefMutGuard(owned))
+    pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let owned = obj.downcast::<T>()?;
+        mem::forget(owned.try_borrow_mut()?);
+        Ok(RefMutGuard(owned.clone().unbind()))
     }
 }
 

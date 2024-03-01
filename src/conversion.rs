@@ -425,6 +425,7 @@ impl IntoPy<Py<PyTuple>> for () {
 /// # Safety
 ///
 /// See safety notes on individual functions.
+#[deprecated(since = "0.21.0")]
 pub unsafe trait FromPyPointer<'p>: Sized {
     /// Convert from an arbitrary `PyObject`.
     ///
@@ -494,6 +495,13 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Implementations must ensure the object does not get freed during `'p` and avoid type confusion.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_borrowed_ptr_or_opt(py, ptr)` or `Bound::from_borrowed_ptr_or_opt(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
         -> Option<&'p Self>;
     /// Convert from an arbitrary borrowed `PyObject`.
@@ -501,7 +509,15 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+        #[allow(deprecated)]
         Self::from_borrowed_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
     /// Convert from an arbitrary borrowed `PyObject`.
@@ -509,7 +525,15 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+        #[allow(deprecated)]
         Self::from_borrowed_ptr_or_panic(py, ptr)
     }
     /// Convert from an arbitrary borrowed `PyObject`.
@@ -517,14 +541,23 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     /// # Safety
     ///
     /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Py::from_borrowed_ptr_or_err(py, ptr)` or `Bound::from_borrowed_ptr_or_err(py, ptr)` instead"
+        )
+    )]
     unsafe fn from_borrowed_ptr_or_err(
         py: Python<'p>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<&'p Self> {
+        #[allow(deprecated)]
         Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
     }
 }
 
+#[allow(deprecated)]
 unsafe impl<'p, T> FromPyPointer<'p> for T
 where
     T: 'p + crate::PyNativeType,

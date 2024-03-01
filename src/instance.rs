@@ -488,7 +488,10 @@ impl<'py, T> Bound<'py, T> {
     where
         T: HasPyGilRef,
     {
-        unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
+        #[allow(deprecated)]
+        unsafe {
+            self.py().from_borrowed_ptr(self.as_ptr())
+        }
     }
 
     /// Casts this `Bound<T>` as the corresponding "GIL Ref" type, registering the pointer on the
@@ -613,7 +616,10 @@ where
 {
     pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
         // Safety: self is a borrow over `'py`.
-        unsafe { self.py().from_borrowed_ptr(self.0.as_ptr()) }
+        #[allow(deprecated)]
+        unsafe {
+            self.py().from_borrowed_ptr(self.0.as_ptr())
+        }
     }
 }
 

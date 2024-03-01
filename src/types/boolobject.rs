@@ -25,7 +25,10 @@ impl PyBool {
     )]
     #[inline]
     pub fn new(py: Python<'_>, val: bool) -> &PyBool {
-        unsafe { py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() }) }
+        #[allow(deprecated)]
+        unsafe {
+            py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
+        }
     }
 
     /// Depending on `val`, returns `true` or `false`.
