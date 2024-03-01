@@ -16,8 +16,8 @@
 //! writeln!(stdout, "Hello, world!").unwrap();
 //! ```
 
-use crate::Python;
 use crate::ffi::{PySys_WriteStderr, PySys_WriteStdout};
+use crate::Python;
 use std::io::{LineWriter, Write};
 use std::os::raw::c_char;
 
