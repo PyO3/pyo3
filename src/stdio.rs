@@ -5,6 +5,8 @@
 //! directly to Python's I/O streams from Rust in such cases.
 
 //! ```rust
+//! use std::io::Write;
+//!
 //! let mut stdout = pyo3::stdio::stdout();
 //!   
 //! // This may not appear in Jupyter notebooks...
@@ -14,8 +16,8 @@
 //! writeln!(stdout, "Hello, world!").unwrap();
 //! ```
 
+use crate::Python;
 use crate::ffi::{PySys_WriteStderr, PySys_WriteStdout};
-use crate::prelude::*;
 use std::io::{LineWriter, Write};
 use std::os::raw::c_char;
 
