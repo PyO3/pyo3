@@ -249,6 +249,18 @@ macro_rules! pyobject_native_type_info(
                 }
             )?
         }
+
+        impl<$($generics,)*> $crate::impl_::pymodule::PyAddToModule for $name {
+            fn add_to_module(
+                module: &$crate::Bound<'_, $crate::types::PyModule>,
+            ) -> $crate::PyResult<()> {
+                use $crate::types::PyModuleMethods;
+                module.add(
+                    <Self as $crate::PyTypeInfo>::NAME,
+                    <Self as $crate::PyTypeInfo>::type_object_bound(module.py()),
+                )
+            }
+        }
     };
 );
 
