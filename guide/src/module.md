@@ -105,3 +105,49 @@ submodules by using `from parent_module import child_module`. For more informati
 [#1517](https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021).
 
 It is not necessary to add `#[pymodule]` on nested modules, which is only required on the top-level module.
+
+## Declarative modules (experimental)
+
+Another syntax based on Rust inline modules is also available to declare modules.
+The `experimental-declarative-modules` feature must be enabled to use it.
+
+For example:
+```rust
+# #[cfg(feature = "experimental-declarative-modules")]
+# mod declarative_module_test {
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn double(x: usize) -> usize {
+    x * 2
+}
+
+#[pymodule]
+mod my_extension {
+    use super::*;
+
+    #[pymodule_export]
+    use super::double; // Exports the double function as part of the module
+
+    #[pyfunction] // This will be part of the module
+    fn triple(x: usize) -> usize {
+        x * 3
+    }
+
+    #[pyclass] // This will be part of the module
+    struct Unit;
+
+    #[pymodule]
+    mod submodule {
+        // This is a submodule
+    }
+
+    #[pymodule_init]
+    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        // Arbitrary code to run at the module initialization
+        m.add("double2", m.getattr("double")?)?;
+        Ok(())
+    }
+}
+# }
+```
