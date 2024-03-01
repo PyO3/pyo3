@@ -277,10 +277,9 @@ impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
 {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
-        #[allow(deprecated)]
-        let cell: &PyCell<Self> = obj.downcast()?;
-        Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let bound = obj.downcast::<Self>()?;
+        Ok(bound.try_borrow()?.clone())
     }
 }
 
