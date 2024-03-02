@@ -703,6 +703,15 @@ impl<'py> IntoIterator for Bound<'py, PyList> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PyList> {
+    type Item = Bound<'py, PyAny>;
+    type IntoIter = BoundListIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[cfg(test)]
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
