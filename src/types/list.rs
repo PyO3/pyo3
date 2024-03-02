@@ -921,6 +921,20 @@ mod tests {
     }
 
     #[test]
+    fn test_into_iter_bound() {
+        use crate::types::any::PyAnyMethods;
+
+        Python::with_gil(|py| {
+            let list = PyList::new_bound(py, [1, 2, 3, 4]);
+            let mut items = vec![];
+            for item in &list {
+                items.push(item.extract::<i32>().unwrap());
+            }
+            assert_eq!(items, vec![1, 2, 3, 4]);
+        });
+    }
+
+    #[test]
     fn test_extract() {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
