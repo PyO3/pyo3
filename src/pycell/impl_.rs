@@ -161,19 +161,19 @@ impl PyClassBorrowChecker for BorrowChecker {
 
 pub trait GetBorrowChecker<T: PyClassImpl> {
     fn borrow_checker(
-        cell: &PyClassObject<T>,
+        class_object: &PyClassObject<T>,
     ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
     fn borrow_checker(class_object: &PyClassObject<T>) -> &BorrowChecker {
-        &cell.contents.borrow_checker
+        &class_object.contents.borrow_checker
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(cell: &PyClassObject<T>) -> &EmptySlot {
-        &cell.contents.borrow_checker
+    fn borrow_checker(class_object: &PyClassObject<T>) -> &EmptySlot {
+        &class_object.contents.borrow_checker
     }
 }
 
@@ -183,8 +183,8 @@ where
     T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = PyClassObject<T::BaseType>>,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
-    fn borrow_checker(cell: &PyClassObject<T>) -> &BorrowChecker {
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(&cell.ob_base)
+    fn borrow_checker(class_object: &PyClassObject<T>) -> &BorrowChecker {
+        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(&class_object.ob_base)
     }
 }
 
@@ -221,7 +221,7 @@ where
         let type_obj = T::type_object_raw(py);
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         if type_obj == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
-            return get_tp_free(ffi::Py_TYPE(slf))(slf as _);
+            return get_tp_free(ffi::Py_TYPE(slf))(slf.cast());
         }
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
@@ -235,9 +235,9 @@ where
                 if ffi::PyType_FastSubclass(type_obj, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
                     ffi::PyObject_GC_Track(slf.cast());
                 }
-                dealloc(slf as _);
+                dealloc(slf);
             } else {
-                get_tp_free(ffi::Py_TYPE(slf))(slf as _);
+                get_tp_free(ffi::Py_TYPE(slf))(slf.cast());
             }
         }
 
@@ -317,12 +317,12 @@ where
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let cell = &mut *(slf as *mut PyClassObject<T>);
-        if cell.contents.thread_checker.can_drop(py) {
-            ManuallyDrop::drop(&mut cell.contents.value);
+        let class_object = &mut *(slf.cast::<PyClassObject<T>>());
+        if class_object.contents.thread_checker.can_drop(py) {
+            ManuallyDrop::drop(&mut class_object.contents.value);
         }
-        cell.contents.dict.clear_dict(py);
-        cell.contents.weakref.clear_weakrefs(slf, py);
+        class_object.contents.dict.clear_dict(py);
+        class_object.contents.weakref.clear_weakrefs(slf, py);
         <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
     }
 }

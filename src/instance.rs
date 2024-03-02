@@ -325,15 +325,11 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        // SAFETY: The class itself is frozen and `Sync`.
-        unsafe { &*self.get_class_object().get_ptr() }
+        self.1.get()
     }
 
     pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
-        let class_object = self.as_ptr().cast::<PyClassObject<T>>();
-        // SAFETY: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
-        // PyClassObject<T>.
-        unsafe { &*class_object }
+        self.1.get_class_object()
     }
 }
 
@@ -1180,14 +1176,14 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        // SAFETY: The class itself is frozen and `Sync`
+        // Safety: The class itself is frozen and `Sync`
         unsafe { &*self.get_class_object().get_ptr() }
     }
 
     /// Get a view on the underlying `PyClass` contents.
     pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
         let class_object = self.as_ptr().cast::<PyClassObject<T>>();
-        // SAFETY: Bound<T> is known to contain an object which is laid out in memory as a
+        // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
         // PyClassObject<T>.
         unsafe { &*class_object }
     }
