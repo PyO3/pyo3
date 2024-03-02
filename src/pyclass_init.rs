@@ -240,7 +240,7 @@ impl<T: PyClass> PyClassInitializer<T> {
 
         let obj = super_init.into_new_object(py, target_type)?;
 
-        let part_init: *mut PartiallyInitializedClassObject<T> = obj as _;
+        let part_init: *mut PartiallyInitializedClassObject<T> = obj.cast();
         std::ptr::write(
             (*part_init).contents.as_mut_ptr(),
             PyClassObjectContents {

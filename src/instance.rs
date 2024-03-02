@@ -331,7 +331,7 @@ where
 
     pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
         let class_object = self.as_ptr().cast::<PyClassObject<T>>();
-        // SAFETY: Bound<T> is known to contain an object which is laid out in memory as a
+        // SAFETY: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
         // PyClassObject<T>.
         unsafe { &*class_object }
     }

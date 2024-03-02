@@ -166,7 +166,7 @@ pub trait GetBorrowChecker<T: PyClassImpl> {
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
-    fn borrow_checker(cell: &PyClassObject<T>) -> &BorrowChecker {
+    fn borrow_checker(class_object: &PyClassObject<T>) -> &BorrowChecker {
         &cell.contents.borrow_checker
     }
 }
