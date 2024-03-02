@@ -351,12 +351,6 @@ mod tests {
         Python::with_gil(|py| {
             let set = PyFrozenSet::new(py, &[1]).unwrap();
 
-            // iter method
-            for el in set {
-                assert_eq!(1i32, el.extract::<i32>().unwrap());
-            }
-
-            // intoiterator iteration
             for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
             }
