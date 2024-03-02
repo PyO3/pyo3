@@ -63,7 +63,7 @@ jobs:
       - uses: actions/setup-python@v5
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -82,7 +82,7 @@ jobs:
 
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
@@ -110,7 +110,7 @@ jobs:
       - uses: actions/setup-python@v5
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -120,7 +120,7 @@ jobs:
         continue-on-error: true
 
       - name: Download previous benchmark data
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./cache
           key: ${{ runner.os }}-pytest-benchmark

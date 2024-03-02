@@ -13,7 +13,7 @@ fn double(x: usize) -> usize {
 }
 
 #[pymodule]
-fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
@@ -55,7 +55,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     }
 
     #[pymodule]
-    fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_function(wrap_pyfunction!(no_args_py, m)?)?;
         Ok(())
     }
@@ -83,15 +83,16 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
     ```rust
     use pyo3::prelude::*;
+    use pyo3::types::PyString;
 
     #[pyfunction]
     #[pyo3(pass_module)]
-    fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
+    fn pyfunction_with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyString>> {
         module.name()
     }
 
     #[pymodule]
-    fn module_with_fn(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn module_with_fn(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)
     }
     ```
@@ -165,8 +166,8 @@ Python argument passing convention.) It then embeds the call to the Rust functio
 FFI-wrapper function. This wrapper handles extraction of the regular arguments and the keyword
 arguments from the input `PyObject`s.
 
-The `wrap_pyfunction` macro can be used to directly get a `PyCFunction` given a
-`#[pyfunction]` and a `PyModule`: `wrap_pyfunction!(rust_fun, module)`.
+The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a
+`#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
 
 ## `#[pyfn]` shorthand
 
@@ -196,7 +197,7 @@ documented in the rest of this chapter. The code above is expanded to the follow
 use pyo3::prelude::*;
 
 #[pymodule]
-fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfunction]
     fn double(x: usize) -> usize {
         x * 2

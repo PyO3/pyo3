@@ -3,9 +3,6 @@ use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
-#[cfg(PyPy)]
-const Py_MAX_NDIMS: usize = 36;
-
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct Py_buffer {
@@ -24,9 +21,9 @@ pub struct Py_buffer {
     #[cfg(PyPy)]
     pub flags: c_int,
     #[cfg(PyPy)]
-    pub _strides: [Py_ssize_t; Py_MAX_NDIMS],
+    pub _strides: [Py_ssize_t; PyBUF_MAX_NDIM],
     #[cfg(PyPy)]
-    pub _shape: [Py_ssize_t; Py_MAX_NDIMS],
+    pub _shape: [Py_ssize_t; PyBUF_MAX_NDIM],
 }
 
 impl Py_buffer {
@@ -46,9 +43,9 @@ impl Py_buffer {
             #[cfg(PyPy)]
             flags: 0,
             #[cfg(PyPy)]
-            _strides: [0; Py_MAX_NDIMS],
+            _strides: [0; PyBUF_MAX_NDIM],
             #[cfg(PyPy)]
-            _shape: [0; Py_MAX_NDIMS],
+            _shape: [0; PyBUF_MAX_NDIM],
         }
     }
 }
@@ -105,7 +102,7 @@ extern "C" {
 }
 
 /// Maximum number of dimensions
-pub const PyBUF_MAX_NDIM: c_int = 64;
+pub const PyBUF_MAX_NDIM: c_int = if cfg!(PyPy) { 36 } else { 64 };
 
 /* Flags for getting buffers */
 pub const PyBUF_SIMPLE: c_int = 0;

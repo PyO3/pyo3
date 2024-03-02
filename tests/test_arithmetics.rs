@@ -43,7 +43,7 @@ impl UnaryArithmetic {
 #[test]
 fn unary_arithmetic() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, UnaryArithmetic::new(2.7)).unwrap();
+        let c = Py::new(py, UnaryArithmetic::new(2.7)).unwrap();
         py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
         py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
         py_run!(py, c, "assert repr(abs(c)) == 'UA(2.7)'");
@@ -77,7 +77,7 @@ impl Indexable {
 #[test]
 fn indexable() {
     Python::with_gil(|py| {
-        let i = PyCell::new(py, Indexable(5)).unwrap();
+        let i = Py::new(py, Indexable(5)).unwrap();
         py_run!(py, i, "assert int(i) == 5");
         py_run!(py, i, "assert [0, 1, 2, 3, 4, 5][i] == 5");
         py_run!(py, i, "assert float(i) == 5.0");
@@ -137,7 +137,7 @@ impl InPlaceOperations {
 fn inplace_operations() {
     Python::with_gil(|py| {
         let init = |value, code| {
-            let c = PyCell::new(py, InPlaceOperations { value }).unwrap();
+            let c = Py::new(py, InPlaceOperations { value }).unwrap();
             py_run!(py, c, code);
         };
 
@@ -210,7 +210,7 @@ impl BinaryArithmetic {
 #[test]
 fn binary_arithmetic() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, BinaryArithmetic {}).unwrap();
+        let c = Py::new(py, BinaryArithmetic {}).unwrap();
         py_run!(py, c, "assert c + c == 'BA + BA'");
         py_run!(py, c, "assert c.__add__(c) == 'BA + BA'");
         py_run!(py, c, "assert c + 1 == 'BA + 1'");
@@ -238,7 +238,7 @@ fn binary_arithmetic() {
 
         py_run!(py, c, "assert pow(c, 1, 100) == 'BA ** 1 (mod: Some(100))'");
 
-        let c: Bound<'_, PyAny> = c.extract().unwrap();
+        let c: Bound<'_, PyAny> = c.extract(py).unwrap();
         assert_py_eq!(c.add(&c).unwrap(), "BA + BA");
         assert_py_eq!(c.sub(&c).unwrap(), "BA - BA");
         assert_py_eq!(c.mul(&c).unwrap(), "BA * BA");
@@ -297,7 +297,7 @@ impl RhsArithmetic {
 #[test]
 fn rhs_arithmetic() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, RhsArithmetic {}).unwrap();
+        let c = Py::new(py, RhsArithmetic {}).unwrap();
         py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
         py_run!(py, c, "assert 1 + c == '1 + RA'");
         py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
@@ -426,7 +426,7 @@ impl LhsAndRhs {
 #[test]
 fn lhs_fellback_to_rhs() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, LhsAndRhs {}).unwrap();
+        let c = Py::new(py, LhsAndRhs {}).unwrap();
         // If the light hand value is `LhsAndRhs`, LHS is used.
         py_run!(py, c, "assert c + 1 == 'LR + 1'");
         py_run!(py, c, "assert c - 1 == 'LR - 1'");
@@ -486,7 +486,7 @@ impl RichComparisons2 {
         match op {
             CompareOp::Eq => true.into_py(other.py()),
             CompareOp::Ne => false.into_py(other.py()),
-            _ => other.py().NotImplemented().into(),
+            _ => other.py().NotImplemented(),
         }
     }
 }
@@ -494,7 +494,7 @@ impl RichComparisons2 {
 #[test]
 fn rich_comparisons() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, RichComparisons {}).unwrap();
+        let c = Py::new(py, RichComparisons {}).unwrap();
         py_run!(py, c, "assert (c < c) == 'RC < RC'");
         py_run!(py, c, "assert (c < 1) == 'RC < 1'");
         py_run!(py, c, "assert (1 < c) == 'RC > 1'");
@@ -519,7 +519,7 @@ fn rich_comparisons() {
 #[test]
 fn rich_comparisons_python_3_type_error() {
     Python::with_gil(|py| {
-        let c2 = PyCell::new(py, RichComparisons2 {}).unwrap();
+        let c2 = Py::new(py, RichComparisons2 {}).unwrap();
         py_expect_exception!(py, c2, "c2 < c2", PyTypeError);
         py_expect_exception!(py, c2, "c2 < 1", PyTypeError);
         py_expect_exception!(py, c2, "1 < c2", PyTypeError);
@@ -556,7 +556,7 @@ mod return_not_implemented {
         }
 
         fn __richcmp__(&self, other: PyRef<'_, Self>, _op: CompareOp) -> PyObject {
-            other.py().None().into()
+            other.py().None()
         }
 
         fn __add__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
@@ -620,7 +620,7 @@ mod return_not_implemented {
 
     fn _test_binary_dunder(dunder: &str) {
         Python::with_gil(|py| {
-            let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+            let c2 = Py::new(py, RichComparisonToSelf {}).unwrap();
             py_run!(
                 py,
                 c2,
@@ -636,7 +636,7 @@ mod return_not_implemented {
         _test_binary_dunder(dunder);
 
         Python::with_gil(|py| {
-            let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+            let c2 = Py::new(py, RichComparisonToSelf {}).unwrap();
             py_expect_exception!(
                 py,
                 c2,

@@ -17,7 +17,7 @@ When PyO3 handles a magic method, a couple of changes apply compared to other `#
 The following sections list of all magic methods PyO3 currently handles.  The
 given signatures should be interpreted as follows:
  - All methods take a receiver as first argument, shown as `<self>`. It can be
-   `&self`, `&mut self` or a `PyCell` reference like `self_: PyRef<'_, Self>` and
+   `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and
    `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
  - An optional `Python<'py>` argument is always allowed as the first argument.
  - Return values can be optionally wrapped in `PyResult`.
@@ -103,7 +103,7 @@ given signatures should be interpreted as follows:
             match op {
                 CompareOp::Eq => (self.0 == other.0).into_py(py),
                 CompareOp::Ne => (self.0 != other.0).into_py(py),
-                _ => py.NotImplemented().into(),
+                _ => py.NotImplemented(),
             }
         }
     }
@@ -207,7 +207,7 @@ impl Container {
 
 # Python::with_gil(|py| {
 #     let container = Container { iter: vec![1, 2, 3, 4] };
-#     let inst = pyo3::PyCell::new(py, container).unwrap();
+#     let inst = pyo3::Py::new(py, container).unwrap();
 #     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
 #     pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
 # });

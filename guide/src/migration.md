@@ -22,6 +22,8 @@ The following sections are laid out in this order.
 
 To make the transition for the PyO3 ecosystem away from the GIL Refs API as smooth as possible, in PyO3 0.21 no APIs consuming or producing GIL Refs have been altered. Instead, variants using `Bound<T>` smart pointers have been introduced, for example `PyTuple::new_bound` which returns `Bound<PyTuple>` is the replacement form of `PyTuple::new`. The GIL Ref APIs have been deprecated, but to make migration easier it is possible to disable these deprecation warnings by enabling the `gil-refs` feature.
 
+> The one single exception where an existing API was changed in-place is the `pyo3::intern!` macro. Almost all uses of this macro did not need to update code to account it changing to return `&Bound<PyString>` immediately, and adding an `intern_bound!` replacement was perceived as adding more work for users.
+
 It is recommended that users do this as a first step of updating to PyO3 0.21 so that the deprecation warnings do not get in the way of resolving the rest of the migration steps.
 
 Before:
@@ -40,12 +42,11 @@ After:
 pyo3 = { version = "0.21", features = ["gil-refs"] }
 ```
 
-
 ### `PyTypeInfo` and `PyTryFrom` have been adjusted
 
 The `PyTryFrom` trait has aged poorly, its [`try_from`] method now conflicts with `try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
 
-To tighten up the PyO3 traits ahead of [a proposed upcoming API change](https://github.com/PyO3/pyo3/issues/3382) the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
+To tighten up the PyO3 traits as part of the deprecation of the GIL Refs API the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
 
 To migrate, switch all type casts to use `obj.downcast()` instead of `try_from(obj)` (and similar for `downcast_exact`).
 
@@ -71,44 +72,14 @@ After:
 # use pyo3::types::{PyInt, PyList};
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
+    // Note that PyList::new is deprecated for PyList::new_bound as part of the GIL Refs API removal,
+    // see the section below on migration to Bound<T>.
+    #[allow(deprecated)]
     let list = PyList::new(py, 0..5);
     let b = list.get_item(0).unwrap().downcast::<PyInt>()?;
     Ok(())
 })
 # }
-```
-
-### `py.None()`, `py.NotImplemented()` and `py.Ellipsis()` now return typed singletons
-
-Previously `py.None()`, `py.NotImplemented()` and `py.Ellipsis()` would return `PyObject`. This had a few downsides:
- - `PyObject` does not carry static type information
- - `PyObject` takes ownership of a reference to the singletons, adding refcounting performance overhead
- - `PyObject` is not gil-bound, meaning follow up method calls might again need `py`, causing repetition
-
-To avoid these downsides, these methods now return typed gil-bound references to the singletons, e.g. `py.None()` returns `&PyNone`. These typed singletons all implement `Into<PyObject>`, so migration is straightforward.
-
-Before:
-
-```rust,compile_fail
-# use pyo3::prelude::*;
-Python::with_gil(|py| {
-    let a: PyObject = py.None();
-
-    let b: &PyAny = py.None().as_ref(py);  // or into_ref(py)
-});
-```
-
-After:
-
-```rust
-# use pyo3::prelude::*;
-Python::with_gil(|py| {
-    // For uses needing a PyObject, add `.into()`
-    let a: PyObject = py.None().into();
-
-    // For uses needing &PyAny, remove `.as_ref(py)`
-    let b: &PyAny = py.None();
-});
 ```
 
 ### `Iter(A)NextOutput` are deprecated
@@ -232,9 +203,76 @@ impl PyClassAsyncIter {
 
 `PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
 
+### `PyCell` has been deprecated
+
+Interactions with Python objects implemented in Rust no longer need to go though `PyCell<T>`. Instead iteractions with Python object now consistently go through `Bound<T>` or `Py<T>` independently of whether `T` is native Python object or a `#[pyclass]` implemented in Rust. Use `Bound::new` or `Py::new` respectively to create and `Bound::borrow(_mut)` / `Py::borrow(_mut)` to borrow the Rust object.
+
 ### Migrating from the GIL-Refs API to `Bound<T>`
 
-TODO
+To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointer has been introduced by adding complements to all functions which accept or return GIL Refs. This allows code to migrate by replacing the deprecated APIs with the new ones.
+
+For example, the following APIs have gained updated variants:
+- `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
+- `FromPyObject::extract` has a new `FromPyObject::extract_bound` (see the section below)
+- The `PyTypeInfo` trait has had new `_bound` methods added to accept / return `Bound<T>`.
+
+Because the new `Bound<T>` API brings ownership out of the PyO3 framework and into user code, there are a few places where user code is expected to need to adjust while switching to the new API:
+- Code will need to add the occasional `&` to borrow the new smart pointer as `&Bound<T>` to pass these types around (or use `.clone()` at the very small cost of increasing the Python reference count)
+- `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
+- `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
+- `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
+- To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+
+```rust,ignore
+let gil_ref: &PyAny = ...;
+let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
+```
+
+> Because of the ownership changes, code which uses `.as_ptr()` to convert `&PyAny` and other GIL Refs to a `*mut pyo3_ffi::PyObject` should take care to avoid creating dangling pointers now that `Bound<PyAny>` carries ownership.
+>
+> For example, the following pattern with `Option<&PyAny>` can easily create a dangling pointer when migrating to the `Bound<PyAny>` smart pointer:
+>
+> ```rust,ignore
+> let opt: Option<&PyAny> = ...;
+> let p: *mut ffi::PyObject = opt.map_or(std::ptr::null_mut(), |any| any.as_ptr());
+> ```
+>
+> The correct way to migrate this code is to use `.as_ref()` to avoid dropping the `Bound<PyAny>` in the `map_or` closure:
+>
+> ```rust,ignore
+> let opt: Option<Bound<PyAny>> = ...;
+> let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
+> ```
+
+#### Migrating `FromPyObject` implementations
+
+`FromPyObject` has had a new method `extract_bound` which takes `&Bound<'py, PyAny>` as an argument instead of `&PyAny`. Both `extract` and `extract_bound` have been given default implementations in terms of the other, to avoid breaking code immediately on update to 0.21.
+
+All implementations of `FromPyObject` should be switched from `extract` to `extract_bound`.
+
+Before:
+
+```rust,ignore
+impl<'py> FromPyObject<'py> for MyType {
+    fn extract(obj: &'py PyAny) -> PyResult<Self> {
+        /* ... */
+    }
+}
+```
+
+After:
+
+```rust,ignore
+impl<'py> FromPyObject<'py> for MyType {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        /* ... */
+    }
+}
+```
+
+The expectation is that in 0.22 `extract_bound` will have the default implementation removed and in 0.23 `extract` will be removed.
+
+
 
 ## from 0.19.* to 0.20
 
@@ -271,7 +309,7 @@ Python::with_gil(|py| {
 
 After:
 
-```rust
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyDict, IntoPyDict};
@@ -391,7 +429,7 @@ fn raise_err() -> anyhow::Result<()> {
     Err(PyValueError::new_err("original error message").into())
 }
 
-# fn main() {
+fn main() {
     Python::with_gil(|py| {
         let rs_func = wrap_pyfunction!(raise_err, py).unwrap();
         pyo3::py_run!(
@@ -647,7 +685,7 @@ To migrate, update trait bounds and imports from `PyTypeObject` to `PyTypeInfo`.
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 use pyo3::Python;
 use pyo3::type_object::PyTypeObject;
 use pyo3::types::PyType;
@@ -659,7 +697,7 @@ fn get_type_object<T: PyTypeObject>(py: Python<'_>) -> &PyType {
 
 After
 
-```rust
+```rust,ignore
 use pyo3::{Python, PyTypeInfo};
 use pyo3::types::PyType;
 
@@ -853,6 +891,7 @@ that these types can now also support Rust's indexing operators as part of a
 consistent API:
 
 ```rust
+#![allow(deprecated)]
 use pyo3::{Python, types::PyList};
 
 Python::with_gil(|py| {
@@ -985,13 +1024,13 @@ makes it possible to interact with Python exception objects.
 
 The new types also have names starting with the "Py" prefix. For example, before:
 
-```rust,compile_fail
+```rust,ignore
 let err: PyErr = TypeError::py_err("error message");
 ```
 
 After:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::{PyErr, PyResult, Python, type_object::PyTypeObject};
 # use pyo3::exceptions::{PyBaseException, PyTypeError};
 # Python::with_gil(|py| -> PyResult<()> {
@@ -1073,7 +1112,7 @@ This should require no code changes except removing `use pyo3::AsPyRef` for code
 `pyo3::prelude::*`.
 
 Before:
-```rust,compile_fail
+```rust,ignore
 use pyo3::{AsPyRef, Py, types::PyList};
 # pyo3::Python::with_gil(|py| {
 let list_py: Py<PyList> = PyList::empty(py).into();
@@ -1082,7 +1121,7 @@ let list_ref: &PyList = list_py.as_ref(py);
 ```
 
 After:
-```rust
+```rust,ignore
 use pyo3::{Py, types::PyList};
 # pyo3::Python::with_gil(|py| {
 let list_py: Py<PyList> = PyList::empty(py).into();
@@ -1169,14 +1208,14 @@ ensure that the Python GIL was held by the current thread). Technically, this wa
 To migrate, just pass a `py` argument to any calls to these methods.
 
 Before:
-```rust,ignore
+```rust,compile_fail
 # pyo3::Python::with_gil(|py| {
 py.None().get_refcnt();
 # })
 ```
 
 After:
-```rust,compile_fail
+```rust
 # pyo3::Python::with_gil(|py| {
 py.None().get_refcnt(py);
 # })
@@ -1191,7 +1230,7 @@ all you need to do is remove `ObjectProtocol` from your code.
 Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing.
 
 Before:
-```rust,compile_fail
+```rust,compile_fail,ignore
 use pyo3::ObjectProtocol;
 
 # pyo3::Python::with_gil(|py| {
@@ -1202,7 +1241,7 @@ assert_eq!(hi.len().unwrap(), 5);
 ```
 
 After:
-```rust
+```rust,ignore
 # pyo3::Python::with_gil(|py| {
 let obj = py.eval("lambda: 'Hi :)'", None, None).unwrap();
 let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
@@ -1282,7 +1321,7 @@ impl Names {
     }
 }
 # Python::with_gil(|py| {
-#     let names = PyCell::new(py, Names::new()).unwrap();
+#     let names = Py::new(py, Names::new()).unwrap();
 #     pyo3::py_run!(py, names, r"
 #     try:
 #        names.merge(names)
@@ -1317,7 +1356,7 @@ let obj_ref = PyRef::new(py, MyClass {}).unwrap();
 ```
 
 After:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -1341,7 +1380,7 @@ let obj_ref_mut: &mut MyClass = obj.extract().unwrap();
 ```
 
 After:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::IntoPyDict;
 # #[pyclass] #[derive(Clone)] struct MyClass {}

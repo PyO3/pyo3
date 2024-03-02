@@ -30,11 +30,11 @@ fn log_something() {
 }
 
 #[pymodule]
-fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // A good place to install the Rust -> Python logger.
     pyo3_log::init();
 
-    m.add_function(wrap_pyfunction!(log_something))?;
+    m.add_function(wrap_pyfunction!(log_something, m)?)?;
     Ok(())
 }
 ```

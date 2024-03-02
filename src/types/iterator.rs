@@ -14,10 +14,10 @@ use crate::{
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
-///     let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
+///     let list = py.eval_bound("iter([1, 2, 3, 4])", None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .iter()?
-///         .map(|i| i.and_then(PyAny::extract::<usize>))
+///         .map(|i| i.and_then(|i|i.extract::<usize>()))
 ///         .collect();
 ///     let sum: usize = numbers?.iter().sum();
 ///     assert_eq!(sum, 10);
@@ -114,7 +114,7 @@ impl<'py> Borrowed<'_, 'py, PyIterator> {
 impl PyTypeCheck for PyIterator {
     const NAME: &'static str = "Iterator";
 
-    fn type_check(object: &PyAny) -> bool {
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
     }
 }

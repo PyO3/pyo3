@@ -75,8 +75,8 @@ A [previous implementation] used a normal `u64`, which meant it required a `&mut
 fn __call__(
     &mut self,
     py: Python<'_>,
-    args: &PyTuple,
-    kwargs: Option<&PyDict>,
+    args: &Bound<'_, PyTuple>,
+    kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<Py<PyAny>> {
     self.count += 1;
     let name = self.wraps.getattr(py, "__name__")?;

@@ -14,17 +14,15 @@ edition = "2021"
 # not to depend on proc-macro itself.
 # See https://github.com/PyO3/pyo3/pull/810 for more.
 [dependencies]
-quote = { version = "1", default-features = false }
-proc-macro2 = { version = "1", default-features = false }
 heck = "0.4"
+proc-macro2 = { version = "1", default-features = false }
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.21.0-dev", features = ["resolve-config"] }
+quote = { version = "1", default-features = false }
 
 [dependencies.syn]
 version = "2"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
-
-[features]
-abi3 = []
 
 [lints]
 workspace = true

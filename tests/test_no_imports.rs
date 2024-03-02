@@ -2,10 +2,12 @@
 
 #![cfg(feature = "macros")]
 
+use pyo3::prelude::PyAnyMethods;
+
 #[pyo3::pyfunction]
 #[pyo3(name = "identity", signature = (x = None))]
 fn basic_function(py: pyo3::Python<'_>, x: Option<pyo3::PyObject>) -> pyo3::PyObject {
-    x.unwrap_or_else(|| py.None().into())
+    x.unwrap_or_else(|| py.None())
 }
 
 #[pyo3::pymodule]
@@ -16,6 +18,18 @@ fn basic_module(_py: pyo3::Python<'_>, m: &pyo3::types::PyModule) -> pyo3::PyRes
     }
 
     m.add_function(pyo3::wrap_pyfunction!(basic_function, m)?)?;
+
+    Ok(())
+}
+
+#[pyo3::pymodule]
+fn basic_module_bound(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
+    #[pyfn(m)]
+    fn answer() -> usize {
+        42
+    }
+
+    m.add_function(pyo3::wrap_pyfunction_bound!(basic_function, m)?)?;
 
     Ok(())
 }
@@ -60,7 +74,9 @@ impl BasicClass {
 
     /// Some documentation here
     #[classmethod]
-    fn classmethod(cls: &pyo3::types::PyType) -> &pyo3::types::PyType {
+    fn classmethod<'a, 'py>(
+        cls: &'a pyo3::Bound<'py, pyo3::types::PyType>,
+    ) -> &'a pyo3::Bound<'py, pyo3::types::PyType> {
         cls
     }
 
@@ -89,13 +105,13 @@ impl BasicClass {
 fn test_basic() {
     pyo3::Python::with_gil(|py| {
         let module = pyo3::wrap_pymodule!(basic_module)(py);
-        let cls = py.get_type::<BasicClass>();
-        let d = pyo3::types::IntoPyDict::into_py_dict(
+        let cls = py.get_type_bound::<BasicClass>();
+        let d = pyo3::types::IntoPyDict::into_py_dict_bound(
             [
-                ("mod", module.as_ref(py).as_ref()),
-                ("cls", cls.as_ref()),
-                ("a", cls.call1((8,)).unwrap()),
-                ("b", cls.call1(("foo",)).unwrap()),
+                ("mod", module.bind(py).as_any()),
+                ("cls", &cls),
+                ("a", &cls.call1((8,)).unwrap()),
+                ("b", &cls.call1(("foo",)).unwrap()),
             ],
             py,
         );
@@ -132,15 +148,17 @@ struct NewClassMethod {
 impl NewClassMethod {
     #[new]
     #[classmethod]
-    fn new(cls: &pyo3::types::PyType) -> Self {
-        Self { cls: cls.into() }
+    fn new(cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+        Self {
+            cls: cls.clone().into_any().unbind(),
+        }
     }
 }
 
 #[test]
 fn test_new_class_method() {
     pyo3::Python::with_gil(|py| {
-        let cls = py.get_type::<NewClassMethod>();
+        let cls = py.get_type_bound::<NewClassMethod>();
         pyo3::py_run!(py, cls, "assert cls().cls is cls");
     });
 }

@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::{exceptions, py_run, PyErr, PyResult};
+use pyo3::{exceptions, py_run};
 use std::error::Error;
 use std::fmt;
 #[cfg(not(target_os = "windows"))]
@@ -118,7 +118,7 @@ fn test_write_unraisable() {
         assert!(object.is_none(py));
 
         let err = PyRuntimeError::new_err("bar");
-        err.write_unraisable(py, Some(py.NotImplemented()));
+        err.write_unraisable(py, Some(py.NotImplemented().as_ref(py)));
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: bar");

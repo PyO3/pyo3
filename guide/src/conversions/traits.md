@@ -13,7 +13,7 @@ fails, so usually you will use something like
 # use pyo3::types::PyList;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let list = PyList::new(py, b"foo");
+#         let list = PyList::new_bound(py, b"foo");
 let v: Vec<i32> = list.extract()?;
 #         assert_eq!(&v, &[102, 111, 111]);
 #         Ok(())
@@ -54,7 +54,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code(
+#         let module = PyModule::from_code_bound(
 #             py,
 #             "class Foo:
 #             def __init__(self):
@@ -86,7 +86,7 @@ struct RustyStruct {
 # use pyo3::types::PyDict;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let dict = PyDict::new(py);
+#         let dict = PyDict::new_bound(py);
 #         dict.set_item("my_string", "test")?;
 #
 #         let rustystruct: RustyStruct = dict.extract()?;
@@ -111,7 +111,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code(
+#         let module = PyModule::from_code_bound(
 #             py,
 #             "class Foo(dict):
 #             def __init__(self):
@@ -155,7 +155,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let py_dict = py.eval("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
+#         let py_dict = py.eval_bound("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
 #         let rustystruct: RustyStruct = py_dict.extract()?;
 # 		  assert_eq!(rustystruct.foo, "foo");
 #         assert_eq!(rustystruct.bar, "bar");
@@ -236,7 +236,7 @@ struct RustyTransparentStruct {
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let s = PyString::new(py, "test");
+#         let s = PyString::new_bound(py, "test");
 #
 #         let tup: RustyTransparentTupleStruct = s.extract()?;
 #         assert_eq!(tup.0, "test");
@@ -303,7 +303,7 @@ enum RustyEnum<'a> {
 #             );
 #         }
 #         {
-#             let thing = PyString::new(py, "text");
+#             let thing = PyString::new_bound(py, "text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
@@ -339,7 +339,7 @@ enum RustyEnum<'a> {
 #             );
 #         }
 #         {
-#             let module = PyModule::from_code(
+#             let module = PyModule::from_code_bound(
 #                 py,
 #                 "class Foo(dict):
 #             def __init__(self):
@@ -364,7 +364,7 @@ enum RustyEnum<'a> {
 #         }
 #
 #         {
-#             let module = PyModule::from_code(
+#             let module = PyModule::from_code_bound(
 #                 py,
 #                 "class Foo(dict):
 #             def __init__(self):
@@ -388,7 +388,7 @@ enum RustyEnum<'a> {
 #         }
 #
 #         {
-#             let thing = PyBytes::new(py, b"text");
+#             let thing = PyBytes::new_bound(py, b"text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(

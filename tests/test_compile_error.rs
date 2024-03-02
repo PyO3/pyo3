@@ -14,6 +14,7 @@ fn test_compile_errors() {
     #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
     t.compile_fail("tests/ui/invalid_pymethods_duplicates.rs");
+    t.compile_fail("tests/ui/invalid_pymethod_enum.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
@@ -39,4 +40,12 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/not_send2.rs");
     t.compile_fail("tests/ui/get_set_all.rs");
     t.compile_fail("tests/ui/traverse.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_in_root.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_glob.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_trait.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_two_pymodule_init.rs");
 }

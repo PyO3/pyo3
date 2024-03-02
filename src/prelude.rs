@@ -23,12 +23,14 @@ pub use crate::PyNativeType;
 pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
 
 #[cfg(feature = "macros")]
-pub use crate::wrap_pyfunction;
+pub use crate::{wrap_pyfunction, wrap_pyfunction_bound};
 
 pub use crate::types::any::PyAnyMethods;
 pub use crate::types::boolobject::PyBoolMethods;
 pub use crate::types::bytearray::PyByteArrayMethods;
 pub use crate::types::bytes::PyBytesMethods;
+pub use crate::types::capsule::PyCapsuleMethods;
+pub use crate::types::complex::PyComplexMethods;
 pub use crate::types::dict::PyDictMethods;
 pub use crate::types::float::PyFloatMethods;
 pub use crate::types::frozenset::PyFrozenSetMethods;
@@ -37,5 +39,8 @@ pub use crate::types::mapping::PyMappingMethods;
 pub use crate::types::module::PyModuleMethods;
 pub use crate::types::sequence::PySequenceMethods;
 pub use crate::types::set::PySetMethods;
+pub use crate::types::slice::PySliceMethods;
 pub use crate::types::string::PyStringMethods;
+pub use crate::types::traceback::PyTracebackMethods;
 pub use crate::types::tuple::PyTupleMethods;
+pub use crate::types::typeobject::PyTypeMethods;

@@ -93,6 +93,7 @@ error[E0277]: the trait bound `CancelHandle: Clone` is not satisfied
    |                                                  ^^^^ the trait `Clone` is not implemented for `CancelHandle`
    |
    = help: the following other types implement trait `PyFunctionArgument<'a, 'py>`:
+             &'a pyo3::Bound<'py, T>
              &'a pyo3::coroutine::Coroutine
              &'a mut pyo3::coroutine::Coroutine
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`

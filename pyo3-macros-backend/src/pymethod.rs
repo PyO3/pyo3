@@ -324,7 +324,8 @@ pub fn impl_py_method_def(
     })
 }
 
-fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAndSlotDef> {
+/// Also used by pyclass.
+pub fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<MethodAndSlotDef> {
     let wrapper_ident = syn::Ident::new("__pymethod___new____", Span::call_site());
     let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     // Use just the text_signature_call_signature() because the class' Python name
@@ -571,12 +572,12 @@ pub fn impl_py_setter_def(
             _slf: *mut _pyo3::ffi::PyObject,
             _value: *mut _pyo3::ffi::PyObject,
         ) -> _pyo3::PyResult<::std::os::raw::c_int> {
-            let _value = py
-                .from_borrowed_ptr_or_opt(_value)
+            use ::std::convert::Into;
+            let _value = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
                     _pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
-            let _val = _pyo3::FromPyObject::extract(_value)?;
+            let _val = _pyo3::FromPyObject::extract_bound(_value.into())?;
             #( #holders )*
             _pyo3::callback::convert(py, #setter_impl)
         }
@@ -697,7 +698,8 @@ pub fn impl_py_getter_def(
             _slf: *mut _pyo3::ffi::PyObject
         ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
             #( #holders )*
-            #body
+            let result = #body;
+            result
         }
     };
 
@@ -929,39 +931,31 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! {
-                    py.from_borrowed_ptr::<_pyo3::PyAny>(#ident)
-                },
+                quote! { #ident },
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
                 quote! {
-                    py.from_borrowed_ptr::<_pyo3::PyAny>(
-                        if #ident.is_null() {
-                            _pyo3::ffi::Py_None()
-                        } else {
-                            #ident
-                        }
-                    )
+                    if #ident.is_null() {
+                        _pyo3::ffi::Py_None()
+                    } else {
+                        #ident
+                    }
                 },
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! {
-                    py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr())
-                },
+                quote! { #ident.as_ptr() },
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! {
-                    #ident.to_borrowed_any(py)
-                },
+                quote! { #ident.as_ptr() },
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
                 quote! {
@@ -987,7 +981,7 @@ fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Vec<TokenStream>,
     name: &str,
-    source: TokenStream,
+    source_ptr: TokenStream,
 ) -> TokenStream {
     let holder = syn::Ident::new(&format!("holder_{}", holders.len()), Span::call_site());
     holders.push(quote! {
@@ -996,7 +990,7 @@ fn extract_object(
     });
     extract_error_mode.handle_error(quote! {
         _pyo3::impl_::extract_argument::extract_argument(
-            #source,
+            &_pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr),
             &mut #holder,
             #name
         )
@@ -1240,6 +1234,18 @@ impl SlotFragmentDef {
         )?;
         let ret_ty = ret_ty.ffi_type();
         Ok(quote! {
+            impl #cls {
+                unsafe fn #wrapper_ident(
+                    py: _pyo3::Python,
+                    _raw_slf: *mut _pyo3::ffi::PyObject,
+                    #(#arg_idents: #arg_types),*
+                ) -> _pyo3::PyResult<#ret_ty> {
+                    let _slf = _raw_slf;
+                    #( #holders )*
+                    #body
+                }
+            }
+
             impl _pyo3::impl_::pyclass::#fragment_trait<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
 
                 #[inline]
@@ -1249,17 +1255,6 @@ impl SlotFragmentDef {
                     _raw_slf: *mut _pyo3::ffi::PyObject,
                     #(#arg_idents: #arg_types),*
                 ) -> _pyo3::PyResult<#ret_ty> {
-                    impl #cls {
-                        unsafe fn #wrapper_ident(
-                            py: _pyo3::Python,
-                            _raw_slf: *mut _pyo3::ffi::PyObject,
-                            #(#arg_idents: #arg_types),*
-                        ) -> _pyo3::PyResult<#ret_ty> {
-                            let _slf = _raw_slf;
-                            #( #holders )*
-                            #body
-                        }
-                    }
                     #cls::#wrapper_ident(py, _raw_slf, #(#arg_idents),*)
                 }
             }

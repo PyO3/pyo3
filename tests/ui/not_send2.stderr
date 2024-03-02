@@ -1,4 +1,4 @@
-error[E0277]: `UnsafeCell<PyObject>` cannot be shared between threads safely
+error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
   --> tests/ui/not_send2.rs:8:26
    |
 8  |           py.allow_threads(|| {
@@ -7,21 +7,36 @@ error[E0277]: `UnsafeCell<PyObject>` cannot be shared between threads safely
    | |            required by a bound introduced by this call
 9  | |             println!("{:?}", string);
 10 | |         });
-   | |_________^ `UnsafeCell<PyObject>` cannot be shared between threads safely
+   | |_________^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
    |
-   = help: within `&PyString`, the trait `Sync` is not implemented for `UnsafeCell<PyObject>`
-note: required because it appears within the type `PyAny`
-  --> src/types/any.rs
+   = help: within `pyo3::Bound<'_, PyString>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
+note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
+  --> $RUST/core/src/marker.rs
    |
-   | pub struct PyAny(UnsafeCell<ffi::PyObject>);
+   | pub struct PhantomData<T: ?Sized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `impl_::not_send::NotSend`
+  --> src/impl_/not_send.rs
+   |
+   | pub(crate) struct NotSend(PhantomData<*mut Python<'static>>);
+   |                   ^^^^^^^
+   = note: required because it appears within the type `(&pyo3::gil::GILGuard, impl_::not_send::NotSend)`
+note: required because it appears within the type `PhantomData<(&pyo3::gil::GILGuard, impl_::not_send::NotSend)>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: ?Sized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `pyo3::Python<'_>`
+  --> src/marker.rs
+   |
+   | pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
+   |            ^^^^^^
+note: required because it appears within the type `pyo3::Bound<'_, PyString>`
+  --> src/instance.rs
+   |
+   | pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
    |            ^^^^^
-note: required because it appears within the type `PyString`
-  --> src/types/string.rs
-   |
-   | pub struct PyString(PyAny);
-   |            ^^^^^^^^
-   = note: required because it appears within the type `&PyString`
-   = note: required for `&&PyString` to implement `Send`
+   = note: required for `&pyo3::Bound<'_, PyString>` to implement `Send`
 note: required because it's used within this closure
   --> tests/ui/not_send2.rs:8:26
    |

@@ -68,8 +68,8 @@ impl Mapping {
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
-fn map_dict(py: Python<'_>) -> &pyo3::types::PyDict {
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
+fn map_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
+    let d = [("Mapping", py.get_type_bound::<Mapping>())].into_py_dict_bound(py);
     py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
     d
 }
@@ -123,7 +123,7 @@ fn mapping_is_not_sequence() {
 
         PyMapping::register::<Mapping>(py).unwrap();
 
-        assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
-        assert!(m.as_ref(py).downcast::<PySequence>().is_err());
+        assert!(m.bind(py).downcast::<PyMapping>().is_ok());
+        assert!(m.bind(py).downcast::<PySequence>().is_err());
     });
 }
