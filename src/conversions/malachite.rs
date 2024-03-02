@@ -48,7 +48,7 @@
 //! ```
 
 use crate::{
-    exceptions::PyValueError, ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject,
+    exceptions::PyValueError, ffi, types::*, FromPyObject, IntoPy, Py, PyErr, PyObject,
     PyResult, Python, ToPyObject,
 };
 use malachite::num::basic::traits::Zero;
