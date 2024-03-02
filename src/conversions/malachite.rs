@@ -48,8 +48,8 @@
 //! ```
 
 use crate::{
-    exceptions::PyValueError, ffi, types::*, FromPyObject, IntoPy, Py, PyErr, PyObject,
-    PyResult, Python, ToPyObject,
+    exceptions::PyValueError, ffi, types::*, FromPyObject, IntoPy, Py, PyErr, PyObject, PyResult,
+    Python, ToPyObject,
 };
 use malachite::num::basic::traits::Zero;
 use malachite::{Integer, Natural};
