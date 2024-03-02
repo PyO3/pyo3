@@ -19,7 +19,7 @@ impl EmptyClassWithNew {
 #[test]
 fn empty_class_with_new() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<EmptyClassWithNew>();
+        let typeobj = py.get_type_bound::<EmptyClassWithNew>();
         assert!(typeobj
             .call((), None)
             .unwrap()
@@ -29,7 +29,7 @@ fn empty_class_with_new() {
         // Calling with arbitrary args or kwargs is not ok
         assert!(typeobj.call(("some", "args"), None).is_err());
         assert!(typeobj
-            .call((), Some([("some", "kwarg")].into_py_dict(py)))
+            .call((), Some(&[("some", "kwarg")].into_py_dict_bound(py)))
             .is_err());
     });
 }
@@ -48,7 +48,7 @@ impl UnitClassWithNew {
 #[test]
 fn unit_class_with_new() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<UnitClassWithNew>();
+        let typeobj = py.get_type_bound::<UnitClassWithNew>();
         assert!(typeobj
             .call((), None)
             .unwrap()
@@ -71,9 +71,9 @@ impl TupleClassWithNew {
 #[test]
 fn tuple_class_with_new() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<TupleClassWithNew>();
+        let typeobj = py.get_type_bound::<TupleClassWithNew>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.downcast::<PyCell<TupleClassWithNew>>().unwrap();
+        let obj = wrp.downcast::<TupleClassWithNew>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.0, 42);
     });
@@ -96,9 +96,9 @@ impl NewWithOneArg {
 #[test]
 fn new_with_one_arg() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<NewWithOneArg>();
+        let typeobj = py.get_type_bound::<NewWithOneArg>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.downcast::<PyCell<NewWithOneArg>>().unwrap();
+        let obj = wrp.downcast::<NewWithOneArg>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.data, 42);
     });
@@ -124,12 +124,12 @@ impl NewWithTwoArgs {
 #[test]
 fn new_with_two_args() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<NewWithTwoArgs>();
+        let typeobj = py.get_type_bound::<NewWithTwoArgs>();
         let wrp = typeobj
             .call((10, 20), None)
             .map_err(|e| e.display(py))
             .unwrap();
-        let obj = wrp.downcast::<PyCell<NewWithTwoArgs>>().unwrap();
+        let obj = wrp.downcast::<NewWithTwoArgs>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.data1, 10);
         assert_eq!(obj_ref.data2, 20);
@@ -155,7 +155,7 @@ impl SuperClass {
 #[test]
 fn subclass_new() {
     Python::with_gil(|py| {
-        let super_cls = py.get_type::<SuperClass>();
+        let super_cls = py.get_type_bound::<SuperClass>();
         let source = pyo3::indoc::indoc!(
             r#"
 class Class(SuperClass):
@@ -169,9 +169,9 @@ c = Class()
 assert c.from_rust is False
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -200,7 +200,7 @@ impl NewWithCustomError {
 #[test]
 fn new_with_custom_error() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<NewWithCustomError>();
+        let typeobj = py.get_type_bound::<NewWithCustomError>();
         let err = typeobj.call0().unwrap_err();
         assert_eq!(err.to_string(), "ValueError: custom error");
     });
@@ -219,12 +219,8 @@ impl NewExisting {
         static PRE_BUILT: GILOnceCell<[pyo3::Py<NewExisting>; 2]> = GILOnceCell::new();
         let existing = PRE_BUILT.get_or_init(py, || {
             [
-                pyo3::PyCell::new(py, NewExisting { num: 0 })
-                    .unwrap()
-                    .into(),
-                pyo3::PyCell::new(py, NewExisting { num: 1 })
-                    .unwrap()
-                    .into(),
+                pyo3::Py::new(py, NewExisting { num: 0 }).unwrap(),
+                pyo3::Py::new(py, NewExisting { num: 1 }).unwrap(),
             ]
         });
 
@@ -232,16 +228,14 @@ impl NewExisting {
             return existing[val].clone_ref(py);
         }
 
-        pyo3::PyCell::new(py, NewExisting { num: val })
-            .unwrap()
-            .into()
+        pyo3::Py::new(py, NewExisting { num: val }).unwrap()
     }
 }
 
 #[test]
 fn test_new_existing() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<NewExisting>();
+        let typeobj = py.get_type_bound::<NewExisting>();
 
         let obj1 = typeobj.call1((0,)).unwrap();
         let obj2 = typeobj.call1((0,)).unwrap();
@@ -257,10 +251,10 @@ fn test_new_existing() {
         assert!(obj5.getattr("num").unwrap().extract::<u32>().unwrap() == 2);
         assert!(obj6.getattr("num").unwrap().extract::<u32>().unwrap() == 2);
 
-        assert!(obj1.is(obj2));
-        assert!(obj3.is(obj4));
-        assert!(!obj1.is(obj3));
-        assert!(!obj1.is(obj5));
-        assert!(!obj5.is(obj6));
+        assert!(obj1.is(&obj2));
+        assert!(obj3.is(&obj4));
+        assert!(!obj1.is(&obj3));
+        assert!(!obj1.is(&obj5));
+        assert!(!obj5.is(&obj6));
     });
 }

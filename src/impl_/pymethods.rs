@@ -3,8 +3,12 @@ use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
+use crate::pycell::{PyBorrowError, PyBorrowMutError};
+use crate::pyclass::boolean_struct::False;
+use crate::types::{any::PyAnyMethods, PyModule, PyType};
 use crate::{
-    ffi, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, PyTraverseError, PyVisit, Python,
+    ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyRef,
+    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -34,14 +38,15 @@ pub type ipowfunc = unsafe extern "C" fn(
 impl IPowModulo {
     #[cfg(Py_3_8)]
     #[inline]
-    pub fn to_borrowed_any(self, py: Python<'_>) -> &PyAny {
-        unsafe { py.from_borrowed_ptr::<PyAny>(self.0) }
+    pub fn as_ptr(self) -> *mut ffi::PyObject {
+        self.0
     }
 
     #[cfg(not(Py_3_8))]
     #[inline]
-    pub fn to_borrowed_any(self, py: Python<'_>) -> &PyAny {
-        unsafe { py.from_borrowed_ptr::<PyAny>(ffi::Py_None()) }
+    pub fn as_ptr(self) -> *mut ffi::PyObject {
+        // Safety: returning a borrowed pointer to Python `None` singleton
+        unsafe { ffi::Py_None() }
     }
 }
 
@@ -268,8 +273,8 @@ where
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
 
     let py = Python::assume_gil_acquired();
-    let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-    let borrow = slf.try_borrow_threadsafe();
+    let slf = Borrowed::from_ptr_unchecked(py, slf).downcast_unchecked::<T>();
+    let borrow = PyRef::try_borrow_threadsafe(&slf);
     let visit = PyVisit::from_raw(visit, arg, py);
 
     let retval = if let Ok(borrow) = borrow {
@@ -466,3 +471,101 @@ pub trait AsyncIterResultOptionKind {
 }
 
 impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
+
+/// Used in `#[classmethod]` to pass the class object to the method
+/// and also in `#[pyfunction(pass_module)]`.
+///
+/// This is a wrapper to avoid implementing `From<Bound>` for GIL Refs.
+///
+/// Once the GIL Ref API is fully removed, it should be possible to simplify
+/// this to just `&'a Bound<'py, T>` and `From` implementations.
+pub struct BoundRef<'a, 'py, T>(pub &'a Bound<'py, T>);
+
+impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
+    pub unsafe fn ref_from_ptr(py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> Self {
+        BoundRef(Bound::ref_from_ptr(py, ptr))
+    }
+
+    pub unsafe fn ref_from_ptr_or_opt(
+        py: Python<'py>,
+        ptr: &'a *mut ffi::PyObject,
+    ) -> Option<Self> {
+        Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef)
+    }
+
+    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
+        self.0.downcast::<T>().map(BoundRef)
+    }
+
+    pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
+        BoundRef(self.0.downcast_unchecked::<T>())
+    }
+}
+
+// GIL Ref implementations for &'a T ran into trouble with orphan rules,
+// so explicit implementations are used instead for the two relevant types.
+impl<'a> From<BoundRef<'a, 'a, PyType>> for &'a PyType {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'a, PyType>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a> From<BoundRef<'a, 'a, PyModule>> for &'a PyModule {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'a, PyModule>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py, T: PyClass> From<BoundRef<'a, 'py, T>> for &'a PyCell<T> {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
+        bound.0.as_gil_ref()
+    }
+}
+
+impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        value.0.clone().into_gil_ref().try_into()
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRefMut<'py, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        value.0.clone().into_gil_ref().try_into()
+    }
+}
+
+impl<'a, 'py, T> From<BoundRef<'a, 'py, T>> for Bound<'py, T> {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
+        bound.0.clone()
+    }
+}
+
+impl<'a, 'py, T> From<BoundRef<'a, 'py, T>> for &'a Bound<'py, T> {
+    #[inline]
+    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
+        bound.0
+    }
+}
+
+impl<T> From<BoundRef<'_, '_, T>> for Py<T> {
+    #[inline]
+    fn from(bound: BoundRef<'_, '_, T>) -> Self {
+        bound.0.clone().unbind()
+    }
+}
+
+impl<'py, T> std::ops::Deref for BoundRef<'_, 'py, T> {
+    type Target = Bound<'py, T>;
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}

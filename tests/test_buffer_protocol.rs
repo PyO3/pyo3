@@ -57,7 +57,7 @@ fn test_buffer() {
             },
         )
         .unwrap();
-        let env = [("ob", instance)].into_py_dict(py);
+        let env = [("ob", instance)].into_py_dict_bound(py);
         py_assert!(py, *env, "bytes(ob) == b' 23'");
     });
 
@@ -77,7 +77,7 @@ fn test_buffer_referenced() {
             }
             .into_py(py);
 
-            let buf = PyBuffer::<u8>::get(instance.as_ref(py)).unwrap();
+            let buf = PyBuffer::<u8>::get_bound(instance.bind(py)).unwrap();
             assert_eq!(buf.to_vec(py).unwrap(), input);
             drop(instance);
             buf
@@ -122,7 +122,7 @@ fn test_releasebuffer_unraisable_error() {
         let capture = UnraisableCapture::install(py);
 
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();
-        let env = [("ob", instance.clone())].into_py_dict(py);
+        let env = [("ob", instance.clone())].into_py_dict_bound(py);
 
         assert!(capture.borrow(py).capture.is_none());
 
@@ -155,7 +155,7 @@ unsafe fn fill_view_from_readonly_data(
         return Err(PyBufferError::new_err("Object is not writable"));
     }
 
-    (*view).obj = ffi::_Py_NewRef(owner.as_ptr());
+    (*view).obj = owner.into_ptr();
 
     (*view).buf = data.as_ptr() as *mut c_void;
     (*view).len = data.len() as isize;

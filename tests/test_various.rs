@@ -1,8 +1,8 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
+use pyo3::py_run;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{py_run, PyCell};
 
 use std::fmt;
 
@@ -31,7 +31,7 @@ fn mut_ref_arg() {
         let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
         py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
-        let inst2 = inst2.as_ref(py).borrow();
+        let inst2 = inst2.bind(py).borrow();
         assert_eq!(inst2.n, 100);
     });
 }
@@ -79,8 +79,8 @@ struct SimplePyClass {}
 fn intopytuple_pyclass() {
     Python::with_gil(|py| {
         let tup = (
-            PyCell::new(py, SimplePyClass {}).unwrap(),
-            PyCell::new(py, SimplePyClass {}).unwrap(),
+            Py::new(py, SimplePyClass {}).unwrap(),
+            Py::new(py, SimplePyClass {}).unwrap(),
         );
         py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
         py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
@@ -102,8 +102,8 @@ fn pytuple_pyclass_iter() {
         let tup = PyTuple::new_bound(
             py,
             [
-                PyCell::new(py, SimplePyClass {}).unwrap(),
-                PyCell::new(py, SimplePyClass {}).unwrap(),
+                Py::new(py, SimplePyClass {}).unwrap(),
+                Py::new(py, SimplePyClass {}).unwrap(),
             ]
             .iter(),
         );
@@ -133,8 +133,8 @@ impl PickleSupport {
     }
 }
 
-fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
-    py.import("sys")?
+fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
+    PyModule::import_bound(module.py(), "sys")?
         .dict()
         .get_item("modules")
         .unwrap()
@@ -147,10 +147,10 @@ fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_pickle() {
     Python::with_gil(|py| {
-        let module = PyModule::new(py, "test_module").unwrap();
+        let module = PyModule::new_bound(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
-        add_module(py, module).unwrap();
-        let inst = PyCell::new(py, PickleSupport {}).unwrap();
+        add_module(module).unwrap();
+        let inst = Py::new(py, PickleSupport {}).unwrap();
         py_run!(
             py,
             inst,

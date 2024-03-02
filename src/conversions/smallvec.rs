@@ -18,10 +18,12 @@
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+use crate::types::any::PyAnyMethods;
 use crate::types::list::new_from_iter;
 use crate::types::{PySequence, PyString};
 use crate::{
-    ffi, FromPyObject, IntoPy, PyAny, PyDowncastError, PyObject, PyResult, Python, ToPyObject,
+    err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use smallvec::{Array, SmallVec};
 
@@ -52,12 +54,12 @@ where
     }
 }
 
-impl<'a, A> FromPyObject<'a> for SmallVec<A>
+impl<'py, A> FromPyObject<'py> for SmallVec<A>
 where
     A: Array,
-    A::Item: FromPyObject<'a>,
+    A::Item: FromPyObject<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `SmallVec`"));
         }
@@ -70,18 +72,18 @@ where
     }
 }
 
-fn extract_sequence<'s, A>(obj: &'s PyAny) -> PyResult<SmallVec<A>>
+fn extract_sequence<'py, A>(obj: &Bound<'py, PyAny>) -> PyResult<SmallVec<A>>
 where
     A: Array,
-    A::Item: FromPyObject<'s>,
+    A::Item: FromPyObject<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq: &PySequence = unsafe {
+    let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked()
+            obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(PyDowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new(obj, "Sequence").into());
         }
     };
 
@@ -102,7 +104,7 @@ mod tests {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hso: PyObject = sv.clone().into_py(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new_bound(py, [1, 2, 3, 4, 5]);
             assert!(l.eq(hso).unwrap());
         });
     }
@@ -110,7 +112,7 @@ mod tests {
     #[test]
     fn test_smallvec_from_py_object() {
         Python::with_gil(|py| {
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new_bound(py, [1, 2, 3, 4, 5]);
             let sv: SmallVec<[u64; 8]> = l.extract().unwrap();
             assert_eq!(sv.as_slice(), [1, 2, 3, 4, 5]);
         });
@@ -119,7 +121,7 @@ mod tests {
     #[test]
     fn test_smallvec_from_py_object_fails() {
         Python::with_gil(|py| {
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             let sv: PyResult<SmallVec<[u64; 8]>> = dict.extract();
             assert_eq!(
                 sv.unwrap_err().to_string(),
@@ -133,7 +135,7 @@ mod tests {
         Python::with_gil(|py| {
             let sv: SmallVec<[u64; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
             let hso: PyObject = sv.to_object(py);
-            let l = PyList::new(py, [1, 2, 3, 4, 5]);
+            let l = PyList::new_bound(py, [1, 2, 3, 4, 5]);
             assert!(l.eq(hso).unwrap());
         });
     }

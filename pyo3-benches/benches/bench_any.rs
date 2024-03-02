@@ -1,11 +1,11 @@
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::{
+    prelude::*,
     types::{
         PyBool, PyByteArray, PyBytes, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PyMapping,
         PySequence, PySet, PyString, PyTuple,
     },
-    PyAny, PyResult, Python,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -27,7 +27,7 @@ enum ObjectType {
     Unknown,
 }
 
-fn find_object_type(obj: &PyAny) -> ObjectType {
+fn find_object_type(obj: &Bound<'_, PyAny>) -> ObjectType {
     if obj.is_none() {
         ObjectType::None
     } else if obj.is_instance_of::<PyBool>() {
@@ -63,17 +63,17 @@ fn find_object_type(obj: &PyAny) -> ObjectType {
 
 fn bench_identify_object_type(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let obj = py.eval("object()", None, None).unwrap();
+        let obj = py.eval_bound("object()", None, None).unwrap();
 
-        b.iter(|| find_object_type(obj));
+        b.iter(|| find_object_type(&obj));
 
-        assert_eq!(find_object_type(obj), ObjectType::Unknown);
+        assert_eq!(find_object_type(&obj), ObjectType::Unknown);
     });
 }
 
 fn bench_collect_generic_iterator(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let collection = py.eval("list(range(1 << 20))", None, None).unwrap();
+        let collection = py.eval_bound("list(range(1 << 20))", None, None).unwrap();
 
         b.iter(|| {
             collection

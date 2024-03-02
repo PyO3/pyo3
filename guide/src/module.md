@@ -12,7 +12,7 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
-fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
@@ -34,7 +34,7 @@ fn double(x: usize) -> usize {
 
 #[pymodule]
 #[pyo3(name = "custom_name")]
-fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
@@ -78,9 +78,9 @@ fn parent_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 }
 
 fn register_child_module(py: Python<'_>, parent_module: &PyModule) -> PyResult<()> {
-    let child_module = PyModule::new(py, "child_module")?;
-    child_module.add_function(wrap_pyfunction!(func, child_module)?)?;
-    parent_module.add_submodule(child_module)?;
+    let child_module = PyModule::new_bound(py, "child_module")?;
+    child_module.add_function(wrap_pyfunction!(func, &child_module)?)?;
+    parent_module.add_submodule(child_module.as_gil_ref())?;
     Ok(())
 }
 
@@ -93,9 +93,9 @@ fn func() -> String {
 #    use pyo3::wrap_pymodule;
 #    use pyo3::types::IntoPyDict;
 #    let parent_module = wrap_pymodule!(parent_module)(py);
-#    let ctx = [("parent_module", parent_module)].into_py_dict(py);
+#    let ctx = [("parent_module", parent_module)].into_py_dict_bound(py);
 #
-#    py.run("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
+#    py.run_bound("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
 # })
 ```
 

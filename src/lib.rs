@@ -10,7 +10,14 @@
         rust_2021_prelude_collisions,
         warnings
     ),
-    allow(unused_variables, unused_assignments, unused_extern_crates)
+    allow(
+        unused_variables,
+        unused_assignments,
+        unused_extern_crates,
+        // FIXME https://github.com/rust-lang/rust/issues/121621#issuecomment-1965156376
+        unknown_lints,
+        non_local_definitions,
+    )
 )))]
 
 //! Rust bindings to the Python interpreter.
@@ -82,6 +89,7 @@
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
 //! - [`chrono`]: Enables a conversion from [chrono]'s structures to the equivalent Python ones.
+//! - [`chrono-tz`]: Enables a conversion from [chrono-tz]'s `Tz` enum. Requires Python 3.9+.
 //! - [`either`]: Enables conversions between Python objects and [either]'s [`Either`] type.
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
@@ -162,7 +170,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
-//! fn string_sum(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+//! fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
 //!     Ok(())
@@ -219,12 +227,12 @@
 //!
 //! fn main() -> PyResult<()> {
 //!     Python::with_gil(|py| {
-//!         let sys = py.import("sys")?;
+//!         let sys = py.import_bound("sys")?;
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
-//!         let locals = [("os", py.import("os")?)].into_py_dict(py);
+//!         let locals = [("os", py.import_bound("os")?)].into_py_dict_bound(py);
 //!         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-//!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
+//!         let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
 //!
 //!         println!("Hello {}, I'm Python {}", user, version);
 //!         Ok(())
@@ -259,7 +267,9 @@
 //! [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 //! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 //! [chrono]: https://docs.rs/chrono/ "Date and Time for Rust."
+//! [chrono-tz]: https://docs.rs/chrono-tz/ "TimeZone implementations for chrono from the IANA database."
 //! [`chrono`]: ./chrono/index.html "Documentation about the `chrono` feature."
+//! [`chrono-tz`]: ./chrono-tz/index.html "Documentation about the `chrono-tz` feature."
 //! [either]: https://docs.rs/either/ "A type that represents one of two alternatives."
 //! [`either`]: ./either/index.html "Documentation about the `either` feature."
 //! [`Either`]: https://docs.rs/either/latest/either/enum.Either.html
@@ -301,11 +311,11 @@
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, FromPyPointer, IntoPy, ToPyObject};
+pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[allow(deprecated)]
-pub use crate::conversion::{PyTryFrom, PyTryInto};
+pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
 pub use crate::err::{
-    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult,
+    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
 };
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
@@ -321,6 +331,7 @@ pub use crate::version::PythonVersionInfo;
 
 pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
+pub(crate) mod sealed;
 
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
@@ -430,6 +441,7 @@ pub mod marshal;
 pub mod sync;
 pub mod panic;
 pub mod prelude;
+pub mod pybacked;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;

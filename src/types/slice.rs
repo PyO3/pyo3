@@ -1,6 +1,8 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::{PyAny, PyObject, Python, ToPyObject};
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::types::any::PyAnyMethods;
+use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 use std::os::raw::c_long;
 
 /// Represents a Python `slice`.
@@ -42,23 +44,49 @@ impl PySliceIndices {
 }
 
 impl PySlice {
-    /// Constructs a new slice with the given elements.
+    /// Deprecated form of `PySlice::new_bound`.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PySlice::new` will be replaced by `PySlice::new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
+        Self::new_bound(py, start, stop, step).into_gil_ref()
+    }
+
+    /// Constructs a new slice with the given elements.
+    pub fn new_bound(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
         unsafe {
-            let ptr = ffi::PySlice_New(
+            ffi::PySlice_New(
                 ffi::PyLong_FromSsize_t(start),
                 ffi::PyLong_FromSsize_t(stop),
                 ffi::PyLong_FromSsize_t(step),
-            );
-            py.from_owned_ptr(ptr)
+            )
+            .assume_owned(py)
+            .downcast_into_unchecked()
         }
     }
 
-    /// Constructs a new full slice that is equivalent to `::`.
+    /// Deprecated form of `PySlice::full_bound`.
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PySlice::full` will be replaced by `PySlice::full_bound` in a future PyO3 version"
+        )
+    )]
     pub fn full(py: Python<'_>) -> &PySlice {
+        PySlice::full_bound(py).into_gil_ref()
+    }
+
+    /// Constructs a new full slice that is equivalent to `::`.
+    pub fn full_bound(py: Python<'_>) -> Bound<'_, PySlice> {
         unsafe {
-            let ptr = ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None());
-            py.from_owned_ptr(ptr)
+            ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None())
+                .assume_owned(py)
+                .downcast_into_unchecked()
         }
     }
 
@@ -67,6 +95,25 @@ impl PySlice {
     /// slice in its `slicelength` member.
     #[inline]
     pub fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
+        self.as_borrowed().indices(length)
+    }
+}
+
+/// Implementation of functionality for [`PySlice`].
+///
+/// These methods are defined for the `Bound<'py, PyTuple>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
+#[doc(alias = "PySlice")]
+pub trait PySliceMethods<'py>: crate::sealed::Sealed {
+    /// Retrieves the start, stop, and step indices from the slice object,
+    /// assuming a sequence of length `length`, and stores the length of the
+    /// slice in its `slicelength` member.
+    fn indices(&self, length: c_long) -> PyResult<PySliceIndices>;
+}
+
+impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
+    fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
             let mut slicelength: isize = 0;
@@ -97,7 +144,7 @@ impl PySlice {
 
 impl ToPyObject for PySliceIndices {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PySlice::new(py, self.start, self.stop, self.step).into()
+        PySlice::new_bound(py, self.start, self.stop, self.step).into()
     }
 }
 
@@ -108,7 +155,7 @@ mod tests {
     #[test]
     fn test_py_slice_new() {
         Python::with_gil(|py| {
-            let slice = PySlice::new(py, isize::MIN, isize::MAX, 1);
+            let slice = PySlice::new_bound(py, isize::MIN, isize::MAX, 1);
             assert_eq!(
                 slice.getattr("start").unwrap().extract::<isize>().unwrap(),
                 isize::MIN
@@ -127,7 +174,7 @@ mod tests {
     #[test]
     fn test_py_slice_full() {
         Python::with_gil(|py| {
-            let slice = PySlice::full(py);
+            let slice = PySlice::full_bound(py);
             assert!(slice.getattr("start").unwrap().is_none(),);
             assert!(slice.getattr("stop").unwrap().is_none(),);
             assert!(slice.getattr("step").unwrap().is_none(),);

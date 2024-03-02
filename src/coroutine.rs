@@ -14,8 +14,8 @@ use crate::{
     coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
-    types::{PyIterator, PyString},
-    IntoPy, Py, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
+    types::{string::PyStringMethods, PyIterator, PyString},
+    IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -75,10 +75,10 @@ impl Coroutine {
         };
         // reraise thrown exception it
         match (throw, &self.throw_callback) {
-            (Some(exc), Some(cb)) => cb.throw(exc.as_ref(py)),
+            (Some(exc), Some(cb)) => cb.throw(exc),
             (Some(exc), None) => {
                 self.close();
-                return Err(PyErr::from_value(exc.as_ref(py)));
+                return Err(PyErr::from_value_bound(exc.into_bound(py)));
             }
             (None, _) => {}
         }
@@ -118,7 +118,7 @@ impl Coroutine {
         }
         // if waker has been waken during future polling, this is roughly equivalent to
         // `await asyncio.sleep(0)`, so just yield `None`.
-        Ok(py.None().into())
+        Ok(py.None().into_py(py))
     }
 }
 
@@ -135,7 +135,7 @@ impl Coroutine {
     #[getter]
     fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
         match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.as_ref(py).to_str()?)
+            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.bind(py).to_cow()?)
                 .as_str()
                 .into_py(py)),
             (Some(name), None) => Ok(name.clone_ref(py)),

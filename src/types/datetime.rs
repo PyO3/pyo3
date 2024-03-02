@@ -21,21 +21,28 @@ use crate::ffi::{
 };
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::PyNativeType;
+use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{Bound, IntoPy, Py, PyAny, Python};
+use crate::{Bound, IntoPy, Py, PyAny, PyErr, Python};
 use std::os::raw::c_int;
 #[cfg(feature = "chrono")]
 use std::ptr;
 
-fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {
-    unsafe {
-        if pyo3_ffi::PyDateTimeAPI().is_null() {
-            PyDateTime_IMPORT()
+fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
+    if let Some(api) = unsafe { pyo3_ffi::PyDateTimeAPI().as_ref() } {
+        Ok(api)
+    } else {
+        unsafe {
+            PyDateTime_IMPORT();
+            pyo3_ffi::PyDateTimeAPI().as_ref()
         }
-
-        &*pyo3_ffi::PyDateTimeAPI()
+        .ok_or_else(|| PyErr::fetch(py))
     }
+}
+
+fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
+    ensure_datetime_api(py).expect("failed to import `datetime` C API")
 }
 
 // Type Check macros
@@ -189,37 +196,59 @@ pub struct PyDate(PyAny);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
-    |py| ensure_datetime_api(py).DateType,
+    |py| expect_datetime_api(py).DateType,
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
 
 impl PyDate {
-    /// Creates a new `datetime.date`.
+    /// Deprecated form of [`PyDate::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDate::new` will be replaced by `PyDate::new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
+        Self::new_bound(py, year, month, day).map(Bound::into_gil_ref)
+    }
+
+    /// Creates a new `datetime.date`.
+    pub fn new_bound(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
+        let api = ensure_datetime_api(py)?;
         unsafe {
-            let ptr = (ensure_datetime_api(py).Date_FromDate)(
-                year,
-                c_int::from(month),
-                c_int::from(day),
-                ensure_datetime_api(py).DateType,
-            );
-            py.from_owned_ptr_or_err(ptr)
+            (api.Date_FromDate)(year, c_int::from(month), c_int::from(day), api.DateType)
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated form of [`PyDate::from_timestamp_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDate::from_timestamp` will be replaced by `PyDate::from_timestamp_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
+        Self::from_timestamp_bound(py, timestamp).map(Bound::into_gil_ref)
     }
 
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
+    pub fn from_timestamp_bound(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
         let time_tuple = PyTuple::new_bound(py, [timestamp]);
 
         // safety ensure that the API is loaded
-        let _api = ensure_datetime_api(py);
+        let _api = ensure_datetime_api(py)?;
 
         unsafe {
-            let ptr = PyDate_FromTimestamp(time_tuple.as_ptr());
-            py.from_owned_ptr_or_err(ptr)
+            PyDate_FromTimestamp(time_tuple.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 }
@@ -258,16 +287,23 @@ pub struct PyDateTime(PyAny);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
-    |py| ensure_datetime_api(py).DateTimeType,
+    |py| expect_datetime_api(py).DateTimeType,
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
 
 impl PyDateTime {
-    /// Creates a new `datetime.datetime` object.
+    /// Deprecated form of [`PyDateTime::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDateTime::new` will be replaced by `PyDateTime::new_bound` in a future PyO3 version"
+        )
+    )]
     #[allow(clippy::too_many_arguments)]
-    pub fn new<'p>(
-        py: Python<'p>,
+    pub fn new<'py>(
+        py: Python<'py>,
         year: i32,
         month: u8,
         day: u8,
@@ -275,11 +311,38 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
-    ) -> PyResult<&'p PyDateTime> {
-        let api = ensure_datetime_api(py);
+        tzinfo: Option<&'py PyTzInfo>,
+    ) -> PyResult<&'py PyDateTime> {
+        Self::new_bound(
+            py,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
+        )
+        .map(Bound::into_gil_ref)
+    }
+
+    /// Creates a new `datetime.datetime` object.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_bound<'py>(
+        py: Python<'py>,
+        year: i32,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyDateTime>> {
+        let api = ensure_datetime_api(py)?;
         unsafe {
-            let ptr = (api.DateTime_FromDateAndTime)(
+            (api.DateTime_FromDateAndTime)(
                 year,
                 c_int::from(month),
                 c_int::from(day),
@@ -289,9 +352,46 @@ impl PyDateTime {
                 microsecond as c_int,
                 opt_to_pyobj(tzinfo),
                 api.DateTimeType,
-            );
-            py.from_owned_ptr_or_err(ptr)
+            )
+            .assume_owned_or_err(py)
+            .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated form of [`PyDateTime::new_bound_with_fold`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDateTime::new_with_fold` will be replaced by `PyDateTime::new_bound_with_fold` in a future PyO3 version"
+        )
+    )]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_fold<'py>(
+        py: Python<'py>,
+        year: i32,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&'py PyTzInfo>,
+        fold: bool,
+    ) -> PyResult<&'py PyDateTime> {
+        Self::new_bound_with_fold(
+            py,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
+            fold,
+        )
+        .map(Bound::into_gil_ref)
     }
 
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
@@ -302,8 +402,8 @@ impl PyDateTime {
     /// represented time is ambiguous.
     /// See [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[allow(clippy::too_many_arguments)]
-    pub fn new_with_fold<'p>(
-        py: Python<'p>,
+    pub fn new_bound_with_fold<'py>(
+        py: Python<'py>,
         year: i32,
         month: u8,
         day: u8,
@@ -311,12 +411,12 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
         fold: bool,
-    ) -> PyResult<&'p PyDateTime> {
-        let api = ensure_datetime_api(py);
+    ) -> PyResult<Bound<'py, PyDateTime>> {
+        let api = ensure_datetime_api(py)?;
         unsafe {
-            let ptr = (api.DateTime_FromDateAndTimeAndFold)(
+            (api.DateTime_FromDateAndTimeAndFold)(
                 year,
                 c_int::from(month),
                 c_int::from(day),
@@ -327,27 +427,46 @@ impl PyDateTime {
                 opt_to_pyobj(tzinfo),
                 c_int::from(fold),
                 api.DateTimeType,
-            );
-            py.from_owned_ptr_or_err(ptr)
+            )
+            .assume_owned_or_err(py)
+            .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated form of [`PyDateTime::from_timestamp_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDateTime::from_timestamp` will be replaced by `PyDateTime::from_timestamp_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn from_timestamp<'py>(
+        py: Python<'py>,
+        timestamp: f64,
+        tzinfo: Option<&'py PyTzInfo>,
+    ) -> PyResult<&'py PyDateTime> {
+        Self::from_timestamp_bound(py, timestamp, tzinfo.map(PyTzInfo::as_borrowed).as_deref())
+            .map(Bound::into_gil_ref)
     }
 
     /// Construct a `datetime` object from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.datetime.fromtimestamp`
-    pub fn from_timestamp<'p>(
-        py: Python<'p>,
+    pub fn from_timestamp_bound<'py>(
+        py: Python<'py>,
         timestamp: f64,
-        tzinfo: Option<&PyTzInfo>,
-    ) -> PyResult<&'p PyDateTime> {
-        let args: Py<PyTuple> = (timestamp, tzinfo).into_py(py);
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyDateTime>> {
+        let args = IntoPy::<Py<PyTuple>>::into_py((timestamp, tzinfo), py).into_bound(py);
 
         // safety ensure API is loaded
-        let _api = ensure_datetime_api(py);
+        let _api = ensure_datetime_api(py)?;
 
         unsafe {
-            let ptr = PyDateTime_FromTimestamp(args.as_ptr());
-            py.from_owned_ptr_or_err(ptr)
+            PyDateTime_FromTimestamp(args.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
         }
     }
 }
@@ -455,48 +574,105 @@ pub struct PyTime(PyAny);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
-    |py| ensure_datetime_api(py).TimeType,
+    |py| expect_datetime_api(py).TimeType,
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
 
 impl PyTime {
-    /// Creates a new `datetime.time` object.
-    pub fn new<'p>(
-        py: Python<'p>,
+    /// Deprecated form of [`PyTime::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyTime::new` will be replaced by `PyTime::new_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn new<'py>(
+        py: Python<'py>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
-    ) -> PyResult<&'p PyTime> {
-        let api = ensure_datetime_api(py);
+        tzinfo: Option<&'py PyTzInfo>,
+    ) -> PyResult<&'py PyTime> {
+        Self::new_bound(
+            py,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
+        )
+        .map(Bound::into_gil_ref)
+    }
+
+    /// Creates a new `datetime.time` object.
+    pub fn new_bound<'py>(
+        py: Python<'py>,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+    ) -> PyResult<Bound<'py, PyTime>> {
+        let api = ensure_datetime_api(py)?;
         unsafe {
-            let ptr = (api.Time_FromTime)(
+            (api.Time_FromTime)(
                 c_int::from(hour),
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
                 opt_to_pyobj(tzinfo),
                 api.TimeType,
-            );
-            py.from_owned_ptr_or_err(ptr)
+            )
+            .assume_owned_or_err(py)
+            .downcast_into_unchecked()
         }
     }
 
-    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
-    pub fn new_with_fold<'p>(
-        py: Python<'p>,
+    /// Deprecated form of [`PyTime::new_bound_with_fold`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyTime::new_with_fold` will be replaced by `PyTime::new_bound_with_fold` in a future PyO3 version"
+        )
+    )]
+    pub fn new_with_fold<'py>(
+        py: Python<'py>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyTzInfo>,
+        tzinfo: Option<&'py PyTzInfo>,
         fold: bool,
-    ) -> PyResult<&'p PyTime> {
-        let api = ensure_datetime_api(py);
+    ) -> PyResult<&'py PyTime> {
+        Self::new_bound_with_fold(
+            py,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
+            fold,
+        )
+        .map(Bound::into_gil_ref)
+    }
+
+    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
+    pub fn new_bound_with_fold<'py>(
+        py: Python<'py>,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&Bound<'py, PyTzInfo>>,
+        fold: bool,
+    ) -> PyResult<Bound<'py, PyTime>> {
+        let api = ensure_datetime_api(py)?;
         unsafe {
-            let ptr = (api.Time_FromTimeAndFold)(
+            (api.Time_FromTimeAndFold)(
                 c_int::from(hour),
                 c_int::from(minute),
                 c_int::from(second),
@@ -504,8 +680,9 @@ impl PyTime {
                 opt_to_pyobj(tzinfo),
                 fold as c_int,
                 api.TimeType,
-            );
-            py.from_owned_ptr_or_err(ptr)
+            )
+            .assume_owned_or_err(py)
+            .downcast_into_unchecked()
         }
     }
 }
@@ -589,25 +766,50 @@ pub struct PyTzInfo(PyAny);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
-    |py| ensure_datetime_api(py).TZInfoType,
+    |py| expect_datetime_api(py).TZInfoType,
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
 
-/// Equivalent to `datetime.timezone.utc`
+/// Deprecated form of [`timezone_utc_bound`].
+#[cfg_attr(
+    not(feature = "gil-refs"),
+    deprecated(
+        since = "0.21.0",
+        note = "`timezone_utc` will be replaced by `timezone_utc_bound` in a future PyO3 version"
+    )
+)]
 pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
-    unsafe { &*(ensure_datetime_api(py).TimeZone_UTC as *const PyTzInfo) }
+    timezone_utc_bound(py).into_gil_ref()
+}
+
+/// Equivalent to `datetime.timezone.utc`
+pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
+    // TODO: this _could_ have a borrowed form `timezone_utc_borrowed`, but that seems
+    // like an edge case optimization and we'd prefer in PyO3 0.21 to use `Bound` as
+    // much as possible
+    unsafe {
+        expect_datetime_api(py)
+            .TimeZone_UTC
+            .assume_borrowed(py)
+            .to_owned()
+            .downcast_into_unchecked()
+    }
 }
 
 /// Equivalent to `datetime.timezone` constructor
 ///
 /// Only used internally
 #[cfg(feature = "chrono")]
-pub fn timezone_from_offset<'a>(py: Python<'a>, offset: &PyDelta) -> PyResult<&'a PyTzInfo> {
-    let api = ensure_datetime_api(py);
+pub(crate) fn timezone_from_offset<'py>(
+    offset: &Bound<'py, PyDelta>,
+) -> PyResult<Bound<'py, PyTzInfo>> {
+    let py = offset.py();
+    let api = ensure_datetime_api(py)?;
     unsafe {
-        let ptr = (api.TimeZone_FromTimeZone)(offset.as_ptr(), ptr::null_mut());
-        py.from_owned_ptr_or_err(ptr)
+        (api.TimeZone_FromTimeZone)(offset.as_ptr(), ptr::null_mut())
+            .assume_owned_or_err(py)
+            .downcast_into_unchecked()
     }
 }
 
@@ -617,13 +819,20 @@ pub struct PyDelta(PyAny);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
-    |py| ensure_datetime_api(py).DeltaType,
+    |py| expect_datetime_api(py).DeltaType,
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
 
 impl PyDelta {
-    /// Creates a new `timedelta`.
+    /// Deprecated form of [`PyDelta::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyDelta::new` will be replaced by `PyDelta::new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new(
         py: Python<'_>,
         days: i32,
@@ -631,16 +840,28 @@ impl PyDelta {
         microseconds: i32,
         normalize: bool,
     ) -> PyResult<&PyDelta> {
-        let api = ensure_datetime_api(py);
+        Self::new_bound(py, days, seconds, microseconds, normalize).map(Bound::into_gil_ref)
+    }
+
+    /// Creates a new `timedelta`.
+    pub fn new_bound(
+        py: Python<'_>,
+        days: i32,
+        seconds: i32,
+        microseconds: i32,
+        normalize: bool,
+    ) -> PyResult<Bound<'_, PyDelta>> {
+        let api = ensure_datetime_api(py)?;
         unsafe {
-            let ptr = (api.Delta_FromDelta)(
+            (api.Delta_FromDelta)(
                 days as c_int,
                 seconds as c_int,
                 microseconds as c_int,
                 normalize as c_int,
                 api.DeltaType,
-            );
-            py.from_owned_ptr_or_err(ptr)
+            )
+            .assume_owned_or_err(py)
+            .downcast_into_unchecked()
         }
     }
 }
@@ -675,7 +896,7 @@ impl PyDeltaAccess for Bound<'_, PyDelta> {
 
 // Utility function which returns a borrowed reference to either
 // the underlying tzinfo or None.
-fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
+fn opt_to_pyobj(opt: Option<&Bound<'_, PyTzInfo>>) -> *mut ffi::PyObject {
     match opt {
         Some(tzi) => tzi.as_ptr(),
         None => unsafe { ffi::Py_None() },
@@ -683,6 +904,7 @@ fn opt_to_pyobj(opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
     #[cfg(feature = "macros")]
@@ -766,7 +988,7 @@ mod tests {
     fn test_timezone_from_offset() {
         Python::with_gil(|py| {
             assert!(
-                timezone_from_offset(py, PyDelta::new(py, 0, -3600, 0, true).unwrap())
+                timezone_from_offset(&PyDelta::new_bound(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", ((),))
                     .unwrap()
@@ -777,7 +999,7 @@ mod tests {
             );
 
             assert!(
-                timezone_from_offset(py, PyDelta::new(py, 0, 3600, 0, true).unwrap())
+                timezone_from_offset(&PyDelta::new_bound(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", ((),))
                     .unwrap()
@@ -787,7 +1009,7 @@ mod tests {
                     .unwrap()
             );
 
-            timezone_from_offset(py, PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
+            timezone_from_offset(&PyDelta::new_bound(py, 1, 0, 0, true).unwrap()).unwrap_err();
         })
     }
 }

@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
-use pyo3::{prelude::*, py_run, PyCell};
+use pyo3::{prelude::*, py_run};
 use std::{isize, iter};
 
 #[path = "../src/tests/common.rs"]
@@ -64,8 +64,8 @@ impl ExampleClass {
     }
 }
 
-fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
-    Py::new(
+fn make_example(py: Python<'_>) -> Bound<'_, ExampleClass> {
+    Bound::new(
         py,
         ExampleClass {
             value: 5,
@@ -73,7 +73,6 @@ fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
         },
     )
     .unwrap()
-    .into_ref(py)
 }
 
 #[test]
@@ -132,7 +131,7 @@ fn test_delattr() {
 fn test_str() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.str().unwrap().to_str().unwrap(), "5");
+        assert_eq!(example_py.str().unwrap().to_cow().unwrap(), "5");
     })
 }
 
@@ -141,7 +140,7 @@ fn test_repr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
         assert_eq!(
-            example_py.repr().unwrap().to_str().unwrap(),
+            example_py.repr().unwrap().to_cow().unwrap(),
             "ExampleClass(value=5)"
         );
     })
@@ -191,20 +190,20 @@ pub struct Mapping {
 #[pymethods]
 impl Mapping {
     fn __len__(&self, py: Python<'_>) -> usize {
-        self.values.as_ref(py).len()
+        self.values.bind(py).len()
     }
 
-    fn __getitem__<'a>(&'a self, key: &'a PyAny) -> PyResult<&'a PyAny> {
-        let any: &PyAny = self.values.as_ref(key.py()).as_ref();
+    fn __getitem__<'py>(&self, key: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+        let any: &Bound<'py, PyAny> = self.values.bind(key.py());
         any.get_item(key)
     }
 
-    fn __setitem__(&self, key: &PyAny, value: &PyAny) -> PyResult<()> {
-        self.values.as_ref(key.py()).set_item(key, value)
+    fn __setitem__<'py>(&self, key: &Bound<'py, PyAny>, value: &Bound<'py, PyAny>) -> PyResult<()> {
+        self.values.bind(key.py()).set_item(key, value)
     }
 
-    fn __delitem__(&self, key: &PyAny) -> PyResult<()> {
-        self.values.as_ref(key.py()).del_item(key)
+    fn __delitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<()> {
+        self.values.bind(key.py()).del_item(key)
     }
 }
 
@@ -216,12 +215,12 @@ fn mapping() {
         let inst = Py::new(
             py,
             Mapping {
-                values: PyDict::new(py).into(),
+                values: PyDict::new_bound(py).into(),
             },
         )
         .unwrap();
 
-        let mapping: &PyMapping = inst.as_ref(py).downcast().unwrap();
+        let mapping: &Bound<'_, PyMapping> = inst.bind(py).downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -264,13 +263,13 @@ impl Sequence {
         self.values.len()
     }
 
-    fn __getitem__(&self, index: SequenceIndex<'_>) -> PyResult<PyObject> {
+    fn __getitem__(&self, index: SequenceIndex<'_>, py: Python<'_>) -> PyResult<PyObject> {
         match index {
             SequenceIndex::Integer(index) => {
                 let uindex = self.usize_index(index)?;
                 self.values
                     .get(uindex)
-                    .map(Clone::clone)
+                    .map(|o| o.clone_ref(py))
                     .ok_or_else(|| PyIndexError::new_err(index))
             }
             // Just to prove that slicing can be implemented
@@ -323,7 +322,7 @@ fn sequence() {
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
-        let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
+        let sequence: &Bound<'_, PySequence> = inst.bind(py).downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
 
@@ -350,16 +349,16 @@ fn sequence() {
         // indices.
         assert!(sequence.len().is_err());
         // however regular python len() works thanks to mp_len slot
-        assert_eq!(inst.as_ref(py).len().unwrap(), 0);
+        assert_eq!(inst.bind(py).len().unwrap(), 0);
 
         py_run!(py, inst, "inst.append(0)");
         sequence.set_item(0, 5).unwrap();
-        assert_eq!(inst.as_ref(py).len().unwrap(), 1);
+        assert_eq!(inst.bind(py).len().unwrap(), 1);
 
         assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
         sequence.del_item(0).unwrap();
 
-        assert_eq!(inst.as_ref(py).len().unwrap(), 0);
+        assert_eq!(inst.bind(py).len().unwrap(), 0);
     });
 }
 
@@ -437,7 +436,7 @@ impl SetItem {
 #[test]
 fn setitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
+        let c = Bound::new(py, SetItem { key: 0, val: 0 }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
@@ -463,7 +462,7 @@ impl DelItem {
 #[test]
 fn delitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
+        let c = Bound::new(py, DelItem { key: 0 }).unwrap();
         py_run!(py, c, "del c[1]");
         {
             let c = c.borrow();
@@ -492,7 +491,7 @@ impl SetDelItem {
 #[test]
 fn setdelitem() {
     Python::with_gil(|py| {
-        let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
+        let c = Bound::new(py, SetDelItem { val: None }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
             let c = c.borrow();
@@ -570,7 +569,7 @@ impl ClassWithGetAttr {
 #[test]
 fn getattr_doesnt_override_member() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
+        let inst = Py::new(py, ClassWithGetAttr { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 4");
         py_assert!(py, inst, "inst.a == 8");
     });
@@ -592,7 +591,7 @@ impl ClassWithGetAttribute {
 #[test]
 fn getattribute_overrides_member() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
+        let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
         py_assert!(py, inst, "inst.y == 8");
     });
@@ -625,7 +624,7 @@ impl ClassWithGetAttrAndGetAttribute {
 #[test]
 fn getattr_and_getattribute() {
     Python::with_gil(|py| {
-        let inst = PyCell::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
+        let inst = Py::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
         py_assert!(py, inst, "inst.exists == 42");
         py_assert!(py, inst, "inst.lucky == 57");
         py_expect_exception!(py, inst, "inst.error", PyValueError);
@@ -658,10 +657,10 @@ impl OnceFuture {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__<'py>(&'py mut self, py: Python<'py>) -> Option<&'py PyAny> {
+    fn __next__<'py>(&mut self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
         if !self.polled {
             self.polled = true;
-            Some(self.future.as_ref(py))
+            Some(self.future.bind(py))
         } else {
             None
         }
@@ -672,7 +671,7 @@ impl OnceFuture {
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_await() {
     Python::with_gil(|py| {
-        let once = py.get_type::<OnceFuture>();
+        let once = py.get_type_bound::<OnceFuture>();
         let source = r#"
 import asyncio
 import sys
@@ -687,9 +686,9 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -722,7 +721,7 @@ impl AsyncIterator {
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_anext_aiter() {
     Python::with_gil(|py| {
-        let once = py.get_type::<OnceFuture>();
+        let once = py.get_type_bound::<OnceFuture>();
         let source = r#"
 import asyncio
 import sys
@@ -741,12 +740,12 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         globals
-            .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
+            .set_item("AsyncIterator", py.get_type_bound::<AsyncIterator>())
             .unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -787,7 +786,7 @@ impl DescrCounter {
 #[test]
 fn descr_getset() {
     Python::with_gil(|py| {
-        let counter = py.get_type::<DescrCounter>();
+        let counter = py.get_type_bound::<DescrCounter>();
         let source = pyo3::indoc::indoc!(
             r#"
 class Class:
@@ -813,9 +812,9 @@ del c.counter
 assert c.counter.count == 1
 "#
         );
-        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
-        py.run(source, Some(globals), None)
+        py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -850,7 +849,7 @@ struct DefaultedContains;
 #[pymethods]
 impl DefaultedContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
-        PyList::new(py, ["a", "b", "c"])
+        PyList::new_bound(py, ["a", "b", "c"])
             .as_ref()
             .iter()
             .unwrap()
@@ -864,7 +863,7 @@ struct NoContains;
 #[pymethods]
 impl NoContains {
     fn __iter__(&self, py: Python<'_>) -> PyObject {
-        PyList::new(py, ["a", "b", "c"])
+        PyList::new_bound(py, ["a", "b", "c"])
             .as_ref()
             .iter()
             .unwrap()

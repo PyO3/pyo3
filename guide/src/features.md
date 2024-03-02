@@ -115,6 +115,12 @@ Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from
 - [NaiveTime](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveTime.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
 - [DateTime](https://docs.rs/chrono/latest/chrono/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
 
+### `chrono-tz`
+
+Adds a dependency on [chrono-tz](https://docs.rs/chrono-tz).
+Enables conversion from and to [`Tz`](https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html).
+It requires at least Python 3.9.
+
 ### `either`
 
 Adds a dependency on [either](https://docs.rs/either). Enables a conversions into [either](https://docs.rs/either)’s [`Either`](https://docs.rs/either/latest/either/struct.Report.html) type.

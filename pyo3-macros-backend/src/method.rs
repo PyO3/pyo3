@@ -12,7 +12,7 @@ use crate::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
     quotes,
-    utils::{self, PythonDoc},
+    utils::{self, is_abi3, PythonDoc},
 };
 
 #[derive(Clone, Debug)]
@@ -127,13 +127,21 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(_pyo3::types::PyType::from_type_ptr(#py, #slf.cast())),
+                    ::std::convert::Into::into(
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                            .downcast_unchecked::<_pyo3::types::PyType>()
+                    ),
                 }
             }
             FnType::FnModule(span) => {
+                let py = syn::Ident::new("py", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
-                    ::std::convert::Into::into(py.from_borrowed_ptr::<_pyo3::types::PyModule>(_slf)),
+                    ::std::convert::Into::into(
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                            .downcast_unchecked::<_pyo3::types::PyModule>()
+                    ),
                 }
             }
         }
@@ -143,7 +151,7 @@ impl FnType {
 #[derive(Clone, Debug)]
 pub enum SelfType {
     Receiver { mutable: bool, span: Span },
-    TryFromPyCell(Span),
+    TryFromBoundRef(Span),
 }
 
 #[derive(Clone, Copy)]
@@ -188,23 +196,23 @@ impl SelfType {
                 holders.push(quote_spanned! { *span =>
                     #[allow(clippy::let_unit_value)]
                     let mut #holder = _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
+                    let mut #slf = _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf);
                 });
                 error_mode.handle_error(quote_spanned! { *span =>
                     _pyo3::impl_::extract_argument::#method::<#cls>(
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf),
+                        &#slf,
                         &mut #holder,
                     )
                 })
             }
-            SelfType::TryFromPyCell(span) => {
+            SelfType::TryFromBoundRef(span) => {
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#slf).downcast::<_pyo3::PyCell<#cls>>()
+                        _pyo3::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()
                             .map_err(::std::convert::Into::<_pyo3::PyErr>::into)
                             .and_then(
-                                #[allow(clippy::useless_conversion)]  // In case slf is PyCell<Self>
                                 #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
-                                |cell| ::std::convert::TryFrom::try_from(cell).map_err(::std::convert::Into::into)
+                                |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
                             )
 
                     }
@@ -234,8 +242,8 @@ impl CallingConvention {
         } else if signature.python_signature.kwargs.is_some() {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if cfg!(not(feature = "abi3")) {
-            // Not available in the Stable ABI as of Python 3.10
+        } else if !is_abi3() {
+            // FIXME: available in the stable ABI since 3.10
             Self::Fastcall
         } else {
             Self::Varargs
@@ -283,7 +291,7 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
             if let syn::Type::ImplTrait(_) = &**ty {
                 bail_spanned!(ty.span() => IMPL_TRAIT_ERR);
             }
-            Ok(SelfType::TryFromPyCell(ty.span()))
+            Ok(SelfType::TryFromBoundRef(ty.span()))
         }
     }
 }
@@ -409,7 +417,7 @@ impl<'a> FnSpec<'a> {
                     // will error on incorrect type.
                     Some(syn::FnArg::Typed(first_arg)) => first_arg.ty.span(),
                     Some(syn::FnArg::Receiver(_)) | None => bail_spanned!(
-                        sig.paren_token.span.join() => "Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`"
+                        sig.paren_token.span.join() => "Expected `&Bound<PyType>` or `Py<PyType>` as the first argument to `#[classmethod]`"
                     ),
                 };
                 FnType::FnClass(span)
@@ -505,7 +513,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            let __guard = _pyo3::impl_::coroutine::RefGuard::<#cls>::new(py.from_borrowed_ptr::<_pyo3::types::PyAny>(_slf))?;
+                            let __guard = _pyo3::impl_::coroutine::RefGuard::<#cls>::new(&_pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&__guard, #(#args),*).await }
                         }}
                     }
@@ -513,7 +521,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            let mut __guard = _pyo3::impl_::coroutine::RefMutGuard::<#cls>::new(py.from_borrowed_ptr::<_pyo3::types::PyAny>(_slf))?;
+                            let mut __guard = _pyo3::impl_::coroutine::RefMutGuard::<#cls>::new(&_pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&mut __guard, #(#args),*).await }
                         }}
                     }
@@ -575,7 +583,8 @@ impl<'a> FnSpec<'a> {
                     ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }
@@ -594,7 +603,8 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }
@@ -612,7 +622,8 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
                         #( #holders )*
-                        #call
+                        let result = #call;
+                        result
                     }
                 }
             }
