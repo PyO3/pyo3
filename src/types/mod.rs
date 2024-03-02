@@ -64,7 +64,7 @@ pub use self::typeobject::{PyType, PyTypeMethods};
 /// Python::with_gil(|py| {
 ///     let dict = py.eval_bound("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
 ///
-///     for (key, value) in dict.iter() {
+///     for (key, value) in &dict {
 ///         println!("key: {}, value: {}", key, value);
 ///     }
 ///
