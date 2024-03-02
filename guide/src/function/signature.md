@@ -16,7 +16,7 @@ use pyo3::types::PyDict;
 
 #[pyfunction]
 #[pyo3(signature = (**kwds))]
-fn num_kwds(kwds: Option<&PyDict>) -> usize {
+fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
     kwds.map_or(0, |dict| dict.len())
 }
 
@@ -31,8 +31,8 @@ Just like in Python, the following constructs can be part of the signature::
 
  * `/`: positional-only arguments separator, each parameter defined before `/` is a positional-only parameter.
  * `*`: var arguments separator, each parameter defined after `*` is a keyword-only parameter.
- * `*args`: "args" is var args. Type of the `args` parameter has to be `&PyTuple`.
- * `**kwargs`: "kwargs" receives keyword arguments. The type of the `kwargs` parameter has to be `Option<&PyDict>`.
+ * `*args`: "args" is var args. Type of the `args` parameter has to be `&Bound<'_, PyTuple>`.
+ * `**kwargs`: "kwargs" receives keyword arguments. The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
  * `arg=Value`: arguments with default value.
    If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
    Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated
@@ -59,9 +59,9 @@ impl MyClass {
     fn method(
         &mut self,
         num: i32,
-        py_args: &PyTuple,
+        py_args: &Bound<'_, PyTuple>,
         name: &str,
-        py_kwargs: Option<&PyDict>,
+        py_kwargs: Option<&Bound<'_, PyDict>>,
     ) -> String {
         let num_before = self.num;
         self.num = num;
@@ -136,7 +136,7 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
+#         let fun = pyo3::wrap_pyfunction_bound!(increment, py)?;
 #
 #         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
 #         let sig: String = inspect
@@ -164,7 +164,7 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(increment, py)?;
+#         let fun = pyo3::wrap_pyfunction_bound!(increment, py)?;
 #
 #         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
 #         let sig: String = inspect
@@ -204,7 +204,7 @@ fn add(a: u64, b: u64) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(add, py)?;
+#         let fun = pyo3::wrap_pyfunction_bound!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
 #         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
@@ -252,7 +252,7 @@ fn add(a: u64, b: u64) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(add, py)?;
+#         let fun = pyo3::wrap_pyfunction_bound!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
 #         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
@@ -269,7 +269,7 @@ fn add(a: u64, b: u64) -> u64 {
 # }
 ```
 
-PyO3 will include the contents of the annotation unmodified as the `__text_signature`. Below shows how IPython will now present this (see the default value of 0 for b):
+PyO3 will include the contents of the annotation unmodified as the `__text_signature__`. Below shows how IPython will now present this (see the default value of 0 for b):
 
 ```text
 >>> pyo3_test.add.__text_signature__
@@ -294,7 +294,7 @@ fn add(a: u64, b: u64) -> u64 {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(add, py)?;
+#         let fun = pyo3::wrap_pyfunction_bound!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
 #         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");

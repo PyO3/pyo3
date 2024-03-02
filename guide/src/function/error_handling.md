@@ -44,7 +44,7 @@ fn check_positive(x: i32) -> PyResult<()> {
 #
 # fn main(){
 # 	Python::with_gil(|py|{
-# 		let fun = pyo3::wrap_pyfunction!(check_positive, py).unwrap();
+# 		let fun = pyo3::wrap_pyfunction_bound!(check_positive, py).unwrap();
 # 		fun.call1((-1,)).unwrap_err();
 # 		fun.call1((1,)).unwrap();
 # 	});
@@ -72,7 +72,7 @@ fn parse_int(x: &str) -> Result<usize, ParseIntError> {
 
 # fn main() {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(parse_int, py).unwrap();
+#         let fun = pyo3::wrap_pyfunction_bound!(parse_int, py).unwrap();
 #         let value: usize = fun.call1(("5",)).unwrap().extract().unwrap();
 #         assert_eq!(value, 5);
 #     });
@@ -132,7 +132,7 @@ fn connect(s: String) -> Result<(), CustomIOError> {
 
 fn main() {
     Python::with_gil(|py| {
-        let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
+        let fun = pyo3::wrap_pyfunction_bound!(connect, py).unwrap();
         let err = fun.call1(("0.0.0.0",)).unwrap_err();
         assert!(err.is_instance_of::<PyOSError>(py));
     });
@@ -224,7 +224,7 @@ fn wrapped_get_x() -> Result<i32, MyOtherError> {
 
 # fn main() {
 #     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(wrapped_get_x, py).unwrap();
+#         let fun = pyo3::wrap_pyfunction_bound!(wrapped_get_x, py).unwrap();
 #         let value: usize = fun.call0().unwrap().extract().unwrap();
 #         assert_eq!(value, 5);
 #     });
@@ -234,8 +234,6 @@ fn wrapped_get_x() -> Result<i32, MyOtherError> {
 
 [`From`]: https://doc.rust-lang.org/stable/std/convert/trait.From.html
 [`Result<T, E>`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html
-
-[`PyResult<T>`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/type.PyResult.html
 [`PyResult<T>`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/type.PyResult.html
 [`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
 [`pyo3::exceptions`]: {{#PYO3_DOCS_URL}}/pyo3/exceptions/index.html

@@ -77,7 +77,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
   - <a name="pass_module" ></a> `#[pyo3(pass_module)]`
 
-    Set this option to make PyO3 pass the containing module as the first argument to the function. It is then possible to use the module in the function body. The first argument **must** be of type `&PyModule`.
+    Set this option to make PyO3 pass the containing module as the first argument to the function. It is then possible to use the module in the function body. The first argument **must** be of type `&Bound<'_, PyModule>`.
 
     The following example creates a function `pyfunction_with_module` which returns the containing module's name (i.e. `module_with_fn`):
 
@@ -103,14 +103,14 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
 
   - <a name="from_py_with"></a> `#[pyo3(from_py_with = "...")]`
 
-    Set this on an option to specify a custom function to convert the function argument from Python to the desired Rust type, instead of using the default `FromPyObject` extraction. The function signature must be `fn(&PyAny) -> PyResult<T>` where `T` is the Rust type of the argument.
+    Set this on an option to specify a custom function to convert the function argument from Python to the desired Rust type, instead of using the default `FromPyObject` extraction. The function signature must be `fn(&Bound<'_, PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
     The following example uses `from_py_with` to convert the input Python object to its length:
 
     ```rust
     use pyo3::prelude::*;
 
-    fn get_length(obj: &PyAny) -> PyResult<usize> {
+    fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
         let length = obj.len()?;
         Ok(length)
     }
@@ -121,7 +121,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     }
 
     # Python::with_gil(|py| {
-    #     let f = pyo3::wrap_pyfunction!(object_length)(py).unwrap();
+    #     let f = pyo3::wrap_pyfunction_bound!(object_length)(py).unwrap();
     #     assert_eq!(f.call1((vec![1, 2, 3],)).unwrap().extract::<usize>().unwrap(), 3);
     # });
     ```
@@ -134,11 +134,11 @@ You can pass Python `def`'d functions and built-in functions to Rust functions [
 corresponds to regular Python functions while [`PyCFunction`] describes built-ins such as
 `repr()`.
 
-You can also use [`PyAny::is_callable`] to check if you have a callable object. `is_callable` will
-return `true` for functions (including lambdas), methods and objects with a `__call__` method.
-You can call the object with [`PyAny::call`] with the args as first parameter and the kwargs
-(or `None`) as second parameter. There are also [`PyAny::call0`] with no args and [`PyAny::call1`]
-with only positional args.
+You can also use [`Bound<'_, PyAny>::is_callable`] to check if you have a callable object. `is_callable`
+will return `true` for functions (including lambdas), methods and objects with a `__call__` method.
+You can call the object with [`Bound<'_, PyAny>::call`] with the args as first parameter and the kwargs
+(or `None`) as second parameter. There are also [`Bound<'_, PyAny>::call0`] with no args and
+[`Bound<'_, PyAny>::call1`] with only positional args.
 
 ### Calling Rust functions in Python
 
@@ -149,11 +149,10 @@ The ways to convert a Rust function into a Python object vary depending on the f
   - use a `#[pyclass]` struct which stores the function as a field and implement `__call__` to call the stored function.
   - use `PyCFunction::new_closure` to create an object directly from the function.
 
-[`PyAny::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.is_callable
-[`PyAny::call`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call
-[`PyAny::call0`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call0
-[`PyAny::call1`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call1
-[`PyObject`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyObject.html
+[`Bound<'_, PyAny>::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.is_callable
+[`Bound<'_, PyAny>::call`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call
+[`Bound<'_, PyAny>::call0`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call0
+[`Bound<'_, PyAny>::call1`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call1
 [`wrap_pyfunction!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.wrap_pyfunction.html
 [`PyFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFunction.html
 [`PyCFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyCFunction.html
@@ -180,7 +179,7 @@ An example of `#[pyfn]` is below:
 use pyo3::prelude::*;
 
 #[pymodule]
-fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m)]
     fn double(x: usize) -> usize {
         x * 2
