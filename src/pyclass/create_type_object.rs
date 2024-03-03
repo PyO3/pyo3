@@ -3,6 +3,7 @@ use pyo3_ffi::PyType_IS_GC;
 use crate::{
     exceptions::PyTypeError,
     ffi,
+    impl_::pycell::PyClassObject,
     impl_::pyclass::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
         tp_dealloc_with_gc, PyClassItemsIter,
@@ -13,7 +14,7 @@ use crate::{
     },
     types::typeobject::PyTypeMethods,
     types::PyType,
-    Py, PyCell, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
+    Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
@@ -94,7 +95,7 @@ where
             T::items_iter(),
             T::NAME,
             T::MODULE,
-            std::mem::size_of::<PyCell<T>>(),
+            std::mem::size_of::<PyClassObject<T>>(),
         )
     }
 }

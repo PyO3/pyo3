@@ -290,7 +290,7 @@ macro_rules! pyobject_native_type_sized {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
         impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
-            type LayoutAsBase = $crate::pycell::PyCellBase<$layout>;
+            type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$layout>;
             type BaseNativeType = $name;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;

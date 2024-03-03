@@ -3,6 +3,7 @@
 use std::{task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};
+use portable_atomic::{AtomicBool, Ordering};
 use pyo3::{
     coroutine::CancelHandle,
     prelude::*,
@@ -259,6 +260,15 @@ fn test_async_method_receiver() {
             self.0
         }
     }
+
+    static IS_DROPPED: AtomicBool = AtomicBool::new(false);
+
+    impl Drop for Counter {
+        fn drop(&mut self) {
+            IS_DROPPED.store(true, Ordering::SeqCst);
+        }
+    }
+
     Python::with_gil(|gil| {
         let test = r#"
         import asyncio
@@ -291,5 +301,7 @@ fn test_async_method_receiver() {
         "#;
         let locals = [("Counter", gil.get_type_bound::<Counter>())].into_py_dict_bound(gil);
         py_run!(gil, *locals, test);
-    })
+    });
+
+    assert!(IS_DROPPED.load(Ordering::SeqCst));
 }
