@@ -15,6 +15,7 @@
 //! ```
 
 use crate::ffi::{PySys_WriteStderr, PySys_WriteStdout};
+use crate::intern;
 use crate::prelude::*;
 use std::io::{LineWriter, Write};
 use std::marker::PhantomData;
@@ -70,7 +71,7 @@ impl<T: PyStdioRawConfig> Write for PyStdioRaw<T> {
     fn flush(&mut self) -> std::io::Result<()> {
         Python::with_gil(|py| -> std::io::Result<()> {
             self.pystream
-                .call_method0(py, "flush")
+                .call_method0(py, intern!(py, "flush"))
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             Ok(())
         })
