@@ -77,7 +77,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
   - <a name="pass_module" ></a> `#[pyo3(pass_module)]`
 
-    Set this option to make PyO3 pass the containing module as the first argument to the function. It is then possible to use the module in the function body. The first argument **must** be of type `&Bound<'_, PyModule>`.
+    Set this option to make PyO3 pass the containing module as the first argument to the function. It is then possible to use the module in the function body. The first argument **must** be of type `&Bound<'_, PyModule>`, `Bound<'_, PyModule>`, or `Py<PyModule>`.
 
     The following example creates a function `pyfunction_with_module` which returns the containing module's name (i.e. `module_with_fn`):
 
