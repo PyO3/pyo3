@@ -18,15 +18,18 @@ struct Reader {
 
 #[pymethods]
 impl Reader {
-    fn clone_ref(slf: &PyCell<Self>) -> &PyCell<Self> {
+    fn clone_ref<'a, 'py>(slf: &'a Bound<'py, Self>) -> &'a Bound<'py, Self> {
         slf
     }
-    fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<Self> {
+    fn clone_ref_with_py<'a, 'py>(
+        slf: &'a Bound<'py, Self>,
+        _py: Python<'py>,
+    ) -> &'a Bound<'py, Self> {
         slf
     }
-    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> Iter {
+    fn get_iter(slf: &Bound<'_, Self>, keys: Py<PyBytes>) -> Iter {
         Iter {
-            reader: slf.into(),
+            reader: slf.clone().unbind(),
             keys,
             idx: 0,
         }

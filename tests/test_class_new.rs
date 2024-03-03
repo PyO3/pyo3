@@ -23,7 +23,7 @@ fn empty_class_with_new() {
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .downcast::<PyCell<EmptyClassWithNew>>()
+            .downcast::<EmptyClassWithNew>()
             .is_ok());
 
         // Calling with arbitrary args or kwargs is not ok
@@ -52,7 +52,7 @@ fn unit_class_with_new() {
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .downcast::<PyCell<UnitClassWithNew>>()
+            .downcast::<UnitClassWithNew>()
             .is_ok());
     });
 }

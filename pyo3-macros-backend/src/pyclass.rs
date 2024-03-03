@@ -1281,6 +1281,7 @@ fn impl_pytypeinfo(
     };
 
     quote! {
+        #[allow(deprecated)]
         unsafe impl _pyo3::type_object::HasPyGilRef for #cls {
             type AsRefTarget = _pyo3::PyCell<Self>;
         }

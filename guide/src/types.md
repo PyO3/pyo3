@@ -96,6 +96,7 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
 
 // To &PyCell<MyClass> with PyAny::downcast
+# #[allow(deprecated)]
 let _: &PyCell<MyClass> = obj.downcast()?;
 
 // To Py<PyAny> (aka PyObject) with .into()

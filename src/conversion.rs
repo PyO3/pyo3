@@ -6,9 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{
-    ffi, gil, Bound, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
-};
+use crate::{ffi, gil, Bound, Py, PyAny, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python};
 use std::ptr::NonNull;
 
 /// Returns a borrowed pointer to a Python object.
@@ -265,7 +263,8 @@ where
     }
 }
 
-impl<'py, T> FromPyObject<'py> for &'py PyCell<T>
+#[allow(deprecated)]
+impl<'py, T> FromPyObject<'py> for &'py crate::PyCell<T>
 where
     T: PyClass,
 {
@@ -278,9 +277,9 @@ impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
 {
-    fn extract(obj: &PyAny) -> PyResult<Self> {
-        let cell: &PyCell<Self> = obj.downcast()?;
-        Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let bound = obj.downcast::<Self>()?;
+        Ok(bound.try_borrow()?.clone())
     }
 }
 
@@ -389,7 +388,7 @@ mod implementations {
         }
     }
 
-    impl<'v, T> PyTryFrom<'v> for PyCell<T>
+    impl<'v, T> PyTryFrom<'v> for crate::PyCell<T>
     where
         T: 'v + PyClass,
     {

@@ -1,6 +1,6 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
-use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
+use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
@@ -1698,11 +1698,12 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
 }
 
 // `&PyCell<T>` can be converted to `Py<T>`
-impl<T> std::convert::From<&PyCell<T>> for Py<T>
+#[allow(deprecated)]
+impl<T> std::convert::From<&crate::PyCell<T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(cell: &PyCell<T>) -> Self {
+    fn from(cell: &crate::PyCell<T>) -> Self {
         cell.as_borrowed().to_owned().unbind()
     }
 }

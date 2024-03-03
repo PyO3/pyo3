@@ -67,11 +67,11 @@ error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
 33 |     class.get();
    |           ^^^ expected `True`, found `False`
    |
-note: required by a bound in `pyo3::PyCell::<T>::get`
-  --> src/pycell.rs
+note: required by a bound in `pyo3::Bound::<'py, T>::get`
+  --> src/instance.rs
    |
    |     pub fn get(&self) -> &T
    |            --- required by a bound in this associated function
    |     where
    |         T: PyClass<Frozen = True> + Sync,
-   |                    ^^^^^^^^^^^^^ required by this bound in `PyCell::<T>::get`
+   |                    ^^^^^^^^^^^^^ required by this bound in `Bound::<'py, T>::get`

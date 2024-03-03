@@ -62,7 +62,7 @@
 //! ) -> *mut pyo3::ffi::PyObject {
 //!     use :: pyo3 as _pyo3;
 //!     _pyo3::impl_::trampoline::noargs(_slf, _args, |py, _slf| {
-//!         # #[allow(deprecated)]
+//! #       #[allow(deprecated)]
 //!         let _cell = py
 //!             .from_borrowed_ptr::<_pyo3::PyAny>(_slf)
 //!             .downcast::<_pyo3::PyCell<Number>>()?;
@@ -154,6 +154,7 @@
 //! # pub struct Number {
 //! #     inner: u32,
 //! # }
+//! # #[allow(deprecated)]
 //! #[pyfunction]
 //! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
 //!     // Check that the pointers are unequal
@@ -250,13 +251,22 @@ use self::impl_::{PyClassObject, PyClassObjectLayout};
 /// ```
 /// For more information on how, when and why (not) to use `PyCell` please see the
 /// [module-level documentation](self).
+#[cfg_attr(
+    not(feature = "gil-refs"),
+    deprecated(
+        since = "0.21.0",
+        note = "`PyCell` was merged into `Bound`, use that instead; see the migration guide for more info"
+    )
+)]
 #[repr(transparent)]
 pub struct PyCell<T: PyClassImpl>(PyClassObject<T>);
 
+#[allow(deprecated)]
 unsafe impl<T: PyClass> PyNativeType for PyCell<T> {
     type AsRefSource = T;
 }
 
+#[allow(deprecated)]
 impl<T: PyClass> PyCell<T> {
     /// Makes a new `PyCell` on the Python heap and return the reference to it.
     ///
@@ -478,9 +488,12 @@ impl<T: PyClass> PyCell<T> {
     }
 }
 
+#[allow(deprecated)]
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyCell<T> {}
+#[allow(deprecated)]
 impl<T: PyClass> PySizedLayout<T> for PyCell<T> {}
 
+#[allow(deprecated)]
 impl<T> PyTypeCheck for PyCell<T>
 where
     T: PyClass,
@@ -492,18 +505,21 @@ where
     }
 }
 
+#[allow(deprecated)]
 unsafe impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         (self as *const _) as *mut _
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass> ToPyObject for &PyCell<T> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
     fn as_ref(&self) -> &PyAny {
         #[allow(deprecated)]
@@ -513,6 +529,7 @@ impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass> Deref for PyCell<T> {
     type Target = PyAny;
 
@@ -524,6 +541,7 @@ impl<T: PyClass> Deref for PyCell<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.try_borrow() {
@@ -748,6 +766,7 @@ impl<T: PyClass> IntoPy<PyObject> for &'_ PyRef<'_, T> {
     }
 }
 
+#[allow(deprecated)]
 impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRef<'a, T> {
     type Error = PyBorrowError;
     fn try_from(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
@@ -905,6 +924,7 @@ unsafe impl<'a, T: PyClass<Frozen = False>> AsPyPointer for PyRefMut<'a, T> {
     }
 }
 
+#[allow(deprecated)]
 impl<'a, T: PyClass<Frozen = False>> std::convert::TryFrom<&'a PyCell<T>>
     for crate::PyRefMut<'a, T>
 {

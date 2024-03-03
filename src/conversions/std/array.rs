@@ -240,7 +240,7 @@ mod tests {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
             let pyobject = array.into_py(py);
             let list = pyobject.downcast_bound::<PyList>(py).unwrap();
-            let _cell: &crate::PyCell<Foo> = list.get_item(4).unwrap().extract().unwrap();
+            let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
         });
     }
 

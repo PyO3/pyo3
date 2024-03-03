@@ -62,7 +62,7 @@ impl PySuper {
     ///         (SubClass {}, BaseClass::new())
     ///     }
     ///
-    ///     fn method(self_: &PyCell<Self>) -> PyResult<&PyAny> {
+    ///     fn method<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
     ///         let super_ = self_.py_super()?;
     ///         super_.call_method("method", (), None)
     ///     }
