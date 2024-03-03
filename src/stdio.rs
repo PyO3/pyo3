@@ -78,7 +78,6 @@ impl<T: PyStdioRawConfig> Write for PyStdioRaw<T> {
     }
 }
 
-
 struct PyStdio<T: PyStdioRawConfig> {
     inner: LineWriter<PyStdioRaw<T>>,
 }
