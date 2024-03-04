@@ -1,3 +1,4 @@
+use crate::utils::Ctx;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote_spanned, ToTokens};
 
@@ -14,12 +15,11 @@ impl Deprecation {
     }
 }
 
-#[derive(Default)]
-pub struct Deprecations(Vec<(Deprecation, Span)>);
+pub struct Deprecations<'ctx>(Vec<(Deprecation, Span)>, &'ctx Ctx);
 
-impl Deprecations {
-    pub fn new() -> Self {
-        Deprecations(Vec::new())
+impl<'ctx> Deprecations<'ctx> {
+    pub fn new(ctx: &'ctx Ctx) -> Self {
+        Deprecations(Vec::new(), ctx)
     }
 
     pub fn push(&mut self, deprecation: Deprecation, span: Span) {
@@ -27,15 +27,18 @@ impl Deprecations {
     }
 }
 
-impl ToTokens for Deprecations {
+impl<'ctx> ToTokens for Deprecations<'ctx> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        for (deprecation, span) in &self.0 {
+        let Self(deprecations, Ctx { pyo3_path }) = self;
+
+        for (deprecation, span) in deprecations {
+            let pyo3_path = pyo3_path.to_tokens_spanned(*span);
             let ident = deprecation.ident(*span);
             quote_spanned!(
                 *span =>
                 #[allow(clippy::let_unit_value)]
                 {
-                    let _ = _pyo3::impl_::deprecations::#ident;
+                    let _ = #pyo3_path::impl_::deprecations::#ident;
                 }
             )
             .to_tokens(tokens)
