@@ -225,7 +225,8 @@ mod tests {
             let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
-            })?;
+            })?
+            .as_borrowed();
             let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, b"Hello Rust");
             Ok(())
@@ -235,7 +236,7 @@ mod tests {
     #[test]
     fn test_bytes_new_with_zero_initialised() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
-            let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
+            let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?.as_borrowed();
             let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, &[0; 10]);
             Ok(())

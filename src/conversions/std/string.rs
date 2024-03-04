@@ -113,10 +113,47 @@ impl<'a> IntoPy<PyObject> for &'a String {
 }
 
 /// Allows extracting strings from Python objects.
-/// Accepts Python `str` and `unicode` objects.
+/// Accepts Python `str` objects.
+#[cfg(feature = "gil-refs")]
 impl<'py> FromPyObject<'py> for &'py str {
     fn extract(ob: &'py PyAny) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        <String as crate::FromPyObject>::type_input()
+    }
+}
+
+#[cfg(all(not(feature = "gil-refs"), any(Py_3_10, not(Py_LIMITED_API))))]
+impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
+    fn from_py_object_bound(ob: &'a Bound<'_, PyAny>) -> PyResult<Self> {
+        ob.downcast::<PyString>()?.to_str()
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        <String as crate::FromPyObject>::type_input()
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl<'py> FromPyObject<'py> for Cow<'py, str> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ob.extract().map(Cow::Owned)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        <String as crate::FromPyObject>::type_input()
+    }
+}
+
+#[cfg(not(feature = "gil-refs"))]
+impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
+    fn from_py_object_bound(ob: &'a Bound<'_, PyAny>) -> PyResult<Self> {
+        ob.downcast::<PyString>()?.to_cow()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -169,9 +206,9 @@ mod tests {
         Python::with_gil(|py| {
             let s = "Hello Python";
             let py_string: PyObject = Cow::Borrowed(s).into_py(py);
-            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+            assert_eq!(s, py_string.extract::<Cow<'_, str>>(py).unwrap());
             let py_string: PyObject = Cow::<str>::Owned(s.into()).into_py(py);
-            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+            assert_eq!(s, py_string.extract::<Cow<'_, str>>(py).unwrap());
         })
     }
 
@@ -180,9 +217,9 @@ mod tests {
         Python::with_gil(|py| {
             let s = "Hello Python";
             let py_string = Cow::Borrowed(s).to_object(py);
-            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+            assert_eq!(s, py_string.extract::<Cow<'_, str>>(py).unwrap());
             let py_string = Cow::<str>::Owned(s.into()).to_object(py);
-            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+            assert_eq!(s, py_string.extract::<Cow<'_, str>>(py).unwrap());
         })
     }
 
@@ -201,7 +238,7 @@ mod tests {
             let s = "Hello Python";
             let py_string = s.to_object(py);
 
-            let s2: &str = py_string.bind(py).extract().unwrap();
+            let s2: Cow<'_, str> = py_string.bind(py).extract().unwrap();
             assert_eq!(s, s2);
         })
     }
@@ -238,19 +275,19 @@ mod tests {
             assert_eq!(
                 s,
                 IntoPy::<PyObject>::into_py(s3, py)
-                    .extract::<&str>(py)
+                    .extract::<Cow<'_, str>>(py)
                     .unwrap()
             );
             assert_eq!(
                 s,
                 IntoPy::<PyObject>::into_py(s2, py)
-                    .extract::<&str>(py)
+                    .extract::<Cow<'_, str>>(py)
                     .unwrap()
             );
             assert_eq!(
                 s,
                 IntoPy::<PyObject>::into_py(s, py)
-                    .extract::<&str>(py)
+                    .extract::<Cow<'_, str>>(py)
                     .unwrap()
             );
         })

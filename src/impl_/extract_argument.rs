@@ -1,10 +1,10 @@
 use crate::{
+    conversion::FromPyObjectBound,
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, FromPyObject, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeCheck,
-    Python,
+    Borrowed, Bound, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeCheck, Python,
 };
 
 /// Helper type used to keep implementation more concise.
@@ -27,7 +27,7 @@ pub trait PyFunctionArgument<'a, 'py>: Sized + 'a {
 
 impl<'a, 'py, T> PyFunctionArgument<'a, 'py> for T
 where
-    T: FromPyObject<'py> + 'a,
+    T: FromPyObjectBound<'a, 'py> + 'a,
 {
     type Holder = ();
 
@@ -49,6 +49,19 @@ where
         holder: &'a mut Option<&'a Bound<'py, T>>,
     ) -> PyResult<Self> {
         Ok(holder.insert(obj.downcast()?))
+    }
+}
+
+#[cfg(all(Py_LIMITED_API, not(any(feature = "gil-refs", Py_3_10))))]
+impl<'a> PyFunctionArgument<'a, '_> for &'a str {
+    type Holder = Option<std::borrow::Cow<'a, str>>;
+
+    #[inline]
+    fn extract(
+        obj: &'a Bound<'_, PyAny>,
+        holder: &'a mut Option<std::borrow::Cow<'a, str>>,
+    ) -> PyResult<Self> {
+        Ok(holder.insert(obj.extract()?))
     }
 }
 

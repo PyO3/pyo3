@@ -21,6 +21,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/deprecations.rs");
     t.compile_fail("tests/ui/invalid_closure.rs");
     t.compile_fail("tests/ui/pyclass_send.rs");
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))] // to avoid PyFunctionArgument for &str
     t.compile_fail("tests/ui/invalid_argument_attributes.rs");
     t.compile_fail("tests/ui/invalid_frompy_derive.rs");
     t.compile_fail("tests/ui/static_ref.rs");

@@ -237,6 +237,61 @@ pub trait FromPyObject<'py>: Sized {
     }
 }
 
+/// Expected form of [`FromPyObject`] to be used in a future PyO3 release.
+///
+/// The difference between this and `FromPyObject` is that this trait takes an
+/// additional lifetime `'a`, which is the lifetime of the input `Bound`.
+///
+/// This allows implementations for `&'a str` and `&'a [u8]`, which could not
+/// be expressed by the existing `FromPyObject` trait once the GIL Refs API was
+/// removed.
+///
+/// # Usage
+///
+/// Users are generally advised against implementing this trait, instead they should
+/// implement the normal `FromPyObject` trait. This trait has a blanket implementation
+/// for `T: FromPyObject`.
+///
+/// The only case where this trait should be implemented is when the lifetime of the
+/// extracted value is tied to the lifetime `'a` of the input `Bound` instead of the
+/// GIL lifetime `py`, as is the case for the `&'a str` implementation.
+///
+/// Similarly, users should typically not call these trait methods and should instead
+/// use this via the `extract` method on `Bound` and `Py`.
+pub trait FromPyObjectBound<'a, 'py>: Sized {
+    /// Extracts `Self` from the bound smart pointer `obj`.
+    ///
+    /// Users are advised against calling this method directly: instead, use this via
+    /// [`Bound<'_, PyAny>::extract`] or [`Py::extract`].
+    fn from_py_object_bound(ob: &'a Bound<'py, PyAny>) -> PyResult<Self>;
+
+    /// Extracts the type hint information for this type when it appears as an argument.
+    ///
+    /// For example, `Vec<u32>` would return `Sequence[int]`.
+    /// The default implementation returns `Any`, which is correct for any type.
+    ///
+    /// For most types, the return value for this method will be identical to that of [`IntoPy::type_output`].
+    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        TypeInfo::Any
+    }
+}
+
+impl<'py, T> FromPyObjectBound<'_, 'py> for T
+where
+    T: FromPyObject<'py>,
+{
+    fn from_py_object_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        Self::extract_bound(ob)
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        <T as FromPyObject>::type_input()
+    }
+}
+
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
 impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {

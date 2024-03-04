@@ -1,5 +1,5 @@
 use crate::class::basic::CompareOp;
-use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
+use crate::conversion::{AsPyPointer, FromPyObject, FromPyObjectBound, IntoPy, ToPyObject};
 use crate::err::{DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -1642,9 +1642,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around [`FromPyObject::extract()`].
-    fn extract<D>(&self) -> PyResult<D>
+    fn extract<'a, T>(&'a self) -> PyResult<T>
     where
-        D: FromPyObject<'py>;
+        T: FromPyObjectBound<'a, 'py>;
 
     /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
@@ -2178,11 +2178,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         std::mem::transmute(self)
     }
 
-    fn extract<D>(&self) -> PyResult<D>
+    fn extract<'a, T>(&'a self) -> PyResult<T>
     where
-        D: FromPyObject<'py>,
+        T: FromPyObjectBound<'a, 'py>,
     {
-        FromPyObject::extract_bound(self)
+        FromPyObjectBound::from_py_object_bound(self)
     }
 
     fn get_refcnt(&self) -> isize {

@@ -151,7 +151,7 @@ fn test_pycell_deref() {
         // Should be able to deref as PyAny
         assert_eq!(
             obj.call_method0("foo")
-                .and_then(|e| e.extract::<&str>())
+                .and_then(|e| e.extract::<String>())
                 .unwrap(),
             "SubClass"
         );

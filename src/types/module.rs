@@ -10,6 +10,8 @@ use crate::{exceptions, ffi, Bound, IntoPy, Py, PyNativeType, PyObject, Python};
 use std::ffi::CString;
 use std::str;
 
+use super::PyStringMethods;
+
 /// Represents a Python [`module`][1] object.
 ///
 /// As with all other Python objects, modules are first class citizens.
@@ -399,8 +401,12 @@ impl PyModule {
     /// [1]: crate::prelude::pyfunction
     /// [2]: crate::wrap_pyfunction
     pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
-        let name = fun.getattr(__name__(self.py()))?.extract()?;
-        self.add(name, fun)
+        let name = fun
+            .as_borrowed()
+            .getattr(__name__(self.py()))?
+            .downcast_into::<PyString>()?;
+        let name = name.to_cow()?;
+        self.add(&name, fun)
     }
 }
 
