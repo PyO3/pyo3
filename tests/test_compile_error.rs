@@ -48,4 +48,6 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymodule_trait.rs");
     #[cfg(feature = "experimental-declarative-modules")]
     t.compile_fail("tests/ui/invalid_pymodule_two_pymodule_init.rs");
+    #[cfg(feature = "experimental-async")]
+    t.compile_fail("tests/ui/invalid_cancel_handle.rs");
 }

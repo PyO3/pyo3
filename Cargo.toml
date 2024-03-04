@@ -65,6 +65,9 @@ pyo3-build-config = { path = "pyo3-build-config", version = "=0.21.0-dev", featu
 [features]
 default = ["macros"]
 
+# Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
+experimental-async = ["macros", "pyo3-macros/experimental-async"]
+
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
 experimental-inspect = []
@@ -116,8 +119,9 @@ full = [
     "chrono",
     "chrono-tz",
     "either",
-    "experimental-inspect",
+    "experimental-async",
     "experimental-declarative-modules",
+    "experimental-inspect",
     "eyre",
     "hashbrown",
     "indexmap",

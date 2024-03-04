@@ -418,7 +418,7 @@ pub mod buffer;
 pub mod callback;
 pub mod conversion;
 mod conversions;
-#[cfg(feature = "macros")]
+#[cfg(feature = "experimental-async")]
 pub mod coroutine;
 #[macro_use]
 #[doc(hidden)]

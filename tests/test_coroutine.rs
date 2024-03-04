@@ -1,4 +1,4 @@
-#![cfg(feature = "macros")]
+#![cfg(feature = "experimental-async")]
 #![cfg(not(target_arch = "wasm32"))]
 use std::{task::Poll, thread, time::Duration};
 
