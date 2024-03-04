@@ -110,7 +110,6 @@ nightly = []
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
     "macros",
-    "gil-refs",
     # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
     "anyhow",
     "chrono",
@@ -140,7 +139,7 @@ members = [
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["full"]
+features = ["full", "gil-refs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.lints.clippy]

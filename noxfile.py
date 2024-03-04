@@ -46,6 +46,7 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, features="abi3")
     if "skip-full" not in session.posargs:
         _run_cargo_test(session, features="full")
+        _run_cargo_test(session, features="full gil-refs")
         _run_cargo_test(session, features="abi3 full")
 
 
@@ -617,6 +618,7 @@ def check_feature_powerset(session: nox.Session):
 
     EXCLUDED_FROM_FULL = {
         "nightly",
+        "gil-refs",
         "extension-module",
         "full",
         "default",
@@ -658,9 +660,14 @@ def check_feature_powerset(session: nox.Session):
         session.error("no experimental features exist; please simplify the noxfile")
 
     features_to_skip = [
-        *EXCLUDED_FROM_FULL,
+        *(EXCLUDED_FROM_FULL - {"gil-refs"}),
         *abi3_version_features,
     ]
+
+    # deny warnings
+    env = os.environ.copy()
+    rust_flags = env.get("RUSTFLAGS", "")
+    env["RUSTFLAGS"] = f"{rust_flags} -Dwarnings"
 
     comma_join = ",".join
     _run_cargo(
@@ -672,6 +679,7 @@ def check_feature_powerset(session: nox.Session):
         *(f"--group-features={comma_join(group)}" for group in features_to_group),
         "check",
         "--all-targets",
+        env=env,
     )
 
 
@@ -715,8 +723,8 @@ def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
                 "--no-default-features",
                 "--features=abi3",
             ),
-            ("--features=full multiple-pymethods",),
-            ("--features=abi3 full multiple-pymethods",),
+            ("--features=full gil-refs multiple-pymethods",),
+            ("--features=abi3 full gil-refs multiple-pymethods",),
         )
     else:
         return (
@@ -725,8 +733,8 @@ def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
                 "--no-default-features",
                 "--features=abi3",
             ),
-            ("--features=full",),
-            ("--features=abi3 full",),
+            ("--features=full gil-refs",),
+            ("--features=abi3 full gil-refs",),
         )
 
 
