@@ -282,7 +282,7 @@ mod tests {
         let mut f0 = 1.to_object(py);
         let mut f1 = 1.to_object(py);
         std::iter::from_fn(move || {
-            let f2 = f0.call_method1(py, "__add__", (f1.as_ref(py),)).unwrap();
+            let f2 = f0.call_method1(py, "__add__", (f1.bind(py),)).unwrap();
             Some(std::mem::replace(&mut f0, std::mem::replace(&mut f1, f2)))
         })
     }
@@ -295,7 +295,7 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigUint>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(rs_result).unwrap());
+                assert!(py_result.bind(py).eq(rs_result).unwrap());
             }
         });
     }
@@ -308,7 +308,7 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(&rs_result).unwrap());
+                assert!(py_result.bind(py).eq(&rs_result).unwrap());
 
                 // negate
 
@@ -318,7 +318,7 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(rs_result).unwrap());
+                assert!(py_result.bind(py).eq(rs_result).unwrap());
             }
         });
     }

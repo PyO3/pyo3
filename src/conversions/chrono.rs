@@ -980,13 +980,13 @@ mod tests {
             let td = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
             let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
             // Should be equal
-            assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
+            assert!(offset.bind(py).eq(py_timedelta).unwrap());
 
             // Same but with negative values
             let offset = FixedOffset::east_opt(-3600).unwrap().to_object(py);
             let td = new_py_datetime_ob(py, "timedelta", (0, -3600, 0));
             let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
-            assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
+            assert!(offset.bind(py).eq(py_timedelta).unwrap());
         })
     }
 
