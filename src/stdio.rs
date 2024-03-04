@@ -14,118 +14,58 @@
 //! writeln!(stdout, "Hello, world!").unwrap();
 //! ```
 
-use crate::ffi::{PySys_WriteStderr, PySys_WriteStdout};
+use crate::types::PyString;
 use crate::intern;
 use crate::prelude::*;
 use std::io::{LineWriter, Write};
-use std::marker::PhantomData;
-use std::os::raw::{c_char, c_int};
 
-trait PyStdioRawConfig {
-    const STREAM: &'static str;
-    const PRINTFCN: unsafe extern "C" fn(*const i8, ...);
+pub struct PyWriter(Py<PyAny>);
+
+fn get_stdio_writer(stream: &str) -> PyWriter {
+    Python::with_gil(|py| {
+        let module = PyModule::import_bound(py, "sys").unwrap();
+        module.getattr(stream).unwrap();
+        PyWriter(module.into())
+    })
 }
 
-struct PyStdoutRaw {}
-impl PyStdioRawConfig for PyStdoutRaw {
-    const STREAM: &'static str = "stdout";
-    const PRINTFCN: unsafe extern "C" fn(*const i8, ...) = PySys_WriteStdout;
+/// Construct a new handle to Python's `sys.stdout` stream.
+pub fn stdout() -> PyWriter {
+    get_stdio_writer("stdout")
 }
 
-struct PyStderrRaw {}
-impl PyStdioRawConfig for PyStderrRaw {
-    const STREAM: &'static str = "stderr";
-    const PRINTFCN: unsafe extern "C" fn(*const i8, ...) = PySys_WriteStderr;
+/// Construct a new handle to Python's `sys.stderr` stream.
+pub fn stderr() -> PyWriter {
+    get_stdio_writer("stderr")
+}   
+
+/// Construct a new handle to Python's `sys.__stdout__` stream.
+pub fn __stdout__() -> PyWriter {
+    get_stdio_writer("__stdout__")
 }
 
-struct PyStdioRaw<T: PyStdioRawConfig> {
-    pystream: Py<PyAny>,
-    _phantom: PhantomData<T>,
-}
+/// Construct a new handle to Python's `sys.__stderr__` stream.
+pub fn __stderr__() -> PyWriter {
+    get_stdio_writer("__stderr__")
+}   
 
-impl<T: PyStdioRawConfig> PyStdioRaw<T> {
-    fn new() -> Self {
-        let pystream: Py<PyAny> = Python::with_gil(|py| {
-            let module = PyModule::import_bound(py, "sys").unwrap();
-            module.getattr(T::STREAM).unwrap().into()
-        });
 
-        Self {
-            pystream,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<T: PyStdioRawConfig> Write for PyStdioRaw<T> {
+impl Write for PyWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        Python::with_gil(|_py| unsafe {
-            (T::PRINTFCN)(
-                b"%.*s\0".as_ptr().cast(),
-                buf.len() as c_int,
-                buf.as_ptr() as *const c_char,
-            );
-        });
+    Python::with_gil(|py| -> std::io::Result<usize> {
+        let str = PyString::new_bound(py,&String::from_utf8_lossy(buf));
+        self.0
+            .call_method1(py,intern!(py, "write"), (str,))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         Ok(buf.len())
+        })
     }
     fn flush(&mut self) -> std::io::Result<()> {
         Python::with_gil(|py| -> std::io::Result<()> {
-            self.pystream
+         self.0
                 .call_method0(py, intern!(py, "flush"))
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             Ok(())
         })
-    }
-}
-
-struct PyStdio<T: PyStdioRawConfig> {
-    inner: LineWriter<PyStdioRaw<T>>,
-}
-
-impl<T: PyStdioRawConfig> PyStdio<T> {
-    fn new() -> Self {
-        Self {
-            inner: LineWriter::new(PyStdioRaw::new()),
-        }
-    }
-}
-
-impl<T: PyStdioRawConfig> Write for PyStdio<T> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.inner.write(buf)
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.inner.flush()
-    }
-}
-
-/// A handle to Python's `sys.stdout` stream.
-pub struct PyStdout(PyStdio<PyStdoutRaw>);
-/// A handle to Python's `sys.stderr` stream.
-pub struct PyStderr(PyStdio<PyStderrRaw>);
-
-/// Construct a new handle to Python's `sys.stdout` stream.
-pub fn stdout() -> PyStdout {
-    PyStdout(PyStdio::new())
-}
-/// Construct a new handle to Python's `sys.stderr` stream.
-pub fn stderr() -> PyStderr {
-    PyStderr(PyStdio::new())
-}
-
-impl Write for PyStdout {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.write(buf)
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.0.flush()
-    }
-}
-impl Write for PyStderr {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.write(buf)
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.0.flush()
     }
 }
