@@ -125,7 +125,7 @@ where
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)

@@ -554,6 +554,15 @@ impl<'py> IntoIterator for Bound<'py, PyTuple> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PyTuple> {
+    type Item = Bound<'py, PyAny>;
+    type IntoIter = BoundTupleIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 /// Used by `PyTuple::iter_borrowed()`.
 pub struct BorrowedTupleIterator<'a, 'py> {
     tuple: Borrowed<'a, 'py, PyTuple>,
@@ -973,6 +982,23 @@ mod tests {
             for (i, item) in tuple.iter().enumerate() {
                 assert_eq!(i + 1, item.extract::<'_, usize>().unwrap());
             }
+        });
+    }
+
+    #[test]
+    fn test_into_iter_bound() {
+        use crate::Bound;
+
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple: &Bound<'_, PyTuple> = ob.downcast_bound(py).unwrap();
+            assert_eq!(3, tuple.len());
+
+            let mut items = vec![];
+            for item in tuple {
+                items.push(item.extract::<usize>().unwrap());
+            }
+            assert_eq!(items, vec![1, 2, 3]);
         });
     }
 

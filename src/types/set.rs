@@ -309,6 +309,20 @@ impl<'py> IntoIterator for Bound<'py, PySet> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PySet> {
+    type Item = Bound<'py, PyAny>;
+    type IntoIter = BoundSetIterator<'py>;
+
+    /// Returns an iterator of values in this set.
+    ///
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 /// PyO3 implementation of an iterator for a Python `set` object.
 pub struct BoundSetIterator<'p> {
     it: Bound<'p, PyIterator>,
@@ -478,6 +492,19 @@ mod tests {
 
             for el in set {
                 assert_eq!(1i32, el.extract::<'_, i32>().unwrap());
+            }
+        });
+    }
+
+    #[test]
+    fn test_set_iter_bound() {
+        use crate::types::any::PyAnyMethods;
+
+        Python::with_gil(|py| {
+            let set = PySet::new_bound(py, &[1]).unwrap();
+
+            for el in &set {
+                assert_eq!(1i32, el.extract::<i32>().unwrap());
             }
         });
     }

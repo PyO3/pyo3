@@ -672,6 +672,15 @@ impl<'py> IntoIterator for Bound<'py, PyDict> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PyDict> {
+    type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
+    type IntoIter = BoundDictIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 mod borrowed_iter {
     use super::*;
 
@@ -1112,6 +1121,26 @@ mod tests {
             v.insert(9, 123);
             let ob = v.to_object(py);
             let dict: &PyDict = ob.downcast(py).unwrap();
+            let mut key_sum = 0;
+            let mut value_sum = 0;
+            for (key, value) in dict {
+                key_sum += key.extract::<i32>().unwrap();
+                value_sum += value.extract::<i32>().unwrap();
+            }
+            assert_eq!(7 + 8 + 9, key_sum);
+            assert_eq!(32 + 42 + 123, value_sum);
+        });
+    }
+
+    #[test]
+    fn test_iter_bound() {
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let ob = v.to_object(py);
+            let dict: &Bound<'_, PyDict> = ob.downcast_bound(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
