@@ -249,6 +249,16 @@ impl<'py> IntoIterator for Bound<'py, PyFrozenSet> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PyFrozenSet> {
+    type Item = Bound<'py, PyAny>;
+    type IntoIter = BoundFrozenSetIterator<'py>;
+
+    /// Returns an iterator of values in this set.
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 /// PyO3 implementation of an iterator for a Python `frozenset` object.
 pub struct BoundFrozenSetIterator<'p> {
     it: Bound<'p, PyIterator>,
@@ -352,6 +362,17 @@ mod tests {
             let set = PyFrozenSet::new(py, &[1]).unwrap();
 
             for el in set {
+                assert_eq!(1i32, el.extract::<i32>().unwrap());
+            }
+        });
+    }
+
+    #[test]
+    fn test_frozenset_iter_bound() {
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
+
+            for el in &set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
             }
         });

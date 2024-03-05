@@ -11,7 +11,7 @@ fn iter_list(b: &mut Bencher<'_>) {
         let list = PyList::new_bound(py, 0..LEN);
         let mut sum = 0;
         b.iter(|| {
-            for x in list.iter() {
+            for x in &list {
                 let i: u64 = x.extract().unwrap();
                 sum += i;
             }
