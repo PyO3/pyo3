@@ -178,12 +178,12 @@ pub trait IntoPy<T>: Sized {
 /// Python::with_gil(|py| {
 ///     // Calling `.extract()` on a `Bound` smart pointer
 ///     let obj: Bound<'_, PyString> = PyString::new_bound(py, "blah");
-///     let s: &str = obj.extract()?;
+///     let s: String = obj.extract()?;
 /// #   assert_eq!(s, "blah");
 ///
 ///     // Calling `.extract(py)` on a `Py` smart pointer
 ///     let obj: Py<PyString> = obj.unbind();
-///     let s: &str = obj.extract(py)?;
+///     let s: String = obj.extract(py)?;
 /// #   assert_eq!(s, "blah");
 /// #   Ok(())
 /// })

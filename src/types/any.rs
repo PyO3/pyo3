@@ -391,7 +391,7 @@ impl PyAny {
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
     ///     let result = fun.call(args, Some(&kwargs))?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
+    ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
     /// # }
@@ -452,7 +452,7 @@ impl PyAny {
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let result = fun.call1(args)?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args");
+    ///     assert_eq!(result.extract::<String>()?, "called with args");
     ///     Ok(())
     /// })
     /// # }
@@ -491,7 +491,7 @@ impl PyAny {
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
     ///     let result = instance.call_method("method", args, Some(&kwargs))?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
+    ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
     /// # }
@@ -532,7 +532,7 @@ impl PyAny {
     ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let result = instance.call_method0("method")?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with no arguments");
+    ///     assert_eq!(result.extract::<String>()?, "called with no arguments");
     ///     Ok(())
     /// })
     /// # }
@@ -573,7 +573,7 @@ impl PyAny {
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let result = instance.call_method1("method", args)?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args");
+    ///     assert_eq!(result.extract::<String>()?, "called with args");
     ///     Ok(())
     /// })
     /// # }
@@ -1271,7 +1271,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
     ///     let result = fun.call(args, Some(&kwargs))?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
+    ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
     /// # }
@@ -1326,7 +1326,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let result = fun.call1(args)?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args");
+    ///     assert_eq!(result.extract::<String>()?, "called with args");
     ///     Ok(())
     /// })
     /// # }
@@ -1363,7 +1363,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     let kwargs = PyDict::new_bound(py);
     ///     kwargs.set_item("cruel", "world")?;
     ///     let result = instance.call_method("method", args, Some(&kwargs))?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
+    ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
     ///     Ok(())
     /// })
     /// # }
@@ -1404,7 +1404,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let result = instance.call_method0("method")?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with no arguments");
+    ///     assert_eq!(result.extract::<String>()?, "called with no arguments");
     ///     Ok(())
     /// })
     /// # }
@@ -1440,7 +1440,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let result = instance.call_method1("method", args)?;
-    ///     assert_eq!(result.extract::<&str>()?, "called with args");
+    ///     assert_eq!(result.extract::<String>()?, "called with args");
     ///     Ok(())
     /// })
     /// # }
