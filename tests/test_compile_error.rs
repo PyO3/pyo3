@@ -27,7 +27,8 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
-    #[cfg(Py_LIMITED_API)]
+    // output changes with async feature
+    #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     t.compile_fail("tests/ui/invalid_intern_arg.rs");
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
