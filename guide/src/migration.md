@@ -282,7 +282,7 @@ There is one notable API removed when this feature is disabled. `FromPyObject` t
 
 To ease pain during migration, these types instead implement a new temporary trait `FromPyObjectBound` which is the expected future form of `FromPyObject`. The new temporary trait ensures is that `obj.extract::<&str>()` continues to work (with the new constraint that the extracted value now depends on the input `obj` lifetime), as well for these types in `#[pyfunction]` arguments.
 
-An unfortunate final point here is that PyO3 cannot offer this new implementation for `&str` on `abi3` builds older than Python 3.10. On code which needs to build for 3.10 or older, many cases of `.extract::<&str>()` may need to be replaced with `.extract::<PyBackedStr>()`, which is string data which borrows from the Python `str` object. Alternatively, use `.extract::<Cow<str>>()`, `.extract::<String>()` to copy the data into Rust for these versions.
+An unfortunate final point here is that PyO3 cannot offer this new implementation for `&str` on `abi3` builds for Python older than 3.10. On code which needs `abi3` builds for these older Python versions, many cases of `.extract::<&str>()` may need to be replaced with `.extract::<PyBackedStr>()`, which is string data which borrows from the Python `str` object. Alternatively, use `.extract::<Cow<str>>()`, `.extract::<String>()` to copy the data into Rust for these versions.
 
 ## from 0.19.* to 0.20
 
