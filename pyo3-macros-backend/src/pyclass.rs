@@ -881,11 +881,12 @@ fn impl_complex_enum(
         }
     };
 
-    let pyclass_impls: TokenStream = vec![
+    let pyclass_impls: TokenStream = [
         impl_builder.impl_pyclass(ctx),
         impl_builder.impl_extractext(ctx),
         enum_into_py_impl,
         impl_builder.impl_pyclassimpl(ctx)?,
+        impl_builder.impl_add_to_module(ctx),
         impl_builder.impl_freelist(ctx),
     ]
     .into_iter()
@@ -1372,11 +1373,12 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     fn impl_all(&self, ctx: &Ctx) -> Result<TokenStream> {
-        let tokens = vec![
+        let tokens = [
             self.impl_pyclass(ctx),
             self.impl_extractext(ctx),
             self.impl_into_py(ctx),
             self.impl_pyclassimpl(ctx)?,
+            self.impl_add_to_module(ctx),
             self.impl_freelist(ctx),
         ]
         .into_iter()
@@ -1623,6 +1625,19 @@ impl<'a> PyClassImplsBuilder<'a> {
 
             #inventory_class
         })
+    }
+
+    fn impl_add_to_module(&self, ctx: &Ctx) -> TokenStream {
+        let Ctx { pyo3_path } = ctx;
+        let cls = self.cls;
+        quote! {
+            impl #pyo3_path::impl_::pymodule::PyAddToModule for #cls {
+                fn add_to_module(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
+                    use #pyo3_path::types::PyModuleMethods;
+                    module.add_class::<Self>()
+                }
+            }
+        }
     }
 
     fn impl_freelist(&self, ctx: &Ctx) -> TokenStream {

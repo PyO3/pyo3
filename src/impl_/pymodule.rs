@@ -7,8 +7,7 @@ use portable_atomic::{AtomicI64, Ordering};
 
 #[cfg(not(PyPy))]
 use crate::exceptions::PyImportError;
-use crate::types::module::PyModuleMethods;
-use crate::{ffi, sync::GILOnceCell, types::PyModule, Bound, Py, PyResult, PyTypeInfo, Python};
+use crate::{ffi, sync::GILOnceCell, types::PyModule, Bound, Py, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -139,12 +138,6 @@ impl ModuleDef {
 /// Currently only implemented for classes.
 pub trait PyAddToModule {
     fn add_to_module(module: &Bound<'_, PyModule>) -> PyResult<()>;
-}
-
-impl<T: PyTypeInfo> PyAddToModule for T {
-    fn add_to_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add(Self::NAME, Self::type_object_bound(module.py()))
-    }
 }
 
 #[cfg(test)]

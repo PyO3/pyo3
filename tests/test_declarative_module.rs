@@ -3,6 +3,8 @@
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+#[cfg(not(Py_LIMITED_API))]
+use pyo3::types::PyBool;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -125,5 +127,44 @@ fn test_declarative_module() {
         py_assert!(py, m, "hasattr(m, 'LocatedClass')");
         py_assert!(py, m, "isinstance(m.inner.Struct(), m.inner.Struct)");
         py_assert!(py, m, "isinstance(m.inner.Enum.A, m.inner.Enum)");
+    })
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[pyclass(extends = PyBool)]
+struct ExtendsBool;
+
+#[cfg(not(Py_LIMITED_API))]
+#[pymodule]
+mod class_initialization_module {
+    #[pymodule_export]
+    use super::ExtendsBool;
+}
+
+#[test]
+#[cfg(not(Py_LIMITED_API))]
+fn test_class_initialization_fails() {
+    Python::with_gil(|py| {
+        let err = class_initialization_module::DEF
+            .make_module(py)
+            .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "RuntimeError: An error occurred while initializing class ExtendsBool"
+        );
+    })
+}
+
+#[pymodule]
+mod r#type {
+    #[pymodule_export]
+    use super::double;
+}
+
+#[test]
+fn test_raw_ident_module() {
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(r#type)(py).into_bound(py);
+        py_assert!(py, m, "m.double(2) == 4");
     })
 }
