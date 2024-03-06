@@ -15,8 +15,8 @@ struct ValueClass {
 #[pymethods]
 impl ValueClass {
     #[new]
-    fn new(value: usize) -> ValueClass {
-        ValueClass { value }
+    fn new(value: usize) -> Self {
+        Self { value }
     }
 }
 
@@ -48,6 +48,33 @@ mod declarative_module {
     #[pymodule_export]
     use super::{declarative_module2, double, MyError, ValueClass as Value};
 
+    #[pymodule]
+    mod inner {
+        use super::*;
+
+        #[pyfunction]
+        fn triple(x: usize) -> usize {
+            x * 3
+        }
+
+        #[pyclass]
+        struct Struct;
+
+        #[pymethods]
+        impl Struct {
+            #[new]
+            fn new() -> Self {
+                Self
+            }
+        }
+
+        #[pyclass]
+        enum Enum {
+            A,
+            B,
+        }
+    }
+
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add("double2", m.getattr("double")?)
@@ -65,7 +92,6 @@ mod declarative_submodule {
     use super::{double, double_value};
 }
 
-/// A module written using declarative syntax.
 #[pymodule]
 #[pyo3(name = "declarative_module_renamed")]
 mod declarative_module2 {
@@ -84,7 +110,7 @@ fn test_declarative_module() {
         );
 
         py_assert!(py, m, "m.double(2) == 4");
-        py_assert!(py, m, "m.double2(3) == 6");
+        py_assert!(py, m, "m.inner.triple(3) == 9");
         py_assert!(py, m, "m.declarative_submodule.double(4) == 8");
         py_assert!(
             py,
@@ -97,5 +123,7 @@ fn test_declarative_module() {
         py_assert!(py, m, "not hasattr(m, 'LocatedClass')");
         #[cfg(not(Py_LIMITED_API))]
         py_assert!(py, m, "hasattr(m, 'LocatedClass')");
+        py_assert!(py, m, "isinstance(m.inner.Struct(), m.inner.Struct)");
+        py_assert!(py, m, "isinstance(m.inner.Enum.A, m.inner.Enum)");
     })
 }
