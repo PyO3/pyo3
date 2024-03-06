@@ -232,6 +232,7 @@ pub const CO_MAXBLOCKS: usize = 20;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyCode_Type")]
     pub static mut PyCode_Type: PyTypeObject;
 }
 
