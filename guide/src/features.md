@@ -51,6 +51,12 @@ If you do not enable this feature, you should call `pyo3::prepare_freethreaded_p
 
 ## Advanced Features
 
+### `experimental-async`
+
+This feature adds support for `async fn` in `#[pyfunction]` and `#[pymethods]`.
+
+The feature has some unfinished refinements and performance improvements. To help finish this off, see [issue #1632](https://github.com/PyO3/pyo3/issues/1632) and its associated draft PRs.
+
 ### `experimental-inspect`
 
 This feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` and `FromPyObject::type_input` APIs to produce Python type "annotations" for Rust types.

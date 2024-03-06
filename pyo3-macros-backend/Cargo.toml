@@ -26,3 +26,6 @@ features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-trait
 
 [lints]
 workspace = true
+
+[features]
+experimental-async = []

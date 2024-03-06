@@ -512,6 +512,13 @@ impl<'a> FnSpec<'a> {
             }
         }
 
+        if self.asyncness.is_some() {
+            ensure_spanned!(
+                cfg!(feature = "experimental-async"),
+                self.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
+            );
+        }
+
         let rust_call = |args: Vec<TokenStream>, holders: &mut Vec<TokenStream>| {
             let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
 
