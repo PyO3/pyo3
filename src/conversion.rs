@@ -237,6 +237,26 @@ pub trait FromPyObject<'py>: Sized {
     }
 }
 
+mod from_py_object_bound_sealed {
+    /// Private seal for the `FromPyObjectBound` trait.
+    ///
+    /// This prevents downstream types from implementing the trait before
+    /// PyO3 is ready to declare the trait as public API.
+    pub trait Sealed {}
+
+    // This generic implementation is why the seal is separate from
+    // `crate::sealed::Sealed`.
+    impl<'py, T> Sealed for T where T: super::FromPyObject<'py> {}
+    #[cfg(not(feature = "gil-refs"))]
+    impl Sealed for &'_ str {}
+    #[cfg(not(feature = "gil-refs"))]
+    impl Sealed for std::borrow::Cow<'_, str> {}
+    #[cfg(not(feature = "gil-refs"))]
+    impl Sealed for &'_ [u8] {}
+    #[cfg(not(feature = "gil-refs"))]
+    impl Sealed for std::borrow::Cow<'_, [u8]> {}
+}
+
 /// Expected form of [`FromPyObject`] to be used in a future PyO3 release.
 ///
 /// The difference between this and `FromPyObject` is that this trait takes an
@@ -248,17 +268,21 @@ pub trait FromPyObject<'py>: Sized {
 ///
 /// # Usage
 ///
-/// Users are generally advised against implementing this trait, instead they should
-/// implement the normal `FromPyObject` trait. This trait has a blanket implementation
+/// Users are prevented from implementing this trait, instead they should implement
+/// the normal `FromPyObject` trait. This trait has a blanket implementation
 /// for `T: FromPyObject`.
 ///
-/// The only case where this trait should be implemented is when the lifetime of the
-/// extracted value is tied to the lifetime `'a` of the input `Bound` instead of the
-/// GIL lifetime `py`, as is the case for the `&'a str` implementation.
+/// The only case where this trait may have a use case to be implemented is when the
+/// lifetime of the extracted value is tied to the lifetime `'a` of the input `Bound`
+/// instead of the GIL lifetime `py`, as is the case for the `&'a str` implementation.
+///
+/// Please contact the PyO3 maintainers if you believe you have a use case for implementing
+/// this trait before PyO3 is ready to change the main `FromPyObject` trait to take an
+/// additional lifetime.
 ///
 /// Similarly, users should typically not call these trait methods and should instead
 /// use this via the `extract` method on `Bound` and `Py`.
-pub trait FromPyObjectBound<'a, 'py>: Sized {
+pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Sealed {
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Users are advised against calling this method directly: instead, use this via
