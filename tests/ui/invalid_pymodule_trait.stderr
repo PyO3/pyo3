@@ -1,4 +1,4 @@
-error: only 'use' statements and and pymodule_init functions are allowed in #[pymodule]
+error: `#[pymodule_export]` may only be used on `use` statements
  --> tests/ui/invalid_pymodule_trait.rs:5:5
   |
 5 |     #[pymodule_export]

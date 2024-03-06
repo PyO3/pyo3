@@ -1,4 +1,4 @@
-error: only one pymodule_init may be specified
+error: only one `#[pymodule_init]` may be specified
   --> tests/ui/invalid_pymodule_two_pymodule_init.rs:11:5
    |
 11 |     fn init2(m: &PyModule) -> PyResult<()> {
