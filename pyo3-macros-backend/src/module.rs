@@ -7,7 +7,7 @@ use crate::{
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
 };
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -295,8 +295,29 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     }
     module_args.push(quote!(::std::convert::Into::into(BoundRef(module))));
 
+    let syn::ItemFn {
+        attrs, sig, block, ..
+    } = &function;
+
+    let extractors = sig.inputs.iter().filter_map(|param| {
+        if let syn::FnArg::Typed(pat_type) = param {
+            if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                let ident = &pat_ident.ident;
+                return Some(quote_spanned! { pat_type.span() => {
+                    let (_, e) = #pyo3_path::impl_::pymethods::inspect_type(#ident);
+                    let _ = e.extract_gil_ref();
+                }});
+            }
+        }
+        None
+    });
+
     Ok(quote! {
-        #function
+        #(#attrs)*
+        #vis #sig {
+            #(#extractors)*
+            #block
+        }
         #vis mod #ident {
             #initialization
         }
