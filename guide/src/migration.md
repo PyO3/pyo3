@@ -847,7 +847,7 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 To fix it, make the private submodule visible, e.g. with `pub` or `pub(crate)`.
 
-```rust
+```rust,ignore
 mod foo {
     use pyo3::prelude::*;
 

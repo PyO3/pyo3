@@ -335,11 +335,11 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
-    /// fn my_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new_bound(py, "submodule")?;
     ///     submodule.add("super_useful_constant", "important")?;
     ///
-    ///     module.add_submodule(submodule.as_gil_ref())?;
+    ///     module.add_submodule(&submodule)?;
     ///     Ok(())
     /// }
     /// ```
@@ -530,11 +530,11 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
-    /// fn my_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new_bound(py, "submodule")?;
     ///     submodule.add("super_useful_constant", "important")?;
     ///
-    ///     module.add_submodule(submodule.as_gil_ref())?;
+    ///     module.add_submodule(&submodule)?;
     ///     Ok(())
     /// }
     /// ```

@@ -44,7 +44,7 @@ use pyo3::exceptions::PyException;
 pyo3::create_exception!(mymodule, CustomError, PyException);
 
 #[pymodule]
-fn mymodule(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn mymodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ... other elements added to module ...
     m.add("CustomError", py.get_type_bound::<CustomError>())?;
 

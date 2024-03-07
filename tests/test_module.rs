@@ -118,7 +118,7 @@ fn test_module_with_functions() {
 
 /// This module uses a legacy two-argument module function.
 #[pymodule]
-fn module_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn module_with_explicit_py_arg(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
