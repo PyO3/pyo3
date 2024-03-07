@@ -310,7 +310,7 @@ fn main() -> PyResult<()> {
 [`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 [`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 
-#£ Need to use a context manager from Rust?
+## Need to use a context manager from Rust?
 
 Use context managers by directly invoking `__enter__` and `__exit__`.
 
