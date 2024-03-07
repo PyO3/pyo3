@@ -41,45 +41,6 @@ used.
 
 
 
-## The Python GIL, mutability, and Rust types
-
-Python code differs from Rust in two key ways:
-- There is no concept of ownership; all Python objects are reference counted
-- There is no concept of exclusive (`&mut`) references; any reference can mutate a Python object
-
-PyO3's API for interacting with Python objects is built with this in mind. There are two generic "smart pointers" to Python objects, `Py<T>` and `Bound<'py, T>`, which both use Python reference counting as their memory management. Almost all methods on these smart pointers use `&self` receivers, that is, a `&mut Py<T>` or `&mut Bound<'py, T>` are almost never used in PyO3 code.
-
-The situation is helped by the Global Interpreter Lock (GIL), which ensures that only one thread can use the Python interpreter and its API at the same time, while non-Python operations (system calls and extension code) can unlock the GIL. (See [the section on parallelism](parallelism.md) for how to do that in PyO3.)
-
-In PyO3, holding the GIL is modeled by acquiring a token of the type
-`Python<'py>`, which serves three purposes:
-
-* It provides some global API for the Python interpreter, such as
-  [`eval`][eval].
-* It can be passed to functions that require a proof of holding the GIL,
-  such as [`Py::clone_ref`][clone_ref].
-* Its lifetime can be used to create Rust references that implicitly guarantee
-  holding the GIL, such as [`&'py PyAny`][PyAny].
-
-The latter two points are the reason why some APIs in PyO3 require the `py:
-Python` argument, while others don't.
-
-The PyO3 API for Python objects is written such that instead of requiring a
-mutable Rust reference for mutating operations such as
-[`PyList::append`][PyList_append], a shared reference (which, in turn, can only
-be created through `Python<'_>` with a GIL lifetime) is sufficient.
-
-However, Rust structs wrapped as Python objects (called `pyclass` types) usually
-*do* need `&mut` access.  Due to the GIL, PyO3 *can* guarantee thread-safe access
-to them, but it cannot statically guarantee uniqueness of `&mut` references once
-an object's ownership has been passed to the Python interpreter, ensuring
-references is done at runtime using `PyCell`, a scheme very similar to
-`std::cell::RefCell`.
-
-### Accessing the Python GIL
-
-To get hold of a `Python<'py>` token to prove the GIL is held, consult [PyO3's documentation][obtaining-py].
-
 ## The GIL Refs API
 
 ### [`PyAny`][PyAny]
@@ -346,4 +307,3 @@ This trait marks structs that mirror native Python types, such as `PyList`.
 [PyAny]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
 [PyList_append]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
-[obtaining-py]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#obtaining-a-python-token
