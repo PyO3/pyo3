@@ -593,6 +593,7 @@ pub trait IsGilRef {}
 impl<T: crate::PyNativeType> IsGilRef for &'_ T {}
 
 impl<T> Extractor<T> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Extractor(NotAGilRef(std::marker::PhantomData))
     }
