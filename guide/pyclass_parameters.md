@@ -33,7 +33,7 @@ struct MyClass {}
 struct MyClass {}
 ```
 
-[params-1]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
+[params-1]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html
 [params-2]: https://en.wikipedia.org/wiki/Free_list
 [params-3]: https://doc.rust-lang.org/std/marker/trait.Send.html
 [params-4]: https://doc.rust-lang.org/std/rc/struct.Rc.html

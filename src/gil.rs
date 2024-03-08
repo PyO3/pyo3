@@ -67,7 +67,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
 /// software). Support for this is tracked on the
-/// [PyPy issue tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3286).
+/// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
 ///
 /// # Examples
 /// ```rust
