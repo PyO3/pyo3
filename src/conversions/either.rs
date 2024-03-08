@@ -113,6 +113,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use crate::exceptions::PyTypeError;
     use crate::{Python, ToPyObject};
 
@@ -132,7 +134,7 @@ mod tests {
 
             let r = E::Right("foo".to_owned());
             let obj_r = r.to_object(py);
-            assert_eq!(obj_r.extract::<&str>(py).unwrap(), "foo");
+            assert_eq!(obj_r.extract::<Cow<'_, str>>(py).unwrap(), "foo");
             assert_eq!(obj_r.extract::<E>(py).unwrap(), r);
 
             let obj_s = "foo".to_object(py);

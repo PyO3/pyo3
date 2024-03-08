@@ -215,7 +215,7 @@ struct ValueClass {
 fn conversion_error(
     str_arg: &str,
     int_arg: i64,
-    tuple_arg: (&str, f64),
+    tuple_arg: (String, f64),
     option_arg: Option<i64>,
     struct_arg: Option<ValueClass>,
 ) {

@@ -40,6 +40,7 @@ error[E0277]: the trait bound `CancelHandle: PyClass` is not satisfied
    |
    = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
+   = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_>`
 note: required by a bound in `extract_argument`
   --> src/impl_/extract_argument.rs
@@ -61,6 +62,7 @@ error[E0277]: the trait bound `CancelHandle: Clone` is not satisfied
              &'a pyo3::coroutine::Coroutine
              &'a mut pyo3::coroutine::Coroutine
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
+   = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_>`
 note: required by a bound in `extract_argument`
   --> src/impl_/extract_argument.rs

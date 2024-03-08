@@ -142,7 +142,10 @@ pub trait PyAddToModule {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::{
+        borrow::Cow,
+        sync::atomic::{AtomicBool, Ordering},
+    };
 
     use crate::{
         types::{any::PyAnyMethods, module::PyModuleMethods, PyModule},
@@ -169,7 +172,7 @@ mod tests {
                 module
                     .getattr("__name__")
                     .unwrap()
-                    .extract::<&str>()
+                    .extract::<Cow<'_, str>>()
                     .unwrap(),
                 "test_module",
             );
@@ -177,7 +180,7 @@ mod tests {
                 module
                     .getattr("__doc__")
                     .unwrap()
-                    .extract::<&str>()
+                    .extract::<Cow<'_, str>>()
                     .unwrap(),
                 "some doc",
             );

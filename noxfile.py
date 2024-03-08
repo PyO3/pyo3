@@ -613,8 +613,7 @@ def check_feature_powerset(session: nox.Session):
     if toml is None:
         session.error("requires Python 3.11 or `toml` to be installed")
 
-    with (PYO3_DIR / "Cargo.toml").open("rb") as cargo_toml_file:
-        cargo_toml = toml.load(cargo_toml_file)
+    cargo_toml = toml.loads((PYO3_DIR / "Cargo.toml").read_text())
 
     EXCLUDED_FROM_FULL = {
         "nightly",

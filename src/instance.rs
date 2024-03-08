@@ -1315,9 +1315,12 @@ impl<T> Py<T> {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around `FromPyObject::extract()`.
-    pub fn extract<'py, D>(&self, py: Python<'py>) -> PyResult<D>
+    pub fn extract<'a, 'py, D>(&'a self, py: Python<'py>) -> PyResult<D>
     where
-        D: FromPyObject<'py>,
+        D: crate::conversion::FromPyObjectBound<'a, 'py>,
+        // TODO it might be possible to relax this bound in future, to allow
+        // e.g. `.extract::<&str>(py)` where `py` is short-lived.
+        'py: 'a,
     {
         self.bind(py).as_any().extract()
     }

@@ -196,14 +196,13 @@ impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
 
     #[test]
     fn test_bytes_index() {
         Python::with_gil(|py| {
-            let bytes = PyBytes::new(py, b"Hello World");
+            let bytes = PyBytes::new_bound(py, b"Hello World");
             assert_eq!(bytes[1], b'e');
         });
     }
@@ -222,7 +221,7 @@ mod tests {
     #[test]
     fn test_bytes_new_with() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
-            let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
+            let py_bytes = PyBytes::new_bound_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
             })?;
@@ -235,7 +234,7 @@ mod tests {
     #[test]
     fn test_bytes_new_with_zero_initialised() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
-            let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
+            let py_bytes = PyBytes::new_bound_with(py, 10, |_b: &mut [u8]| Ok(()))?;
             let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, &[0; 10]);
             Ok(())
@@ -246,7 +245,7 @@ mod tests {
     fn test_bytes_new_with_error() {
         use crate::exceptions::PyValueError;
         Python::with_gil(|py| {
-            let py_bytes_result = PyBytes::new_with(py, 10, |_b: &mut [u8]| {
+            let py_bytes_result = PyBytes::new_bound_with(py, 10, |_b: &mut [u8]| {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
             assert!(py_bytes_result.is_err());
