@@ -70,7 +70,7 @@ First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
 nox -s build-guide -- --open
 ```
 
-To check all links in the guide are valid, also install [`lychee`][lychee] use the `check-guide` session instead:
+To check all links in the guide are valid, also install [`lychee`][lychee] and use the `check-guide` session instead:
 
 ```shell
 nox -s check-guide
