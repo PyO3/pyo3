@@ -461,9 +461,9 @@ mod tests {
     use crate::types::weakref::{PyWeakProxy, PyWeakRefMethods};
     use crate::{Bound, PyAny, PyResult, Python};
 
-    #[cfg(Py_3_9)]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_10))]
     const CLASS_NAME: &str = "'weakref.ProxyType'";
-    #[cfg(not(Py_3_9))]
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
     const CLASS_NAME: &str = "'weakproxy'";
 
     fn check_repr(
@@ -511,6 +511,8 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
+
+                #[cfg(not(Py_LIMITED_API))]
                 assert_eq!(
                     reference.get_type().to_string(),
                     format!("<class {}>", CLASS_NAME)
@@ -527,12 +529,14 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
 
-                assert!(reference
-                    .call0()
-                    .err()
-                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                assert!(reference.call0().err().map_or(false, |err| {
+                    let result = err.is_instance_of::<PyTypeError>(py);
+                    #[cfg(not(Py_LIMITED_API))]
+                    let result = result
                         & (err.value_bound(py).to_string()
-                            == format!("{} object is not callable", CLASS_NAME))));
+                            == format!("{} object is not callable", CLASS_NAME));
+                    result
+                }));
 
                 drop(object);
 
@@ -548,12 +552,14 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-                assert!(reference
-                    .call0()
-                    .err()
-                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                assert!(reference.call0().err().map_or(false, |err| {
+                    let result = err.is_instance_of::<PyTypeError>(py);
+                    #[cfg(not(Py_LIMITED_API))]
+                    let result = result
                         & (err.value_bound(py).to_string()
-                            == format!("{} object is not callable", CLASS_NAME))));
+                            == format!("{} object is not callable", CLASS_NAME));
+                    result
+                }));
 
                 Ok(())
             })
@@ -683,6 +689,7 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
+                #[cfg(not(Py_LIMITED_API))]
                 assert_eq!(
                     reference.get_type().to_string(),
                     format!("<class {}>", CLASS_NAME)
@@ -699,12 +706,14 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
 
-                assert!(reference
-                    .call0()
-                    .err()
-                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                assert!(reference.call0().err().map_or(false, |err| {
+                    let result = err.is_instance_of::<PyTypeError>(py);
+                    #[cfg(not(Py_LIMITED_API))]
+                    let result = result
                         & (err.value_bound(py).to_string()
-                            == format!("{} object is not callable", CLASS_NAME))));
+                            == format!("{} object is not callable", CLASS_NAME));
+                    result
+                }));
 
                 drop(object);
 
@@ -720,12 +729,14 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-                assert!(reference
-                    .call0()
-                    .err()
-                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                assert!(reference.call0().err().map_or(false, |err| {
+                    let result = err.is_instance_of::<PyTypeError>(py);
+                    #[cfg(not(Py_LIMITED_API))]
+                    let result = result
                         & (err.value_bound(py).to_string()
-                            == format!("{} object is not callable", CLASS_NAME))));
+                            == format!("{} object is not callable", CLASS_NAME));
+                    result
+                }));
 
                 Ok(())
             })

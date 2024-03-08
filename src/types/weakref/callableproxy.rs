@@ -514,9 +514,9 @@ mod tests {
     use crate::types::weakref::{PyWeakCallableProxy, PyWeakRefMethods};
     use crate::{Bound, PyAny, PyResult, Python};
 
-    #[cfg(Py_3_9)]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_10))]
     const CLASS_NAME: &str = "<class 'weakref.CallableProxyType'>";
-    #[cfg(not(Py_3_9))]
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
     const CLASS_NAME: &str = "<class 'weakcallableproxy'>";
 
     fn check_repr(
@@ -568,6 +568,7 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
+                #[cfg(not(Py_LIMITED_API))]
                 assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
                 assert_eq!(
@@ -739,6 +740,7 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
+                #[cfg(not(Py_LIMITED_API))]
                 assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
                 assert_eq!(
