@@ -522,9 +522,12 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
 
-                assert!(reference.call0().err().map_or(false, |err| err
-                    .is_instance_of::<PyTypeError>(py)
-                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
+                assert!(reference
+                    .call0()
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                        & (err.value_bound(py).to_string()
+                            == "'weakref.ProxyType' object is not callable")));
 
                 drop(object);
 
@@ -540,9 +543,12 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-                assert!(reference.call0().err().map_or(false, |err| err
-                    .is_instance_of::<PyTypeError>(py)
-                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
+                assert!(reference
+                    .call0()
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                        & (err.value_bound(py).to_string()
+                            == "'weakref.ProxyType' object is not callable")));
 
                 Ok(())
             })
@@ -688,9 +694,12 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyAttributeError>(py)));
 
-                assert!(reference.call0().err().map_or(false, |err| err
-                    .is_instance_of::<PyTypeError>(py)
-                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
+                assert!(reference
+                    .call0()
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                        & (err.value_bound(py).to_string()
+                            == "'weakref.ProxyType' object is not callable")));
 
                 drop(object);
 
@@ -706,9 +715,12 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-                assert!(reference.call0().err().map_or(false, |err| err
-                    .is_instance_of::<PyTypeError>(py)
-                    & (err.value(py).to_string() == "'weakref.ProxyType' object is not callable")));
+                assert!(reference
+                    .call0()
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
+                        & (err.value_bound(py).to_string()
+                            == "'weakref.ProxyType' object is not callable")));
 
                 Ok(())
             })

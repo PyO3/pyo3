@@ -595,9 +595,12 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-                assert!(reference.call0().err().map_or(false, |err| err
-                    .is_instance_of::<PyReferenceError>(py)
-                    & (err.value(py).to_string() == "weakly-referenced object no longer exists")));
+                assert!(reference
+                    .call0()
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)
+                        & (err.value_bound(py).to_string()
+                            == "weakly-referenced object no longer exists")));
 
                 Ok(())
             })
@@ -766,9 +769,12 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
 
-                assert!(reference.call0().err().map_or(false, |err| err
-                    .is_instance_of::<PyReferenceError>(py)
-                    & (err.value(py).to_string() == "weakly-referenced object no longer exists")));
+                assert!(reference
+                    .call0()
+                    .err()
+                    .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)
+                        & (err.value_bound(py).to_string()
+                            == "weakly-referenced object no longer exists")));
 
                 Ok(())
             })
