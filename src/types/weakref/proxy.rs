@@ -461,6 +461,11 @@ mod tests {
     use crate::types::weakref::{PyWeakProxy, PyWeakRefMethods};
     use crate::{Bound, PyAny, PyResult, Python};
 
+    #[cfg(Py_3_9)]
+    const CLASS_NAME: &str = "'weakref.ProxyType'";
+    #[cfg(not(Py_3_9))]
+    const CLASS_NAME: &str = "'weakproxy'";
+
     fn check_repr(
         reference: &Bound<'_, PyWeakProxy>,
         object: &Bound<'_, PyAny>,
@@ -508,7 +513,7 @@ mod tests {
                 assert!(reference.get_object_raw().is(&object));
                 assert_eq!(
                     reference.get_type().to_string(),
-                    "<class 'weakref.ProxyType'>"
+                    format!("<class {}>", CLASS_NAME)
                 );
 
                 assert_eq!(
@@ -527,7 +532,7 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
                         & (err.value_bound(py).to_string()
-                            == "'weakref.ProxyType' object is not callable")));
+                            == format!("{} object is not callable", CLASS_NAME))));
 
                 drop(object);
 
@@ -548,7 +553,7 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
                         & (err.value_bound(py).to_string()
-                            == "'weakref.ProxyType' object is not callable")));
+                            == format!("{} object is not callable", CLASS_NAME))));
 
                 Ok(())
             })
@@ -680,7 +685,7 @@ mod tests {
                 assert!(reference.get_object_raw().is(&object));
                 assert_eq!(
                     reference.get_type().to_string(),
-                    "<class 'weakref.ProxyType'>"
+                    format!("<class {}>", CLASS_NAME)
                 );
 
                 assert_eq!(
@@ -699,7 +704,7 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
                         & (err.value_bound(py).to_string()
-                            == "'weakref.ProxyType' object is not callable")));
+                            == format!("{} object is not callable", CLASS_NAME))));
 
                 drop(object);
 
@@ -720,7 +725,7 @@ mod tests {
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyTypeError>(py)
                         & (err.value_bound(py).to_string()
-                            == "'weakref.ProxyType' object is not callable")));
+                            == format!("{} object is not callable", CLASS_NAME))));
 
                 Ok(())
             })

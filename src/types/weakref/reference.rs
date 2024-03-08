@@ -832,6 +832,11 @@ mod tests {
     use crate::types::weakref::{PyWeakRef, PyWeakRefMethods};
     use crate::{Bound, PyAny, PyResult, Python};
 
+    #[cfg(Py_3_9)]
+    const CLASS_NAME: &str = "<class 'weakref.ReferenceType'>";
+    #[cfg(not(Py_3_9))]
+    const CLASS_NAME: &str = "<class 'weakref'>";
+
     fn check_repr(
         reference: &Bound<'_, PyWeakRef>,
         object: Option<(&Bound<'_, PyAny>, &str)>,
@@ -883,15 +888,10 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
-                assert_eq!(
-                    reference.get_type().to_string(),
-                    "<class 'weakref.ReferenceType'>"
-                );
 
-                assert_eq!(
-                    reference.getattr("__class__")?.to_string(),
-                    "<class 'weakref.ReferenceType'>"
-                );
+                assert_eq!(reference.get_type().to_string(), CLASS_NAME);
+
+                assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
 
                 check_repr(&reference, Some((object.as_any(), "A")))?;
 
@@ -904,10 +904,7 @@ mod tests {
                 drop(object);
 
                 assert!(reference.get_object_raw().is_none());
-                assert_eq!(
-                    reference.getattr("__class__")?.to_string(),
-                    "<class 'weakref.ReferenceType'>"
-                );
+                assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
                 check_repr(&reference, None)?;
 
                 assert!(reference
@@ -1053,15 +1050,9 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
-                assert_eq!(
-                    reference.get_type().to_string(),
-                    "<class 'weakref.ReferenceType'>"
-                );
+                assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
-                assert_eq!(
-                    reference.getattr("__class__")?.to_string(),
-                    "<class 'weakref.ReferenceType'>"
-                );
+                assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
                 check_repr(
                     &reference,
                     Some((object.as_any(), "builtins.WeakrefablePyClass")),
@@ -1076,10 +1067,7 @@ mod tests {
                 drop(object);
 
                 assert!(reference.get_object_raw().is_none());
-                assert_eq!(
-                    reference.getattr("__class__")?.to_string(),
-                    "<class 'weakref.ReferenceType'>"
-                );
+                assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
                 check_repr(&reference, None)?;
 
                 assert!(reference
