@@ -2,6 +2,7 @@ from contextlib import contextmanager
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -377,7 +378,7 @@ def build_guide(session: nox.Session):
     for license in ("LICENSE-APACHE", "LICENSE-MIT"):
         target_file = PYO3_DIR / "guide" / "src" / license
         target_file.unlink(missing_ok=True)
-        target_file.hardlink_to(PYO3_DIR / license)
+        shutil.copy(PYO3_DIR / license, target_file)
     _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
 
 
