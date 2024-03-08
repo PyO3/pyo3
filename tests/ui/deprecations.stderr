@@ -9,3 +9,15 @@ note: the lint level is defined here
    |
 1  | #![deny(deprecated)]
    |         ^^^^^^^^^^
+
+error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`: use `&Bound<'_, T>` instead for this function argument
+  --> tests/ui/deprecations.rs:24:19
+   |
+24 | fn module_gil_ref(m: &PyModule) -> PyResult<()> {
+   |                   ^
+
+error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`: use `&Bound<'_, T>` instead for this function argument
+  --> tests/ui/deprecations.rs:30:57
+   |
+30 | fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+   |                                                         ^

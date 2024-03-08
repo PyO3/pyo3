@@ -11,6 +11,7 @@ use quote::quote;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
+    parse_quote, parse_quote_spanned,
     spanned::Spanned,
     token::Comma,
     Item, Path, Result,
@@ -281,6 +282,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     let options = PyModuleOptions::from_attrs(&mut function.attrs)?;
     process_functions_in_module(&options, &mut function)?;
     let ctx = &Ctx::new(&options.krate);
+    let stmts = std::mem::take(&mut function.block.stmts);
     let Ctx { pyo3_path } = ctx;
     let ident = &function.sig.ident;
     let vis = &function.vis;
@@ -294,6 +296,29 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         module_args.push(quote!(module.py()));
     }
     module_args.push(quote!(::std::convert::Into::into(BoundRef(module))));
+
+    let extractors = function
+        .sig
+        .inputs
+        .iter()
+        .filter_map(|param| {
+            if let syn::FnArg::Typed(pat_type) = param {
+                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                    let ident = &pat_ident.ident;
+                    return Some([
+                        parse_quote! { let (#ident, e) = #pyo3_path::impl_::pymethods::inspect_type(#ident); },
+                        parse_quote_spanned! { pat_type.span() => e.extract_gil_ref(); },
+                    ]);
+                }
+            }
+            None
+        })
+        .flatten();
+
+    function.block.stmts = extractors.chain(stmts).collect();
+    function
+        .attrs
+        .push(parse_quote!(#[allow(clippy::used_underscore_binding)]));
 
     Ok(quote! {
         #function

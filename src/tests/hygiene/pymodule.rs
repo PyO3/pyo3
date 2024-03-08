@@ -7,12 +7,14 @@ fn do_something(x: i32) -> crate::PyResult<i32> {
     ::std::result::Result::Ok(x)
 }
 
+#[allow(deprecated)]
 #[crate::pymodule]
 #[pyo3(crate = "crate")]
 fn foo(_py: crate::Python<'_>, _m: &crate::types::PyModule) -> crate::PyResult<()> {
     ::std::result::Result::Ok(())
 }
 
+#[allow(deprecated)]
 #[crate::pymodule]
 #[pyo3(crate = "crate")]
 fn my_module(_py: crate::Python<'_>, m: &crate::types::PyModule) -> crate::PyResult<()> {

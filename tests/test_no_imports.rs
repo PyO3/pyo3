@@ -10,6 +10,7 @@ fn basic_function(py: pyo3::Python<'_>, x: Option<pyo3::PyObject>) -> pyo3::PyOb
     x.unwrap_or_else(|| py.None())
 }
 
+#[allow(deprecated)]
 #[pyo3::pymodule]
 fn basic_module(_py: pyo3::Python<'_>, m: &pyo3::types::PyModule) -> pyo3::PyResult<()> {
     #[pyfn(m)]
