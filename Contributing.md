@@ -64,7 +64,7 @@ https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctes
 
 You can preview the user guide by building it locally with `mdbook`.
 
-First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
+First, install [`mdbook`][mdbook], [`mdbook-linkcheck`][mdbook-linkcheck] and [`nox`][nox]. Then, run
 
 ```shell
 nox -s build-guide -- --open
@@ -171,7 +171,7 @@ First, there are Rust-based benchmarks located in the `pyo3-benches` subdirector
 
     nox -s bench
 
-Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](pytests).
+Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](https://github.com/PyO3/pyo3/tree/main/pytests).
 
 ## Code coverage
 
@@ -211,4 +211,5 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 - [messense](https://github.com/sponsors/messense)
 
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
+[mdbook-linkcheck]: https://crates.io/crates/mdbook-linkcheck
 [nox]: https://github.com/theacodes/nox

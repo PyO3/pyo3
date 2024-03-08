@@ -371,6 +371,13 @@ def docs(session: nox.Session) -> None:
 
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
+    # copy the license files into the guide source directory
+    # so that mdbook can include them in the output (and linkcheck will be
+    # happy this way)
+    for license in ("LICENSE-APACHE", "LICENSE-MIT"):
+        target_file = PYO3_DIR / "guide" / "src" / license
+        target_file.unlink(missing_ok=True)
+        target_file.hardlink_to(PYO3_DIR / license)
     _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
 
 
