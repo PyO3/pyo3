@@ -519,7 +519,6 @@ mod tests {
     #[cfg(not(Py_3_9))]
     const CLASS_NAME: &str = "<class 'weakcallableproxy'>";
 
-
     fn check_repr(
         reference: &Bound<'_, PyWeakCallableProxy>,
         object: &Bound<'_, PyAny>,
@@ -569,10 +568,7 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
-                assert_eq!(
-                    reference.get_type().to_string(),
-                    CLASS_NAME
-                );
+                assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
                 assert_eq!(
                     reference.getattr("__class__")?.to_string(),
@@ -743,10 +739,7 @@ mod tests {
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
-                assert_eq!(
-                    reference.get_type().to_string(),
-                    CLASS_NAME
-                );
+                assert_eq!(reference.get_type().to_string(), CLASS_NAME);
 
                 assert_eq!(
                     reference.getattr("__class__")?.to_string(),
