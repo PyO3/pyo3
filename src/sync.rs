@@ -1,4 +1,9 @@
 //! Synchronization mechanisms based on the Python GIL.
+//!
+//! With the acceptance of [PEP 703] (aka a "freethreaded Python") for Python 3.13, these
+//! are likely to undergo significant developments in the future.
+//!
+//! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
     types::{any::PyAnyMethods, PyString, PyType},
     Bound, Py, PyResult, PyVisit, Python,
