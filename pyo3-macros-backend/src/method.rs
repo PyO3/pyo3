@@ -133,7 +133,7 @@ impl FnType {
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*::std::ptr::from_ref(#slf).cast())
+                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyType>()
                     ),
                 }
@@ -145,7 +145,7 @@ impl FnType {
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*::std::ptr::from_ref(#slf).cast())
+                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyModule>()
                     ),
                 }
