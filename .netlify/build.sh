@@ -48,6 +48,15 @@ done
 # Add latest redirect
 echo "/latest/* /v${PYO3_VERSION}/:splat 302" >> netlify_build/_redirects
 
+# some backwards compatbiility redirects
+echo "/latest/building_and_distribution/* /latest/building-and-distribution/:splat 302" >> netlify_build/_redirects
+echo "/latest/building-and-distribution/multiple_python_versions/* /latest/building-and-distribution/multiple-python-versions:splat 302" >> netlify_build/_redirects
+echo "/latest/function/error_handling/* /latest/function/error-handling/:splat 302" >> netlify_build/_redirects
+echo "/latest/getting_started/* /latest/getting-started/:splat 302" >> netlify_build/_redirects
+echo "/latest/python_from_rust/* /latest/python-from-rust/:splat 302" >> netlify_build/_redirects
+echo "/latest/python_typing_hints/* /latest/python-typing-hints/:splat 302" >> netlify_build/_redirects
+echo "/latest/trait_bounds/* /latest/trait-bounds/:splat 302" >> netlify_build/_redirects
+
 ## Add landing page redirect
 if [ "${CONTEXT}" == "deploy-preview" ]; then
     echo "/ /main/" >> netlify_build/_redirects

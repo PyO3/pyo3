@@ -1,4 +1,5 @@
 # Supporting multiple Python versions
+# Supporting multiple Python versions
 
 PyO3 supports all actively-supported Python 3 and PyPy versions. As much as possible, this is done internally to PyO3 so that your crate's code does not need to adapt to the differences between each version. However, as Python features grow and change between versions, PyO3 cannot a completely identical API for every Python version. This may require you to add conditional compilation to your crate or runtime checks for the Python version.
 
@@ -85,7 +86,7 @@ This `#[cfg]` marks code which is running on PyPy.
 
 ## Checking the Python version at runtime
 
-When building with PyO3's `abi3` feature, your extension module will be compiled against a specific [minimum version](../building_and_distribution.md#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
+When building with PyO3's `abi3` feature, your extension module will be compiled against a specific [minimum version](../building-and-distribution.md#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
 
 For example with PyO3's `abi3-py38` feature, your extension will be compiled as if it were for Python 3.8. If you were using `pyo3-build-config`, `#[cfg(Py_3_8)]` would be present. Your user could freely install and run your abi3 extension on Python 3.9.
 

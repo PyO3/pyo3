@@ -291,7 +291,7 @@
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
 //! [indexmap]: https://docs.rs/indexmap
-//! [manual_builds]: https://pyo3.rs/latest/building_and_distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
+//! [manual_builds]: https://pyo3.rs/latest/building-and-distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
 //! [num-bigint]: https://docs.rs/num-bigint
 //! [num-complex]: https://docs.rs/num-complex
 //! [serde]: https://docs.rs/serde
@@ -485,8 +485,8 @@ pub mod doc_test {
         "README.md" => readme_md,
         "guide/src/advanced.md" => guide_advanced_md,
         "guide/src/async-await.md" => guide_async_await_md,
-        "guide/src/building_and_distribution.md" => guide_building_and_distribution_md,
-        "guide/src/building_and_distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
+        "guide/src/building-and-distribution.md" => guide_building-and-distribution_md,
+        "guide/src/building-and-distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
         "guide/src/class.md" => guide_class_md,
         "guide/src/class/call.md" => guide_class_call,
         "guide/src/class/object.md" => guide_class_object,
@@ -504,14 +504,14 @@ pub mod doc_test {
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
         "guide/src/function.md" => guide_function_md,
-        "guide/src/function/error_handling.md" => guide_function_error_handling_md,
+        "guide/src/function/error-handling.md" => guide_function_error_handling_md,
         "guide/src/function/signature.md" => guide_function_signature_md,
         "guide/src/memory.md" => guide_memory_md,
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,
         "guide/src/parallelism.md" => guide_parallelism_md,
         "guide/src/performance.md" => guide_performance_md,
-        "guide/src/python_from_rust.md" => guide_python_from_rust_md,
+        "guide/src/python-from-rust.md" => guide_python_from_rust_md,
         "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
         "guide/src/trait_bounds.md" => guide_trait_bounds_md,
         "guide/src/types.md" => guide_types_md,

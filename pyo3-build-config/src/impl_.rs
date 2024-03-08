@@ -1365,7 +1365,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
             format!(
                 "PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified \
                 when cross-compiling and PYO3_CROSS_LIB_DIR is not set.\n\
-                = help: see the PyO3 user guide for more information: https://pyo3.rs/v{}/building_and_distribution.html#cross-compiling",
+                = help: see the PyO3 user guide for more information: https://pyo3.rs/v{}/building-and-distribution.html#cross-compiling",
                 env!("CARGO_PKG_VERSION")
             )
         )?;
