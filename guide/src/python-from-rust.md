@@ -7,11 +7,11 @@ This chapter of the guide documents some ways to interact with Python code from 
 ## Interacting with the Python interpreter
 
 To safely interact with the Python interpreter a Rust thread must have a corresponding Python thread state and hold the Global Interpreter Lock (GIL). PyO3 has a `Python<'py>` token which is used to prove that these conditions
-are met. It's lifetime `'py` is a central part of PyO3's API.
+are met. Its lifetime `'py` is a central part of PyO3's API.
 
 The `Python<'py>` token serves three purposes:
 
-* It provides global API for the Python interpreter, such as [`py.eval()`][eval] and [`py.import()`][import].
+* It provides global APIs for the Python interpreter, such as [`py.eval()`][eval] and [`py.import()`][import].
 * It can be passed to functions that require a proof of holding the GIL, such as [`Py::clone_ref`][clone_ref].
 * Its lifetime `'py` is used to bind many of PyO3's types to the Python interpreter, such as [`Bound<'py, T>`][Bound].
 
