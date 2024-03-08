@@ -30,7 +30,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+//! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())
 //! }
@@ -54,9 +54,7 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{
-    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
@@ -74,14 +72,8 @@ impl FromPyObject<'_> for Decimal {
 
 static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
-fn get_decimal_cls(py: Python<'_>) -> PyResult<&PyType> {
-    DECIMAL_CLS
-        .get_or_try_init(py, || {
-            py.import_bound(intern!(py, "decimal"))?
-                .getattr(intern!(py, "Decimal"))?
-                .extract()
-        })
-        .map(|ty| ty.as_ref(py))
+fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    DECIMAL_CLS.get_or_try_init_type_ref(py, "decimal", "Decimal")
 }
 
 impl ToPyObject for Decimal {
@@ -108,10 +100,8 @@ impl IntoPy<PyObject> for Decimal {
 mod test_rust_decimal {
     use super::*;
     use crate::err::PyErr;
-    use crate::types::any::PyAnyMethods;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
-    use rust_decimal::Decimal;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;

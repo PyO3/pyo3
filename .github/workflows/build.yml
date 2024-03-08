@@ -47,8 +47,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-${{ inputs.python-architecture }}
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
       - if: inputs.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
@@ -138,60 +137,6 @@ jobs:
         # is pypy 3.9 on windows
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
-
-
-      - name: Test cross compilation
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
-        with:
-          target: aarch64-unknown-linux-gnu
-          manylinux: auto
-          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
-
-      - run: sudo rm -rf examples/maturin-starter/target
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
-      - name: Test cross compile to same architecture
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
-        with:
-          target: x86_64-unknown-linux-gnu
-          manylinux: auto
-          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
-
-      - name: Test cross compilation
-        if: ${{ inputs.os == 'macos-latest' && inputs.python-version == '3.9' }}
-        uses: PyO3/maturin-action@v1
-        with:
-          target: aarch64-apple-darwin
-          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
-
-      - name: Test cross compile to Windows
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
-        env:
-          XWIN_ARCH: x86_64
-        run: |
-          set -ex
-          sudo apt-get install -y mingw-w64 llvm
-          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
-          pip install cargo-xwin
-          # abi3
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
-          # non-abi3
-          export PYO3_CROSS_PYTHON_VERSION=3.9
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
-
-      - name: Test cross compile to Windows with maturin
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
-        uses: PyO3/maturin-action@v1
-        with:
-          target: x86_64-pc-windows-gnu
-          args: -i python3.8 -m examples/maturin-starter/Cargo.toml --features abi3
 
     env:
       CARGO_TERM_VERBOSE: true

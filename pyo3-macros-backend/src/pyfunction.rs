@@ -1,3 +1,4 @@
+use crate::utils::Ctx;
 use crate::{
     attributes::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
@@ -6,7 +7,6 @@ use crate::{
     deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
-    utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -205,6 +205,9 @@ pub fn impl_wrap_pyfunction(
         krate,
     } = options;
 
+    let ctx = &Ctx::new(&krate);
+    let Ctx { pyo3_path } = &ctx;
+
     let python_name = name.map_or_else(|| func.sig.ident.unraw(), |name| name.value.0);
 
     let tp = if pass_module.is_some() {
@@ -249,17 +252,15 @@ pub fn impl_wrap_pyfunction(
         text_signature,
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
-        deprecations: Deprecations::new(),
+        deprecations: Deprecations::new(ctx),
     };
-
-    let krate = get_pyo3_crate(&krate);
 
     let vis = &func.vis;
     let name = &func.sig.ident;
 
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
-    let wrapper = spec.get_wrapper_function(&wrapper_ident, None)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs));
+    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
+    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs), ctx);
 
     let wrapped_pyfunction = quote! {
 
@@ -268,17 +269,24 @@ pub fn impl_wrap_pyfunction(
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
-            pub const DEF: #krate::impl_::pyfunction::PyMethodDef = MakeDef::DEF;
+            pub const DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::DEF;
+
+            pub fn add_to_module(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
+                use #pyo3_path::prelude::PyModuleMethods;
+                use ::std::convert::Into;
+                module.add_function(#pyo3_path::types::PyCFunction::internal_new(module.py(), &DEF, module.into())?)
+            }
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
-            use #krate as _pyo3;
             impl #name::MakeDef {
-                const DEF: #krate::impl_::pyfunction::PyMethodDef = #methoddef;
+                const DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
             }
 
             #[allow(non_snake_case)]

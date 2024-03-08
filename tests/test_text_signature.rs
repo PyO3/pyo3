@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{types::PyType, wrap_pymodule, PyCell};
+use pyo3::{types::PyType, wrap_pymodule};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -13,7 +13,7 @@ fn class_without_docs_or_signature() {
     struct MyClass {}
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<MyClass>();
+        let typeobj = py.get_type_bound::<MyClass>();
 
         py_assert!(py, typeobj, "typeobj.__doc__ is None");
         py_assert!(py, typeobj, "typeobj.__text_signature__ is None");
@@ -28,7 +28,7 @@ fn class_with_docs() {
     struct MyClass {}
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<MyClass>();
+        let typeobj = py.get_type_bound::<MyClass>();
 
         py_assert!(py, typeobj, "typeobj.__doc__ == 'docs line1\\ndocs line2'");
         py_assert!(py, typeobj, "typeobj.__text_signature__ is None");
@@ -52,7 +52,7 @@ fn class_with_signature_no_doc() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<MyClass>();
+        let typeobj = py.get_type_bound::<MyClass>();
         py_assert!(py, typeobj, "typeobj.__doc__ == ''");
         py_assert!(
             py,
@@ -81,7 +81,7 @@ fn class_with_docs_and_signature() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<MyClass>();
+        let typeobj = py.get_type_bound::<MyClass>();
 
         py_assert!(py, typeobj, "typeobj.__doc__ == 'docs line1\\ndocs line2'");
         py_assert!(
@@ -115,7 +115,7 @@ fn test_auto_test_signature_function() {
     }
 
     #[pyfunction(pass_module)]
-    fn my_function_2(module: &PyModule, a: i32, b: i32, c: i32) {
+    fn my_function_2(module: &Bound<'_, PyModule>, a: i32, b: i32, c: i32) {
         let _ = (module, a, b, c);
     }
 
@@ -232,13 +232,13 @@ fn test_auto_test_signature_method() {
         }
 
         #[classmethod]
-        fn classmethod(cls: &PyType, a: i32, b: i32, c: i32) {
+        fn classmethod(cls: &Bound<'_, PyType>, a: i32, b: i32, c: i32) {
             let _ = (cls, a, b, c);
         }
     }
 
     Python::with_gil(|py| {
-        let cls = py.get_type::<MyClass>();
+        let cls = py.get_type_bound::<MyClass>();
         #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
         py_assert!(py, cls, "cls.__text_signature__ == '(a, b, c)'");
         py_assert!(
@@ -311,7 +311,7 @@ fn test_auto_test_signature_opt_out() {
 
         #[classmethod]
         #[pyo3(text_signature = None)]
-        fn classmethod(cls: &PyType, a: i32, b: i32, c: i32) {
+        fn classmethod(cls: &Bound<'_, PyType>, a: i32, b: i32, c: i32) {
             let _ = (cls, a, b, c);
         }
     }
@@ -323,7 +323,7 @@ fn test_auto_test_signature_opt_out() {
         let f = wrap_pyfunction!(my_function_2)(py).unwrap();
         py_assert!(py, f, "f.__text_signature__ == None");
 
-        let cls = py.get_type::<MyClass>();
+        let cls = py.get_type_bound::<MyClass>();
         py_assert!(py, cls, "cls.__text_signature__ == None");
         py_assert!(py, cls, "cls.method.__text_signature__ == None");
         py_assert!(py, cls, "cls.method_2.__text_signature__ == None");
@@ -335,7 +335,7 @@ fn test_auto_test_signature_opt_out() {
 #[test]
 fn test_pyfn() {
     #[pymodule]
-    fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
         #[pyfn(m, signature = (a, b=None, *, c=42))]
         #[pyo3(text_signature = "(a, b=None, *, c=42)")]
         fn my_function(a: i32, b: Option<i32>, c: i32) {
@@ -367,12 +367,12 @@ fn test_methods() {
             let _ = a;
         }
         #[pyo3(text_signature = "($self, b)")]
-        fn pyself_method(_this: &PyCell<Self>, b: i32) {
+        fn pyself_method(_this: &Bound<'_, Self>, b: i32) {
             let _ = b;
         }
         #[classmethod]
         #[pyo3(text_signature = "($cls, c)")]
-        fn class_method(_cls: &PyType, c: i32) {
+        fn class_method(_cls: &Bound<'_, PyType>, c: i32) {
             let _ = c;
         }
         #[staticmethod]
@@ -383,7 +383,7 @@ fn test_methods() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<MyClass>();
+        let typeobj = py.get_type_bound::<MyClass>();
 
         py_assert!(
             py,
@@ -424,7 +424,7 @@ fn test_raw_identifiers() {
     }
 
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<MyClass>();
+        let typeobj = py.get_type_bound::<MyClass>();
 
         py_assert!(py, typeobj, "typeobj.__text_signature__ == '()'");
 

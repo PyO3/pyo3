@@ -6,6 +6,7 @@
 
 ```rust
 # #![allow(dead_code)]
+# #[cfg(feature = "experimental-async")] {
 use std::{thread, time::Duration};
 use futures::channel::oneshot;
 use pyo3::prelude::*;
@@ -20,6 +21,7 @@ async fn sleep(seconds: f64, result: Option<PyObject>) -> Option<PyObject> {
     rx.await.unwrap();
     result
 }
+# }
 ```
 
 *Python awaitables instantiated with this method can only be awaited in *asyncio* context. Other Python async runtime may be supported in the future.*
@@ -36,7 +38,7 @@ However, there is an exception for method receiver, so async methods can accept 
 
 Even if it is not possible to pass a `py: Python<'_>` parameter to `async fn`, the GIL is still held during the execution of the future – it's also the case for regular `fn` without `Python<'_>`/`&PyAny` parameter, yet the GIL is held.
 
-It is still possible to get a `Python` marker using [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.with_gil); because `with_gil` is reentrant and optimized, the cost will be negligible.
+It is still possible to get a `Python` marker using [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil); because `with_gil` is reentrant and optimized, the cost will be negligible.
 
 ## Release the GIL across `.await`
 
@@ -68,10 +70,11 @@ where
 
 ## Cancellation
 
-Cancellation on the Python side can be caught using [`CancelHandle`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html) type, by annotating a function parameter with `#[pyo3(cancel_handle)].
+Cancellation on the Python side can be caught using [`CancelHandle`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html) type, by annotating a function parameter with `#[pyo3(cancel_handle)]`.
 
 ```rust
 # #![allow(dead_code)]
+# #[cfg(feature = "experimental-async")] {
 use futures::FutureExt;
 use pyo3::prelude::*;
 use pyo3::coroutine::CancelHandle;
@@ -83,11 +86,12 @@ async fn cancellable(#[pyo3(cancel_handle)] mut cancel: CancelHandle) {
         _ = cancel.cancelled().fuse() => println!("cancelled"),
     }
 }
+# }
 ```
 
 ## The `Coroutine` type
 
-To make a Rust future awaitable in Python, PyO3 defines a [`Coroutine`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.Coroutine.html) type, which implements the Python [coroutine protocol](https://docs.python.org/3/library/collections.abc.html#collections.abc.Coroutine). 
+To make a Rust future awaitable in Python, PyO3 defines a [`Coroutine`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.Coroutine.html) type, which implements the Python [coroutine protocol](https://docs.python.org/3/library/collections.abc.html#collections.abc.Coroutine).
 
 Each `coroutine.send` call is translated to a `Future::poll` call. If a [`CancelHandle`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html) parameter is declared, the exception passed to `coroutine.throw` call is stored in it and can be retrieved with [`CancelHandle::cancelled`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html#method.cancelled); otherwise, it cancels the Rust future, and the exception is reraised;
 

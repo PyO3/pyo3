@@ -1,7 +1,7 @@
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyCFunction;
-use crate::{intern, wrap_pyfunction, Py, PyAny, PyObject, PyResult, Python};
+use crate::{intern, wrap_pyfunction, Bound, Py, PyAny, PyObject, PyResult, Python};
 use pyo3_macros::pyfunction;
 use std::sync::Arc;
 use std::task::Wake;
@@ -25,10 +25,13 @@ impl AsyncioWaker {
         self.0.take();
     }
 
-    pub(super) fn initialize_future<'a>(&'a self, py: Python<'a>) -> PyResult<Option<&'a PyAny>> {
+    pub(super) fn initialize_future<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Option<&Bound<'py, PyAny>>> {
         let init = || LoopAndFuture::new(py).map(Some);
         let loop_and_future = self.0.get_or_try_init(py, init)?.as_ref();
-        Ok(loop_and_future.map(|LoopAndFuture { future, .. }| future.as_ref(py)))
+        Ok(loop_and_future.map(|LoopAndFuture { future, .. }| future.bind(py)))
     }
 }
 
@@ -74,7 +77,7 @@ impl LoopAndFuture {
         let call_soon_threadsafe = self.event_loop.call_method1(
             py,
             intern!(py, "call_soon_threadsafe"),
-            (release_waiter, self.future.as_ref(py)),
+            (release_waiter, self.future.bind(py)),
         );
         if let Err(err) = call_soon_threadsafe {
             // `call_soon_threadsafe` will raise if the event loop is closed;

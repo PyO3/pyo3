@@ -31,7 +31,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+//! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())
 //! }
@@ -48,11 +48,11 @@
 //! ```
 
 #[cfg(Py_LIMITED_API)]
-use crate::types::bytes::PyBytesMethods;
+use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
     ffi,
     instance::Bound,
-    types::{any::PyAnyMethods, *},
+    types::{any::PyAnyMethods, PyLong},
     FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
@@ -85,18 +85,14 @@ macro_rules! bigint_conversion {
                 let bytes = $to_bytes(self);
                 let bytes_obj = PyBytes::new_bound(py, &bytes);
                 let kwargs = if $is_signed > 0 {
-                    let kwargs = PyDict::new_bound(py);
+                    let kwargs = crate::types::PyDict::new_bound(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
                     Some(kwargs)
                 } else {
                     None
                 };
-                py.get_type::<PyLong>()
-                    .call_method(
-                        "from_bytes",
-                        (bytes_obj, "little"),
-                        kwargs.as_ref().map(crate::Bound::as_gil_ref),
-                    )
+                py.get_type_bound::<PyLong>()
+                    .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
             }
@@ -228,7 +224,7 @@ fn int_to_py_bytes<'py>(
     use crate::intern;
     let py = long.py();
     let kwargs = if is_signed {
-        let kwargs = PyDict::new_bound(py);
+        let kwargs = crate::types::PyDict::new_bound(py);
         kwargs.set_item(intern!(py, "signed"), true)?;
         Some(kwargs)
     } else {
@@ -265,8 +261,6 @@ fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
 
 #[cfg(test)]
 mod tests {
-    use self::{any::PyAnyMethods, dict::PyDictMethods};
-
     use super::*;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
@@ -288,7 +282,7 @@ mod tests {
         let mut f0 = 1.to_object(py);
         let mut f1 = 1.to_object(py);
         std::iter::from_fn(move || {
-            let f2 = f0.call_method1(py, "__add__", (f1.as_ref(py),)).unwrap();
+            let f2 = f0.call_method1(py, "__add__", (f1.bind(py),)).unwrap();
             Some(std::mem::replace(&mut f0, std::mem::replace(&mut f1, f2)))
         })
     }
@@ -301,7 +295,7 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigUint>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(rs_result).unwrap());
+                assert!(py_result.bind(py).eq(rs_result).unwrap());
             }
         });
     }
@@ -314,7 +308,7 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(&rs_result).unwrap());
+                assert!(py_result.bind(py).eq(&rs_result).unwrap());
 
                 // negate
 
@@ -324,12 +318,12 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(rs_result).unwrap());
+                assert!(py_result.bind(py).eq(rs_result).unwrap());
             }
         });
     }
 
-    fn python_index_class(py: Python<'_>) -> &PyModule {
+    fn python_index_class(py: Python<'_>) -> Bound<'_, PyModule> {
         let index_code = indoc!(
             r#"
                 class C:
@@ -339,7 +333,7 @@ mod tests {
                         return self.x
                 "#
         );
-        PyModule::from_code(py, index_code, "index.py", "index").unwrap()
+        PyModule::from_code_bound(py, index_code, "index.py", "index").unwrap()
     }
 
     #[test]

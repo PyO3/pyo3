@@ -45,7 +45,7 @@
 /// }
 ///
 /// Python::with_gil(|py| {
-///     let time = PyCell::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
+///     let time = Py::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 ///     let time_as_tuple = (8, 43, 16);
 ///     py_run!(py, time time_as_tuple, r#"
 ///         assert time.hour == 8
@@ -73,7 +73,7 @@
 /// }
 ///
 /// Python::with_gil(|py| {
-///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict_bound(py);
+///     let locals = [("C", py.get_type_bound::<MyClass>())].into_py_dict_bound(py);
 ///     pyo3::py_run!(py, *locals, "c = C()");
 /// });
 /// ```
@@ -121,18 +121,57 @@ macro_rules! py_run_impl {
 /// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
 ///
 /// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add free
-/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more information.
+/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
+/// information.
+///
+/// During the migration from the GIL Ref API to the Bound API, the return type of this macro will
+/// be either the `&'py PyModule` GIL Ref or `Bound<'py, PyModule>` according to the second
+/// argument.
+///
+/// For backwards compatibility, if the second argument is `Python<'py>` then the return type will
+/// be `&'py PyModule` GIL Ref. To get `Bound<'py, PyModule>`, use the [`crate::wrap_pyfunction_bound!`]
+/// macro instead.
 #[macro_export]
 macro_rules! wrap_pyfunction {
     ($function:path) => {
         &|py_or_module| {
             use $function as wrapped_pyfunction;
-            $crate::impl_::pyfunction::_wrap_pyfunction(&wrapped_pyfunction::DEF, py_or_module)
+            $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
+                py_or_module,
+                &wrapped_pyfunction::DEF,
+            )
         }
     };
     ($function:path, $py_or_module:expr) => {{
         use $function as wrapped_pyfunction;
-        $crate::impl_::pyfunction::_wrap_pyfunction(&wrapped_pyfunction::DEF, $py_or_module)
+        $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
+            $py_or_module,
+            &wrapped_pyfunction::DEF,
+        )
+    }};
+}
+
+/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
+///
+/// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add free
+/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more information.
+#[macro_export]
+macro_rules! wrap_pyfunction_bound {
+    ($function:path) => {
+        &|py_or_module| {
+            use $function as wrapped_pyfunction;
+            $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
+                $crate::impl_::pyfunction::OnlyBound(py_or_module),
+                &wrapped_pyfunction::DEF,
+            )
+        }
+    };
+    ($function:path, $py_or_module:expr) => {{
+        use $function as wrapped_pyfunction;
+        $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
+            $crate::impl_::pyfunction::OnlyBound($py_or_module),
+            &wrapped_pyfunction::DEF,
+        )
     }};
 }
 
@@ -169,8 +208,8 @@ macro_rules! append_to_inittab {
                 );
             }
             $crate::ffi::PyImport_AppendInittab(
-                $module::NAME.as_ptr() as *const ::std::os::raw::c_char,
-                ::std::option::Option::Some($module::init),
+                $module::__PYO3_NAME.as_ptr() as *const ::std::os::raw::c_char,
+                ::std::option::Option::Some($module::__pyo3_init),
             );
         }
     };

@@ -35,7 +35,7 @@ impl PyClassWithMultiplePyMethods {
 #[pymethods]
 impl PyClassWithMultiplePyMethods {
     #[classmethod]
-    fn classmethod(_ty: &PyType) -> &'static str {
+    fn classmethod(_ty: &Bound<'_, PyType>) -> &'static str {
         "classmethod"
     }
 }
@@ -65,7 +65,7 @@ impl PyClassWithMultiplePyMethods {
 #[test]
 fn test_class_with_multiple_pymethods() {
     Python::with_gil(|py| {
-        let cls = py.get_type::<PyClassWithMultiplePyMethods>();
+        let cls = py.get_type_bound::<PyClassWithMultiplePyMethods>();
         py_assert!(py, cls, "cls()() == 'call'");
         py_assert!(py, cls, "cls().method() == 'method'");
         py_assert!(py, cls, "cls.classmethod() == 'classmethod'");

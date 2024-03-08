@@ -1,15 +1,15 @@
 use std::{
     future::Future,
-    mem,
     ops::{Deref, DerefMut},
 };
 
 use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
     instance::Bound,
+    pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
-    types::PyString,
-    IntoPy, Py, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult, Python,
+    types::{PyAnyMethods, PyString},
+    IntoPy, Py, PyAny, PyClass, PyErr, PyObject, PyResult, Python,
 };
 
 pub fn new_coroutine<F, T, E>(
@@ -32,17 +32,16 @@ where
 }
 
 fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {
-    // SAFETY: Py<T> can be casted as *const PyCell<T>
-    unsafe { &*(obj.as_ptr() as *const PyCell<T>) }.get_ptr()
+    obj.get_class_object().get_ptr()
 }
 
 pub struct RefGuard<T: PyClass>(Py<T>);
 
 impl<T: PyClass> RefGuard<T> {
-    pub fn new(obj: &PyAny) -> PyResult<Self> {
-        let owned: Py<T> = obj.extract()?;
-        mem::forget(owned.try_borrow(obj.py())?);
-        Ok(RefGuard(owned))
+    pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let bound = obj.downcast::<T>()?;
+        bound.get_class_object().borrow_checker().try_borrow()?;
+        Ok(RefGuard(bound.clone().unbind()))
     }
 }
 
@@ -56,17 +55,23 @@ impl<T: PyClass> Deref for RefGuard<T> {
 
 impl<T: PyClass> Drop for RefGuard<T> {
     fn drop(&mut self) {
-        Python::with_gil(|gil| self.0.as_ref(gil).release_ref())
+        Python::with_gil(|gil| {
+            self.0
+                .bind(gil)
+                .get_class_object()
+                .borrow_checker()
+                .release_borrow()
+        })
     }
 }
 
 pub struct RefMutGuard<T: PyClass<Frozen = False>>(Py<T>);
 
 impl<T: PyClass<Frozen = False>> RefMutGuard<T> {
-    pub fn new(obj: &PyAny) -> PyResult<Self> {
-        let owned: Py<T> = obj.extract()?;
-        mem::forget(owned.try_borrow_mut(obj.py())?);
-        Ok(RefMutGuard(owned))
+    pub fn new(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let bound = obj.downcast::<T>()?;
+        bound.get_class_object().borrow_checker().try_borrow_mut()?;
+        Ok(RefMutGuard(bound.clone().unbind()))
     }
 }
 
@@ -87,6 +92,12 @@ impl<T: PyClass<Frozen = False>> DerefMut for RefMutGuard<T> {
 
 impl<T: PyClass<Frozen = False>> Drop for RefMutGuard<T> {
     fn drop(&mut self) {
-        Python::with_gil(|gil| self.0.as_ref(gil).release_mut())
+        Python::with_gil(|gil| {
+            self.0
+                .bind(gil)
+                .get_class_object()
+                .borrow_checker()
+                .release_borrow_mut()
+        })
     }
 }

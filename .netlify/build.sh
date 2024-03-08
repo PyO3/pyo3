@@ -71,9 +71,17 @@ if [ "${INSTALLED_MDBOOK_VERSION}" != "mdbook v${MDBOOK_VERSION}" ]; then
     cargo install mdbook@${MDBOOK_VERSION} --force
 fi
 
+# Install latest mdbook-linkcheck. Netlify will cache the cargo bin dir, so this will
+# only build mdbook-linkcheck if needed.
+MDBOOK_LINKCHECK_VERSION=$(cargo search mdbook-linkcheck --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
+INSTALLED_MDBOOK_LINKCHECK_VERSION=$(mdbook-linkcheck --version || echo "none")
+if [ "${INSTALLED_MDBOOK_LINKCHECK_VERSION}" != "mdbook v${MDBOOK_LINKCHECK_VERSION}" ]; then
+    cargo install mdbook-linkcheck@${MDBOOK_LINKCHECK_VERSION} --force
+fi
+
 pip install nox
 nox -s build-guide
-mv target/guide netlify_build/main/
+mv target/guide/ netlify_build/main/
 
 ## Build public docs
 

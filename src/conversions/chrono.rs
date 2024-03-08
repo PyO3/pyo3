@@ -19,6 +19,9 @@
 //! # Example: Convert a `datetime.datetime` to chrono's `DateTime<Utc>`
 //!
 //! ```rust
+//! # // `chrono::Duration` has been renamed to `chrono::TimeDelta` and its constructors changed
+//! # // TODO: upgrade to Chrono 0.4.35+ after upgrading our MSRV to 1.61+
+//! # #![allow(deprecated)]
 //! use chrono::{DateTime, Duration, TimeZone, Utc};
 //! use pyo3::{Python, ToPyObject};
 //!
@@ -39,6 +42,11 @@
 //!     });
 //! }
 //! ```
+
+// `chrono::Duration` has been renamed to `chrono::TimeDelta` and its constructors changed
+// TODO: upgrade to Chrono 0.4.35+ after upgrading our MSRV to 1.61+
+#![allow(deprecated)]
+
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::sync::GILOnceCell;
@@ -457,9 +465,9 @@ fn naive_datetime_to_py_datetime(
 
 fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
-    if let Err(e) = PyErr::warn(
+    if let Err(e) = PyErr::warn_bound(
         py,
-        py.get_type::<PyUserWarning>(),
+        &py.get_type_bound::<PyUserWarning>(),
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
@@ -588,7 +596,7 @@ mod tests {
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect
-            let msg = res.value(py).repr().unwrap().to_string();
+            let msg = res.value_bound(py).repr().unwrap().to_string();
             assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
         });
     }
@@ -603,7 +611,7 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<NaiveDateTime> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime without tzinfo')"
             );
         });
@@ -618,14 +626,14 @@ mod tests {
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<Utc>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
 
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime<FixedOffset>> = py_datetime.extract();
             assert_eq!(
-                res.unwrap_err().value(py).repr().unwrap().to_string(),
+                res.unwrap_err().value_bound(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
             );
         });
@@ -636,7 +644,7 @@ mod tests {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
         Python::with_gil(|py| {
-            let none = py.None().into_ref(py);
+            let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
                 "TypeError: 'NoneType' object cannot be converted to 'PyDelta'"
@@ -980,13 +988,13 @@ mod tests {
             let td = new_py_datetime_ob(py, "timedelta", (0, 3600, 0));
             let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
             // Should be equal
-            assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
+            assert!(offset.bind(py).eq(py_timedelta).unwrap());
 
             // Same but with negative values
             let offset = FixedOffset::east_opt(-3600).unwrap().to_object(py);
             let td = new_py_datetime_ob(py, "timedelta", (0, -3600, 0));
             let py_timedelta = new_py_datetime_ob(py, "timezone", (td,));
-            assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
+            assert!(offset.bind(py).eq(py_timedelta).unwrap());
         })
     }
 
@@ -1097,7 +1105,6 @@ mod tests {
     mod proptests {
         use super::*;
         use crate::tests::common::CatchWarnings;
-        use crate::types::any::PyAnyMethods;
         use crate::types::IntoPyDict;
         use proptest::prelude::*;
 

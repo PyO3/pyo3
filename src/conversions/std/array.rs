@@ -239,8 +239,8 @@ mod tests {
         Python::with_gil(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
             let pyobject = array.into_py(py);
-            let list: &PyList = pyobject.downcast(py).unwrap();
-            let _cell: &crate::PyCell<Foo> = list.get_item(4).unwrap().extract().unwrap();
+            let list = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
         });
     }
 

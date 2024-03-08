@@ -375,7 +375,7 @@ impl Dummy {
     #[staticmethod]
     fn staticmethod() {}
     #[classmethod]
-    fn clsmethod(_: &crate::types::PyType) {}
+    fn clsmethod(_: &crate::Bound<'_, crate::types::PyType>) {}
     #[pyo3(signature = (*_args, **_kwds))]
     fn __call__(
         &self,
@@ -770,7 +770,7 @@ impl Dummy {
     #[staticmethod]
     fn staticmethod() {}
     #[classmethod]
-    fn clsmethod(_: &crate::types::PyType) {}
+    fn clsmethod(_: &crate::Bound<'_, crate::types::PyType>) {}
     #[pyo3(signature = (*_args, **_kwds))]
     fn __call__(
         &self,

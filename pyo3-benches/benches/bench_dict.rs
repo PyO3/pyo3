@@ -11,7 +11,7 @@ fn iter_dict(b: &mut Bencher<'_>) {
         let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict_bound(py);
         let mut sum = 0;
         b.iter(|| {
-            for (k, _v) in dict.iter() {
+            for (k, _v) in &dict {
                 let i: u64 = k.extract().unwrap();
                 sum += i;
             }
@@ -69,6 +69,7 @@ fn extract_hashbrown_map(b: &mut Bencher<'_>) {
     });
 }
 
+#[cfg(not(codspeed))]
 fn mapping_from_dict(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
@@ -87,6 +88,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     #[cfg(feature = "hashbrown")]
     c.bench_function("extract_hashbrown_map", extract_hashbrown_map);
 
+    #[cfg(not(codspeed))]
     c.bench_function("mapping_from_dict", mapping_from_dict);
 }
 

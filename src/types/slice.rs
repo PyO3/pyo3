@@ -78,10 +78,7 @@ impl PySlice {
         )
     )]
     pub fn full(py: Python<'_>) -> &PySlice {
-        unsafe {
-            let ptr = ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None());
-            py.from_owned_ptr(ptr)
-        }
+        PySlice::full_bound(py).into_gil_ref()
     }
 
     /// Constructs a new full slice that is equivalent to `::`.
@@ -108,7 +105,7 @@ impl PySlice {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PySlice")]
-pub trait PySliceMethods<'py> {
+pub trait PySliceMethods<'py>: crate::sealed::Sealed {
     /// Retrieves the start, stop, and step indices from the slice object,
     /// assuming a sequence of length `length`, and stores the length of the
     /// slice in its `slicelength` member.

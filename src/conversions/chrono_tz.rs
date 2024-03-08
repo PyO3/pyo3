@@ -34,6 +34,7 @@
 //! }
 //! ```
 use crate::exceptions::PyValueError;
+use crate::pybacked::PyBackedStr;
 use crate::sync::GILOnceCell;
 use crate::types::{any::PyAnyMethods, PyType};
 use crate::{
@@ -62,8 +63,11 @@ impl IntoPy<PyObject> for Tz {
 
 impl FromPyObject<'_> for Tz {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Tz> {
-        Tz::from_str(ob.getattr(intern!(ob.py(), "key"))?.extract()?)
-            .map_err(|e| PyValueError::new_err(e.to_string()))
+        Tz::from_str(
+            &ob.getattr(intern!(ob.py(), "key"))?
+                .extract::<PyBackedStr>()?,
+        )
+        .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 }
 

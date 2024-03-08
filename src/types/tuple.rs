@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::iter::FusedIterator;
 
 use crate::ffi::{self, Py_ssize_t};
@@ -169,7 +168,7 @@ impl PyTuple {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let ob = (1, 2, 3).to_object(py);
-    ///     let tuple: &PyTuple = ob.downcast(py).unwrap();
+    ///     let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
     ///     Ok(())
@@ -249,7 +248,7 @@ index_impls!(PyTuple, "tuple", PyTuple::len, PyTuple::get_slice);
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyTuple")]
-pub trait PyTupleMethods<'py> {
+pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// Gets the length of the tuple.
     fn len(&self) -> usize;
 
@@ -273,7 +272,7 @@ pub trait PyTupleMethods<'py> {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let ob = (1, 2, 3).to_object(py);
-    ///     let tuple: &PyTuple = ob.downcast(py).unwrap();
+    ///     let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
     ///     Ok(())
@@ -412,7 +411,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     }
 
     fn iter_borrowed<'a>(&'a self) -> BorrowedTupleIterator<'a, 'py> {
-        BorrowedTupleIterator::new(self.as_borrowed())
+        self.as_borrowed().iter_borrowed()
     }
 
     fn to_list(&self) -> Bound<'py, PyList> {
@@ -433,6 +432,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+    }
+
+    pub(crate) fn iter_borrowed(self) -> BorrowedTupleIterator<'a, 'py> {
+        BorrowedTupleIterator::new(self)
     }
 }
 
@@ -551,6 +554,15 @@ impl<'py> IntoIterator for Bound<'py, PyTuple> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PyTuple> {
+    type Item = Bound<'py, PyAny>;
+    type IntoIter = BoundTupleIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 /// Used by `PyTuple::iter_borrowed()`.
 pub struct BorrowedTupleIterator<'a, 'py> {
     tuple: Borrowed<'a, 'py, PyTuple>,
@@ -625,6 +637,12 @@ impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
     fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
         self.unbind()
+    }
+}
+
+impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
+    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
+        self.clone().unbind()
     }
 }
 
@@ -964,6 +982,23 @@ mod tests {
             for (i, item) in tuple.iter().enumerate() {
                 assert_eq!(i + 1, item.extract::<'_, usize>().unwrap());
             }
+        });
+    }
+
+    #[test]
+    fn test_into_iter_bound() {
+        use crate::Bound;
+
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple: &Bound<'_, PyTuple> = ob.downcast_bound(py).unwrap();
+            assert_eq!(3, tuple.len());
+
+            let mut items = vec![];
+            for item in tuple {
+                items.push(item.extract::<usize>().unwrap());
+            }
+            assert_eq!(items, vec![1, 2, 3]);
         });
     }
 

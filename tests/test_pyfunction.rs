@@ -215,7 +215,7 @@ struct ValueClass {
 fn conversion_error(
     str_arg: &str,
     int_arg: i64,
-    tuple_arg: (&str, f64),
+    tuple_arg: (String, f64),
     option_arg: Option<i64>,
     struct_arg: Option<ValueClass>,
 ) {
@@ -324,10 +324,11 @@ fn test_pycfunction_new() {
         }
 
         let py_fn = PyCFunction::new_bound(
+            py,
             c_fn,
             "py_fn",
             "py_fn for test (this is the docstring)",
-            py.into(),
+            None,
         )
         .unwrap();
 
@@ -381,10 +382,11 @@ fn test_pycfunction_new_with_keywords() {
         }
 
         let py_fn = PyCFunction::new_with_keywords_bound(
+            py,
             c_fn,
             "py_fn",
             "py_fn for test (this is the docstring)",
-            py.into(),
+            None,
         )
         .unwrap();
 
@@ -401,7 +403,9 @@ fn test_pycfunction_new_with_keywords() {
 #[test]
 fn test_closure() {
     Python::with_gil(|py| {
-        let f = |args: &types::PyTuple, _kwargs: Option<&types::PyDict>| -> PyResult<_> {
+        let f = |args: &Bound<'_, types::PyTuple>,
+                 _kwargs: Option<&Bound<'_, types::PyDict>>|
+         -> PyResult<_> {
             Python::with_gil(|py| {
                 let res: Vec<_> = args
                     .iter()
@@ -439,12 +443,13 @@ fn test_closure() {
 fn test_closure_counter() {
     Python::with_gil(|py| {
         let counter = std::cell::RefCell::new(0);
-        let counter_fn =
-            move |_args: &types::PyTuple, _kwargs: Option<&types::PyDict>| -> PyResult<i32> {
-                let mut counter = counter.borrow_mut();
-                *counter += 1;
-                Ok(*counter)
-            };
+        let counter_fn = move |_args: &Bound<'_, types::PyTuple>,
+                               _kwargs: Option<&Bound<'_, types::PyDict>>|
+              -> PyResult<i32> {
+            let mut counter = counter.borrow_mut();
+            *counter += 1;
+            Ok(*counter)
+        };
         let counter_py = PyCFunction::new_closure_bound(py, None, None, counter_fn).unwrap();
 
         py_assert!(py, counter_py, "counter_py() == 1");

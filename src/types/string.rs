@@ -73,9 +73,7 @@ impl<'a> PyStringData<'a> {
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
-                Err(e) => Err(crate::PyErr::from_value(PyUnicodeDecodeError::new_utf8(
-                    py, data, e,
-                )?)),
+                Err(e) => Err(PyUnicodeDecodeError::new_utf8_bound(py, data, e)?.into()),
             },
             Self::Ucs2(data) => match String::from_utf16(data) {
                 Ok(s) => Ok(Cow::Owned(s)),
@@ -83,24 +81,26 @@ impl<'a> PyStringData<'a> {
                     let mut message = e.to_string().as_bytes().to_vec();
                     message.push(0);
 
-                    Err(crate::PyErr::from_value(PyUnicodeDecodeError::new(
+                    Err(PyUnicodeDecodeError::new_bound(
                         py,
                         CStr::from_bytes_with_nul(b"utf-16\0").unwrap(),
                         self.as_bytes(),
                         0..self.as_bytes().len(),
                         CStr::from_bytes_with_nul(&message).unwrap(),
-                    )?))
+                    )?
+                    .into())
                 }
             },
             Self::Ucs4(data) => match data.iter().map(|&c| std::char::from_u32(c)).collect() {
                 Some(s) => Ok(Cow::Owned(s)),
-                None => Err(crate::PyErr::from_value(PyUnicodeDecodeError::new(
+                None => Err(PyUnicodeDecodeError::new_bound(
                     py,
                     CStr::from_bytes_with_nul(b"utf-32\0").unwrap(),
                     self.as_bytes(),
                     0..self.as_bytes().len(),
                     CStr::from_bytes_with_nul(b"error converting utf-32\0").unwrap(),
-                )?)),
+                )?
+                .into()),
             },
         }
     }
@@ -235,10 +235,7 @@ impl PyString {
 
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
-            let bytes = unsafe {
-                self.py()
-                    .from_owned_ptr_or_err::<PyBytes>(ffi::PyUnicode_AsUTF8String(self.as_ptr()))
-            }?;
+            let bytes = self.as_borrowed().encode_utf8()?.into_gil_ref();
             Ok(unsafe { std::str::from_utf8_unchecked(bytes.as_bytes()) })
         }
     }
@@ -285,7 +282,7 @@ impl PyString {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyString")]
-pub trait PyStringMethods<'py> {
+pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     /// Gets the Python string as a Rust UTF-8 string slice.
     ///
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
@@ -357,7 +354,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
 impl<'a> Borrowed<'a, '_, PyString> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[allow(clippy::wrong_self_convention)]
-    fn to_str(self) -> PyResult<&'a str> {
+    pub(crate) fn to_str(self) -> PyResult<&'a str> {
         // PyUnicode_AsUTF8AndSize only available on limited API starting with 3.10.
         let mut size: ffi::Py_ssize_t = 0;
         let data: *const u8 =
@@ -508,10 +505,7 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
-    use crate::Python;
     use crate::{PyObject, ToPyObject};
-    #[cfg(not(Py_LIMITED_API))]
-    use std::borrow::Cow;
 
     #[test]
     fn test_to_str_utf8() {

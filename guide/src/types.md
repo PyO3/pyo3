@@ -92,9 +92,11 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 # use pyo3::prelude::*;
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
+# #[allow(deprecated)]
 let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
 
 // To &PyCell<MyClass> with PyAny::downcast
+# #[allow(deprecated)]
 let _: &PyCell<MyClass> = obj.downcast()?;
 
 // To Py<PyAny> (aka PyObject) with .into()
@@ -144,6 +146,7 @@ let _ = list.repr()?;
 let _: &PyAny = list;
 
 // To &PyAny explicitly with .as_ref()
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyAny = list.as_ref();
 
 // To Py<T> with .into() or Py::from()
@@ -178,10 +181,12 @@ For a `Py<PyList>`, the conversions are as below:
 let list: Py<PyList> = PyList::empty_bound(py).unbind();
 
 // To &PyList with Py::as_ref() (borrows from the Py)
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyList = list.as_ref(py);
 
 # let list_clone = list.clone(); // Because `.into_ref()` will consume `list`.
 // To &PyList with Py::into_ref() (moves the pointer into PyO3's object storage)
+# #[allow(deprecated)]
 let _: &PyList = list.into_ref(py);
 
 # let list = list_clone;
@@ -200,10 +205,12 @@ For a `#[pyclass] struct MyClass`, the conversions for `Py<MyClass>` are below:
 let my_class: Py<MyClass> = Py::new(py, MyClass { })?;
 
 // To &PyCell<MyClass> with Py::as_ref() (borrows from the Py)
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyCell<MyClass> = my_class.as_ref(py);
 
 # let my_class_clone = my_class.clone(); // Because `.into_ref()` will consume `my_class`.
 // To &PyCell<MyClass> with Py::into_ref() (moves the pointer into PyO3's object storage)
+# #[allow(deprecated)]
 let _: &PyCell<MyClass> = my_class.into_ref(py);
 
 # let my_class = my_class_clone.clone();
@@ -242,6 +249,7 @@ so it also exposes all of the methods on `PyAny`.
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
+# #[allow(deprecated)]
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // To PyRef<T> with .borrow() or .try_borrow()
@@ -262,6 +270,7 @@ let _: &mut MyClass = &mut *py_ref_mut;
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
+# #[allow(deprecated)]
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // Use methods from PyAny on PyCell<T> with Deref implementation
@@ -271,6 +280,7 @@ let _ = cell.repr()?;
 let _: &PyAny = cell;
 
 // To &PyAny explicitly with .as_ref()
+#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyAny = cell.as_ref();
 # Ok(())
 # }).unwrap();

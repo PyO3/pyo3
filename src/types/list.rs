@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::iter::FusedIterator;
 
 use crate::err::{self, PyResult};
@@ -286,7 +285,7 @@ index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyList")]
-pub trait PyListMethods<'py> {
+pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// Returns the length of the list.
     fn len(&self) -> usize;
 
@@ -704,6 +703,15 @@ impl<'py> IntoIterator for Bound<'py, PyList> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PyList> {
+    type Item = Bound<'py, PyAny>;
+    type IntoIter = BoundListIterator<'py>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[cfg(test)]
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
@@ -909,6 +917,20 @@ mod tests {
             for (i, item) in list.iter().enumerate() {
                 assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
             }
+        });
+    }
+
+    #[test]
+    fn test_into_iter_bound() {
+        use crate::types::any::PyAnyMethods;
+
+        Python::with_gil(|py| {
+            let list = PyList::new_bound(py, [1, 2, 3, 4]);
+            let mut items = vec![];
+            for item in &list {
+                items.push(item.extract::<i32>().unwrap());
+            }
+            assert_eq!(items, vec![1, 2, 3, 4]);
         });
     }
 

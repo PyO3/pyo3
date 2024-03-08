@@ -2,12 +2,13 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::freelist::FreeList,
-    impl_::pycell::{GetBorrowChecker, PyClassMutability},
+    impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
     internal_tricks::extract_c_string,
-    pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
+    types::any::PyAnyMethods,
     types::PyBool,
-    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo,
+    Python,
 };
 use std::{
     borrow::Cow,
@@ -24,13 +25,13 @@ pub use lazy_type_object::LazyTypeObject;
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyCell::<T>::dict_offset()
+    PyClassObject::<T>::dict_offset()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
 pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyCell::<T>::weaklist_offset()
+    PyClassObject::<T>::weaklist_offset()
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
@@ -811,8 +812,8 @@ slot_fragment_trait! {
         other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
         // By default `__ne__` will try `__eq__` and invert the result
-        let slf: &PyAny = py.from_borrowed_ptr(slf);
-        let other: &PyAny = py.from_borrowed_ptr(other);
+        let slf = Borrowed::from_ptr(py, slf);
+        let other = Borrowed::from_ptr(py, other);
         slf.eq(other).map(|is_eq| PyBool::new_bound(py, !is_eq).to_owned().into_ptr())
     }
 }
@@ -880,6 +881,8 @@ macro_rules! generate_pyclass_richcompare_slot {
     }};
 }
 pub use generate_pyclass_richcompare_slot;
+
+use super::pycell::PyClassObject;
 
 /// Implements a freelist.
 ///
@@ -1093,7 +1096,7 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
 pub trait PyClassBaseType: Sized {
-    type LayoutAsBase: PyCellLayout<Self>;
+    type LayoutAsBase: PyClassObjectLayout<Self>;
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
@@ -1103,7 +1106,7 @@ pub trait PyClassBaseType: Sized {
 ///
 /// In the future this will be extended to immutable PyClasses too.
 impl<T: PyClass> PyClassBaseType for T {
-    type LayoutAsBase = crate::pycell::PyCell<T>;
+    type LayoutAsBase = crate::impl_::pycell::PyClassObject<T>;
     type BaseNativeType = T::BaseNativeType;
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
     type PyClassMutability = T::PyClassMutability;
@@ -1111,7 +1114,7 @@ impl<T: PyClass> PyClassBaseType for T {
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::impl_::trampoline::dealloc(obj, PyCell::<T>::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc)
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
@@ -1120,7 +1123,7 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     {
         ffi::PyObject_GC_UnTrack(obj.cast());
     }
-    crate::impl_::trampoline::dealloc(obj, PyCell::<T>::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc)
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(

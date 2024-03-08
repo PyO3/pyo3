@@ -141,11 +141,7 @@ mod not_limited_impls {
     impl<'py> Neg for &'py PyComplex {
         type Output = &'py PyComplex;
         fn neg(self) -> &'py PyComplex {
-            unsafe {
-                let val = (*self.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-                self.py()
-                    .from_owned_ptr(ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val)))
-            }
+            (-self.as_borrowed()).into_gil_ref()
         }
     }
 
@@ -262,7 +258,7 @@ mod not_limited_impls {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyComplex")]
-pub trait PyComplexMethods<'py> {
+pub trait PyComplexMethods<'py>: crate::sealed::Sealed {
     /// Returns the real part of the complex number.
     fn real(&self) -> c_double;
     /// Returns the imaginary part of the complex number.

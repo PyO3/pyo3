@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
+use crate::utils::Ctx;
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
     pymethod::{self, is_proto_method, MethodAndMethodDef, MethodAndSlotDef},
-    utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
@@ -90,6 +90,7 @@ pub fn impl_methods(
     methods_type: PyClassMethodsType,
     options: PyImplOptions,
 ) -> syn::Result<TokenStream> {
+    let ctx = &Ctx::new(&options.krate);
     let mut trait_impls = Vec::new();
     let mut proto_impls = Vec::new();
     let mut methods = Vec::new();
@@ -102,7 +103,8 @@ pub fn impl_methods(
             syn::ImplItem::Fn(meth) => {
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
-                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)? {
+                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options, ctx)?
+                {
                     GeneratedPyMethod::Method(MethodAndMethodDef {
                         associated_method,
                         method_def,
@@ -127,7 +129,7 @@ pub fn impl_methods(
                 }
             }
             syn::ImplItem::Const(konst) => {
-                let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
+                let attributes = ConstAttributes::from_attrs(&mut konst.attrs, ctx)?;
                 if attributes.is_class_attr {
                     let spec = ConstSpec {
                         rust_ident: konst.ident.clone(),
@@ -137,7 +139,7 @@ pub fn impl_methods(
                     let MethodAndMethodDef {
                         associated_method,
                         method_def,
-                    } = gen_py_const(ty, &spec);
+                    } = gen_py_const(ty, &spec, ctx);
                     methods.push(quote!(#(#attrs)* #method_def));
                     associated_methods.push(quote!(#(#attrs)* #associated_method));
                     if is_proto_method(&spec.python_name().to_string()) {
@@ -158,19 +160,19 @@ pub fn impl_methods(
         }
     }
 
-    add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments);
+    add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments, ctx);
 
-    let krate = get_pyo3_crate(&options.krate);
+    let ctx = &Ctx::new(&options.krate);
 
     let items = match methods_type {
-        PyClassMethodsType::Specialization => impl_py_methods(ty, methods, proto_impls),
-        PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods, proto_impls),
+        PyClassMethodsType::Specialization => impl_py_methods(ty, methods, proto_impls, ctx),
+        PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods, proto_impls, ctx),
     };
 
     Ok(quote! {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         const _: () = {
-            use #krate as _pyo3;
-
             #(#trait_impls)*
 
             #items
@@ -184,24 +186,25 @@ pub fn impl_methods(
     })
 }
 
-pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> MethodAndMethodDef {
+pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec<'_>, ctx: &Ctx) -> MethodAndMethodDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
     let deprecations = &spec.attributes.deprecations;
     let python_name = &spec.null_terminated_python_name();
+    let Ctx { pyo3_path } = ctx;
 
     let associated_method = quote! {
-        fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
+        fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
             #deprecations
-            ::std::result::Result::Ok(_pyo3::IntoPy::into_py(#cls::#member, py))
+            ::std::result::Result::Ok(#pyo3_path::IntoPy::into_py(#cls::#member, py))
         }
     };
 
     let method_def = quote! {
-        _pyo3::class::PyMethodDefType::ClassAttribute({
-            _pyo3::class::PyClassAttributeDef::new(
+        #pyo3_path::class::PyMethodDefType::ClassAttribute({
+            #pyo3_path::class::PyClassAttributeDef::new(
                 #python_name,
-                _pyo3::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
+                #pyo3_path::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
             )
         })
     };
@@ -216,13 +219,15 @@ fn impl_py_methods(
     ty: &syn::Type,
     methods: Vec<TokenStream>,
     proto_impls: Vec<TokenStream>,
+    ctx: &Ctx,
 ) -> TokenStream {
+    let Ctx { pyo3_path } = ctx;
     quote! {
-        impl _pyo3::impl_::pyclass::PyMethods<#ty>
-            for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
+        impl #pyo3_path::impl_::pyclass::PyMethods<#ty>
+            for #pyo3_path::impl_::pyclass::PyClassImplCollector<#ty>
         {
-            fn py_methods(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
-                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
+            fn py_methods(self) -> &'static #pyo3_path::impl_::pyclass::PyClassItems {
+                static ITEMS: #pyo3_path::impl_::pyclass::PyClassItems = #pyo3_path::impl_::pyclass::PyClassItems {
                     methods: &[#(#methods),*],
                     slots: &[#(#proto_impls),*]
                 };
@@ -236,13 +241,15 @@ fn add_shared_proto_slots(
     ty: &syn::Type,
     proto_impls: &mut Vec<TokenStream>,
     mut implemented_proto_fragments: HashSet<String>,
+    ctx: &Ctx,
 ) {
+    let Ctx { pyo3_path } = ctx;
     macro_rules! try_add_shared_slot {
         ($slot:ident, $($fragments:literal),*) => {{
             let mut implemented = false;
             $(implemented |= implemented_proto_fragments.remove($fragments));*;
             if implemented {
-                proto_impls.push(quote! { _pyo3::impl_::pyclass::$slot!(#ty) })
+                proto_impls.push(quote! { #pyo3_path::impl_::pyclass::$slot!(#ty) })
             }
         }};
     }
@@ -292,11 +299,13 @@ fn submit_methods_inventory(
     ty: &syn::Type,
     methods: Vec<TokenStream>,
     proto_impls: Vec<TokenStream>,
+    ctx: &Ctx,
 ) -> TokenStream {
+    let Ctx { pyo3_path } = ctx;
     quote! {
-        _pyo3::inventory::submit! {
-            type Inventory = <#ty as _pyo3::impl_::pyclass::PyClassImpl>::Inventory;
-            Inventory::new(_pyo3::impl_::pyclass::PyClassItems { methods: &[#(#methods),*], slots: &[#(#proto_impls),*] })
+        #pyo3_path::inventory::submit! {
+            type Inventory = <#ty as #pyo3_path::impl_::pyclass::PyClassImpl>::Inventory;
+            Inventory::new(#pyo3_path::impl_::pyclass::PyClassItems { methods: &[#(#methods),*], slots: &[#(#proto_impls),*] })
         }
     }
 }

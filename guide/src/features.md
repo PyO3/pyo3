@@ -12,7 +12,7 @@ This feature is required when building a Python extension module using PyO3.
 
 It tells PyO3's build script to skip linking against `libpython.so` on Unix platforms, where this must not be done.
 
-See the [building and distribution](building_and_distribution.md#linking) section for further detail.
+See the [building and distribution](building_and_distribution.md#the-extension-module-feature) section for further detail.
 
 ### `abi3`
 
@@ -45,11 +45,17 @@ section for further detail.
 
 ### `auto-initialize`
 
-This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.with_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
+This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
 
 If you do not enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
 
 ## Advanced Features
+
+### `experimental-async`
+
+This feature adds support for `async fn` in `#[pyfunction]` and `#[pymethods]`.
+
+The feature has some unfinished refinements and performance improvements. To help finish this off, see [issue #1632](https://github.com/PyO3/pyo3/issues/1632) and its associated draft PRs.
 
 ### `experimental-inspect`
 
@@ -108,7 +114,7 @@ Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from
 ### `chrono`
 
 Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
-- [Duration](https://docs.rs/chrono/latest/chrono/struct.Duration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [TimeDelta](https://docs.rs/chrono/latest/chrono/struct.TimeDelta.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [FixedOffset](https://docs.rs/chrono/latest/chrono/offset/struct.FixedOffset.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [Utc](https://docs.rs/chrono/latest/chrono/offset/struct.Utc.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
 - [NaiveDate](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveDate.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
@@ -123,7 +129,7 @@ It requires at least Python 3.9.
 
 ### `either`
 
-Adds a dependency on [either](https://docs.rs/either). Enables a conversions into [either](https://docs.rs/either)’s [`Either`](https://docs.rs/either/latest/either/struct.Report.html) type.
+Adds a dependency on [either](https://docs.rs/either). Enables a conversions into [either](https://docs.rs/either)’s [`Either`](https://docs.rs/either/latest/either/enum.Either.html) type.
 
 ### `eyre`
 
@@ -139,7 +145,7 @@ Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversion
 
 ### `num-bigint`
 
-Adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conversions into its [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUInt.html) types.
+Adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conversions into its [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html) types.
 
 ### `num-complex`
 

@@ -14,6 +14,8 @@ dist/
 .eggs/
 venv*
 guide/book/
+guide/src/LICENSE-APACHE
+guide/src/LICENSE-MIT
 *.so
 *.out
 *.egg-info
@@ -22,5 +24,6 @@ pip-wheel-metadata
 valgrind-python.supp
 *.pyd
 lcov.info
+coverage.json
 netlify_build/
 .nox/

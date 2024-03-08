@@ -26,9 +26,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
+        uses: taiki-e/install-action@v2
         with:
-          mdbook-version: "0.4.19"
+          tool: mdbook,lychee
 
       - name: Prepare tag
         id: prepare_tag
@@ -36,11 +36,11 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "::set-output name=tag_name::${TAG_NAME}"
 
-      # This builds the book in target/guide.
+      # This builds the book in target/guide/.
       - name: Build the guide
         run: |
           python -m pip install --upgrade pip && pip install nox
-          nox -s build-guide
+          nox -s check-guide
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
 

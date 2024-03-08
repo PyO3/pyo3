@@ -3,6 +3,7 @@ use pyo3_ffi::PyType_IS_GC;
 use crate::{
     exceptions::PyTypeError,
     ffi,
+    impl_::pycell::PyClassObject,
     impl_::pyclass::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
         tp_dealloc_with_gc, PyClassItemsIter,
@@ -11,13 +12,13 @@ use crate::{
         pymethods::{get_doc, get_name, Getter, Setter},
         trampoline::trampoline,
     },
+    types::typeobject::PyTypeMethods,
     types::PyType,
-    Py, PyCell, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
+    Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
     collections::HashMap,
-    convert::TryInto,
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_ulong, c_void},
     ptr,
@@ -94,7 +95,7 @@ where
             T::items_iter(),
             T::NAME,
             T::MODULE,
-            std::mem::size_of::<PyCell<T>>(),
+            std::mem::size_of::<PyClassObject<T>>(),
         )
     }
 }
@@ -435,7 +436,7 @@ impl PyTypeBuilder {
         bpo_45315_workaround(py, class_name);
 
         for cleanup in std::mem::take(&mut self.cleanup) {
-            cleanup(&self, type_object.as_ref(py).as_type_ptr());
+            cleanup(&self, type_object.bind(py).as_type_ptr());
         }
 
         Ok(PyClassTypeObject {

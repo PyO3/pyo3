@@ -65,9 +65,15 @@ pyo3-build-config = { path = "pyo3-build-config", version = "=0.21.0-dev", featu
 [features]
 default = ["macros"]
 
+# Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
+experimental-async = ["macros", "pyo3-macros/experimental-async"]
+
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
 experimental-inspect = []
+
+# Enables annotating Rust inline modules with #[pymodule] to build Python modules declaratively
+experimental-declarative-modules = ["pyo3-macros/experimental-declarative-modules", "macros"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
@@ -108,19 +114,21 @@ nightly = []
 full = [
     "macros",
     # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
+    "anyhow",
     "chrono",
     "chrono-tz",
+    "either",
+    "experimental-async",
+    "experimental-declarative-modules",
+    "experimental-inspect",
+    "eyre",
+    "hashbrown",
+    "indexmap",
     "num-bigint",
     "num-complex",
-    "hashbrown",
-    "smallvec",
-    "serde",
-    "indexmap",
-    "either",
-    "eyre",
-    "anyhow",
-    "experimental-inspect",
     "rust_decimal",
+    "serde",
+    "smallvec",
 ]
 
 [workspace]
@@ -135,7 +143,7 @@ members = [
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["full"]
+features = ["full", "gil-refs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.lints.clippy]

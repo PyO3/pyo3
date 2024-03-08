@@ -74,7 +74,7 @@
 //!     // could call inside an application...
 //!     // This might return a `PyErr`.
 //!     let res = Python::with_gil(|py| {
-//!         let zlib = PyModule::import(py, "zlib")?;
+//!         let zlib = PyModule::import_bound(py, "zlib")?;
 //!         let decompress = zlib.getattr("decompress")?;
 //!         let bytes = PyBytes::new_bound(py, bytes);
 //!         let value = decompress.call1((bytes,))?;
@@ -154,7 +154,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = [("err", pyerr)].into_py_dict_bound(py);
             let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
-            assert_eq!(pyerr.value(py).to_string(), expected_contents);
+            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
         })
     }
 
@@ -171,7 +171,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = [("err", pyerr)].into_py_dict_bound(py);
             let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
-            assert_eq!(pyerr.value(py).to_string(), expected_contents);
+            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
         })
     }
 

@@ -9,7 +9,7 @@
 //! yourself to import Python classes that are ultimately derived from
 //! `BaseException`.
 
-use crate::{ffi, PyResult, Python};
+use crate::{ffi, Bound, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
 use std::os::raw::c_char;
@@ -19,9 +19,12 @@ use std::os::raw::c_char;
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
+        // FIXME https://github.com/PyO3/pyo3/issues/3903
+        #[allow(unknown_lints, non_local_definitions)]
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
+                #[allow(deprecated)]
                 $crate::PyErr::from_value(err)
             }
         }
@@ -42,6 +45,7 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
                 unsafe {
+                    #[allow(deprecated)]
                     let cause: &$crate::exceptions::PyBaseException = self
                         .py()
                         .from_owned_ptr_or_opt($crate::ffi::PyException_GetCause(self.as_ptr()))?;
@@ -50,6 +54,8 @@ macro_rules! impl_exception_boilerplate {
                 }
             }
         }
+
+        impl $crate::ToPyErr for $name {}
     };
 }
 
@@ -71,7 +77,7 @@ macro_rules! impl_exception_boilerplate {
 /// import_exception!(socket, gaierror);
 ///
 /// Python::with_gil(|py| {
-///     let ctx = [("gaierror", py.get_type::<gaierror>())].into_py_dict_bound(py);
+///     let ctx = [("gaierror", py.get_type_bound::<gaierror>())].into_py_dict_bound(py);
 ///     pyo3::py_run!(py, *ctx, "import socket; assert gaierror is socket.gaierror");
 /// });
 ///
@@ -158,16 +164,16 @@ macro_rules! import_exception {
 /// }
 ///
 /// #[pymodule]
-/// fn my_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-///     m.add("MyError", py.get_type::<MyError>())?;
-///     m.add_function(wrap_pyfunction!(raise_myerror, py)?)?;
+/// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+///     m.add("MyError", m.py().get_type_bound::<MyError>())?;
+///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;
 ///     Ok(())
 /// }
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new_bound(py);
-/// #         locals.set_item("MyError", py.get_type::<MyError>())?;
+/// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
 /// #         py.run_bound(
@@ -245,11 +251,11 @@ macro_rules! create_exception_type_object {
 
                 TYPE_OBJECT
                     .get_or_init(py, ||
-                        $crate::PyErr::new_type(
+                        $crate::PyErr::new_type_bound(
                             py,
                             concat!(stringify!($module), ".", stringify!($name)),
                             $doc,
-                            ::std::option::Option::Some(py.get_type::<$base>()),
+                            ::std::option::Option::Some(&py.get_type_bound::<$base>()),
                             ::std::option::Option::None,
                         ).expect("Failed to initialize new exception type.")
                 ).as_ptr() as *mut $crate::ffi::PyTypeObject
@@ -612,7 +618,14 @@ impl_windows_native_exception!(
 );
 
 impl PyUnicodeDecodeError {
-    /// Creates a Python `UnicodeDecodeError`.
+    /// Deprecated form of [`PyUnicodeDecodeError::new_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyUnicodeDecodeError::new` will be replaced by `PyUnicodeDecodeError::new_bound` in a future PyO3 version"
+        )
+    )]
     pub fn new<'p>(
         py: Python<'p>,
         encoding: &CStr,
@@ -620,16 +633,47 @@ impl PyUnicodeDecodeError {
         range: ops::Range<usize>,
         reason: &CStr,
     ) -> PyResult<&'p PyUnicodeDecodeError> {
+        Ok(PyUnicodeDecodeError::new_bound(py, encoding, input, range, reason)?.into_gil_ref())
+    }
+
+    /// Creates a Python `UnicodeDecodeError`.
+    pub fn new_bound<'p>(
+        py: Python<'p>,
+        encoding: &CStr,
+        input: &[u8],
+        range: ops::Range<usize>,
+        reason: &CStr,
+    ) -> PyResult<Bound<'p, PyUnicodeDecodeError>> {
+        use crate::ffi_ptr_ext::FfiPtrExt;
+        use crate::py_result_ext::PyResultExt;
         unsafe {
-            py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
+            ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
                 input.as_ptr() as *const c_char,
                 input.len() as ffi::Py_ssize_t,
                 range.start as ffi::Py_ssize_t,
                 range.end as ffi::Py_ssize_t,
                 reason.as_ptr(),
-            ))
+            )
+            .assume_owned_or_err(py)
         }
+        .downcast_into()
+    }
+
+    /// Deprecated form of [`PyUnicodeDecodeError::new_utf8_bound`].
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyUnicodeDecodeError::new_utf8` will be replaced by `PyUnicodeDecodeError::new_utf8_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn new_utf8<'p>(
+        py: Python<'p>,
+        input: &[u8],
+        err: std::str::Utf8Error,
+    ) -> PyResult<&'p PyUnicodeDecodeError> {
+        Ok(PyUnicodeDecodeError::new_utf8_bound(py, input, err)?.into_gil_ref())
     }
 
     /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
@@ -645,7 +689,7 @@ impl PyUnicodeDecodeError {
     /// Python::with_gil(|py| {
     ///     let invalid_utf8 = b"fo\xd8o";
     ///     let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-    ///     let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)?;
+    ///     let decode_err = PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)?;
     ///     assert_eq!(
     ///         decode_err.to_string(),
     ///         "'utf-8' codec can't decode byte 0xd8 in position 2: invalid utf-8"
@@ -653,13 +697,13 @@ impl PyUnicodeDecodeError {
     ///     Ok(())
     /// })
     /// # }
-    pub fn new_utf8<'p>(
+    pub fn new_utf8_bound<'p>(
         py: Python<'p>,
         input: &[u8],
         err: std::str::Utf8Error,
-    ) -> PyResult<&'p PyUnicodeDecodeError> {
+    ) -> PyResult<Bound<'p, PyUnicodeDecodeError>> {
         let pos = err.valid_up_to();
-        PyUnicodeDecodeError::new(
+        PyUnicodeDecodeError::new_bound(
             py,
             CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
             input,
@@ -744,7 +788,7 @@ macro_rules! test_exception {
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value: &$exc_ty = err.value(py).downcast().unwrap();
+                let value: &$exc_ty = err.value_bound(py).clone().into_gil_ref().downcast().unwrap();
                 assert!(value.source().is_none());
 
                 err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
@@ -803,7 +847,7 @@ mod tests {
     use super::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{PyErr, PyNativeType, Python};
+    use crate::{PyErr, PyNativeType};
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);
@@ -864,7 +908,7 @@ mod tests {
         create_exception!(mymodule, CustomError, PyException);
 
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
@@ -887,7 +931,7 @@ mod tests {
     fn custom_exception_dotted_module() {
         create_exception!(mymodule.exceptions, CustomError, PyException);
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
@@ -906,7 +950,7 @@ mod tests {
         create_exception!(mymodule, CustomError, PyException, "Some docs");
 
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
@@ -939,7 +983,7 @@ mod tests {
         );
 
         Python::with_gil(|py| {
-            let error_type = py.get_type::<CustomError>();
+            let error_type = py.get_type_bound::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
@@ -969,7 +1013,7 @@ mod tests {
                 .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
-                .into_ref(py);
+                .into_bound(py);
             assert_eq!(
                 format!("{:?}", exc),
                 exc.repr().unwrap().extract::<String>().unwrap()
@@ -984,7 +1028,7 @@ mod tests {
                 .run_bound("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
-                .into_ref(py);
+                .into_bound(py);
             assert_eq!(
                 exc.to_string(),
                 exc.str().unwrap().extract::<String>().unwrap()
@@ -997,6 +1041,7 @@ mod tests {
         use std::error::Error;
 
         Python::with_gil(|py| {
+            #[allow(deprecated)]
             let exc = py
                 .run_bound(
                     "raise Exception('banana') from TypeError('peach')",
@@ -1024,7 +1069,7 @@ mod tests {
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         Python::with_gil(|py| {
-            let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
+            let decode_err = PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err).unwrap();
             assert_eq!(
                 format!("{:?}", decode_err),
                 "UnicodeDecodeError('utf-8', b'fo\\xd8o', 2, 3, 'invalid utf-8')"
@@ -1080,7 +1125,11 @@ mod tests {
         let invalid_utf8 = b"fo\xd8o";
         #[cfg_attr(invalid_from_utf8_lint, allow(invalid_from_utf8))]
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-        PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
+        PyErr::from_value_bound(
+            PyUnicodeDecodeError::new_utf8_bound(py, invalid_utf8, err)
+                .unwrap()
+                .into_any(),
+        )
     });
     test_exception!(PyUnicodeEncodeError, |py| py
         .eval_bound("chr(40960).encode('ascii')", None, None)

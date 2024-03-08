@@ -1,18 +1,9 @@
+use crate::sealed::Sealed;
 use crate::{
     ffi,
     instance::{Borrowed, Bound},
     PyAny, PyResult, Python,
 };
-
-mod sealed {
-    use super::*;
-
-    pub trait Sealed {}
-
-    impl Sealed for *mut ffi::PyObject {}
-}
-
-use sealed::Sealed;
 
 pub(crate) trait FfiPtrExt: Sealed {
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>>;

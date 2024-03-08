@@ -15,6 +15,8 @@ proc-macro = true
 
 [features]
 multiple-pymethods = []
+experimental-async = ["pyo3-macros-backend/experimental-async"]
+experimental-declarative-modules = []
 
 [dependencies]
 proc-macro2 = { version = "1", default-features = false }

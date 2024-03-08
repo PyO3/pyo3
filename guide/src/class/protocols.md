@@ -17,7 +17,7 @@ When PyO3 handles a magic method, a couple of changes apply compared to other `#
 The following sections list of all magic methods PyO3 currently handles.  The
 given signatures should be interpreted as follows:
  - All methods take a receiver as first argument, shown as `<self>`. It can be
-   `&self`, `&mut self` or a `PyCell` reference like `self_: PyRef<'_, Self>` and
+   `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and
    `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
  - An optional `Python<'py>` argument is always allowed as the first argument.
  - Return values can be optionally wrapped in `PyResult`.
@@ -207,7 +207,7 @@ impl Container {
 
 # Python::with_gil(|py| {
 #     let container = Container { iter: vec![1, 2, 3, 4] };
-#     let inst = pyo3::PyCell::new(py, container).unwrap();
+#     let inst = pyo3::Py::new(py, container).unwrap();
 #     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
 #     pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
 # });
@@ -450,7 +450,7 @@ Usually, an implementation of `__traverse__` should do nothing but calls to `vis
 Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`,
 i.e. `Python::with_gil` will panic.
 
-> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3899).
+> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 
 [`IterNextOutput`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/enum.IterNextOutput.html
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html

@@ -94,7 +94,13 @@ where
         } else if let Ok(r) = obj.extract::<R>() {
             Ok(Either::Right(r))
         } else {
-            let err_msg = format!("failed to convert the value to '{}'", Self::type_input());
+            // TODO: it might be nice to use the `type_input()` name here once `type_input`
+            // is not experimental, rather than the Rust type names.
+            let err_msg = format!(
+                "failed to convert the value to 'Union[{}, {}]'",
+                std::any::type_name::<L>(),
+                std::any::type_name::<R>()
+            );
             Err(PyTypeError::new_err(err_msg))
         }
     }
@@ -107,6 +113,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use crate::exceptions::PyTypeError;
     use crate::{Python, ToPyObject};
 
@@ -126,7 +134,7 @@ mod tests {
 
             let r = E::Right("foo".to_owned());
             let obj_r = r.to_object(py);
-            assert_eq!(obj_r.extract::<&str>(py).unwrap(), "foo");
+            assert_eq!(obj_r.extract::<Cow<'_, str>>(py).unwrap(), "foo");
             assert_eq!(obj_r.extract::<E>(py).unwrap(), r);
 
             let obj_s = "foo".to_object(py);
@@ -134,7 +142,7 @@ mod tests {
             assert!(err.is_instance_of::<PyTypeError>(py));
             assert_eq!(
                 err.to_string(),
-                "TypeError: failed to convert the value to 'Union[int, float]'"
+                "TypeError: failed to convert the value to 'Union[i32, f32]'"
             );
 
             let obj_i = 42.to_object(py);

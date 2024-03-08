@@ -10,7 +10,14 @@
         rust_2021_prelude_collisions,
         warnings
     ),
-    allow(unused_variables, unused_assignments, unused_extern_crates)
+    allow(
+        unused_variables,
+        unused_assignments,
+        unused_extern_crates,
+        // FIXME https://github.com/rust-lang/rust/issues/121621#issuecomment-1965156376
+        unknown_lints,
+        non_local_definitions,
+    )
 )))]
 
 //! Rust bindings to the Python interpreter.
@@ -161,7 +168,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
-//! fn string_sum(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+//! fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
 //!     Ok(())
@@ -297,18 +304,20 @@
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, FromPyPointer, IntoPy, ToPyObject};
+pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[allow(deprecated)]
-pub use crate::conversion::{PyTryFrom, PyTryInto};
+pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
 pub use crate::err::{
-    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult,
+    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
 };
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::instance::{Borrowed, Bound, Py, PyNativeType, PyObject};
 pub use crate::marker::Python;
-pub use crate::pycell::{PyCell, PyRef, PyRefMut};
+#[allow(deprecated)]
+pub use crate::pycell::PyCell;
+pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
@@ -317,6 +326,7 @@ pub use crate::version::PythonVersionInfo;
 
 pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
+pub(crate) mod sealed;
 
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
@@ -408,7 +418,7 @@ pub mod buffer;
 pub mod callback;
 pub mod conversion;
 mod conversions;
-#[cfg(feature = "macros")]
+#[cfg(feature = "experimental-async")]
 pub mod coroutine;
 #[macro_use]
 #[doc(hidden)]
@@ -426,6 +436,7 @@ pub mod marshal;
 pub mod sync;
 pub mod panic;
 pub mod prelude;
+pub mod pybacked;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;

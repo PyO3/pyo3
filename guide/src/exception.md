@@ -24,7 +24,7 @@ use pyo3::exceptions::PyException;
 create_exception!(mymodule, CustomError, PyException);
 
 Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict_bound(py);
+    let ctx = [("CustomError", py.get_type_bound::<CustomError>())].into_py_dict_bound(py);
     pyo3::py_run!(
         py,
         *ctx,
@@ -44,9 +44,9 @@ use pyo3::exceptions::PyException;
 pyo3::create_exception!(mymodule, CustomError, PyException);
 
 #[pymodule]
-fn mymodule(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn mymodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ... other elements added to module ...
-    m.add("CustomError", py.get_type::<CustomError>())?;
+    m.add("CustomError", py.get_type_bound::<CustomError>())?;
 
     Ok(())
 }
@@ -128,5 +128,5 @@ defines exceptions for several standard library modules.
 [`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
 [`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
 [`PyErr::from_value`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_value
-[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance
-[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance_of
+[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance
+[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance_of

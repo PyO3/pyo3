@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use crate::utils::Ctx;
 use crate::{
     attributes::{self, get_pyo3_options, take_attributes, NameAttribute},
     deprecations::Deprecations,
@@ -13,12 +14,12 @@ use syn::{
     Result,
 };
 
-pub struct ConstSpec {
+pub struct ConstSpec<'ctx> {
     pub rust_ident: syn::Ident,
-    pub attributes: ConstAttributes,
+    pub attributes: ConstAttributes<'ctx>,
 }
 
-impl ConstSpec {
+impl ConstSpec<'_> {
     pub fn python_name(&self) -> Cow<'_, Ident> {
         if let Some(name) = &self.attributes.name {
             Cow::Borrowed(&name.value.0)
@@ -34,10 +35,10 @@ impl ConstSpec {
     }
 }
 
-pub struct ConstAttributes {
+pub struct ConstAttributes<'ctx> {
     pub is_class_attr: bool,
     pub name: Option<NameAttribute>,
-    pub deprecations: Deprecations,
+    pub deprecations: Deprecations<'ctx>,
 }
 
 pub enum PyO3ConstAttribute {
@@ -55,12 +56,12 @@ impl Parse for PyO3ConstAttribute {
     }
 }
 
-impl ConstAttributes {
-    pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
+impl<'ctx> ConstAttributes<'ctx> {
+    pub fn from_attrs(attrs: &mut Vec<syn::Attribute>, ctx: &'ctx Ctx) -> syn::Result<Self> {
         let mut attributes = ConstAttributes {
             is_class_attr: false,
             name: None,
-            deprecations: Deprecations::new(),
+            deprecations: Deprecations::new(ctx),
         };
 
         take_attributes(attrs, |attr| {

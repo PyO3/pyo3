@@ -54,7 +54,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code(
+#         let module = PyModule::from_code_bound(
 #             py,
 #             "class Foo:
 #             def __init__(self):
@@ -111,7 +111,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code(
+#         let module = PyModule::from_code_bound(
 #             py,
 #             "class Foo(dict):
 #             def __init__(self):
@@ -339,7 +339,7 @@ enum RustyEnum<'a> {
 #             );
 #         }
 #         {
-#             let module = PyModule::from_code(
+#             let module = PyModule::from_code_bound(
 #                 py,
 #                 "class Foo(dict):
 #             def __init__(self):
@@ -364,7 +364,7 @@ enum RustyEnum<'a> {
 #         }
 #
 #         {
-#             let module = PyModule::from_code(
+#             let module = PyModule::from_code_bound(
 #                 py,
 #                 "class Foo(dict):
 #             def __init__(self):

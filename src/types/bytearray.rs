@@ -112,10 +112,7 @@ impl PyByteArray {
         )
     )]
     pub fn from(src: &PyAny) -> PyResult<&PyByteArray> {
-        unsafe {
-            src.py()
-                .from_owned_ptr_or_err(ffi::PyByteArray_FromObject(src.as_ptr()))
-        }
+        PyByteArray::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Creates a new Python `bytearray` object from another Python object that
@@ -296,7 +293,7 @@ impl PyByteArray {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyByteArray")]
-pub trait PyByteArrayMethods<'py> {
+pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// Gets the length of the bytearray.
     fn len(&self) -> usize;
 

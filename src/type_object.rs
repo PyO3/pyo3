@@ -6,7 +6,7 @@ use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, PyNativeType, Python};
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
-/// E.g., `PyCell` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
+/// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
@@ -76,7 +76,10 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     fn type_object(py: Python<'_>) -> &PyType {
         // This isn't implemented in terms of `type_object_bound` because this just borrowed the
         // object, for legacy reasons.
-        unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
+        #[allow(deprecated)]
+        unsafe {
+            py.from_borrowed_ptr(Self::type_object_raw(py) as _)
+        }
     }
 
     /// Returns the safe abstraction over the type object.

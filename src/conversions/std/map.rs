@@ -76,7 +76,7 @@ where
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
@@ -96,7 +96,7 @@ where
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
@@ -111,7 +111,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{IntoPy, PyObject, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -121,7 +120,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -144,7 +143,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -167,7 +166,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -189,7 +188,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(

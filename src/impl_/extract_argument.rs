@@ -1,10 +1,16 @@
 use crate::{
+    conversion::FromPyObjectBound,
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
-    types::{PyDict, PyString, PyTuple},
-    Bound, FromPyObject, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeCheck, Python,
+    types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
+    Borrowed, Bound, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeCheck, Python,
 };
+
+/// Helper type used to keep implementation more concise.
+///
+/// (Function argument extraction borrows input arguments.)
+type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 
 /// A trait which is used to help PyO3 macros extract function arguments.
 ///
@@ -16,30 +22,46 @@ use crate::{
 /// There exists a trivial blanket implementation for `T: FromPyObject` with `Holder = ()`.
 pub trait PyFunctionArgument<'a, 'py>: Sized + 'a {
     type Holder: FunctionArgumentHolder;
-    fn extract(obj: &'py PyAny, holder: &'a mut Self::Holder) -> PyResult<Self>;
+    fn extract(obj: &'a Bound<'py, PyAny>, holder: &'a mut Self::Holder) -> PyResult<Self>;
 }
 
 impl<'a, 'py, T> PyFunctionArgument<'a, 'py> for T
 where
-    T: FromPyObject<'py> + 'a,
+    T: FromPyObjectBound<'a, 'py> + 'a,
 {
     type Holder = ();
 
     #[inline]
-    fn extract(obj: &'py PyAny, _: &'a mut ()) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
         obj.extract()
     }
 }
 
-impl<'a, 'py, T> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
+impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
 where
     T: PyTypeCheck,
 {
-    type Holder = Option<Bound<'py, T>>;
+    type Holder = Option<&'a Bound<'py, T>>;
 
     #[inline]
-    fn extract(obj: &'py PyAny, holder: &'a mut Option<Bound<'py, T>>) -> PyResult<Self> {
-        Ok(&*holder.insert(obj.extract()?))
+    fn extract(
+        obj: &'a Bound<'py, PyAny>,
+        holder: &'a mut Option<&'a Bound<'py, T>>,
+    ) -> PyResult<Self> {
+        Ok(holder.insert(obj.downcast()?))
+    }
+}
+
+#[cfg(all(Py_LIMITED_API, not(any(feature = "gil-refs", Py_3_10))))]
+impl<'a> PyFunctionArgument<'a, '_> for &'a str {
+    type Holder = Option<std::borrow::Cow<'a, str>>;
+
+    #[inline]
+    fn extract(
+        obj: &'a Bound<'_, PyAny>,
+        holder: &'a mut Option<std::borrow::Cow<'a, str>>,
+    ) -> PyResult<Self> {
+        Ok(holder.insert(obj.extract()?))
     }
 }
 
@@ -59,7 +81,7 @@ impl<T> FunctionArgumentHolder for Option<T> {
 
 #[inline]
 pub fn extract_pyclass_ref<'a, 'py: 'a, T: PyClass>(
-    obj: &'py PyAny,
+    obj: &'a Bound<'py, PyAny>,
     holder: &'a mut Option<PyRef<'py, T>>,
 ) -> PyResult<&'a T> {
     Ok(&*holder.insert(obj.extract()?))
@@ -67,7 +89,7 @@ pub fn extract_pyclass_ref<'a, 'py: 'a, T: PyClass>(
 
 #[inline]
 pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
-    obj: &'py PyAny,
+    obj: &'a Bound<'py, PyAny>,
     holder: &'a mut Option<PyRefMut<'py, T>>,
 ) -> PyResult<&'a mut T> {
     Ok(&mut *holder.insert(obj.extract()?))
@@ -76,7 +98,7 @@ pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 #[doc(hidden)]
 pub fn extract_argument<'a, 'py, T>(
-    obj: &'py PyAny,
+    obj: &'a Bound<'py, PyAny>,
     holder: &'a mut T::Holder,
     arg_name: &str,
 ) -> PyResult<T>
@@ -93,7 +115,7 @@ where
 /// does not implement `PyFunctionArgument` for `T: PyClass`.
 #[doc(hidden)]
 pub fn extract_optional_argument<'a, 'py, T>(
-    obj: Option<&'py PyAny>,
+    obj: Option<&'a Bound<'py, PyAny>>,
     holder: &'a mut T::Holder,
     arg_name: &str,
     default: fn() -> Option<T>,
@@ -117,7 +139,7 @@ where
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
 #[doc(hidden)]
 pub fn extract_argument_with_default<'a, 'py, T>(
-    obj: Option<&'py PyAny>,
+    obj: Option<&'a Bound<'py, PyAny>>,
     holder: &'a mut T::Holder,
     arg_name: &str,
     default: fn() -> T,
@@ -133,12 +155,12 @@ where
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation.
 #[doc(hidden)]
-pub fn from_py_with<'py, T>(
-    obj: &'py PyAny,
+pub fn from_py_with<'a, 'py, T>(
+    obj: &'a Bound<'py, PyAny>,
     arg_name: &str,
-    extractor: fn(&'py PyAny) -> PyResult<T>,
+    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
 ) -> PyResult<T> {
-    match extractor(obj) {
+    match extractor.into().call(obj) {
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
     }
@@ -146,10 +168,10 @@ pub fn from_py_with<'py, T>(
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation and also a default value.
 #[doc(hidden)]
-pub fn from_py_with_with_default<'py, T>(
-    obj: Option<&'py PyAny>,
+pub fn from_py_with_with_default<'a, 'py, T>(
+    obj: Option<&'a Bound<'py, PyAny>>,
     arg_name: &str,
-    extractor: fn(&'py PyAny) -> PyResult<T>,
+    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
     default: fn() -> T,
 ) -> PyResult<T> {
     match obj {
@@ -165,10 +187,15 @@ pub fn from_py_with_with_default<'py, T>(
 #[doc(hidden)]
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
-    use crate::types::any::PyAnyMethods;
-    if error.get_type_bound(py).is(py.get_type::<PyTypeError>()) {
-        let remapped_error =
-            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
+    if error
+        .get_type_bound(py)
+        .is(&py.get_type_bound::<PyTypeError>())
+    {
+        let remapped_error = PyTypeError::new_err(format!(
+            "argument '{}': {}",
+            arg_name,
+            error.value_bound(py)
+        ));
         remapped_error.set_cause(py, error.cause(py));
         remapped_error
     } else {
@@ -183,7 +210,7 @@ pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -
 /// `argument` must not be `None`
 #[doc(hidden)]
 #[inline]
-pub unsafe fn unwrap_required_argument(argument: Option<&PyAny>) -> &PyAny {
+pub unsafe fn unwrap_required_argument(argument: Option<PyArg<'_>>) -> PyArg<'_> {
     match argument {
         Some(value) => value,
         #[cfg(debug_assertions)]
@@ -230,7 +257,7 @@ impl FunctionDescription {
         args: *const *mut ffi::PyObject,
         nargs: ffi::Py_ssize_t,
         kwnames: *mut ffi::PyObject,
-        output: &mut [Option<&'py PyAny>],
+        output: &mut [Option<PyArg<'py>>],
     ) -> PyResult<(V::Varargs, K::Varkeywords)>
     where
         V: VarargsHandler<'py>,
@@ -247,8 +274,10 @@ impl FunctionDescription {
         );
 
         // Handle positional arguments
-        // Safety: Option<&PyAny> has the same memory layout as `*mut ffi::PyObject`
-        let args: *const Option<&PyAny> = args.cast();
+        // Safety:
+        //  - Option<PyArg> has the same memory layout as `*mut ffi::PyObject`
+        //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
+        let args: *const Option<PyArg<'py>> = args.cast();
         let positional_args_provided = nargs as usize;
         let remaining_positional_args = if args.is_null() {
             debug_assert_eq!(positional_args_provided, 0);
@@ -268,13 +297,20 @@ impl FunctionDescription {
 
         // Handle keyword arguments
         let mut varkeywords = K::Varkeywords::default();
-        if let Some(kwnames) = py.from_borrowed_ptr_or_opt::<PyTuple>(kwnames) {
-            // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
-            let kwargs =
-                ::std::slice::from_raw_parts((args as *const &PyAny).offset(nargs), kwnames.len());
+
+        // Safety: kwnames is known to be a pointer to a tuple, or null
+        //  - we both have the GIL and can borrow this input reference for the `'py` lifetime.
+        let kwnames: Option<Borrowed<'_, '_, PyTuple>> =
+            Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.downcast_unchecked());
+        if let Some(kwnames) = kwnames {
+            // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
+            let kwargs = ::std::slice::from_raw_parts(
+                (args as *const PyArg<'py>).offset(nargs),
+                kwnames.len(),
+            );
 
             self.handle_kwargs::<K, _>(
-                kwnames.iter().zip(kwargs.iter().copied()),
+                kwnames.iter_borrowed().zip(kwargs.iter().copied()),
                 &mut varkeywords,
                 num_positional_parameters,
                 output,
@@ -306,14 +342,20 @@ impl FunctionDescription {
         py: Python<'py>,
         args: *mut ffi::PyObject,
         kwargs: *mut ffi::PyObject,
-        output: &mut [Option<&'py PyAny>],
+        output: &mut [Option<PyArg<'py>>],
     ) -> PyResult<(V::Varargs, K::Varkeywords)>
     where
         V: VarargsHandler<'py>,
         K: VarkeywordsHandler<'py>,
     {
-        let args = py.from_borrowed_ptr::<PyTuple>(args);
-        let kwargs: ::std::option::Option<&PyDict> = py.from_borrowed_ptr_or_opt(kwargs);
+        // Safety:
+        //  - `args` is known to be a tuple
+        //  - `kwargs` is known to be a dict or null
+        //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
+        let args: Borrowed<'py, 'py, PyTuple> =
+            Borrowed::from_ptr(py, args).downcast_unchecked::<PyTuple>();
+        let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
+            Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.downcast_unchecked());
 
         let num_positional_parameters = self.positional_parameter_names.len();
 
@@ -325,17 +367,26 @@ impl FunctionDescription {
         );
 
         // Copy positional arguments into output
-        for (i, arg) in args.iter().take(num_positional_parameters).enumerate() {
+        for (i, arg) in args
+            .iter_borrowed()
+            .take(num_positional_parameters)
+            .enumerate()
+        {
             output[i] = Some(arg);
         }
 
         // If any arguments remain, push them to varargs (if possible) or error
-        let varargs = V::handle_varargs_tuple(args, self)?;
+        let varargs = V::handle_varargs_tuple(&args, self)?;
 
         // Handle keyword arguments
         let mut varkeywords = K::Varkeywords::default();
         if let Some(kwargs) = kwargs {
-            self.handle_kwargs::<K, _>(kwargs, &mut varkeywords, num_positional_parameters, output)?
+            self.handle_kwargs::<K, _>(
+                kwargs.iter_borrowed(),
+                &mut varkeywords,
+                num_positional_parameters,
+                output,
+            )?
         }
 
         // Once all inputs have been processed, check that all required arguments have been provided.
@@ -352,11 +403,11 @@ impl FunctionDescription {
         kwargs: I,
         varkeywords: &mut K::Varkeywords,
         num_positional_parameters: usize,
-        output: &mut [Option<&'py PyAny>],
+        output: &mut [Option<PyArg<'py>>],
     ) -> PyResult<()>
     where
         K: VarkeywordsHandler<'py>,
-        I: IntoIterator<Item = (&'py PyAny, &'py PyAny)>,
+        I: IntoIterator<Item = (PyArg<'py>, PyArg<'py>)>,
     {
         debug_assert_eq!(
             num_positional_parameters,
@@ -368,11 +419,21 @@ impl FunctionDescription {
         );
         let mut positional_only_keyword_arguments = Vec::new();
         for (kwarg_name_py, value) in kwargs {
-            // All keyword arguments should be UTF-8 strings, but we'll check, just in case.
-            // If it isn't, then it will be handled below as a varkeyword (which may raise an
-            // error if this function doesn't accept **kwargs). Rust source is always UTF-8
-            // and so all argument names in `#[pyfunction]` signature must be UTF-8.
-            if let Ok(kwarg_name) = kwarg_name_py.downcast::<PyString>()?.to_str() {
+            // Safety: All keyword arguments should be UTF-8 strings, but if it's not, `.to_str()`
+            // will return an error anyway.
+            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+            let kwarg_name =
+                unsafe { kwarg_name_py.downcast_unchecked::<crate::types::PyString>() }.to_str();
+
+            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
+            let kwarg_name = kwarg_name_py.extract::<crate::pybacked::PyBackedStr>();
+
+            if let Ok(kwarg_name_owned) = kwarg_name {
+                #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+                let kwarg_name = kwarg_name_owned;
+                #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
+                let kwarg_name: &str = &kwarg_name_owned;
+
                 // Try to place parameter in keyword only parameters
                 if let Some(i) = self.find_keyword_parameter_in_keyword_only(kwarg_name) {
                     if output[i + num_positional_parameters]
@@ -391,7 +452,7 @@ impl FunctionDescription {
                         // kwarg to conflict with a postional-only argument - the value
                         // will go into **kwargs anyway.
                         if K::handle_varkeyword(varkeywords, kwarg_name_py, value, self).is_err() {
-                            positional_only_keyword_arguments.push(kwarg_name);
+                            positional_only_keyword_arguments.push(kwarg_name_owned);
                         }
                     } else if output[i].replace(value).is_some() {
                         return Err(self.multiple_values_for_argument(kwarg_name));
@@ -404,6 +465,11 @@ impl FunctionDescription {
         }
 
         if !positional_only_keyword_arguments.is_empty() {
+            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
+            let positional_only_keyword_arguments: Vec<_> = positional_only_keyword_arguments
+                .iter()
+                .map(std::ops::Deref::deref)
+                .collect();
             return Err(self.positional_only_keyword_arguments(&positional_only_keyword_arguments));
         }
 
@@ -430,7 +496,7 @@ impl FunctionDescription {
     #[inline]
     fn ensure_no_missing_required_positional_arguments(
         &self,
-        output: &[Option<&PyAny>],
+        output: &[Option<PyArg<'_>>],
         positional_args_provided: usize,
     ) -> PyResult<()> {
         if positional_args_provided < self.required_positional_parameters {
@@ -446,7 +512,7 @@ impl FunctionDescription {
     #[inline]
     fn ensure_no_missing_required_keyword_arguments(
         &self,
-        output: &[Option<&PyAny>],
+        output: &[Option<PyArg<'_>>],
     ) -> PyResult<()> {
         let keyword_output = &output[self.positional_parameter_names.len()..];
         for (param, out) in self.keyword_only_parameters.iter().zip(keyword_output) {
@@ -491,11 +557,11 @@ impl FunctionDescription {
     }
 
     #[cold]
-    fn unexpected_keyword_argument(&self, argument: &PyAny) -> PyErr {
+    fn unexpected_keyword_argument(&self, argument: PyArg<'_>) -> PyErr {
         PyTypeError::new_err(format!(
             "{} got an unexpected keyword argument '{}'",
             self.full_name(),
-            argument
+            argument.as_any()
         ))
     }
 
@@ -528,7 +594,7 @@ impl FunctionDescription {
     }
 
     #[cold]
-    fn missing_required_keyword_arguments(&self, keyword_outputs: &[Option<&PyAny>]) -> PyErr {
+    fn missing_required_keyword_arguments(&self, keyword_outputs: &[Option<PyArg<'_>>]) -> PyErr {
         debug_assert_eq!(self.keyword_only_parameters.len(), keyword_outputs.len());
 
         let missing_keyword_only_arguments: Vec<_> = self
@@ -549,7 +615,7 @@ impl FunctionDescription {
     }
 
     #[cold]
-    fn missing_required_positional_arguments(&self, output: &[Option<&PyAny>]) -> PyErr {
+    fn missing_required_positional_arguments(&self, output: &[Option<PyArg<'_>>]) -> PyErr {
         let missing_positional_arguments: Vec<_> = self
             .positional_parameter_names
             .iter()
@@ -569,14 +635,14 @@ pub trait VarargsHandler<'py> {
     /// Called by `FunctionDescription::extract_arguments_fastcall` with any additional arguments.
     fn handle_varargs_fastcall(
         py: Python<'py>,
-        varargs: &[Option<&PyAny>],
+        varargs: &[Option<PyArg<'py>>],
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs>;
     /// Called by `FunctionDescription::extract_arguments_tuple_dict` with the original tuple.
     ///
     /// Additional arguments are those in the tuple slice starting from `function_description.positional_parameter_names.len()`.
     fn handle_varargs_tuple(
-        args: &'py PyTuple,
+        args: &Bound<'py, PyTuple>,
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs>;
 }
@@ -590,7 +656,7 @@ impl<'py> VarargsHandler<'py> for NoVarargs {
     #[inline]
     fn handle_varargs_fastcall(
         _py: Python<'py>,
-        varargs: &[Option<&PyAny>],
+        varargs: &[Option<PyArg<'py>>],
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
         let extra_arguments = varargs.len();
@@ -604,7 +670,7 @@ impl<'py> VarargsHandler<'py> for NoVarargs {
 
     #[inline]
     fn handle_varargs_tuple(
-        args: &'py PyTuple,
+        args: &Bound<'py, PyTuple>,
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
         let positional_parameter_count = function_description.positional_parameter_names.len();
@@ -621,19 +687,19 @@ impl<'py> VarargsHandler<'py> for NoVarargs {
 pub struct TupleVarargs;
 
 impl<'py> VarargsHandler<'py> for TupleVarargs {
-    type Varargs = &'py PyTuple;
+    type Varargs = Bound<'py, PyTuple>;
     #[inline]
     fn handle_varargs_fastcall(
         py: Python<'py>,
-        varargs: &[Option<&PyAny>],
+        varargs: &[Option<PyArg<'py>>],
         _function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
-        Ok(PyTuple::new_bound(py, varargs).into_gil_ref())
+        Ok(PyTuple::new_bound(py, varargs))
     }
 
     #[inline]
     fn handle_varargs_tuple(
-        args: &'py PyTuple,
+        args: &Bound<'py, PyTuple>,
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
         let positional_parameters = function_description.positional_parameter_names.len();
@@ -646,8 +712,8 @@ pub trait VarkeywordsHandler<'py> {
     type Varkeywords: Default;
     fn handle_varkeyword(
         varkeywords: &mut Self::Varkeywords,
-        name: &'py PyAny,
-        value: &'py PyAny,
+        name: PyArg<'py>,
+        value: PyArg<'py>,
         function_description: &FunctionDescription,
     ) -> PyResult<()>;
 }
@@ -660,8 +726,8 @@ impl<'py> VarkeywordsHandler<'py> for NoVarkeywords {
     #[inline]
     fn handle_varkeyword(
         _varkeywords: &mut Self::Varkeywords,
-        name: &'py PyAny,
-        _value: &'py PyAny,
+        name: PyArg<'py>,
+        _value: PyArg<'py>,
         function_description: &FunctionDescription,
     ) -> PyResult<()> {
         Err(function_description.unexpected_keyword_argument(name))
@@ -672,28 +738,29 @@ impl<'py> VarkeywordsHandler<'py> for NoVarkeywords {
 pub struct DictVarkeywords;
 
 impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
-    type Varkeywords = Option<&'py PyDict>;
+    type Varkeywords = Option<Bound<'py, PyDict>>;
     #[inline]
     fn handle_varkeyword(
         varkeywords: &mut Self::Varkeywords,
-        name: &'py PyAny,
-        value: &'py PyAny,
+        name: PyArg<'py>,
+        value: PyArg<'py>,
         _function_description: &FunctionDescription,
     ) -> PyResult<()> {
         varkeywords
-            .get_or_insert_with(|| PyDict::new_bound(name.py()).into_gil_ref())
+            .get_or_insert_with(|| PyDict::new_bound(name.py()))
             .set_item(name, value)
     }
 }
 
 fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
+    let len = parameter_names.len();
     for (i, parameter) in parameter_names.iter().enumerate() {
         if i != 0 {
-            if parameter_names.len() > 2 {
+            if len > 2 {
                 msg.push(',');
             }
 
-            if i == parameter_names.len() - 1 {
+            if i == len - 1 {
                 msg.push_str(" and ")
             } else {
                 msg.push(' ')
@@ -772,7 +839,7 @@ mod tests {
             };
             assert_eq!(
                 err.to_string(),
-                "TypeError: 'int' object cannot be converted to 'PyString'"
+                "TypeError: example() got an unexpected keyword argument '1'"
             );
         })
     }

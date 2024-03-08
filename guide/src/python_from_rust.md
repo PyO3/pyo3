@@ -10,15 +10,15 @@ Any Python-native object reference (such as `&PyAny`, `&PyList`, or `&PyCell<MyC
 
 PyO3 offers two APIs to make function calls:
 
-* [`call`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call) - call any callable Python object.
-* [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call_method) - call a method on the Python object.
+* [`call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) - call any callable Python object.
+* [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method) - call a method on the Python object.
 
 Both of these APIs take `args` and `kwargs` arguments (for positional and keyword arguments respectively). There are variants for less complex calls:
 
-* [`call1`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call_method1) to call only with positional `args`.
-* [`call0`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call_method0) to call with no arguments.
+* [`call1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method1) to call only with positional `args`.
+* [`call0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method0) to call with no arguments.
 
-For convenience the [`Py<T>`](types.html#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
+For convenience the [`Py<T>`](types.md#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
 
 The example below calls a Python function behind a `PyObject` (aka `Py<PyAny>`) reference:
 
@@ -32,7 +32,7 @@ fn main() -> PyResult<()> {
     let arg3 = "arg3";
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code(
+        let fun: Py<PyAny> = PyModule::from_code_bound(
             py,
             "def example(*args, **kwargs):
                 if args != ():
@@ -78,7 +78,7 @@ fn main() -> PyResult<()> {
     let val2 = 2;
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code(
+        let fun: Py<PyAny> = PyModule::from_code_bound(
             py,
             "def example(*args, **kwargs):
                 if args != ():
@@ -113,9 +113,9 @@ fn main() -> PyResult<()> {
 
 <div class="warning">
 
-During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](./migration.md#migrating-from-the-gil-refs-api-to-boundt), [`Py<T>::call`]({{#PYO3_DOCS_URL}}/pyo3/struct.py#method.call) is temporarily named `call_bound` (and `call_method` is temporarily `call_method_bound`).
+During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](./migration.md#migrating-from-the-gil-refs-api-to-boundt), [`Py<T>::call`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.call) is temporarily named `call_bound` (and `call_method` is temporarily `call_method_bound`).
 
-(This temporary naming is only the case for the `Py<T>` smart pointer. The methods on the `&PyAny` GIL Ref such as `call` have not been given replacements, and the methods on the `Bound<PyAny>` smart pointer such as [`Bound<PyAny>::call`]({#PYO3_DOCS_URL}}/pyo3/prelude/trait.pyanymethods#tymethod.call) already use follow the newest API conventions.)
+(This temporary naming is only the case for the `Py<T>` smart pointer. The methods on the `&PyAny` GIL Ref such as `call` have not been given replacements, and the methods on the `Bound<PyAny>` smart pointer such as [`Bound<PyAny>::call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) already use follow the newest API conventions.)
 
 </div>
 
@@ -134,7 +134,7 @@ use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let builtins = PyModule::import(py, "builtins")?;
+        let builtins = PyModule::import_bound(py, "builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
             .call1((vec![1, 2, 3],))?
@@ -181,7 +181,7 @@ quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyCell, py_run};
+use pyo3::py_run;
 
 # fn main() {
 #[pyclass]
@@ -206,7 +206,7 @@ Python::with_gil(|py| {
         id: 34,
         name: "Yu".to_string(),
     };
-    let userdata = PyCell::new(py, userdata).unwrap();
+    let userdata = Py::new(py, userdata).unwrap();
     let userdata_as_tuple = (34, "Yu");
     py_run!(py, userdata userdata_as_tuple, r#"
 assert repr(userdata) == "User Yu(id: 34)"
@@ -228,12 +228,12 @@ to this function!
 ```rust
 use pyo3::{
     prelude::*,
-    types::{IntoPyDict, PyModule},
+    types::IntoPyDict,
 };
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let activators = PyModule::from_code(
+    let activators = PyModule::from_code_bound(
         py,
         r#"
 def relu(x):
@@ -253,7 +253,7 @@ def leaky_relu(x, slope=0.01):
     let kwargs = [("slope", 0.2)].into_py_dict_bound(py);
     let lrelu_result: f64 = activators
         .getattr("leaky_relu")?
-        .call((-1.0,), Some(kwargs.as_gil_ref()))?
+        .call((-1.0,), Some(&kwargs))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())
@@ -283,7 +283,7 @@ fn add_one(x: i64) -> i64 {
 }
 
 #[pymodule]
-fn foo(_py: Python<'_>, foo_module: &PyModule) -> PyResult<()> {
+fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
     foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
     Ok(())
 }
@@ -310,12 +310,12 @@ pub fn add_one(x: i64) -> i64 {
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // Create new module
-        let foo_module = PyModule::new(py, "foo")?;
-        foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+        let foo_module = PyModule::new_bound(py, "foo")?;
+        foo_module.add_function(wrap_pyfunction!(add_one, &foo_module)?)?;
 
         // Import and get sys.modules
-        let sys = PyModule::import(py, "sys")?;
-        let py_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+        let sys = PyModule::import_bound(py, "sys")?;
+        let py_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
 
         // Insert foo into sys.modules
         py_modules.set_item("foo", foo_module)?;
@@ -381,8 +381,8 @@ fn main() -> PyResult<()> {
     ));
     let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
+        PyModule::from_code_bound(py, py_foo, "utils.foo", "utils.foo")?;
+        let app: Py<PyAny> = PyModule::from_code_bound(py, py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -416,7 +416,7 @@ fn main() -> PyResult<()> {
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         let syspath = py.import_bound("sys")?.getattr("path")?.downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
-        let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
+        let app: Py<PyAny> = PyModule::from_code_bound(py, &py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -428,7 +428,7 @@ fn main() -> PyResult<()> {
 ```
 
 
-[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.run
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 [`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 
 ## Need to use a context manager from Rust?
@@ -437,11 +437,10 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyModule;
 
 fn main() {
     Python::with_gil(|py| {
-        let custom_manager = PyModule::from_code(
+        let custom_manager = PyModule::from_code_bound(
             py,
             r#"
 class House(object):
@@ -479,7 +478,7 @@ class House(object):
             }
             Err(e) => {
                 house
-                    .call_method1("__exit__", (e.get_type_bound(py), e.value(py), e.traceback_bound(py)))
+                    .call_method1("__exit__", (e.get_type_bound(py), e.value_bound(py), e.traceback_bound(py)))
                     .unwrap();
             }
         }

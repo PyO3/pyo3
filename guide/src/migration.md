@@ -44,7 +44,7 @@ pyo3 = { version = "0.21", features = ["gil-refs"] }
 
 ### `PyTypeInfo` and `PyTryFrom` have been adjusted
 
-The `PyTryFrom` trait has aged poorly, its [`try_from`] method now conflicts with `try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
+The `PyTryFrom` trait has aged poorly, its `try_from` method now conflicts with `TryFrom::try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
 
 To tighten up the PyO3 traits as part of the deprecation of the GIL Refs API the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
 
@@ -203,9 +203,15 @@ impl PyClassAsyncIter {
 
 `PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
 
+### `PyCell` has been deprecated
+
+Interactions with Python objects implemented in Rust no longer need to go though `PyCell<T>`. Instead iteractions with Python object now consistently go through `Bound<T>` or `Py<T>` independently of whether `T` is native Python object or a `#[pyclass]` implemented in Rust. Use `Bound::new` or `Py::new` respectively to create and `Bound::borrow(_mut)` / `Py::borrow(_mut)` to borrow the Rust object.
+
 ### Migrating from the GIL-Refs API to `Bound<T>`
 
 To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointer has been introduced by adding complements to all functions which accept or return GIL Refs. This allows code to migrate by replacing the deprecated APIs with the new ones.
+
+To identify what to migrate, temporarily switch off the `gil-refs` feature to see deprecation warnings on all uses of APIs accepting and producing GIL Refs. Over one or more PRs it should be possible to follow the deprecation hints to update code. Depending on your development environment, switching off the `gil-refs` feature may introduce [some very targeted breakages](#deactivating-the-gil-refs-feature), so you may need to fixup those first.
 
 For example, the following APIs have gained updated variants:
 - `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
@@ -223,6 +229,22 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 let gil_ref: &PyAny = ...;
 let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
 ```
+
+> Because of the ownership changes, code which uses `.as_ptr()` to convert `&PyAny` and other GIL Refs to a `*mut pyo3_ffi::PyObject` should take care to avoid creating dangling pointers now that `Bound<PyAny>` carries ownership.
+>
+> For example, the following pattern with `Option<&PyAny>` can easily create a dangling pointer when migrating to the `Bound<PyAny>` smart pointer:
+>
+> ```rust,ignore
+> let opt: Option<&PyAny> = ...;
+> let p: *mut ffi::PyObject = opt.map_or(std::ptr::null_mut(), |any| any.as_ptr());
+> ```
+>
+> The correct way to migrate this code is to use `.as_ref()` to avoid dropping the `Bound<PyAny>` in the `map_or` closure:
+>
+> ```rust,ignore
+> let opt: Option<Bound<PyAny>> = ...;
+> let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
+> ```
 
 #### Migrating `FromPyObject` implementations
 
@@ -252,7 +274,15 @@ impl<'py> FromPyObject<'py> for MyType {
 
 The expectation is that in 0.22 `extract_bound` will have the default implementation removed and in 0.23 `extract` will be removed.
 
+### Deactivating the `gil-refs` feature
 
+As a final step of migration, deactivating the `gil-refs` feature will set up code for best performance and is intended to set up a forward-compatible API for PyO3 0.22.
+
+There is one notable API removed when this feature is disabled. `FromPyObject` trait implementations for types which borrow directly from the input data cannot be implemented by PyO3 without GIL Refs (while the migration is ongoing). These types are `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>`.
+
+To ease pain during migration, these types instead implement a new temporary trait `FromPyObjectBound` which is the expected future form of `FromPyObject`. The new temporary trait ensures is that `obj.extract::<&str>()` continues to work (with the new constraint that the extracted value now depends on the input `obj` lifetime), as well for these types in `#[pyfunction]` arguments.
+
+An unfortunate final point here is that PyO3 cannot offer this new implementation for `&str` on `abi3` builds for Python older than 3.10. On code which needs `abi3` builds for these older Python versions, many cases of `.extract::<&str>()` may need to be replaced with `.extract::<PyBackedStr>()`, which is string data which borrows from the Python `str` object. Alternatively, use `.extract::<Cow<str>>()`, `.extract::<String>()` to copy the data into Rust for these versions.
 
 ## from 0.19.* to 0.20
 
@@ -827,7 +857,7 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 To fix it, make the private submodule visible, e.g. with `pub` or `pub(crate)`.
 
-```rust
+```rust,ignore
 mod foo {
     use pyo3::prelude::*;
 
@@ -1269,7 +1299,7 @@ impl MyClass {
 ```
 
 Basically you can return `Self` or `Result<Self>` directly.
-For more, see [the constructor section](class.html#constructor) of this guide.
+For more, see [the constructor section](class.md#constructor) of this guide.
 
 ### PyCell
 PyO3 0.9 introduces [`PyCell`], which is a [`RefCell`]-like object wrapper
@@ -1301,7 +1331,7 @@ impl Names {
     }
 }
 # Python::with_gil(|py| {
-#     let names = PyCell::new(py, Names::new()).unwrap();
+#     let names = Py::new(py, Names::new()).unwrap();
 #     pyo3::py_run!(py, names, r"
 #     try:
 #        names.merge(names)
@@ -1336,7 +1366,7 @@ let obj_ref = PyRef::new(py, MyClass {}).unwrap();
 ```
 
 After:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}

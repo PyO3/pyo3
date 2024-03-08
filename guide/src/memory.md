@@ -115,7 +115,7 @@ at the end of each loop iteration, before the `with_gil()` closure ends.
 When doing this, you must be very careful to ensure that once the `GILPool` is
 dropped you do not retain access to any owned references created after the
 `GILPool` was created.  Read the
-[documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Python.html#method.new_pool)
+[documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.new_pool)
 for more information on safety.
 
 This memory management can also be applicable when writing extension modules.
@@ -171,7 +171,9 @@ let hello: Py<PyString> = Python::with_gil(|py| {
 // Do some stuff...
 // Now sometime later in the program we want to access `hello`.
 Python::with_gil(|py| {
-    println!("Python says: {}", hello.as_ref(py));
+    #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
+    let hello = hello.as_ref(py);
+    println!("Python says: {}", hello);
 });
 // Now we're done with `hello`.
 drop(hello); // Memory *not* released here.

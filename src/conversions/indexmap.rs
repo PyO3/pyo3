@@ -71,7 +71,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+//! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(calculate_statistics, m)?)?;
 //!     Ok(())
 //! }
@@ -87,8 +87,6 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::types::any::PyAnyMethods;
-use crate::types::dict::PyDictMethods;
 use crate::types::*;
 use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
@@ -127,7 +125,7 @@ where
     fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict.iter() {
+        for (k, v) in dict {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
@@ -137,8 +135,6 @@ where
 #[cfg(test)]
 mod test_indexmap {
 
-    use crate::types::any::PyAnyMethods;
-    use crate::types::dict::PyDictMethods;
     use crate::types::*;
     use crate::{IntoPy, PyObject, Python, ToPyObject};
 
@@ -149,7 +145,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -175,7 +171,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
