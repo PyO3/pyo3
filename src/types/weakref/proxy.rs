@@ -1,5 +1,6 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, AsPyPointer, Borrowed, Bound, PyAny, PyNativeType, Python, ToPyObject};
@@ -90,7 +91,7 @@ impl PyWeakProxy {
             );
 
             Bound::from_owned_ptr_or_err(py, ffi::PyWeakref_NewProxy(ptr, ffi::Py_None()))
-                .map(|obj| obj.downcast_into_unchecked())
+                .downcast_into_unchecked()
         }
     }
 
@@ -184,7 +185,7 @@ impl PyWeakProxy {
                 py,
                 ffi::PyWeakref_NewProxy(ptr, callback.to_object(py).as_ptr()),
             )
-            .map(|obj| obj.downcast_into_unchecked())
+            .downcast_into_unchecked()
         }
     }
 

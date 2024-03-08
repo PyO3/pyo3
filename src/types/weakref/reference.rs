@@ -1,5 +1,6 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, PyAny, PyNativeType, Python, ToPyObject};
@@ -21,7 +22,6 @@ pyobject_native_type!(
 impl PyWeakRef {
     /// Deprecated form of [`PyWeakRef::new_bound`].
     #[inline]
-    #[track_caller]
     #[cfg_attr(
         not(feature = "gil-refs"),
         deprecated(
@@ -69,7 +69,6 @@ impl PyWeakRef {
     /// })
     /// # }
     /// ```
-    #[track_caller]
     pub fn new_bound<T>(py: Python<'_>, object: T) -> PyResult<Bound<'_, PyWeakRef>>
     where
         T: ToPyObject,
@@ -79,13 +78,12 @@ impl PyWeakRef {
                 py,
                 ffi::PyWeakref_NewRef(object.to_object(py).as_ptr(), ffi::Py_None()),
             )
-            .map(|obj| obj.downcast_into_unchecked())
+            .downcast_into_unchecked()
         }
     }
 
     /// Deprecated form of [`PyWeakRef::new_bound_with`].
     #[inline]
-    #[track_caller]
     #[cfg_attr(
         not(feature = "gil-refs"),
         deprecated(
@@ -149,7 +147,6 @@ impl PyWeakRef {
     /// })
     /// # }
     /// ```
-    #[track_caller]
     pub fn new_bound_with<T, C>(
         py: Python<'_>,
         object: T,
@@ -167,7 +164,7 @@ impl PyWeakRef {
                     callback.to_object(py).as_ptr(),
                 ),
             )
-            .map(|obj| obj.downcast_into_unchecked())
+            .downcast_into_unchecked()
         }
     }
 
