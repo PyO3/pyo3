@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, AsPyPointer, Borrowed, Bound, PyAny, PyNativeType, Python, ToPyObject};
+use crate::{ffi, AsPyPointer, Borrowed, Bound, PyAny, PyNativeType, ToPyObject};
 
 use super::PyWeakRefMethods;
 
@@ -32,11 +32,11 @@ impl PyWeakCallableProxy {
             note = "`PyWeakCallableProxy::new` will be replaced by `PyWeakCallableProxy::new_bound` in a future PyO3 version"
         )
     )]
-    pub fn new<T>(py: Python<'_>, object: T) -> PyResult<&'_ PyWeakCallableProxy>
+    pub fn new<T>(object: &T) -> PyResult<&PyWeakCallableProxy>
     where
-        T: ToPyObject,
+        T: PyNativeType,
     {
-        Self::new_bound(py, object).map(Bound::into_gil_ref)
+        Self::new_bound(&object.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Constructs a new Weak callable Reference (`weakref.proxy`/`weakref.CallableProxyType`) for the given object.
@@ -64,14 +64,14 @@ impl PyWeakCallableProxy {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let foo = Bound::new(py, Foo {})?;
-    ///     let weakref = PyWeakCallableProxy::new_bound(py, foo.clone())?;
+    ///     let weakref = PyWeakCallableProxy::new_bound(&foo)?;
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
     ///         weakref.get_object()
     ///             .map_or(false, |obj| obj.is(&foo))
     ///     );
     ///
-    ///     let weakref2 = PyWeakCallableProxy::new_bound(py, foo.clone())?;
+    ///     let weakref2 = PyWeakCallableProxy::new_bound(&foo)?;
     ///     assert!(weakref.is(&weakref2));
     ///
     ///     assert_eq!(weakref.call0()?.to_string(), "This class is callable");
@@ -94,20 +94,24 @@ impl PyWeakCallableProxy {
     ///
     #[inline]
     #[track_caller]
-    pub fn new_bound<T>(py: Python<'_>, object: T) -> PyResult<Bound<'_, PyWeakCallableProxy>>
-    where
-        T: ToPyObject,
-    {
-        unsafe {
-            let ptr = object.to_object(py).as_ptr();
-            assert_eq!(
-                ffi::PyCallable_Check(ptr), 1,
+    pub fn new_bound<'py, T>(object: &Bound<'py, T>) -> PyResult<Bound<'py, PyWeakCallableProxy>> {
+        // TODO: Must track caller be used here?
+        fn inner<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakCallableProxy>> {
+            assert!(
+                object.is_callable(),
                 "An object to be referenced by a PyWeakCallableProxy should be callable. Use PyWeakProxy instead."
             );
 
-            Bound::from_owned_ptr_or_err(py, ffi::PyWeakref_NewProxy(ptr, ffi::Py_None()))
+            unsafe {
+                Bound::from_owned_ptr_or_err(
+                    object.py(),
+                    ffi::PyWeakref_NewProxy(object.as_ptr(), ffi::Py_None()),
+                )
                 .downcast_into_unchecked()
+            }
         }
+
+        inner(object.as_any())
     }
 
     /// Deprecated form of [`PyWeakCallableProxy::new_bound_with`].
@@ -120,16 +124,12 @@ impl PyWeakCallableProxy {
             note = "`PyWeakCallableProxy::new_with` will be replaced by `PyWeakCallableProxy::new_bound_with` in a future PyO3 version"
         )
     )]
-    pub fn new_with<T, C>(
-        py: Python<'_>,
-        object: T,
-        callback: C,
-    ) -> PyResult<&'_ PyWeakCallableProxy>
+    pub fn new_with<T, C>(object: &T, callback: C) -> PyResult<&PyWeakCallableProxy>
     where
-        T: ToPyObject,
+        T: PyNativeType,
         C: ToPyObject,
     {
-        Self::new_bound_with(py, object, callback).map(Bound::into_gil_ref)
+        Self::new_bound_with(&object.as_borrowed(), callback).map(Bound::into_gil_ref)
     }
 
     /// Constructs a new Weak Reference (`weakref.proxy`/`weakref.CallableProxyType`) for the given object with a callback.
@@ -167,7 +167,7 @@ impl PyWeakCallableProxy {
     ///     let foo = Bound::new(py, Foo{})?;
     ///
     ///     // This is fine.
-    ///     let weakref = PyWeakCallableProxy::new_bound_with(py, foo.clone(), py.None())?;
+    ///     let weakref = PyWeakCallableProxy::new_bound_with(&foo, py.None())?;
     ///     assert!(weakref.upgrade::<Foo>()?.is_some());
     ///     assert!(
     ///         // In normal situations where a direct `Bound<'py, Foo>` is required use `upgrade::<Foo>`
@@ -176,7 +176,7 @@ impl PyWeakCallableProxy {
     ///     );
     ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
     ///
-    ///     let weakref2 = PyWeakCallableProxy::new_bound_with(py, foo.clone(), wrap_pyfunction!(callback, py)?)?;
+    ///     let weakref2 = PyWeakCallableProxy::new_bound_with(&foo, wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
     ///     assert!(weakref.eq(&weakref2)?);  // But Equal, since they point to the same object
     ///
@@ -193,28 +193,34 @@ impl PyWeakCallableProxy {
     /// # Panics
     /// This function panics if the provided object is not callable.
     #[track_caller]
-    pub fn new_bound_with<T, C>(
-        py: Python<'_>,
-        object: T,
+    pub fn new_bound_with<'py, T, C>(
+        object: &Bound<'py, T>,
         callback: C,
-    ) -> PyResult<Bound<'_, PyWeakCallableProxy>>
+    ) -> PyResult<Bound<'py, PyWeakCallableProxy>>
     where
-        T: ToPyObject,
         C: ToPyObject,
     {
-        unsafe {
-            let ptr = object.to_object(py).as_ptr();
-            assert_eq!(
-                ffi::PyCallable_Check(ptr), 1,
+        // TODO: Must track caller be used here?
+        fn inner<'py>(
+            object: &Bound<'py, PyAny>,
+            callback: Bound<'py, PyAny>,
+        ) -> PyResult<Bound<'py, PyWeakCallableProxy>> {
+            assert!(
+                object.is_callable(),
                 "An object to be referenced by a PyWeakCallableProxy should be callable. Use PyWeakProxy instead."
             );
 
-            Bound::from_owned_ptr_or_err(
-                py,
-                ffi::PyWeakref_NewProxy(ptr, callback.to_object(py).as_ptr()),
-            )
-            .downcast_into_unchecked()
+            unsafe {
+                Bound::from_owned_ptr_or_err(
+                    object.py(),
+                    ffi::PyWeakref_NewProxy(object.as_ptr(), callback.as_ptr()),
+                )
+                .downcast_into_unchecked()
+            }
         }
+
+        let py = object.py();
+        inner(object.as_any(), callback.to_object(py).into_bound(py))
     }
 
     /// Upgrade the weakref to a direct object reference.
@@ -254,7 +260,7 @@ impl PyWeakCallableProxy {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakCallableProxy::new_bound(py, data.clone())?;
+    ///     let reference = PyWeakCallableProxy::new_bound(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -326,7 +332,7 @@ impl PyWeakCallableProxy {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakCallableProxy::new_bound(py, data.clone())?;
+    ///     let reference = PyWeakCallableProxy::new_bound(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -397,7 +403,7 @@ impl PyWeakCallableProxy {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakCallableProxy::new_bound(py, data.clone())?;
+    ///     let reference = PyWeakCallableProxy::new_bound(&data)?;
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
@@ -463,7 +469,7 @@ impl PyWeakCallableProxy {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
-    ///     let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+    ///     let reference = PyWeakCallableProxy::new_bound(&object)?;
     ///
     ///     assert_eq!(
     ///         get_class(reference.as_borrowed())?,
@@ -553,7 +559,7 @@ mod tests {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
                 let object = class.call0()?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+                let reference = PyWeakCallableProxy::new_bound(&object)?;
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
@@ -602,7 +608,7 @@ mod tests {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
                 let object = class.call0()?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+                let reference = PyWeakCallableProxy::new_bound(&object)?;
 
                 {
                     // This test is a bit weird but ok.
@@ -637,7 +643,7 @@ mod tests {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
                 let object = class.call0()?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+                let reference = PyWeakCallableProxy::new_bound(&object)?;
 
                 assert!(reference.get_object().is_some());
                 assert!(reference.get_object().map_or(false, |obj| obj.is(&object)));
@@ -655,7 +661,7 @@ mod tests {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
                 let object = class.call0()?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+                let reference = PyWeakCallableProxy::new_bound(&object)?;
 
                 assert!(reference.borrow_object().is_some());
                 assert!(reference
@@ -675,7 +681,7 @@ mod tests {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
                 let object = class.call0()?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+                let reference = PyWeakCallableProxy::new_bound(&object)?;
 
                 assert!(reference.get_object_raw().is(&object));
 
@@ -692,7 +698,7 @@ mod tests {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
                 let object = class.call0()?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+                let reference = PyWeakCallableProxy::new_bound(&object)?;
 
                 assert!(reference.borrow_object_raw().is(&object));
 
@@ -724,7 +730,7 @@ mod tests {
         fn test_weakref_proxy_behavior() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Bound::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone())?;
+                let reference = PyWeakCallableProxy::new_bound(&object)?;
 
                 assert!(!reference.is(&object));
                 assert!(reference.get_object_raw().is(&object));
@@ -772,7 +778,7 @@ mod tests {
         fn test_weakref_upgrade() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
+                let reference = PyWeakCallableProxy::new_bound(object.bind(py))?;
 
                 {
                     let obj = reference.upgrade::<WeakrefablePyClass>();
@@ -803,7 +809,7 @@ mod tests {
         fn test_weakref_get_object() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
+                let reference = PyWeakCallableProxy::new_bound(object.bind(py))?;
 
                 assert!(reference.get_object().is_some());
                 assert!(reference.get_object().map_or(false, |obj| obj.is(&object)));
@@ -820,7 +826,7 @@ mod tests {
         fn test_weakref_borrrow_object() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
+                let reference = PyWeakCallableProxy::new_bound(object.bind(py))?;
 
                 assert!(reference.borrow_object().is_some());
                 assert!(reference
@@ -839,7 +845,7 @@ mod tests {
         fn test_weakref_get_object_raw() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
+                let reference = PyWeakCallableProxy::new_bound(object.bind(py))?;
 
                 assert!(reference.get_object_raw().is(&object));
 
@@ -855,7 +861,7 @@ mod tests {
         fn test_weakref_borrow_object_raw() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
-                let reference = PyWeakCallableProxy::new_bound(py, object.clone_ref(py))?;
+                let reference = PyWeakCallableProxy::new_bound(object.bind(py))?;
 
                 assert!(reference.borrow_object_raw().is(&object));
 
