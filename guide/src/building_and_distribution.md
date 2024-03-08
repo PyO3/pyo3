@@ -4,7 +4,7 @@ This chapter of the guide goes into detail on how to build and distribute projec
 
 The material in this chapter is intended for users who have already read the PyO3 [README](./index.md). It covers in turn the choices that can be made for Python modules and for Rust binaries. There is also a section at the end about cross-compiling projects using PyO3.
 
-There is an additional sub-chapter dedicated to [supporting multiple Python versions](./building_and_distribution/multiple_python_versions.html).
+There is an additional sub-chapter dedicated to [supporting multiple Python versions](./building_and_distribution/multiple_python_versions.md).
 
 ## Configuring the Python version
 
@@ -177,7 +177,7 @@ The downside of not linking to `libpython` is that binaries, tests, and examples
 
 By default, Python extension modules can only be used with the same Python version they were compiled against. For example, an extension module built for Python 3.5 can't be imported in Python 3.8. [PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions. This is also known as `abi3`.
 
-The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up. The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version. It's up to you to decide whether this matters for your extension module. It's also possible to design your extension module such that you can distribute `abi3` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building_and_distribution/multiple_python_versions.html) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
+The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up. The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version. It's up to you to decide whether this matters for your extension module. It's also possible to design your extension module such that you can distribute `abi3` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building_and_distribution/multiple_python_versions.md) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
 
 There are three steps involved in making use of `abi3` when building Python packages as wheels:
 
@@ -198,7 +198,7 @@ See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://
 Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py37`, `abi3-py38`, `abi3-py39` etc. to set the minimum required Python version for your `abi3` wheel.
 For example, if you set the `abi3-py37` feature, your extension wheel can be used on all Python 3 versions from Python 3.7 and up. `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp37-abi3-manylinux2020_x86_64.whl`.
 
-As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior. See [the relevant section of this guide](./building_and_distribution/multiple_python_versions.html#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
+As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior. See [the relevant section of this guide](./building_and_distribution/multiple_python_versions.md#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
 
 PyO3 is only able to link your extension module to abi3 version up to and including your host Python version. E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.7, the build will fail.
 
@@ -232,7 +232,7 @@ not work when compiling for `abi3`. These are:
 
 If you want to embed the Python interpreter inside a Rust program, there are two modes in which this can be done: dynamically and statically. We'll cover each of these modes in the following sections. Each of them affect how you must distribute your program. Instead of learning how to do this yourself, you might want to consider using a project like [PyOxidizer] to ship your application and all of its dependencies in a single file.
 
-PyO3 automatically switches between the two linking modes depending on whether the Python distribution you have configured PyO3 to use ([see above](#python-version)) contains a shared library or a static library. The static library is most often seen in Python distributions compiled from source without the `--enable-shared` configuration option. For example, this is the default for `pyenv` on macOS.
+PyO3 automatically switches between the two linking modes depending on whether the Python distribution you have configured PyO3 to use ([see above](#configuring-the-python-version)) contains a shared library or a static library. The static library is most often seen in Python distributions compiled from source without the `--enable-shared` configuration option. For example, this is the default for `pyenv` on macOS.
 
 ### Dynamically embedding the Python interpreter
 
@@ -242,7 +242,7 @@ This mode of embedding works well for Rust tests which need access to the Python
 
 For distributing your program to non-technical users, you will have to consider including the Python shared library in your distribution as well as setting up wrapper scripts to set the right environment variables (such as `LD_LIBRARY_PATH` on UNIX, or `PATH` on Windows).
 
-Note that PyPy cannot be embedded in Rust (or any other software). Support for this is tracked on the [PyPy issue tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3286).
+Note that PyPy cannot be embedded in Rust (or any other software). Support for this is tracked on the [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
 
 ### Statically embedding the Python interpreter
 
@@ -285,7 +285,7 @@ Thanks to Rust's great cross-compilation support, cross-compiling using PyO3 is 
 * A toolchain for your target.
 * The appropriate options in your Cargo `.config` for the platform you're targeting and the toolchain you are using.
 * A Python interpreter that's already been compiled for your target (optional when building "abi3" extension modules).
-* A Python interpreter that is built for your host and available through the `PATH` or setting the [`PYO3_PYTHON`](#python-version) variable (optional when building "abi3" extension modules).
+* A Python interpreter that is built for your host and available through the `PATH` or setting the [`PYO3_PYTHON`](#configuring-the-python-version) variable (optional when building "abi3" extension modules).
 
 After you've obtained the above, you can build a cross-compiled PyO3 module by using Cargo's `--target` flag. PyO3's build script will detect that you are attempting a cross-compile based on your host machine and the desired target.
 

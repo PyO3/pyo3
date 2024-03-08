@@ -38,7 +38,7 @@ There are also additional sections on the following topics:
 
 The `#[pyo3]` attribute can be used to modify properties of the generated Python function. It can take any combination of the following options:
 
-  - <a name="name"></a> `#[pyo3(name = "...")]`
+  - <a id="name"></a> `#[pyo3(name = "...")]`
 
     Overrides the name exposed to Python.
 
@@ -67,15 +67,15 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     # });
     ```
 
-  - <a name="signature"></a> `#[pyo3(signature = (...))]`
+  - <a id="signature"></a> `#[pyo3(signature = (...))]`
 
     Defines the function signature in Python. See [Function Signatures](./function/signature.md).
 
-  - <a name="text_signature"></a> `#[pyo3(text_signature = "...")]`
+  - <a id="text_signature"></a> `#[pyo3(text_signature = "...")]`
 
     Overrides the PyO3-generated function signature visible in Python tooling (such as via [`inspect.signature`]). See the [corresponding topic in the Function Signatures subchapter](./function/signature.md#making-the-function-signature-available-to-python).
 
-  - <a name="pass_module" ></a> `#[pyo3(pass_module)]`
+  - <a id="pass_module" ></a> `#[pyo3(pass_module)]`
 
     Set this option to make PyO3 pass the containing module as the first argument to the function. It is then possible to use the module in the function body. The first argument **must** be of type `&Bound<'_, PyModule>`, `Bound<'_, PyModule>`, or `Py<PyModule>`.
 
@@ -101,7 +101,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
 The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
 
-  - <a name="from_py_with"></a> `#[pyo3(from_py_with = "...")]`
+  - <a id="from_py_with"></a> `#[pyo3(from_py_with = "...")]`
 
     Set this on an option to specify a custom function to convert the function argument from Python to the desired Rust type, instead of using the default `FromPyObject` extraction. The function signature must be `fn(&Bound<'_, PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 

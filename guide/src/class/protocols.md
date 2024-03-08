@@ -450,7 +450,7 @@ Usually, an implementation of `__traverse__` should do nothing but calls to `vis
 Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`,
 i.e. `Python::with_gil` will panic.
 
-> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3899).
+> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 
 [`IterNextOutput`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/enum.IterNextOutput.html
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html

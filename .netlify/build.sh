@@ -81,7 +81,7 @@ fi
 
 pip install nox
 nox -s build-guide
-mv target/guide/html/ netlify_build/main/
+mv target/guide/ netlify_build/main/
 
 ## Build public docs
 

@@ -26,6 +26,9 @@ nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
 
 
 PYO3_DIR = Path(__file__).parent
+PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
+PYO3_GUIDE_TARGET = PYO3_DIR / "target" / "guide"
+PYO3_DOCS_TARGET = PYO3_DIR / "target" / "doc"
 PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12")
 PYPY_VERSIONS = ("3.7", "3.8", "3.9", "3.10")
 
@@ -372,14 +375,48 @@ def docs(session: nox.Session) -> None:
 
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
-    # copy the license files into the guide source directory
-    # so that mdbook can include them in the output (and linkcheck will be
-    # happy this way)
+    _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
     for license in ("LICENSE-APACHE", "LICENSE-MIT"):
-        target_file = PYO3_DIR / "guide" / "src" / license
+        target_file = PYO3_GUIDE_TARGET / license
         target_file.unlink(missing_ok=True)
         shutil.copy(PYO3_DIR / license, target_file)
-    _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
+
+
+@nox.session(name="check-guide", venv_backend="none")
+def check_guide(session: nox.Session):
+    # reuse other sessions, but with default args
+    posargs = [*session.posargs]
+    del session.posargs[:]
+    build_guide(session)
+    docs(session)
+    session.posargs.extend(posargs)
+
+    remaps = {
+        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL\}}\}}": f"file://{PYO3_DOCS_TARGET}",
+        "%7B%7B#PYO3_DOCS_VERSION\}\}": "latest",
+    }
+    remap_args = []
+    for key, value in remaps.items():
+        remap_args.extend(("--remap", f"{key} {value}"))
+    # check all links in the guide
+    _run(
+        session,
+        "lychee",
+        "--include-fragments",
+        PYO3_GUIDE_SRC,
+        *remap_args,
+        *session.posargs,
+    )
+    # check external links in the docs
+    # (intra-doc links are checked by rustdoc)
+    _run(
+        session,
+        "lychee",
+        PYO3_DOCS_TARGET,
+        f"--remap=https://pyo3.rs/main/ file://{PYO3_GUIDE_TARGET}/",
+        f"--exclude=file://{PYO3_DOCS_TARGET}",
+        *session.posargs,
+    )
 
 
 @nox.session(name="format-guide", venv_backend="none")
@@ -459,9 +496,10 @@ _IGNORE_CHANGELOG_PR_CATEGORIES = (
 
 @nox.session(name="check-changelog")
 def check_changelog(session: nox.Session):
-    event_path = os.environ.get("GITHUB_EVENT_PATH")
-    if event_path is None:
+    if not _is_github_actions():
         session.error("Can only check changelog on github actions")
+
+    event_path = os.environ["GITHUB_EVENT_PATH"]
 
     with open(event_path) as event_file:
         event = json.load(event_file)
@@ -771,11 +809,12 @@ def _get_coverage_env() -> Dict[str, str]:
 
 def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
     """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
-    if "GITHUB_ACTIONS" in os.environ:
+    is_github_actions = _is_github_actions()
+    if is_github_actions:
         # Insert ::group:: at the start of nox's command line output
         print("::group::", end="", flush=True, file=sys.stderr)
     session.run(*args, **kwargs)
-    if "GITHUB_ACTIONS" in os.environ:
+    if is_github_actions:
         print("::endgroup::", file=sys.stderr)
 
 
@@ -876,6 +915,10 @@ def _config_file() -> Iterator[_ConfigFile]:
     """Creates a temporary config file which can be repeatedly set to different values."""
     with tempfile.NamedTemporaryFile("r+") as config:
         yield _ConfigFile(config)
+
+
+def _is_github_actions() -> bool:
+    return "GITHUB_ACTIONS" in os.environ
 
 
 _BENCHES = "--manifest-path=pyo3-benches/Cargo.toml"

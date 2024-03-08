@@ -1289,7 +1289,7 @@ impl MyClass {
 ```
 
 Basically you can return `Self` or `Result<Self>` directly.
-For more, see [the constructor section](class.html#constructor) of this guide.
+For more, see [the constructor section](class.md#constructor) of this guide.
 
 ### PyCell
 PyO3 0.9 introduces [`PyCell`], which is a [`RefCell`]-like object wrapper

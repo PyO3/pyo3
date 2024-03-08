@@ -16,7 +16,7 @@ This chapter will discuss the functionality and configuration these attributes o
   - [`#[classmethod]`](#class-methods)
   - [`#[classattr]`](#class-attributes)
   - [`#[args]`](#method-arguments)
-- [Magic methods and slots](class/protocols.html)
+- [Magic methods and slots](class/protocols.md)
 - [Classes as function arguments](#classes-as-function-arguments)
 
 ## Defining a new class
@@ -898,9 +898,7 @@ py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44, 
 py_args=(), py_kwargs=None, name=World, num=-1, num_before=44
 ```
 
-## Making class method signatures available to Python
-
-The [`text_signature = "..."`](./function.md#text_signature) option for `#[pyfunction]` also works for `#[pymethods]`:
+The [`#[pyo3(text_signature = "...")`](./function/signature.md#overriding-the-generated-signature) option for `#[pyfunction]` also works for `#[pymethods]`.
 
 ```rust
 # #![allow(dead_code)]

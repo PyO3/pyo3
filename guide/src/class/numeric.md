@@ -440,6 +440,6 @@ fn wrap(obj: &Bound<'_, PyAny>) -> Result<i32, PyErr> {
 ```
 
 [`PyErr::take`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyErr.html#method.take
-[`Python`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html
+[`Python`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`pyo3::ffi::PyLong_AsUnsignedLongMask`]: {{#PYO3_DOCS_URL}}/pyo3/ffi/fn.PyLong_AsUnsignedLongMask.html

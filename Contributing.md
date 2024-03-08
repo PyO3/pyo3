@@ -64,10 +64,16 @@ https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctes
 
 You can preview the user guide by building it locally with `mdbook`.
 
-First, install [`mdbook`][mdbook], [`mdbook-linkcheck`][mdbook-linkcheck] and [`nox`][nox]. Then, run
+First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
 
 ```shell
 nox -s build-guide -- --open
+```
+
+To check all links in the guide are valid, also install [`lychee`][lychee] use the `check-guide` session instead:
+
+```shell
+nox -s check-guide
 ```
 
 ### Help design the next PyO3
@@ -211,5 +217,5 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 - [messense](https://github.com/sponsors/messense)
 
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
-[mdbook-linkcheck]: https://crates.io/crates/mdbook-linkcheck
+[lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox
