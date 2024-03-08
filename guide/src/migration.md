@@ -495,7 +495,7 @@ drop(first);
 drop(second);
 ```
 
-The replacement is [`Python::with_gil`]() which is more cumbersome but enforces the proper nesting by design, e.g.
+The replacement is [`Python::with_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.with_gil) which is more cumbersome but enforces the proper nesting by design, e.g.
 
 ```rust
 # #![allow(dead_code)]
