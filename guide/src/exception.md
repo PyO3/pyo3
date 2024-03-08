@@ -128,5 +128,5 @@ defines exceptions for several standard library modules.
 [`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
 [`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
 [`PyErr::from_value`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_value
-[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance
-[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance_of
+[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance
+[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance_of

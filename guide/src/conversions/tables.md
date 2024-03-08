@@ -43,7 +43,7 @@ The table below contains the Python type and the corresponding function argument
 | `typing.Sequence[T]` | `Vec<T>`                 | `&PySequence`        |
 | `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `&PyMapping` |
 | `typing.Iterator[Any]` | -                      | `&PyIterator`        |
-| `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.html#deriving-a-hrefhttpsdocsrspyo3latestpyo3conversiontraitfrompyobjecthtmlfrompyobjecta-for-enums) | - |
+| `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.md#deriving-frompyobject-for-enums) | - |
 
 There are also a few special types related to the GIL and Rust-defined `#[pyclass]`es which may come in useful:
 

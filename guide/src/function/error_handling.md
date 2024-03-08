@@ -23,7 +23,7 @@ In summary:
 
 As indicated in the previous section, when a `PyResult` containing an `Err` crosses from Rust to Python, PyO3 will raise the exception contained within.
 
-Accordingly, to raise an exception from a `#[pyfunction]`, change the return type `T` to `PyResult<T>`. When the function returns an `Err` it will raise a Python exception. (Other `Result<T, E>` types can be used as long as the error `E` has a `From` conversion for `PyErr`, see [implementing a conversion](#implementing-an-error-conversion) below.)
+Accordingly, to raise an exception from a `#[pyfunction]`, change the return type `T` to `PyResult<T>`. When the function returns an `Err` it will raise a Python exception. (Other `Result<T, E>` types can be used as long as the error `E` has a `From` conversion for `PyErr`, see [custom Rust error types](#custom-rust-error-types) below.)
 
 This also works for functions in `#[pymethods]`.
 

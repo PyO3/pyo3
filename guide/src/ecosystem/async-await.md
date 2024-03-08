@@ -197,7 +197,7 @@ to do something special with the object that it returns.
 Normally in Python, that something special is the `await` keyword, but in order to await this
 coroutine in Rust, we first need to convert it into Rust's version of a `coroutine`: a `Future`.
 That's where `pyo3-asyncio` comes in.
-[`pyo3_asyncio::into_future`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.into_future.html)
+[`pyo3_asyncio::async_std::into_future`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.into_future.html)
 performs this conversion for us.
 
 The following example uses `into_future` to call the `py_sleep` function shown above and then await the
@@ -349,7 +349,7 @@ implementations _prefer_ control over the main thread, this can still make some 
 
 Because Python needs to control the main thread, we can't use the convenient proc macros from Rust
 runtimes to handle the `main` function or `#[test]` functions. Instead, the initialization for PyO3 has to be done from the `main` function and the main
-thread must block on [`pyo3_asyncio::run_forever`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.run_forever.html) or [`pyo3_asyncio::async_std::run_until_complete`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.run_until_complete.html).
+thread must block on [`pyo3_asyncio::async_std::run_until_complete`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.run_until_complete.html).
 
 Because we have to block on one of those functions, we can't use [`#[async_std::main]`](https://docs.rs/async-std/latest/async_std/attr.main.html) or [`#[tokio::main]`](https://docs.rs/tokio/1.1.0/tokio/attr.main.html)
 since it's not a good idea to make long blocking calls during an async function.

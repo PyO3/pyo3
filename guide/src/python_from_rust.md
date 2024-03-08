@@ -10,15 +10,15 @@ Any Python-native object reference (such as `&PyAny`, `&PyList`, or `&PyCell<MyC
 
 PyO3 offers two APIs to make function calls:
 
-* [`call`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call) - call any callable Python object.
-* [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call_method) - call a method on the Python object.
+* [`call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) - call any callable Python object.
+* [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method) - call a method on the Python object.
 
 Both of these APIs take `args` and `kwargs` arguments (for positional and keyword arguments respectively). There are variants for less complex calls:
 
-* [`call1`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call_method1) to call only with positional `args`.
-* [`call0`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods#tymethod.call_method0) to call with no arguments.
+* [`call1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method1) to call only with positional `args`.
+* [`call0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method0) to call with no arguments.
 
-For convenience the [`Py<T>`](types.html#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
+For convenience the [`Py<T>`](types.md#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
 
 The example below calls a Python function behind a `PyObject` (aka `Py<PyAny>`) reference:
 
@@ -113,9 +113,9 @@ fn main() -> PyResult<()> {
 
 <div class="warning">
 
-During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](./migration.md#migrating-from-the-gil-refs-api-to-boundt), [`Py<T>::call`]({{#PYO3_DOCS_URL}}/pyo3/struct.py#method.call) is temporarily named `call_bound` (and `call_method` is temporarily `call_method_bound`).
+During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](./migration.md#migrating-from-the-gil-refs-api-to-boundt), [`Py<T>::call`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.call) is temporarily named `call_bound` (and `call_method` is temporarily `call_method_bound`).
 
-(This temporary naming is only the case for the `Py<T>` smart pointer. The methods on the `&PyAny` GIL Ref such as `call` have not been given replacements, and the methods on the `Bound<PyAny>` smart pointer such as [`Bound<PyAny>::call`]({#PYO3_DOCS_URL}}/pyo3/prelude/trait.pyanymethods#tymethod.call) already use follow the newest API conventions.)
+(This temporary naming is only the case for the `Py<T>` smart pointer. The methods on the `&PyAny` GIL Ref such as `call` have not been given replacements, and the methods on the `Bound<PyAny>` smart pointer such as [`Bound<PyAny>::call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) already use follow the newest API conventions.)
 
 </div>
 
@@ -428,7 +428,7 @@ fn main() -> PyResult<()> {
 ```
 
 
-[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.run
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 [`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 
 ## Need to use a context manager from Rust?

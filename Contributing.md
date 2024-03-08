@@ -70,6 +70,12 @@ First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
 nox -s build-guide -- --open
 ```
 
+To check all links in the guide are valid, also install [`lychee`][lychee] and use the `check-guide` session instead:
+
+```shell
+nox -s check-guide
+```
+
 ### Help design the next PyO3
 
 Issues which don't yet have a clear solution use the [needs-design](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Aneeds-design) label.
@@ -171,7 +177,7 @@ First, there are Rust-based benchmarks located in the `pyo3-benches` subdirector
 
     nox -s bench
 
-Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](pytests).
+Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](https://github.com/PyO3/pyo3/tree/main/pytests).
 
 ## Code coverage
 
@@ -211,4 +217,5 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 - [messense](https://github.com/sponsors/messense)
 
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
+[lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox

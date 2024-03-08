@@ -45,7 +45,7 @@ file. Otherwise, you will get an import error in Python with the following messa
 `ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
 
 To import the module, either:
- - copy the shared library as described in [Manual builds](building_and_distribution.html#manual-builds), or
+ - copy the shared library as described in [Manual builds](building_and_distribution.md#manual-builds), or
  - use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or
 `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 

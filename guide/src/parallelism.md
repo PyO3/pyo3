@@ -117,4 +117,4 @@ test_word_count_python_sequential                      27.3985 (15.82)    45.452
 
 You can see that the Python threaded version is not much slower than the Rust sequential version, which means compared to an execution on a single CPU core the speed has doubled.
 
-[`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.allow_threads
+[`Python::allow_threads`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.allow_threads
