@@ -26,9 +26,10 @@ nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
 
 
 PYO3_DIR = Path(__file__).parent
+PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
 PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
-PYO3_GUIDE_TARGET = PYO3_DIR / "target" / "guide"
-PYO3_DOCS_TARGET = PYO3_DIR / "target" / "doc"
+PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
+PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12")
 PYPY_VERSIONS = ("3.7", "3.8", "3.9", "3.10")
 
@@ -360,6 +361,7 @@ def docs(session: nox.Session) -> None:
     rustdoc_flags.append(session.env.get("RUSTDOCFLAGS", ""))
     session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
 
+    shutil.rmtree(PYO3_DOCS_TARGET, ignore_errors=True)
     _run_cargo(
         session,
         *toolchain_flags,
@@ -375,7 +377,8 @@ def docs(session: nox.Session) -> None:
 
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
-    _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
+    shutil.rmtree(PYO3_GUIDE_TARGET, ignore_errors=True)
+    _run(session, "mdbook", "build", "-d", PYO3_GUIDE_TARGET, "guide", *session.posargs)
     for license in ("LICENSE-APACHE", "LICENSE-MIT"):
         target_file = PYO3_GUIDE_TARGET / license
         target_file.unlink(missing_ok=True)
