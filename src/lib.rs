@@ -453,7 +453,7 @@ pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
-#[doc = include_str!("../guide/pyclass_parameters.md")]
+#[doc = include_str!("../guide/pyclass-parameters.md")]
 ///
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
@@ -486,7 +486,7 @@ pub mod doc_test {
         "guide/src/advanced.md" => guide_advanced_md,
         "guide/src/async-await.md" => guide_async_await_md,
         "guide/src/building-and-distribution.md" => guide_building_and_distribution_md,
-        "guide/src/building-and-distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
+        "guide/src/building-and-distribution/multiple-python-versions.md" => guide_bnd_multiple_python_versions_md,
         "guide/src/class.md" => guide_class_md,
         "guide/src/class/call.md" => guide_class_call,
         "guide/src/class/object.md" => guide_class_object,
@@ -512,8 +512,8 @@ pub mod doc_test {
         "guide/src/parallelism.md" => guide_parallelism_md,
         "guide/src/performance.md" => guide_performance_md,
         "guide/src/python-from-rust.md" => guide_python_from_rust_md,
-        "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
-        "guide/src/trait_bounds.md" => guide_trait_bounds_md,
+        "guide/src/python-typing-hints.md" => guide_python_typing_hints_md,
+        "guide/src/trait-bounds.md" => guide_trait_bounds_md,
         "guide/src/types.md" => guide_types_md,
     }
 }
