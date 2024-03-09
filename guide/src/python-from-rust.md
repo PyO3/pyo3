@@ -1,10 +1,16 @@
 # Calling Python in Rust code
 
-This chapter of the guide documents some ways to interact with Python code from Rust:
+This chapter of the guide documents some ways to interact with Python code from Rust.
+
+Below is an introduction to the `'py` lifetime and some general remarks about how PyO3's API reasons about Python code.
+
+The subchapters also cover the following topics:
+ - Python object types available in PyO3's API
+ - How to work with Python exceptions
  - How to call Python functions
  - How to execute existing Python code
 
-## Interacting with the Python interpreter
+## The `'py` lifetime
 
 To safely interact with the Python interpreter a Rust thread must have a corresponding Python thread state and hold the [Global Interpreter Lock (GIL)](#the-global-interpreter-lock). PyO3 has a `Python<'py>` token that is used to prove that these conditions
 are met. Its lifetime `'py` is a central part of PyO3's API.
