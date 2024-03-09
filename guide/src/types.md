@@ -19,7 +19,7 @@ Python objects are reference counted, like [`std::sync::Arc`](https://doc.rust-l
 The recommendation of when to use each of these smart pointers is as follows:
 
 - Use `Bound<'py, T>` for as much as possible, as it offers the most efficient and complete API.
-- Use `Py<T>` mostly just for storage inside Rust `struct`s which do not want to add a lifetime parameter for `Bound<'py, T>`.
+- Use `Py<T>` mostly just for storage inside Rust `struct`s which do not want to or can't add a lifetime parameter for `Bound<'py, T>`.
 - `Borrowed<'a, 'py, T>` is almost never used. It is occasionally present at the boundary between Rust and the Python interpreter, for example when borrowing data from Python tuples (which is safe because they are immutable).
 
 The sections below also explain these smart pointers in a little more detail.

@@ -17,7 +17,7 @@ are met. Its lifetime `'py` is a central part of PyO3's API.
 
 The `Python<'py>` token serves three purposes:
 
-* It provides global APIs for the Python interpreter, such as [`py.eval()`][eval] and [`py.import()`][import].
+* It provides global APIs for the Python interpreter, such as [`py.eval_bound()`][eval] and [`py.import_bound()`][import].
 * It can be passed to functions that require a proof of holding the GIL, such as [`Py::clone_ref`][clone_ref].
 * Its lifetime `'py` is used to bind many of PyO3's types to the Python interpreter, such as [`Bound<'py, T>`][Bound].
 
@@ -33,7 +33,7 @@ Non-Python operations (system calls and native Rust code) can unlock the GIL. Se
 
 ## Python's memory model
 
-Python memory model differs from Rust's memory model in two key ways:
+Python's memory model differs from Rust's memory model in two key ways:
 - There is no concept of ownership; all Python objects are reference counted
 - There is no concept of exclusive (`&mut`) references; any reference can mutate a Python object
 
