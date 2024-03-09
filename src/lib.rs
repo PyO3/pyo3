@@ -512,7 +512,10 @@ pub mod doc_test {
         "guide/src/parallelism.md" => guide_parallelism_md,
         "guide/src/performance.md" => guide_performance_md,
         "guide/src/python-from-rust.md" => guide_python_from_rust_md,
+        "guide/src/python-from-rust/calling-existing-code.md" => guide_pfr_calling_existing_code_md,
+        "guide/src/python-from-rust/function-calls.md" => guide_pfr_function_calls_md,
         "guide/src/python-typing-hints.md" => guide_python_typing_hints_md,
+        "guide/src/rust-from-python.md" => guide_rust_from_python_md,
         "guide/src/trait-bounds.md" => guide_trait_bounds_md,
         "guide/src/types.md" => guide_types_md,
     }
