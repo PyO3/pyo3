@@ -590,8 +590,7 @@ impl<'a> FnSpec<'a> {
                 quote! {{
                     #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
                     function(#(#args),*)
-                }
-                }
+                }}
             } else {
                 quote! {
                     function({
