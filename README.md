@@ -162,7 +162,7 @@ fn main() -> PyResult<()> {
 }
 ```
 
-The guide has [a section](https://pyo3.rs/latest/python_from_rust.html) with lots of examples
+The guide has [a section](https://pyo3.rs/latest/python-from-rust.html) with lots of examples
 about this topic.
 
 ## Tools and libraries
