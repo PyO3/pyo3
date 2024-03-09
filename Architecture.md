@@ -48,7 +48,7 @@ In the [`pyo3-ffi`] crate, there is lots of conditional compilation such as `#[c
 `#[cfg(Py_3_7)]`, and `#[cfg(PyPy)]`.
 `Py_LIMITED_API` corresponds to `#define Py_LIMITED_API` macro in Python/C API.
 With `Py_LIMITED_API`, we can build a Python-version-agnostic binary called an
-[abi3 wheel](https://pyo3.rs/latest/building_and_distribution.html#py_limited_apiabi3).
+[abi3 wheel](https://pyo3.rs/latest/building-and-distribution.html#py_limited_apiabi3).
 `Py_3_7` means that the API is available from Python >= 3.7.
 There are also `Py_3_8`, `Py_3_9`, and so on.
 `PyPy` means that the API definition is for PyPy.

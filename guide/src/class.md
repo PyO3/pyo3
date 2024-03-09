@@ -288,7 +288,7 @@ Frozen classes are likely to become the default thereby guiding the PyO3 ecosyst
 
 ## Customizing the class
 
-{{#include ../pyclass_parameters.md}}
+{{#include ../pyclass-parameters.md}}
 
 These parameters are covered in various sections of this guide.
 

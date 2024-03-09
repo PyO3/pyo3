@@ -12,7 +12,7 @@ This feature is required when building a Python extension module using PyO3.
 
 It tells PyO3's build script to skip linking against `libpython.so` on Unix platforms, where this must not be done.
 
-See the [building and distribution](building_and_distribution.md#the-extension-module-feature) section for further detail.
+See the [building and distribution](building-and-distribution.md#the-extension-module-feature) section for further detail.
 
 ### `abi3`
 
@@ -20,7 +20,7 @@ This feature is used when building Python extension modules to create wheels whi
 
 It restricts PyO3's API to a subset of the full Python API which is guaranteed by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forwards-compatible with future Python versions.
 
-See the [building and distribution](building_and_distribution.md#py_limited_apiabi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#py_limited_apiabi3) section for further detail.
 
 ### The `abi3-pyXY` features
 
@@ -28,7 +28,7 @@ See the [building and distribution](building_and_distribution.md#py_limited_apia
 
 These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
-See the [building and distribution](building_and_distribution.md#minimum-python-version-for-abi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#minimum-python-version-for-abi3) section for further detail.
 
 ### `generate-import-lib`
 
@@ -38,7 +38,7 @@ for MinGW-w64 and MSVC (cross-)compile targets.
 Enabling it allows to (cross-)compile extension modules to any Windows targets
 without having to install the Windows Python distribution files for the target.
 
-See the [building and distribution](building_and_distribution.md#building-abi3-extensions-without-a-python-interpreter)
+See the [building and distribution](building-and-distribution.md#building-abi3-extensions-without-a-python-interpreter)
 section for further detail.
 
 ## Features for embedding Python in Rust

@@ -417,6 +417,7 @@ def check_guide(session: nox.Session):
         "lychee",
         PYO3_DOCS_TARGET,
         f"--remap=https://pyo3.rs/main/ file://{PYO3_GUIDE_TARGET}/",
+        f"--remap=https://pyo3.rs/latest/ file://{PYO3_GUIDE_TARGET}/",
         f"--exclude=file://{PYO3_DOCS_TARGET}",
         *session.posargs,
     )
