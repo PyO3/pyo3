@@ -52,7 +52,7 @@
 //!
 //! PyO3 has two core smart pointers to refer to Python objects, [`Py<T>`](Py) and its GIL-bound
 //! form [`Bound<'py, T>`](Bound) which carries the `'py` lifetime. (There is also
-//! [`Borrowed<'a, 'py, T>`](instance::Borrowed), but it is used much more rarely.
+//! [`Borrowed<'a, 'py, T>`](instance::Borrowed), but it is used much more rarely).
 //!
 //! The type parameter `T` in these smart pointers can be filled by:
 //!   - [`PyAny`], e.g. `Py<PyAny>` or `Bound<'py, PyAny>`, where the Python object type is not
