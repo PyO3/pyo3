@@ -118,7 +118,7 @@
 //! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::gil::{GILGuard, GILPool, SuspendGIL};
+use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::HasPyGilRef;
@@ -127,9 +127,9 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-#[allow(deprecated)]
-use crate::FromPyPointer;
 use crate::{ffi, Bound, IntoPy, Py, PyNativeType, PyObject, PyTypeCheck, PyTypeInfo};
+#[allow(deprecated)]
+use crate::{gil::GILPool, FromPyPointer};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -1053,9 +1053,9 @@ impl<'py> Python<'py> {
         err::error_on_minusone(self, unsafe { ffi::PyErr_CheckSignals() })
     }
 
-    /// Create a new pool for managing PyO3's owned references.
+    /// Create a new pool for managing PyO3's GIL Refs.
     ///
-    /// When this `GILPool` is dropped, all PyO3 owned references created after this `GILPool` will
+    /// When this `GILPool` is dropped, all GIL Refs created after this `GILPool` will
     /// all have their Python reference counts decremented, potentially allowing Python to drop
     /// the corresponding Python objects.
     ///
@@ -1108,13 +1108,22 @@ impl<'py> Python<'py> {
     ///
     /// [`.python()`]: crate::GILPool::python
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "code not using the GIL Refs API can safely remove use of `Python::new_pool`"
+        )
+    )]
+    #[allow(deprecated)]
     pub unsafe fn new_pool(self) -> GILPool {
         GILPool::new()
     }
 }
 
 impl Python<'_> {
-    /// Creates a scope using a new pool for managing PyO3's owned references.
+    /// Creates a scope using a new pool for managing PyO3's GIL Refs. This has no functional
+    /// use for code w
     ///
     /// This is a safe alterantive to [`new_pool`][Self::new_pool] as
     /// it limits the closure to using the new GIL token at the cost of
@@ -1167,6 +1176,14 @@ impl Python<'_> {
     /// });
     /// ```
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "code not using the GIL Refs API can safely remove use of `Python::with_pool`"
+        )
+    )]
+    #[allow(deprecated)]
     pub fn with_pool<F, R>(&self, f: F) -> R
     where
         F: for<'py> FnOnce(Python<'py>) -> R + Ungil,
