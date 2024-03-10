@@ -89,7 +89,7 @@ use the more efficient
 #
 impl PartialEq<Foo> for FooBound<'_> {
     fn eq(&self, other: &Foo) -> bool {
-        // Access to `&'a PyAny` implies access to `Python<'a>`.
+        // Access to `&Bound<'py, PyAny>` implies access to `Python<'py>`.
         let py = self.0.py();
         let len = other.0.bind(py).len();
         self.0.len() == len
