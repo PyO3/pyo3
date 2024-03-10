@@ -37,9 +37,10 @@ Python's memory model differs from Rust's memory model in two key ways:
 - There is no concept of ownership; all Python objects are shared and usually implemented via reference counting
 - There is no concept of exclusive (`&mut`) references; any reference can mutate a Python object
 
-PyO3's API reflects this by providing smart pointer types, `Py<T>`, `Bound<'py, T>`, and (the very rarely used) `Borrowed<'a, 'py, T>`. These smart pointers all use Python reference counting. See the [subchapter on types](./types.md) for more detail on these types.
+PyO3's API reflects this by providing [smart pointer][smart-pointers] types, `Py<T>`, `Bound<'py, T>`, and (the very rarely used) `Borrowed<'a, 'py, T>`. These smart pointers all use Python reference counting. See the [subchapter on types](./types.md) for more detail on these types.
 
 Because of the lack of exclusive `&mut` references, PyO3's APIs for Python objects, for example [`PyListMethods::append`], use shared references. This is safe because Python objects have internal mechanisms to prevent data races (as of time of writing, the Python GIL).
 
+[smart-pointers]: https://doc.rust-lang.org/book/ch15-00-smart-pointers.html
 [obtaining-py]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#obtaining-a-python-token
 [`pyo3::sync`]: {{#PYO3_DOCS_URL}}/pyo3/sync/index.html
