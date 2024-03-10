@@ -1,5 +1,15 @@
 # Memory management
 
+<div class="warning">
+⚠️ Warning: API update in progress 🛠️
+
+PyO3 0.21 has introduced a significant new API, termed the "Bound" API after the new smart pointer `Bound<T>`.
+
+This section on memory management is heavily weighted towards the now-deprecated "GIL Refs" API, which suffered from the drawbacks detailed here as well as CPU overheads.
+
+See [the smart pointer types](./types.md#pyo3s-smart-pointers) for description on the new, simplified, memory model of the Bound API, which is built as a thin wrapper on Python reference counting.
+</div>
+
 Rust and Python have very different notions of memory management.  Rust has
 a strict memory model with concepts of ownership, borrowing, and lifetimes,
 where memory is freed at predictable points in program execution.  Python has
@@ -10,12 +20,12 @@ Memory in Python is freed eventually by the garbage collector, but not usually
 in a predictable way.
 
 PyO3 bridges the Rust and Python memory models with two different strategies for
-accessing memory allocated on Python's heap from inside Rust.  These are
-GIL-bound, or "owned" references, and GIL-independent `Py<Any>` smart pointers.
+accessing memory allocated on Python's heap from inside Rust. These are
+GIL Refs such as `&'py PyAny`, and GIL-independent `Py<Any>` smart pointers.
 
 ## GIL-bound memory
 
-PyO3's GIL-bound, "owned references" (`&PyAny` etc.) make PyO3 more ergonomic to
+PyO3's GIL Refs such as `&'py PyAny` make PyO3 more ergonomic to
 use by ensuring that their lifetime can never be longer than the duration the
 Python GIL is held.  This means that most of PyO3's API can assume the GIL is
 held. (If PyO3 could not assume this, every PyO3 API would need to take a
@@ -27,7 +37,10 @@ very simple and easy-to-understand programs like this:
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let hello = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into::<PyString>()?;
+    #[allow(deprecated)] // py.eval() is part of the GIL Refs API
+    let hello = py
+        .eval("\"Hello World!\"", None, None)?
+        .downcast::<PyString>()?;
     println!("Python says: {}", hello);
     Ok(())
 })?;
@@ -48,7 +61,10 @@ of the time we don't have to think about this, but consider the following:
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
-        let hello = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into::<PyString>()?;
+        #[allow(deprecated)] // py.eval() is part of the GIL Refs API
+        let hello = py
+            .eval("\"Hello World!\"", None, None)?
+            .downcast::<PyString>()?;
         println!("Python says: {}", hello);
     }
     // There are 10 copies of `hello` on Python's heap here.
@@ -76,7 +92,10 @@ is to acquire and release the GIL with each iteration of the loop.
 # fn main() -> PyResult<()> {
 for _ in 0..10 {
     Python::with_gil(|py| -> PyResult<()> {
-        let hello = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into::<PyString>()?;
+        #[allow(deprecated)] // py.eval() is part of the GIL Refs API
+        let hello = py
+            .eval("\"Hello World!\"", None, None)?
+            .downcast::<PyString>()?;
         println!("Python says: {}", hello);
         Ok(())
     })?; // only one copy of `hello` at a time
@@ -97,7 +116,10 @@ Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         let pool = unsafe { py.new_pool() };
         let py = pool.python();
-        let hello = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into::<PyString>()?;
+        #[allow(deprecated)] // py.eval() is part of the GIL Refs API
+        let hello = py
+            .eval("\"Hello World!\"", None, None)?
+            .downcast::<PyString>()?;
         println!("Python says: {}", hello);
     }
     Ok(())
@@ -144,8 +166,12 @@ reference count reaches zero?  It depends whether or not we are holding the GIL.
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let hello: Py<PyString> = py.eval_bound("\"Hello World!\"", None, None)?.extract()?;
-    println!("Python says: {}", hello.bind(py));
+    #[allow(deprecated)] // py.eval() is part of the GIL Refs API
+    let hello: Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract()?;
+    #[allow(deprecated)] // as_ref is part of the GIL Refs API
+    {
+        println!("Python says: {}", hello.as_ref(py));
+    }
     Ok(())
 })?;
 # Ok(())
@@ -166,7 +192,8 @@ we are *not* holding the GIL?
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval_bound("\"Hello World!\"", None, None)?.extract()
+    #[allow(deprecated)] // py.eval() is part of the GIL Refs API
+    py.eval("\"Hello World!\"", None, None)?.extract()
 })?;
 // Do some stuff...
 // Now sometime later in the program we want to access `hello`.
@@ -198,12 +225,16 @@ We can avoid the delay in releasing memory if we are careful to drop the
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+#[allow(deprecated)] // py.eval() is part of the GIL Refs API
 let hello: Py<PyString> =
-    Python::with_gil(|py| py.eval_bound("\"Hello World!\"", None, None)?.extract())?;
+    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {
-    println!("Python says: {}", hello.bind(py));
+    #[allow(deprecated)] // as_ref is part of the GIL Refs API
+    {
+        println!("Python says: {}", hello.as_ref(py));
+    }
     drop(hello); // Memory released here.
 });
 # Ok(())
@@ -220,12 +251,16 @@ until the GIL is dropped.
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+#[allow(deprecated)] // py.eval() is part of the GIL Refs API
 let hello: Py<PyString> =
-    Python::with_gil(|py| py.eval_bound("\"Hello World!\"", None, None)?.extract())?;
+    Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
 // Do some stuff...
 // Now sometime later in the program:
 Python::with_gil(|py| {
-    println!("Python says: {}", hello.into_bound(py));
+    #[allow(deprecated)] // into_ref is part of the GIL Refs API
+    {
+        println!("Python says: {}", hello.into_ref(py));
+    }
     // Memory not released yet.
     // Do more stuff...
     // Memory released here at end of `with_gil()` closure.

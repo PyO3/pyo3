@@ -111,7 +111,7 @@ mod io {
     pyo3::import_exception!(io, UnsupportedOperation);
 }
 
-fn tell(file: &PyAny) -> PyResult<u64> {
+fn tell(file: &Bound<'_, PyAny>) -> PyResult<u64> {
     match file.call_method0("tell") {
         Err(_) => Err(io::UnsupportedOperation::new_err("not supported: tell")),
         Ok(x) => x.extract::<u64>(),

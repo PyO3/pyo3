@@ -190,7 +190,9 @@ struct PyClassAsyncIter {
 impl PyClassAsyncIter {
     fn __anext__(&mut self) -> PyClassAwaitable {
         self.number += 1;
-        PyClassAwaitable { number: self.number }
+        PyClassAwaitable {
+            number: self.number,
+        }
     }
 
     fn __aiter__(slf: Py<Self>) -> Py<Self> {
@@ -312,7 +314,10 @@ Python::with_gil(|py| {
     // `b` is not in the dictionary
     assert!(dict.get_item("b").is_none());
     // `dict` is not hashable, so this fails with a `TypeError`
-    assert!(dict.get_item_with_error(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+    assert!(dict
+        .get_item_with_error(dict)
+        .unwrap_err()
+        .is_instance_of::<PyTypeError>(py));
 });
 # }
 ```
@@ -333,7 +338,10 @@ Python::with_gil(|py| -> PyResult<()> {
     // `b` is not in the dictionary
     assert!(dict.get_item("b")?.is_none());
     // `dict` is not hashable, so this fails with a `TypeError`
-    assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+    assert!(dict
+        .get_item(dict)
+        .unwrap_err()
+        .is_instance_of::<PyTypeError>(py));
 
     Ok(())
 });
@@ -495,7 +503,7 @@ drop(first);
 drop(second);
 ```
 
-The replacement is [`Python::with_gil`]() which is more cumbersome but enforces the proper nesting by design, e.g.
+The replacement is [`Python::with_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.with_gil) which is more cumbersome but enforces the proper nesting by design, e.g.
 
 ```rust
 # #![allow(dead_code)]

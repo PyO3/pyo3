@@ -12,49 +12,49 @@ The table below contains the Python type and the corresponding function argument
 
 | Python        | Rust                            | Rust (Python-native) |
 | ------------- |:-------------------------------:|:--------------------:|
-| `object`      | -                               | `&PyAny`             |
-| `str`         | `String`, `Cow<str>`, `&str`, `char`, `OsString`, `PathBuf`, `Path` | `&PyString`, `&PyUnicode` |
-| `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `&PyBytes`           |
-| `bool`        | `bool`                          | `&PyBool`            |
-| `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `&PyLong` |
-| `float`       | `f32`, `f64`                    | `&PyFloat`           |
-| `complex`     | `num_complex::Complex`[^2]      | `&PyComplex`         |
-| `list[T]`     | `Vec<T>`                        | `&PyList`            |
-| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `&PyDict` |
-| `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `&PyTuple`           |
-| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `&PySet` |
-| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `&PyFrozenSet` |
-| `bytearray`   | `Vec<u8>`, `Cow<[u8]>`          | `&PyByteArray`       |
-| `slice`       | -                               | `&PySlice`           |
-| `type`        | -                               | `&PyType`            |
-| `module`      | -                               | `&PyModule`          |
+| `object`      | -                               | `PyAny`             |
+| `str`         | `String`, `Cow<str>`, `&str`, `char`, `OsString`, `PathBuf`, `Path` | `PyString`, `PyUnicode` |
+| `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `PyBytes`           |
+| `bool`        | `bool`                          | `PyBool`            |
+| `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyLong` |
+| `float`       | `f32`, `f64`                    | `PyFloat`           |
+| `complex`     | `num_complex::Complex`[^2]      | `PyComplex`         |
+| `list[T]`     | `Vec<T>`                        | `PyList`            |
+| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `PyDict` |
+| `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `PyTuple`           |
+| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `PySet` |
+| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `PyFrozenSet` |
+| `bytearray`   | `Vec<u8>`, `Cow<[u8]>`          | `PyByteArray`       |
+| `slice`       | -                               | `PySlice`           |
+| `type`        | -                               | `PyType`            |
+| `module`      | -                               | `PyModule`          |
 | `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |
-| `datetime.datetime` | `SystemTime`, `chrono::DateTime<Tz>`[^5], `chrono::NaiveDateTime`[^5] | `&PyDateTime`        |
-| `datetime.date` | `chrono::NaiveDate`[^5]       | `&PyDate`            |
-| `datetime.time` | `chrono::NaiveTime`[^5]       | `&PyTime`            |
-| `datetime.tzinfo` | `chrono::FixedOffset`[^5], `chrono::Utc`[^5], `chrono_tz::TimeZone`[^6] | `&PyTzInfo`          |
-| `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `&PyDelta`           |
+| `datetime.datetime` | `SystemTime`, `chrono::DateTime<Tz>`[^5], `chrono::NaiveDateTime`[^5] | `PyDateTime`        |
+| `datetime.date` | `chrono::NaiveDate`[^5]       | `PyDate`            |
+| `datetime.time` | `chrono::NaiveTime`[^5]       | `PyTime`            |
+| `datetime.tzinfo` | `chrono::FixedOffset`[^5], `chrono::Utc`[^5], `chrono_tz::TimeZone`[^6] | `PyTzInfo`          |
+| `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `PyDelta`           |
 | `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
-| `os.PathLike ` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
-| `pathlib.Path` | `PathBuf`, `Path`              | `&PyString`, `&PyUnicode` |
+| `os.PathLike ` | `PathBuf`, `Path`              | `PyString`, `PyUnicode` |
+| `pathlib.Path` | `PathBuf`, `Path`              | `PyString`, `PyUnicode` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
-| `typing.Sequence[T]` | `Vec<T>`                 | `&PySequence`        |
+| `typing.Sequence[T]` | `Vec<T>`                 | `PySequence`        |
 | `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `&PyMapping` |
-| `typing.Iterator[Any]` | -                      | `&PyIterator`        |
+| `typing.Iterator[Any]` | -                      | `PyIterator`        |
 | `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.md#deriving-frompyobject-for-enums) | - |
 
-There are also a few special types related to the GIL and Rust-defined `#[pyclass]`es which may come in useful:
+It is also worth remembering the following special types:
 
-| What          | Description |
-| ------------- | ------------------------------------- |
-| `Python`      | A GIL token, used to pass to PyO3 constructors to prove ownership of the GIL |
-| `Py<T>`       | A Python object isolated from the GIL lifetime. This can be sent to other threads. |
-| `PyObject`    | An alias for `Py<PyAny>`              |
-| `&PyCell<T>`  | A `#[pyclass]` value owned by Python. |
-| `PyRef<T>`    | A `#[pyclass]` borrowed immutably.    |
-| `PyRefMut<T>` | A `#[pyclass]` borrowed mutably.      |
+| What             | Description                           |
+| ---------------- | ------------------------------------- |
+| `Python<'py>`    | A GIL token, used to pass to PyO3 constructors to prove ownership of the GIL. |
+| `Bound<'py, T>`  | A Python object connected to the GIL lifetime. This provides access to most of PyO3's APIs. |
+| `Py<T>`          | A Python object isolated from the GIL lifetime. This can be sent to other threads. |
+| `PyObject`       | An alias for `Py<PyAny>`              |
+| `PyRef<T>`       | A `#[pyclass]` borrowed immutably.    |
+| `PyRefMut<T>`    | A `#[pyclass]` borrowed mutably.      |
 
 For more detail on accepting `#[pyclass]` values as function arguments, see [the section of this guide on Python Classes](../class.md).
 
@@ -72,9 +72,9 @@ For most PyO3 usage the conversion cost is worth paying to get these benefits. A
 
 ### Returning Rust values to Python
 
-When returning values from functions callable from Python, Python-native types (`&PyAny`, `&PyDict` etc.) can be used with zero cost.
+When returning values from functions callable from Python, [PyO3's smart pointers](../types.md#pyo3s-smart-pointers) (`Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`) can be used with zero cost.
 
-Because these types are references, in some situations the Rust compiler may ask for lifetime annotations. If this is the case, you should use `Py<PyAny>`, `Py<PyDict>` etc. instead - which are also zero-cost. For all of these Python-native types `T`, `Py<T>` can be created from `T` with an `.into()` conversion.
+Because `Bound<'py, T>` and `Borrowed<'a, 'py, T>` have lifetime parameters, the Rust compiler may ask for lifetime annotations to be added to your function. See the [section of the guide dedicated to this](../types.md#function-argument-lifetimes).
 
 If your function is fallible, it should return `PyResult<T>` or `Result<T, E>` where `E` implements `From<E> for PyErr`. This will raise a `Python` exception if the `Err` variant is returned.
 
@@ -95,7 +95,8 @@ Finally, the following Rust types are also able to convert to Python as return v
 | `BTreeMap<K, V>` | `Dict[K, V]`                 |
 | `HashSet<T>`  | `Set[T]`                        |
 | `BTreeSet<T>` | `Set[T]`                        |
-| `&PyCell<T: PyClass>` | `T`                     |
+| `Py<T>` | `T`                                   |
+| `Bound<T>` | `T`                                |
 | `PyRef<T: PyClass>` | `T`                       |
 | `PyRefMut<T: PyClass>` | `T`                    |
 
