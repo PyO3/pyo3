@@ -30,28 +30,37 @@
 //!
 //! PyO3 has several core types that you should familiarize yourself with:
 //!
-//! ## The Python<'py> object
+//! ## The `Python<'py>` object, and the `'py` lifetime
 //!
-//! Holding the [global interpreter lock] (GIL) is modeled with the [`Python<'py>`](crate::Python)
-//! token. All APIs that require that the GIL is held require this token as proof that you really
-//! are holding the GIL. It can be explicitly acquired and is also implicitly acquired by PyO3 as
-//! it wraps Rust functions and structs into Python functions and objects.
+//! Holding the [global interpreter lock] (GIL) is modeled with the [`Python<'py>`](Python) token. Many
+//! Python APIs require that the GIL is held, and PyO3 uses this token as proof that these APIs
+//! can be called safely. It can be explicitly acquired and is also implicitly acquired by PyO3
+//! as it wraps Rust functions and structs into Python functions and objects.
 //!
-//! ## The GIL-dependent types
+//! The [`Python<'py>`](Python) token's lifetime `'py` is common to many PyO3 APIs:
+//! - Types that also have the `'py` lifetime, such as the [`Bound<'py, T>`](Bound) smart pointer, are
+//!   bound to the Python GIL and rely on this to offer their functionality. These types often
+//!   have a [`.py()`](Bound::py) method to get the associated [`Python<'py>`](Python) token.
+//! - Functions which depend on the `'py` lifetime, such as [`PyList::new_bound`](types::PyList::new_bound),
+//!   require a [`Python<'py>`](Python) token as an input. Sometimes the token is passed implicitly by
+//!   taking a [`Bound<'py, T>`](Bound) or other type which is bound to the `'py` lifetime.
+//! - Traits which depend on the `'py` lifetime, such as [`FromPyObject<'py>`](FromPyObject), usually have
+//!   inputs or outputs which depend on the lifetime. Adding the lifetime to the trait allows
+//!   these inputs and outputs to express their binding to the GIL in the Rust type system.
 //!
-//! For example `&`[`PyAny`]. These are only ever seen as references, with a lifetime that is only
-//! valid for as long as the GIL is held, which is why using them doesn't require a
-//! [`Python<'py>`](crate::Python) token. The underlying Python object, if mutable, can be mutated
-//! through any reference.
+//! ## Python object smart pointers
+//!
+//! PyO3 has two core smart pointers to refer to Python objects, [`Py<T>`](Py) and its GIL-bound
+//! form [`Bound<'py, T>`](Bound) which carries the `'py` lifetime. (There is also
+//! [`Borrowed<'a, 'py, T>`](instance::Borrowed), but it is used much more rarely.
+//!
+//! The type parameter `T` in these smart pointers can be filled by:
+//!   - [`PyAny`], e.g. `Py<PyAny>` or `Bound<'py, PyAny>`, where the Python object type is not
+//!     known. `Py<PyAny>` is so common it has a type alias [`PyObject`].
+//!   - Concrete Python types like [`PyList`](types::PyList) or [`PyTuple`](types::PyTuple).
+//!   - Rust types which are exposed to Python using the [`#[pyclass]`](macro@pyclass) macro.
 //!
 //! See the [guide][types] for an explanation of the different Python object types.
-//!
-//! ## The GIL-independent types
-//!
-//! When wrapped in [`Py`]`<...>`, like with [`Py`]`<`[`PyAny`]`>` or [`Py`]`<SomePyClass>`, Python
-//! objects no longer have a limited lifetime which makes them easier to store in structs and pass
-//! between functions. However, you cannot do much with them without a
-//! [`Python<'py>`](crate::Python) token, for which you’d need to reacquire the GIL.
 //!
 //! ## PyErr
 //!
