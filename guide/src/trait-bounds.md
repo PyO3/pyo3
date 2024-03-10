@@ -82,7 +82,8 @@ impl Model for UserModel {
     fn set_variables(&mut self, var: &Vec<f64>) {
         println!("Rust calling Python to set the variables");
         Python::with_gil(|py| {
-            self.model.bind(py)
+            self.model
+                .bind(py)
                 .call_method("set_variables", (PyList::new_bound(py, var),), None)
                 .unwrap();
         })
