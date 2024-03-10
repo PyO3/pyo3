@@ -372,7 +372,6 @@ def docs(session: nox.Session) -> None:
         "--no-deps",
         "--workspace",
         *cargo_flags,
-        *session.posargs,
     )
 
 

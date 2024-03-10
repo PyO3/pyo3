@@ -72,9 +72,9 @@ For most PyO3 usage the conversion cost is worth paying to get these benefits. A
 
 ### Returning Rust values to Python
 
-When returning values from functions callable from Python, Python-native types (`&PyAny`, `&PyDict` etc.) can be used with zero cost.
+When returning values from functions callable from Python, [PyO3's smart pointers](../types.md#pyo3s-smart-pointers) (`Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`) can be used with zero cost.
 
-Because these types are references, in some situations the Rust compiler may ask for lifetime annotations. If this is the case, you should use `Py<PyAny>`, `Py<PyDict>` etc. instead - which are also zero-cost. For all of these Python-native types `T`, `Py<T>` can be created from `T` with an `.into()` conversion.
+Because `Bound<'py, T>` and `Borrowed<'a, 'py, T>` have lifetime parameters, the Rust compiler may ask for lifetime annotations to be added to your function. See the [section of the guide dedicated to this](../types.md#function-argument-lifetimes).
 
 If your function is fallible, it should return `PyResult<T>` or `Result<T, E>` where `E` implements `From<E> for PyErr`. This will raise a `Python` exception if the `Err` variant is returned.
 

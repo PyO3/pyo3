@@ -65,8 +65,8 @@ use pyo3::types::PyList;
 fn example<'py>(py: Python<'py>) -> PyResult<()> {
     let x: Bound<'py, PyList> = PyList::empty_bound(py);
     x.append(1)?;
-    let y: Bound<'py, PyList> = x.clone();  // y is a new reference to the same list
-    drop(x);                               // release the original reference x
+    let y: Bound<'py, PyList> = x.clone(); // y is a new reference to the same list
+    drop(x); // release the original reference x
     Ok(())
 }
 # Python::with_gil(example).unwrap();
@@ -107,7 +107,10 @@ The correct way to solve this is to add the `'py` lifetime as a parameter for th
 
 ```rust
 # use pyo3::prelude::*;
-fn add<'py>(left: &Bound<'py, PyAny>, right: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+fn add<'py>(
+    left: &Bound<'py, PyAny>,
+    right: &Bound<'py, PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
     left.add(right)
 }
 # Python::with_gil(|py| {
@@ -177,8 +180,8 @@ Each concrete Python type such as `PyAny`, `PyTuple` and `PyDict` exposes its AP
 
 Each type's API is exposed as a trait: [`PyAnyMethods`], [`PyTupleMethods`], [`PyDictMethods`], and so on for all concrete types. Using traits rather than associated methods on the `Bound` smart pointer is done for a couple of reasons:
 - Clarity of documentation: each trait gets its own documentation page in the PyO3 API docs. If all methods were on the `Bound` smart pointer directly, the vast majority of PyO3's API would be on a single, extremely long, documentation page.
-- Consistency: downstream code implementing [Rust APIs for existing Python types](#creating-a-rust-api-for-an-existing-python-type) can also follow this pattern of using a trait. Downstream code would not be allowed to add new associated methods directly on the `Bound` type.
-- Future design: it is hoped that a future Rust with [arbitrary self types](TODO) will remove the need for these traits in favour of placing the methods directly on `PyAny`, `PyTuple`, `PyDict`, and so on.
+- Consistency: downstream code implementing Rust APIs for existing Python types can also follow this pattern of using a trait. Downstream code would not be allowed to add new associated methods directly on the `Bound` type.
+- Future design: it is hoped that a future Rust with [arbitrary self types](https://github.com/rust-lang/rust/issues/44874) will remove the need for these traits in favour of placing the methods directly on `PyAny`, `PyTuple`, `PyDict`, and so on.
 
 These traits are all included in the `pyo3::prelude` module, so with the glob import `use pyo3::prelude::*` the full PyO3 API is made available to downstream code.
 
@@ -228,11 +231,11 @@ Custom [`#[pyclass]`][pyclass] types implement [`PyTypeCheck`], so `.downcast()`
 use pyo3::prelude::*;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
 // create a new Python `tuple`, and use `.into_any()` to erase the type
-let obj: Bound<'py, PyAny> = Bound::new(py, MyClass { })?.into_any();
+let obj: Bound<'py, PyAny> = Bound::new(py, MyClass {})?.into_any();
 
 // use `.downcast()` to cast to `MyClass` without transferring ownership
 let _: &Bound<'py, MyClass> = obj.downcast()?;
@@ -291,7 +294,7 @@ a list:
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)]  // PyList::empty is part of the deprecated "GIL Refs" API.
+#[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
 let obj: &PyAny = PyList::empty(py);
 
 // To &PyList with PyAny::downcast
@@ -312,11 +315,11 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 # use pyo3::prelude::*;
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)]  // into_ref is part of the deprecated GIL Refs API
+#[allow(deprecated)] // into_ref is part of the deprecated GIL Refs API
 let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
 
 // To &PyCell<MyClass> with PyAny::downcast
-#[allow(deprecated)]  // &PyCell is part of the deprecated GIL Refs API
+#[allow(deprecated)] // &PyCell is part of the deprecated GIL Refs API
 let _: &PyCell<MyClass> = obj.downcast()?;
 
 // To Py<PyAny> (aka PyObject) with .into()
@@ -351,7 +354,7 @@ To see all Python types exposed by `PyO3` consult the [`pyo3::types`][pyo3::type
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)]  // PyList::empty is part of the deprecated "GIL Refs" API.
+#[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
 let list = PyList::empty(py);
 
 // Use methods from PyAny on all Python types with Deref implementation
@@ -361,7 +364,7 @@ let _ = list.repr()?;
 let _: &PyAny = list;
 
 // To &PyAny explicitly with .as_ref()
-#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
+#[allow(deprecated)] // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyAny = list.as_ref();
 
 // To Py<T> with .into() or Py::from()
@@ -401,7 +404,7 @@ Like PyO3's Python native types, the GIL Ref `&PyCell<T>` implements `Deref<Targ
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)]  // &PyCell is part of the deprecated GIL Refs API
+#[allow(deprecated)] // &PyCell is part of the deprecated GIL Refs API
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // To PyRef<T> with .borrow() or .try_borrow()
@@ -422,7 +425,7 @@ let _: &mut MyClass = &mut *py_ref_mut;
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-#[allow(deprecated)]  // &PyCell is part of the deprecate GIL Refs API
+#[allow(deprecated)] // &PyCell is part of the deprecate GIL Refs API
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // Use methods from PyAny on PyCell<T> with Deref implementation
@@ -432,7 +435,7 @@ let _ = cell.repr()?;
 let _: &PyAny = cell;
 
 // To &PyAny explicitly with .as_ref()
-#[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
+#[allow(deprecated)] // as_ref is part of the deprecated "GIL Refs" API.
 let _: &PyAny = cell.as_ref();
 # Ok(())
 # }).unwrap();
@@ -451,7 +454,7 @@ let _: &PyAny = cell.as_ref();
 [`PyTupleMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyTupleMethods.html
 [pyclass]: class.md
 [Borrowed]: {{#PYO3_DOCS_URL}}/pyo3/struct.Borrowed.html
-[Drop]: https://doc.rust-lang.org/std/drop/trait.Drop.html
+[Drop]: https://doc.rust-lang.org/std/ops/trait.Drop.html
 [eval]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval
 [clone_ref]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.clone_ref
 [pyo3::types]: {{#PYO3_DOCS_URL}}/pyo3/types/index.html

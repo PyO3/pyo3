@@ -60,7 +60,7 @@ enum Shape {
     Circle { radius: f64 },
     Rectangle { width: f64, height: f64 },
     RegularPolygon { side_count: u32, radius: f64 },
-    Nothing { },
+    Nothing {},
 }
 ```
 
@@ -89,7 +89,7 @@ Currently, the best alternative is to write a macro which expands to a new `#[py
 use pyo3::prelude::*;
 
 struct GenericClass<T> {
-   data: T
+    data: T,
 }
 
 macro_rules! create_interface {
@@ -102,7 +102,9 @@ macro_rules! create_interface {
         impl $name {
             #[new]
             pub fn new(data: $type) -> Self {
-                Self { inner: GenericClass { data: data } }
+                Self {
+                    inner: GenericClass { data: data },
+                }
             }
         }
     };
@@ -427,7 +429,7 @@ impl DictWithCounter {
         Self::default()
     }
 
-    fn set(slf: &Bound<'_, Self>, key: String, value: &PyAny) -> PyResult<()> {
+    fn set(slf: &Bound<'_, Self>, key: String, value: Bound<'_, PyAny>) -> PyResult<()> {
         slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
         let dict = slf.downcast::<PyDict>()?;
         dict.set_item(key, value)

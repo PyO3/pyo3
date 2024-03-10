@@ -28,7 +28,7 @@ fn main() -> PyResult<()> {
 
 [`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
-and return the evaluated value as a `&PyAny` object.
+and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
 use pyo3::prelude::*;
@@ -105,10 +105,7 @@ can be used to generate a Python module which can then be used just as if it was
 to this function!
 
 ```rust
-use pyo3::{
-    prelude::*,
-    types::IntoPyDict,
-};
+use pyo3::{prelude::*, types::IntoPyDict};
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
@@ -293,7 +290,10 @@ fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = fs::read_to_string(path.join("app.py"))?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        let syspath = py.import_bound("sys")?.getattr("path")?.downcast_into::<PyList>()?;
+        let syspath = py
+            .import_bound("sys")?
+            .getattr("path")?
+            .downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
         let app: Py<PyAny> = PyModule::from_code_bound(py, &py_app, "", "")?
             .getattr("run")?
@@ -357,7 +357,14 @@ class House(object):
             }
             Err(e) => {
                 house
-                    .call_method1("__exit__", (e.get_type_bound(py), e.value_bound(py), e.traceback_bound(py)))
+                    .call_method1(
+                        "__exit__",
+                        (
+                            e.get_type_bound(py),
+                            e.value_bound(py),
+                            e.traceback_bound(py),
+                        ),
+                    )
                     .unwrap();
             }
         }

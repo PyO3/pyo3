@@ -66,6 +66,7 @@ The following wrapper will call the Python model from Rust, using a struct to ho
 ```rust
 # #![allow(dead_code)]
 use pyo3::prelude::*;
+use pyo3::types::PyList;
 
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -81,12 +82,8 @@ impl Model for UserModel {
     fn set_variables(&mut self, var: &Vec<f64>) {
         println!("Rust calling Python to set the variables");
         Python::with_gil(|py| {
-            let values: Vec<f64> = var.clone();
-            let list: PyObject = values.into_py(py);
-            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-            let py_model = self.model.as_ref(py);
-            py_model
-                .call_method("set_variables", (list,), None)
+            self.model.bind(py)
+                .call_method("set_variables", (PyList::new_bound(py, var),), None)
                 .unwrap();
         })
     }
@@ -94,9 +91,8 @@ impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Rust calling Python to get the results");
         Python::with_gil(|py| {
-            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
             self.model
-                .as_ref(py)
+                .bind(py)
                 .call_method("get_results", (), None)
                 .unwrap()
                 .extract()
@@ -107,9 +103,8 @@ impl Model for UserModel {
     fn compute(&mut self) {
         println!("Rust calling Python to perform the computation");
         Python::with_gil(|py| {
-            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
             self.model
-                .as_ref(py)
+                .bind(py)
                 .call_method("compute", (), None)
                 .unwrap();
         })
@@ -168,6 +163,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# use pyo3::types::PyList;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -184,12 +180,8 @@ This wrapper will also perform the type conversions between Python and Rust.
 #  fn set_variables(&mut self, var: &Vec<f64>) {
 #      println!("Rust calling Python to set the variables");
 #      Python::with_gil(|py| {
-#          let values: Vec<f64> = var.clone();
-#          let list: PyObject = values.into_py(py);
-#          #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-#          let py_model = self.model.as_ref(py);
-#          py_model
-#              .call_method("set_variables", (list,), None)
+#          self.model.bind(py)
+#              .call_method("set_variables", (PyList::new_bound(py, var),), None)
 #              .unwrap();
 #      })
 #  }
@@ -197,9 +189,8 @@ This wrapper will also perform the type conversions between Python and Rust.
 #  fn get_results(&self) -> Vec<f64> {
 #      println!("Rust calling Python to get the results");
 #      Python::with_gil(|py| {
-#          #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 #          self.model
-#              .as_ref(py)
+#              .bind(py)
 #              .call_method("get_results", (), None)
 #              .unwrap()
 #              .extract()
@@ -210,9 +201,8 @@ This wrapper will also perform the type conversions between Python and Rust.
 #  fn compute(&mut self) {
 #      println!("Rust calling Python to perform the computation");
 #      Python::with_gil(|py| {
-#          #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 #          self.model
-#              .as_ref(py)
+#              .bind(py)
 #              .call_method("compute", (), None)
 #              .unwrap();
 #      })
@@ -340,6 +330,7 @@ We used in our `get_results` method the following call that performs the type co
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# use pyo3::types::PyList;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -355,10 +346,9 @@ We used in our `get_results` method the following call that performs the type co
 impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Rust calling Python to get the results");
-        #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
         Python::with_gil(|py| {
             self.model
-                .as_ref(py)
+                .bind(py)
                 .call_method("get_results", (), None)
                 .unwrap()
                 .extract()
@@ -368,12 +358,8 @@ impl Model for UserModel {
 #     fn set_variables(&mut self, var: &Vec<f64>) {
 #         println!("Rust calling Python to set the variables");
 #         Python::with_gil(|py| {
-#             let values: Vec<f64> = var.clone();
-#             let list: PyObject = values.into_py(py);
-#             #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-#             let py_model = self.model.as_ref(py);
-#             py_model
-#                 .call_method("set_variables", (list,), None)
+#             self.model.bind(py)
+#                 .call_method("set_variables", (PyList::new_bound(py, var),), None)
 #                 .unwrap();
 #         })
 #     }
@@ -381,9 +367,8 @@ impl Model for UserModel {
 #     fn compute(&mut self) {
 #         println!("Rust calling Python to perform the computation");
 #         Python::with_gil(|py| {
-#             #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 #             self.model
-#                 .as_ref(py)
+#                 .bind(py)
 #                 .call_method("compute", (), None)
 #                 .unwrap();
 #         })
@@ -396,6 +381,7 @@ Let's break it down in order to perform better error handling:
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# use pyo3::types::PyList;
 #
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
@@ -412,10 +398,9 @@ impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Get results from Rust calling Python");
         Python::with_gil(|py| {
-            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-            let py_result: &PyAny = self
+            let py_result: Bound<'_, PyAny> = self
                 .model
-                .as_ref(py)
+                .bind(py)
                 .call_method("get_results", (), None)
                 .unwrap();
 
@@ -432,12 +417,8 @@ impl Model for UserModel {
 #     fn set_variables(&mut self, var: &Vec<f64>) {
 #         println!("Rust calling Python to set the variables");
 #         Python::with_gil(|py| {
-#             let values: Vec<f64> = var.clone();
-#             let list: PyObject = values.into_py(py);
-#             #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-#             let py_model = self.model.as_ref(py);
-#             py_model
-#                 .call_method("set_variables", (list,), None)
+#             let py_model = self.model.bind(py)
+#                 .call_method("set_variables", (PyList::new_bound(py, var),), None)
 #                 .unwrap();
 #         })
 #     }
@@ -445,9 +426,8 @@ impl Model for UserModel {
 #     fn compute(&mut self) {
 #         println!("Rust calling Python to perform the computation");
 #         Python::with_gil(|py| {
-#             #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
 #             self.model
-#                 .as_ref(py)
+#                 .bind(py)
 #                 .call_method("compute", (), None)
 #                 .unwrap();
 #         })
@@ -478,6 +458,7 @@ It is also required to make the struct public.
 ```rust
 # #![allow(dead_code)]
 use pyo3::prelude::*;
+use pyo3::types::PyList;
 
 pub trait Model {
     fn set_variables(&mut self, var: &Vec<f64>);
@@ -533,12 +514,9 @@ impl Model for UserModel {
     fn set_variables(&mut self, var: &Vec<f64>) {
         println!("Rust calling Python to set the variables");
         Python::with_gil(|py| {
-            let values: Vec<f64> = var.clone();
-            let list: PyObject = values.into_py(py);
-            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-            let py_model = self.model.as_ref(py);
-            py_model
-                .call_method("set_variables", (list,), None)
+            self.model
+                .bind(py)
+                .call_method("set_variables", (PyList::new_bound(py, var),), None)
                 .unwrap();
         })
     }
@@ -546,10 +524,9 @@ impl Model for UserModel {
     fn get_results(&self) -> Vec<f64> {
         println!("Get results from Rust calling Python");
         Python::with_gil(|py| {
-            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
-            let py_result: &PyAny = self
+            let py_result: Bound<'_, PyAny> = self
                 .model
-                .as_ref(py)
+                .bind(py)
                 .call_method("get_results", (), None)
                 .unwrap();
 
@@ -567,9 +544,8 @@ impl Model for UserModel {
     fn compute(&mut self) {
         println!("Rust calling Python to perform the computation");
         Python::with_gil(|py| {
-            #[allow(deprecated)]  // as_ref is part of the deprecated "GIL Refs" API.
             self.model
-                .as_ref(py)
+                .bind(py)
                 .call_method("compute", (), None)
                 .unwrap();
         })
