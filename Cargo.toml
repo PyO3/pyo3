@@ -73,7 +73,7 @@ experimental-async = ["macros", "pyo3-macros/experimental-async"]
 
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
-experimental-inspect = []
+experimental-inspect = ["pyo3-macros/experimental-inspect"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
@@ -141,6 +141,7 @@ members = [
     "pyo3-build-config",
     "pyo3-macros",
     "pyo3-macros-backend",
+    "pyo3-introspection",
     "pytests",
     "examples",
 ]
