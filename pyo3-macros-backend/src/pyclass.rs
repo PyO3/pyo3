@@ -6,6 +6,8 @@ use crate::attributes::{
     ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
 };
 use crate::deprecations::Deprecations;
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::class_introspection_code;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec};
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
@@ -880,6 +882,7 @@ fn impl_complex_enum(
         impl_builder.impl_pyclassimpl(ctx)?,
         impl_builder.impl_add_to_module(ctx),
         impl_builder.impl_freelist(ctx),
+        impl_builder.impl_introspection(ctx),
     ]
     .into_iter()
     .collect();
@@ -1361,17 +1364,17 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     fn impl_all(&self, ctx: &Ctx) -> Result<TokenStream> {
-        let tokens = [
+        Ok([
             self.impl_pyclass(ctx),
             self.impl_extractext(ctx),
             self.impl_into_py(ctx),
             self.impl_pyclassimpl(ctx)?,
             self.impl_add_to_module(ctx),
             self.impl_freelist(ctx),
+            self.impl_introspection(ctx),
         ]
         .into_iter()
-        .collect();
-        Ok(tokens)
+        .collect())
     }
 
     fn impl_pyclass(&self, ctx: &Ctx) -> TokenStream {
@@ -1674,6 +1677,18 @@ impl<'a> PyClassImplsBuilder<'a> {
         } else {
             Vec::new()
         }
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn impl_introspection(&self, ctx: &Ctx) -> TokenStream {
+        let Ctx { pyo3_path } = ctx;
+        let name = get_class_python_name(self.cls, self.attr).to_string();
+        class_introspection_code(pyo3_path, self.cls, &name)
+    }
+
+    #[cfg(not(feature = "experimental-inspect"))]
+    fn impl_introspection(&self, _ctx: &Ctx) -> TokenStream {
+        quote! {}
     }
 }
 

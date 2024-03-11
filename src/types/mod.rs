@@ -261,6 +261,11 @@ macro_rules! pyobject_native_type_info(
                 )
             }
         }
+
+        impl $name {
+            #[allow(dead_code)]
+            const PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($name));
+        }
     };
 );
 

@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[pyclass]
-struct EmptyClass {}
+pub struct EmptyClass {}
 
 #[pymethods]
 impl EmptyClass {
@@ -80,11 +80,10 @@ impl AssertingBaseClassGilRef {
 struct ClassWithoutConstructor;
 
 #[pymodule]
-pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<EmptyClass>()?;
-    m.add_class::<PyClassIter>()?;
-    m.add_class::<AssertingBaseClass>()?;
-    m.add_class::<AssertingBaseClassGilRef>()?;
-    m.add_class::<ClassWithoutConstructor>()?;
-    Ok(())
+pub mod pyclasses {
+    #[pymodule_export]
+    use super::{
+        AssertingBaseClass, AssertingBaseClassGilRef, ClassWithoutConstructor, EmptyClass,
+        PyClassIter,
+    };
 }

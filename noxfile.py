@@ -1,3 +1,4 @@
+import platform
 from contextlib import contextmanager
 import json
 import os
@@ -732,6 +733,17 @@ def check_feature_powerset(session: nox.Session):
     )
 
 
+@nox.session(name="test-introspection")
+def test_introspection(session: nox.Session):
+    session.run_always("python", "-m", "pip", "install", "-v", "./pytests")
+    # We look for the built library
+    lib_file = None
+    for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
+        if file.is_file():
+            lib_file = str(file.resolve())
+    _run_cargo_test(session, package="pyo3-introspection", env={"PYO3_PYTEST_LIB_PATH": lib_file})
+
+
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
     # pyo3-ffi-check needs to scrape docs of pyo3-ffi
     _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
@@ -836,6 +848,7 @@ def _run_cargo_test(
     *,
     package: Optional[str] = None,
     features: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
@@ -848,7 +861,7 @@ def _run_cargo_test(
     if features:
         command.append(f"--features={features}")
 
-    _run(session, *command, external=True)
+    _run(session, *command, external=True, env=env or {})
 
 
 def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
