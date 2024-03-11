@@ -485,7 +485,7 @@ impl PyErr {
     ///
     /// Use this function when the error is expected to have been set, for example from
     /// [PyErr::occurred] or by an error return value from a C FFI function.
-    #[cfg_attr(all(debug_assertions, track_caller), track_caller)]
+    #[cfg_attr(debug_assertions, track_caller)]
     #[inline]
     pub fn fetch(py: Python<'_>) -> PyErr {
         const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
