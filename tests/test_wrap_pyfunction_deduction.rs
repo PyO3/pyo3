@@ -11,6 +11,7 @@ pub fn add_wrapped(wrapper: &impl Fn(Python<'_>) -> PyResult<&PyCFunction>) {
 
 #[test]
 fn wrap_pyfunction_deduction() {
+    #[allow(deprecated)]
     add_wrapped(wrap_pyfunction!(f));
 }
 

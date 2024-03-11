@@ -220,7 +220,7 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// ```
 /// use pyo3::intern;
-/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python, prelude::PyDictMethods, Bound};
+/// # use pyo3::{prelude::*, types::PyDict};
 ///
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
@@ -241,10 +241,10 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 /// #
 /// # Python::with_gil(|py| {
-/// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
+/// #     let fun_slow = wrap_pyfunction_bound!(create_dict, py).unwrap();
 /// #     let dict = fun_slow.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
-/// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
+/// #     let fun = wrap_pyfunction_bound!(create_dict_faster, py).unwrap();
 /// #     let dict = fun.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
 /// # });

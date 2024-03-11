@@ -145,7 +145,7 @@ impl PyErr {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
+    /// #     let fun = pyo3::wrap_pyfunction_bound!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
     /// # });
@@ -163,7 +163,7 @@ impl PyErr {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
+    /// #     let fun = pyo3::wrap_pyfunction_bound!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
     /// # });
