@@ -678,7 +678,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Respect Rust privacy rules for items wrapped with `wrap_pyfunction` and `wrap_pymodule`. [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - Add modulo argument to `__ipow__` magic method. [#2083](https://github.com/PyO3/pyo3/pull/2083)
 - Fix FFI definition for `_PyCFunctionFast`. [#2126](https://github.com/PyO3/pyo3/pull/2126)
-- `PyDateTimeAPI` and `PyDateTime_TimeZone_UTC` are are now unsafe functions instead of statics. [#2126](https://github.com/PyO3/pyo3/pull/2126)
+- `PyDateTimeAPI` and `PyDateTime_TimeZone_UTC` are now unsafe functions instead of statics. [#2126](https://github.com/PyO3/pyo3/pull/2126)
 - `PyDateTimeAPI` does not implicitly call `PyDateTime_IMPORT` anymore to reflect the original Python API more closely. Before the first call to `PyDateTime_IMPORT` a null pointer is returned. Therefore before calling any of the following FFI functions `PyDateTime_IMPORT` must be called to avoid undefined behavior: [#2126](https://github.com/PyO3/pyo3/pull/2126)
   - `PyDateTime_TimeZone_UTC`
   - `PyDate_Check`
