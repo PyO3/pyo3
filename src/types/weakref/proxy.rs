@@ -45,8 +45,14 @@ impl PyWeakProxy {
     /// The object should also not be callable. For a callable weakref proxy see [`PyWeakCallableProxy`](crate::types::weakref::PyWeakCallableProxy).
     ///
     /// # Examples
-    ///
-    /// ```rust
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakProxy;
     ///
@@ -124,8 +130,14 @@ impl PyWeakProxy {
     /// The object should also not be callable. For a callable weakref proxy see [`PyWeakCallableProxy`](crate::types::weakref::PyWeakCallableProxy).
     ///
     /// # Examples
-    ///
-    /// ```rust
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakProxy;
     ///
@@ -206,7 +218,14 @@ impl PyWeakProxy {
     /// In Python it would be equivalent to [`PyWeakref_GetObject`].
     ///
     /// # Example
-    /// ```rust
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakProxy;
     ///
@@ -272,7 +291,14 @@ impl PyWeakProxy {
     /// In Python it would be equivalent to [`PyWeakref_GetObject`].
     ///
     /// # Example
-    /// ```rust
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakProxy;
     ///
@@ -343,7 +369,14 @@ impl PyWeakProxy {
     /// It produces similair results using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
-    /// ```rust
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakProxy;
     ///
@@ -399,7 +432,14 @@ impl PyWeakProxy {
     /// It produces similair results using [`PyWeakref_GetObject`] in the C api.
     ///
     /// # Example
-    /// ```rust
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakProxy;
     ///
@@ -673,7 +713,8 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "macros")]
+    // under 'abi3-py37' and 'abi3-py38' PyClass cannot be weakreferencable.
+    #[cfg(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))))]
     mod pyo3_pyclass {
         use super::*;
         use crate::{pyclass, Py};
