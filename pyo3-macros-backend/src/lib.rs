@@ -11,6 +11,8 @@ mod utils;
 mod attributes;
 mod deprecations;
 mod frompyobject;
+#[cfg(feature = "experimental-inspect")]
+mod introspection;
 mod konst;
 mod method;
 mod module;

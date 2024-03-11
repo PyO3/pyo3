@@ -78,12 +78,7 @@ impl ClassWithDict {
 }
 
 #[pymodule]
-pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<EmptyClass>()?;
-    m.add_class::<PyClassIter>()?;
-    m.add_class::<AssertingBaseClass>()?;
-    m.add_class::<ClassWithoutConstructor>()?;
-    m.add_class::<ClassWithDict>()?;
-
-    Ok(())
+pub mod pyclasses {
+    #[pymodule_export]
+    use super::{AssertingBaseClass, ClassWithoutConstructor, EmptyClass, PyClassIter, ClassWithDict};
 }

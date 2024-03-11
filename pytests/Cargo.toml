@@ -7,7 +7,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-pyo3 = { path = "../", features = ["extension-module"] }
+pyo3 = { path = "../", features = ["extension-module", "experimental-declarative-modules", "experimental-inspect"] }
 
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config" }

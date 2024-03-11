@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::function_introspection_code;
 use crate::utils::Ctx;
 use crate::{
     attributes::{
@@ -261,15 +263,19 @@ pub fn impl_wrap_pyfunction(
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
     let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
+    #[cfg(feature = "experimental-inspect")]
+    let introspection = function_introspection_code(pyo3_path, &name.to_string());
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection = quote! {};
 
     let wrapped_pyfunction = quote! {
-
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
         // will actually bring both the module and the function into scope.
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
             pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
+            #introspection
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -
