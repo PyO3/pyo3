@@ -110,7 +110,7 @@ pub mod iter {
 /// trait will be removed.
 ///
 /// [1]: https://github.com/rust-lang/rust/issues/19509
-pub trait DerefToPyAny {
+pub trait DerefToTarget {
     /// Target Type
     type Target;
 }
@@ -222,7 +222,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl $crate::types::DerefToPyAny for $name {
+        impl $crate::types::DerefToTarget for $name {
             type Target = $target;
         }
     };

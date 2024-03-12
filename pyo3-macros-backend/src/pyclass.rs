@@ -371,7 +371,7 @@ fn impl_class(
     };
 
     Ok(quote! {
-        impl #pyo3_path::types::DerefToPyAny for #cls {
+        impl #pyo3_path::types::DerefToTarget for #cls {
             type Target = #base;
         }
 

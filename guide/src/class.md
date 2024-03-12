@@ -1224,7 +1224,7 @@ struct MyClass {
     num: i32,
 }
 
-impl pyo3::types::DerefToPyAny for MyClass {
+impl pyo3::types::DerefToTarget for MyClass {
     type Target = pyo3::PyAny;
 }
 

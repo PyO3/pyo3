@@ -4,7 +4,7 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::type_object::HasPyGilRef;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
-use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
+use crate::types::{DerefToTarget, PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
     PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
@@ -368,7 +368,7 @@ fn python_format(
 // https://github.com/rust-lang/rust/issues/19509
 impl<'py, T> Deref for Bound<'py, T>
 where
-    T: DerefToPyAny,
+    T: DerefToTarget,
 {
     type Target = Bound<'py, T::Target>;
 
