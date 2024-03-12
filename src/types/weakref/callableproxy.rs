@@ -631,7 +631,7 @@ mod tests {
                     .getattr("__class__")
                     .err()
                     .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-                check_repr(&reference, &py.None().bind(py), "NoneType")?;
+                check_repr(&reference, py.None().bind(py), "NoneType")?;
 
                 assert!(reference
                     .getattr("__callback__")
