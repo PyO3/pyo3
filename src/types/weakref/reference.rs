@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, AsPyPointer, Borrowed, Bound, PyAny, PyNativeType, ToPyObject};
+use crate::{ffi, AsPyPointer, Borrowed, Bound, DowncastError, PyAny, PyNativeType, ToPyObject};
 
 /// Represents a Python `weakref.ReferenceType`.
 ///
@@ -543,8 +543,90 @@ pub trait PyWeakRefMethods<'py> {
             .transpose()?)
     }
 
-    // TODO: Is this even possible?
-    // fn borrowed_upgrade<T: PyTypeCheck>(&self) -> PyResult<Option<Borrowed<'_, 'py, T>>>;
+    // TODO: ADD TESTS
+    // TODO: ADD DIRECT METHODS TO IMPLEMENTORS
+    /// Upgrade the weakref to a Borrowed object reference.
+    ///
+    /// It is named `borrowed_upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// #[pymethods]
+    /// impl Foo {
+    ///     fn get_data(&self) -> (&str, u32) {
+    ///         ("Dave", 10)
+    ///     }
+    /// }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     if let Some(data_src) = reference.borrowed_upgrade::<Foo>()? {
+    ///         let data = data_src.borrow();
+    ///         let (name, score) = data.get_data();
+    ///         Ok(format!("Processing '{}': score = {}", name, score))
+    ///     } else {
+    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(&data)?;
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "Processing 'Dave': score = 10"
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The supplied data reference is nolonger relavent."
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref?
+    fn borrowed_upgrade<'a, T>(&'a self) -> PyResult<Option<Borrowed<'a, 'py, T>>>
+    where
+        T: PyTypeCheck,
+        'py: 'a,
+    {
+        // TODO: Replace when Borrowed::downcast exists
+        if let Some(object) = self.borrow_object() {
+            if T::type_check(&object) {
+                Ok(Some(unsafe { object.downcast_unchecked() }))
+            } else {
+                Err(DowncastError::new(&object, T::NAME))?
+            }
+        } else {
+            Ok(None)
+        }
+    }
 
     /// Upgrade the weakref to a exact direct Bound object reference.
     ///
@@ -620,6 +702,91 @@ pub trait PyWeakRefMethods<'py> {
             .get_object()
             .map(|obj| obj.downcast_into_exact::<T>())
             .transpose()?)
+    }
+
+    // TODO: ADD TESTS
+    // TODO: ADD DIRECT METHODS TO IMPLEMENTORS
+    /// Upgrade the weakref to a exact Borrowed object reference.
+    ///
+    /// It is named `borrowed_upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
+    ///
+    /// # Example
+    #[cfg_attr(
+        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
+        doc = "```rust,ignore"
+    )]
+    #[cfg_attr(
+        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
+        doc = "```rust"
+    )]
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyWeakRef;
+    ///
+    /// #[pyclass(weakref)]
+    /// struct Foo { /* fields omitted */ }
+    ///
+    /// #[pymethods]
+    /// impl Foo {
+    ///     fn get_data(&self) -> (&str, u32) {
+    ///         ("Dave", 10)
+    ///     }
+    /// }
+    ///
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakRef>) -> PyResult<String> {
+    ///     if let Some(data_src) = reference.borrowed_upgrade_exact::<Foo>()? {
+    ///         let data = data_src.borrow();
+    ///         let (name, score) = data.get_data();
+    ///         Ok(format!("Processing '{}': score = {}", name, score))
+    ///     } else {
+    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let data = Bound::new(py, Foo{})?;
+    ///     let reference = PyWeakRef::new_bound(&data)?;
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "Processing 'Dave': score = 10"
+    ///     );
+    ///
+    ///     drop(data);
+    ///
+    ///     assert_eq!(
+    ///         parse_data(reference.as_borrowed())?,
+    ///         "The supplied data reference is nolonger relavent."
+    ///     );
+    ///
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    /// This function panics is the current object is invalid.
+    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    ///
+    /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
+    /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
+    /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref?
+    fn borrowed_upgrade_exact<'a, T>(&'a self) -> PyResult<Option<Borrowed<'a, 'py, T>>>
+    where
+        T: PyTypeInfo,
+        'py: 'a,
+    {
+        // TODO: Replace when Borrowed::downcast_exact exists
+        if let Some(object) = self.borrow_object() {
+            if object.is_exact_instance_of::<T>() {
+                Ok(Some(unsafe { object.downcast_unchecked() }))
+            } else {
+                Err(DowncastError::new(&object, T::NAME))?
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     // TODO: NAMING-ALTERNATIVE: upgrade_any
