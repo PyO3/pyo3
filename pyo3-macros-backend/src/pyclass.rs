@@ -365,8 +365,15 @@ fn impl_class(
     .doc(doc)
     .impl_all(ctx)?;
 
+    let base = match &args.options.extends {
+        Some(extends_attr) => extends_attr.value.clone(),
+        None => parse_quote! { #pyo3_path::PyAny },
+    };
+
     Ok(quote! {
-        impl #pyo3_path::types::DerefToPyAny for #cls {}
+        impl #pyo3_path::types::DerefToPyAny for #cls {
+            type Target = #base;
+        }
 
         #pytypeinfo_impl
 

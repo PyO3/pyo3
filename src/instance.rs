@@ -370,11 +370,11 @@ impl<'py, T> Deref for Bound<'py, T>
 where
     T: DerefToPyAny,
 {
-    type Target = Bound<'py, PyAny>;
+    type Target = Bound<'py, T::Target>;
 
     #[inline]
-    fn deref(&self) -> &Bound<'py, PyAny> {
-        self.as_any()
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.as_any().downcast_unchecked() }
     }
 }
 

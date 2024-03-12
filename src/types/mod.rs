@@ -88,14 +88,17 @@ pub mod iter {
 
 /// Python objects that have a base type.
 ///
-/// This marks types that can be upcast into a [`PyAny`] and used in its place.
-/// This essentially includes every Python object except [`PyAny`] itself.
+/// This marks types that can be upcast into the `Target` and used in its place.
+/// This essentially includes every Python object except [`PyAny`]. Most of the
+/// time the `Target` is [`PyAny`].
 ///
-/// This is used to provide the [`Deref<Target = Bound<'_, PyAny>>`](std::ops::Deref)
+/// This is used to provide the [`Deref<Target = Bound<'_, Target>>`](std::ops::Deref)
 /// implementations for [`Bound<'_, T>`](crate::Bound).
 ///
 /// Users should not need to implement this trait directly. It's implementation
-/// is provided by the [`#[pyclass]`](macro@crate::pyclass) attribute.
+/// is provided by the [`#[pyclass]`](macro@crate::pyclass) attribute. The macro
+/// takes inheritance via `#[pyclass(extends = ...)]` into account, and sets the
+/// extended type as the `Target`.
 ///
 /// ## Note
 /// This is needed because the compiler currently tries to figure out all the
@@ -108,7 +111,8 @@ pub mod iter {
 ///
 /// [1]: https://github.com/rust-lang/rust/issues/19509
 pub trait DerefToPyAny {
-    // Empty.
+    /// Target Type
+    type Target;
 }
 
 // Implementations core to all native types
@@ -162,6 +166,9 @@ macro_rules! pyobject_native_type_base(
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_named!($name $(;$generics)*, $crate::PyAny);
+    };
+    ($name:ty $(;$generics:ident)*, $target:ty) => {
         $crate::pyobject_native_type_base!($name $(;$generics)*);
 
         impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
@@ -215,7 +222,9 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl $crate::types::DerefToPyAny for $name {}
+        impl $crate::types::DerefToPyAny for $name {
+            type Target = $target;
+        }
     };
 );
 

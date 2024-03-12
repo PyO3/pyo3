@@ -1224,7 +1224,9 @@ struct MyClass {
     num: i32,
 }
 
-impl pyo3::types::DerefToPyAny for MyClass {}
+impl pyo3::types::DerefToPyAny for MyClass {
+    type Target = pyo3::PyAny;
+}
 
 # #[allow(deprecated)]
 unsafe impl pyo3::type_object::HasPyGilRef for MyClass {

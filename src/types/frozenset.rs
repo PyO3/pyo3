@@ -308,7 +308,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
             // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
             ffi::PyFrozenSet_New(std::ptr::null_mut())
                 .assume_owned_or_err(py)?
-                .downcast_into_unchecked()
+                .downcast_into_unchecked::<PyFrozenSet>()
         };
         let ptr = set.as_ptr();
 
