@@ -14,6 +14,7 @@ struct Derive2(i32, i32); // tuple case
 #[allow(dead_code)]
 struct Derive3 {
     f: i32,
+    #[pyo3(item(42))]
     g: i32,
 } // struct case
 

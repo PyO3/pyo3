@@ -366,15 +366,11 @@ fn impl_class(
     .impl_all(ctx)?;
 
     Ok(quote! {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            impl #pyo3_path::types::DerefToPyAny for #cls {}
+        impl #pyo3_path::types::DerefToPyAny for #cls {}
 
-            #pytypeinfo_impl
+        #pytypeinfo_impl
 
-            #py_class_impl
-        };
+        #py_class_impl
     })
 }
 
@@ -794,21 +790,17 @@ fn impl_simple_enum(
     .impl_all(ctx)?;
 
     Ok(quote! {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            #pytypeinfo
+        #pytypeinfo
 
-            #pyclass_impls
+        #pyclass_impls
 
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            impl #cls {
-                #default_repr
-                #default_int
-                #default_richcmp
-            }
-        };
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #cls {
+            #default_repr
+            #default_int
+            #default_richcmp
+        }
     })
 }
 
@@ -933,25 +925,21 @@ fn impl_complex_enum(
     }
 
     Ok(quote! {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            #pytypeinfo
+        #pytypeinfo
 
-            #pyclass_impls
+        #pyclass_impls
 
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            impl #cls {}
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #cls {}
 
-            #(#variant_cls_zsts)*
+        #(#variant_cls_zsts)*
 
-            #(#variant_cls_pytypeinfos)*
+        #(#variant_cls_pytypeinfos)*
 
-            #(#variant_cls_pyclass_impls)*
+        #(#variant_cls_pyclass_impls)*
 
-            #(#variant_cls_impls)*
-        };
+        #(#variant_cls_impls)*
     })
 }
 

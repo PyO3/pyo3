@@ -310,7 +310,7 @@ impl<'a> Container<'a> {
             }
         });
         quote!(
-            match obj.extract() {
+            match #pyo3_path::types::PyAnyMethods::extract(obj) {
                 ::std::result::Result::Ok((#(#field_idents),*)) => ::std::result::Result::Ok(#self_ty(#(#fields),*)),
                 ::std::result::Result::Err(err) => ::std::result::Result::Err(err),
             }
@@ -327,27 +327,29 @@ impl<'a> Container<'a> {
             let field_name = ident.to_string();
             let getter = match field.getter.as_ref().unwrap_or(&FieldGetter::GetAttr(None)) {
                 FieldGetter::GetAttr(Some(name)) => {
-                    quote!(getattr(#pyo3_path::intern!(obj.py(), #name)))
+                    quote!(#pyo3_path::types::PyAnyMethods::getattr(obj, #pyo3_path::intern!(obj.py(), #name)))
                 }
                 FieldGetter::GetAttr(None) => {
-                    quote!(getattr(#pyo3_path::intern!(obj.py(), #field_name)))
+                    quote!(#pyo3_path::types::PyAnyMethods::getattr(obj, #pyo3_path::intern!(obj.py(), #field_name)))
                 }
                 FieldGetter::GetItem(Some(syn::Lit::Str(key))) => {
-                    quote!(get_item(#pyo3_path::intern!(obj.py(), #key)))
+                    quote!(#pyo3_path::types::PyAnyMethods::get_item(obj, #pyo3_path::intern!(obj.py(), #key)))
                 }
-                FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
+                FieldGetter::GetItem(Some(key)) => {
+                    quote!(#pyo3_path::types::PyAnyMethods::get_item(obj, #key))
+                }
                 FieldGetter::GetItem(None) => {
-                    quote!(get_item(#pyo3_path::intern!(obj.py(), #field_name)))
+                    quote!(#pyo3_path::types::PyAnyMethods::get_item(obj, #pyo3_path::intern!(obj.py(), #field_name)))
                 }
             };
             let extractor = match &field.from_py_with {
                 None => {
-                    quote!(#pyo3_path::impl_::frompyobject::extract_struct_field(&obj.#getter?, #struct_name, #field_name)?)
+                    quote!(#pyo3_path::impl_::frompyobject::extract_struct_field(&#getter?, #struct_name, #field_name)?)
                 }
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => {
-                    quote! (#pyo3_path::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, &obj.#getter?, #struct_name, #field_name)?)
+                    quote! (#pyo3_path::impl_::frompyobject::extract_struct_field_with(#expr_path as fn(_) -> _, &#getter?, #struct_name, #field_name)?)
                 }
             };
 
@@ -609,17 +611,11 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
 
     let ident = &tokens.ident;
     Ok(quote!(
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            use #pyo3_path::prelude::PyAnyMethods;
-
-            #[automatically_derived]
-            impl #trait_generics #pyo3_path::FromPyObject<#lt_param> for #ident #generics #where_clause {
-                fn extract_bound(obj: &#pyo3_path::Bound<#lt_param, #pyo3_path::PyAny>) -> #pyo3_path::PyResult<Self>  {
-                    #derives
-                }
+        #[automatically_derived]
+        impl #trait_generics #pyo3_path::FromPyObject<#lt_param> for #ident #generics #where_clause {
+            fn extract_bound(obj: &#pyo3_path::Bound<#lt_param, #pyo3_path::PyAny>) -> #pyo3_path::PyResult<Self>  {
+                #derives
             }
-        };
+        }
     ))
 }

@@ -170,19 +170,15 @@ pub fn impl_methods(
     };
 
     Ok(quote! {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            #(#trait_impls)*
+        #(#trait_impls)*
 
-            #items
+        #items
 
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            impl #ty {
-                #(#associated_methods)*
-            }
-        };
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #ty {
+            #(#associated_methods)*
+        }
     })
 }
 
