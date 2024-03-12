@@ -599,6 +599,14 @@ impl<T> Extractor<T> {
     }
 }
 
+impl Extractor<Python<'_>> {
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(since = "0.21.0", note = "use `wrap_pyfunction_bound!` instead")
+    )]
+    pub fn is_python(&self) {}
+}
+
 impl<T: IsGilRef> Extractor<T> {
     #[cfg_attr(
         not(feature = "gil-refs"),
@@ -612,6 +620,7 @@ impl<T: IsGilRef> Extractor<T> {
 
 impl<T> NotAGilRef<T> {
     pub fn extract_gil_ref(&self) {}
+    pub fn is_python(&self) {}
 }
 
 impl<T> std::ops::Deref for Extractor<T> {
