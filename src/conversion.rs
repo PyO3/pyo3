@@ -96,6 +96,7 @@ pub trait ToPyObject {
 /// ```rust
 /// use pyo3::prelude::*;
 ///
+/// # #[allow(dead_code)]
 /// struct Number {
 ///     value: i32,
 /// }

@@ -1090,6 +1090,7 @@ impl FromPy<MyPyObjectWrapper> for PyObject {
 After
 ```rust
 # use pyo3::prelude::*;
+# #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
 
 impl IntoPy<PyObject> for MyPyObjectWrapper {
