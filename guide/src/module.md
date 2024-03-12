@@ -151,3 +151,9 @@ mod my_extension {
 }
 # }
 ```
+
+Some changes are planned to this feature before stabilization, like automatically
+filling submodules into `sys.modules` to allow easier imports (see [issue #759](https://github.com/PyO3/pyo3/issues/759))
+and filling the `module` argument of inlined `#[pyclass]` automatically with the proper module name.
+Macro names might also change.
+See [issue #3900](https://github.com/PyO3/pyo3/issues/3900) to track this feature progress.
