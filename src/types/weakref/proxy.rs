@@ -2,8 +2,8 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
-use crate::types::any::PyAnyMethods;
-use crate::{ffi, AsPyPointer, Borrowed, Bound, PyAny, PyNativeType, ToPyObject};
+use crate::types::any::{PyAny, PyAnyMethods};
+use crate::{ffi, AsPyPointer, Borrowed, Bound, PyNativeType, ToPyObject};
 
 use super::PyWeakRefMethods;
 
@@ -497,9 +497,9 @@ impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakProxy> {
 #[cfg(test)]
 mod tests {
     use crate::exceptions::{PyAttributeError, PyReferenceError, PyTypeError};
-    use crate::types::any::PyAnyMethods;
+    use crate::types::any::{PyAny, PyAnyMethods};
     use crate::types::weakref::{PyWeakProxy, PyWeakRefMethods};
-    use crate::{Bound, PyAny, PyResult, Python};
+    use crate::{Bound, PyResult, Python};
 
     #[cfg(all(not(Py_LIMITED_API), Py_3_10))]
     const CLASS_NAME: &str = "'weakref.ProxyType'";
@@ -629,6 +629,41 @@ mod tests {
                 {
                     // This test is a bit weird but ok.
                     let obj = reference.upgrade::<PyAny>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_none());
+                }
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_borrowed_upgrade() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakProxy::new_bound(&object)?;
+
+                {
+                    // This test is a bit weird but ok.
+                    let obj = reference.borrowed_upgrade::<PyAny>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_some());
+                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
+                        && obj.is_exact_instance(&class)));
+                }
+
+                drop(object);
+
+                {
+                    // This test is a bit weird but ok.
+                    let obj = reference.borrowed_upgrade::<PyAny>();
 
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();
@@ -803,6 +838,37 @@ mod tests {
 
                 {
                     let obj = reference.upgrade::<WeakrefablePyClass>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_none());
+                }
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_borrowed_upgrade() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Py::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakProxy::new_bound(object.bind(py))?;
+
+                {
+                    let obj = reference.borrowed_upgrade::<WeakrefablePyClass>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_some());
+                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                }
+
+                drop(object);
+
+                {
+                    let obj = reference.borrowed_upgrade::<WeakrefablePyClass>();
 
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();

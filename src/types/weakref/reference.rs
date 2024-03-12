@@ -1,9 +1,9 @@
-use crate::err::PyResult;
+use crate::err::{DowncastError, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
-use crate::types::any::PyAnyMethods;
-use crate::{ffi, AsPyPointer, Borrowed, Bound, DowncastError, PyAny, PyNativeType, ToPyObject};
+use crate::types::any::{PyAny, PyAnyMethods};
+use crate::{ffi, AsPyPointer, Borrowed, Bound, PyNativeType, ToPyObject};
 
 /// Represents a Python `weakref.ReferenceType`.
 ///
@@ -537,18 +537,16 @@ pub trait PyWeakRefMethods<'py> {
     where
         T: PyTypeCheck,
     {
-        Ok(self
-            .get_object()
-            .map(|obj| obj.downcast_into::<T>())
-            .transpose()?)
+        self.get_object()
+            .map(Bound::downcast_into::<T>)
+            .transpose()
+            .map_err(Into::into)
     }
 
-    // TODO: ADD TESTS
-    // TODO: ADD DIRECT METHODS TO IMPLEMENTORS
     /// Upgrade the weakref to a Borrowed object reference.
     ///
     /// It is named `borrowed_upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
-    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
+    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
     ///
     /// # Example
     #[cfg_attr(
@@ -617,14 +615,12 @@ pub trait PyWeakRefMethods<'py> {
         'py: 'a,
     {
         // TODO: Replace when Borrowed::downcast exists
-        if let Some(object) = self.borrow_object() {
-            if T::type_check(&object) {
+        match self.borrow_object() {
+            None => Ok(None),
+            Some(object) if T::type_check(&object) => {
                 Ok(Some(unsafe { object.downcast_unchecked() }))
-            } else {
-                Err(DowncastError::new(&object, T::NAME))?
             }
-        } else {
-            Ok(None)
+            Some(object) => Err(DowncastError::new(&object, T::NAME).into()),
         }
     }
 
@@ -698,10 +694,10 @@ pub trait PyWeakRefMethods<'py> {
     where
         T: PyTypeInfo,
     {
-        Ok(self
-            .get_object()
-            .map(|obj| obj.downcast_into_exact::<T>())
-            .transpose()?)
+        self.get_object()
+            .map(Bound::downcast_into_exact)
+            .transpose()
+            .map_err(Into::into)
     }
 
     // TODO: ADD TESTS
@@ -709,7 +705,7 @@ pub trait PyWeakRefMethods<'py> {
     /// Upgrade the weakref to a exact Borrowed object reference.
     ///
     /// It is named `borrowed_upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
-    /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
+    /// In Python it would be equivalent to [`PyWeakref_GetObject`].
     ///
     /// # Example
     #[cfg_attr(
@@ -778,14 +774,12 @@ pub trait PyWeakRefMethods<'py> {
         'py: 'a,
     {
         // TODO: Replace when Borrowed::downcast_exact exists
-        if let Some(object) = self.borrow_object() {
-            if object.is_exact_instance_of::<T>() {
+        match self.borrow_object() {
+            None => Ok(None),
+            Some(object) if object.is_exact_instance_of::<T>() => {
                 Ok(Some(unsafe { object.downcast_unchecked() }))
-            } else {
-                Err(DowncastError::new(&object, T::NAME))?
             }
-        } else {
-            Ok(None)
+            Some(object) => Err(DowncastError::new(&object, T::NAME).into()),
         }
     }
 
@@ -1057,17 +1051,6 @@ pub trait PyWeakRefMethods<'py> {
 }
 
 impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakRef> {
-    /*
-    fn borrowed_upgrade<T>(&self) -> PyResult<Option<Borrowed<'_, 'py, T>>>
-    where
-        T: PyTypeCheck
-    {
-        Ok(self.borrow_object()?.map(|obj| obj.downcast_into::<T>().expect(
-                    "The `weakref.ReferenceType` (`PyWeakRef`) should refer to an instance of the specified class",
-                )))
-    }
-    */
-
     fn borrow_object_raw(&self) -> Borrowed<'_, 'py, PyAny> {
         // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
@@ -1077,9 +1060,9 @@ impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakRef> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::any::PyAnyMethods;
+    use crate::types::any::{PyAny, PyAnyMethods};
     use crate::types::weakref::{PyWeakRef, PyWeakRefMethods};
-    use crate::{Bound, PyAny, PyResult, Python};
+    use crate::{Bound, PyResult, Python};
 
     #[cfg(all(not(Py_LIMITED_API), Py_3_10))]
     const CLASS_NAME: &str = "<class 'weakref.ReferenceType'>";
@@ -1193,6 +1176,41 @@ mod tests {
                 {
                     // This test is a bit weird but ok.
                     let obj = reference.upgrade::<PyAny>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_none());
+                }
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_borrowed_upgrade() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let class = get_type(py)?;
+                let object = class.call0()?;
+                let reference = PyWeakRef::new_bound(&object)?;
+
+                {
+                    // This test is a bit weird but ok.
+                    let obj = reference.borrowed_upgrade::<PyAny>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_some());
+                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()
+                        && obj.is_exact_instance(&class)));
+                }
+
+                drop(object);
+
+                {
+                    // This test is a bit weird but ok.
+                    let obj = reference.borrowed_upgrade::<PyAny>();
 
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();
@@ -1356,6 +1374,37 @@ mod tests {
 
                 {
                     let obj = reference.upgrade::<WeakrefablePyClass>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_none());
+                }
+
+                Ok(())
+            })
+        }
+
+        #[test]
+        fn test_weakref_borrowed_upgrade() -> PyResult<()> {
+            Python::with_gil(|py| {
+                let object = Py::new(py, WeakrefablePyClass {})?;
+                let reference = PyWeakRef::new_bound(object.bind(py))?;
+
+                {
+                    let obj = reference.borrowed_upgrade::<WeakrefablePyClass>();
+
+                    assert!(obj.is_ok());
+                    let obj = obj.unwrap();
+
+                    assert!(obj.is_some());
+                    assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
+                }
+
+                drop(object);
+
+                {
+                    let obj = reference.borrowed_upgrade::<WeakrefablePyClass>();
 
                     assert!(obj.is_ok());
                     let obj = obj.unwrap();
