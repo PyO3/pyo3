@@ -33,7 +33,7 @@ impl PyWeakRef {
     where
         T: PyNativeType,
     {
-        Self::new_bound(&object.as_borrowed()).map(Bound::into_gil_ref)
+        Self::new_bound(object.as_borrowed().as_any()).map(Bound::into_gil_ref)
     }
 
     /// Constructs a new Weak Reference (`weakref.ref`/`weakref.ReferenceType`) for the given object.
@@ -75,7 +75,7 @@ impl PyWeakRef {
     /// })
     /// # }
     /// ```
-    pub fn new_bound<'py, T>(object: &Bound<'py, T>) -> PyResult<Bound<'py, PyWeakRef>> {
+    pub fn new_bound<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakRef>> {
         // TODO: Is this inner pattern still necessary Here?
         fn inner<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakRef>> {
             unsafe {
@@ -87,7 +87,7 @@ impl PyWeakRef {
             }
         }
 
-        inner(object.as_any())
+        inner(object)
     }
 
     /// Deprecated form of [`PyWeakRef::new_bound_with`].
@@ -104,7 +104,7 @@ impl PyWeakRef {
         T: PyNativeType,
         C: ToPyObject,
     {
-        Self::new_bound_with(&object.as_borrowed(), callback).map(Bound::into_gil_ref)
+        Self::new_bound_with(object.as_borrowed().as_any(), callback).map(Bound::into_gil_ref)
     }
 
     /// Constructs a new Weak Reference (`weakref.ref`/`weakref.ReferenceType`) for the given object with a callback.
@@ -161,12 +161,11 @@ impl PyWeakRef {
     /// })
     /// # }
     /// ```
-    pub fn new_bound_with<'py, T, C>(
-        object: &Bound<'py, T>,
+    pub fn new_bound_with<'py, C>(
+        object: &Bound<'py, PyAny>,
         callback: C,
     ) -> PyResult<Bound<'py, PyWeakRef>>
     where
-        Bound<'py, T>: AsPyPointer,
         C: ToPyObject,
     {
         fn inner<'py>(
@@ -183,7 +182,7 @@ impl PyWeakRef {
         }
 
         let py = object.py();
-        inner(object.as_any(), callback.to_object(py).into_bound(py))
+        inner(object, callback.to_object(py).into_bound(py))
     }
 
     /// Upgrade the weakref to a direct object reference.
@@ -1316,7 +1315,7 @@ mod tests {
         #[test]
         fn test_weakref_refence_behavior() -> PyResult<()> {
             Python::with_gil(|py| {
-                let object = Bound::new(py, WeakrefablePyClass {})?;
+                let object: Bound<'_, WeakrefablePyClass> = Bound::new(py, WeakrefablePyClass {})?;
                 let reference = PyWeakRef::new_bound(&object)?;
 
                 assert!(!reference.is(&object));
