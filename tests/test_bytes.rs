@@ -14,7 +14,7 @@ fn bytes_pybytes_conversion(bytes: &[u8]) -> &[u8] {
 #[test]
 fn test_pybytes_bytes_conversion() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(bytes_pybytes_conversion)(py).unwrap();
+        let f = wrap_pyfunction_bound!(bytes_pybytes_conversion)(py).unwrap();
         py_assert!(py, f, "f(b'Hello World') == b'Hello World'");
     });
 }
@@ -27,7 +27,7 @@ fn bytes_vec_conversion(py: Python<'_>, bytes: Vec<u8>) -> Bound<'_, PyBytes> {
 #[test]
 fn test_pybytes_vec_conversion() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(bytes_vec_conversion)(py).unwrap();
+        let f = wrap_pyfunction_bound!(bytes_vec_conversion)(py).unwrap();
         py_assert!(py, f, "f(b'Hello World') == b'Hello World'");
     });
 }
@@ -35,7 +35,7 @@ fn test_pybytes_vec_conversion() {
 #[test]
 fn test_bytearray_vec_conversion() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(bytes_vec_conversion)(py).unwrap();
+        let f = wrap_pyfunction_bound!(bytes_vec_conversion)(py).unwrap();
         py_assert!(py, f, "f(bytearray(b'Hello World')) == b'Hello World'");
     });
 }

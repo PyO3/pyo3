@@ -72,3 +72,19 @@ fn module_bound_by_value(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, &m)?)?;
     Ok(())
 }
+
+fn test_wrap_pyfunction(py: Python<'_>, m: &Bound<'_, PyModule>) {
+    // should lint
+    let _ = wrap_pyfunction!(double, py);
+
+    // should lint but currently does not
+    let _ = wrap_pyfunction!(double)(py);
+
+    // should not lint
+    let _ = wrap_pyfunction!(double, m);
+    let _ = wrap_pyfunction!(double)(m);
+    let _ = wrap_pyfunction!(double, m.as_gil_ref());
+    let _ = wrap_pyfunction!(double)(m.as_gil_ref());
+    let _ = wrap_pyfunction_bound!(double, py);
+    let _ = wrap_pyfunction_bound!(double)(py);
+}

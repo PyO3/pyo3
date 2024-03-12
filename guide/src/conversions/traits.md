@@ -499,7 +499,7 @@ _without_ having a unique python type.
 
 ```rust
 use pyo3::prelude::*;
-
+# #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
 
 impl IntoPy<PyObject> for MyPyObjectWrapper {

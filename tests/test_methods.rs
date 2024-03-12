@@ -1124,7 +1124,7 @@ fn test_option_pyclass_arg() {
     }
 
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(option_class_arg, py).unwrap();
+        let f = wrap_pyfunction_bound!(option_class_arg, py).unwrap();
         assert!(f.call0().unwrap().is_none());
         let obj = Py::new(py, SomePyClass {}).unwrap();
         assert!(f

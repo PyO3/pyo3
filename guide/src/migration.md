@@ -436,7 +436,7 @@ impl SomeClass {
 
 When converting from `anyhow::Error` or `eyre::Report` to `PyErr`, if the inner error is a "simple" `PyErr` (with no source error), then the inner error will be used directly as the `PyErr` instead of wrapping it in a new `PyRuntimeError` with the original information converted into a string.
 
-```rust
+```rust,ignore
 # #[cfg(feature = "anyhow")]
 # #[allow(dead_code)]
 # mod anyhow_only {
@@ -597,9 +597,9 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 
 # fn main() {
 #     Python::with_gil(|py| {
-#         let simple = wrap_pyfunction!(simple_function, py).unwrap();
+#         let simple = wrap_pyfunction_bound!(simple_function, py).unwrap();
 #         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
-#         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
+#         let defaulted = wrap_pyfunction_bound!(function_with_defaults, py).unwrap();
 #         assert_eq!(defaulted.getattr("__text_signature__").unwrap().to_string(), "(a, b=1, c=2)");
 #     })
 # }
@@ -1090,6 +1090,7 @@ impl FromPy<MyPyObjectWrapper> for PyObject {
 After
 ```rust
 # use pyo3::prelude::*;
+# #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
 
 impl IntoPy<PyObject> for MyPyObjectWrapper {
