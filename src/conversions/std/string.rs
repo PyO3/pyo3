@@ -128,7 +128,7 @@ impl<'py> FromPyObject<'py> for &'py str {
 
 #[cfg(all(not(feature = "gil-refs"), any(Py_3_10, not(Py_LIMITED_API))))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
-    fn from_py_object_bound(ob: &'a Bound<'_, PyAny>) -> PyResult<Self> {
+    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
     }
 
@@ -152,7 +152,7 @@ impl<'py> FromPyObject<'py> for Cow<'py, str> {
 
 #[cfg(not(feature = "gil-refs"))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
-    fn from_py_object_bound(ob: &'a Bound<'_, PyAny>) -> PyResult<Self> {
+    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_cow()
     }
 

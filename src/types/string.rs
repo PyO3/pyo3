@@ -369,7 +369,7 @@ impl<'a> Borrowed<'a, '_, PyString> {
     }
 
     #[allow(clippy::wrong_self_convention)]
-    fn to_cow(self) -> PyResult<Cow<'a, str>> {
+    pub(crate) fn to_cow(self) -> PyResult<Cow<'a, str>> {
         // TODO: this method can probably be deprecated once Python 3.9 support is dropped,
         // because all versions then support the more efficient `to_str`.
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]

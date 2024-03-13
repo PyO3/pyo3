@@ -7,7 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
+use crate::{Borrowed, IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -65,17 +65,16 @@ impl<'a> PyDowncastError<'a> {
     /// Compatibility API to convert the Bound variant `DowncastError` into the
     /// gil-ref variant
     pub(crate) fn from_downcast_err(DowncastError { from, to }: DowncastError<'a, 'a>) -> Self {
-        Self {
-            from: from.as_gil_ref(),
-            to,
-        }
+        #[allow(deprecated)]
+        let from = unsafe { from.py().from_borrowed_ptr(from.as_ptr()) };
+        Self { from, to }
     }
 }
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
 pub struct DowncastError<'a, 'py> {
-    from: &'a Bound<'py, PyAny>,
+    from: Borrowed<'a, 'py, PyAny>,
     to: Cow<'static, str>,
 }
 
@@ -83,6 +82,16 @@ impl<'a, 'py> DowncastError<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
+        DowncastError {
+            from: from.as_borrowed(),
+            to: to.into(),
+        }
+    }
+    #[cfg(not(feature = "gil-refs"))]
+    pub(crate) fn new_from_borrowed(
+        from: Borrowed<'a, 'py, PyAny>,
+        to: impl Into<Cow<'static, str>>,
+    ) -> Self {
         DowncastError {
             from,
             to: to.into(),
@@ -1036,7 +1045,7 @@ impl std::error::Error for DowncastError<'_, '_> {}
 
 impl std::fmt::Display for DowncastError<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, self.from, &self.to)
+        display_downcast_error(f, &self.from, &self.to)
     }
 }
 

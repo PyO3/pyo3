@@ -158,7 +158,7 @@ impl<'py> PyBytesMethods<'py> for Bound<'py, PyBytes> {
 impl<'a> Borrowed<'a, '_, PyBytes> {
     /// Gets the Python string as a byte slice.
     #[allow(clippy::wrong_self_convention)]
-    fn as_bytes(self) -> &'a [u8] {
+    pub(crate) fn as_bytes(self) -> &'a [u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
