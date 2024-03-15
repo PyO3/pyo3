@@ -83,6 +83,13 @@ bound to the `GILPool`, not the for loop.  The `GILPool` isn't dropped until
 the end of the `with_gil()` closure, at which point the 10 copies of `hello`
 are finally released to the Python garbage collector.
 
+<div class="warning">
+⚠️ Warning: `GILPool` is no longer the preferred way to manage memory with PyO3 🛠️
+
+PyO3 0.21 has introduced a new API known as the Bound API, which doesn't have the same surprising results. Instead, each `Bound<T>` smart pointer releases the Python reference immediately on drop. See [the smart pointer types](./types.md#pyo3s-smart-pointers) for more details.
+</div>
+
+
 In general we don't want unbounded memory growth during loops!  One workaround
 is to acquire and release the GIL with each iteration of the loop.
 
@@ -114,6 +121,7 @@ this is unsafe.
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
+        #[allow(deprecated)]  // `new_pool` is not needed in code not using the GIL Refs API
         let pool = unsafe { py.new_pool() };
         let py = pool.python();
         #[allow(deprecated)] // py.eval() is part of the GIL Refs API
@@ -146,7 +154,11 @@ function call, releasing objects when the function returns. Most functions only 
 a few objects, meaning this doesn't have a significant impact. Occasionally functions
 with long complex loops may need to use `Python::new_pool` as shown above.
 
-This behavior may change in future, see [issue #1056](https://github.com/PyO3/pyo3/issues/1056).
+<div class="warning">
+⚠️ Warning: `GILPool` is no longer the preferred way to manage memory with PyO3 🛠️
+
+PyO3 0.21 has introduced a new API known as the Bound API, which doesn't have the same surprising results. Instead, each `Bound<T>` smart pointer releases the Python reference immediately on drop. See [the smart pointer types](./types.md#pyo3s-smart-pointers) for more details.
+</div>
 
 ## GIL-independent memory
 

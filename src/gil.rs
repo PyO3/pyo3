@@ -139,6 +139,7 @@ where
     ffi::Py_InitializeEx(0);
 
     // Safety: the GIL is already held because of the Py_IntializeEx call.
+    #[allow(deprecated)] // TODO: remove this with the GIL Refs feature in 0.22
     let pool = GILPool::new();
 
     // Import the threading module - this ensures that it will associate this thread as the "main"
@@ -160,6 +161,7 @@ where
 /// RAII type that represents the Global Interpreter Lock acquisition.
 pub(crate) struct GILGuard {
     gstate: ffi::PyGILState_STATE,
+    #[allow(deprecated)] // TODO: remove this with the gil-refs feature in 0.22
     pool: mem::ManuallyDrop<GILPool>,
 }
 
@@ -222,6 +224,7 @@ impl GILGuard {
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        #[allow(deprecated)]
         let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
 
         Some(GILGuard { gstate, pool })
@@ -358,6 +361,13 @@ impl Drop for LockGIL {
 
 ///
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
+#[cfg_attr(
+    not(feature = "gil-refs"),
+    deprecated(
+        since = "0.21.0",
+        note = "`GILPool` has no function if PyO3's deprecated GIL Refs API is not used"
+    )
+)]
 pub struct GILPool {
     /// Initial length of owned objects and anys.
     /// `Option` is used since TSL can be broken when `new` is called from `atexit`.
@@ -365,6 +375,7 @@ pub struct GILPool {
     _not_send: NotSend,
 }
 
+#[allow(deprecated)]
 impl GILPool {
     /// Creates a new [`GILPool`]. This function should only ever be called with the GIL held.
     ///
@@ -401,6 +412,7 @@ impl GILPool {
     }
 }
 
+#[allow(deprecated)]
 impl Drop for GILPool {
     fn drop(&mut self) {
         if let Some(start) = self.start {
@@ -506,21 +518,17 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod tests {
-    use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
+    #[allow(deprecated)]
+    use super::GILPool;
+    use super::{gil_is_acquired, GIL_COUNT, OWNED_OBJECTS, POOL};
     use crate::types::any::PyAnyMethods;
-    use crate::{ffi, gil, PyObject, Python, ToPyObject};
+    use crate::{ffi, gil, PyObject, Python};
     #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::{const_mutex, Condvar, Mutex};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
-        // Convenience function for getting a single unique object, using `new_pool` so as to leave
-        // the original pool state unchanged.
-        let pool = unsafe { py.new_pool() };
-        let py = pool.python();
-
-        let obj = py.eval_bound("object()", None, None).unwrap();
-        obj.to_object(py)
+        py.eval_bound("object()", None, None).unwrap().unbind()
     }
 
     fn owned_object_count() -> usize {
@@ -556,6 +564,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_owned() {
         Python::with_gil(|py| {
             let obj = get_object(py);
@@ -581,6 +590,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_owned_nested() {
         Python::with_gil(|py| {
             let obj = get_object(py);
@@ -666,6 +676,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_gil_counts() {
         // Check with_gil and GILPool both increase counts correctly
         let get_gil_count = || GIL_COUNT.with(|c| c.get());
@@ -906,6 +917,7 @@ mod tests {
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
                 // This line will implicitly call update_counts
                 // -> and so cause deadlock if update_counts is not handling recursion correctly.
+                #[allow(deprecated)]
                 let pool = GILPool::new();
 
                 // Rebuild obj so that it can be dropped

@@ -319,6 +319,7 @@ pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
 pub use crate::err::{
     DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
 };
+#[allow(deprecated)]
 pub use crate::gil::GILPool;
 #[cfg(not(PyPy))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};

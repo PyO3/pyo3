@@ -9,9 +9,11 @@ use std::{
     panic::{self, UnwindSafe},
 };
 
+#[allow(deprecated)]
+use crate::gil::GILPool;
 use crate::{
     callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
-    methods::IPowModulo, panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
+    methods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
 };
 
 #[inline]
@@ -174,6 +176,8 @@ where
     R: PyCallbackOutput,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
+    // Necessary to construct a pool until PyO3 0.22 when the GIL Refs API is fully disabled
+    #[allow(deprecated)]
     let pool = unsafe { GILPool::new() };
     let py = pool.python();
     let out = panic_result_into_callback_output(
@@ -219,6 +223,8 @@ where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<()> + UnwindSafe,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
+    // Necessary to construct a pool until PyO3 0.22 when the GIL Refs API is fully disabled
+    #[allow(deprecated)]
     let pool = GILPool::new();
     let py = pool.python();
     if let Err(py_err) = panic::catch_unwind(move || body(py))
