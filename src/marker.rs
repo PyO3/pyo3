@@ -1075,6 +1075,7 @@ impl<'py> Python<'py> {
     ///     // Some long-running process like a webserver, which never releases the GIL.
     ///     loop {
     ///         // Create a new pool, so that PyO3 can clear memory at the end of the loop.
+    ///         #[allow(deprecated)]  // `new_pool` is not needed in code not using the GIL Refs API
     ///         let pool = unsafe { py.new_pool() };
     ///
     ///         // It is recommended to *always* immediately set py to the pool's Python, to help
@@ -1141,6 +1142,7 @@ impl Python<'_> {
     ///     // Some long-running process like a webserver, which never releases the GIL.
     ///     loop {
     ///         // Create a new scope, so that PyO3 can clear memory at the end of the loop.
+    ///         #[allow(deprecated)]  // `with_pool` is not needed in code not using the GIL Refs API
     ///         py.with_pool(|py| {
     ///             // do stuff...
     ///         });

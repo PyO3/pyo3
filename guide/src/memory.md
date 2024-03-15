@@ -121,6 +121,7 @@ this is unsafe.
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
+        #[allow(deprecated)]  // `new_pool` is not needed in code not using the GIL Refs API
         let pool = unsafe { py.new_pool() };
         let py = pool.python();
         #[allow(deprecated)] // py.eval() is part of the GIL Refs API
