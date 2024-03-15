@@ -11,7 +11,7 @@ fn take_str(_s: &str) {}
 #[test]
 fn test_unicode_encode_error() {
     Python::with_gil(|py| {
-        let take_str = wrap_pyfunction!(take_str)(py).unwrap();
+        let take_str = wrap_pyfunction_bound!(take_str)(py).unwrap();
         py_expect_exception!(
             py,
             take_str,

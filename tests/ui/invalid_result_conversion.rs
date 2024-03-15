@@ -20,11 +20,13 @@ impl fmt::Display for MyError {
 
 #[pyfunction]
 fn should_not_work() -> Result<(), MyError> {
-    Err(MyError { descr: "something went wrong" })
+    Err(MyError {
+        descr: "something went wrong",
+    })
 }
 
 fn main() {
-    Python::with_gil(|py|{
-        wrap_pyfunction!(should_not_work)(py);
+    Python::with_gil(|py| {
+        wrap_pyfunction_bound!(should_not_work)(py);
     });
 }

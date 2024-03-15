@@ -190,7 +190,9 @@ struct PyClassAsyncIter {
 impl PyClassAsyncIter {
     fn __anext__(&mut self) -> PyClassAwaitable {
         self.number += 1;
-        PyClassAwaitable { number: self.number }
+        PyClassAwaitable {
+            number: self.number,
+        }
     }
 
     fn __aiter__(slf: Py<Self>) -> Py<Self> {
@@ -312,7 +314,10 @@ Python::with_gil(|py| {
     // `b` is not in the dictionary
     assert!(dict.get_item("b").is_none());
     // `dict` is not hashable, so this fails with a `TypeError`
-    assert!(dict.get_item_with_error(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+    assert!(dict
+        .get_item_with_error(dict)
+        .unwrap_err()
+        .is_instance_of::<PyTypeError>(py));
 });
 # }
 ```
@@ -333,7 +338,10 @@ Python::with_gil(|py| -> PyResult<()> {
     // `b` is not in the dictionary
     assert!(dict.get_item("b")?.is_none());
     // `dict` is not hashable, so this fails with a `TypeError`
-    assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
+    assert!(dict
+        .get_item(dict)
+        .unwrap_err()
+        .is_instance_of::<PyTypeError>(py));
 
     Ok(())
 });
@@ -428,7 +436,7 @@ impl SomeClass {
 
 When converting from `anyhow::Error` or `eyre::Report` to `PyErr`, if the inner error is a "simple" `PyErr` (with no source error), then the inner error will be used directly as the `PyErr` instead of wrapping it in a new `PyRuntimeError` with the original information converted into a string.
 
-```rust
+```rust,ignore
 # #[cfg(feature = "anyhow")]
 # #[allow(dead_code)]
 # mod anyhow_only {
@@ -495,7 +503,7 @@ drop(first);
 drop(second);
 ```
 
-The replacement is [`Python::with_gil`]() which is more cumbersome but enforces the proper nesting by design, e.g.
+The replacement is [`Python::with_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.with_gil) which is more cumbersome but enforces the proper nesting by design, e.g.
 
 ```rust
 # #![allow(dead_code)]
@@ -589,9 +597,9 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 
 # fn main() {
 #     Python::with_gil(|py| {
-#         let simple = wrap_pyfunction!(simple_function, py).unwrap();
+#         let simple = wrap_pyfunction_bound!(simple_function, py).unwrap();
 #         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
-#         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
+#         let defaulted = wrap_pyfunction_bound!(function_with_defaults, py).unwrap();
 #         assert_eq!(defaulted.getattr("__text_signature__").unwrap().to_string(), "(a, b=1, c=2)");
 #     })
 # }
@@ -1082,6 +1090,7 @@ impl FromPy<MyPyObjectWrapper> for PyObject {
 After
 ```rust
 # use pyo3::prelude::*;
+# #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
 
 impl IntoPy<PyObject> for MyPyObjectWrapper {

@@ -144,8 +144,10 @@ macro_rules! wrap_pyfunction {
     };
     ($function:path, $py_or_module:expr) => {{
         use $function as wrapped_pyfunction;
+        let (py_or_module, e) = $crate::impl_::pymethods::inspect_type($py_or_module);
+        e.is_python();
         $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
-            $py_or_module,
+            py_or_module,
             &wrapped_pyfunction::DEF,
         )
     }};

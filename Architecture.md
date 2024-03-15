@@ -59,6 +59,7 @@ Those flags are set in [`build.rs`](#6-buildrs-and-pyo3-build-config).
 [`src/types`] contains bindings to [built-in types](https://docs.python.org/3/library/stdtypes.html)
 of Python, such as `dict` and `list`.
 For historical reasons, Python's `object` is called `PyAny` in PyO3 and located in [`src/types/any.rs`].
+
 Currently, `PyAny` is a straightforward wrapper of `ffi::PyObject`, defined as:
 
 ```rust
@@ -66,38 +67,16 @@ Currently, `PyAny` is a straightforward wrapper of `ffi::PyObject`, defined as:
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
 ```
 
-All built-in types are defined as a C struct.
-For example, `dict` is defined as:
-
-```c
-typedef struct {
-    /* Base object */
-    PyObject ob_base;
-    /* Number of items in the dictionary */
-    Py_ssize_t ma_used;
-    /* Dictionary version */
-    uint64_t ma_version_tag;
-    PyDictKeysObject *ma_keys;
-    PyObject **ma_values;
-} PyDictObject;
-```
-
-However, we cannot access such a specific data structure with `#[cfg(Py_LIMITED_API)]` set.
-Thus, all builtin objects are implemented as opaque types by wrapping `PyAny`, e.g.,:
+Concrete Python objects are implemented by wrapping `PyAny`, e.g.,:
 
 ```rust
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 ```
 
-Note that `PyAny` is not a pointer, and it is usually used as a pointer to the object in the
-Python heap, as `&PyAny`.
-This design choice can be changed
-(see the discussion in [#1056](https://github.com/PyO3/pyo3/issues/1056)).
+These types are not intended to be accessed directly, and instead are used through the `Py<T>` and `Bound<T>` smart pointers.
 
-Since we need lots of boilerplate for implementing common traits for these types
-(e.g., `AsPyPointer`, `AsRef<PyAny>`, and `Debug`), we have some macros in
-[`src/types/mod.rs`].
+We have some macros in [`src/types/mod.rs`] which make it easier to implement APIs for concrete Python types.
 
 ## 3. `PyClass` and related functionalities
 
