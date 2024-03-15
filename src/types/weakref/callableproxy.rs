@@ -102,6 +102,7 @@ impl PyWeakCallableProxy {
     #[track_caller]
     pub fn new_bound<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakCallableProxy>> {
         // TODO: Must track caller be used here?
+        #[track_caller]
         fn inner<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakCallableProxy>> {
             assert!(
                 object.is_callable(),
@@ -213,6 +214,7 @@ impl PyWeakCallableProxy {
         C: ToPyObject,
     {
         // TODO: Must track caller be used here?
+        #[track_caller]
         fn inner<'py>(
             object: &Bound<'py, PyAny>,
             callback: Bound<'py, PyAny>,
@@ -307,6 +309,7 @@ impl PyWeakCallableProxy {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.CallableProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
+    #[track_caller]
     pub fn upgrade_as<T>(&self) -> PyResult<Option<&T::AsRefTarget>>
     where
         T: PyTypeCheck,
@@ -389,6 +392,7 @@ impl PyWeakCallableProxy {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.CallableProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
+    #[track_caller]
     pub fn upgrade_as_exact<T>(&self) -> PyResult<Option<&T::AsRefTarget>>
     where
         T: PyTypeInfo,
@@ -468,6 +472,7 @@ impl PyWeakCallableProxy {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ProxyCallableType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
+    #[track_caller]
     pub fn upgrade(&self) -> Option<&'_ PyAny> {
         self.as_borrowed().upgrade().map(Bound::into_gil_ref)
     }
@@ -538,12 +543,14 @@ impl PyWeakCallableProxy {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.CallableProxyType`]: https://docs.python.org/3/library/weakref.html#weakref.CallableProxyType
     /// [`weakref.proxy`]: https://docs.python.org/3/library/weakref.html#weakref.proxy
+    #[track_caller]
     pub fn get_object(&self) -> &'_ PyAny {
         self.as_borrowed().get_object().into_gil_ref()
     }
 }
 
 impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakCallableProxy> {
+    #[track_caller]
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny> {
         // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
