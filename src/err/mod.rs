@@ -87,7 +87,7 @@ impl<'a, 'py> DowncastError<'a, 'py> {
             to: to.into(),
         }
     }
-    #[cfg(not(feature = "gil-refs"))]
+    #[cfg(not(feature = "gil-refs-migration"))]
     pub(crate) fn new_from_borrowed(
         from: Borrowed<'a, 'py, PyAny>,
         to: impl Into<Cow<'static, str>>,

@@ -59,7 +59,7 @@ The feature has some unfinished refinements and performance improvements. To hel
 
 ### `experimental-declarative-modules`
 
-This feature allows to declare Python modules using `#[pymodule] mod my_module { ... }` syntax. 
+This feature allows to declare Python modules using `#[pymodule] mod my_module { ... }` syntax.
 
 The feature has some unfinished refinements and edge cases. To help finish this off, see [issue #3900](https://github.com/PyO3/pyo3/issues/3900).
 
@@ -73,7 +73,15 @@ This is a first step towards adding first-class support for generating type anno
 
 This feature is a backwards-compatibility feature to allow continued use of the "GIL Refs" APIs deprecated in PyO3 0.21. These APIs have performance drawbacks and soundness edge cases which the newer `Bound<T>` smart pointer and accompanying APIs resolve.
 
-This feature and the APIs it enables is expected to be removed in a future PyO3 version.
+This feature and the APIs it enables are expected to be removed in a future PyO3 version. This feature is a superset of the `gil-refs-migration` feature which also suppresses deprecation warnings related to these APIs.
+
+### `gil-refs-migration`
+
+This feature is a temporary feature for PyO3 0.21 to assist with migration off the "GIL Refs" APIs. Unlike the `gil-refs` feature, using this feature will emit deprecation warnings for uses of "GIL Refs" APIs.
+
+Disabling this feature will opt-in to a few breaking changes which cannot be hinted by deprecation warnings. See the [migration guide](./migration.md#deactivating-the-gil-refs-features) for details.
+
+This feature is expected to be removed in PyO3 0.22.
 
 ### `macros`
 

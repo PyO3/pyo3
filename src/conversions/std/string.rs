@@ -114,7 +114,7 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` objects.
-#[cfg(feature = "gil-refs")]
+#[cfg(feature = "gil-refs-migration")]
 impl<'py> FromPyObject<'py> for &'py str {
     fn extract(ob: &'py PyAny) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
@@ -126,7 +126,7 @@ impl<'py> FromPyObject<'py> for &'py str {
     }
 }
 
-#[cfg(all(not(feature = "gil-refs"), any(Py_3_10, not(Py_LIMITED_API))))]
+#[cfg(all(not(feature = "gil-refs-migration"), any(Py_3_10, not(Py_LIMITED_API))))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
@@ -138,7 +138,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
     }
 }
 
-#[cfg(feature = "gil-refs")]
+#[cfg(feature = "gil-refs-migration")]
 impl<'py> FromPyObject<'py> for Cow<'py, str> {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         ob.extract().map(Cow::Owned)
@@ -150,7 +150,7 @@ impl<'py> FromPyObject<'py> for Cow<'py, str> {
     }
 }
 
-#[cfg(not(feature = "gil-refs"))]
+#[cfg(not(feature = "gil-refs-migration"))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_cow()

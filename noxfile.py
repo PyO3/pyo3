@@ -668,6 +668,7 @@ def check_feature_powerset(session: nox.Session):
     EXCLUDED_FROM_FULL = {
         "nightly",
         "gil-refs",
+        "gil-refs-migration",
         "extension-module",
         "full",
         "default",
@@ -709,7 +710,9 @@ def check_feature_powerset(session: nox.Session):
         session.error("no experimental features exist; please simplify the noxfile")
 
     features_to_skip = [
-        *(EXCLUDED_FROM_FULL - {"gil-refs"}),
+        # For 0.21's migration, the two gil-refs compatibility features need to
+        # be checked separately to ensure that cfgs are in alignment.
+        *(EXCLUDED_FROM_FULL - {"gil-refs", "gil-refs-migration"}),
         *abi3_version_features,
     ]
 

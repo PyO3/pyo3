@@ -580,7 +580,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     }
 
     #[inline]
-    #[cfg(not(feature = "gil-refs"))]
+    #[cfg(not(feature = "gil-refs-migration"))]
     pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
     where
         T: PyTypeCheck,

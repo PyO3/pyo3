@@ -1,6 +1,7 @@
 # Memory management
 
 <div class="warning">
+
 ⚠️ Warning: API update in progress 🛠️
 
 PyO3 0.21 has introduced a significant new API, termed the "Bound" API after the new smart pointer `Bound<T>`.
@@ -84,6 +85,7 @@ the end of the `with_gil()` closure, at which point the 10 copies of `hello`
 are finally released to the Python garbage collector.
 
 <div class="warning">
+
 ⚠️ Warning: `GILPool` is no longer the preferred way to manage memory with PyO3 🛠️
 
 PyO3 0.21 has introduced a new API known as the Bound API, which doesn't have the same surprising results. Instead, each `Bound<T>` smart pointer releases the Python reference immediately on drop. See [the smart pointer types](./types.md#pyo3s-smart-pointers) for more details.
@@ -155,6 +157,7 @@ a few objects, meaning this doesn't have a significant impact. Occasionally func
 with long complex loops may need to use `Python::new_pool` as shown above.
 
 <div class="warning">
+
 ⚠️ Warning: `GILPool` is no longer the preferred way to manage memory with PyO3 🛠️
 
 PyO3 0.21 has introduced a new API known as the Bound API, which doesn't have the same surprising results. Instead, each `Bound<T>` smart pointer releases the Python reference immediately on drop. See [the smart pointer types](./types.md#pyo3s-smart-pointers) for more details.
