@@ -579,6 +579,20 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
     }
 
+    #[inline]
+    #[cfg(not(feature = "gil-refs"))]
+    pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
+    where
+        T: PyTypeCheck,
+    {
+        if T::type_check(&self) {
+            // Safety: type_check is responsible for ensuring that the type is correct
+            Ok(unsafe { self.downcast_unchecked() })
+        } else {
+            Err(DowncastError::new_from_borrowed(self, T::NAME))
+        }
+    }
+
     /// Converts this `PyAny` to a concrete Python type without checking validity.
     ///
     /// # Safety
