@@ -365,7 +365,7 @@ impl Drop for LockGIL {
     not(feature = "gil-refs"),
     deprecated(
         since = "0.21.0",
-        note = "`GILPool` will have no function after PyO3's GIL Refs API is removed"
+        note = "`GILPool` has no function if PyO3's deprecated GIL Refs API is not used"
     )
 )]
 pub struct GILPool {

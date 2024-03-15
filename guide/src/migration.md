@@ -280,6 +280,8 @@ The expectation is that in 0.22 `extract_bound` will have the default implementa
 
 As a final step of migration, deactivating the `gil-refs` feature will set up code for best performance and is intended to set up a forward-compatible API for PyO3 0.22.
 
+At this point code which needed to manage GIL Ref memory can safely remove uses of `GILPool` (which are constructed by calls to `Python::new_pool` and `Python::with_pool`). Deprecation warnings will highlight these cases.
+
 There is one notable API removed when this feature is disabled. `FromPyObject` trait implementations for types which borrow directly from the input data cannot be implemented by PyO3 without GIL Refs (while the migration is ongoing). These types are `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>`.
 
 To ease pain during migration, these types instead implement a new temporary trait `FromPyObjectBound` which is the expected future form of `FromPyObject`. The new temporary trait ensures is that `obj.extract::<&str>()` continues to work (with the new constraint that the extracted value now depends on the input `obj` lifetime), as well for these types in `#[pyfunction]` arguments.

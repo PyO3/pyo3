@@ -1053,7 +1053,8 @@ impl<'py> Python<'py> {
         err::error_on_minusone(self, unsafe { ffi::PyErr_CheckSignals() })
     }
 
-    /// Create a new pool for managing PyO3's GIL Refs.
+    /// Create a new pool for managing PyO3's GIL Refs. This has no functional
+    /// use for code which does not use the deprecated GIL Refs API.
     ///
     /// When this `GILPool` is dropped, all GIL Refs created after this `GILPool` will
     /// all have their Python reference counts decremented, potentially allowing Python to drop
@@ -1123,7 +1124,7 @@ impl<'py> Python<'py> {
 
 impl Python<'_> {
     /// Creates a scope using a new pool for managing PyO3's GIL Refs. This has no functional
-    /// use for code w
+    /// use for code which does not use the deprecated GIL Refs API.
     ///
     /// This is a safe alterantive to [`new_pool`][Self::new_pool] as
     /// it limits the closure to using the new GIL token at the cost of
