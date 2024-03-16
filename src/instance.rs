@@ -511,8 +511,31 @@ unsafe impl<T> AsPyPointer for Bound<'_, T> {
 pub struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
 
 impl<'py, T> Borrowed<'_, 'py, T> {
-    /// Creates a new owned `Bound` from this borrowed reference by increasing the reference count.
-    pub(crate) fn to_owned(self) -> Bound<'py, T> {
+    /// Creates a new owned [`Bound<T>`] from this borrowed reference by
+    /// increasing the reference count.
+    ///
+    /// # Example
+    /// ```
+    /// use pyo3::{prelude::*, types::PyTuple};
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let tuple = PyTuple::new_bound(py, [1, 2, 3]);
+    ///     
+    ///     // borrows from `tuple`, so can only be
+    ///     // used while `tuple` stays alive
+    ///     let borrowed = tuple.get_borrowed_item(0)?;
+    ///     
+    ///     // creates a new owned reference, which
+    ///     // can be used indendently of `tuple`
+    ///     let bound = borrowed.to_owned();
+    ///     drop(tuple);
+    ///
+    ///     assert_eq!(bound.extract::<i32>().unwrap(), 1);
+    ///     Ok(())
+    /// })
+    /// # }
+    pub fn to_owned(self) -> Bound<'py, T> {
         (*self).clone()
     }
 }
