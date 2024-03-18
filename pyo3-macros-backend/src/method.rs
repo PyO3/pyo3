@@ -540,7 +540,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                            #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                             let __guard = #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&__guard, #(#args),*).await }
                         }}
@@ -549,7 +549,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                            #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                             let mut __guard = #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&mut __guard, #(#args),*).await }
                         }}
@@ -557,12 +557,12 @@ impl<'a> FnSpec<'a> {
                     _ => {
                         if self_arg.is_empty() {
                             quote! {{
-                                #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                                #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                                 function(#(#args),*)
                             }}
                         } else {
                             quote! { function({
-                                let (self_arg, e) = #pyo3_path::impl_::pymethods::inspect_type(#self_arg);
+                                let (self_arg, e) = #pyo3_path::impl_::deprecations::inspect_type(#self_arg);
                                 #self_e = e;
                                 self_arg
                             }, #(#args),*) }
@@ -588,13 +588,13 @@ impl<'a> FnSpec<'a> {
                 call
             } else if self_arg.is_empty() {
                 quote! {{
-                    #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                    #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                     function(#(#args),*)
                 }}
             } else {
                 quote! {
                     function({
-                        let (self_arg, e) = #pyo3_path::impl_::pymethods::inspect_type(#self_arg);
+                        let (self_arg, e) = #pyo3_path::impl_::deprecations::inspect_type(#self_arg);
                         #self_e = e;
                         self_arg
                     }, #(#args),*)

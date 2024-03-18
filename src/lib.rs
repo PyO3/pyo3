@@ -346,15 +346,22 @@ pub(crate) mod sealed;
 /// For compatibility reasons this has not yet been removed, however will be done so
 /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
-    #[doc(hidden)]
-    pub use crate::impl_::pymethods as methods;
-
     pub use self::gc::{PyTraverseError, PyVisit};
 
     #[doc(hidden)]
     pub use self::methods::{
         PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
     };
+
+    #[doc(hidden)]
+    pub mod methods {
+        // frozen with the contents of the `impl_::pymethods` module in 0.20,
+        // this should probably all be replaced with deprecated type aliases and removed.
+        pub use crate::impl_::pymethods::{
+            IPowModulo, PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType,
+            PyMethodType, PySetterDef,
+        };
+    }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
     ///
@@ -478,6 +485,16 @@ mod macros;
 
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;
+
+/// Ths module only contains re-exports of pyo3 deprecation warnings and exists
+/// purely to make compiler error messages nicer.
+///
+/// (The compiler uses this module in error messages, probably because it's a public
+/// re-export at a shorter path than `pyo3::impl_::deprecations`.)
+#[doc(hidden)]
+pub mod deprecations {
+    pub use crate::impl_::deprecations::*;
+}
 
 /// Test readme and user guide
 #[cfg(doctest)]
