@@ -46,7 +46,8 @@ pub fn impl_arg_params(
             let from_py_with_holder =
                 syn::Ident::new(&format!("from_py_with_{}", i), Span::call_site());
             Some(quote_spanned! { from_py_with.span() =>
-                let (#from_py_with_holder, e) = #pyo3_path::impl_::pymethods::inspect_fn(#from_py_with);
+                let e = #pyo3_path::impl_::pymethods::Extractor::new();
+                let #from_py_with_holder = #pyo3_path::impl_::pymethods::inspect_fn(#from_py_with, &e);
                 e.extract_from_py_with();
             })
         })

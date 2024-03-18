@@ -46,7 +46,7 @@ error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`
 54 | fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
    |                                                         ^
 
-error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_from_py_with`: use `&Bound<'_, PyAny>` as argument for this `from_py_with` extractor
+error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_from_py_with`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
   --> tests/ui/deprecations.rs:87:27
    |
 87 |     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,

@@ -585,9 +585,8 @@ pub fn inspect_type<T>(t: T) -> (T, Extractor<T>) {
     (t, Extractor::new())
 }
 
-#[allow(clippy::type_complexity)]
-pub fn inspect_fn<A, T>(f: fn(A) -> PyResult<T>) -> (fn(A) -> PyResult<T>, Extractor<A>) {
-    (f, Extractor::new())
+pub fn inspect_fn<A, T>(f: fn(A) -> PyResult<T>, _: &Extractor<A>) -> fn(A) -> PyResult<T> {
+    f
 }
 
 pub struct Extractor<T>(NotAGilRef<T>);
@@ -625,7 +624,7 @@ impl<T: IsGilRef> Extractor<T> {
         not(feature = "gil-refs"),
         deprecated(
             since = "0.21.0",
-            note = "use `&Bound<'_, PyAny>` as argument for this `from_py_with` extractor"
+            note = "use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor"
         )
     )]
     pub fn extract_from_py_with(&self) {}
