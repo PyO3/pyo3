@@ -349,6 +349,7 @@ assert_eq!(name, "list");
 After:
 
 ```rust
+# #[cfg(any(not(Py_LIMITED_API), Py_3_10))] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
@@ -361,6 +362,7 @@ assert_eq!(name, "list");
 # Ok(())
 # }
 # Python::with_gil(example).unwrap();
+# }
 ```
 
 An alternative is to use the new `PyBackedStr` type, which stores a reference to the Python `str` without a lifetime attachment:
