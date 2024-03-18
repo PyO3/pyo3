@@ -46,10 +46,16 @@ error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`
 54 | fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
    |                                                         ^
 
-error: use of deprecated method `pyo3::methods::Extractor::<pyo3::Python<'_>>::is_python`: use `wrap_pyfunction_bound!` instead
-  --> tests/ui/deprecations.rs:79:13
+error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_from_py_with`: use `&Bound<'_, PyAny>` as argument for this `from_py_with` extractor
+  --> tests/ui/deprecations.rs:87:27
    |
-79 |     let _ = wrap_pyfunction!(double, py);
+87 |     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
+   |                           ^^^^^^^^^^^^^^^^^
+
+error: use of deprecated method `pyo3::methods::Extractor::<pyo3::Python<'_>>::is_python`: use `wrap_pyfunction_bound!` instead
+  --> tests/ui/deprecations.rs:94:13
+   |
+94 |     let _ = wrap_pyfunction!(double, py);
    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
    = note: this error originates in the macro `wrap_pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

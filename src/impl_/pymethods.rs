@@ -585,6 +585,11 @@ pub fn inspect_type<T>(t: T) -> (T, Extractor<T>) {
     (t, Extractor::new())
 }
 
+#[allow(clippy::type_complexity)]
+pub fn inspect_fn<A, T>(f: fn(A) -> PyResult<T>) -> (fn(A) -> PyResult<T>, Extractor<A>) {
+    (f, Extractor::new())
+}
+
 pub struct Extractor<T>(NotAGilRef<T>);
 pub struct NotAGilRef<T>(std::marker::PhantomData<T>);
 
@@ -616,10 +621,19 @@ impl<T: IsGilRef> Extractor<T> {
         )
     )]
     pub fn extract_gil_ref(&self) {}
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `&Bound<'_, PyAny>` as argument for this `from_py_with` extractor"
+        )
+    )]
+    pub fn extract_from_py_with(&self) {}
 }
 
 impl<T> NotAGilRef<T> {
     pub fn extract_gil_ref(&self) {}
+    pub fn extract_from_py_with(&self) {}
     pub fn is_python(&self) {}
 }
 
