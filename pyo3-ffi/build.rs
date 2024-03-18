@@ -29,6 +29,17 @@ const SUPPORTED_VERSIONS_PYPY: SupportedVersions = SupportedVersions {
     },
 };
 
+const SUPPORTED_VERSIONS_GRAALPY: SupportedVersions = SupportedVersions {
+    min: PythonVersion {
+        major: 3,
+        minor: 10,
+    },
+    max: PythonVersion {
+        major: 3,
+        minor: 11,
+    },
+};
+
 fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     // This is an undocumented env var which is only really intended to be used in CI / for testing
     // and development.
@@ -67,6 +78,24 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
             ensure!(
                 interpreter_config.version <= versions.max,
                 "the configured PyPy interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
+                 = help: please check if an updated version of PyO3 is available. Current version: {}",
+                interpreter_config.version,
+                versions.max,
+                std::env::var("CARGO_PKG_VERSION").unwrap()
+            );
+        }
+        PythonImplementation::GraalPy => {
+            let versions = SUPPORTED_VERSIONS_GRAALPY;
+            ensure!(
+                interpreter_config.version >= versions.min,
+                "the configured GraalPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
+                interpreter_config.version,
+                versions.min,
+            );
+            // GraalPy does not support abi3, so we cannot offer forward compatibility
+            ensure!(
+                interpreter_config.version <= versions.max,
+                "the configured GraalPy interpreter version ({}) is newer than PyO3's maximum supported version ({})\n\
                  = help: please check if an updated version of PyO3 is available. Current version: {}",
                 interpreter_config.version,
                 versions.max,
