@@ -1,6 +1,6 @@
 name: CI Cache Cleanup
 on:
-  pull_request:
+  pull_request_target:
     types:
       - closed
 
@@ -22,7 +22,7 @@ jobs:
           echo "Deleting caches..."
           for cacheKey in $cacheKeysForPR
           do
-              gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
+              gh actions-cache delete -R $REPO -B $BRANCH --confirm -- $cacheKey
           done
           echo "Done"
         env:
