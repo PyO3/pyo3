@@ -1,4 +1,4 @@
-error: use of deprecated constant `pyo3::impl_::deprecations::PYMETHODS_NEW_DEPRECATED_FORM`: use `#[new]` instead of `#[__new__]`
+error: use of deprecated constant `pyo3::deprecations::PYMETHODS_NEW_DEPRECATED_FORM`: use `#[new]` instead of `#[__new__]`
   --> tests/ui/deprecations.rs:12:7
    |
 12 |     #[__new__]
@@ -16,43 +16,43 @@ error: use of deprecated struct `pyo3::PyCell`: `PyCell` was merged into `Bound`
 23 |     fn method_gil_ref(_slf: &PyCell<Self>) {}
    |                              ^^^^^^
 
-error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`: use `&Bound<'_, T>` instead for this function argument
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
   --> tests/ui/deprecations.rs:18:33
    |
 18 |     fn cls_method_gil_ref(_cls: &PyType) {}
    |                                 ^
 
-error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`: use `&Bound<'_, T>` instead for this function argument
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
   --> tests/ui/deprecations.rs:23:29
    |
 23 |     fn method_gil_ref(_slf: &PyCell<Self>) {}
    |                             ^
 
-error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`: use `&Bound<'_, T>` instead for this function argument
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
   --> tests/ui/deprecations.rs:38:43
    |
 38 | fn pyfunction_with_module_gil_ref(module: &PyModule) -> PyResult<&str> {
    |                                           ^
 
-error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`: use `&Bound<'_, T>` instead for this function argument
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
   --> tests/ui/deprecations.rs:48:19
    |
 48 | fn module_gil_ref(m: &PyModule) -> PyResult<()> {
    |                   ^
 
-error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_gil_ref`: use `&Bound<'_, T>` instead for this function argument
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
   --> tests/ui/deprecations.rs:54:57
    |
 54 | fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
    |                                                         ^
 
-error: use of deprecated method `pyo3::methods::Extractor::<T>::extract_from_py_with`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
   --> tests/ui/deprecations.rs:87:27
    |
 87 |     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
    |                           ^^^^^^^^^^^^^^^^^
 
-error: use of deprecated method `pyo3::methods::Extractor::<pyo3::Python<'_>>::is_python`: use `wrap_pyfunction_bound!` instead
+error: use of deprecated method `pyo3::deprecations::GilRefs::<pyo3::Python<'_>>::is_python`: use `wrap_pyfunction_bound!` instead
   --> tests/ui/deprecations.rs:94:13
    |
 94 |     let _ = wrap_pyfunction!(double, py);

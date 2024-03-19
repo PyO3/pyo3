@@ -540,7 +540,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                            #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                             let __guard = #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&__guard, #(#args),*).await }
                         }}
@@ -549,7 +549,7 @@ impl<'a> FnSpec<'a> {
                         holders.pop().unwrap(); // does not actually use holder created by `self_arg`
 
                         quote! {{
-                            #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                            #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                             let mut __guard = #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&mut __guard, #(#args),*).await }
                         }}
@@ -557,12 +557,12 @@ impl<'a> FnSpec<'a> {
                     _ => {
                         if self_arg.is_empty() {
                             quote! {{
-                                #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                                #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                                 function(#(#args),*)
                             }}
                         } else {
                             quote! { function({
-                                let (self_arg, e) = #pyo3_path::impl_::pymethods::inspect_type(#self_arg);
+                                let (self_arg, e) = #pyo3_path::impl_::deprecations::inspect_type(#self_arg);
                                 #self_e = e;
                                 self_arg
                             }, #(#args),*) }
@@ -588,13 +588,13 @@ impl<'a> FnSpec<'a> {
                 call
             } else if self_arg.is_empty() {
                 quote! {{
-                    #self_e = #pyo3_path::impl_::pymethods::Extractor::<()>::new();
+                    #self_e = #pyo3_path::impl_::deprecations::GilRefs::<()>::new();
                     function(#(#args),*)
                 }}
             } else {
                 quote! {
                     function({
-                        let (self_arg, e) = #pyo3_path::impl_::pymethods::inspect_type(#self_arg);
+                        let (self_arg, e) = #pyo3_path::impl_::deprecations::inspect_type(#self_arg);
                         #self_e = e;
                         self_arg
                     }, #(#args),*)
@@ -632,8 +632,7 @@ impl<'a> FnSpec<'a> {
                     })
                     .collect();
                 let (call, self_arg_span) = rust_call(args, &self_e, &mut holders);
-                let extract_gil_ref =
-                    quote_spanned! { self_arg_span => #self_e.extract_gil_ref(); };
+                let function_arg = quote_spanned! { self_arg_span => #self_e.function_arg(); };
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -645,7 +644,7 @@ impl<'a> FnSpec<'a> {
                         let #self_e;
                         #( #holders )*
                         let result = #call;
-                        #extract_gil_ref
+                        #function_arg
                         result
                     }
                 }
@@ -654,8 +653,7 @@ impl<'a> FnSpec<'a> {
                 let mut holders = Vec::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx)?;
                 let (call, self_arg_span) = rust_call(args, &self_e, &mut holders);
-                let extract_gil_ref =
-                    quote_spanned! { self_arg_span => #self_e.extract_gil_ref(); };
+                let function_arg = quote_spanned! { self_arg_span => #self_e.function_arg(); };
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -671,7 +669,7 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #( #holders )*
                         let result = #call;
-                        #extract_gil_ref
+                        #function_arg
                         result
                     }
                 }
@@ -680,8 +678,7 @@ impl<'a> FnSpec<'a> {
                 let mut holders = Vec::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
                 let (call, self_arg_span) = rust_call(args, &self_e, &mut holders);
-                let extract_gil_ref =
-                    quote_spanned! { self_arg_span => #self_e.extract_gil_ref(); };
+                let function_arg = quote_spanned! { self_arg_span => #self_e.function_arg(); };
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -696,7 +693,7 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #( #holders )*
                         let result = #call;
-                        #extract_gil_ref
+                        #function_arg
                         result
                     }
                 }
