@@ -305,10 +305,11 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         .filter_map(|param| {
             if let syn::FnArg::Typed(pat_type) = param {
                 if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                    let ident = &pat_ident.ident;
+                    let ident: &syn::Ident = &pat_ident.ident;
                     return Some([
-                        parse_quote! { let (#ident, e) = #pyo3_path::impl_::deprecations::inspect_type(#ident); },
-                        parse_quote_spanned! { pat_type.span() => e.function_arg(); },
+                        parse_quote!{ let check_gil_refs = #pyo3_path::impl_::deprecations::GilRefs::new(); },
+                        parse_quote! { let #ident = #pyo3_path::impl_::deprecations::inspect_type(#ident, &check_gil_refs); },
+                        parse_quote_spanned! { pat_type.span() => check_gil_refs.function_arg(); },
                     ]);
                 }
             }

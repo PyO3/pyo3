@@ -5,8 +5,8 @@ use crate::{PyResult, Python};
 #[deprecated(since = "0.20.0", note = "use `#[new]` instead of `#[__new__]`")]
 pub const PYMETHODS_NEW_DEPRECATED_FORM: () = ();
 
-pub fn inspect_type<T>(t: T) -> (T, GilRefs<T>) {
-    (t, GilRefs::new())
+pub fn inspect_type<T>(t: T, _: &GilRefs<T>) -> T {
+    t
 }
 
 pub fn inspect_fn<A, T>(f: fn(A) -> PyResult<T>, _: &GilRefs<A>) -> fn(A) -> PyResult<T> {
