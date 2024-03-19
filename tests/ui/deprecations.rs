@@ -74,6 +74,21 @@ fn module_bound_by_value(m: Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+fn extract_gil_ref(obj: &PyAny) -> PyResult<i32> {
+    obj.extract()
+}
+
+fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
+    obj.extract()
+}
+
+#[pyfunction]
+fn pyfunction_from_py_with(
+    #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
+    #[pyo3(from_py_with = "extract_bound")] _bound: i32,
+) {
+}
+
 fn test_wrap_pyfunction(py: Python<'_>, m: &Bound<'_, PyModule>) {
     // should lint
     let _ = wrap_pyfunction!(double, py);

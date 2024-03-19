@@ -118,8 +118,8 @@ fn test_functions_with_function_args() {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-fn datetime_to_timestamp(dt: &PyAny) -> PyResult<i64> {
-    let dt: &PyDateTime = dt.extract()?;
+fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
+    let dt = dt.downcast::<PyDateTime>()?;
     let ts: f64 = dt.call_method0("timestamp")?.extract()?;
 
     Ok(ts as i64)
@@ -170,7 +170,7 @@ fn test_function_with_custom_conversion_error() {
 
 #[test]
 fn test_from_py_with_defaults() {
-    fn optional_int(x: &PyAny) -> PyResult<Option<i32>> {
+    fn optional_int(x: &Bound<'_, PyAny>) -> PyResult<Option<i32>> {
         if x.is_none() {
             Ok(None)
         } else {
@@ -185,7 +185,9 @@ fn test_from_py_with_defaults() {
     }
 
     #[pyfunction(signature = (len=0))]
-    fn from_py_with_default(#[pyo3(from_py_with = "PyAny::len")] len: usize) -> usize {
+    fn from_py_with_default(
+        #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::len")] len: usize,
+    ) -> usize {
         len
     }
 
