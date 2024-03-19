@@ -632,8 +632,7 @@ impl<'a> FnSpec<'a> {
                     })
                     .collect();
                 let (call, self_arg_span) = rust_call(args, &self_e, &mut holders);
-                let extract_gil_ref =
-                    quote_spanned! { self_arg_span => #self_e.extract_gil_ref(); };
+                let function_arg = quote_spanned! { self_arg_span => #self_e.function_arg(); };
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -645,7 +644,7 @@ impl<'a> FnSpec<'a> {
                         let #self_e;
                         #( #holders )*
                         let result = #call;
-                        #extract_gil_ref
+                        #function_arg
                         result
                     }
                 }
@@ -654,8 +653,7 @@ impl<'a> FnSpec<'a> {
                 let mut holders = Vec::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx)?;
                 let (call, self_arg_span) = rust_call(args, &self_e, &mut holders);
-                let extract_gil_ref =
-                    quote_spanned! { self_arg_span => #self_e.extract_gil_ref(); };
+                let function_arg = quote_spanned! { self_arg_span => #self_e.function_arg(); };
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -671,7 +669,7 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #( #holders )*
                         let result = #call;
-                        #extract_gil_ref
+                        #function_arg
                         result
                     }
                 }
@@ -680,8 +678,7 @@ impl<'a> FnSpec<'a> {
                 let mut holders = Vec::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
                 let (call, self_arg_span) = rust_call(args, &self_e, &mut holders);
-                let extract_gil_ref =
-                    quote_spanned! { self_arg_span => #self_e.extract_gil_ref(); };
+                let function_arg = quote_spanned! { self_arg_span => #self_e.function_arg(); };
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -696,7 +693,7 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #( #holders )*
                         let result = #call;
-                        #extract_gil_ref
+                        #function_arg
                         result
                     }
                 }

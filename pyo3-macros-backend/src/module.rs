@@ -308,7 +308,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
                     let ident = &pat_ident.ident;
                     return Some([
                         parse_quote! { let (#ident, e) = #pyo3_path::impl_::deprecations::inspect_type(#ident); },
-                        parse_quote_spanned! { pat_type.span() => e.extract_gil_ref(); },
+                        parse_quote_spanned! { pat_type.span() => e.function_arg(); },
                     ]);
                 }
             }

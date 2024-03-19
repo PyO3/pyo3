@@ -36,6 +36,23 @@ pub fn impl_arg_params(
     let args_array = syn::Ident::new("output", Span::call_site());
     let Ctx { pyo3_path } = ctx;
 
+    let from_py_with = spec
+        .signature
+        .arguments
+        .iter()
+        .enumerate()
+        .filter_map(|(i, arg)| {
+            let from_py_with = &arg.attrs.from_py_with.as_ref()?.value;
+            let from_py_with_holder =
+                syn::Ident::new(&format!("from_py_with_{}", i), Span::call_site());
+            Some(quote_spanned! { from_py_with.span() =>
+                let e = #pyo3_path::impl_::deprecations::GilRefs::new();
+                let #from_py_with_holder = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
+                e.from_py_with_arg();
+            })
+        })
+        .collect::<TokenStream>();
+
     if !fastcall && is_forwarded_args(&spec.signature) {
         // In the varargs convention, we can just pass though if the signature
         // is (*args, **kwds).
@@ -43,12 +60,14 @@ pub fn impl_arg_params(
             .signature
             .arguments
             .iter()
-            .map(|arg| impl_arg_param(arg, &mut 0, &args_array, holders, ctx))
+            .enumerate()
+            .map(|(i, arg)| impl_arg_param(arg, i, &mut 0, &args_array, holders, ctx))
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
                 let _args = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args);
                 let _kwargs = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
+                #from_py_with
             },
             arg_convert,
         ));
@@ -81,7 +100,8 @@ pub fn impl_arg_params(
         .signature
         .arguments
         .iter()
-        .map(|arg| impl_arg_param(arg, &mut option_pos, &args_array, holders, ctx))
+        .enumerate()
+        .map(|(i, arg)| impl_arg_param(arg, i, &mut option_pos, &args_array, holders, ctx))
         .collect::<Result<_>>()?;
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
@@ -136,6 +156,7 @@ pub fn impl_arg_params(
                 };
                 let mut #args_array = [::std::option::Option::None; #num_params];
                 let (_args, _kwargs) = #extract_expression;
+                #from_py_with
         },
         param_conversion,
     ))
@@ -145,6 +166,7 @@ pub fn impl_arg_params(
 /// index and the index in option diverge when using py: Python
 fn impl_arg_param(
     arg: &FnArg<'_>,
+    pos: usize,
     option_pos: &mut usize,
     args_array: &syn::Ident,
     holders: &mut Vec<TokenStream>,
@@ -222,14 +244,21 @@ fn impl_arg_param(
         ));
     }
 
-    let tokens = if let Some(expr_path) = arg.attrs.from_py_with.as_ref().map(|attr| &attr.value) {
+    let tokens = if arg
+        .attrs
+        .from_py_with
+        .as_ref()
+        .map(|attr| &attr.value)
+        .is_some()
+    {
+        let from_py_with = syn::Ident::new(&format!("from_py_with_{}", pos), Span::call_site());
         if let Some(default) = default {
             quote_arg_span! {
                 #[allow(clippy::redundant_closure)]
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
                     #arg_value.as_deref(),
                     #name_str,
-                    #expr_path as fn(_) -> _,
+                    #from_py_with as fn(_) -> _,
                     || #default
                 )?
             }
@@ -238,7 +267,7 @@ fn impl_arg_param(
                 #pyo3_path::impl_::extract_argument::from_py_with(
                     &#pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
                     #name_str,
-                    #expr_path as fn(_) -> _,
+                    #from_py_with as fn(_) -> _,
                 )?
             }
         }

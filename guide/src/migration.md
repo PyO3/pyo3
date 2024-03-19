@@ -291,14 +291,20 @@ An unfortunate final point here is that PyO3 cannot offer this new implementatio
 ## from 0.19.* to 0.20
 
 ### Drop support for older technologies
+<details>
+<summary><small>Click to expand</small></summary>
 
 PyO3 0.20 has increased minimum Rust version to 1.56. This enables use of newer language features and simplifies maintenance of the project.
+</details>
 
 ### `PyDict::get_item` now returns a `Result`
+<details>
+<summary><small>Click to expand</small></summary>
 
 `PyDict::get_item` in PyO3 0.19 and older was implemented using a Python API which would suppress all exceptions and return `None` in those cases. This included errors in `__hash__` and `__eq__` implementations of the key being looked up.
 
 Newer recommendations by the Python core developers advise against using these APIs which suppress exceptions, instead allowing exceptions to bubble upwards. `PyDict::get_item_with_error` already implemented this recommended behavior, so that API has been renamed to `PyDict::get_item`.
+
 
 Before:
 
@@ -349,8 +355,11 @@ Python::with_gil(|py| -> PyResult<()> {
 });
 # }
 ```
+</details>
 
 ### Required arguments are no longer accepted after optional arguments
+<details>
+<summary><small>Click to expand</small></summary>
 
 [Trailing `Option<T>` arguments](./function/signature.md#trailing-optional-arguments) have an automatic default of `None`. To avoid unwanted changes when modifying function signatures, in PyO3 0.18 it was deprecated to have a required argument after an `Option<T>` argument without using `#[pyo3(signature = (...))]` to specify the intended defaults. In PyO3 0.20, this becomes a hard error.
 
@@ -375,8 +384,11 @@ fn x_or_y(x: Option<u64>, y: u64) -> u64 {
     x.unwrap_or(y)
 }
 ```
+</details>
 
 ### Remove deprecated function forms
+<details>
+<summary><small>Click to expand</small></summary>
 
 In PyO3 0.18 the `#[args]` attribute for `#[pymethods]`, and directly specifying the function signature in `#[pyfunction]`, was deprecated. This functionality has been removed in PyO3 0.20.
 
@@ -403,17 +415,27 @@ fn add(a: u64, b: u64) -> u64 {
 }
 ```
 
+</details>
+
 ### `IntoPyPointer` trait removed
+<details>
+<summary><small>Click to expand</small></summary>
 
 The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed. `into_ptr` is now available as an inherent method on all types that previously implemented this trait.
+</details>
 
 ### `AsPyPointer` now `unsafe` trait
+<details>
+<summary><small>Click to expand</small></summary>
 
 The trait `AsPyPointer` is now `unsafe trait`, meaning any external implementation of it must be marked as `unsafe impl`, and ensure that they uphold the invariant of returning valid pointers.
+</details>
 
 ## from 0.18.* to 0.19
 
 ### Access to `Python` inside `__traverse__` implementations are now forbidden
+<details>
+<summary><small>Click to expand</small></summary>
 
 During `__traverse__` implementations for Python's Garbage Collection it is forbidden to do anything other than visit the members of the `#[pyclass]` being traversed. This means making Python function calls or other API calls are forbidden.
 
@@ -433,8 +455,11 @@ impl SomeClass {
     }
 }
 ```
+</details>
 
 ### Smarter `anyhow::Error` / `eyre::Report` conversion when inner error is "simple" `PyErr`
+<details>
+<summary><small>Click to expand</small></summary>
 
 When converting from `anyhow::Error` or `eyre::Report` to `PyErr`, if the inner error is a "simple" `PyErr` (with no source error), then the inner error will be used directly as the `PyErr` instead of wrapping it in a new `PyRuntimeError` with the original information converted into a string.
 
@@ -472,8 +497,11 @@ Before, the above code would have printed `RuntimeError('ValueError: original er
 After, the same code will print `ValueError: original error message`, which is more straightforward.
 
 However, if the `anyhow::Error` or `eyre::Report` has a source, then the original exception will still be wrapped in a `PyRuntimeError`.
+</details>
 
 ### The deprecated `Python::acquire_gil` was removed and `Python::with_gil` must be used instead
+<details>
+<summary><small>Click to expand</small></summary>
 
 While the API provided by [`Python::acquire_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.acquire_gil) seems convenient, it is somewhat brittle as the design of the GIL token [`Python`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html) relies on proper nesting and panics if not used correctly, e.g.
 
@@ -542,10 +570,13 @@ Python::with_gil(|py| {
 ```
 
 Furthermore, `Python::acquire_gil` provides ownership of a `GILGuard` which can be freely stored and passed around. This is usually not helpful as it may keep the lock held for a long time thereby blocking progress in other parts of the program. Due to the generative lifetime attached to the GIL token supplied by `Python::with_gil`, the problem is avoided as the GIL token can only be passed down the call chain. Often, this issue can also be avoided entirely as any GIL-bound reference `&'py PyAny` implies access to a GIL token `Python<'py>` via the [`PyAny::py`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html#method.py) method.
+</details>
 
 ## from 0.17.* to 0.18
 
 ### Required arguments after `Option<_>` arguments will no longer be automatically inferred
+<details>
+<summary><small>Click to expand</small></summary>
 
 In `#[pyfunction]` and `#[pymethods]`, if a "required" function input such as `i32` came after an `Option<_>` input, then the `Option<_>` would be implicitly treated as required. (All trailing `Option<_>` arguments were treated as optional with a default value of `None`).
 
@@ -575,8 +606,11 @@ fn required_argument_after_option_a(x: Option<i32>, y: i32) {}
 #[pyfunction(signature = (x=None, y=0))]
 fn required_argument_after_option_b(x: Option<i32>, y: i32) {}
 ```
+</details>
 
 ### `__text_signature__` is now automatically generated for `#[pyfunction]` and `#[pymethods]`
+<details>
+<summary><small>Click to expand</small></summary>
 
 The [`#[pyo3(text_signature = "...")]` option](./function/signature.md#making-the-function-signature-available-to-python) was previously the only supported way to set the `__text_signature__` attribute on generated Python functions.
 
@@ -606,10 +640,13 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 #     })
 # }
 ```
+</details>
 
 ## from 0.16.* to 0.17
 
 ### Type checks have been changed for `PyMapping` and `PySequence` types
+<details>
+<summary><small>Click to expand</small></summary>
 
 Previously the type checks for `PyMapping` and `PySequence` (implemented in `PyTryFrom`)
 used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
@@ -659,13 +696,19 @@ assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
 ```
 
 Note that this requirement may go away in the future when a pyclass is able to inherit from the abstract base class directly (see [pyo3/pyo3#991](https://github.com/PyO3/pyo3/issues/991)).
+</details>
 
 ### The `multiple-pymethods` feature now requires Rust 1.62
+<details>
+<summary><small>Click to expand</small></summary>
 
 Due to limitations in the `inventory` crate which the `multiple-pymethods` feature depends on, this feature now
 requires Rust 1.62. For more information see [dtolnay/inventory#32](https://github.com/dtolnay/inventory/issues/32).
+</details>
 
 ### Added `impl IntoPy<Py<PyString>> for &str`
+<details>
+<summary><small>Click to expand</small></summary>
 
 This may cause inference errors.
 
@@ -692,12 +735,18 @@ Python::with_gil(|py| {
 });
 # }
 ```
+</details>
 
 ### The `pyproto` feature is now disabled by default
+<details>
+<summary><small>Click to expand</small></summary>
 
 In preparation for removing the deprecated `#[pyproto]` attribute macro in a future PyO3 version, it is now gated behind an opt-in feature flag. This also gives a slight saving to compile times for code which does not use the deprecated macro.
+</details>
 
 ### `PyTypeObject` trait has been deprecated
+<details>
+<summary><small>Click to expand</small></summary>
 
 The `PyTypeObject` trait already was near-useless; almost all functionality was already on the `PyTypeInfo` trait, which `PyTypeObject` had a blanket implementation based upon. In PyO3 0.17 the final method, `PyTypeObject::type_object` was moved to `PyTypeInfo::type_object`.
 
@@ -727,22 +776,34 @@ fn get_type_object<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
 
 # Python::with_gil(|py| { get_type_object::<pyo3::types::PyList>(py); });
 ```
+</details>
 
 ### `impl<T, const N: usize> IntoPy<PyObject> for [T; N]` now requires `T: IntoPy` rather than `T: ToPyObject`
+<details>
+<summary><small>Click to expand</small></summary>
 
 If this leads to errors, simply implement `IntoPy`. Because pyclasses already implement `IntoPy`, you probably don't need to worry about this.
+</details>
 
 ### Each `#[pymodule]` can now only be initialized once per process
+<details>
+<summary><small>Click to expand</small></summary>
 
 To make PyO3 modules sound in the presence of Python sub-interpreters, for now it has been necessary to explicitly disable the ability to initialize a `#[pymodule]` more than once in the same process. Attempting to do this will now raise an `ImportError`.
+</details>
 
 ## from 0.15.* to 0.16
 
 ### Drop support for older technologies
+<details>
+<summary><small>Click to expand</small></summary>
 
 PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
+</details>
 
 ### `#[pyproto]` has been deprecated
+<details>
+<summary><small>Click to expand</small></summary>
 
 In PyO3 0.15, the `#[pymethods]` attribute macro gained support for implementing "magic methods" such as `__str__` (aka "dunder" methods). This implementation was not quite finalized at the time, with a few edge cases to be decided upon. The existing `#[pyproto]` attribute macro was left untouched, because it covered these edge cases.
 
@@ -795,8 +856,11 @@ impl MyClass {
     }
 }
 ```
+</details>
 
 ### Removed `PartialEq` for object wrappers
+<details>
+<summary><small>Click to expand</small></summary>
 
 The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq`
 so that `object_a == object_b` would compare the Python objects for pointer
@@ -808,8 +872,11 @@ wrapper type for `object_a` and `object_b`; you can now directly compare a
 
 To check for Python object equality (the Python `==` operator), use the new
 method `eq()`.
+</details>
 
 ### Container magic methods now match Python behavior
+<details>
+<summary><small>Click to expand</small></summary>
 
 In PyO3 0.15, `__getitem__`, `__setitem__` and `__delitem__` in `#[pymethods]` would generate only the _mapping_ implementation for a `#[pyclass]`. To match the Python behavior, these methods now generate both the _mapping_ **and** _sequence_ implementations.
 
@@ -838,8 +905,11 @@ The `__len__` and `__getitem__` methods are also used to implement a Python [map
 Because there is no such distinction from Python, implementing these methods will fill the mapping and sequence slots simultaneously. A Python class with `__len__` implemented, for example, will have both the `sq_length` and `mp_length` slots filled.
 
 The PyO3 behavior in 0.16 has been changed to be closer to this Python behavior by default.
+</details>
 
 ### `wrap_pymodule!` and `wrap_pyfunction!` now respect privacy correctly
+<details>
+<summary><small>Click to expand</small></summary>
 
 Prior to PyO3 0.16 the `wrap_pymodule!` and `wrap_pyfunction!` macros could use modules and functions whose defining `fn` was not reachable according Rust privacy rules.
 
@@ -887,10 +957,13 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 ```
+</details>
 
 ## from 0.14.* to 0.15
 
 ### Changes in sequence indexing
+<details>
+<summary><small>Click to expand</small></summary>
 
 For all types that take sequence indices (`PyList`, `PyTuple` and `PySequence`),
 the API has been made consistent to only take `usize` indices, for consistency
@@ -919,20 +992,29 @@ Python::with_gil(|py| {
     assert_eq!(list[0..2].to_string(), "[1, 2]");
 });
 ```
+</details>
 
 ## from 0.13.* to 0.14
 
 ### `auto-initialize` feature is now opt-in
+<details>
+<summary><small>Click to expand</small></summary>
 
 For projects embedding Python in Rust, PyO3 no longer automatically initializes a Python interpreter on the first call to `Python::with_gil` (or `Python::acquire_gil`) unless the [`auto-initialize` feature](features.md#auto-initialize) is enabled.
+</details>
 
 ### New `multiple-pymethods` feature
+<details>
+<summary><small>Click to expand</small></summary>
 
 `#[pymethods]` have been reworked with a simpler default implementation which removes the dependency on the `inventory` crate. This reduces dependencies and compile times for the majority of users.
 
 The limitation of the new default implementation is that it cannot support multiple `#[pymethods]` blocks for the same `#[pyclass]`. If you need this functionality, you must enable the `multiple-pymethods` feature which will switch `#[pymethods]` to the inventory-based implementation.
+</details>
 
 ### Deprecated `#[pyproto]` methods
+<details>
+<summary><small>Click to expand</small></summary>
 
 Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyObjectProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`. This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
 
@@ -972,14 +1054,20 @@ impl MyClass {
     }
 }
 ```
+</details>
 
 ## from 0.12.* to 0.13
 
 ### Minimum Rust version increased to Rust 1.45
+<details>
+<summary><small>Click to expand</small></summary>
 
 PyO3 `0.13` makes use of new Rust language features stabilized between Rust 1.40 and Rust 1.45. If you are using a Rust compiler older than Rust 1.45, you will need to update your toolchain to be able to continue using PyO3.
+</details>
 
 ### Runtime changes to support the CPython limited API
+<details>
+<summary><small>Click to expand</small></summary>
 
 In PyO3 `0.13` support was added for compiling against the CPython limited API. This had a number of implications for _all_ PyO3 users, described here.
 
@@ -988,10 +1076,13 @@ The largest of these is that all types created from PyO3 are what CPython calls 
 - If you wish to subclass one of these types _from Rust_ you must mark it `#[pyclass(subclass)]`, as you would if you wished to allow subclassing it from Python code.
 - Type objects are now mutable - Python code can set attributes on them.
 - `__module__` on types without `#[pyclass(module="mymodule")]` no longer returns `builtins`, it now raises `AttributeError`.
+</details>
 
 ## from 0.11.* to 0.12
 
 ### `PyErr` has been reworked
+<details>
+<summary><small>Click to expand</small></summary>
 
 In PyO3 `0.12` the `PyErr` type has been re-implemented to be significantly more compatible with
 the standard Rust error handling ecosystem. Specifically `PyErr` now implements
@@ -1000,28 +1091,40 @@ the standard Rust error handling ecosystem. Specifically `PyErr` now implements
 While this has necessitated the removal of a number of APIs, the resulting `PyErr` type should now
 be much more easier to work with. The following sections list the changes in detail and how to
 migrate to the new APIs.
+</details>
 
 #### `PyErr::new` and `PyErr::from_type` now require `Send + Sync` for their argument
+<details>
+<summary><small>Click to expand</small></summary>
 
 For most uses no change will be needed. If you are trying to construct `PyErr` from a value that is
 not `Send + Sync`, you will need to first create the Python object and then use
 `PyErr::from_instance`.
 
 Similarly, any types which implemented `PyErrArguments` will now need to be `Send + Sync`.
+</details>
 
 #### `PyErr`'s contents are now private
+<details>
+<summary><small>Click to expand</small></summary>
 
 It is no longer possible to access the fields `.ptype`, `.pvalue` and `.ptraceback` of a `PyErr`.
 You should instead now use the new methods `PyErr::ptype`, `PyErr::pvalue` and `PyErr::ptraceback`.
+</details>
 
 #### `PyErrValue` and `PyErr::from_value` have been removed
+<details>
+<summary><small>Click to expand</small></summary>
 
 As these were part the internals of `PyErr` which have been reworked, these APIs no longer exist.
 
 If you used this API, it is recommended to use `PyException::new_err` (see [the section on
 Exception types](#exception-types-have-been-reworked)).
+</details>
 
 #### `Into<PyResult<T>>` for `PyErr` has been removed
+<details>
+<summary><small>Click to expand</small></summary>
 
 This implementation was redundant. Just construct the `Result::Err` variant directly.
 
@@ -1035,8 +1138,11 @@ After (also using the new reworked exception types; see the following section):
 # use pyo3::{PyResult, exceptions::PyTypeError};
 let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
 ```
+</details>
 
 ### Exception types have been reworked
+<details>
+<summary><small>Click to expand</small></summary>
 
 Previously exception types were zero-sized marker types purely used to construct `PyErr`. In PyO3
 0.12, these types have been replaced with full definitions and are usable in the same way as `PyAny`, `PyDict` etc. This
@@ -1068,8 +1174,12 @@ assert_eq!(
 # Ok(())
 # }).unwrap();
 ```
+</details>
 
 ### `FromPy` has been removed
+<details>
+<summary><small>Click to expand</small></summary>
+
 To simplify the PyO3 conversion traits, the `FromPy` trait has been removed. Previously there were
 two ways to define the to-Python conversion for a type:
 `FromPy<T> for PyObject` and `IntoPy<PyObject> for T`.
@@ -1119,12 +1229,20 @@ After:
 let obj: PyObject = 1.234.into_py(py);
 # })
 ```
+</details>
 
 ### `PyObject` is now a type alias of `Py<PyAny>`
+<details>
+<summary><small>Click to expand</small></summary>
+
 This should change very little from a usage perspective. If you implemented traits for both
 `PyObject` and `Py<T>`, you may find you can just remove the `PyObject` implementation.
+</details>
 
 ### `AsPyRef` has been removed
+<details>
+<summary><small>Click to expand</small></summary>
+
 As `PyObject` has been changed to be just a type alias, the only remaining implementor of `AsPyRef`
 was `Py<T>`. This removed the need for a trait, so the `AsPyRef::as_ref` method has been moved to
 `Py::as_ref`.
@@ -1149,13 +1267,21 @@ let list_py: Py<PyList> = PyList::empty(py).into();
 let list_ref: &PyList = list_py.as_ref(py);
 # })
 ```
+</details>
 
 ## from 0.10.* to 0.11
 
 ### Stable Rust
+<details>
+<summary><small>Click to expand</small></summary>
+
 PyO3 now supports the stable Rust toolchain. The minimum required version is 1.39.0.
+</details>
 
 ### `#[pyclass]` structs must now be `Send` or `unsendable`
+<details>
+<summary><small>Click to expand</small></summary>
+
 Because `#[pyclass]` structs can be sent between threads by the Python interpreter, they must implement
 `Send` or declared as `unsendable` (by `#[pyclass(unsendable)]`).
 Note that `unsendable` is added in PyO3 `0.11.1` and `Send` is always required in PyO3 `0.11.0`.
@@ -1222,8 +1348,12 @@ There can be two fixes:
        pointers: Vec<*mut std::os::raw::c_char>,
    }
    ```
+</details>
 
 ### All `PyObject` and `Py<T>` methods now take `Python` as an argument
+<details>
+<summary><small>Click to expand</small></summary>
+
 Previously, a few methods such as `Object::get_refcnt` did not take `Python` as an argument (to
 ensure that the Python GIL was held by the current thread). Technically, this was not sound.
 To migrate, just pass a `py` argument to any calls to these methods.
@@ -1241,10 +1371,14 @@ After:
 py.None().get_refcnt(py);
 # })
 ```
+</details>
 
 ## from 0.9.* to 0.10
 
 ### `ObjectProtocol` is removed
+<details>
+<summary><small>Click to expand</small></summary>
+
 All methods are moved to [`PyAny`].
 And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`,
 all you need to do is remove `ObjectProtocol` from your code.
@@ -1269,14 +1403,22 @@ let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
 assert_eq!(hi.len().unwrap(), 5);
 # })
 ```
+</details>
 
 ### No `#![feature(specialization)]` in user code
+<details>
+<summary><small>Click to expand</small></summary>
+
 While PyO3 itself still requires specialization and nightly Rust,
 now you don't have to use `#![feature(specialization)]` in your crate.
+</details>
 
 ## from 0.8.* to 0.9
 
 ### `#[new]` interface
+<details>
+<summary><small>Click to expand</small></summary>
+
 [`PyRawObject`](https://docs.rs/pyo3/0.8.5/pyo3/type_object/struct.PyRawObject.html)
 is now removed and our syntax for constructors has changed.
 
@@ -1311,8 +1453,12 @@ impl MyClass {
 
 Basically you can return `Self` or `Result<Self>` directly.
 For more, see [the constructor section](class.md#constructor) of this guide.
+</details>
 
 ### PyCell
+<details>
+<summary><small>Click to expand</small></summary>
+
 PyO3 0.9 introduces [`PyCell`], which is a [`RefCell`]-like object wrapper
 for ensuring Rust's rules regarding aliasing of references are upheld.
 For more detail, see the
@@ -1463,6 +1609,32 @@ impl PySequenceProtocol for ByteSequence {
     }
 }
 ```
+</details>
+
+<style>
+    /* render details immediately below h3 headers */
+    h3:has(+ details) {
+        margin-bottom: 0;
+    }
+
+    /* make summary text hint that it's clickable and increase the
+       size of the clickable area by padding downwards */
+    details > summary {
+        cursor: pointer;
+        padding-bottom: 0.5em;
+    }
+
+    /* reduce margin from paragraph directly below the clickable space
+       to avoid large gap */
+    details > summary + p {
+        margin-block-start: 0.5em;
+    }
+
+    /* pack headings that aren't expanded slightly closer together */
+    h3 + details:not([open]) + h3 {
+        margin-top: 1.5em;
+    }
+</style>
 
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`PyAny`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
