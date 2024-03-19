@@ -44,13 +44,16 @@ impl<'a> Enum<'a> {
     }
 
     /// Build derivation body for enums.
-    fn build(&self, ctx: &Ctx) -> TokenStream {
+    fn build(&self, ctx: &Ctx) -> (TokenStream, TokenStream) {
         let Ctx { pyo3_path } = ctx;
         let mut var_extracts = Vec::new();
         let mut variant_names = Vec::new();
         let mut error_names = Vec::new();
+
+        let mut deprecations = TokenStream::new();
         for var in &self.variants {
-            let (struct_derive, _) = var.build(ctx);
+            let (struct_derive, dep) = var.build(ctx);
+            deprecations.extend(dep);
             let ext = quote!({
                 let maybe_ret = || -> #pyo3_path::PyResult<Self> {
                     #struct_derive
@@ -67,19 +70,22 @@ impl<'a> Enum<'a> {
             error_names.push(&var.err_name);
         }
         let ty_name = self.enum_ident.to_string();
-        quote!(
-            let errors = [
-                #(#var_extracts),*
-            ];
-            ::std::result::Result::Err(
-                #pyo3_path::impl_::frompyobject::failed_to_extract_enum(
-                    obj.py(),
-                    #ty_name,
-                    &[#(#variant_names),*],
-                    &[#(#error_names),*],
-                    &errors
+        (
+            quote!(
+                let errors = [
+                    #(#var_extracts),*
+                ];
+                ::std::result::Result::Err(
+                    #pyo3_path::impl_::frompyobject::failed_to_extract_enum(
+                        obj.py(),
+                        #ty_name,
+                        &[#(#variant_names),*],
+                        &[#(#error_names),*],
+                        &errors
+                    )
                 )
-            )
+            ),
+            deprecations,
         )
     }
 }
@@ -246,8 +252,8 @@ impl<'a> Container<'a> {
             ContainerType::TupleNewtype(from_py_with) => {
                 self.build_newtype_struct(None, from_py_with, ctx)
             }
-            ContainerType::Tuple(tups) => (self.build_tuple_struct(tups, ctx), TokenStream::new()),
-            ContainerType::Struct(tups) => (self.build_struct(tups, ctx), TokenStream::new()),
+            ContainerType::Tuple(tups) => self.build_tuple_struct(tups, ctx),
+            ContainerType::Struct(tups) => self.build_struct(tups, ctx),
         }
     }
 
@@ -318,7 +324,11 @@ impl<'a> Container<'a> {
         }
     }
 
-    fn build_tuple_struct(&self, struct_fields: &[TupleStructField], ctx: &Ctx) -> TokenStream {
+    fn build_tuple_struct(
+        &self,
+        struct_fields: &[TupleStructField],
+        ctx: &Ctx,
+    ) -> (TokenStream, TokenStream) {
         let Ctx { pyo3_path } = ctx;
         let self_ty = &self.path;
         let struct_name = &self.name();
@@ -337,15 +347,41 @@ impl<'a> Container<'a> {
                 ),
             }
         });
-        quote!(
-            match #pyo3_path::types::PyAnyMethods::extract(obj) {
-                ::std::result::Result::Ok((#(#field_idents),*)) => ::std::result::Result::Ok(#self_ty(#(#fields),*)),
-                ::std::result::Result::Err(err) => ::std::result::Result::Err(err),
-            }
+
+        let deprecations = struct_fields
+            .iter()
+            .filter_map(|field| {
+                let FromPyWithAttribute {
+                    value: expr_path, ..
+                } = field.from_py_with.as_ref()?;
+                Some(quote_spanned! { expr_path.span() =>
+                    const _: () = {
+                        fn check_from_py_with() {
+                            let e = #pyo3_path::impl_::deprecations::GilRefs::new();
+                            #pyo3_path::impl_::deprecations::inspect_fn(#expr_path, &e);
+                            e.from_py_with_arg();
+                        }
+                    };
+                })
+            })
+            .collect::<TokenStream>();
+
+        (
+            quote!(
+                match #pyo3_path::types::PyAnyMethods::extract(obj) {
+                    ::std::result::Result::Ok((#(#field_idents),*)) => ::std::result::Result::Ok(#self_ty(#(#fields),*)),
+                    ::std::result::Result::Err(err) => ::std::result::Result::Err(err),
+                }
+            ),
+            deprecations,
         )
     }
 
-    fn build_struct(&self, struct_fields: &[NamedStructField<'_>], ctx: &Ctx) -> TokenStream {
+    fn build_struct(
+        &self,
+        struct_fields: &[NamedStructField<'_>],
+        ctx: &Ctx,
+    ) -> (TokenStream, TokenStream) {
         let Ctx { pyo3_path } = ctx;
         let self_ty = &self.path;
         let struct_name = &self.name();
@@ -383,7 +419,29 @@ impl<'a> Container<'a> {
 
             fields.push(quote!(#ident: #extractor));
         }
-        quote!(::std::result::Result::Ok(#self_ty{#fields}))
+
+        let deprecations = struct_fields
+            .iter()
+            .filter_map(|field| {
+                let FromPyWithAttribute {
+                    value: expr_path, ..
+                } = field.from_py_with.as_ref()?;
+                Some(quote_spanned! { expr_path.span() =>
+                    const _: () = {
+                        fn check_from_py_with() {
+                            let e = #pyo3_path::impl_::deprecations::GilRefs::new();
+                            #pyo3_path::impl_::deprecations::inspect_fn(#expr_path, &e);
+                            e.from_py_with_arg();
+                        }
+                    };
+                })
+            })
+            .collect::<TokenStream>();
+
+        (
+            quote!(::std::result::Result::Ok(#self_ty{#fields})),
+            deprecations,
+        )
     }
 }
 
@@ -622,7 +680,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
                                                 at top level for enums");
             }
             let en = Enum::new(en, &tokens.ident)?;
-            (en.build(ctx), TokenStream::new())
+            en.build(ctx)
         }
         syn::Data::Struct(st) => {
             if let Some(lit_str) = &options.annotation {
