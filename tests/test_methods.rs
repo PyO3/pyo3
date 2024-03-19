@@ -1146,7 +1146,7 @@ fn test_issue_2988() {
         _data: Vec<i32>,
         // The from_py_with here looks a little odd, we just need some way
         // to encourage the macro to expand the from_py_with default path too
-        #[pyo3(from_py_with = "PyAny::extract")] _data2: Vec<i32>,
+        #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::extract")] _data2: Vec<i32>,
     ) {
     }
 }
