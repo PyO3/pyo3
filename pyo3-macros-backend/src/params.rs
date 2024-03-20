@@ -49,13 +49,10 @@ impl Holders {
     }
 
     pub fn check_gil_refs(&self) -> TokenStream {
-        let gil_refs_checkers = self
-            .gil_refs_checkers
+       self.gil_refs_checkers
             .iter()
-            .map(|e| quote_spanned! { e.span() => #e.function_arg(); });
-        quote! {
-            #(#gil_refs_checkers)*
-        }
+            .map(|e| quote_spanned! { e.span() => #e.function_arg(); })
+            .collect()
     }
 }
 

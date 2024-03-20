@@ -768,7 +768,7 @@ impl DescrCounter {
     fn __get__<'a>(
         mut slf: PyRefMut<'a, Self>,
         _instance: &Bound<'_, PyAny>,
-        _owner: Option<&PyType>,
+        _owner: Option<&Bound<'_, PyType>>,
     ) -> PyRefMut<'a, Self> {
         slf.count += 1;
         slf
