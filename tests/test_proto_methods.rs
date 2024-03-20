@@ -28,7 +28,7 @@ impl ExampleClass {
         }
     }
 
-    fn __setattr__(&mut self, attr: &str, value: &PyAny) -> PyResult<()> {
+    fn __setattr__(&mut self, attr: &str, value: &Bound<'_, PyAny>) -> PyResult<()> {
         if attr == "special_custom_attr" {
             self.custom_attr = Some(value.extract()?);
             Ok(())
@@ -528,7 +528,7 @@ struct GetItem {}
 
 #[pymethods]
 impl GetItem {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<&'static str> {
+    fn __getitem__(&self, idx: &Bound<'_, PyAny>) -> PyResult<&'static str> {
         if let Ok(slice) = idx.downcast::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
@@ -767,18 +767,18 @@ impl DescrCounter {
     /// Each access will increase the count
     fn __get__<'a>(
         mut slf: PyRefMut<'a, Self>,
-        _instance: &PyAny,
+        _instance: &Bound<'_, PyAny>,
         _owner: Option<&PyType>,
     ) -> PyRefMut<'a, Self> {
         slf.count += 1;
         slf
     }
     /// Allow assigning a new counter to the descriptor, copying the count across
-    fn __set__(&self, _instance: &PyAny, new_value: &mut Self) {
+    fn __set__(&self, _instance: &Bound<'_, PyAny>, new_value: &mut Self) {
         new_value.count = self.count;
     }
     /// Delete to reset the counter
-    fn __delete__(&mut self, _instance: &PyAny) {
+    fn __delete__(&mut self, _instance: &Bound<'_, PyAny>) {
         self.count = 0;
     }
 }

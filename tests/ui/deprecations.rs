@@ -23,6 +23,9 @@ impl MyClass {
     fn method_gil_ref(_slf: &PyCell<Self>) {}
 
     fn method_bound(_slf: &Bound<'_, Self>) {}
+
+    #[staticmethod]
+    fn static_method_gil_ref(_any: &PyAny) {}
 }
 
 fn main() {}
@@ -88,6 +91,9 @@ fn pyfunction_from_py_with(
     #[pyo3(from_py_with = "extract_bound")] _bound: i32,
 ) {
 }
+
+#[pyfunction]
+fn pyfunction_gil_ref(_any: &PyAny) {}
 
 fn test_wrap_pyfunction(py: Python<'_>, m: &Bound<'_, PyModule>) {
     // should lint

@@ -8,3 +8,37 @@ error: lifetime may not live long enough
   | cast requires that `'py` must outlive `'static`
   |
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0597]: `holder_0` does not live long enough
+ --> tests/ui/static_ref.rs:5:15
+  |
+4 | #[pyfunction]
+  | -------------
+  | |           |
+  | |           `holder_0` dropped here while still borrowed
+  | binding `holder_0` declared here
+  | argument requires that `holder_0` is borrowed for `'static`
+5 | fn static_ref(list: &'static Bound<'_, PyList>) -> usize {
+  |               ^^^^^^^ borrowed value does not live long enough
+
+error[E0716]: temporary value dropped while borrowed
+ --> tests/ui/static_ref.rs:5:21
+  |
+4 | #[pyfunction]
+  | -------------
+  | |           |
+  | |           temporary value is freed at the end of this statement
+  | argument requires that borrow lasts for `'static`
+5 | fn static_ref(list: &'static Bound<'_, PyList>) -> usize {
+  |                     ^ creates a temporary value which is freed while still in use
+
+error: lifetime may not live long enough
+ --> tests/ui/static_ref.rs:9:1
+  |
+9 | #[pyfunction]
+  | ^^^^^^^^^^^^^
+  | |
+  | lifetime `'py` defined here
+  | cast requires that `'py` must outlive `'static`
+  |
+  = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

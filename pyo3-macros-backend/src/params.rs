@@ -9,7 +9,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::Result;
 
-pub(crate) struct Holders {
+pub struct Holders {
     holders: Vec<syn::Ident>,
     gil_refs_checkers: Vec<syn::Ident>,
 }

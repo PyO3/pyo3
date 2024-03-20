@@ -736,10 +736,11 @@ fn impl_simple_enum(
             fn __pyo3__richcmp__(
                 &self,
                 py: #pyo3_path::Python,
-                other: &#pyo3_path::PyAny,
+                other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
                 op: #pyo3_path::basic::CompareOp
             ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 use #pyo3_path::conversion::ToPyObject;
+                use #pyo3_path::types::PyAnyMethods;
                 use ::core::result::Result::*;
                 match op {
                     #pyo3_path::basic::CompareOp::Eq => {

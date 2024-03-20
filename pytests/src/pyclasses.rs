@@ -65,7 +65,7 @@ struct AssertingBaseClassGilRef;
 impl AssertingBaseClassGilRef {
     #[new]
     #[classmethod]
-    fn new(cls: &PyType, expected_type: &PyType) -> PyResult<Self> {
+    fn new(cls: &PyType, expected_type: &Bound<'_, PyType>) -> PyResult<Self> {
         if !cls.is(expected_type) {
             return Err(PyValueError::new_err(format!(
                 "{:?} != {:?}",

@@ -13,13 +13,13 @@ struct MyClass {}
 impl MyClass {
     #[staticmethod]
     #[pyo3(signature = (*args))]
-    fn test_args(args: &PyTuple) -> &PyTuple {
+    fn test_args(args: Bound<'_, PyTuple>) -> Bound<'_, PyTuple> {
         args
     }
 
     #[staticmethod]
     #[pyo3(signature = (**kwargs))]
-    fn test_kwargs(kwargs: Option<&PyDict>) -> Option<&PyDict> {
+    fn test_kwargs(kwargs: Option<Bound<'_, PyDict>>) -> Option<Bound<'_, PyDict>> {
         kwargs
     }
 }

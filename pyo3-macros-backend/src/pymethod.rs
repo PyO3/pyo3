@@ -984,7 +984,9 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! { #ident },ctx
+                quote! { #ident },
+                arg.ty.span(),
+                ctx
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
@@ -996,32 +998,40 @@ impl Ty {
                     } else {
                         #ident
                     }
-                },ctx
+                },
+                arg.ty.span(),
+                ctx
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! { #ident.as_ptr() },ctx
+                quote! { #ident.as_ptr() },
+                arg.ty.span(),
+                ctx
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
-                quote! { #ident.as_ptr() },ctx
+                quote! { #ident.as_ptr() },
+                arg.ty.span(),
+                ctx
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
                 quote! {
                     #pyo3_path::class::basic::CompareOp::from_raw(#ident)
                         .ok_or_else(|| #pyo3_path::exceptions::PyValueError::new_err("invalid comparison operator"))
-                },ctx
+                },
+                ctx
             ),
             Ty::PySsizeT => {
                 let ty = arg.ty;
                 extract_error_mode.handle_error(
                     quote! {
                             ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
-                    },ctx
+                    },
+                    ctx
                 )
             }
             // Just pass other types through unmodified
@@ -1035,11 +1045,12 @@ fn extract_object(
     holders: &mut Holders,
     name: &str,
     source_ptr: TokenStream,
+    span: Span,
     ctx: &Ctx,
 ) -> TokenStream {
     let Ctx { pyo3_path } = ctx;
     let holder = holders.push_holder(Span::call_site());
-    let gil_refs_checker = holders.push_gil_refs_checker(Span::call_site());
+    let gil_refs_checker = holders.push_gil_refs_checker(span);
     let extracted = extract_error_mode.handle_error(
         quote! {
             #pyo3_path::impl_::extract_argument::extract_argument(
