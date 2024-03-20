@@ -57,22 +57,27 @@ impl AssertingBaseClass {
     }
 }
 
-#[pyclass(subclass)]
-#[derive(Clone, Debug)]
-struct AssertingBaseClassGilRef;
+#[allow(deprecated)]
+mod deprecated {
+    use super::*;
 
-#[pymethods]
-impl AssertingBaseClassGilRef {
-    #[new]
-    #[classmethod]
-    fn new(cls: &PyType, expected_type: &PyType) -> PyResult<Self> {
-        if !cls.is(expected_type) {
-            return Err(PyValueError::new_err(format!(
-                "{:?} != {:?}",
-                cls, expected_type
-            )));
+    #[pyclass(subclass)]
+    #[derive(Clone, Debug)]
+    pub struct AssertingBaseClassGilRef;
+
+    #[pymethods]
+    impl AssertingBaseClassGilRef {
+        #[new]
+        #[classmethod]
+        fn new(cls: &PyType, expected_type: &PyType) -> PyResult<Self> {
+            if !cls.is(expected_type) {
+                return Err(PyValueError::new_err(format!(
+                    "{:?} != {:?}",
+                    cls, expected_type
+                )));
+            }
+            Ok(Self)
         }
-        Ok(Self)
     }
 }
 
@@ -84,7 +89,7 @@ pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<EmptyClass>()?;
     m.add_class::<PyClassIter>()?;
     m.add_class::<AssertingBaseClass>()?;
-    m.add_class::<AssertingBaseClassGilRef>()?;
+    m.add_class::<deprecated::AssertingBaseClassGilRef>()?;
     m.add_class::<ClassWithoutConstructor>()?;
     Ok(())
 }

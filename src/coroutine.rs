@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
-    IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -143,7 +143,7 @@ impl Coroutine {
         }
     }
 
-    fn send(&mut self, py: Python<'_>, _value: &PyAny) -> PyResult<PyObject> {
+    fn send(&mut self, py: Python<'_>, _value: &Bound<'_, PyAny>) -> PyResult<PyObject> {
         self.poll(py, None)
     }
 

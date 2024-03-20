@@ -12,8 +12,11 @@ fn make_date(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_
 }
 
 #[pyfunction]
-fn get_date_tuple<'p>(py: Python<'p>, d: &PyDate) -> Bound<'p, PyTuple> {
-    PyTuple::new_bound(py, [d.get_year(), d.get_month() as i32, d.get_day() as i32])
+fn get_date_tuple<'py>(d: &Bound<'py, PyDate>) -> Bound<'py, PyTuple> {
+    PyTuple::new_bound(
+        d.py(),
+        [d.get_year(), d.get_month() as i32, d.get_day() as i32],
+    )
 }
 
 #[pyfunction]
@@ -48,9 +51,9 @@ fn time_with_fold<'py>(
 }
 
 #[pyfunction]
-fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> Bound<'p, PyTuple> {
+fn get_time_tuple<'py>(dt: &Bound<'py, PyTime>) -> Bound<'py, PyTuple> {
     PyTuple::new_bound(
-        py,
+        dt.py(),
         [
             dt.get_hour() as u32,
             dt.get_minute() as u32,
@@ -61,9 +64,9 @@ fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> Bound<'p, PyTuple> {
 }
 
 #[pyfunction]
-fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> Bound<'p, PyTuple> {
+fn get_time_tuple_fold<'py>(dt: &Bound<'py, PyTime>) -> Bound<'py, PyTuple> {
     PyTuple::new_bound(
-        py,
+        dt.py(),
         [
             dt.get_hour() as u32,
             dt.get_minute() as u32,
@@ -123,9 +126,9 @@ fn make_datetime<'py>(
 }
 
 #[pyfunction]
-fn get_datetime_tuple<'py>(py: Python<'py>, dt: &Bound<'py, PyDateTime>) -> Bound<'py, PyTuple> {
+fn get_datetime_tuple<'py>(dt: &Bound<'py, PyDateTime>) -> Bound<'py, PyTuple> {
     PyTuple::new_bound(
-        py,
+        dt.py(),
         [
             dt.get_year(),
             dt.get_month() as i32,
@@ -139,12 +142,9 @@ fn get_datetime_tuple<'py>(py: Python<'py>, dt: &Bound<'py, PyDateTime>) -> Boun
 }
 
 #[pyfunction]
-fn get_datetime_tuple_fold<'py>(
-    py: Python<'py>,
-    dt: &Bound<'py, PyDateTime>,
-) -> Bound<'py, PyTuple> {
+fn get_datetime_tuple_fold<'py>(dt: &Bound<'py, PyDateTime>) -> Bound<'py, PyTuple> {
     PyTuple::new_bound(
-        py,
+        dt.py(),
         [
             dt.get_year(),
             dt.get_month() as i32,
@@ -187,12 +187,8 @@ impl TzClass {
         TzClass {}
     }
 
-    fn utcoffset<'py>(
-        &self,
-        py: Python<'py>,
-        _dt: &Bound<'py, PyDateTime>,
-    ) -> PyResult<Bound<'py, PyDelta>> {
-        PyDelta::new_bound(py, 0, 3600, 0, true)
+    fn utcoffset<'py>(&self, dt: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyDelta>> {
+        PyDelta::new_bound(dt.py(), 0, 3600, 0, true)
     }
 
     fn tzname(&self, _dt: &Bound<'_, PyDateTime>) -> String {

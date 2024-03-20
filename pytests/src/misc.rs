@@ -8,8 +8,8 @@ fn issue_219() {
 }
 
 #[pyfunction]
-fn get_type_full_name(obj: &PyAny) -> PyResult<Cow<'_, str>> {
-    obj.get_type().name()
+fn get_type_full_name(obj: &Bound<'_, PyAny>) -> PyResult<String> {
+    obj.get_type().name().map(Cow::into_owned)
 }
 
 #[pyfunction]

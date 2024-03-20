@@ -60,8 +60,8 @@ impl ByteSequence {
         }
     }
 
-    fn __contains__(&self, other: &PyAny) -> bool {
-        match u8::extract(other) {
+    fn __contains__(&self, other: &Bound<'_, PyAny>) -> bool {
+        match other.extract::<u8>() {
             Ok(x) => self.elements.contains(&x),
             Err(_) => false,
         }

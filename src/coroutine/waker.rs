@@ -97,7 +97,7 @@ impl LoopAndFuture {
 /// Future can be cancelled by the event loop before being waken.
 /// See <https://github.com/python/cpython/blob/main/Lib/asyncio/tasks.py#L452C5-L452C5>
 #[pyfunction(crate = "crate")]
-fn release_waiter(future: &PyAny) -> PyResult<()> {
+fn release_waiter(future: &Bound<'_, PyAny>) -> PyResult<()> {
     let done = future.call_method0(intern!(future.py(), "done"))?;
     if !done.extract::<bool>()? {
         future.call_method1(intern!(future.py(), "set_result"), (future.py().None(),))?;

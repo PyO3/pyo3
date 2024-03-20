@@ -49,7 +49,7 @@ impl BasicClass {
     const OKAY: bool = true;
 
     #[new]
-    fn new(arg: &pyo3::PyAny) -> pyo3::PyResult<Self> {
+    fn new(arg: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<Self> {
         if let Ok(v) = arg.extract::<usize>() {
             Ok(Self {
                 v,
