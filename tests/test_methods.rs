@@ -113,11 +113,7 @@ struct ClassMethodWithArgs {}
 impl ClassMethodWithArgs {
     #[classmethod]
     fn method(cls: &Bound<'_, PyType>, input: &Bound<'_, PyString>) -> PyResult<String> {
-        Ok(format!(
-            "{}.method({})",
-            cls.as_gil_ref().qualname()?,
-            input
-        ))
+        Ok(format!("{}.method({})", cls.qualname()?, input))
     }
 }
 
