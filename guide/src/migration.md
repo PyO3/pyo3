@@ -4,6 +4,8 @@ This guide can help you upgrade code through breaking changes from one PyO3 vers
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.20.* to 0.21
+<details open>
+<summary><small>Click to expand</small></summary>
 
 PyO3 0.21 introduces a new `Bound<'py, T>` smart pointer which replaces the existing "GIL Refs" API to interact with Python objects. For example, in PyO3 0.20 the reference `&'py PyAny` would be used to interact with Python objects. In PyO3 0.21 the updated type is `Bound<'py, PyAny>`. Making this change moves Rust ownership semantics out of PyO3's internals and into user code. This change fixes [a known soundness edge case of interaction with gevent](https://github.com/PyO3/pyo3/issues/3668) as well as improves CPU and [memory performance](https://github.com/PyO3/pyo3/issues/1056). For a full history of discussion see https://github.com/PyO3/pyo3/issues/3382.
 
@@ -17,8 +19,11 @@ The recommended steps to update to PyO3 0.21 is as follows:
   3. Disable the `gil-refs` feature and migrate off the deprecated APIs
 
 The following sections are laid out in this order.
+</details>
 
 ### Enable the `gil-refs` feature
+<details open>
+<summary><small>Click to expand</small></summary>
 
 To make the transition for the PyO3 ecosystem away from the GIL Refs API as smooth as possible, in PyO3 0.21 no APIs consuming or producing GIL Refs have been altered. Instead, variants using `Bound<T>` smart pointers have been introduced, for example `PyTuple::new_bound` which returns `Bound<PyTuple>` is the replacement form of `PyTuple::new`. The GIL Ref APIs have been deprecated, but to make migration easier it is possible to disable these deprecation warnings by enabling the `gil-refs` feature.
 
@@ -41,8 +46,11 @@ After:
 [dependencies]
 pyo3 = { version = "0.21", features = ["gil-refs"] }
 ```
+</details>
 
 ### `PyTypeInfo` and `PyTryFrom` have been adjusted
+<details open>
+<summary><small>Click to expand</small></summary>
 
 The `PyTryFrom` trait has aged poorly, its `try_from` method now conflicts with `TryFrom::try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
 
@@ -81,8 +89,11 @@ Python::with_gil(|py| {
 })
 # }
 ```
+</details>
 
 ### `Iter(A)NextOutput` are deprecated
+<details open>
+<summary><small>Click to expand</small></summary>
 
 The `__next__` and `__anext__` magic methods can now return any type convertible into Python objects directly just like all other `#[pymethods]`. The `IterNextOutput` used by `__next__` and `IterANextOutput` used by `__anext__` are subsequently deprecated. Most importantly, this change allows returning an awaitable from `__anext__` without non-sensically wrapping it into `Yield` or `Some`. Only the return types `Option<T>` and `Result<Option<T>, E>` are still handled in a special manner where `Some(val)` yields `val` and `None` stops iteration.
 
@@ -200,20 +211,29 @@ impl PyClassAsyncIter {
     }
 }
 ```
+</details>
 
 ### `PyType::name` has been renamed to `PyType::qualname`
+<details open>
+<summary><small>Click to expand</small></summary>
 
 `PyType::name` has been renamed to `PyType::qualname` to indicate that it does indeed return the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name), matching the `__qualname__` attribute. The newly added `PyType::name` yields the full name including the module name now which corresponds to `__module__.__name__` on the level of attributes.
+</details>
 
 ### `PyCell` has been deprecated
+<details open>
+<summary><small>Click to expand</small></summary>
 
 Interactions with Python objects implemented in Rust no longer need to go though `PyCell<T>`. Instead iteractions with Python object now consistently go through `Bound<T>` or `Py<T>` independently of whether `T` is native Python object or a `#[pyclass]` implemented in Rust. Use `Bound::new` or `Py::new` respectively to create and `Bound::borrow(_mut)` / `Py::borrow(_mut)` to borrow the Rust object.
+</details>
 
-### Migrating from the GIL-Refs API to `Bound<T>`
+### Migrating from the GIL Refs API to `Bound<T>`
+<details open>
+<summary><small>Click to expand</small></summary>
 
-To minimise breakage of code using the GIL-Refs API, the `Bound<T>` smart pointer has been introduced by adding complements to all functions which accept or return GIL Refs. This allows code to migrate by replacing the deprecated APIs with the new ones.
+To minimise breakage of code using the GIL Refs API, the `Bound<T>` smart pointer has been introduced by adding complements to all functions which accept or return GIL Refs. This allows code to migrate by replacing the deprecated APIs with the new ones.
 
-To identify what to migrate, temporarily switch off the `gil-refs` feature to see deprecation warnings on all uses of APIs accepting and producing GIL Refs. Over one or more PRs it should be possible to follow the deprecation hints to update code. Depending on your development environment, switching off the `gil-refs` feature may introduce [some very targeted breakages](#deactivating-the-gil-refs-feature), so you may need to fixup those first.
+To identify what to migrate, temporarily switch off the `gil-refs` feature to see deprecation warnings on [almost](#cases-where-pyo3-cannot-emit-gil-ref-deprecation-warnings) all uses of APIs accepting and producing GIL Refs . Over one or more PRs it should be possible to follow the deprecation hints to update code. Depending on your development environment, switching off the `gil-refs` feature may introduce [some very targeted breakages](#deactivating-the-gil-refs-feature), so you may need to fixup those first.
 
 For example, the following APIs have gained updated variants:
 - `PyList::new`, `PyTyple::new` and similar constructors have replacements `PyList::new_bound`, `PyTuple::new_bound` etc.
@@ -276,7 +296,19 @@ impl<'py> FromPyObject<'py> for MyType {
 
 The expectation is that in 0.22 `extract_bound` will have the default implementation removed and in 0.23 `extract` will be removed.
 
+#### Cases where PyO3 cannot emit GIL Ref deprecation warnings
+
+Despite a large amount of deprecations warnings produced by PyO3 to aid with the transition from GIL Refs to the Bound API, there are a few cases where PyO3 cannot automatically warn on uses of GIL Refs. It is worth checking for these cases manually after the deprecation warnings have all been addressed:
+
+- Individual implementations of the `FromPyObject` trait cannot be deprecated, so PyO3 cannot warn about uses of code patterns like `.extract<&PyAny>()` which produce a GIL Ref.
+- GIL Refs in `#[pyfunction]` arguments emit a warning, but if the GIL Ref is wrapped inside another container such as `Option<&PyAny>` or `Vec<&PyAny>` then PyO3 cannot warn against this.
+- The `wrap_pyfunction!(function)(py)` deferred argument form of the `wrap_pyfunction` macro taking `py: Python<'py>` produces a GIL Ref, and due to limitations in type inference PyO3 cannot warn against this specific case.
+
+</details>
+
 ### Deactivating the `gil-refs` feature
+<details open>
+<summary><small>Click to expand</small></summary>
 
 As a final step of migration, deactivating the `gil-refs` feature will set up code for best performance and is intended to set up a forward-compatible API for PyO3 0.22.
 
@@ -284,9 +316,10 @@ At this point code which needed to manage GIL Ref memory can safely remove uses 
 
 There is one notable API removed when this feature is disabled. `FromPyObject` trait implementations for types which borrow directly from the input data cannot be implemented by PyO3 without GIL Refs (while the migration is ongoing). These types are `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>`.
 
-To ease pain during migration, these types instead implement a new temporary trait `FromPyObjectBound` which is the expected future form of `FromPyObject`. The new temporary trait ensures is that `obj.extract::<&str>()` continues to work (with the new constraint that the extracted value now depends on the input `obj` lifetime), as well for these types in `#[pyfunction]` arguments.
+To ease pain during migration, these types instead implement a new temporary trait `FromPyObjectBound` which is the expected future form of `FromPyObject`. The new temporary trait ensures is that `obj.extract::<&str>()` continues to work, as well for these types in `#[pyfunction]` arguments.
 
-An unfortunate final point here is that PyO3 cannot offer this new implementation for `&str` on `abi3` builds for Python older than 3.10. On code which needs `abi3` builds for these older Python versions, many cases of `.extract::<&str>()` may need to be replaced with `.extract::<PyBackedStr>()`, which is string data which borrows from the Python `str` object. Alternatively, use `.extract::<Cow<str>>()`, `.extract::<String>()` to copy the data into Rust for these versions.
+An unfortunate final point here is that PyO3 cannot offer this new implementation for `&str` on `abi3` builds for Python older than 3.10. On code which needs `abi3` builds for these older Python versions, many cases of `.extract::<&str>()` may need to be replaced with `.extract::<PyBackedStr>()`, which is string data which borrows from the Python `str` object. Alternatively, use `.extract::<Cow<str>>()` ro `.extract::<String>()` to copy the data into Rust for these versions.
+</details>
 
 ## from 0.19.* to 0.20
 
