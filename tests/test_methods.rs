@@ -2,6 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PySequence;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 
 #[path = "../src/tests/common.rs"]
@@ -857,7 +858,7 @@ struct FromSequence {
 #[pymethods]
 impl FromSequence {
     #[new]
-    fn new(seq: Option<&pyo3::types::PySequence>) -> PyResult<Self> {
+    fn new(seq: Option<&Bound<'_, PySequence>>) -> PyResult<Self> {
         if let Some(seq) = seq {
             Ok(FromSequence {
                 numbers: seq.as_ref().extract::<Vec<_>>()?,

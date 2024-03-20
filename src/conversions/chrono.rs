@@ -292,7 +292,7 @@ impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz
         #[cfg(not(Py_LIMITED_API))]
         let tzinfo = dt.get_tzinfo_bound();
         #[cfg(Py_LIMITED_API)]
-        let tzinfo: Option<&PyAny> = dt.getattr(intern!(dt.py(), "tzinfo"))?.extract()?;
+        let tzinfo: Option<Bound<'_, PyAny>> = dt.getattr(intern!(dt.py(), "tzinfo"))?.extract()?;
 
         let tz = if let Some(tzinfo) = tzinfo {
             tzinfo.extract()?

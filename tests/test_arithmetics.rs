@@ -289,7 +289,7 @@ impl RhsArithmetic {
         format!("{:?} | RA", other)
     }
 
-    fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&PyAny>) -> String {
+    fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
         format!("{:?} ** RA", other)
     }
 }
@@ -406,7 +406,7 @@ impl LhsAndRhs {
         format!("{:?} | RA", other)
     }
 
-    fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&PyAny>) -> String {
+    fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
         format!("{:?} ** RA", other)
     }
 
