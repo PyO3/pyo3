@@ -2178,7 +2178,7 @@ a = A()
             let obj_unbound: Py<PyString> = obj.unbind();
             let obj: Bound<'_, PyString> = obj_unbound.into_bound(py);
 
-            assert_eq!(obj.to_str().unwrap(), "hello world");
+            assert_eq!(obj.to_cow().unwrap(), "hello world");
         });
     }
 
