@@ -52,10 +52,34 @@ error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_
 87 |     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
    |                           ^^^^^^^^^^^^^^^^^
 
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
+  --> tests/ui/deprecations.rs:97:27
+   |
+97 |     #[pyo3(from_py_with = "PyAny::len", item("my_object"))]
+   |                           ^^^^^^^^^^^^
+
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
+   --> tests/ui/deprecations.rs:107:27
+    |
+107 |     #[pyo3(from_py_with = "PyAny::len")] usize,
+    |                           ^^^^^^^^^^^^
+
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
+   --> tests/ui/deprecations.rs:113:31
+    |
+113 |     Zip(#[pyo3(from_py_with = "extract_gil_ref")] i32),
+    |                               ^^^^^^^^^^^^^^^^^
+
+error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
+   --> tests/ui/deprecations.rs:120:27
+    |
+120 |     #[pyo3(from_py_with = "extract_gil_ref")]
+    |                           ^^^^^^^^^^^^^^^^^
+
 error: use of deprecated method `pyo3::deprecations::GilRefs::<pyo3::Python<'_>>::is_python`: use `wrap_pyfunction_bound!` instead
-  --> tests/ui/deprecations.rs:94:13
-   |
-94 |     let _ = wrap_pyfunction!(double, py);
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |
-   = note: this error originates in the macro `wrap_pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+   --> tests/ui/deprecations.rs:133:13
+    |
+133 |     let _ = wrap_pyfunction!(double, py);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this error originates in the macro `wrap_pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

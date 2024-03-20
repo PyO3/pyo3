@@ -89,6 +89,45 @@ fn pyfunction_from_py_with(
 ) {
 }
 
+#[derive(Debug, FromPyObject)]
+pub struct Zap {
+    #[pyo3(item)]
+    name: String,
+
+    #[pyo3(from_py_with = "PyAny::len", item("my_object"))]
+    some_object_length: usize,
+
+    #[pyo3(from_py_with = "extract_bound")]
+    some_number: i32,
+}
+
+#[derive(Debug, FromPyObject)]
+pub struct ZapTuple(
+    String,
+    #[pyo3(from_py_with = "PyAny::len")] usize,
+    #[pyo3(from_py_with = "extract_bound")] i32,
+);
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+pub enum ZapEnum {
+    Zip(#[pyo3(from_py_with = "extract_gil_ref")] i32),
+    Zap(String, #[pyo3(from_py_with = "extract_bound")] i32),
+}
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+#[pyo3(transparent)]
+pub struct TransparentFromPyWithGilRef {
+    #[pyo3(from_py_with = "extract_gil_ref")]
+    len: i32,
+}
+
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
+#[pyo3(transparent)]
+pub struct TransparentFromPyWithBound {
+    #[pyo3(from_py_with = "extract_bound")]
+    len: i32,
+}
+
 fn test_wrap_pyfunction(py: Python<'_>, m: &Bound<'_, PyModule>) {
     // should lint
     let _ = wrap_pyfunction!(double, py);
