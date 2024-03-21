@@ -225,7 +225,7 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 - `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
-- `Bound<PyString>::to_str` now borrows from the `Bound<PyString>` rather than from the `'py` lifetime, so code will need to store the smart pointer as a value in some cases where previously `&PyString` was just used as
+- `Bound<PyString>::to_str` now borrows from the `Bound<PyString>` rather than from the `'py` lifetime, so code will need to store the smart pointer as a value in some cases where previously `&PyString` was just used as a temporary. (There are some more details relating to this in [the section below](#deactivating-the-gil-refs-feature).)
 
 To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
 
@@ -331,7 +331,9 @@ assert_eq!(name, "list");
 # }
 ```
 
-An alternative is to use the new `PyBackedStr` type, which stores a reference to the Python `str` without a lifetime attachment:
+To avoid needing to worry about lifetimes at all, it is also possible to use the new `PyBackedStr` type, which stores a reference to the Python `str` without a lifetime attachment. In particular, `PyBackedStr` helps for `abi3` builds for Python older than 3.10. Due to limitations in the `abi3` CPython API for those older versions, PyO3 cannot offer a `FromPyObjectBound` implementation for `&str` on those versions. The easiest way to migrate for older `abi3` builds is to replace any cases of `.extract::<&str>()` with `.extract::<PyBackedStr>()`. Alternatively, use `.extract::<Cow<str>>()`, `.extract::<String>()` to copy the data into Rust.
+
+The following example uses the same snippet as those just above, but this time the final extracted type is `PyBackedStr`:
 
 ```rust
 # use pyo3::prelude::*;
@@ -345,8 +347,6 @@ assert_eq!(&*name, "list");
 # }
 # Python::with_gil(example).unwrap();
 ```
-
-An unfortunate final point here is that PyO3 cannot offer this new implementation for `&str` on `abi3` builds for Python older than 3.10. On code which needs `abi3` builds for these older Python versions, many cases of `.extract::<&str>()` may need to be replaced with `.extract::<PyBackedStr>()`, which is string data which borrows from the Python `str` object. Alternatively, use `.extract::<Cow<str>>()`, `.extract::<String>()` to copy the data into Rust for these versions.
 
 ## from 0.19.* to 0.20
 
