@@ -690,10 +690,10 @@ fn type_output() -> TypeInfo {
             let t = obj.downcast::<PyTuple>()?;
             if t.len() == $length {
                 #[cfg(any(Py_LIMITED_API, PyPy))]
-                return Ok(($(t.get_item($n)?.extract::<$T>()?,)+));
+                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>()?,)+));
 
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-                unsafe {return Ok(($(t.get_item_unchecked($n).extract::<$T>()?,)+));}
+                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>()?,)+));}
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
