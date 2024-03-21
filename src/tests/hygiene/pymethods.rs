@@ -28,7 +28,7 @@ impl Dummy {
     }
 
     fn __format__(&self, format_spec: ::std::string::String) -> ::std::string::String {
-        ::std::panic!("unimplemented isn't hygienic before 1.50")
+        ::std::unimplemented!()
     }
 
     fn __lt__(&self, other: &Self) -> bool {
@@ -63,12 +63,12 @@ impl Dummy {
     // Customizing attribute access
     //////////////////////
 
-    fn __getattr__(&self, name: ::std::string::String) -> &crate::PyAny {
-        ::std::panic!("unimplemented isn't hygienic before 1.50")
+    fn __getattr__(&self, name: ::std::string::String) -> &crate::Bound<'_, crate::PyAny> {
+        ::std::unimplemented!()
     }
 
-    fn __getattribute__(&self, name: ::std::string::String) -> &crate::PyAny {
-        ::std::panic!("unimplemented isn't hygienic before 1.50")
+    fn __getattribute__(&self, name: ::std::string::String) -> &crate::Bound<'_, crate::PyAny> {
+        ::std::unimplemented!()
     }
 
     fn __setattr__(&mut self, name: ::std::string::String, value: ::std::string::String) {}
@@ -85,17 +85,27 @@ impl Dummy {
 
     fn __get__(
         &self,
-        instance: &crate::PyAny,
-        owner: &crate::PyAny,
-    ) -> crate::PyResult<&crate::PyAny> {
-        ::std::panic!("unimplemented isn't hygienic before 1.50")
+        instance: &crate::Bound<'_, crate::PyAny>,
+        owner: &crate::Bound<'_, crate::PyAny>,
+    ) -> crate::PyResult<&crate::Bound<'_, crate::PyAny>> {
+        ::std::unimplemented!()
     }
 
-    fn __set__(&self, instance: &crate::PyAny, owner: &crate::PyAny) {}
+    fn __set__(
+        &self,
+        instance: &crate::Bound<'_, crate::PyAny>,
+        owner: &crate::Bound<'_, crate::PyAny>,
+    ) {
+    }
 
-    fn __delete__(&self, instance: &crate::PyAny) {}
+    fn __delete__(&self, instance: &crate::Bound<'_, crate::PyAny>) {}
 
-    fn __set_name__(&self, owner: &crate::PyAny, name: &crate::PyAny) {}
+    fn __set_name__(
+        &self,
+        owner: &crate::Bound<'_, crate::PyAny>,
+        name: &crate::Bound<'_, crate::PyAny>,
+    ) {
+    }
 
     //////////////////////
     // Implementing Descriptors
@@ -323,9 +333,9 @@ impl Dummy {
 
     fn __exit__(
         &mut self,
-        exc_type: &crate::PyAny,
-        exc_value: &crate::PyAny,
-        traceback: &crate::PyAny,
+        exc_type: &crate::Bound<'_, crate::PyAny>,
+        exc_value: &crate::Bound<'_, crate::PyAny>,
+        traceback: &crate::Bound<'_, crate::PyAny>,
     ) {
     }
 
@@ -361,9 +371,9 @@ impl Dummy {
 
     fn __aexit__(
         &mut self,
-        exc_type: &crate::PyAny,
-        exc_value: &crate::PyAny,
-        traceback: &crate::PyAny,
+        exc_type: &crate::Bound<'_, crate::PyAny>,
+        exc_value: &crate::Bound<'_, crate::PyAny>,
+        traceback: &crate::Bound<'_, crate::PyAny>,
     ) {
     }
 
@@ -378,10 +388,10 @@ impl Dummy {
     #[pyo3(signature = (*_args, **_kwds))]
     fn __call__(
         &self,
-        _args: &crate::types::PyTuple,
-        _kwds: ::std::option::Option<&crate::types::PyDict>,
+        _args: &crate::Bound<'_, crate::types::PyTuple>,
+        _kwds: ::std::option::Option<&crate::Bound<'_, crate::types::PyDict>>,
     ) -> crate::PyResult<i32> {
-        ::std::panic!("unimplemented isn't hygienic before 1.50")
+        ::std::unimplemented!()
     }
     #[new]
     fn new(a: u8) -> Self {

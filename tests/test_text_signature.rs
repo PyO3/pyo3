@@ -128,10 +128,10 @@ fn test_auto_test_signature_function() {
     fn my_function_4(
         a: i32,
         b: Option<i32>,
-        args: &PyTuple,
+        args: &Bound<'_, PyTuple>,
         c: i32,
         d: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) {
         let _ = (a, b, args, c, d, kwargs);
     }
@@ -218,10 +218,10 @@ fn test_auto_test_signature_method() {
             &self,
             a: i32,
             b: Option<i32>,
-            args: &PyTuple,
+            args: &Bound<'_, PyTuple>,
             c: i32,
             d: i32,
-            kwargs: Option<&PyDict>,
+            kwargs: Option<&Bound<'_, PyDict>>,
         ) {
             let _ = (a, b, args, c, d, kwargs);
         }

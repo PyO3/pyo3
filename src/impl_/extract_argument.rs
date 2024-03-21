@@ -41,14 +41,27 @@ impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
 where
     T: PyTypeCheck,
 {
-    type Holder = Option<&'a Bound<'py, T>>;
+    type Holder = Option<()>;
 
     #[inline]
-    fn extract(
-        obj: &'a Bound<'py, PyAny>,
-        holder: &'a mut Option<&'a Bound<'py, T>>,
-    ) -> PyResult<Self> {
-        Ok(holder.insert(obj.downcast()?))
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut Option<()>) -> PyResult<Self> {
+        obj.downcast().map_err(Into::into)
+    }
+}
+
+impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for Option<&'a Bound<'py, T>>
+where
+    T: PyTypeCheck,
+{
+    type Holder = ();
+
+    #[inline]
+    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
+        if obj.is_none() {
+            Ok(None)
+        } else {
+            Ok(Some(obj.downcast()?))
+        }
     }
 }
 

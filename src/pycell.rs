@@ -149,12 +149,12 @@
 //!
 //! It is better to write that function like this:
 //! ```rust
+//! # #![allow(deprecated)]
 //! # use pyo3::prelude::*;
 //! # #[pyclass]
 //! # pub struct Number {
 //! #     inner: u32,
 //! # }
-//! # #[allow(deprecated)]
 //! #[pyfunction]
 //! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
 //!     // Check that the pointers are unequal

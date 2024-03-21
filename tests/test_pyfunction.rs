@@ -77,12 +77,14 @@ assert a, array.array("i", [2, 4, 6, 8])
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[pyfunction]
-fn function_with_pyfunction_arg(fun: &PyFunction) -> PyResult<&PyAny> {
+fn function_with_pyfunction_arg<'py>(fun: &Bound<'py, PyFunction>) -> PyResult<Bound<'py, PyAny>> {
     fun.call((), None)
 }
 
 #[pyfunction]
-fn function_with_pycfunction_arg(fun: &PyCFunction) -> PyResult<&PyAny> {
+fn function_with_pycfunction_arg<'py>(
+    fun: &Bound<'py, PyCFunction>,
+) -> PyResult<Bound<'py, PyAny>> {
     fun.call((), None)
 }
 
