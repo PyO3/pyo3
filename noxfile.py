@@ -732,6 +732,16 @@ def check_feature_powerset(session: nox.Session):
     )
 
 
+@nox.session(name="update-ui-tests", venv_backend="none")
+def update_ui_tests(session: nox.Session):
+    env = os.environ.copy()
+    env["TRYBUILD"] = "overwrite"
+    command = ["test", "--test", "test_compile_error"]
+    _run_cargo(session, *command, env=env)
+    _run_cargo(session, *command, "--features=full", env=env)
+    _run_cargo(session, *command, "--features=abi3,full", env=env)
+
+
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
     # pyo3-ffi-check needs to scrape docs of pyo3-ffi
     _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
@@ -816,9 +826,16 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
     if is_github_actions:
         # Insert ::group:: at the start of nox's command line output
         print("::group::", end="", flush=True, file=sys.stderr)
-    session.run(*args, **kwargs)
-    if is_github_actions:
-        print("::endgroup::", file=sys.stderr)
+    try:
+        session.run(*args, **kwargs)
+    except nox.command.CommandFailed:
+        if is_github_actions:
+            command = " ".join(args)
+            print(f"::error::`{command}` failed", file=sys.stderr)
+        raise
+    finally:
+        if is_github_actions:
+            print("::endgroup::", file=sys.stderr)
 
 
 def _run_cargo(
