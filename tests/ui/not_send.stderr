@@ -6,7 +6,7 @@ error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safe
   |        |
   |        required by a bound introduced by this call
   |
-  = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
+  = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`, which is required by `{closure@$DIR/tests/ui/not_send.rs:4:22: 4:24}: Ungil`
 note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
  --> $RUST/core/src/marker.rs
   |
