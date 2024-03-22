@@ -295,6 +295,9 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// Returns `self` cast as a `PySequence`.
     fn as_sequence(&self) -> &Bound<'py, PySequence>;
 
+    /// Returns `self` cast as a `PySequence`.
+    fn into_sequence(self) -> Bound<'py, PySequence>;
+
     /// Gets the list item at the specified index.
     /// # Example
     /// ```
@@ -406,6 +409,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Returns `self` cast as a `PySequence`.
     fn as_sequence(&self) -> &Bound<'py, PySequence> {
         unsafe { self.downcast_unchecked() }
+    }
+
+    /// Returns `self` cast as a `PySequence`.
+    fn into_sequence(self) -> Bound<'py, PySequence> {
+        unsafe { self.into_any().downcast_into_unchecked() }
     }
 
     /// Gets the list item at the specified index.
