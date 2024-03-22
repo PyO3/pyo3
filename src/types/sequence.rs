@@ -357,13 +357,13 @@ impl<'py> BoundSequenceIterator<'py> {
         }
     }
 
-    unsafe fn get_item(&self, index: usize) -> Bound<'py, PyAny> {
-        self.sequence.get_item(index).expect("sequence.get failed")
+    fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
+        self.sequence.get_item(index)
     }
 }
 
 impl<'py> Iterator for BoundSequenceIterator<'py> {
-    type Item = Bound<'py, PyAny>;
+    type Item = PyResult<Bound<'py, PyAny>>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -372,7 +372,7 @@ impl<'py> Iterator for BoundSequenceIterator<'py> {
             .min(self.sequence.len().expect("failed to get sequence length"));
 
         if self.index < length {
-            let item = unsafe { self.get_item(self.index) };
+            let item = { self.get_item(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -395,7 +395,7 @@ impl DoubleEndedIterator for BoundSequenceIterator<'_> {
             .min(self.sequence.len().expect("failed to get sequence length"));
 
         if self.index < length {
-            let item = unsafe { self.get_item(length - 1) };
+            let item = { self.get_item(length - 1) };
             self.length = length - 1;
             Some(item)
         } else {
@@ -413,7 +413,7 @@ impl ExactSizeIterator for BoundSequenceIterator<'_> {
 impl FusedIterator for BoundSequenceIterator<'_> {}
 
 impl<'py> IntoIterator for Bound<'py, PySequence> {
-    type Item = Bound<'py, PyAny>;
+    type Item = PyResult<Bound<'py, PyAny>>;
     type IntoIter = BoundSequenceIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -422,7 +422,7 @@ impl<'py> IntoIterator for Bound<'py, PySequence> {
 }
 
 impl<'py> IntoIterator for &Bound<'py, PySequence> {
-    type Item = Bound<'py, PyAny>;
+    type Item = PyResult<Bound<'py, PyAny>>;
     type IntoIter = BoundSequenceIterator<'py>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -759,7 +759,7 @@ mod tests {
             let seq = ob.downcast::<PySequence>().unwrap();
             let mut idx = 0;
             for el in seq {
-                assert_eq!(v[idx], el.extract::<i32>().unwrap());
+                assert_eq!(v[idx], el.unwrap().extract::<i32>().unwrap());
                 idx += 1;
             }
             assert_eq!(idx, v.len());
