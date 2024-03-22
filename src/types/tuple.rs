@@ -258,6 +258,9 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// Returns `self` cast as a `PySequence`.
     fn as_sequence(&self) -> &Bound<'py, PySequence>;
 
+    /// Returns `self` cast as a `PySequence`.
+    fn into_sequence(self) -> Bound<'py, PySequence>;
+
     /// Takes the slice `self[low:high]` and returns it as a new tuple.
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
@@ -351,6 +354,10 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     fn as_sequence(&self) -> &Bound<'py, PySequence> {
         unsafe { self.downcast_unchecked() }
+    }
+
+    fn into_sequence(self) -> Bound<'py, PySequence> {
+        unsafe { self.into_any().downcast_into_unchecked() }
     }
 
     fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyTuple> {
