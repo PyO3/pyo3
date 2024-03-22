@@ -395,8 +395,8 @@ def check_guide(session: nox.Session):
     session.posargs.extend(posargs)
 
     remaps = {
-        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL\}}\}}": f"file://{PYO3_DOCS_TARGET}",
-        "%7B%7B#PYO3_DOCS_VERSION\}\}": "latest",
+        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL}}}}": f"file://{PYO3_DOCS_TARGET}",
+        "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
     }
     remap_args = []
     for key, value in remaps.items():
