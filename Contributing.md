@@ -101,10 +101,17 @@ Tests run with all supported Python versions with the latest stable Rust compile
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
 You can run these tests yourself with
-```nox```
-and
-```nox -l```
-lists further commands you can run.
+`nox`. Use  `nox -l` to list the full set of subcommands you can run.
+
+#### UI Tests
+
+PyO3 uses [`trybuild`][trybuild] to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
+
+Because there are several feature combinations for these UI tests, when updating them all (e.g. for a new Rust compiler version) it may be helpful to use the `update-ui-tests` nox session:
+
+```bash
+nox -s update-ui-tests
+```
 
 ### Documenting changes
 
