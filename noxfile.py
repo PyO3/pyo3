@@ -823,19 +823,23 @@ def _get_coverage_env() -> Dict[str, str]:
 def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
     """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
     is_github_actions = _is_github_actions()
+    failed = False
     if is_github_actions:
         # Insert ::group:: at the start of nox's command line output
         print("::group::", end="", flush=True, file=sys.stderr)
     try:
         session.run(*args, **kwargs)
     except nox.command.CommandFailed:
-        if is_github_actions:
-            command = " ".join(args)
-            print(f"::error::`{command}` failed", file=sys.stderr)
+        failed = True
         raise
     finally:
         if is_github_actions:
             print("::endgroup::", file=sys.stderr)
+            # Defer the error message until after the group to make them easier
+            # to find in the log
+            if failed:
+                command = " ".join(args)
+                print(f"::error::`{command}` failed", file=sys.stderr)
 
 
 def _run_cargo(
