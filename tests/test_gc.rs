@@ -528,6 +528,11 @@ impl UnsendableTraversal {
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
 fn unsendable_are_not_traversed_on_foreign_thread() {
+    #[derive(Clone, Copy)]
+    struct SendablePtr(*mut pyo3::ffi::PyObject);
+
+    unsafe impl Send for SendablePtr {}
+
     Python::with_gil(|py| unsafe {
         let ty = py.get_type_bound::<UnsendableTraversal>();
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
@@ -579,8 +584,3 @@ extern "C" fn visit_error(
 ) -> std::os::raw::c_int {
     -1
 }
-
-#[derive(Clone, Copy)]
-struct SendablePtr(*mut pyo3::ffi::PyObject);
-
-unsafe impl Send for SendablePtr {}

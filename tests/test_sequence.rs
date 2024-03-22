@@ -17,11 +17,11 @@ struct ByteSequence {
 #[pymethods]
 impl ByteSequence {
     #[new]
-    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
             for pyelem in pylist {
-                let elem = u8::extract(pyelem)?;
+                let elem = pyelem.extract()?;
                 elems.push(elem);
             }
             Ok(Self { elements: elems })

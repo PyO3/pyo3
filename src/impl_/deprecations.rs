@@ -13,7 +13,8 @@ pub fn inspect_fn<A, T>(f: fn(A) -> PyResult<T>, _: &GilRefs<A>) -> fn(A) -> PyR
     f
 }
 
-pub struct GilRefs<T>(NotAGilRef<T>);
+pub struct GilRefs<T>(OptionGilRefs<T>);
+pub struct OptionGilRefs<T>(NotAGilRef<T>);
 pub struct NotAGilRef<T>(std::marker::PhantomData<T>);
 
 pub trait IsGilRef {}
@@ -23,7 +24,7 @@ impl<T: crate::PyNativeType> IsGilRef for &'_ T {}
 impl<T> GilRefs<T> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        GilRefs(NotAGilRef(std::marker::PhantomData))
+        GilRefs(OptionGilRefs(NotAGilRef(std::marker::PhantomData)))
     }
 }
 
@@ -54,6 +55,17 @@ impl<T: IsGilRef> GilRefs<T> {
     pub fn from_py_with_arg(&self) {}
 }
 
+impl<T: IsGilRef> OptionGilRefs<Option<T>> {
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "use `Option<&Bound<'_, T>>` instead for this function argument"
+        )
+    )]
+    pub fn function_arg(&self) {}
+}
+
 impl<T> NotAGilRef<T> {
     pub fn function_arg(&self) {}
     pub fn from_py_with_arg(&self) {}
@@ -61,6 +73,13 @@ impl<T> NotAGilRef<T> {
 }
 
 impl<T> std::ops::Deref for GilRefs<T> {
+    type Target = OptionGilRefs<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> std::ops::Deref for OptionGilRefs<T> {
     type Target = NotAGilRef<T>;
     fn deref(&self) -> &Self::Target {
         &self.0

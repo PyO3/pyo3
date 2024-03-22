@@ -301,7 +301,7 @@ The expectation is that in 0.22 `extract_bound` will have the default implementa
 Despite a large amount of deprecations warnings produced by PyO3 to aid with the transition from GIL Refs to the Bound API, there are a few cases where PyO3 cannot automatically warn on uses of GIL Refs. It is worth checking for these cases manually after the deprecation warnings have all been addressed:
 
 - Individual implementations of the `FromPyObject` trait cannot be deprecated, so PyO3 cannot warn about uses of code patterns like `.extract<&PyAny>()` which produce a GIL Ref.
-- GIL Refs in `#[pyfunction]` arguments emit a warning, but if the GIL Ref is wrapped inside another container such as `Option<&PyAny>` or `Vec<&PyAny>` then PyO3 cannot warn against this.
+- GIL Refs in `#[pyfunction]` arguments emit a warning, but if the GIL Ref is wrapped inside another container such as `Vec<&PyAny>` then PyO3 cannot warn against this.
 - The `wrap_pyfunction!(function)(py)` deferred argument form of the `wrap_pyfunction` macro taking `py: Python<'py>` produces a GIL Ref, and due to limitations in type inference PyO3 cannot warn against this specific case.
 
 </details>

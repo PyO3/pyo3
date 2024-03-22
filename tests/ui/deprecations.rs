@@ -95,6 +95,9 @@ fn pyfunction_from_py_with(
 #[pyfunction]
 fn pyfunction_gil_ref(_any: &PyAny) {}
 
+#[pyfunction]
+fn pyfunction_option_gil_ref(_any: Option<&PyAny>) {}
+
 #[derive(Debug, FromPyObject)]
 pub struct Zap {
     #[pyo3(item)]
