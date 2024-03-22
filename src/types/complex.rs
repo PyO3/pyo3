@@ -53,7 +53,7 @@ impl PyComplex {
     }
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 mod not_limited_impls {
     use crate::ffi_ptr_ext::FfiPtrExt;
     use crate::Borrowed;
@@ -264,10 +264,10 @@ pub trait PyComplexMethods<'py>: crate::sealed::Sealed {
     /// Returns the imaginary part of the complex number.
     fn imag(&self) -> c_double;
     /// Returns `|self|`.
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn abs(&self) -> c_double;
     /// Returns `self` raised to the power of `other`.
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex>;
 }
 
@@ -280,7 +280,7 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
         unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn abs(&self) -> c_double {
         unsafe {
             let val = (*self.as_ptr().cast::<ffi::PyComplexObject>()).cval;
@@ -288,7 +288,7 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
         }
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
         use crate::ffi_ptr_ext::FfiPtrExt;
         unsafe {

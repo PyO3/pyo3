@@ -3,10 +3,10 @@ use std::os::raw::c_int;
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 
-#[cfg(all(not(PyPy), Py_LIMITED_API))]
+#[cfg(all(not(PyPy), Py_LIMITED_API, not(GraalPy)))]
 opaque_struct!(PyWeakReference);
 
-#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
+#[cfg(all(not(PyPy), not(Py_LIMITED_API), not(GraalPy)))]
 pub use crate::_PyWeakReference as PyWeakReference;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

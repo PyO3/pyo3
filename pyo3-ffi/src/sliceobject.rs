@@ -25,8 +25,11 @@ pub unsafe fn Py_Ellipsis() -> *mut PyObject {
 #[repr(C)]
 pub struct PySliceObject {
     pub ob_base: PyObject,
+    #[cfg(not(GraalPy))]
     pub start: *mut PyObject,
+    #[cfg(not(GraalPy))]
     pub stop: *mut PyObject,
+    #[cfg(not(GraalPy))]
     pub step: *mut PyObject,
 }
 

@@ -4,7 +4,7 @@ use std::ptr::addr_of_mut;
 
 use crate::PyObject;
 
-#[cfg(all(not(PyPy), not(Py_3_10)))]
+#[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_10)))]
 #[repr(C)]
 pub struct PyFunctionObject {
     pub ob_base: PyObject,
@@ -24,7 +24,7 @@ pub struct PyFunctionObject {
     pub vectorcall: Option<crate::vectorcallfunc>,
 }
 
-#[cfg(all(not(PyPy), Py_3_10))]
+#[cfg(all(not(any(PyPy, GraalPy)), Py_3_10))]
 #[repr(C)]
 pub struct PyFunctionObject {
     pub ob_base: PyObject,
@@ -53,6 +53,11 @@ pub struct PyFunctionObject {
 pub struct PyFunctionObject {
     pub ob_base: PyObject,
     pub func_name: *mut PyObject,
+}
+
+#[cfg(GraalPy)]
+pub struct PyFunctionObject {
+    pub ob_base: PyObject,
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

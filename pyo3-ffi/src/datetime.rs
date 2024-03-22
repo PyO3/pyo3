@@ -31,8 +31,11 @@ pub struct PyDateTime_Delta {
     pub ob_base: PyObject,
     #[cfg(not(any(PyPy, GraalPy)))]
     pub hashcode: Py_hash_t,
+    #[cfg(not(GraalPy))]
     pub days: c_int,
+    #[cfg(not(GraalPy))]
     pub seconds: c_int,
+    #[cfg(not(GraalPy))]
     pub microseconds: c_int,
 }
 
@@ -45,10 +48,8 @@ pub struct PyDateTime_Delta {
 /// Structure representing a `datetime.time` without a `tzinfo` member.
 pub struct _PyDateTime_BaseTime {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
 }
 
@@ -59,6 +60,7 @@ pub struct PyDateTime_Time {
     pub ob_base: PyObject,
     #[cfg(not(any(PyPy, GraalPy)))]
     pub hashcode: Py_hash_t,
+    #[cfg(not(GraalPy))]
     pub hastzinfo: c_char,
     #[cfg(not(any(PyPy, GraalPy)))]
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
@@ -68,6 +70,7 @@ pub struct PyDateTime_Time {
     ///
     /// Care should be taken when reading this field. If the time does not have a
     /// tzinfo then CPython may allocate as a `_PyDateTime_BaseTime` without this field.
+    #[cfg(not(GraalPy))]
     pub tzinfo: *mut PyObject,
 }
 
@@ -90,11 +93,8 @@ pub struct PyDateTime_Date {
 /// Structure representing a `datetime.datetime` without a `tzinfo` member.
 pub struct _PyDateTime_BaseDateTime {
     pub ob_base: PyObject,
-    #[cfg(not(any(PyPy, GraalPy)))]
     pub hashcode: Py_hash_t,
-    #[cfg(not(GraalPy))]
     pub hastzinfo: c_char,
-    #[cfg(not(any(PyPy, GraalPy)))]
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
 }
 

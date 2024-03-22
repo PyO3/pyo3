@@ -194,7 +194,7 @@ impl PyTuple {
     }
 
     /// Returns `self` as a slice of objects.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     pub fn as_slice(&self) -> &[&PyAny] {
         // This is safe because &PyAny has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -306,7 +306,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
     /// Returns `self` as a slice of objects.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn as_slice(&self) -> &[Bound<'py, PyAny>];
 
     /// Determines if self contains `value`.
@@ -386,7 +386,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
         self.as_borrowed().get_borrowed_item_unchecked(index)
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn as_slice(&self) -> &[Bound<'py, PyAny>] {
         // This is safe because Bound<'py, PyAny> has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -1010,7 +1010,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn test_as_slice() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
