@@ -245,12 +245,18 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 - `Bound<PyList>` and `Bound<PyTuple>` cannot support indexing with `list[0]`, you should use `list.get_item(0)` instead.
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
-- To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+- `Bound<PyString>::to_str` now borrows from the `Bound<PyString>` rather than from the `'py` lifetime, so code will need to store the smart pointer as a value in some cases where previously `&PyString` was just used as a temporary. (There are some more details relating to this in [the section below](#deactivating-the-gil-refs-feature).)
+
+To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
 
 ```rust,ignore
 let gil_ref: &PyAny = ...;
 let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
 ```
+
+<div class="warning">
+
+⚠️ Warning: dangling pointer trap 💣
 
 > Because of the ownership changes, code which uses `.as_ptr()` to convert `&PyAny` and other GIL Refs to a `*mut pyo3_ffi::PyObject` should take care to avoid creating dangling pointers now that `Bound<PyAny>` carries ownership.
 >
@@ -267,6 +273,7 @@ let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
 > let opt: Option<Bound<PyAny>> = ...;
 > let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
 > ```
+<div>
 
 #### Migrating `FromPyObject` implementations
 
@@ -312,14 +319,66 @@ Despite a large amount of deprecations warnings produced by PyO3 to aid with the
 
 As a final step of migration, deactivating the `gil-refs` feature will set up code for best performance and is intended to set up a forward-compatible API for PyO3 0.22.
 
-At this point code which needed to manage GIL Ref memory can safely remove uses of `GILPool` (which are constructed by calls to `Python::new_pool` and `Python::with_pool`). Deprecation warnings will highlight these cases.
+At this point code that needed to manage GIL Ref memory can safely remove uses of `GILPool` (which are constructed by calls to `Python::new_pool` and `Python::with_pool`). Deprecation warnings will highlight these cases.
 
-There is one notable API removed when this feature is disabled. `FromPyObject` trait implementations for types which borrow directly from the input data cannot be implemented by PyO3 without GIL Refs (while the migration is ongoing). These types are `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>`.
+There is just one case of code that changes upon disabling these features: `FromPyObject` trait implementations for types that borrow directly from the input data cannot be implemented by PyO3 without GIL Refs (while the GIL Refs API is in the process of being removed). The main types affected are `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>`.
 
-To ease pain during migration, these types instead implement a new temporary trait `FromPyObjectBound` which is the expected future form of `FromPyObject`. The new temporary trait ensures is that `obj.extract::<&str>()` continues to work, as well for these types in `#[pyfunction]` arguments.
+To make PyO3's core functionality continue to work while the GIL Refs API is in the process of being removed, disabling the `gil-refs` feature moves the implementations of `FromPyObject` for `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>` to a new temporary trait `FromPyObjectBound`. This trait is the expected future form of `FromPyObject` and has an additional lifetime `'a` to enable these types to borrow data from Python objects.
 
-An unfortunate final point here is that PyO3 cannot offer this new implementation for `&str` on `abi3` builds for Python older than 3.10. On code which needs `abi3` builds for these older Python versions, many cases of `.extract::<&str>()` may need to be replaced with `.extract::<PyBackedStr>()`, which is string data which borrows from the Python `str` object. Alternatively, use `.extract::<Cow<str>>()` ro `.extract::<String>()` to copy the data into Rust for these versions.
-</details>
+A key thing to note here is because extracting to these types now ties them to the input lifetime, some extremely common patterns may need to be split into multiple Rust lines. For example, the following snippet of calling `.extract::<&str>()` directly on the result of `.getattr()` needs to be adjusted when deactivating the `gil-refs-migration` feature.
+
+Before:
+
+```rust
+# #[cfg(feature = "gil-refs-migration")] {
+# use pyo3::prelude::*;
+# use pyo3::types::{PyList, PyType};
+# fn example<'py>(py: Python<'py>) -> PyResult<()> {
+#[allow(deprecated)] // GIL Ref API
+let obj: &'py PyType = py.get_type::<PyList>();
+let name: &'py str = obj.getattr("__name__")?.extract()?;
+assert_eq!(name, "list");
+# Ok(())
+# }
+# Python::with_gil(example).unwrap();
+# }
+```
+
+After:
+
+```rust
+# #[cfg(any(not(Py_LIMITED_API), Py_3_10))] {
+# use pyo3::prelude::*;
+# use pyo3::types::{PyList, PyType};
+# fn example<'py>(py: Python<'py>) -> PyResult<()> {
+let obj: Bound<'py, PyType> = py.get_type_bound::<PyList>();
+let name_obj: Bound<'py, PyAny> = obj.getattr("__name__")?;
+// the lifetime of the data is no longer `'py` but the much shorter
+// lifetime of the `name_obj` smart pointer above
+let name: &'_ str = name_obj.extract()?;
+assert_eq!(name, "list");
+# Ok(())
+# }
+# Python::with_gil(example).unwrap();
+# }
+```
+
+To avoid needing to worry about lifetimes at all, it is also possible to use the new `PyBackedStr` type, which stores a reference to the Python `str` without a lifetime attachment. In particular, `PyBackedStr` helps for `abi3` builds for Python older than 3.10. Due to limitations in the `abi3` CPython API for those older versions, PyO3 cannot offer a `FromPyObjectBound` implementation for `&str` on those versions. The easiest way to migrate for older `abi3` builds is to replace any cases of `.extract::<&str>()` with `.extract::<PyBackedStr>()`. Alternatively, use `.extract::<Cow<str>>()`, `.extract::<String>()` to copy the data into Rust.
+
+The following example uses the same snippet as those just above, but this time the final extracted type is `PyBackedStr`:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::{PyList, PyType};
+# fn example<'py>(py: Python<'py>) -> PyResult<()> {
+use pyo3::pybacked::PyBackedStr;
+let obj: Bound<'py, PyType> = py.get_type_bound::<PyList>();
+let name: PyBackedStr = obj.getattr("__name__")?.extract()?;
+assert_eq!(&*name, "list");
+# Ok(())
+# }
+# Python::with_gil(example).unwrap();
+```
 
 ## from 0.19.* to 0.20
 
