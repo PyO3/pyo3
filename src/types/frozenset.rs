@@ -4,7 +4,6 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
-    types::any::PyAnyMethods,
     Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject,
 };
 use std::ptr;
@@ -327,6 +326,7 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods;
 
     #[test]
     fn test_frozenset_new_and_len() {

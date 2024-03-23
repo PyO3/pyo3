@@ -22,7 +22,6 @@ use crate::ffi::{
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::PyNativeType;
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{Bound, IntoPy, Py, PyAny, PyErr, Python};
 use std::os::raw::c_int;
@@ -986,6 +985,8 @@ mod tests {
     #[cfg(all(feature = "macros", feature = "chrono"))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_timezone_from_offset() {
+        use crate::types::PyAnyMethods;
+
         Python::with_gil(|py| {
             assert!(
                 timezone_from_offset(&PyDelta::new_bound(py, 0, -3600, 0, true).unwrap())

@@ -3,7 +3,6 @@ use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
 use crate::{ffi, Bound, IntoPy, Py, PyAny, PyNativeType, PyResult, Python};

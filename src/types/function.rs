@@ -225,8 +225,6 @@ where
     F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
     R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
 {
-    use crate::types::any::PyAnyMethods;
-
     crate::impl_::trampoline::cfunction_with_keywords(
         capsule_ptr,
         args,

@@ -4,7 +4,6 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
 use crate::{ffi, PyNativeType, Python, ToPyObject};
 
@@ -515,7 +514,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 
     fn into_mapping(self) -> Bound<'py, PyMapping> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+        unsafe { self.downcast_into_unchecked() }
     }
 
     fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
@@ -826,7 +825,7 @@ mod tests {
     use super::*;
     #[cfg(not(PyPy))]
     use crate::exceptions;
-    use crate::types::PyTuple;
+    use crate::types::{PyAnyMethods, PyTuple};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]

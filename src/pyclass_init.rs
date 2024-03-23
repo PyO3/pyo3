@@ -2,7 +2,6 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::types::PyAnyMethods;
 use crate::{ffi, Bound, Py, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,

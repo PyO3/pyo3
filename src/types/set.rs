@@ -4,7 +4,6 @@ use crate::{
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
     py_result_ext::PyResultExt,
-    types::any::PyAnyMethods,
     PyNativeType,
 };
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};

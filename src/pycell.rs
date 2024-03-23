@@ -203,7 +203,6 @@ use crate::pyclass::{
 };
 use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyLayout, PySizedLayout};
-use crate::types::any::PyAnyMethods;
 use crate::types::PyAny;
 use crate::{ffi, Bound, IntoPy, PyErr, PyNativeType, PyObject, PyResult, PyTypeCheck, Python};
 use std::fmt;

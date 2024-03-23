@@ -4,8 +4,8 @@ use std::{ops::Deref, ptr::NonNull};
 
 use crate::{
     types::{
-        any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
-        string::PyStringMethods, PyByteArray, PyBytes, PyString,
+        bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
+        PyBytes, PyString,
     },
     Bound, DowncastError, FromPyObject, Py, PyAny, PyErr, PyResult,
 };
@@ -119,7 +119,7 @@ impl FromPyObject<'_> for PyBackedBytes {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Python;
+    use crate::{types::PyAnyMethods, Python};
 
     #[test]
     fn py_backed_str_empty() {

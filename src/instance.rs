@@ -6,8 +6,8 @@ use crate::type_object::HasPyGilRef;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
 use crate::{
-    ffi, AsPyPointer, DowncastError, FromPyObject, IntoPy, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, DowncastError, DowncastIntoError, FromPyObject, IntoPy, PyAny, PyClass,
+    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use crate::{gil, PyTypeCheck};
 use std::marker::PhantomData;
@@ -93,6 +93,221 @@ where
         value: impl Into<PyClassInitializer<T>>,
     ) -> PyResult<Bound<'py, T>> {
         value.into().create_class_object(py)
+    }
+}
+
+impl<'py, T> Bound<'py, T> {
+    /// Downcast this `PyAny` to a concrete Python type or pyclass.
+    ///
+    /// Note that you can often avoid downcasting yourself by just specifying
+    /// the desired type in function or method signatures.
+    /// However, manual downcasting is sometimes necessary.
+    ///
+    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
+    ///
+    /// # Example: Downcasting to a specific Python object
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let dict = PyDict::new_bound(py);
+    ///     assert!(dict.is_instance_of::<PyAny>());
+    ///     let any = dict.as_any();
+    ///
+    ///     assert!(any.downcast::<PyDict>().is_ok());
+    ///     assert!(any.downcast::<PyList>().is_err());
+    /// });
+    /// ```
+    ///
+    /// # Example: Getting a reference to a pyclass
+    ///
+    /// This is useful if you want to mutate a `PyObject` that
+    /// might actually be a pyclass.
+    ///
+    /// ```rust
+    /// # fn main() -> Result<(), pyo3::PyErr> {
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Class {
+    ///     i: i32,
+    /// }
+    ///
+    /// Python::with_gil(|py| {
+    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
+    ///
+    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
+    ///
+    ///     class_bound.borrow_mut().i += 1;
+    ///
+    ///     // Alternatively you can get a `PyRefMut` directly
+    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
+    ///     assert_eq!(class_ref.i, 1);
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    #[inline(always)]
+    pub fn downcast<U>(&self) -> Result<&Bound<'py, U>, DowncastError<'_, 'py>>
+    where
+        U: PyTypeCheck,
+    {
+        #[inline]
+        fn inner<'a, 'py, U>(
+            any: &'a Bound<'py, PyAny>,
+        ) -> Result<&'a Bound<'py, U>, DowncastError<'a, 'py>>
+        where
+            U: PyTypeCheck,
+        {
+            if U::type_check(any) {
+                // Safety: type_check is responsible for ensuring that the type is correct
+                Ok(unsafe { any.downcast_unchecked() })
+            } else {
+                Err(DowncastError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.as_any())
+    }
+
+    /// Like `downcast` but takes ownership of `self`.
+    ///
+    /// In case of an error, it is possible to retrieve `self` again via [`DowncastIntoError::into_inner`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let obj: Bound<'_, PyAny> = PyDict::new_bound(py).into_any();
+    ///
+    ///     let obj: Bound<'_, PyAny> = match obj.downcast_into::<PyList>() {
+    ///         Ok(_) => panic!("obj should not be a list"),
+    ///         Err(err) => err.into_inner(),
+    ///     };
+    ///
+    ///     // obj is a dictionary
+    ///     assert!(obj.downcast_into::<PyDict>().is_ok());
+    /// })
+    /// ```
+    #[inline(always)]
+    pub fn downcast_into<U>(self) -> Result<Bound<'py, U>, DowncastIntoError<'py>>
+    where
+        U: PyTypeCheck,
+    {
+        #[inline]
+        fn inner<U>(any: Bound<'_, PyAny>) -> Result<Bound<'_, U>, DowncastIntoError<'_>>
+        where
+            U: PyTypeCheck,
+        {
+            if U::type_check(&any) {
+                // Safety: type_check is responsible for ensuring that the type is correct
+                Ok(unsafe { any.downcast_into_unchecked() })
+            } else {
+                Err(DowncastIntoError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.into_any())
+    }
+
+    /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
+    ///
+    /// It is almost always better to use [`PyAny::downcast`] because it accounts for Python
+    /// subtyping. Use this method only when you do not want to allow subtypes.
+    ///
+    /// The advantage of this method over [`PyAny::downcast`] is that it is faster. The implementation
+    /// of `downcast_exact` uses the equivalent of the Python expression `type(self) is T`, whereas
+    /// `downcast` uses `isinstance(self, T)`.
+    ///
+    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
+    ///
+    /// # Example: Downcasting to a specific Python object but not a subtype
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyBool, PyLong};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let b = PyBool::new_bound(py, true);
+    ///     assert!(b.is_instance_of::<PyBool>());
+    ///     let any: &Bound<'_, PyAny> = b.as_any();
+    ///
+    ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
+    ///     // but `downcast_exact` will not.
+    ///     assert!(any.downcast::<PyLong>().is_ok());
+    ///     assert!(any.downcast_exact::<PyLong>().is_err());
+    ///
+    ///     assert!(any.downcast_exact::<PyBool>().is_ok());
+    /// });
+    /// ```
+    #[inline(always)]
+    pub fn downcast_exact<U>(&self) -> Result<&Bound<'py, U>, DowncastError<'_, 'py>>
+    where
+        U: PyTypeInfo,
+    {
+        #[inline]
+        fn inner<'a, 'py, U>(
+            any: &'a Bound<'py, PyAny>,
+        ) -> Result<&'a Bound<'py, U>, DowncastError<'a, 'py>>
+        where
+            U: PyTypeInfo,
+        {
+            if any.is_exact_instance_of::<U>() {
+                // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
+                Ok(unsafe { any.downcast_unchecked() })
+            } else {
+                Err(DowncastError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.as_any())
+    }
+
+    /// Like `downcast_exact` but takes ownership of `self`.
+    #[inline(always)]
+    pub fn downcast_into_exact<U>(self) -> Result<Bound<'py, U>, DowncastIntoError<'py>>
+    where
+        U: PyTypeInfo,
+    {
+        #[inline]
+        fn inner<U>(any: Bound<'_, PyAny>) -> Result<Bound<'_, U>, DowncastIntoError<'_>>
+        where
+            U: PyTypeInfo,
+        {
+            if any.is_exact_instance_of::<U>() {
+                // Safety: is_exact_instance_of is responsible for ensuring that the type is correct
+                Ok(unsafe { any.downcast_into_unchecked() })
+            } else {
+                Err(DowncastIntoError::new(any, U::NAME))
+            }
+        }
+
+        inner(self.into_any())
+    }
+
+    /// Converts this `PyAny` to a concrete Python type without checking validity.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline(always)]
+    pub unsafe fn downcast_unchecked<U>(&self) -> &Bound<'py, U> {
+        &*(self as *const Bound<'py, T>).cast()
+    }
+
+    /// Like `downcast_unchecked` but takes ownership of `self`.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline(always)]
+    pub unsafe fn downcast_into_unchecked<U>(self) -> Bound<'py, U> {
+        std::mem::transmute(self)
     }
 }
 

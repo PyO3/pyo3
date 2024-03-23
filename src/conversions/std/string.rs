@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use crate::inspect::types::TypeInfo;
 use crate::{
     instance::Bound,
-    types::{any::PyAnyMethods, string::PyStringMethods, PyString},
+    types::{string::PyStringMethods, PyString},
     FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 

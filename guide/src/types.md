@@ -446,8 +446,8 @@ let _: &PyAny = cell.as_ref();
 [Py]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
 [PyAnyMethods::add]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.add
 [PyAnyMethods::extract]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.extract
-[PyAnyMethods::downcast]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast
-[PyAnyMethods::downcast_into]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast_into
+[PyAnyMethods::downcast]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html#method.downcast
+[PyAnyMethods::downcast_into]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html#method.downcast_into
 [`PyTypeCheck`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeCheck.html
 [`PyAnyMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html
 [`PyDictMethods`]: {{#PYO3_DOCS_URL}}/pyo3/types/trait.PyDictMethods.html

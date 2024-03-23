@@ -1,7 +1,6 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::any::PyAnyMethods;
 use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 use std::os::raw::c_long;
 
@@ -151,6 +150,7 @@ impl ToPyObject for PySliceIndices {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods;
 
     #[test]
     fn test_py_slice_new() {

@@ -357,7 +357,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     }
 
     fn into_sequence(self) -> Bound<'py, PySequence> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+        unsafe { self.downcast_into_unchecked() }
     }
 
     fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyTuple> {
