@@ -1,3 +1,5 @@
+use std::hint::black_box;
+
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
@@ -89,12 +91,11 @@ fn tuple_get_borrowed_item_unchecked(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(codspeed))]
 fn sequence_from_tuple(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let tuple = PyTuple::new_bound(py, 0..LEN).to_object(py);
-        b.iter(|| tuple.downcast::<PySequence>(py).unwrap());
+        let tuple = PyTuple::new_bound(py, 0..LEN).into_any();
+        b.iter(|| black_box(&tuple).downcast::<PySequence>().unwrap());
     });
 }
 
@@ -132,7 +133,6 @@ fn criterion_benchmark(c: &mut Criterion) {
         "tuple_get_borrowed_item_unchecked",
         tuple_get_borrowed_item_unchecked,
     );
-    #[cfg(not(codspeed))]
     c.bench_function("sequence_from_tuple", sequence_from_tuple);
     c.bench_function("tuple_new_list", tuple_new_list);
     c.bench_function("tuple_to_list", tuple_to_list);
