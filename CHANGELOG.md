@@ -10,71 +10,74 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
-## [0.21.0-beta.0] - 2024-03-10
+## [0.21.0] - 2024-03-25
 
 ### Added
 
+- Add support for GraalPy (24.0 and up). [#3247](https://github.com/PyO3/pyo3/pull/3247)
 - Add `PyMemoryView` type. [#3514](https://github.com/PyO3/pyo3/pull/3514)
-- Support `async fn` in macros with coroutine implementation [#3540](https://github.com/PyO3/pyo3/pull/3540)
+- Allow `async fn` in for `#[pyfunction]` and `#[pymethods]`, with the `experimental-async` feature. [#3540](https://github.com/PyO3/pyo3/pull/3540) [#3588](https://github.com/PyO3/pyo3/pull/3588) [#3599](https://github.com/PyO3/pyo3/pull/3599) [#3931](https://github.com/PyO3/pyo3/pull/3931)
 - Implement `PyTypeInfo` for `PyEllipsis`, `PyNone` and `PyNotImplemented`. [#3577](https://github.com/PyO3/pyo3/pull/3577)
 - Support `#[pyclass]` on enums that have non-unit variants. [#3582](https://github.com/PyO3/pyo3/pull/3582)
-- Add `__name__`/`__qualname__` attributes to `Coroutine` [#3588](https://github.com/PyO3/pyo3/pull/3588)
-- Add `coroutine::CancelHandle` to catch coroutine cancellation [#3599](https://github.com/PyO3/pyo3/pull/3599)
-- Add support for extracting Rust set types from `frozenset`. [#3632](https://github.com/PyO3/pyo3/pull/3632)
+- Support `chrono` feature with `abi3` feature. [#3664](https://github.com/PyO3/pyo3/pull/3664)
 - `FromPyObject`, `IntoPy<PyObject>` and `ToPyObject` are implemented on `std::duration::Duration` [#3670](https://github.com/PyO3/pyo3/pull/3670)
 - Add `PyString::to_cow`. Add `Py<PyString>::to_str`, `Py<PyString>::to_cow`, and `Py<PyString>::to_string_lossy`, as ways to access Python string data safely beyond the GIL lifetime. [#3677](https://github.com/PyO3/pyo3/pull/3677)
 - Add `Bound<T>` and `Borrowed<T>` smart pointers as a new API for accessing Python objects. [#3686](https://github.com/PyO3/pyo3/pull/3686)
-- Add `PyNativeType::as_bound` to convert "GIL refs" to the new `Bound` smart pointer. [#3692](https://github.com/PyO3/pyo3/pull/3692)
-- Add `FromPyObject::extract_bound` method, which can be implemented to avoid using the GIL Ref API in `FromPyObject` implementations. [#3706](https://github.com/PyO3/pyo3/pull/3706)
+- Add `PyNativeType::as_borrowed` to convert "GIL refs" to the new `Bound` smart pointer. [#3692](https://github.com/PyO3/pyo3/pull/3692)
+- Add `FromPyObject::extract_bound` method, to migrate `FromPyObject` implementations to the Bound API. [#3706](https://github.com/PyO3/pyo3/pull/3706)
 - Add `gil-refs` feature to allow continued use of the deprecated GIL Refs APIs. [#3707](https://github.com/PyO3/pyo3/pull/3707)
-- Added methods to `PyAnyMethods` for binary operators (`add`, `sub`, etc.) [#3712](https://github.com/PyO3/pyo3/pull/3712)
-- `chrono-tz` feature allowing conversion between `chrono_tz::Tz` and `zoneinfo.ZoneInfo` [#3730](https://github.com/PyO3/pyo3/pull/3730)
-- Add definition for `PyType_GetModuleByDef` to `pyo3_ffi`. [#3734](https://github.com/PyO3/pyo3/pull/3734)
+- Add methods to `PyAnyMethods` for binary operators (`add`, `sub`, etc.) [#3712](https://github.com/PyO3/pyo3/pull/3712)
+- Add `chrono-tz` feature allowing conversion between `chrono_tz::Tz` and `zoneinfo.ZoneInfo` [#3730](https://github.com/PyO3/pyo3/pull/3730)
+- Add FFI definition `PyType_GetModuleByDef`. [#3734](https://github.com/PyO3/pyo3/pull/3734)
 - Conversion between `std::time::SystemTime` and `datetime.datetime` [#3736](https://github.com/PyO3/pyo3/pull/3736)
 - Add `Py::as_any` and `Py::into_any`. [#3785](https://github.com/PyO3/pyo3/pull/3785)
 - Add `PyStringMethods::encode_utf8`. [#3801](https://github.com/PyO3/pyo3/pull/3801)
-- Add `PyBackedStr` and `PyBackedBytes`, as alternatives to `&str` and `&bytes` where a Python object owns the data. [#3802](https://github.com/PyO3/pyo3/pull/3802)
-- The ability to create Python modules with a Rust `mod` block
-  behind the `experimental-declarative-modules` feature. [#3815](https://github.com/PyO3/pyo3/pull/3815)
+- Add `PyBackedStr` and `PyBackedBytes`, as alternatives to `&str` and `&bytes` where a Python object owns the data. [#3802](https://github.com/PyO3/pyo3/pull/3802) [#3991](https://github.com/PyO3/pyo3/pull/3991)
+- Allow `#[pymodule]` macro on Rust `mod` blocks, with the `experimental-declarative-modules` feature. [#3815](https://github.com/PyO3/pyo3/pull/3815)
 - Implement `ExactSizeIterator` for `set` and `frozenset` iterators on `abi3` feature. [#3849](https://github.com/PyO3/pyo3/pull/3849)
 - Add `Py::drop_ref` to explicitly drop a `Py`` and immediately decrease the Python reference count if the GIL is already held. [#3871](https://github.com/PyO3/pyo3/pull/3871)
+- Allow `#[pymodule]` macro on single argument functions that take `&Bound<'_, PyModule>`. [#3905](https://github.com/PyO3/pyo3/pull/3905)
 - Implement `FromPyObject` for `Cow<str>`. [#3928](https://github.com/PyO3/pyo3/pull/3928)
-- Add `experimental-async` feature. [#3931](https://github.com/PyO3/pyo3/pull/3931)
+- Implement `Default` for `GILOnceCell`. [#3971](https://github.com/PyO3/pyo3/pull/3971)
+- Add `PyDictMethods::into_mapping`, `PyListMethods::into_sequence` and `PyTupleMethods::into_sequence`. [#3982](https://github.com/PyO3/pyo3/pull/3982)
 
 ### Changed
 
-- - `PyDict::from_sequence` now takes a single argument of type `&PyAny` (previously took two arguments `Python` and `PyObject`). [#3532](https://github.com/PyO3/pyo3/pull/3532)
+- `PyDict::from_sequence` now takes a single argument of type `&PyAny` (previously took two arguments `Python` and `PyObject`). [#3532](https://github.com/PyO3/pyo3/pull/3532)
 - Deprecate `Py::is_ellipsis` and `PyAny::is_ellipsis` in favour of `any.is(py.Ellipsis())`. [#3577](https://github.com/PyO3/pyo3/pull/3577)
 - Split some `PyTypeInfo` functionality into new traits `HasPyGilRef` and `PyTypeCheck`. [#3600](https://github.com/PyO3/pyo3/pull/3600)
 - Deprecate `PyTryFrom` and `PyTryInto` traits in favor of `any.downcast()` via the `PyTypeCheck` and `PyTypeInfo` traits. [#3601](https://github.com/PyO3/pyo3/pull/3601)
 - Allow async methods to accept `&self`/`&mut self` [#3609](https://github.com/PyO3/pyo3/pull/3609)
-- Values of type `bool` can now be extracted from NumPy's `bool_`. [#3638](https://github.com/PyO3/pyo3/pull/3638)
-- Add `AsRefSource` to `PyNativeType`. [#3653](https://github.com/PyO3/pyo3/pull/3653)
-- Changed `.is_true` to `.is_truthy` on `PyAny` and `Py<PyAny>` to clarify that the test is not based on identity with or equality to the True singleton. [#3657](https://github.com/PyO3/pyo3/pull/3657)
+- `FromPyObject` for set types now also accept `frozenset` objects as input. [#3632](https://github.com/PyO3/pyo3/pull/3632)
+- `FromPyObject` for `bool` now also accepts NumPy's `bool_` as input. [#3638](https://github.com/PyO3/pyo3/pull/3638)
+- Add `AsRefSource` associated type to `PyNativeType`. [#3653](https://github.com/PyO3/pyo3/pull/3653)
+- Rename `.is_true` to `.is_truthy` on `PyAny` and `Py<PyAny>` to clarify that the test is not based on identity with or equality to the True singleton. [#3657](https://github.com/PyO3/pyo3/pull/3657)
 - `PyType::name` is now `PyType::qualname` whereas `PyType::name` efficiently accesses the full name which includes the module name. [#3660](https://github.com/PyO3/pyo3/pull/3660)
 - The `Iter(A)NextOutput` types are now deprecated and `__(a)next__` can directly return anything which can be converted into Python objects, i.e. awaitables do not need to be wrapped into `IterANextOutput` or `Option` any more. `Option` can still be used as well and returning `None` will trigger the fast path for `__next__`, stopping iteration without having to raise a `StopIteration` exception. [#3661](https://github.com/PyO3/pyo3/pull/3661)
-- Implements `FromPyObject` on `chrono::DateTime<Tz>` for all `Tz` and not only `FixedOffset` and `Utc` [#3663](https://github.com/PyO3/pyo3/pull/3663)
-- `chrono` conversions are compatible with `abi3` [#3664](https://github.com/PyO3/pyo3/pull/3664)
+- Implement `FromPyObject` on `chrono::DateTime<Tz>` for all `Tz`, not just `FixedOffset` and `Utc`. [#3663](https://github.com/PyO3/pyo3/pull/3663)
 - Add lifetime parameter to `PyTzInfoAccess` trait. For the deprecated gil-ref API, the trait is now implemented for `&'py PyTime` and `&'py PyDateTime` instead of `PyTime` and `PyDate`. [#3679](https://github.com/PyO3/pyo3/pull/3679)
 - Calls to `__traverse__` become no-ops for unsendable pyclasses if on the wrong thread, thereby avoiding hard aborts at the cost of potential leakage. [#3689](https://github.com/PyO3/pyo3/pull/3689)
 - Include `PyNativeType` in `pyo3::prelude`. [#3692](https://github.com/PyO3/pyo3/pull/3692)
 - Improve performance of `extract::<i64>` (and other integer types) by avoiding call to `__index__()` converting the value to an integer for 3.10+. Gives performance improvement of around 30% for successful extraction. [#3742](https://github.com/PyO3/pyo3/pull/3742)
 - Relax bound of `FromPyObject` for `Py<T>` to just `T: PyTypeCheck`. [#3776](https://github.com/PyO3/pyo3/pull/3776)
 - `PySet` and `PyFrozenSet` iterators now always iterate the equivalent of `iter(set)`. (A "fast path" with no noticeable performance benefit was removed.) [#3849](https://github.com/PyO3/pyo3/pull/3849)
-- The `#[pymodule]` macro now supports module functions that take a single argument as a `&Bound<'_, PyModule>`. [#3905](https://github.com/PyO3/pyo3/pull/3905)
 - Move implementations of `FromPyObject` for `&str`, `Cow<str>`, `&[u8]` and `Cow<[u8]>` onto a temporary trait `FromPyObjectBound` when `gil-refs` feature is deactivated. [#3928](https://github.com/PyO3/pyo3/pull/3928)
+- Deprecate `GILPool`, `Python::with_pool`, and `Python::new_pool`. [#3947](https://github.com/PyO3/pyo3/pull/3947)
 
 ### Removed
 
 - Remove all functionality deprecated in PyO3 0.19. [#3603](https://github.com/PyO3/pyo3/pull/3603)
-- Remove `PyCode` and `PyCode_Type` on PyPy: `PyCode_Type` is not exposed by PyPy. [#3934](https://github.com/PyO3/pyo3/pull/3934)
 
 ### Fixed
 
 - Match PyPy 7.3.14 in removing PyPy-only symbol `Py_MAX_NDIMS` in favour of `PyBUF_MAX_NDIM`. [#3757](https://github.com/PyO3/pyo3/pull/3757)
 - Fix segmentation fault using `datetime` types when an invalid `datetime` module is on sys.path. [#3818](https://github.com/PyO3/pyo3/pull/3818)
 - Fix `non_local_definitions` lint warning triggered by many PyO3 macros. [#3901](https://github.com/PyO3/pyo3/pull/3901)
+- Disable `PyCode` and `PyCode_Type` on PyPy: `PyCode_Type` is not exposed by PyPy. [#3934](https://github.com/PyO3/pyo3/pull/3934)
 
+## [0.21.0-beta.0] - 2024-03-10
+
+Prerelease of PyO3 0.21. See (the GitHub diff)[https://github.com/pyo3/pyo3/compare/v0.21.0-beta.0...v0.21.0] for what changed between 0.21.0-beta.0 and the final release.
 
 ## [0.20.3] - 2024-02-23
 
@@ -1706,6 +1709,7 @@ Yanked
 
 - Initial release
 
+[0.21.0]: https://github.com/pyo3/pyo3/compare/v0.20.3...v0.21.0
 [0.21.0-beta.0]: https://github.com/pyo3/pyo3/compare/v0.20.3...v0.21.0-beta.0
 [0.20.3]: https://github.com/pyo3/pyo3/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/pyo3/pyo3/compare/v0.20.1...v0.20.2
