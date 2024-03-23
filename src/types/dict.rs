@@ -1374,6 +1374,20 @@ mod tests {
         });
     }
 
+    #[test]
+    fn dict_into_mapping() {
+        Python::with_gil(|py| {
+            let mut map = HashMap::<i32, i32>::new();
+            map.insert(1, 1);
+
+            let py_map = map.into_py_dict_bound(py);
+
+            let py_mapping = py_map.into_mapping();
+            assert_eq!(py_mapping.len().unwrap(), 1);
+            assert_eq!(py_mapping.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+        });
+    }
+
     #[cfg(not(PyPy))]
     fn abc_dict(py: Python<'_>) -> Bound<'_, PyDict> {
         let mut map = HashMap::<&'static str, i32>::new();

@@ -1422,12 +1422,22 @@ mod tests {
     #[test]
     fn test_tuple_as_sequence() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new(py, vec![1, 2, 3]);
+            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
             let sequence = tuple.as_sequence();
             assert!(tuple.get_item(0).unwrap().eq(1).unwrap());
             assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
 
             assert_eq!(tuple.len(), 3);
+            assert_eq!(sequence.len().unwrap(), 3);
+        })
+    }
+
+    #[test]
+    fn test_tuple_into_sequence() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
+            let sequence = tuple.into_sequence();
+            assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
             assert_eq!(sequence.len().unwrap(), 3);
         })
     }
