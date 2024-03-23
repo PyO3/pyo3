@@ -55,7 +55,6 @@ fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(codspeed))]
 fn sequence_from_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
@@ -70,7 +69,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("list_get_item", list_get_item);
     #[cfg(not(Py_LIMITED_API))]
     c.bench_function("list_get_item_unchecked", list_get_item_unchecked);
-    #[cfg(not(codspeed))]
     c.bench_function("sequence_from_list", sequence_from_list);
 }
 
