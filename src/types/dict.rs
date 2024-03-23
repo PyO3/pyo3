@@ -365,6 +365,9 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// Returns `self` cast as a `PyMapping`.
     fn as_mapping(&self) -> &Bound<'py, PyMapping>;
 
+    /// Returns `self` cast as a `PyMapping`.
+    fn into_mapping(self) -> Bound<'py, PyMapping>;
+
     /// Update this dictionary with the key/value pairs from another.
     ///
     /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
@@ -509,6 +512,10 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
     fn as_mapping(&self) -> &Bound<'py, PyMapping> {
         unsafe { self.downcast_unchecked() }
+    }
+
+    fn into_mapping(self) -> Bound<'py, PyMapping> {
+        unsafe { self.into_any().downcast_into_unchecked() }
     }
 
     fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
@@ -1364,6 +1371,20 @@ mod tests {
                     .unwrap(),
                 1
             );
+        });
+    }
+
+    #[test]
+    fn dict_into_mapping() {
+        Python::with_gil(|py| {
+            let mut map = HashMap::<i32, i32>::new();
+            map.insert(1, 1);
+
+            let py_map = map.into_py_dict_bound(py);
+
+            let py_mapping = py_map.into_mapping();
+            assert_eq!(py_mapping.len().unwrap(), 1);
+            assert_eq!(py_mapping.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
         });
     }
 
