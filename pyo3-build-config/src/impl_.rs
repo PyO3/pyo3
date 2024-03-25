@@ -32,6 +32,12 @@ use crate::{
 /// Minimum Python version PyO3 supports.
 const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
 
+/// GraalPy may implement the same CPython version over multiple releases.
+const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
+    major: 24,
+    minor: 0,
+};
+
 /// Maximum Python version that can be used as minimum required Python version with abi3.
 const ABI3_MAX_MINOR: u8 = 12;
 
@@ -204,6 +210,11 @@ from sysconfig import get_config_var, get_platform
 PYPY = platform.python_implementation() == "PyPy"
 GRAALPY = platform.python_implementation() == "GraalVM"
 
+if GRAALPY:
+    graalpy_ver = map(int, __graalpython__.get_graalvm_version().split('.'));
+    print("graalpy_major", next(graalpy_ver))
+    print("graalpy_minor", next(graalpy_ver))
+
 # sys.base_prefix is missing on Python versions older than 3.3; this allows the script to continue
 # so that the version mismatch can be reported in a nicer way later.
 base_prefix = getattr(sys, "base_prefix", None)
@@ -249,6 +260,23 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             "broken Python interpreter: {}",
             interpreter.as_ref().display()
         );
+
+        if let Some(value) = map.get("graalpy_major") {
+            let graalpy_version = PythonVersion {
+                major: value
+                    .parse()
+                    .context("failed to parse GraalPy major version")?,
+                minor: map["graalpy_minor"]
+                    .parse()
+                    .context("failed to parse GraalPy minor version")?,
+            };
+            ensure!(
+                graalpy_version >= MINIMUM_SUPPORTED_VERSION_GRAALPY,
+                "At least GraalPy version {} needed, got {}",
+                MINIMUM_SUPPORTED_VERSION_GRAALPY,
+                graalpy_version
+            );
+        };
 
         let shared = map["shared"].as_str() == "True";
 
