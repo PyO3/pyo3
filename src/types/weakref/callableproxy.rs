@@ -7,9 +7,11 @@ use crate::{ffi, AsPyPointer, Borrowed, Bound, PyNativeType, ToPyObject};
 
 use super::PyWeakRefMethods;
 
-/// Represents a Python `weakref.ProxyType`.
+/// Represents a Python `weakref.CallableProxyType`.
 ///
-/// In Python this is created by calling `weakref.proxy`.
+/// In Python this is created by calling `weakref.proxy` with a callable argument as the referenced object.
+///
+/// If the referenced object is non-callable [`PyWeakProxy`](super::PyWeakProxy) should be used instead.
 #[repr(transparent)]
 pub struct PyWeakCallableProxy(PyAny);
 
@@ -1104,7 +1106,8 @@ mod tests {
                 let reference = PyWeakCallableProxy::new_bound(object.bind(py))?;
 
                 {
-                    let obj = unsafe { reference.upgrade_borrowed_as_unchecked::<WeakrefablePyClass>() };
+                    let obj =
+                        unsafe { reference.upgrade_borrowed_as_unchecked::<WeakrefablePyClass>() };
 
                     assert!(obj.is_some());
                     assert!(obj.map_or(false, |obj| obj.as_ptr() == object.as_ptr()));
@@ -1113,7 +1116,8 @@ mod tests {
                 drop(object);
 
                 {
-                    let obj = unsafe { reference.upgrade_borrowed_as_unchecked::<WeakrefablePyClass>() };
+                    let obj =
+                        unsafe { reference.upgrade_borrowed_as_unchecked::<WeakrefablePyClass>() };
 
                     assert!(obj.is_none());
                 }
@@ -1121,7 +1125,6 @@ mod tests {
                 Ok(())
             })
         }
-
 
         #[test]
         fn test_weakref_upgrade() -> PyResult<()> {

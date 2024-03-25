@@ -9,7 +9,9 @@ use super::PyWeakRefMethods;
 
 /// Represents a Python `weakref.ProxyType`.
 ///
-/// In Python this is created by calling `weakref.proxy`.
+/// In Python this is created by calling `weakref.proxy` with a non-callable argument as the referenced object.
+///
+/// If the referenced object is callable [`PyWeakCallableProxy`](super::PyWeakCallableProxy) should be used instead.
 #[repr(transparent)]
 pub struct PyWeakProxy(PyAny);
 
