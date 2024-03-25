@@ -14,7 +14,7 @@ use std::ptr;
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type!(
     PySet,
     ffi::PySetObject,
@@ -22,7 +22,7 @@ pyobject_native_type!(
     #checkfunction=ffi::PySet_Check
 );
 
-#[cfg(PyPy)]
+#[cfg(any(PyPy, GraalPy))]
 pyobject_native_type_core!(
     PySet,
     pyobject_native_static_type_object!(ffi::PySet_Type),

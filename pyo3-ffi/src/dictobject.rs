@@ -109,6 +109,6 @@ extern "C" {
     pub static mut PyDictRevIterItem_Type: PyTypeObject;
 }
 
-#[cfg(any(PyPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
 opaque_struct!(PyDictObject);

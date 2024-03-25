@@ -20,11 +20,11 @@ pyobject_native_type!(
 );
 
 /// Represents a Python `dict_keys`.
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(transparent)]
 pub struct PyDictKeys(PyAny);
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type_core!(
     PyDictKeys,
     pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
@@ -32,11 +32,11 @@ pyobject_native_type_core!(
 );
 
 /// Represents a Python `dict_values`.
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(transparent)]
 pub struct PyDictValues(PyAny);
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type_core!(
     PyDictValues,
     pyobject_native_static_type_object!(ffi::PyDictValues_Type),
@@ -44,11 +44,11 @@ pyobject_native_type_core!(
 );
 
 /// Represents a Python `dict_items`.
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(transparent)]
 pub struct PyDictItems(PyAny);
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type_core!(
     PyDictItems,
     pyobject_native_static_type_object!(ffi::PyDictItems_Type),
@@ -76,14 +76,14 @@ impl PyDict {
 
     /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
     #[cfg_attr(
-        all(not(PyPy), not(feature = "gil-refs")),
+        all(not(any(PyPy, GraalPy)), not(feature = "gil-refs")),
         deprecated(
             since = "0.21.0",
             note = "`PyDict::from_sequence` will be replaced by `PyDict::from_sequence_bound` in a future PyO3 version"
         )
     )]
     #[inline]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
         Self::from_sequence_bound(&seq.as_borrowed()).map(Bound::into_gil_ref)
     }
@@ -95,7 +95,7 @@ impl PyDict {
     ///
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let py = seq.py();
         let dict = Self::new_bound(py);
@@ -542,12 +542,12 @@ impl<'a, 'py> Borrowed<'a, 'py, PyDict> {
 }
 
 fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
-    #[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
+    #[cfg(any(not(Py_3_8), PyPy, GraalPy, Py_LIMITED_API))]
     unsafe {
         ffi::PyDict_Size(dict.as_ptr())
     }
 
-    #[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
+    #[cfg(all(Py_3_8, not(PyPy), not(GraalPy), not(Py_LIMITED_API)))]
     unsafe {
         (*dict.as_ptr().cast::<ffi::PyDictObject>()).ma_used
     }
@@ -824,7 +824,7 @@ where
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     use crate::exceptions;
     use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
@@ -850,7 +850,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence() {
         Python::with_gil(|py| {
             let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
@@ -881,7 +881,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence_err() {
         Python::with_gil(|py| {
             let items = PyList::new(py, &vec!["a", "b"]);
@@ -955,7 +955,7 @@ mod tests {
 
     #[test]
     #[allow(deprecated)]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn test_get_item_with_error() {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
@@ -1388,7 +1388,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn abc_dict(py: Python<'_>) -> Bound<'_, PyDict> {
         let mut map = HashMap::<&'static str, i32>::new();
         map.insert("a", 1);
@@ -1398,7 +1398,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn dict_keys_view() {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
@@ -1410,7 +1410,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn dict_values_view() {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
@@ -1422,7 +1422,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     fn dict_items_view() {
         Python::with_gil(|py| {
             let dict = abc_dict(py);

@@ -17,7 +17,7 @@
 ## Usage
 
 PyO3 supports the following software versions:
-  - Python 3.7 and up (CPython and PyPy)
+  - Python 3.7 and up (CPython, PyPy, and GraalPy)
   - Rust 1.56 and up
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.

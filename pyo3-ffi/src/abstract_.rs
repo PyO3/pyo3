@@ -23,6 +23,7 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
 extern "C" {
     #[cfg(all(
         not(PyPy),
+        not(GraalPy),
         any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // Added to python in 3.9 but to limited API in 3.10
     ))]
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallNoArgs")]
