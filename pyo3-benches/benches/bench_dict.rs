@@ -1,9 +1,10 @@
+use std::collections::{BTreeMap, HashMap};
+use std::hint::black_box;
+
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::types::IntoPyDict;
 use pyo3::{prelude::*, types::PyMapping};
-use std::collections::{BTreeMap, HashMap};
-use std::hint::black_box;
 
 fn iter_dict(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -69,7 +70,6 @@ fn extract_hashbrown_map(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(codspeed))]
 fn mapping_from_dict(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
@@ -84,12 +84,10 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("dict_get_item", dict_get_item);
     c.bench_function("extract_hashmap", extract_hashmap);
     c.bench_function("extract_btreemap", extract_btreemap);
+    c.bench_function("mapping_from_dict", mapping_from_dict);
 
     #[cfg(feature = "hashbrown")]
     c.bench_function("extract_hashbrown_map", extract_hashbrown_map);
-
-    #[cfg(not(codspeed))]
-    c.bench_function("mapping_from_dict", mapping_from_dict);
 }
 
 criterion_group!(benches, criterion_benchmark);

@@ -74,9 +74,9 @@ jobs:
         rust: [stable]
         platform: [
           {
-            os: "macos-latest",
-            python-architecture: "x64",
-            rust-target: "x86_64-apple-darwin",
+            os: "macos-14",  # first available arm macos runner
+            python-architecture: "arm64",
+            rust-target: "aarch64-apple-darwin",
           },
           {
             os: "ubuntu-latest",
@@ -119,7 +119,7 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
     name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
-    continue-on-error: ${{ matrix.platform.rust != 'stable' }}
+    continue-on-error: ${{ matrix.rust != 'stable' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -161,7 +161,12 @@ jobs:
         platform:
           [
             {
-              os: "macos-latest",
+              os: "macos-14",  # first available arm macos runner
+              python-architecture: "arm64",
+              rust-target: "aarch64-apple-darwin",
+            },
+            {
+              os: "macos-13",  # last available x86_64 macos runner
               python-architecture: "x64",
               rust-target: "x86_64-apple-darwin",
             },
@@ -226,8 +231,13 @@ jobs:
         ]
         platform:
           [
+            # for the full matrix, use x86_64 macos runners because not all Python versions
+            # PyO3 supports are available for arm on GitHub Actions. (Availability starts
+            # around Python 3.10, can switch the full matrix to arm once earlier versions
+            # are dropped.)
+            # NB: if this switches to arm, switch the arm job below in the `include` to x86_64
             {
-              os: "macos-latest",
+              os: "macos-13",
               python-architecture: "x64",
               rust-target: "x86_64-apple-darwin",
             },
@@ -287,6 +297,18 @@ jobs:
               }
             extra-features: "multiple-pymethods"
 
+          # test arm macos runner with the latest Python version
+          # NB: if the full matrix switchess to arm, switch to x86_64 here
+          - rust: stable
+            python-version: "3.12"
+            platform:
+              {
+                os: "macos-14",
+                python-architecture: "arm64",
+                rust-target: "aarch64-apple-darwin",
+              }
+            extra-features: "multiple-pymethods"
+
   valgrind:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
@@ -343,13 +365,13 @@ jobs:
 
   coverage:
     needs: [fmt]
-    name: coverage-${{ matrix.os }}
+    name: coverage ${{ matrix.os }}
     strategy:
       matrix:
-        os: ["windows", "macos", "ubuntu"]
-    runs-on: ${{ matrix.os }}-latest
+        os: ["windows-latest", "macos-14", "ubuntu-latest"]  # first available arm macos runner
+    runs-on: ${{ matrix.os }}
     steps:
-      - if: ${{ github.event_name == 'pull_request' && matrix.os != 'ubuntu' }}
+      - if: ${{ github.event_name == 'pull_request' && matrix.os != 'ubuntu-latest' }}
         id: should-skip
         shell: bash
         run: echo 'skip=true' >> $GITHUB_OUTPUT
