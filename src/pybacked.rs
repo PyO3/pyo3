@@ -27,6 +27,18 @@ impl Deref for PyBackedStr {
     }
 }
 
+impl AsRef<str> for PyBackedStr {
+    fn as_ref(&self) -> &str {
+        self
+    }
+}
+
+impl AsRef<[u8]> for PyBackedStr {
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
 impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
     type Error = PyErr;
     fn try_from(py_string: Bound<'_, PyString>) -> Result<Self, Self::Error> {
@@ -79,6 +91,12 @@ impl Deref for PyBackedBytes {
     fn deref(&self) -> &[u8] {
         // Safety: `data` is known to be immutable and owned by self
         unsafe { self.data.as_ref() }
+    }
+}
+
+impl AsRef<[u8]> for PyBackedBytes {
+    fn as_ref(&self) -> &[u8] {
+        self
     }
 }
 
