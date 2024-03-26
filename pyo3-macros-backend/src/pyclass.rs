@@ -1301,10 +1301,12 @@ fn impl_pytypeinfo(
 
     quote! {
         #[allow(deprecated)]
+        #[automatically_derived]
         unsafe impl #pyo3_path::type_object::HasPyGilRef for #cls {
             type AsRefTarget = #pyo3_path::PyCell<Self>;
         }
 
+        #[automatically_derived]
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;

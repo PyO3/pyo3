@@ -103,6 +103,7 @@ macro_rules! import_exception {
             #module=::std::option::Option::Some(stringify!($module))
         );
 
+        #[automatically_derived]
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::GILOnceCell;

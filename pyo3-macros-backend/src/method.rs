@@ -621,6 +621,7 @@ impl<'a> FnSpec<'a> {
                 let init_holders = holders.init_holders(ctx);
 
                 quote! {
+                    #[automatically_derived]
                     unsafe fn #ident<'py>(
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
@@ -642,6 +643,7 @@ impl<'a> FnSpec<'a> {
                 let check_gil_refs = holders.check_gil_refs();
 
                 quote! {
+                    #[automatically_derived]
                     unsafe fn #ident<'py>(
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
@@ -667,6 +669,7 @@ impl<'a> FnSpec<'a> {
                 let check_gil_refs = holders.check_gil_refs();
 
                 quote! {
+                    #[automatically_derived]
                     unsafe fn #ident<'py>(
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
@@ -693,6 +696,7 @@ impl<'a> FnSpec<'a> {
                 let init_holders = holders.init_holders(ctx);
                 let check_gil_refs = holders.check_gil_refs();
                 quote! {
+                    #[automatically_derived]
                     unsafe fn #ident(
                         py: #pyo3_path::Python<'_>,
                         _slf: *mut #pyo3_path::ffi::PyTypeObject,
