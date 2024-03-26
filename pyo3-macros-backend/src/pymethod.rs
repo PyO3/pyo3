@@ -11,7 +11,7 @@ use crate::{
 };
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Result};
 
 /// Generated code for a single pymethod item.
@@ -586,6 +586,34 @@ pub fn impl_py_setter_def(
         }
     };
 
+    let extract = if let PropertyType::Function { spec, .. } = &property_type {
+        Some(spec)
+    } else {
+        None
+    }
+    .and_then(|spec| {
+        let (_, args) = split_off_python_arg(&spec.signature.arguments);
+        let value_arg = &args[0];
+        let from_py_with = &value_arg.attrs.from_py_with.as_ref()?.value;
+        let name = value_arg.name.to_string();
+
+        Some(quote_spanned! { from_py_with.span() =>
+            let e = #pyo3_path::impl_::deprecations::GilRefs::new();
+            let from_py_with = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
+            e.from_py_with_arg();
+            let _val = #pyo3_path::impl_::extract_argument::from_py_with(
+                &_value.into(),
+                #name,
+                from_py_with as fn(_) -> _,
+            )?;
+        })
+    })
+    .unwrap_or_else(|| {
+        quote! {
+            let _val = #pyo3_path::FromPyObject::extract_bound(_value.into())?;
+        }
+    });
+
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
         for attr in field
@@ -611,7 +639,7 @@ pub fn impl_py_setter_def(
                 .ok_or_else(|| {
                     #pyo3_path::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
-            let _val = #pyo3_path::FromPyObject::extract_bound(_value.into())?;
+            #extract
             #init_holders
             let result = #setter_impl;
             #check_gil_refs

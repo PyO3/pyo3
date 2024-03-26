@@ -26,6 +26,12 @@ impl MyClass {
 
     #[staticmethod]
     fn static_method_gil_ref(_any: &PyAny) {}
+
+    #[setter]
+    fn set_foo_gil_ref(&self, #[pyo3(from_py_with = "extract_gil_ref")] _value: i32) {}
+
+    #[setter]
+    fn set_foo_bound(&self, #[pyo3(from_py_with = "extract_bound")] _value: i32) {}
 }
 
 fn main() {}
