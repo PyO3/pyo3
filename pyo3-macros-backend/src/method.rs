@@ -269,19 +269,11 @@ pub struct FnSpec<'a> {
     // r# can be removed by syn::ext::IdentExt::unraw()
     pub python_name: syn::Ident,
     pub signature: FunctionSignature<'a>,
-    pub output: syn::Type,
     pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub deprecations: Deprecations<'a>,
-}
-
-pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
-    match output {
-        syn::ReturnType::Default => syn::Type::Infer(syn::parse_quote! {_}),
-        syn::ReturnType::Type(_, ty) => *ty.clone(),
-    }
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -329,7 +321,6 @@ impl<'a> FnSpec<'a> {
         ensure_signatures_on_valid_method(&fn_type, signature.as_ref(), text_signature.as_ref())?;
 
         let name = &sig.ident;
-        let ty = get_return_info(&sig.output);
         let python_name = python_name.as_ref().unwrap_or(name).unraw();
 
         let arguments: Vec<_> = sig
@@ -361,7 +352,6 @@ impl<'a> FnSpec<'a> {
             convention,
             python_name,
             signature,
-            output: ty,
             text_signature,
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,

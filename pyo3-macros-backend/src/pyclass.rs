@@ -975,13 +975,8 @@ fn impl_complex_enum_struct_variant_cls(
         let field_type = field.ty;
         let field_with_type = quote! { #field_name: #field_type };
 
-        let field_getter = complex_enum_variant_field_getter(
-            &variant_cls_type,
-            field_name,
-            field_type,
-            field.span,
-            ctx,
-        )?;
+        let field_getter =
+            complex_enum_variant_field_getter(&variant_cls_type, field_name, field.span, ctx)?;
 
         let field_getter_impl = quote! {
             fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#field_type> {
@@ -1188,7 +1183,6 @@ fn complex_enum_struct_variant_new<'a>(
         name: &format_ident!("__pymethod_constructor__"),
         python_name: format_ident!("__new__"),
         signature,
-        output: variant_cls_type.clone(),
         convention: crate::method::CallingConvention::TpNew,
         text_signature: None,
         asyncness: None,
@@ -1202,7 +1196,6 @@ fn complex_enum_struct_variant_new<'a>(
 fn complex_enum_variant_field_getter<'a>(
     variant_cls_type: &'a syn::Type,
     field_name: &'a syn::Ident,
-    field_type: &'a syn::Type,
     field_span: Span,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
@@ -1215,7 +1208,6 @@ fn complex_enum_variant_field_getter<'a>(
         name: field_name,
         python_name: field_name.clone(),
         signature,
-        output: field_type.clone(),
         convention: crate::method::CallingConvention::Noargs,
         text_signature: None,
         asyncness: None,
