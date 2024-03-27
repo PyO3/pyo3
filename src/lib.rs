@@ -449,6 +449,7 @@ pub mod impl_;
 mod instance;
 pub mod marker;
 pub mod marshal;
+pub mod stdio;
 #[macro_use]
 pub mod sync;
 pub mod panic;
