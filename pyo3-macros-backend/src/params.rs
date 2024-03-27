@@ -73,7 +73,7 @@ pub fn is_forwarded_args(signature: &FunctionSignature<'_>) -> bool {
     )
 }
 
-fn check_arg_for_gil_refs(
+pub(crate) fn check_arg_for_gil_refs(
     tokens: TokenStream,
     gil_refs_checker: syn::Ident,
     ctx: &Ctx,
@@ -120,7 +120,11 @@ pub fn impl_arg_params(
             .iter()
             .enumerate()
             .map(|(i, arg)| {
-                impl_arg_param(arg, i, &mut 0, &args_array, holders, ctx).map(|tokens| {
+                let from_py_with =
+                    syn::Ident::new(&format!("from_py_with_{}", i), Span::call_site());
+                let arg_value = quote!(#args_array[0].as_deref());
+
+                impl_arg_param(arg, from_py_with, arg_value, holders, ctx).map(|tokens| {
                     check_arg_for_gil_refs(
                         tokens,
                         holders.push_gil_refs_checker(arg.ty.span()),
@@ -161,14 +165,20 @@ pub fn impl_arg_params(
 
     let num_params = positional_parameter_names.len() + keyword_only_parameters.len();
 
-    let mut option_pos = 0;
+    let mut option_pos = 0usize;
     let param_conversion = spec
         .signature
         .arguments
         .iter()
         .enumerate()
         .map(|(i, arg)| {
-            impl_arg_param(arg, i, &mut option_pos, &args_array, holders, ctx).map(|tokens| {
+            let from_py_with = syn::Ident::new(&format!("from_py_with_{}", i), Span::call_site());
+            let arg_value = quote!(#args_array[#option_pos].as_deref());
+            if arg.is_regular() {
+                option_pos += 1;
+            }
+
+            impl_arg_param(arg, from_py_with, arg_value, holders, ctx).map(|tokens| {
                 check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx)
             })
         })
@@ -234,11 +244,10 @@ pub fn impl_arg_params(
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument
 /// index and the index in option diverge when using py: Python
-fn impl_arg_param(
+pub(crate) fn impl_arg_param(
     arg: &FnArg<'_>,
-    pos: usize,
-    option_pos: &mut usize,
-    args_array: &syn::Ident,
+    from_py_with: syn::Ident,
+    arg_value: TokenStream, // expected type: Option<&'a Bound<'py, PyAny>>
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
@@ -291,9 +300,6 @@ fn impl_arg_param(
         });
     }
 
-    let arg_value = quote_arg_span!(#args_array[#option_pos]);
-    *option_pos += 1;
-
     let mut default = arg.default.as_ref().map(|expr| quote!(#expr));
 
     // Option<T> arguments have special treatment: the default should be specified _without_ the
@@ -312,11 +318,10 @@ fn impl_arg_param(
         .map(|attr| &attr.value)
         .is_some()
     {
-        let from_py_with = syn::Ident::new(&format!("from_py_with_{}", pos), Span::call_site());
         if let Some(default) = default {
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
-                    #arg_value.as_deref(),
+                    #arg_value,
                     #name_str,
                     #from_py_with as fn(_) -> _,
                     #[allow(clippy::redundant_closure)]
@@ -328,7 +333,7 @@ fn impl_arg_param(
         } else {
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with(
-                    &#pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                    #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
                     #name_str,
                     #from_py_with as fn(_) -> _,
                 )?
@@ -338,7 +343,7 @@ fn impl_arg_param(
         let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_optional_argument(
-                #arg_value.as_deref(),
+                #arg_value,
                 &mut #holder,
                 #name_str,
                 #[allow(clippy::redundant_closure)]
@@ -351,7 +356,7 @@ fn impl_arg_param(
         let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                #arg_value.as_deref(),
+                #arg_value,
                 &mut #holder,
                 #name_str,
                 #[allow(clippy::redundant_closure)]
@@ -364,7 +369,7 @@ fn impl_arg_param(
         let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument(
-                &#pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
                 &mut #holder,
                 #name_str
             )?
