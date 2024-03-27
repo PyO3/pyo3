@@ -223,7 +223,9 @@ pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -
 /// `argument` must not be `None`
 #[doc(hidden)]
 #[inline]
-pub unsafe fn unwrap_required_argument(argument: Option<PyArg<'_>>) -> PyArg<'_> {
+pub unsafe fn unwrap_required_argument<'a, 'py>(
+    argument: Option<&'a Bound<'py, PyAny>>,
+) -> &'a Bound<'py, PyAny> {
     match argument {
         Some(value) => value,
         #[cfg(debug_assertions)]

@@ -63,6 +63,10 @@ impl<'a> FnArg<'a> {
             }
         }
     }
+
+    pub fn is_regular(&self) -> bool {
+        !self.py && !self.is_cancel_handle && !self.is_kwargs && !self.is_varargs
+    }
 }
 
 fn handle_argument_error(pat: &syn::Pat) -> syn::Error {

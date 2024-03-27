@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
 use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::params::Holders;
+use crate::params::{check_arg_for_gil_refs, impl_arg_param, Holders};
 use crate::utils::Ctx;
 use crate::utils::PythonDoc;
 use crate::{
@@ -586,48 +586,63 @@ pub fn impl_py_setter_def(
         }
     };
 
-    // TODO: rework this to make use of `impl_::params::impl_arg_param` which
-    // handles all these cases already.
-    let extract = if let PropertyType::Function { spec, .. } = &property_type {
-        Some(spec)
-    } else {
-        None
-    }
-    .and_then(|spec| {
-        let (_, args) = split_off_python_arg(&spec.signature.arguments);
-        let value_arg = &args[0];
-        let from_py_with = &value_arg.attrs.from_py_with.as_ref()?.value;
-        let name = value_arg.name.to_string();
+    let extract = match &property_type {
+        PropertyType::Function { spec, .. } => {
+            let (_, args) = split_off_python_arg(&spec.signature.arguments);
+            let value_arg = &args[0];
+            let (from_py_with, ident) = if let Some(from_py_with) =
+                &value_arg.attrs.from_py_with.as_ref().map(|f| &f.value)
+            {
+                let ident = syn::Ident::new("from_py_with", from_py_with.span());
+                (
+                    quote_spanned! { from_py_with.span() =>
+                        let e = #pyo3_path::impl_::deprecations::GilRefs::new();
+                        let #ident = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
+                        e.from_py_with_arg();
+                    },
+                    ident,
+                )
+            } else {
+                (quote!(), syn::Ident::new("dummy", Span::call_site()))
+            };
 
-        Some(quote_spanned! { from_py_with.span() =>
-            let e = #pyo3_path::impl_::deprecations::GilRefs::new();
-            let from_py_with = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
-            e.from_py_with_arg();
-            let _val = #pyo3_path::impl_::extract_argument::from_py_with(
-                &_value.into(),
-                #name,
-                from_py_with as fn(_) -> _,
-            )?;
-        })
-    })
-    .unwrap_or_else(|| {
-        let (span, name) = match &property_type {
-            PropertyType::Descriptor { field, .. } => (field.ty.span(), field.ident.as_ref().map(|i|i.to_string()).unwrap_or_default()),
-            PropertyType::Function { spec, .. } => {
-                let (_, args) = split_off_python_arg(&spec.signature.arguments);
-                (args[0].ty.span(), args[0].name.to_string())
+            let extract = impl_arg_param(
+                &args[0],
+                ident,
+                quote!(::std::option::Option::Some(_value.into())),
+                &mut holders,
+                ctx,
+            )
+            .map(|tokens| {
+                check_arg_for_gil_refs(
+                    tokens,
+                    holders.push_gil_refs_checker(value_arg.ty.span()),
+                    ctx,
+                )
+            })?;
+            quote! {
+                #from_py_with
+                let _val = #extract;
             }
-        };
-
-        let holder = holders.push_holder(span);
-        let gil_refs_checker = holders.push_gil_refs_checker(span);
-        quote! {
-            let _val = #pyo3_path::impl_::deprecations::inspect_type(
-                #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?,
-                &#gil_refs_checker
-            );
         }
-    });
+        PropertyType::Descriptor { field, .. } => {
+            let span = field.ty.span();
+            let name = field
+                .ident
+                .as_ref()
+                .map(|i| i.to_string())
+                .unwrap_or_default();
+
+            let holder = holders.push_holder(span);
+            let gil_refs_checker = holders.push_gil_refs_checker(span);
+            quote! {
+                let _val = #pyo3_path::impl_::deprecations::inspect_type(
+                    #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?,
+                    &#gil_refs_checker
+                );
+            }
+        }
+    };
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
