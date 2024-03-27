@@ -586,6 +586,8 @@ pub fn impl_py_setter_def(
         }
     };
 
+    // TODO: rework this to make use of `impl_::params::impl_arg_param` which
+    // handles all these cases already.
     let extract = if let PropertyType::Function { spec, .. } = &property_type {
         Some(spec)
     } else {
@@ -609,8 +611,21 @@ pub fn impl_py_setter_def(
         })
     })
     .unwrap_or_else(|| {
+        let (span, name) = match &property_type {
+            PropertyType::Descriptor { field, .. } => (field.ty.span(), field.ident.as_ref().map(|i|i.to_string()).unwrap_or_default()),
+            PropertyType::Function { spec, .. } => {
+                let (_, args) = split_off_python_arg(&spec.signature.arguments);
+                (args[0].ty.span(), args[0].name.to_string())
+            }
+        };
+
+        let holder = holders.push_holder(span);
+        let gil_refs_checker = holders.push_gil_refs_checker(span);
         quote! {
-            let _val = #pyo3_path::FromPyObject::extract_bound(_value.into())?;
+            let _val = #pyo3_path::impl_::deprecations::inspect_type(
+                #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?,
+                &#gil_refs_checker
+            );
         }
     });
 
@@ -639,8 +654,8 @@ pub fn impl_py_setter_def(
                 .ok_or_else(|| {
                     #pyo3_path::exceptions::PyAttributeError::new_err("can't delete attribute")
                 })?;
-            #extract
             #init_holders
+            #extract
             let result = #setter_impl;
             #check_gil_refs
             #pyo3_path::callback::convert(py, result)
