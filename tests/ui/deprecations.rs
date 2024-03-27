@@ -32,6 +32,12 @@ impl MyClass {
 
     #[setter]
     fn set_foo_bound(&self, #[pyo3(from_py_with = "extract_bound")] _value: i32) {}
+
+    #[setter]
+    fn set_bar_gil_ref(&self, _value: &PyAny) {}
+
+    #[setter]
+    fn set_bar_bound(&self, _value: &Bound<'_, PyAny>) {}
 }
 
 fn main() {}
