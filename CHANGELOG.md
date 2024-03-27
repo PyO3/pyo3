@@ -77,7 +77,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 ## [0.21.0-beta.0] - 2024-03-10
 
-Prerelease of PyO3 0.21. See (the GitHub diff)[https://github.com/pyo3/pyo3/compare/v0.21.0-beta.0...v0.21.0] for what changed between 0.21.0-beta.0 and the final release.
+Prerelease of PyO3 0.21. See [the GitHub diff](https://github.com/pyo3/pyo3/compare/v0.21.0-beta.0...v0.21.0) for what changed between 0.21.0-beta.0 and the final release.
 
 ## [0.20.3] - 2024-02-23
 
