@@ -1,10 +1,7 @@
 use std::borrow::Cow;
 
 use crate::attributes::kw::frozen;
-use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
-};
+use crate::attributes::{self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, get_pyo3_options};
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec};
@@ -13,7 +10,7 @@ use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
     SlotDef, __INT__, __REPR__, __RICHCMP__,
 };
-use crate::utils::Ctx;
+use crate::utils::{Ctx, is_abi3};
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
 use crate::PyFunctionOptions;
 use proc_macro2::{Ident, Span, TokenStream};
@@ -22,6 +19,13 @@ use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, spanned::Spanned, Result, Token};
+use pyo3_build_config::PythonVersion;
+
+
+const PY_3_9: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 9,
+};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -162,6 +166,8 @@ impl PyClassPyO3Options {
             };
         }
 
+        let python_version = pyo3_build_config::get().version;
+
         match option {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
             PyClassPyO3Option::Dict(dict) => set_option!(dict),
@@ -177,7 +183,13 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
-            PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
+            PyClassPyO3Option::Weakref(weakref) => {
+                if is_abi3() && python_version >= PY_3_9 {
+                    set_option!(weakref);
+                } else {
+                    return Err(syn::Error::new((weakref.span()), "`weakref` not supported until python 3.9 or graeter",));
+                }
+            },
         }
         Ok(())
     }
