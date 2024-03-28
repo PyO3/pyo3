@@ -8,7 +8,7 @@ use crate::{
     instance::Bound,
     pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
-    types::{PyAnyMethods, PyString},
+    types::PyString,
     IntoPy, Py, PyAny, PyClass, PyErr, PyObject, PyResult, Python,
 };
 

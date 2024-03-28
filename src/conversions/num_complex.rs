@@ -94,10 +94,8 @@
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
 use crate::{
-    ffi,
-    ffi_ptr_ext::FfiPtrExt,
-    types::{any::PyAnyMethods, PyComplex},
-    Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Bound, FromPyObject, PyAny, PyErr, PyObject,
+    PyResult, Python, ToPyObject,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
@@ -199,7 +197,7 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{complex::PyComplexMethods, PyModule};
+    use crate::types::{PyAnyMethods, PyComplexMethods, PyModule};
 
     #[test]
     fn from_complex() {

@@ -1,7 +1,6 @@
 //! Python type object information
 
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, PyNativeType, Python};
 

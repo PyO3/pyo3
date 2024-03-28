@@ -1,4 +1,4 @@
-use crate::{types::any::PyAnyMethods, Bound, PyAny, PyResult, PyTypeCheck};
+use crate::{Bound, PyAny, PyResult, PyTypeCheck};
 
 pub(crate) trait PyResultExt<'py>: crate::sealed::Sealed {
     fn downcast_into<T: PyTypeCheck>(self) -> PyResult<Bound<'py, T>>;

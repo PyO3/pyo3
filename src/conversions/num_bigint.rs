@@ -50,10 +50,8 @@
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    ffi,
-    instance::Bound,
-    types::{any::PyAnyMethods, PyLong},
-    FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    ffi, instance::Bound, types::PyLong, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult,
+    Python, ToPyObject,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -262,7 +260,7 @@ fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyDict, PyModule};
+    use crate::types::{PyAnyMethods, PyDict, PyModule};
     use indoc::indoc;
 
     fn rust_fib<T>() -> impl Iterator<Item = T>

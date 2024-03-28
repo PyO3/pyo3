@@ -4,7 +4,6 @@ use crate::err::{self, PyDowncastError, PyResult};
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{
     ffi, gil, Borrowed, Bound, Py, PyAny, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,

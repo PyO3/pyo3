@@ -1,6 +1,5 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
-use crate::types::any::PyAnyMethods;
 use crate::{ffi, Py, PyAny, PyNativeType, PyResult, Python};
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -198,6 +197,7 @@ impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::PyAnyMethods;
 
     #[test]
     fn test_bytes_index() {

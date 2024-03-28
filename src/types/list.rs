@@ -5,11 +5,8 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{PySequence, PyTuple};
+use crate::types::{PySequence, PySequenceMethods, PyTuple};
 use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
-
-use crate::types::any::PyAnyMethods;
-use crate::types::sequence::PySequenceMethods;
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -413,7 +410,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 
     /// Returns `self` cast as a `PySequence`.
     fn into_sequence(self) -> Bound<'py, PySequence> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+        unsafe { self.downcast_into_unchecked() }
     }
 
     /// Gets the list item at the specified index.

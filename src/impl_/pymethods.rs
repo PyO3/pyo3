@@ -5,7 +5,7 @@ use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
-use crate::types::{any::PyAnyMethods, PyModule, PyType};
+use crate::types::{PyModule, PyType};
 use crate::{
     ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject,
     PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,

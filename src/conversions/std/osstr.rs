@@ -1,5 +1,4 @@
 use crate::instance::Bound;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
 use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
