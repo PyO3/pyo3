@@ -16,14 +16,14 @@ use crate::{
 pub struct PyBackedStr {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: Py<PyAny>,
-    data: NonNull<[u8]>,
+    data: NonNull<str>,
 }
 
 impl Deref for PyBackedStr {
     type Target = str;
     fn deref(&self) -> &str {
-        // Safety: `data` is known to be immutable utf8 string and owned by self
-        unsafe { std::str::from_utf8_unchecked(self.data.as_ref()) }
+        // Safety: `data` is known to be immutable and owned by self
+        unsafe { self.data.as_ref() }
     }
 }
 
@@ -39,13 +39,18 @@ impl AsRef<[u8]> for PyBackedStr {
     }
 }
 
+// Safety: the underlying Python str (or bytes) is immutable and
+// safe to share between threads
+unsafe impl Send for PyBackedStr {}
+unsafe impl Sync for PyBackedStr {}
+
 impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
     type Error = PyErr;
     fn try_from(py_string: Bound<'_, PyString>) -> Result<Self, Self::Error> {
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
         {
             let s = py_string.to_str()?;
-            let data = NonNull::from(s.as_bytes());
+            let data = NonNull::from(s);
             Ok(Self {
                 storage: py_string.as_any().to_owned().unbind(),
                 data,
@@ -54,8 +59,8 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
             let bytes = py_string.encode_utf8()?;
-            let b = bytes.as_bytes();
-            let data = NonNull::from(b);
+            let s = unsafe { std::str::from_utf8_unchecked(bytes.as_bytes()) };
+            let data = NonNull::from(s);
             Ok(Self {
                 storage: bytes.into_any().unbind(),
                 data,
@@ -99,6 +104,11 @@ impl AsRef<[u8]> for PyBackedBytes {
         self
     }
 }
+
+// Safety: the underlying Python bytes or Rust bytes is immutable and
+// safe to share between threads
+unsafe impl Send for PyBackedBytes {}
+unsafe impl Sync for PyBackedBytes {}
 
 impl From<Bound<'_, PyBytes>> for PyBackedBytes {
     fn from(py_bytes: Bound<'_, PyBytes>) -> Self {
@@ -200,5 +210,17 @@ mod test {
             let py_backed_bytes = PyBackedBytes::from(b);
             assert_eq!(&*py_backed_bytes, b"abcde");
         });
+    }
+
+    #[test]
+    fn test_backed_types_send_sync() {
+        fn is_send<T: Send>() {}
+        fn is_sync<T: Sync>() {}
+
+        is_send::<PyBackedStr>();
+        is_sync::<PyBackedStr>();
+
+        is_send::<PyBackedBytes>();
+        is_sync::<PyBackedBytes>();
     }
 }
