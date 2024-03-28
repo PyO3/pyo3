@@ -7,7 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
+use crate::{Borrowed, IntoPy, Py, PyAny, PyNativeType, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -65,17 +65,16 @@ impl<'a> PyDowncastError<'a> {
     /// Compatibility API to convert the Bound variant `DowncastError` into the
     /// gil-ref variant
     pub(crate) fn from_downcast_err(DowncastError { from, to }: DowncastError<'a, 'a>) -> Self {
-        Self {
-            from: from.as_gil_ref(),
-            to,
-        }
+        #[allow(deprecated)]
+        let from = unsafe { from.py().from_borrowed_ptr(from.as_ptr()) };
+        Self { from, to }
     }
 }
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
 pub struct DowncastError<'a, 'py> {
-    from: &'a Bound<'py, PyAny>,
+    from: Borrowed<'a, 'py, PyAny>,
     to: Cow<'static, str>,
 }
 
@@ -83,6 +82,16 @@ impl<'a, 'py> DowncastError<'a, 'py> {
     /// Create a new `PyDowncastError` representing a failure to convert the object
     /// `from` into the type named in `to`.
     pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
+        DowncastError {
+            from: from.as_borrowed(),
+            to: to.into(),
+        }
+    }
+    #[cfg(not(feature = "gil-refs"))]
+    pub(crate) fn new_from_borrowed(
+        from: Borrowed<'a, 'py, PyAny>,
+        to: impl Into<Cow<'static, str>>,
+    ) -> Self {
         DowncastError {
             from,
             to: to.into(),
@@ -145,7 +154,7 @@ impl PyErr {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
+    /// #     let fun = pyo3::wrap_pyfunction_bound!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
     /// # });
@@ -163,7 +172,7 @@ impl PyErr {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
+    /// #     let fun = pyo3::wrap_pyfunction_bound!(always_throws, py).unwrap();
     /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
     /// #     assert!(err.is_instance_of::<PyTypeError>(py))
     /// # });
@@ -485,7 +494,7 @@ impl PyErr {
     ///
     /// Use this function when the error is expected to have been set, for example from
     /// [PyErr::occurred] or by an error return value from a C FFI function.
-    #[cfg_attr(all(debug_assertions, track_caller), track_caller)]
+    #[cfg_attr(debug_assertions, track_caller)]
     #[inline]
     pub fn fetch(py: Python<'_>) -> PyErr {
         const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
@@ -854,8 +863,17 @@ impl PyErr {
     /// associated with the exception, as accessible from Python through `__cause__`.
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
         use crate::ffi_ptr_ext::FfiPtrExt;
-        unsafe { ffi::PyException_GetCause(self.value_bound(py).as_ptr()).assume_owned_or_opt(py) }
-            .map(Self::from_value_bound)
+        let obj = unsafe {
+            ffi::PyException_GetCause(self.value_bound(py).as_ptr()).assume_owned_or_opt(py)
+        };
+        // PyException_GetCause is documented as potentially returning PyNone, but only GraalPy seems to actually do that
+        #[cfg(GraalPy)]
+        if let Some(cause) = &obj {
+            if cause.is_none() {
+                return None;
+            }
+        }
+        obj.map(Self::from_value_bound)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
@@ -1036,7 +1054,7 @@ impl std::error::Error for DowncastError<'_, '_> {}
 
 impl std::fmt::Display for DowncastError<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, self.from, &self.to)
+        display_downcast_error(f, &self.from, &self.to)
     }
 }
 

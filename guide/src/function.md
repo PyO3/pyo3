@@ -87,7 +87,9 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
     #[pyfunction]
     #[pyo3(pass_module)]
-    fn pyfunction_with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyString>> {
+    fn pyfunction_with_module<'py>(
+        module: &Bound<'py, PyModule>,
+    ) -> PyResult<Bound<'py, PyString>> {
         module.name()
     }
 

@@ -13,7 +13,7 @@ impl ObjStore {
         ObjStore::default()
     }
 
-    fn push(&mut self, py: Python<'_>, obj: &PyAny) {
+    fn push(&mut self, py: Python<'_>, obj: &Bound<'_, PyAny>) {
         self.obj.push(obj.to_object(py));
     }
 }

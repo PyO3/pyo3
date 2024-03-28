@@ -171,7 +171,7 @@ impl PyByteArray {
     /// use pyo3::types::PyByteArray;
     ///
     /// #[pyfunction]
-    /// fn a_valid_function(bytes: &PyByteArray) -> PyResult<()> {
+    /// fn a_valid_function(bytes: &Bound<'_, PyByteArray>) -> PyResult<()> {
     ///     let section = {
     ///         // SAFETY: We promise to not let the interpreter regain control
     ///         // or invoke any PyO3 APIs while using the slice.
@@ -193,7 +193,7 @@ impl PyByteArray {
     /// }
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
-    /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
+    /// #         let fun = wrap_pyfunction_bound!(a_valid_function, py)?;
     /// #         let locals = pyo3::types::PyDict::new_bound(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
@@ -224,7 +224,7 @@ impl PyByteArray {
     ///
     /// # #[allow(dead_code)]
     /// #[pyfunction]
-    /// fn bug(py: Python<'_>, bytes: &PyByteArray) {
+    /// fn bug(py: Python<'_>, bytes: &Bound<'_, PyByteArray>) {
     ///     let slice = unsafe { bytes.as_bytes() };
     ///
     ///     // This explicitly yields control back to the Python interpreter...
@@ -333,7 +333,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::types::PyByteArray;
     ///
     /// #[pyfunction]
-    /// fn a_valid_function(bytes: &PyByteArray) -> PyResult<()> {
+    /// fn a_valid_function(bytes: &Bound<'_, PyByteArray>) -> PyResult<()> {
     ///     let section = {
     ///         // SAFETY: We promise to not let the interpreter regain control
     ///         // or invoke any PyO3 APIs while using the slice.
@@ -355,7 +355,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// }
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
-    /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
+    /// #         let fun = wrap_pyfunction_bound!(a_valid_function, py)?;
     /// #         let locals = pyo3::types::PyDict::new_bound(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
@@ -386,7 +386,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     /// # #[allow(dead_code)]
     /// #[pyfunction]
-    /// fn bug(py: Python<'_>, bytes: &PyByteArray) {
+    /// fn bug(py: Python<'_>, bytes: &Bound<'_, PyByteArray>) {
     ///     let slice = unsafe { bytes.as_bytes() };
     ///
     ///     // This explicitly yields control back to the Python interpreter...

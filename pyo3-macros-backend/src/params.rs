@@ -9,6 +9,53 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::Result;
 
+pub struct Holders {
+    holders: Vec<syn::Ident>,
+    gil_refs_checkers: Vec<syn::Ident>,
+}
+
+impl Holders {
+    pub fn new() -> Self {
+        Holders {
+            holders: Vec::new(),
+            gil_refs_checkers: Vec::new(),
+        }
+    }
+
+    pub fn push_holder(&mut self, span: Span) -> syn::Ident {
+        let holder = syn::Ident::new(&format!("holder_{}", self.holders.len()), span);
+        self.holders.push(holder.clone());
+        holder
+    }
+
+    pub fn push_gil_refs_checker(&mut self, span: Span) -> syn::Ident {
+        let gil_refs_checker = syn::Ident::new(
+            &format!("gil_refs_checker_{}", self.gil_refs_checkers.len()),
+            span,
+        );
+        self.gil_refs_checkers.push(gil_refs_checker.clone());
+        gil_refs_checker
+    }
+
+    pub fn init_holders(&self, ctx: &Ctx) -> TokenStream {
+        let Ctx { pyo3_path } = ctx;
+        let holders = &self.holders;
+        let gil_refs_checkers = &self.gil_refs_checkers;
+        quote! {
+            #[allow(clippy::let_unit_value)]
+            #(let mut #holders = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;)*
+            #(let #gil_refs_checkers = #pyo3_path::impl_::deprecations::GilRefs::new();)*
+        }
+    }
+
+    pub fn check_gil_refs(&self) -> TokenStream {
+        self.gil_refs_checkers
+            .iter()
+            .map(|e| quote_spanned! { e.span() => #e.function_arg(); })
+            .collect()
+    }
+}
+
 /// Return true if the argument list is simply (*args, **kwds).
 pub fn is_forwarded_args(signature: &FunctionSignature<'_>) -> bool {
     matches!(
@@ -26,15 +73,43 @@ pub fn is_forwarded_args(signature: &FunctionSignature<'_>) -> bool {
     )
 }
 
+fn check_arg_for_gil_refs(
+    tokens: TokenStream,
+    gil_refs_checker: syn::Ident,
+    ctx: &Ctx,
+) -> TokenStream {
+    let Ctx { pyo3_path } = ctx;
+    quote! {
+        #pyo3_path::impl_::deprecations::inspect_type(#tokens, &#gil_refs_checker)
+    }
+}
+
 pub fn impl_arg_params(
     spec: &FnSpec<'_>,
     self_: Option<&syn::Type>,
     fastcall: bool,
-    holders: &mut Vec<TokenStream>,
+    holders: &mut Holders,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<TokenStream>)> {
     let args_array = syn::Ident::new("output", Span::call_site());
     let Ctx { pyo3_path } = ctx;
+
+    let from_py_with = spec
+        .signature
+        .arguments
+        .iter()
+        .enumerate()
+        .filter_map(|(i, arg)| {
+            let from_py_with = &arg.attrs.from_py_with.as_ref()?.value;
+            let from_py_with_holder =
+                syn::Ident::new(&format!("from_py_with_{}", i), Span::call_site());
+            Some(quote_spanned! { from_py_with.span() =>
+                let e = #pyo3_path::impl_::deprecations::GilRefs::new();
+                let #from_py_with_holder = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
+                e.from_py_with_arg();
+            })
+        })
+        .collect::<TokenStream>();
 
     if !fastcall && is_forwarded_args(&spec.signature) {
         // In the varargs convention, we can just pass though if the signature
@@ -43,12 +118,22 @@ pub fn impl_arg_params(
             .signature
             .arguments
             .iter()
-            .map(|arg| impl_arg_param(arg, &mut 0, &args_array, holders, ctx))
+            .enumerate()
+            .map(|(i, arg)| {
+                impl_arg_param(arg, i, &mut 0, &args_array, holders, ctx).map(|tokens| {
+                    check_arg_for_gil_refs(
+                        tokens,
+                        holders.push_gil_refs_checker(arg.ty.span()),
+                        ctx,
+                    )
+                })
+            })
             .collect::<Result<_>>()?;
         return Ok((
             quote! {
                 let _args = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args);
                 let _kwargs = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
+                #from_py_with
             },
             arg_convert,
         ));
@@ -81,7 +166,12 @@ pub fn impl_arg_params(
         .signature
         .arguments
         .iter()
-        .map(|arg| impl_arg_param(arg, &mut option_pos, &args_array, holders, ctx))
+        .enumerate()
+        .map(|(i, arg)| {
+            impl_arg_param(arg, i, &mut option_pos, &args_array, holders, ctx).map(|tokens| {
+                check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx)
+            })
+        })
         .collect::<Result<_>>()?;
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
@@ -136,6 +226,7 @@ pub fn impl_arg_params(
                 };
                 let mut #args_array = [::std::option::Option::None; #num_params];
                 let (_args, _kwargs) = #extract_expression;
+                #from_py_with
         },
         param_conversion,
     ))
@@ -145,9 +236,10 @@ pub fn impl_arg_params(
 /// index and the index in option diverge when using py: Python
 fn impl_arg_param(
     arg: &FnArg<'_>,
+    pos: usize,
     option_pos: &mut usize,
     args_array: &syn::Ident,
-    holders: &mut Vec<TokenStream>,
+    holders: &mut Holders,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path } = ctx;
@@ -170,21 +262,12 @@ fn impl_arg_param(
     let name = arg.name;
     let name_str = name.to_string();
 
-    let mut push_holder = || {
-        let holder = syn::Ident::new(&format!("holder_{}", holders.len()), arg.ty.span());
-        holders.push(quote_arg_span! {
-            #[allow(clippy::let_unit_value)]
-            let mut #holder = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;
-        });
-        holder
-    };
-
     if arg.is_varargs {
         ensure_spanned!(
             arg.optional.is_none(),
             arg.name.span() => "args cannot be optional"
         );
-        let holder = push_holder();
+        let holder = holders.push_holder(arg.ty.span());
         return Ok(quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 &_args,
@@ -197,7 +280,7 @@ fn impl_arg_param(
             arg.optional.is_some(),
             arg.name.span() => "kwargs must be Option<_>"
         );
-        let holder = push_holder();
+        let holder = holders.push_holder(arg.name.span());
         return Ok(quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_optional_argument(
                 _kwargs.as_deref(),
@@ -222,15 +305,24 @@ fn impl_arg_param(
         ));
     }
 
-    let tokens = if let Some(expr_path) = arg.attrs.from_py_with.as_ref().map(|attr| &attr.value) {
+    let tokens = if arg
+        .attrs
+        .from_py_with
+        .as_ref()
+        .map(|attr| &attr.value)
+        .is_some()
+    {
+        let from_py_with = syn::Ident::new(&format!("from_py_with_{}", pos), Span::call_site());
         if let Some(default) = default {
             quote_arg_span! {
-                #[allow(clippy::redundant_closure)]
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
                     #arg_value.as_deref(),
                     #name_str,
-                    #expr_path as fn(_) -> _,
-                    || #default
+                    #from_py_with as fn(_) -> _,
+                    #[allow(clippy::redundant_closure)]
+                    {
+                        || #default
+                    }
                 )?
             }
         } else {
@@ -238,34 +330,38 @@ fn impl_arg_param(
                 #pyo3_path::impl_::extract_argument::from_py_with(
                     &#pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
                     #name_str,
-                    #expr_path as fn(_) -> _,
+                    #from_py_with as fn(_) -> _,
                 )?
             }
         }
     } else if arg.optional.is_some() {
-        let holder = push_holder();
+        let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
-            #[allow(clippy::redundant_closure)]
             #pyo3_path::impl_::extract_argument::extract_optional_argument(
                 #arg_value.as_deref(),
                 &mut #holder,
                 #name_str,
-                || #default
+                #[allow(clippy::redundant_closure)]
+                {
+                    || #default
+                }
             )?
         }
     } else if let Some(default) = default {
-        let holder = push_holder();
+        let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
-            #[allow(clippy::redundant_closure)]
             #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                 #arg_value.as_deref(),
                 &mut #holder,
                 #name_str,
-                || #default
+                #[allow(clippy::redundant_closure)]
+                {
+                    || #default
+                }
             )?
         }
     } else {
-        let holder = push_holder();
+        let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 &#pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),
@@ -274,5 +370,6 @@ fn impl_arg_param(
             )?
         }
     };
+
     Ok(tokens)
 }

@@ -1,9 +1,10 @@
-use codspeed_criterion_compat::{black_box, criterion_group, criterion_main, Bencher, Criterion};
+use std::hint::black_box;
+
+use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
+use num_bigint::BigInt;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-
-use num_bigint::BigInt;
 
 fn extract_bigint_extract_fail(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -11,7 +12,7 @@ fn extract_bigint_extract_fail(bench: &mut Bencher<'_>) {
 
         bench.iter(|| match black_box(&d).extract::<BigInt>() {
             Ok(v) => panic!("should err {}", v),
-            Err(e) => black_box(e),
+            Err(e) => e,
         });
     });
 }
@@ -20,10 +21,7 @@ fn extract_bigint_small(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let int = py.eval_bound("-42", None, None).unwrap();
 
-        bench.iter(|| {
-            let v = black_box(&int).extract::<BigInt>().unwrap();
-            black_box(v);
-        });
+        bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
 }
 
@@ -31,10 +29,7 @@ fn extract_bigint_big_negative(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let int = py.eval_bound("-10**300", None, None).unwrap();
 
-        bench.iter(|| {
-            let v = black_box(&int).extract::<BigInt>().unwrap();
-            black_box(v);
-        });
+        bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
 }
 
@@ -42,10 +37,7 @@ fn extract_bigint_big_positive(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let int = py.eval_bound("10**300", None, None).unwrap();
 
-        bench.iter(|| {
-            let v = black_box(&int).extract::<BigInt>().unwrap();
-            black_box(v);
-        });
+        bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
 }
 
@@ -53,10 +45,7 @@ fn extract_bigint_huge_negative(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let int = py.eval_bound("-10**3000", None, None).unwrap();
 
-        bench.iter(|| {
-            let v = black_box(&int).extract::<BigInt>().unwrap();
-            black_box(v);
-        });
+        bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
 }
 
@@ -64,10 +53,7 @@ fn extract_bigint_huge_positive(bench: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let int = py.eval_bound("10**3000", None, None).unwrap();
 
-        bench.iter(|| {
-            let v = black_box(&int).extract::<BigInt>().unwrap();
-            black_box(v);
-        });
+        bench.iter_with_large_drop(|| black_box(&int).extract::<BigInt>().unwrap());
     });
 }
 

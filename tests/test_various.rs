@@ -56,7 +56,7 @@ fn return_custom_class() {
         assert_eq!(get_zero().value, 0);
 
         // Using from python
-        let get_zero = wrap_pyfunction!(get_zero)(py).unwrap();
+        let get_zero = wrap_pyfunction_bound!(get_zero)(py).unwrap();
         py_assert!(py, get_zero, "get_zero().value == 0");
     });
 }
@@ -201,6 +201,6 @@ fn result_conversion_function() -> Result<(), MyError> {
 #[test]
 fn test_result_conversion() {
     Python::with_gil(|py| {
-        wrap_pyfunction!(result_conversion_function)(py).unwrap();
+        wrap_pyfunction_bound!(result_conversion_function)(py).unwrap();
     });
 }

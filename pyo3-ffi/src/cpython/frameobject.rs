@@ -1,17 +1,19 @@
+#[cfg(not(GraalPy))]
 use crate::cpython::code::PyCodeObject;
 use crate::object::*;
+#[cfg(not(GraalPy))]
 use crate::pystate::PyThreadState;
-#[cfg(not(any(PyPy, Py_3_11)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::ptr::addr_of_mut;
 
-#[cfg(not(any(PyPy, Py_3_11)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 pub type PyFrameState = c_char;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-#[cfg(not(any(PyPy, Py_3_11)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 pub struct PyTryBlock {
     pub b_type: c_int,
     pub b_handler: c_int,
@@ -20,7 +22,7 @@ pub struct PyTryBlock {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-#[cfg(not(any(PyPy, Py_3_11)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 pub struct PyFrameObject {
     pub ob_base: PyVarObject,
     pub f_back: *mut PyFrameObject,
@@ -51,7 +53,7 @@ pub struct PyFrameObject {
     pub f_localsplus: [*mut PyObject; 1],
 }
 
-#[cfg(any(PyPy, Py_3_11))]
+#[cfg(any(PyPy, GraalPy, Py_3_11))]
 opaque_struct!(PyFrameObject);
 
 // skipped _PyFrame_IsRunnable
@@ -69,6 +71,7 @@ pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
 }
 
 extern "C" {
+    #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyFrame_New")]
     pub fn PyFrame_New(
         tstate: *mut PyThreadState,
@@ -79,7 +82,7 @@ extern "C" {
     // skipped _PyFrame_New_NoTrack
 
     pub fn PyFrame_BlockSetup(f: *mut PyFrameObject, _type: c_int, handler: c_int, level: c_int);
-    #[cfg(not(any(PyPy, Py_3_11)))]
+    #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
     pub fn PyFrame_BlockPop(f: *mut PyFrameObject) -> *mut PyTryBlock;
 
     pub fn PyFrame_LocalsToFast(f: *mut PyFrameObject, clear: c_int);

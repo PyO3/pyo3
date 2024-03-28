@@ -465,6 +465,13 @@ impl<'py, T> Bound<'py, T> {
         unsafe { Py::from_non_null(non_null) }
     }
 
+    /// Removes the connection for this `Bound<T>` from the GIL, allowing
+    /// it to cross thread boundaries, without transferring ownership.
+    #[inline]
+    pub fn as_unbound(&self) -> &Py<T> {
+        &self.1
+    }
+
     /// Casts this `Bound<T>` as the corresponding "GIL Ref" type.
     ///
     /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
@@ -511,8 +518,31 @@ unsafe impl<T> AsPyPointer for Bound<'_, T> {
 pub struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
 
 impl<'py, T> Borrowed<'_, 'py, T> {
-    /// Creates a new owned `Bound` from this borrowed reference by increasing the reference count.
-    pub(crate) fn to_owned(self) -> Bound<'py, T> {
+    /// Creates a new owned [`Bound<T>`] from this borrowed reference by
+    /// increasing the reference count.
+    ///
+    /// # Example
+    /// ```
+    /// use pyo3::{prelude::*, types::PyTuple};
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let tuple = PyTuple::new_bound(py, [1, 2, 3]);
+    ///
+    ///     // borrows from `tuple`, so can only be
+    ///     // used while `tuple` stays alive
+    ///     let borrowed = tuple.get_borrowed_item(0)?;
+    ///
+    ///     // creates a new owned reference, which
+    ///     // can be used indendently of `tuple`
+    ///     let bound = borrowed.to_owned();
+    ///     drop(tuple);
+    ///
+    ///     assert_eq!(bound.extract::<i32>().unwrap(), 1);
+    ///     Ok(())
+    /// })
+    /// # }
+    pub fn to_owned(self) -> Bound<'py, T> {
         (*self).clone()
     }
 }
@@ -577,6 +607,20 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// derived from is valid for the lifetime `'a`.
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
+    }
+
+    #[inline]
+    #[cfg(not(feature = "gil-refs"))]
+    pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
+    where
+        T: PyTypeCheck,
+    {
+        if T::type_check(&self) {
+            // Safety: type_check is responsible for ensuring that the type is correct
+            Ok(unsafe { self.downcast_unchecked() })
+        } else {
+            Err(DowncastError::new_from_borrowed(self, T::NAME))
+        }
     }
 
     /// Converts this `PyAny` to a concrete Python type without checking validity.
@@ -1923,8 +1967,8 @@ impl PyObject {
 mod tests {
     use super::{Bound, Py, PyObject};
     use crate::types::any::PyAnyMethods;
-    use crate::types::PyCapsule;
     use crate::types::{dict::IntoPyDict, PyDict, PyString};
+    use crate::types::{PyCapsule, PyStringMethods};
     use crate::{ffi, Borrowed, PyAny, PyNativeType, PyResult, Python, ToPyObject};
 
     #[test]
@@ -2121,6 +2165,20 @@ a = A()
             let obj = PyString::new_bound(py, "hello world");
             let any = obj.clone().into_any();
             assert_eq!(any.as_ptr(), obj.as_ptr());
+        });
+    }
+
+    #[test]
+    fn test_bound_py_conversions() {
+        Python::with_gil(|py| {
+            let obj: Bound<'_, PyString> = PyString::new_bound(py, "hello world");
+            let obj_unbound: &Py<PyString> = obj.as_unbound();
+            let _: &Bound<'_, PyString> = obj_unbound.bind(py);
+
+            let obj_unbound: Py<PyString> = obj.unbind();
+            let obj: Bound<'_, PyString> = obj_unbound.into_bound(py);
+
+            assert_eq!(obj.to_cow().unwrap(), "hello world");
         });
     }
 

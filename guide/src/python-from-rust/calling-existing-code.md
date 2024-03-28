@@ -1,129 +1,8 @@
-# Calling Python in Rust code
-
-This chapter of the guide documents some ways to interact with Python code from Rust:
- - How to call Python functions
- - How to execute existing Python code
-
-## Calling Python functions
-
-Any Python-native object reference (such as `&PyAny`, `&PyList`, or `&PyCell<MyClass>`) can be used to call Python functions.
-
-PyO3 offers two APIs to make function calls:
-
-* [`call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) - call any callable Python object.
-* [`call_method`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method) - call a method on the Python object.
-
-Both of these APIs take `args` and `kwargs` arguments (for positional and keyword arguments respectively). There are variants for less complex calls:
-
-* [`call1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call1) and [`call_method1`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method1) to call only with positional `args`.
-* [`call0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call0) and [`call_method0`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call_method0) to call with no arguments.
-
-For convenience the [`Py<T>`](types.md#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
-
-The example below calls a Python function behind a `PyObject` (aka `Py<PyAny>`) reference:
-
-```rust
-use pyo3::prelude::*;
-use pyo3::types::PyTuple;
-
-fn main() -> PyResult<()> {
-    let arg1 = "arg1";
-    let arg2 = "arg2";
-    let arg3 = "arg3";
-
-    Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code_bound(
-            py,
-            "def example(*args, **kwargs):
-                if args != ():
-                    print('called with args', args)
-                if kwargs != {}:
-                    print('called with kwargs', kwargs)
-                if args == () and kwargs == {}:
-                    print('called with no arguments')",
-            "",
-            "",
-        )?
-        .getattr("example")?
-        .into();
-
-        // call object without any arguments
-        fun.call0(py)?;
-
-        // call object with PyTuple
-        let args = PyTuple::new_bound(py, &[arg1, arg2, arg3]);
-        fun.call1(py, args)?;
-
-        // pass arguments as rust tuple
-        let args = (arg1, arg2, arg3);
-        fun.call1(py, args)?;
-        Ok(())
-    })
-}
-```
-
-### Creating keyword arguments
-
-For the `call` and `call_method` APIs, `kwargs` can be `None` or `Some(&PyDict)`. You can use the [`IntoPyDict`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.IntoPyDict.html) trait to convert other dict-like containers, e.g. `HashMap` or `BTreeMap`, as well as tuples with up to 10 elements and `Vec`s where each element is a two-element tuple.
-
-```rust
-use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-use std::collections::HashMap;
-
-fn main() -> PyResult<()> {
-    let key1 = "key1";
-    let val1 = 1;
-    let key2 = "key2";
-    let val2 = 2;
-
-    Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code_bound(
-            py,
-            "def example(*args, **kwargs):
-                if args != ():
-                    print('called with args', args)
-                if kwargs != {}:
-                    print('called with kwargs', kwargs)
-                if args == () and kwargs == {}:
-                    print('called with no arguments')",
-            "",
-            "",
-        )?
-        .getattr("example")?
-        .into();
-
-        // call object with PyDict
-        let kwargs = [(key1, val1)].into_py_dict_bound(py);
-        fun.call_bound(py, (), Some(&kwargs))?;
-
-        // pass arguments as Vec
-        let kwargs = vec![(key1, val1), (key2, val2)];
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
-
-        // pass arguments as HashMap
-        let mut kwargs = HashMap::<&str, i32>::new();
-        kwargs.insert(key1, 1);
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
-
-        Ok(())
-    })
-}
-```
-
-<div class="warning">
-
-During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](./migration.md#migrating-from-the-gil-refs-api-to-boundt), [`Py<T>::call`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.call) is temporarily named `call_bound` (and `call_method` is temporarily `call_method_bound`).
-
-(This temporary naming is only the case for the `Py<T>` smart pointer. The methods on the `&PyAny` GIL Ref such as `call` have not been given replacements, and the methods on the `Bound<PyAny>` smart pointer such as [`Bound<PyAny>::call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) already use follow the newest API conventions.)
-
-</div>
-
-## Executing existing Python code
+# Executing existing Python code
 
 If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:
 
-### Want to access Python APIs? Then use `PyModule::import`.
+## Want to access Python APIs? Then use `PyModule::import`.
 
 [`Pymodule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
 be used to get handle to a Python module from Rust. You can use this to import and use any Python
@@ -145,11 +24,11 @@ fn main() -> PyResult<()> {
 }
 ```
 
-### Want to run just an expression? Then use `eval`.
+## Want to run just an expression? Then use `eval`.
 
 [`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
-and return the evaluated value as a `&PyAny` object.
+and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
 use pyo3::prelude::*;
@@ -168,7 +47,7 @@ Python::with_gil(|py| {
 # }
 ```
 
-### Want to run statements? Then use `run`.
+## Want to run statements? Then use `run`.
 
 [`Python::run`] is a method to execute one or more
 [Python statements](https://docs.python.org/3.7/reference/simple_stmts.html).
@@ -226,10 +105,7 @@ can be used to generate a Python module which can then be used just as if it was
 to this function!
 
 ```rust
-use pyo3::{
-    prelude::*,
-    types::IntoPyDict,
-};
+use pyo3::{prelude::*, types::IntoPyDict};
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
@@ -261,7 +137,7 @@ def leaky_relu(x, slope=0.01):
 # }
 ```
 
-### Want to embed Python in Rust with additional modules?
+## Want to embed Python in Rust with additional modules?
 
 Python maintains the `sys.modules` dict as a cache of all imported modules.
 An import in Python will first attempt to lookup the module from this dict,
@@ -326,7 +202,7 @@ fn main() -> PyResult<()> {
 }
 ```
 
-### Include multiple Python files
+## Include multiple Python files
 
 You can include a file at compile time by using
 [`std::include_str`](https://doc.rust-lang.org/std/macro.include_str.html) macro.
@@ -414,7 +290,10 @@ fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = fs::read_to_string(path.join("app.py"))?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        let syspath = py.import_bound("sys")?.getattr("path")?.downcast_into::<PyList>()?;
+        let syspath = py
+            .import_bound("sys")?
+            .getattr("path")?
+            .downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
         let app: Py<PyAny> = PyModule::from_code_bound(py, &py_app, "", "")?
             .getattr("run")?
@@ -478,7 +357,14 @@ class House(object):
             }
             Err(e) => {
                 house
-                    .call_method1("__exit__", (e.get_type_bound(py), e.value_bound(py), e.traceback_bound(py)))
+                    .call_method1(
+                        "__exit__",
+                        (
+                            e.get_type_bound(py),
+                            e.value_bound(py),
+                            e.traceback_bound(py),
+                        ),
+                    )
                     .unwrap();
             }
         }
@@ -488,7 +374,7 @@ class House(object):
 
 ## Handling system signals/interrupts (Ctrl-C)
 
-The best way to handle system signals when running Rust code is to periodically call `Python::check_signals` to handle any signals captured by Python's signal handler. See also [the FAQ entry](./faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-is-executing).
+The best way to handle system signals when running Rust code is to periodically call `Python::check_signals` to handle any signals captured by Python's signal handler. See also [the FAQ entry](../faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-is-executing).
 
 Alternatively, set Python's `signal` module to take the default action for a signal:
 

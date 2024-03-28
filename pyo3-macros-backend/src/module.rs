@@ -295,7 +295,8 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     if function.sig.inputs.len() == 2 {
         module_args.push(quote!(module.py()));
     }
-    module_args.push(quote!(::std::convert::Into::into(BoundRef(module))));
+    module_args
+        .push(quote!(::std::convert::Into::into(#pyo3_path::impl_::pymethods::BoundRef(module))));
 
     let extractors = function
         .sig
@@ -304,10 +305,11 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         .filter_map(|param| {
             if let syn::FnArg::Typed(pat_type) = param {
                 if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                    let ident = &pat_ident.ident;
+                    let ident: &syn::Ident = &pat_ident.ident;
                     return Some([
-                        parse_quote! { let (#ident, e) = #pyo3_path::impl_::pymethods::inspect_type(#ident); },
-                        parse_quote_spanned! { pat_type.span() => e.extract_gil_ref(); },
+                        parse_quote!{ let check_gil_refs = #pyo3_path::impl_::deprecations::GilRefs::new(); },
+                        parse_quote! { let #ident = #pyo3_path::impl_::deprecations::inspect_type(#ident, &check_gil_refs); },
+                        parse_quote_spanned! { pat_type.span() => check_gil_refs.function_arg(); },
                     ]);
                 }
             }
@@ -330,29 +332,22 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pymodule] is
         // inside a function body)
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            use #pyo3_path::impl_::pymodule as impl_;
-            use #pyo3_path::impl_::pymethods::BoundRef;
+        impl #ident::MakeDef {
+            const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
+                fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
+                    #ident(#(#module_args),*)
+                }
 
-            fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
-                #ident(#(#module_args),*)
-            }
-
-            impl #ident::MakeDef {
-                const fn make_def() -> impl_::ModuleDef {
-                    const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
-                    unsafe {
-                        impl_::ModuleDef::new(
-                            #ident::__PYO3_NAME,
-                            #doc,
-                            INITIALIZER
-                        )
-                    }
+                const INITIALIZER: #pyo3_path::impl_::pymodule::ModuleInitializer = #pyo3_path::impl_::pymodule::ModuleInitializer(__pyo3_pymodule);
+                unsafe {
+                    #pyo3_path::impl_::pymodule::ModuleDef::new(
+                        #ident::__PYO3_NAME,
+                        #doc,
+                        INITIALIZER
+                    )
                 }
             }
-        };
+        }
     })
 }
 

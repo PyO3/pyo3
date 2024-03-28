@@ -32,6 +32,7 @@ struct LazyTypeObjectInner {
 
 impl<T> LazyTypeObject<T> {
     /// Creates an uninitialized `LazyTypeObject`.
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         LazyTypeObject(
             LazyTypeObjectInner {

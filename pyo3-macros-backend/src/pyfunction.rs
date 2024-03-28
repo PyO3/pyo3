@@ -282,16 +282,12 @@ pub fn impl_wrap_pyfunction(
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            impl #name::MakeDef {
-                const DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
-            }
+        impl #name::MakeDef {
+            const DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
+        }
 
-            #[allow(non_snake_case)]
-            #wrapper
-        };
+        #[allow(non_snake_case)]
+        #wrapper
     };
     Ok(wrapped_pyfunction)
 }

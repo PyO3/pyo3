@@ -120,7 +120,7 @@ Export an async function that makes use of `async-std`:
 use pyo3::{prelude::*, wrap_pyfunction};
 
 #[pyfunction]
-fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
     pyo3_asyncio::async_std::future_into_py(py, async {
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         Ok(Python::with_gil(|py| py.None()))
@@ -143,7 +143,7 @@ If you want to use `tokio` instead, here's what your module should look like:
 use pyo3::{prelude::*, wrap_pyfunction};
 
 #[pyfunction]
-fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
     pyo3_asyncio::tokio::future_into_py(py, async {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         Ok(Python::with_gil(|py| py.None()))
@@ -233,7 +233,7 @@ a coroutine argument:
 
 ```rust
 #[pyfunction]
-fn await_coro(coro: &PyAny) -> PyResult<()> {
+fn await_coro(coro: &Bound<'_, PyAny>>) -> PyResult<()> {
     // convert the coroutine into a Rust future using the
     // async_std runtime
     let f = pyo3_asyncio::async_std::into_future(coro)?;
@@ -261,7 +261,7 @@ If for you wanted to pass a callable function to the `#[pyfunction]` instead, (i
 
 ```rust
 #[pyfunction]
-fn await_coro(callable: &PyAny) -> PyResult<()> {
+fn await_coro(callable: &Bound<'_, PyAny>>) -> PyResult<()> {
     // get the coroutine by calling the callable
     let coro = callable.call0()?;
 
@@ -317,7 +317,7 @@ async fn rust_sleep() {
 }
 
 #[pyfunction]
-fn call_rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn call_rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
     pyo3_asyncio::async_std::future_into_py(py, async move {
         rust_sleep().await;
         Ok(Python::with_gil(|py| py.None()))
@@ -467,7 +467,7 @@ tokio = "1.4"
 use pyo3::{prelude::*, wrap_pyfunction};
 
 #[pyfunction]
-fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
     pyo3_asyncio::tokio::future_into_py(py, async {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         Ok(Python::with_gil(|py| py.None()))

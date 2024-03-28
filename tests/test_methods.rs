@@ -2,6 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PySequence;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 
 #[path = "../src/tests/common.rs"]
@@ -78,6 +79,7 @@ impl ClassMethod {
 
     #[classmethod]
     /// Test class method.
+    #[cfg(feature = "gil-refs")]
     fn method_gil_ref(cls: &PyType) -> PyResult<String> {
         Ok(format!("{}.method()!", cls.qualname()?))
     }
@@ -111,12 +113,8 @@ struct ClassMethodWithArgs {}
 #[pymethods]
 impl ClassMethodWithArgs {
     #[classmethod]
-    fn method(cls: &Bound<'_, PyType>, input: &PyString) -> PyResult<String> {
-        Ok(format!(
-            "{}.method({})",
-            cls.as_gil_ref().qualname()?,
-            input
-        ))
+    fn method(cls: &Bound<'_, PyType>, input: &Bound<'_, PyString>) -> PyResult<String> {
+        Ok(format!("{}.method({})", cls.qualname()?, input))
     }
 }
 
@@ -214,8 +212,13 @@ impl MethSignature {
         test
     }
     #[pyo3(signature = (*args, **kwargs))]
-    fn get_kwargs(&self, py: Python<'_>, args: &PyTuple, kwargs: Option<&PyDict>) -> PyObject {
-        [args.into(), kwargs.to_object(py)].to_object(py)
+    fn get_kwargs(
+        &self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyObject {
+        [args.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
     #[pyo3(signature = (a, *args, **kwargs))]
@@ -223,10 +226,10 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        args: &PyTuple,
-        kwargs: Option<&PyDict>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyObject {
-        [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
+        [a.to_object(py), args.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
     #[pyo3(signature = (a, b, /))]
@@ -269,7 +272,7 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
@@ -279,7 +282,7 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
@@ -300,7 +303,12 @@ impl MethSignature {
     }
 
     #[pyo3(signature = (*args, a))]
-    fn get_args_and_required_keyword(&self, py: Python<'_>, args: &PyTuple, a: i32) -> PyObject {
+    fn get_args_and_required_keyword(
+        &self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        a: i32,
+    ) -> PyObject {
         (args, a).to_object(py)
     }
 
@@ -315,7 +323,7 @@ impl MethSignature {
     }
 
     #[pyo3(signature = (a, **kwargs))]
-    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&Bound<'_, PyDict>>) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
@@ -696,7 +704,8 @@ struct MethodWithLifeTime {}
 
 #[pymethods]
 impl MethodWithLifeTime {
-    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<Bound<'py, PyList>> {
+    fn set_to_list<'py>(&self, set: &Bound<'py, PySet>) -> PyResult<Bound<'py, PyList>> {
+        let py = set.py();
         let mut items = vec![];
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());
@@ -849,7 +858,7 @@ struct FromSequence {
 #[pymethods]
 impl FromSequence {
     #[new]
-    fn new(seq: Option<&pyo3::types::PySequence>) -> PyResult<Self> {
+    fn new(seq: Option<&Bound<'_, PySequence>>) -> PyResult<Self> {
         if let Some(seq) = seq {
             Ok(FromSequence {
                 numbers: seq.as_ref().extract::<Vec<_>>()?,
@@ -1027,45 +1036,45 @@ issue_1506!(
         fn issue_1506(
             &self,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
         fn issue_1506_mut(
             &mut self,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
         fn issue_1506_custom_receiver(
             _slf: Py<Self>,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
         fn issue_1506_custom_receiver_explicit(
             _slf: Py<Issue1506>,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
         #[new]
         fn issue_1506_new(
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) -> Self {
             Issue1506 {}
         }
@@ -1081,9 +1090,9 @@ issue_1506!(
         #[staticmethod]
         fn issue_1506_static(
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
@@ -1091,9 +1100,9 @@ issue_1506!(
         fn issue_1506_class(
             _cls: &Bound<'_, PyType>,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
     }
@@ -1123,7 +1132,7 @@ fn test_option_pyclass_arg() {
     }
 
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(option_class_arg, py).unwrap();
+        let f = wrap_pyfunction_bound!(option_class_arg, py).unwrap();
         assert!(f.call0().unwrap().is_none());
         let obj = Py::new(py, SomePyClass {}).unwrap();
         assert!(f
@@ -1145,7 +1154,7 @@ fn test_issue_2988() {
         _data: Vec<i32>,
         // The from_py_with here looks a little odd, we just need some way
         // to encourage the macro to expand the from_py_with default path too
-        #[pyo3(from_py_with = "PyAny::extract")] _data2: Vec<i32>,
+        #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::extract")] _data2: Vec<i32>,
     ) {
     }
 }

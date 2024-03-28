@@ -1,7 +1,7 @@
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyCFunction;
-use crate::{intern, wrap_pyfunction, Bound, Py, PyAny, PyObject, PyResult, Python};
+use crate::{intern, wrap_pyfunction_bound, Bound, Py, PyAny, PyObject, PyResult, Python};
 use pyo3_macros::pyfunction;
 use std::sync::Arc;
 use std::task::Wake;
@@ -70,8 +70,9 @@ impl LoopAndFuture {
 
     fn set_result(&self, py: Python<'_>) -> PyResult<()> {
         static RELEASE_WAITER: GILOnceCell<Py<PyCFunction>> = GILOnceCell::new();
-        let release_waiter = RELEASE_WAITER
-            .get_or_try_init(py, || wrap_pyfunction!(release_waiter, py).map(Into::into))?;
+        let release_waiter = RELEASE_WAITER.get_or_try_init(py, || {
+            wrap_pyfunction_bound!(release_waiter, py).map(Bound::unbind)
+        })?;
         // `Future.set_result` must be called in event loop thread,
         // so it requires `call_soon_threadsafe`
         let call_soon_threadsafe = self.event_loop.call_method1(
@@ -96,7 +97,7 @@ impl LoopAndFuture {
 /// Future can be cancelled by the event loop before being waken.
 /// See <https://github.com/python/cpython/blob/main/Lib/asyncio/tasks.py#L452C5-L452C5>
 #[pyfunction(crate = "crate")]
-fn release_waiter(future: &PyAny) -> PyResult<()> {
+fn release_waiter(future: &Bound<'_, PyAny>) -> PyResult<()> {
     let done = future.call_method0(intern!(future.py(), "done"))?;
     if !done.extract::<bool>()? {
         future.call_method1(intern!(future.py(), "set_result"), (future.py().None(),))?;

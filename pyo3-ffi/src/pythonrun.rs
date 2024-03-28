@@ -1,12 +1,12 @@
 use crate::object::*;
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 use libc::FILE;
-#[cfg(all(not(PyPy), any(Py_LIMITED_API, not(Py_3_10))))]
+#[cfg(all(not(PyPy), any(Py_LIMITED_API, not(Py_3_10), GraalPy)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 
 extern "C" {
-    #[cfg(all(Py_LIMITED_API, not(PyPy)))]
+    #[cfg(any(all(Py_LIMITED_API, not(PyPy)), GraalPy))]
     pub fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyErr_Print")]

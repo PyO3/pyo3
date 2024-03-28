@@ -2,11 +2,9 @@ use std::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[cfg(not(feature = "gil-refs"))]
-use crate::types::PyBytesMethods;
 use crate::{
-    types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    types::{PyByteArray, PyByteArrayMethods, PyBytes},
+    IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
@@ -34,7 +32,7 @@ impl<'py> crate::FromPyObject<'py> for &'py [u8] {
 
 #[cfg(not(feature = "gil-refs"))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
-    fn from_py_object_bound(obj: &'a Bound<'_, PyAny>) -> PyResult<Self> {
+    fn from_py_object_bound(obj: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         Ok(obj.downcast::<PyBytes>()?.as_bytes())
     }
 
@@ -51,7 +49,8 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
 #[cfg(feature = "gil-refs")]
 impl<'py> crate::FromPyObject<'py> for Cow<'py, [u8]> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract_bound(ob: &crate::Bound<'py, PyAny>) -> PyResult<Self> {
+        use crate::types::PyAnyMethods;
         if let Ok(bytes) = ob.downcast::<PyBytes>() {
             return Ok(Cow::Borrowed(bytes.clone().into_gil_ref().as_bytes()));
         }
@@ -63,7 +62,7 @@ impl<'py> crate::FromPyObject<'py> for Cow<'py, [u8]> {
 
 #[cfg(not(feature = "gil-refs"))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
-    fn from_py_object_bound(ob: &'a Bound<'_, PyAny>) -> PyResult<Self> {
+    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         if let Ok(bytes) = ob.downcast::<PyBytes>() {
             return Ok(Cow::Borrowed(bytes.as_bytes()));
         }

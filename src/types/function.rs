@@ -1,12 +1,11 @@
 use crate::derive_utils::PyFunctionArguments;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::methods::PyMethodDefDestructor;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
 use crate::types::module::PyModuleMethods;
 use crate::{
     ffi,
-    impl_::pymethods::{self, PyMethodDef},
+    impl_::pymethods::{self, PyMethodDef, PyMethodDefDestructor},
     types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
 use crate::{Bound, IntoPy, Py, PyAny, PyNativeType, PyResult, Python};

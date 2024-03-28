@@ -101,7 +101,7 @@ fn test_function() {
     }
 
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(my_function)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function)(py).unwrap();
 
         py_assert!(py, f, "f.__text_signature__ == '(a, b=None, *, c=42)'");
     });
@@ -128,10 +128,10 @@ fn test_auto_test_signature_function() {
     fn my_function_4(
         a: i32,
         b: Option<i32>,
-        args: &PyTuple,
+        args: &Bound<'_, PyTuple>,
         c: i32,
         d: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) {
         let _ = (a, b, args, c, d, kwargs);
     }
@@ -147,42 +147,42 @@ fn test_auto_test_signature_function() {
     }
 
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(my_function)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function)(py).unwrap();
         py_assert!(
             py,
             f,
             "f.__text_signature__ == '(a, b, c)', f.__text_signature__"
         );
 
-        let f = wrap_pyfunction!(my_function_2)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function_2)(py).unwrap();
         py_assert!(
             py,
             f,
             "f.__text_signature__ == '($module, a, b, c)', f.__text_signature__"
         );
 
-        let f = wrap_pyfunction!(my_function_3)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function_3)(py).unwrap();
         py_assert!(
             py,
             f,
             "f.__text_signature__ == '(a, /, b=None, *, c=5)', f.__text_signature__"
         );
 
-        let f = wrap_pyfunction!(my_function_4)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function_4)(py).unwrap();
         py_assert!(
             py,
             f,
             "f.__text_signature__ == '(a, /, b=None, *args, c, d=5, **kwargs)', f.__text_signature__"
         );
 
-        let f = wrap_pyfunction!(my_function_5)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function_5)(py).unwrap();
         py_assert!(
             py,
             f,
             "f.__text_signature__ == '(a=1, /, b=None, c=1.5, d=5, e=\"pyo3\", f=\\'f\\', h=True)', f.__text_signature__"
         );
 
-        let f = wrap_pyfunction!(my_function_6)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function_6)(py).unwrap();
         py_assert!(
             py,
             f,
@@ -218,10 +218,10 @@ fn test_auto_test_signature_method() {
             &self,
             a: i32,
             b: Option<i32>,
-            args: &PyTuple,
+            args: &Bound<'_, PyTuple>,
             c: i32,
             d: i32,
-            kwargs: Option<&PyDict>,
+            kwargs: Option<&Bound<'_, PyDict>>,
         ) {
             let _ = (a, b, args, c, d, kwargs);
         }
@@ -317,10 +317,10 @@ fn test_auto_test_signature_opt_out() {
     }
 
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(my_function)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function)(py).unwrap();
         py_assert!(py, f, "f.__text_signature__ == None");
 
-        let f = wrap_pyfunction!(my_function_2)(py).unwrap();
+        let f = wrap_pyfunction_bound!(my_function_2)(py).unwrap();
         py_assert!(py, f, "f.__text_signature__ == None");
 
         let cls = py.get_type_bound::<MyClass>();

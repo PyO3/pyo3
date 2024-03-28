@@ -395,8 +395,8 @@ def check_guide(session: nox.Session):
     session.posargs.extend(posargs)
 
     remaps = {
-        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL\}}\}}": f"file://{PYO3_DOCS_TARGET}",
-        "%7B%7B#PYO3_DOCS_VERSION\}\}": "latest",
+        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL}}}}": f"file://{PYO3_DOCS_TARGET}",
+        "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
     }
     remap_args = []
     for key, value in remaps.items():
@@ -417,6 +417,7 @@ def check_guide(session: nox.Session):
         "lychee",
         PYO3_DOCS_TARGET,
         f"--remap=https://pyo3.rs/main/ file://{PYO3_GUIDE_TARGET}/",
+        f"--remap=https://pyo3.rs/latest/ file://{PYO3_GUIDE_TARGET}/",
         f"--exclude=file://{PYO3_DOCS_TARGET}",
         *session.posargs,
     )
@@ -731,6 +732,16 @@ def check_feature_powerset(session: nox.Session):
     )
 
 
+@nox.session(name="update-ui-tests", venv_backend="none")
+def update_ui_tests(session: nox.Session):
+    env = os.environ.copy()
+    env["TRYBUILD"] = "overwrite"
+    command = ["test", "--test", "test_compile_error"]
+    _run_cargo(session, *command, env=env)
+    _run_cargo(session, *command, "--features=full", env=env)
+    _run_cargo(session, *command, "--features=abi3,full", env=env)
+
+
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
     # pyo3-ffi-check needs to scrape docs of pyo3-ffi
     _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
@@ -812,12 +823,23 @@ def _get_coverage_env() -> Dict[str, str]:
 def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
     """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
     is_github_actions = _is_github_actions()
+    failed = False
     if is_github_actions:
         # Insert ::group:: at the start of nox's command line output
         print("::group::", end="", flush=True, file=sys.stderr)
-    session.run(*args, **kwargs)
-    if is_github_actions:
-        print("::endgroup::", file=sys.stderr)
+    try:
+        session.run(*args, **kwargs)
+    except nox.command.CommandFailed:
+        failed = True
+        raise
+    finally:
+        if is_github_actions:
+            print("::endgroup::", file=sys.stderr)
+            # Defer the error message until after the group to make them easier
+            # to find in the log
+            if failed:
+                command = " ".join(args)
+                print(f"::error::`{command}` failed", file=sys.stderr)
 
 
 def _run_cargo(

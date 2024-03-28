@@ -4,7 +4,7 @@ use crate::PyObject_TypeCheck;
 use std::os::raw::{c_char, c_int, c_void};
 use std::{mem, ptr};
 
-#[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_9, not(Py_LIMITED_API), not(GraalPy)))]
 pub struct PyCFunctionObject {
     pub ob_base: PyObject,
     pub m_ml: *mut PyMethodDef,

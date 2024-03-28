@@ -60,7 +60,7 @@ enum Shape {
     Circle { radius: f64 },
     Rectangle { width: f64, height: f64 },
     RegularPolygon { side_count: u32, radius: f64 },
-    Nothing { },
+    Nothing {},
 }
 ```
 
@@ -89,7 +89,7 @@ Currently, the best alternative is to write a macro which expands to a new `#[py
 use pyo3::prelude::*;
 
 struct GenericClass<T> {
-   data: T
+    data: T,
 }
 
 macro_rules! create_interface {
@@ -102,7 +102,9 @@ macro_rules! create_interface {
         impl $name {
             #[new]
             pub fn new(data: $type) -> Self {
-                Self { inner: GenericClass { data: data } }
+                Self {
+                    inner: GenericClass { data: data },
+                }
             }
         }
     };
@@ -187,23 +189,21 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 ```
 
-## Bound and interior mutability
+## Bound<T> and interior mutability
 
-You sometimes need to convert your `#[pyclass]` into a Python object and access it
-from Rust code (e.g., for testing it).
-[`Bound`] is the primary interface for that.
+Often is useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code. The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API. More detail can be found about them [in the Python objects](./types.md#pyo3s-smart-pointers) section of the guide.
 
-To mutate data behind a `Bound<'_, T>` safely, PyO3 employs the
-[Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
-like [`RefCell`].
+Most Python objects do not offer exclusive (`&mut`) access (see the [section on Python's memory model](./python-from-rust.md#pythons-memory-model)). However, Rust structs wrapped as Python objects (called `pyclass` types) often *do* need `&mut` access. Due to the GIL, PyO3 *can* guarantee exclusive access to them.
 
-Users who are familiar with `RefCell` can use `Bound` just like `RefCell`.
+The Rust borrow checker cannot reason about `&mut` references once an object's ownership has been passed to the Python interpreter. This means that borrow checking is done at runtime using with a scheme very similar to `std::cell::RefCell<T>`. This is known as [interior mutability](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html).
 
-For users who are not very familiar with `RefCell`, here is a reminder of Rust's rules of borrowing:
+Users who are familiar with `RefCell<T>` can use `Py<T>` and `Bound<'py, T>` just like `RefCell<T>`.
+
+For users who are not very familiar with `RefCell<T>`, here is a reminder of Rust's rules of borrowing:
 - At any given time, you can have either (but not both of) one mutable reference or any number of immutable references.
-- References must always be valid.
+- References can never outlast the data they refer to.
 
-`Bound`, like `RefCell`, ensures these borrowing rules by tracking references at runtime.
+`Py<T>` and `Bound<'py, T>`, like `RefCell<T>`, ensure these borrowing rules by tracking references at runtime.
 
 ```rust
 # use pyo3::prelude::*;
@@ -233,10 +233,8 @@ Python::with_gil(|py| {
 });
 ```
 
-A `Bound<'py, T>` is restricted to the GIL lifetime `'py`.
-To make the object longer lived (for example, to store it in a struct on the
-Rust side), you can use `Py<T>`, which stores an object longer than the GIL
-lifetime, and therefore needs a `Python<'_>` token to access.
+A `Bound<'py, T>` is restricted to the GIL lifetime `'py`. To make the object longer lived (for example, to store it in a struct on the
+Rust side), use `Py<T>`. `Py<T>` needs a `Python<'_>` token to allow access:
 
 ```rust
 # use pyo3::prelude::*;
@@ -252,7 +250,7 @@ fn return_myclass() -> Py<MyClass> {
 let obj = return_myclass();
 
 Python::with_gil(|py| {
-    let bound = obj.bind(py); // Py<MyClass>::bind returns &Bound<'_, MyClass>
+    let bound = obj.bind(py); // Py<MyClass>::bind returns &Bound<'py, MyClass>
     let obj_ref = bound.borrow(); // Get PyRef<T>
     assert_eq!(obj_ref.num, 1);
 });
@@ -288,7 +286,7 @@ Frozen classes are likely to become the default thereby guiding the PyO3 ecosyst
 
 ## Customizing the class
 
-{{#include ../pyclass_parameters.md}}
+{{#include ../pyclass-parameters.md}}
 
 These parameters are covered in various sections of this guide.
 
@@ -431,7 +429,7 @@ impl DictWithCounter {
         Self::default()
     }
 
-    fn set(slf: &Bound<'_, Self>, key: String, value: &PyAny) -> PyResult<()> {
+    fn set(slf: &Bound<'_, Self>, key: String, value: Bound<'_, PyAny>) -> PyResult<()> {
         slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
         let dict = slf.downcast::<PyDict>()?;
         dict.set_item(key, value)
@@ -1319,7 +1317,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
 
 [`Py`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
-[`Bound`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
+[`Bound<'_, T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html

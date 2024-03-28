@@ -270,7 +270,7 @@ impl PyString {
     ///
     /// By using this API, you accept responsibility for testing that PyStringData behaves as
     /// expected on the targets where you plan to distribute your software.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         self.as_borrowed().data()
     }
@@ -319,7 +319,7 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     ///
     /// By using this API, you accept responsibility for testing that PyStringData behaves as
     /// expected on the targets where you plan to distribute your software.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>>;
 }
 
@@ -345,7 +345,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
         }
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         self.as_borrowed().data()
     }
@@ -369,7 +369,7 @@ impl<'a> Borrowed<'a, '_, PyString> {
     }
 
     #[allow(clippy::wrong_self_convention)]
-    fn to_cow(self) -> PyResult<Cow<'a, str>> {
+    pub(crate) fn to_cow(self) -> PyResult<Cow<'a, str>> {
         // TODO: this method can probably be deprecated once Python 3.9 support is dropped,
         // because all versions then support the more efficient `to_str`.
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -408,7 +408,7 @@ impl<'a> Borrowed<'a, '_, PyString> {
         Cow::Owned(String::from_utf8_lossy(bytes.as_bytes()).into_owned())
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     unsafe fn data(self) -> PyResult<PyStringData<'a>> {
         let ptr = self.as_ptr();
 

@@ -6,7 +6,9 @@ use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{ffi, gil, Bound, Py, PyAny, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python};
+use crate::{
+    ffi, gil, Borrowed, Bound, Py, PyAny, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+};
 use std::ptr::NonNull;
 
 /// Returns a borrowed pointer to a Python object.
@@ -96,6 +98,7 @@ pub trait ToPyObject {
 /// ```rust
 /// use pyo3::prelude::*;
 ///
+/// # #[allow(dead_code)]
 /// struct Number {
 ///     value: i32,
 /// }
@@ -287,7 +290,7 @@ pub trait FromPyObjectBound<'a, 'py>: Sized + from_py_object_bound_sealed::Seale
     ///
     /// Users are advised against calling this method directly: instead, use this via
     /// [`Bound<'_, PyAny>::extract`] or [`Py::extract`].
-    fn from_py_object_bound(ob: &'a Bound<'py, PyAny>) -> PyResult<Self>;
+    fn from_py_object_bound(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>;
 
     /// Extracts the type hint information for this type when it appears as an argument.
     ///
@@ -306,8 +309,8 @@ impl<'py, T> FromPyObjectBound<'_, 'py> for T
 where
     T: FromPyObject<'py>,
 {
-    fn from_py_object_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Self::extract_bound(ob)
+    fn from_py_object_bound(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Self::extract_bound(&ob)
     }
 
     #[cfg(feature = "experimental-inspect")]

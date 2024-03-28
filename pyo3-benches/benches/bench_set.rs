@@ -2,7 +2,10 @@ use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criter
 
 use pyo3::prelude::*;
 use pyo3::types::PySet;
-use std::collections::{BTreeSet, HashSet};
+use std::{
+    collections::{BTreeSet, HashSet},
+    hint::black_box,
+};
 
 fn set_new(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -31,16 +34,20 @@ fn iter_set(b: &mut Bencher<'_>) {
 fn extract_hashset(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-        b.iter_with_large_drop(|| HashSet::<u64>::extract(set.as_gil_ref()));
+        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+            .unwrap()
+            .into_any();
+        b.iter_with_large_drop(|| black_box(&any).extract::<HashSet<u64>>());
     });
 }
 
 fn extract_btreeset(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-        b.iter_with_large_drop(|| BTreeSet::<u64>::extract(set.as_gil_ref()));
+        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+            .unwrap()
+            .into_any();
+        b.iter_with_large_drop(|| black_box(&any).extract::<BTreeSet<u64>>());
     });
 }
 
@@ -48,8 +55,10 @@ fn extract_btreeset(b: &mut Bencher<'_>) {
 fn extract_hashbrown_set(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-        b.iter_with_large_drop(|| hashbrown::HashSet::<u64>::extract(set.as_gil_ref()));
+        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+            .unwrap()
+            .into_any();
+        b.iter_with_large_drop(|| black_box(&any).extract::<hashbrown::HashSet<u64>>());
     });
 }
 

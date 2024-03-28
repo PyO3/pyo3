@@ -41,7 +41,7 @@ impl BaseClass {
     fn base_method(&self, x: usize) -> usize {
         x * self.val1
     }
-    fn base_set(&mut self, fn_: &pyo3::PyAny) -> PyResult<()> {
+    fn base_set(&mut self, fn_: &Bound<'_, PyAny>) -> PyResult<()> {
         let value: usize = fn_.call0()?.extract()?;
         self.val1 = value;
         Ok(())
@@ -264,7 +264,7 @@ mod inheriting_native_type {
     #[pymethods]
     impl CustomException {
         #[new]
-        fn new(_exc_arg: &PyAny) -> Self {
+        fn new(_exc_arg: &Bound<'_, PyAny>) -> Self {
             CustomException {
                 context: "Hello :)",
             }

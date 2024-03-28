@@ -30,28 +30,37 @@
 //!
 //! PyO3 has several core types that you should familiarize yourself with:
 //!
-//! ## The Python<'py> object
+//! ## The `Python<'py>` object, and the `'py` lifetime
 //!
-//! Holding the [global interpreter lock] (GIL) is modeled with the [`Python<'py>`](crate::Python)
-//! token. All APIs that require that the GIL is held require this token as proof that you really
-//! are holding the GIL. It can be explicitly acquired and is also implicitly acquired by PyO3 as
-//! it wraps Rust functions and structs into Python functions and objects.
+//! Holding the [global interpreter lock] (GIL) is modeled with the [`Python<'py>`](Python) token. Many
+//! Python APIs require that the GIL is held, and PyO3 uses this token as proof that these APIs
+//! can be called safely. It can be explicitly acquired and is also implicitly acquired by PyO3
+//! as it wraps Rust functions and structs into Python functions and objects.
 //!
-//! ## The GIL-dependent types
+//! The [`Python<'py>`](Python) token's lifetime `'py` is common to many PyO3 APIs:
+//! - Types that also have the `'py` lifetime, such as the [`Bound<'py, T>`](Bound) smart pointer, are
+//!   bound to the Python GIL and rely on this to offer their functionality. These types often
+//!   have a [`.py()`](Bound::py) method to get the associated [`Python<'py>`](Python) token.
+//! - Functions which depend on the `'py` lifetime, such as [`PyList::new_bound`](types::PyList::new_bound),
+//!   require a [`Python<'py>`](Python) token as an input. Sometimes the token is passed implicitly by
+//!   taking a [`Bound<'py, T>`](Bound) or other type which is bound to the `'py` lifetime.
+//! - Traits which depend on the `'py` lifetime, such as [`FromPyObject<'py>`](FromPyObject), usually have
+//!   inputs or outputs which depend on the lifetime. Adding the lifetime to the trait allows
+//!   these inputs and outputs to express their binding to the GIL in the Rust type system.
 //!
-//! For example `&`[`PyAny`]. These are only ever seen as references, with a lifetime that is only
-//! valid for as long as the GIL is held, which is why using them doesn't require a
-//! [`Python<'py>`](crate::Python) token. The underlying Python object, if mutable, can be mutated
-//! through any reference.
+//! ## Python object smart pointers
+//!
+//! PyO3 has two core smart pointers to refer to Python objects, [`Py<T>`](Py) and its GIL-bound
+//! form [`Bound<'py, T>`](Bound) which carries the `'py` lifetime. (There is also
+//! [`Borrowed<'a, 'py, T>`](instance::Borrowed), but it is used much more rarely).
+//!
+//! The type parameter `T` in these smart pointers can be filled by:
+//!   - [`PyAny`], e.g. `Py<PyAny>` or `Bound<'py, PyAny>`, where the Python object type is not
+//!     known. `Py<PyAny>` is so common it has a type alias [`PyObject`].
+//!   - Concrete Python types like [`PyList`](types::PyList) or [`PyTuple`](types::PyTuple).
+//!   - Rust types which are exposed to Python using the [`#[pyclass]`](macro@pyclass) macro.
 //!
 //! See the [guide][types] for an explanation of the different Python object types.
-//!
-//! ## The GIL-independent types
-//!
-//! When wrapped in [`Py`]`<...>`, like with [`Py`]`<`[`PyAny`]`>` or [`Py`]`<SomePyClass>`, Python
-//! objects no longer have a limited lifetime which makes them easier to store in structs and pass
-//! between functions. However, you cannot do much with them without a
-//! [`Python<'py>`](crate::Python) token, for which you’d need to reacquire the GIL.
 //!
 //! ## PyErr
 //!
@@ -284,14 +293,14 @@
 //! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
 //! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
-//! [calling_rust]: https://pyo3.rs/latest/python_from_rust.html "Calling Python from Rust - PyO3 user guide"
+//! [calling_rust]: https://pyo3.rs/latest/python-from-rust.html "Calling Python from Rust - PyO3 user guide"
 //! [examples subdirectory]: https://github.com/PyO3/pyo3/tree/main/examples
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
 //! [indexmap]: https://docs.rs/indexmap
-//! [manual_builds]: https://pyo3.rs/latest/building_and_distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
+//! [manual_builds]: https://pyo3.rs/latest/building-and-distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
 //! [num-bigint]: https://docs.rs/num-bigint
 //! [num-complex]: https://docs.rs/num-complex
 //! [serde]: https://docs.rs/serde
@@ -310,8 +319,9 @@ pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
 pub use crate::err::{
     DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
 };
+#[allow(deprecated)]
 pub use crate::gil::GILPool;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::instance::{Borrowed, Bound, Py, PyNativeType, PyObject};
 pub use crate::marker::Python;
@@ -336,15 +346,22 @@ pub(crate) mod sealed;
 /// For compatibility reasons this has not yet been removed, however will be done so
 /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
-    #[doc(hidden)]
-    pub use crate::impl_::pymethods as methods;
-
     pub use self::gc::{PyTraverseError, PyVisit};
 
     #[doc(hidden)]
     pub use self::methods::{
         PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
     };
+
+    #[doc(hidden)]
+    pub mod methods {
+        // frozen with the contents of the `impl_::pymethods` module in 0.20,
+        // this should probably all be replaced with deprecated type aliases and removed.
+        pub use crate::impl_::pymethods::{
+            IPowModulo, PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType,
+            PyMethodType, PySetterDef,
+        };
+    }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
     ///
@@ -453,7 +470,7 @@ pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
-#[doc = include_str!("../guide/pyclass_parameters.md")]
+#[doc = include_str!("../guide/pyclass-parameters.md")]
 ///
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
@@ -468,6 +485,16 @@ mod macros;
 
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;
+
+/// Ths module only contains re-exports of pyo3 deprecation warnings and exists
+/// purely to make compiler error messages nicer.
+///
+/// (The compiler uses this module in error messages, probably because it's a public
+/// re-export at a shorter path than `pyo3::impl_::deprecations`.)
+#[doc(hidden)]
+pub mod deprecations {
+    pub use crate::impl_::deprecations::*;
+}
 
 /// Test readme and user guide
 #[cfg(doctest)]
@@ -485,8 +512,8 @@ pub mod doc_test {
         "README.md" => readme_md,
         "guide/src/advanced.md" => guide_advanced_md,
         "guide/src/async-await.md" => guide_async_await_md,
-        "guide/src/building_and_distribution.md" => guide_building_and_distribution_md,
-        "guide/src/building_and_distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
+        "guide/src/building-and-distribution.md" => guide_building_and_distribution_md,
+        "guide/src/building-and-distribution/multiple-python-versions.md" => guide_bnd_multiple_python_versions_md,
         "guide/src/class.md" => guide_class_md,
         "guide/src/class/call.md" => guide_class_call,
         "guide/src/class/object.md" => guide_class_object,
@@ -504,16 +531,19 @@ pub mod doc_test {
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
         "guide/src/function.md" => guide_function_md,
-        "guide/src/function/error_handling.md" => guide_function_error_handling_md,
+        "guide/src/function/error-handling.md" => guide_function_error_handling_md,
         "guide/src/function/signature.md" => guide_function_signature_md,
         "guide/src/memory.md" => guide_memory_md,
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,
         "guide/src/parallelism.md" => guide_parallelism_md,
         "guide/src/performance.md" => guide_performance_md,
-        "guide/src/python_from_rust.md" => guide_python_from_rust_md,
-        "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
-        "guide/src/trait_bounds.md" => guide_trait_bounds_md,
+        "guide/src/python-from-rust.md" => guide_python_from_rust_md,
+        "guide/src/python-from-rust/calling-existing-code.md" => guide_pfr_calling_existing_code_md,
+        "guide/src/python-from-rust/function-calls.md" => guide_pfr_function_calls_md,
+        "guide/src/python-typing-hints.md" => guide_python_typing_hints_md,
+        "guide/src/rust-from-python.md" => guide_rust_from_python_md,
+        "guide/src/trait-bounds.md" => guide_trait_bounds_md,
         "guide/src/types.md" => guide_types_md,
     }
 }

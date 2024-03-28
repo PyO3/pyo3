@@ -1,3 +1,4 @@
+#[cfg(not(GraalPy))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
 use std::os::raw::{c_int, c_long};
@@ -16,20 +17,33 @@ pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "_PyPy_FalseStruct")]
     static mut _Py_FalseStruct: PyLongObject;
+    #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "_PyPy_TrueStruct")]
     static mut _Py_TrueStruct: PyLongObject;
+
+    #[cfg(GraalPy)]
+    static mut _Py_FalseStructReference: *mut PyObject;
+    #[cfg(GraalPy)]
+    static mut _Py_TrueStructReference: *mut PyObject;
 }
 
 #[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
-    addr_of_mut!(_Py_FalseStruct) as *mut PyObject
+    #[cfg(not(GraalPy))]
+    return addr_of_mut!(_Py_FalseStruct) as *mut PyObject;
+    #[cfg(GraalPy)]
+    return _Py_FalseStructReference;
 }
 
 #[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
-    addr_of_mut!(_Py_TrueStruct) as *mut PyObject
+    #[cfg(not(GraalPy))]
+    return addr_of_mut!(_Py_TrueStruct) as *mut PyObject;
+    #[cfg(GraalPy)]
+    return _Py_TrueStructReference;
 }
 
 #[inline]

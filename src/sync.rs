@@ -1,4 +1,9 @@
 //! Synchronization mechanisms based on the Python GIL.
+//!
+//! With the acceptance of [PEP 703] (aka a "freethreaded Python") for Python 3.13, these
+//! are likely to undergo significant developments in the future.
+//!
+//! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
     types::{any::PyAnyMethods, PyString, PyType},
     Bound, Py, PyResult, PyVisit, Python,
@@ -85,6 +90,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
+#[derive(Default)]
 pub struct GILOnceCell<T>(UnsafeCell<Option<T>>);
 
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different
@@ -215,7 +221,7 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// ```
 /// use pyo3::intern;
-/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python, prelude::PyDictMethods, Bound};
+/// # use pyo3::{prelude::*, types::PyDict};
 ///
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
@@ -236,10 +242,10 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 /// #
 /// # Python::with_gil(|py| {
-/// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
+/// #     let fun_slow = wrap_pyfunction_bound!(create_dict, py).unwrap();
 /// #     let dict = fun_slow.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
-/// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
+/// #     let fun = wrap_pyfunction_bound!(create_dict_faster, py).unwrap();
 /// #     let dict = fun.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
 /// # });

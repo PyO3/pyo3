@@ -132,7 +132,7 @@
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
-//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         let fun = pyo3::wrap_pyfunction_bound!(swap_numbers, py).unwrap();
 //! #         fun.call1((n, n2)).expect_err("Managed to create overlapping mutable references. Note: this is undefined behaviour.");
 //! #     });
 //! # }
@@ -149,12 +149,12 @@
 //!
 //! It is better to write that function like this:
 //! ```rust
+//! # #![allow(deprecated)]
 //! # use pyo3::prelude::*;
 //! # #[pyclass]
 //! # pub struct Number {
 //! #     inner: u32,
 //! # }
-//! # #[allow(deprecated)]
 //! #[pyfunction]
 //! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
 //!     // Check that the pointers are unequal
@@ -170,7 +170,7 @@
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
-//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         let fun = pyo3::wrap_pyfunction_bound!(swap_numbers, py).unwrap();
 //! #         fun.call1((n, n2)).unwrap();
 //! #     });
 //! #
@@ -179,7 +179,7 @@
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
 //! #         assert!(!n.is(&n2));
-//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         let fun = pyo3::wrap_pyfunction_bound!(swap_numbers, py).unwrap();
 //! #         fun.call1((&n, &n2)).unwrap();
 //! #         let n: u32 = n.borrow(py).inner;
 //! #         let n2: u32 = n2.borrow(py).inner;

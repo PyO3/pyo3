@@ -2,7 +2,7 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
   --> tests/ui/invalid_result_conversion.rs:21:1
    |
 21 | #[pyfunction]
-   | ^^^^^^^^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
+   | ^^^^^^^^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`, which is required by `MyError: Into<PyErr>`
    |
    = help: the following other types implement trait `From<T>`:
              <PyErr as From<pyo3::Bound<'py, T>>>

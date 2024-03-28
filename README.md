@@ -17,7 +17,7 @@
 ## Usage
 
 PyO3 supports the following software versions:
-  - Python 3.7 and up (CPython and PyPy)
+  - Python 3.7 and up (CPython, PyPy, and GraalPy)
   - Rust 1.56 and up
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.20.3", features = ["extension-module"] }
+pyo3 = { version = "0.21.0", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -118,7 +118,7 @@ maturin develop
 
 If you want to be able to run `cargo test` or use this project in a Cargo workspace and are running into linker issues, there are some workarounds in [the FAQ](https://pyo3.rs/latest/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror).
 
-As well as with `maturin`, it is possible to build using [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds). Both offer more flexibility than `maturin` but require more configuration to get started.
+As well as with `maturin`, it is possible to build using [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building-and-distribution.html#manual-builds). Both offer more flexibility than `maturin` but require more configuration to get started.
 
 ### Using Python from Rust
 
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.20.3"
+version = "0.21.0"
 features = ["auto-initialize"]
 ```
 
@@ -162,7 +162,7 @@ fn main() -> PyResult<()> {
 }
 ```
 
-The guide has [a section](https://pyo3.rs/latest/python_from_rust.html) with lots of examples
+The guide has [a section](https://pyo3.rs/latest/python-from-rust.html) with lots of examples
 about this topic.
 
 ## Tools and libraries
@@ -192,6 +192,7 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [greptimedb](https://github.com/GreptimeTeam/greptimedb/tree/main/src/script) _Support [Python scripting](https://docs.greptime.com/user-guide/python-scripts/overview) in the database_
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._

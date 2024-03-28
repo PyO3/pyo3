@@ -366,15 +366,11 @@ fn impl_class(
     .impl_all(ctx)?;
 
     Ok(quote! {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            impl #pyo3_path::types::DerefToPyAny for #cls {}
+        impl #pyo3_path::types::DerefToPyAny for #cls {}
 
-            #pytypeinfo_impl
+        #pytypeinfo_impl
 
-            #py_class_impl
-        };
+        #py_class_impl
     })
 }
 
@@ -740,10 +736,11 @@ fn impl_simple_enum(
             fn __pyo3__richcmp__(
                 &self,
                 py: #pyo3_path::Python,
-                other: &#pyo3_path::PyAny,
+                other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
                 op: #pyo3_path::basic::CompareOp
             ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 use #pyo3_path::conversion::ToPyObject;
+                use #pyo3_path::types::PyAnyMethods;
                 use ::core::result::Result::*;
                 match op {
                     #pyo3_path::basic::CompareOp::Eq => {
@@ -794,21 +791,17 @@ fn impl_simple_enum(
     .impl_all(ctx)?;
 
     Ok(quote! {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            #pytypeinfo
+        #pytypeinfo
 
-            #pyclass_impls
+        #pyclass_impls
 
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            impl #cls {
-                #default_repr
-                #default_int
-                #default_richcmp
-            }
-        };
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #cls {
+            #default_repr
+            #default_int
+            #default_richcmp
+        }
     })
 }
 
@@ -933,25 +926,21 @@ fn impl_complex_enum(
     }
 
     Ok(quote! {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        const _: () = {
-            #pytypeinfo
+        #pytypeinfo
 
-            #pyclass_impls
+        #pyclass_impls
 
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            impl #cls {}
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #cls {}
 
-            #(#variant_cls_zsts)*
+        #(#variant_cls_zsts)*
 
-            #(#variant_cls_pytypeinfos)*
+        #(#variant_cls_pytypeinfos)*
 
-            #(#variant_cls_pyclass_impls)*
+        #(#variant_cls_pyclass_impls)*
 
-            #(#variant_cls_impls)*
-        };
+        #(#variant_cls_impls)*
     })
 }
 

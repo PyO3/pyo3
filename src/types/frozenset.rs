@@ -60,7 +60,7 @@ impl<'py> PyFrozenSetBuilder<'py> {
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type!(
     PyFrozenSet,
     ffi::PySetObject,
@@ -68,7 +68,7 @@ pyobject_native_type!(
     #checkfunction=ffi::PyFrozenSet_Check
 );
 
-#[cfg(PyPy)]
+#[cfg(any(PyPy, GraalPy))]
 pyobject_native_type_core!(
     PyFrozenSet,
     pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),

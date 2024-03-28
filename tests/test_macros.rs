@@ -76,7 +76,7 @@ fn test_macro_rules_interactions() {
         let my_base = py.get_type_bound::<MyBaseClass>();
         py_assert!(py, my_base, "my_base.__name__ == 'MyClass'");
 
-        let my_func = wrap_pyfunction!(my_function_in_macro, py).unwrap();
+        let my_func = wrap_pyfunction_bound!(my_function_in_macro, py).unwrap();
         py_assert!(
             py,
             my_func,

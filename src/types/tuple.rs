@@ -34,9 +34,9 @@ fn new_from_iter<'py>(
         let mut counter: Py_ssize_t = 0;
 
         for obj in elements.take(len as usize) {
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
             ffi::PyTuple_SET_ITEM(ptr, counter, obj.into_ptr());
-            #[cfg(any(Py_LIMITED_API, PyPy))]
+            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
             ffi::PyTuple_SetItem(ptr, counter, obj.into_ptr());
             counter += 1;
         }
@@ -186,7 +186,7 @@ impl PyTuple {
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
         self.as_borrowed()
             .get_borrowed_item_unchecked(index)
@@ -194,7 +194,7 @@ impl PyTuple {
     }
 
     /// Returns `self` as a slice of objects.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     pub fn as_slice(&self) -> &[&PyAny] {
         // This is safe because &PyAny has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -258,6 +258,9 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// Returns `self` cast as a `PySequence`.
     fn as_sequence(&self) -> &Bound<'py, PySequence>;
 
+    /// Returns `self` cast as a `PySequence`.
+    fn into_sequence(self) -> Bound<'py, PySequence>;
+
     /// Takes the slice `self[low:high]` and returns it as a new tuple.
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
@@ -290,7 +293,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Like [`get_item_unchecked`][PyTupleMethods::get_item_unchecked], but returns a borrowed object,
@@ -299,11 +302,11 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
     /// Returns `self` as a slice of objects.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn as_slice(&self) -> &[Bound<'py, PyAny>];
 
     /// Determines if self contains `value`.
@@ -336,9 +339,9 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     fn len(&self) -> usize {
         unsafe {
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
             let size = ffi::PyTuple_GET_SIZE(self.as_ptr());
-            #[cfg(any(Py_LIMITED_API, PyPy))]
+            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
             let size = ffi::PyTuple_Size(self.as_ptr());
             // non-negative Py_ssize_t should always fit into Rust uint
             size as usize
@@ -351,6 +354,10 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     fn as_sequence(&self) -> &Bound<'py, PySequence> {
         unsafe { self.downcast_unchecked() }
+    }
+
+    fn into_sequence(self) -> Bound<'py, PySequence> {
+        unsafe { self.into_any().downcast_into_unchecked() }
     }
 
     fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyTuple> {
@@ -369,17 +376,17 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
         self.as_borrowed().get_borrowed_item(index)
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         self.get_borrowed_item_unchecked(index).to_owned()
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         self.as_borrowed().get_borrowed_item_unchecked(index)
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn as_slice(&self) -> &[Bound<'py, PyAny>] {
         // This is safe because Bound<'py, PyAny> has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -429,7 +436,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         }
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
     }
@@ -584,9 +591,9 @@ impl<'a, 'py> BorrowedTupleIterator<'a, 'py> {
         tuple: Borrowed<'a, 'py, PyTuple>,
         index: usize,
     ) -> Borrowed<'a, 'py, PyAny> {
-        #[cfg(any(Py_LIMITED_API, PyPy))]
+        #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
         let item = tuple.get_borrowed_item(index).expect("tuple.get failed");
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
         let item = tuple.get_borrowed_item_unchecked(index);
         item
     }
@@ -689,11 +696,11 @@ fn type_output() -> TypeInfo {
         {
             let t = obj.downcast::<PyTuple>()?;
             if t.len() == $length {
-                #[cfg(any(Py_LIMITED_API, PyPy))]
-                return Ok(($(t.get_item($n)?.extract::<$T>()?,)+));
+                #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
+                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>()?,)+));
 
-                #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-                unsafe {return Ok(($(t.get_item_unchecked($n).extract::<$T>()?,)+));}
+                #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>()?,)+));}
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
@@ -711,9 +718,9 @@ fn array_into_tuple<const N: usize>(py: Python<'_>, array: [PyObject; N]) -> Py<
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
         let tup = Py::from_owned_ptr(py, ptr);
         for (index, obj) in array.into_iter().enumerate() {
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
             ffi::PyTuple_SET_ITEM(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
-            #[cfg(any(Py_LIMITED_API, PyPy))]
+            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
             ffi::PyTuple_SetItem(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
         }
         tup
@@ -1003,7 +1010,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn test_as_slice() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1105,7 +1112,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     #[test]
     fn test_tuple_get_item_unchecked_sanity() {
         Python::with_gil(|py| {
@@ -1415,12 +1422,22 @@ mod tests {
     #[test]
     fn test_tuple_as_sequence() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new(py, vec![1, 2, 3]);
+            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
             let sequence = tuple.as_sequence();
             assert!(tuple.get_item(0).unwrap().eq(1).unwrap());
             assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
 
             assert_eq!(tuple.len(), 3);
+            assert_eq!(sequence.len().unwrap(), 3);
+        })
+    }
+
+    #[test]
+    fn test_tuple_into_sequence() {
+        Python::with_gil(|py| {
+            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
+            let sequence = tuple.into_sequence();
+            assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
             assert_eq!(sequence.len().unwrap(), 3);
         })
     }
@@ -1440,7 +1457,7 @@ mod tests {
                     .unwrap(),
                 2
             );
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
             {
                 assert_eq!(
                     unsafe { tuple.get_item_unchecked(2) }

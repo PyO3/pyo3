@@ -36,7 +36,7 @@ error[E0277]: the trait bound `CancelHandle: PyClass` is not satisfied
   --> tests/ui/invalid_cancel_handle.rs:20:50
    |
 20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
-   |                                                  ^^^^ the trait `PyClass` is not implemented for `CancelHandle`
+   |                                                  ^^^^ the trait `PyClass` is not implemented for `CancelHandle`, which is required by `CancelHandle: PyFunctionArgument<'_, '_>`
    |
    = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
@@ -55,9 +55,10 @@ error[E0277]: the trait bound `CancelHandle: Clone` is not satisfied
   --> tests/ui/invalid_cancel_handle.rs:20:50
    |
 20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
-   |                                                  ^^^^ the trait `Clone` is not implemented for `CancelHandle`
+   |                                                  ^^^^ the trait `Clone` is not implemented for `CancelHandle`, which is required by `CancelHandle: PyFunctionArgument<'_, '_>`
    |
    = help: the following other types implement trait `PyFunctionArgument<'a, 'py>`:
+             Option<&'a pyo3::Bound<'py, T>>
              &'a pyo3::Bound<'py, T>
              &'a pyo3::coroutine::Coroutine
              &'a mut pyo3::coroutine::Coroutine

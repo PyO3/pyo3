@@ -163,7 +163,7 @@ b: <builtins.Inner object at 0x0000020044FCC670>
 ```
 The downside to this approach is that any Rust code working on the `Outer` struct now has to acquire the GIL to do anything with its field.
 
-## I want to use the `pyo3` crate re-exported from from dependency but the proc-macros fail!
+## I want to use the `pyo3` crate re-exported from dependency but the proc-macros fail!
 
 All PyO3 proc-macros (`#[pyclass]`, `#[pyfunction]`, `#[derive(FromPyObject)]`
 and so on) expect the `pyo3` crate to be available under that name in your crate

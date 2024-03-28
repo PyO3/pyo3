@@ -11,6 +11,8 @@ use crate::ffi::{
     PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND,
     PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
 };
+#[cfg(GraalPy)]
+use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 use crate::ffi::{
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
 };
@@ -552,6 +554,7 @@ impl<'py> PyTzInfoAccess<'py> for &'py PyDateTime {
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
+        #[cfg(not(GraalPy))]
         unsafe {
             if (*ptr).hastzinfo != 0 {
                 Some(
@@ -563,6 +566,20 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
                 )
             } else {
                 None
+            }
+        }
+
+        #[cfg(GraalPy)]
+        unsafe {
+            let res = PyDateTime_DATE_GET_TZINFO(ptr as *mut ffi::PyObject);
+            if Py_IsNone(res) == 1 {
+                None
+            } else {
+                Some(
+                    res.assume_borrowed(self.py())
+                        .to_owned()
+                        .downcast_into_unchecked(),
+                )
             }
         }
     }
@@ -740,6 +757,7 @@ impl<'py> PyTzInfoAccess<'py> for &'py PyTime {
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
+        #[cfg(not(GraalPy))]
         unsafe {
             if (*ptr).hastzinfo != 0 {
                 Some(
@@ -751,6 +769,20 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
                 )
             } else {
                 None
+            }
+        }
+
+        #[cfg(GraalPy)]
+        unsafe {
+            let res = PyDateTime_TIME_GET_TZINFO(ptr as *mut ffi::PyObject);
+            if Py_IsNone(res) == 1 {
+                None
+            } else {
+                Some(
+                    res.assume_borrowed(self.py())
+                        .to_owned()
+                        .downcast_into_unchecked(),
+                )
             }
         }
     }

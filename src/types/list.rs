@@ -295,6 +295,9 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// Returns `self` cast as a `PySequence`.
     fn as_sequence(&self) -> &Bound<'py, PySequence>;
 
+    /// Returns `self` cast as a `PySequence`.
+    fn into_sequence(self) -> Bound<'py, PySequence>;
+
     /// Gets the list item at the specified index.
     /// # Example
     /// ```
@@ -406,6 +409,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Returns `self` cast as a `PySequence`.
     fn as_sequence(&self) -> &Bound<'py, PySequence> {
         unsafe { self.downcast_unchecked() }
+    }
+
+    /// Returns `self` cast as a `PySequence`.
+    fn into_sequence(self) -> Bound<'py, PySequence> {
+        unsafe { self.into_any().downcast_into_unchecked() }
     }
 
     /// Gets the list item at the specified index.
@@ -715,6 +723,9 @@ impl<'py> IntoIterator for &Bound<'py, PyList> {
 #[cfg(test)]
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
+    use crate::types::any::PyAnyMethods;
+    use crate::types::list::PyListMethods;
+    use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
     use crate::Python;
     use crate::{IntoPy, PyObject, ToPyObject};
@@ -931,6 +942,35 @@ mod tests {
                 items.push(item.extract::<i32>().unwrap());
             }
             assert_eq!(items, vec![1, 2, 3, 4]);
+        });
+    }
+
+    #[test]
+    fn test_as_sequence() {
+        Python::with_gil(|py| {
+            let list = PyList::new_bound(py, [1, 2, 3, 4]);
+
+            assert_eq!(list.as_sequence().len().unwrap(), 4);
+            assert_eq!(
+                list.as_sequence()
+                    .get_item(1)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                2
+            );
+        });
+    }
+
+    #[test]
+    fn test_into_sequence() {
+        Python::with_gil(|py| {
+            let list = PyList::new_bound(py, [1, 2, 3, 4]);
+
+            let sequence = list.into_sequence();
+
+            assert_eq!(sequence.len().unwrap(), 4);
+            assert_eq!(sequence.get_item(1).unwrap().extract::<i32>().unwrap(), 2);
         });
     }
 

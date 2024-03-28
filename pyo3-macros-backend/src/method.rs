@@ -8,7 +8,7 @@ use crate::utils::Ctx;
 use crate::{
     attributes::{TextSignatureAttribute, TextSignatureAttributeValue},
     deprecations::{Deprecation, Deprecations},
-    params::impl_arg_params,
+    params::{impl_arg_params, Holders},
     pyfunction::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
@@ -108,7 +108,7 @@ impl FnType {
         &self,
         cls: Option<&syn::Type>,
         error_mode: ExtractErrorMode,
-        holders: &mut Vec<TokenStream>,
+        holders: &mut Holders,
         ctx: &Ctx,
     ) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
@@ -128,24 +128,24 @@ impl FnType {
             }
             FnType::FnClass(span) | FnType::FnNewClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
-                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf_ref", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyType>()
                     ),
                 }
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
-                let slf: Ident = syn::Ident::new("_slf", Span::call_site());
+                let slf: Ident = syn::Ident::new("_slf_ref", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyModule>()
                     ),
                 }
@@ -186,7 +186,7 @@ impl SelfType {
         &self,
         cls: &syn::Type,
         error_mode: ExtractErrorMode,
-        holders: &mut Vec<TokenStream>,
+        holders: &mut Holders,
         ctx: &Ctx,
     ) -> TokenStream {
         // Due to use of quote_spanned in this function, need to bind these idents to the
@@ -201,17 +201,12 @@ impl SelfType {
                 } else {
                     syn::Ident::new("extract_pyclass_ref", *span)
                 };
-                let holder = syn::Ident::new(&format!("holder_{}", holders.len()), *span);
+                let holder = holders.push_holder(*span);
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                holders.push(quote_spanned! { *span =>
-                    #[allow(clippy::let_unit_value)]
-                    let mut #holder = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;
-                    let mut #slf = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf);
-                });
                 error_mode.handle_error(
                     quote_spanned! { *span =>
                         #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            &#slf,
+                            #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).0,
                             &mut #holder,
                         )
                     },
@@ -519,8 +514,8 @@ impl<'a> FnSpec<'a> {
             );
         }
 
-        let rust_call = |args: Vec<TokenStream>, holders: &mut Vec<TokenStream>| {
-            let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
+        let rust_call = |args: Vec<TokenStream>, holders: &mut Holders| {
+            let mut self_arg = || self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
 
             let call = if self.asyncness.is_some() {
                 let throw_callback = if cancel_handle.is_some() {
@@ -535,22 +530,32 @@ impl<'a> FnSpec<'a> {
                 };
                 let future = match self.tp {
                     FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
-                        holders.pop().unwrap(); // does not actually use holder created by `self_arg`
-
                         quote! {{
                             let __guard = #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&__guard, #(#args),*).await }
                         }}
                     }
                     FnType::Fn(SelfType::Receiver { mutable: true, .. }) => {
-                        holders.pop().unwrap(); // does not actually use holder created by `self_arg`
-
                         quote! {{
                             let mut __guard = #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
                             async move { function(&mut __guard, #(#args),*).await }
                         }}
                     }
-                    _ => quote! { function(#self_arg #(#args),*) },
+                    _ => {
+                        let self_arg = self_arg();
+                        if self_arg.is_empty() {
+                            quote! { function(#(#args),*) }
+                        } else {
+                            let self_checker = holders.push_gil_refs_checker(self_arg.span());
+                            quote! {
+                                function(
+                                    // NB #self_arg includes a comma, so none inserted here
+                                    #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                                    #(#args),*
+                                )
+                            }
+                        }
+                    }
                 };
                 let mut call = quote! {{
                     let future = #future;
@@ -570,7 +575,19 @@ impl<'a> FnSpec<'a> {
                 }
                 call
             } else {
-                quote! { function(#self_arg #(#args),*) }
+                let self_arg = self_arg();
+                if self_arg.is_empty() {
+                    quote! { function(#(#args),*) }
+                } else {
+                    let self_checker = holders.push_gil_refs_checker(self_arg.span());
+                    quote! {
+                        function(
+                            // NB #self_arg includes a comma, so none inserted here
+                            #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                            #(#args),*
+                        )
+                    }
+                }
             };
             quotes::map_result_into_ptr(quotes::ok_wrap(call, ctx), ctx)
         };
@@ -584,7 +601,7 @@ impl<'a> FnSpec<'a> {
 
         Ok(match self.convention {
             CallingConvention::Noargs => {
-                let mut holders = Vec::new();
+                let mut holders = Holders::new();
                 let args = self
                     .signature
                     .arguments
@@ -600,23 +617,30 @@ impl<'a> FnSpec<'a> {
                     })
                     .collect();
                 let call = rust_call(args, &mut holders);
+                let check_gil_refs = holders.check_gil_refs();
+                let init_holders = holders.init_holders(ctx);
 
                 quote! {
                     unsafe fn #ident<'py>(
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
-                        #( #holders )*
+                        #init_holders
                         let result = #call;
+                        #check_gil_refs
                         result
                     }
                 }
             }
             CallingConvention::Fastcall => {
-                let mut holders = Vec::new();
+                let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx)?;
                 let call = rust_call(args, &mut holders);
+                let init_holders = holders.init_holders(ctx);
+                let check_gil_refs = holders.check_gil_refs();
+
                 quote! {
                     unsafe fn #ident<'py>(
                         py: #pyo3_path::Python<'py>,
@@ -625,18 +649,23 @@ impl<'a> FnSpec<'a> {
                         _nargs: #pyo3_path::ffi::Py_ssize_t,
                         _kwnames: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
-                        #( #holders )*
+                        #init_holders
                         let result = #call;
+                        #check_gil_refs
                         result
                     }
                 }
             }
             CallingConvention::Varargs => {
-                let mut holders = Vec::new();
+                let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
                 let call = rust_call(args, &mut holders);
+                let init_holders = holders.init_holders(ctx);
+                let check_gil_refs = holders.check_gil_refs();
+
                 quote! {
                     unsafe fn #ident<'py>(
                         py: #pyo3_path::Python<'py>,
@@ -644,21 +673,25 @@ impl<'a> FnSpec<'a> {
                         _args: *mut #pyo3_path::ffi::PyObject,
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
-                        #( #holders )*
+                        #init_holders
                         let result = #call;
+                        #check_gil_refs
                         result
                     }
                 }
             }
             CallingConvention::TpNew => {
-                let mut holders = Vec::new();
+                let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
                 let self_arg = self
                     .tp
                     .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
                 let call = quote! { #rust_name(#self_arg #(#args),*) };
+                let init_holders = holders.init_holders(ctx);
+                let check_gil_refs = holders.check_gil_refs();
                 quote! {
                     unsafe fn #ident(
                         py: #pyo3_path::Python<'_>,
@@ -667,11 +700,13 @@ impl<'a> FnSpec<'a> {
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         use #pyo3_path::callback::IntoPyCallbackOutput;
+                        let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
-                        #( #holders )*
+                        #init_holders
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
+                        #check_gil_refs
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
                     }
                 }

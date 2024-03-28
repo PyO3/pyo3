@@ -171,7 +171,7 @@ macro_rules! import_exception {
 /// }
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
-/// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
+/// #         let fun = wrap_pyfunction_bound!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new_bound(py);
 /// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
@@ -322,7 +322,7 @@ fn always_throws() -> PyResult<()> {
 }
 #
 # Python::with_gil(|py| {
-#     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
+#     let fun = pyo3::wrap_pyfunction_bound!(always_throws, py).unwrap();
 #     let err = fun.call0().expect_err(\"called a function that should always return an error but the return value was Ok\");
 #     assert!(err.is_instance_of::<Py", $name, ">(py))
 # });
@@ -409,14 +409,14 @@ impl_native_exception!(
     PyExc_FloatingPointError,
     native_doc!("FloatingPointError")
 );
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PyOSError,
     PyExc_OSError,
     native_doc!("OSError"),
     ffi::PyOSErrorObject
 );
-#[cfg(PyPy)]
+#[cfg(any(PyPy, GraalPy))]
 impl_native_exception!(PyOSError, PyExc_OSError, native_doc!("OSError"));
 impl_native_exception!(PyImportError, PyExc_ImportError, native_doc!("ImportError"));
 
@@ -455,14 +455,14 @@ impl_native_exception!(
     PyExc_NotImplementedError,
     native_doc!("NotImplementedError")
 );
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PySyntaxError,
     PyExc_SyntaxError,
     native_doc!("SyntaxError"),
     ffi::PySyntaxErrorObject
 );
-#[cfg(PyPy)]
+#[cfg(any(PyPy, GraalPy))]
 impl_native_exception!(PySyntaxError, PyExc_SyntaxError, native_doc!("SyntaxError"));
 impl_native_exception!(
     PyReferenceError,
@@ -470,14 +470,14 @@ impl_native_exception!(
     native_doc!("ReferenceError")
 );
 impl_native_exception!(PySystemError, PyExc_SystemError, native_doc!("SystemError"));
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PySystemExit,
     PyExc_SystemExit,
     native_doc!("SystemExit"),
     ffi::PySystemExitObject
 );
-#[cfg(PyPy)]
+#[cfg(any(PyPy, GraalPy))]
 impl_native_exception!(PySystemExit, PyExc_SystemExit, native_doc!("SystemExit"));
 impl_native_exception!(PyTypeError, PyExc_TypeError, native_doc!("TypeError"));
 impl_native_exception!(
@@ -485,14 +485,14 @@ impl_native_exception!(
     PyExc_UnboundLocalError,
     native_doc!("UnboundLocalError")
 );
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PyUnicodeError,
     PyExc_UnicodeError,
     native_doc!("UnicodeError"),
     ffi::PyUnicodeErrorObject
 );
-#[cfg(PyPy)]
+#[cfg(any(PyPy, GraalPy))]
 impl_native_exception!(
     PyUnicodeError,
     PyExc_UnicodeError,
