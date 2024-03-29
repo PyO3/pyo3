@@ -13,6 +13,7 @@ use crate::{
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
 ///
 /// This type gives access to the underlying data via a `Deref` implementation.
+#[derive(Clone)]
 pub struct PyBackedStr {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: Py<PyAny>,
@@ -43,6 +44,14 @@ impl AsRef<[u8]> for PyBackedStr {
 // safe to share between threads
 unsafe impl Send for PyBackedStr {}
 unsafe impl Sync for PyBackedStr {}
+
+impl std::fmt::Display for PyBackedStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.deref().fmt(f)
+    }
+}
+
+impl_traits!(PyBackedStr, str);
 
 impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
     type Error = PyErr;
@@ -79,6 +88,7 @@ impl FromPyObject<'_> for PyBackedStr {
 /// A wrapper around `[u8]` where the storage is either owned by a Python `bytes` object, or a Rust `Box<[u8]>`.
 ///
 /// This type gives access to the underlying data via a `Deref` implementation.
+#[derive(Clone)]
 pub struct PyBackedBytes {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: PyBackedBytesStorage,
@@ -86,6 +96,7 @@ pub struct PyBackedBytes {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
     Rust(Box<[u8]>),
@@ -109,6 +120,8 @@ impl AsRef<[u8]> for PyBackedBytes {
 // safe to share between threads
 unsafe impl Send for PyBackedBytes {}
 unsafe impl Sync for PyBackedBytes {}
+
+impl_traits!(PyBackedBytes, [u8]);
 
 impl From<Bound<'_, PyBytes>> for PyBackedBytes {
     fn from(py_bytes: Bound<'_, PyBytes>) -> Self {
@@ -143,6 +156,67 @@ impl FromPyObject<'_> for PyBackedBytes {
         }
     }
 }
+
+macro_rules! impl_traits {
+    ($slf:ty, $equiv:ty) => {
+        impl std::fmt::Debug for $slf {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                self.deref().fmt(f)
+            }
+        }
+
+        impl PartialEq for $slf {
+            fn eq(&self, other: &Self) -> bool {
+                self.deref() == other.deref()
+            }
+        }
+
+        impl PartialEq<$equiv> for $slf {
+            fn eq(&self, other: &$equiv) -> bool {
+                self.deref() == other
+            }
+        }
+
+        impl PartialEq<$slf> for $equiv {
+            fn eq(&self, other: &$slf) -> bool {
+                self == other.deref()
+            }
+        }
+
+        impl Eq for $slf {}
+
+        impl PartialOrd for $slf {
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl PartialOrd<$equiv> for $slf {
+            fn partial_cmp(&self, other: &$equiv) -> Option<std::cmp::Ordering> {
+                self.deref().partial_cmp(other)
+            }
+        }
+
+        impl PartialOrd<$slf> for $equiv {
+            fn partial_cmp(&self, other: &$slf) -> Option<std::cmp::Ordering> {
+                self.partial_cmp(other.deref())
+            }
+        }
+
+        impl Ord for $slf {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                self.deref().cmp(other.deref())
+            }
+        }
+
+        impl std::hash::Hash for $slf {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.deref().hash(state)
+            }
+        }
+    };
+}
+use impl_traits;
 
 #[cfg(test)]
 mod test {
