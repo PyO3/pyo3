@@ -25,6 +25,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@nightly
 
+      - uses: actions/setup-python@v5
+
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
