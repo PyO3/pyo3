@@ -246,6 +246,39 @@ fn coroutine_panic() {
 }
 
 #[test]
+fn test_async_method_receiver_with_other_args() {
+    #[pyclass]
+    struct Value(i32);
+    #[pymethods]
+    impl Value {
+        #[new]
+        fn new() -> Self {
+            Self(0)
+        }
+        async fn get_value_plus_with(&self, v: i32) -> i32 {
+            self.0 + v
+        }
+        async fn set_value(&mut self, new_value: i32) -> i32 {
+            self.0 = new_value;
+            self.0
+        }
+    }
+
+    Python::with_gil(|gil| {
+        let test = r#"
+        import asyncio
+
+        v = Value()
+        assert asyncio.run(v.get_value_plus_with(3)) == 3
+        assert asyncio.run(v.set_value(10)) == 10
+        assert asyncio.run(v.get_value_plus_with(1)) == 11
+        "#;
+        let locals = [("Value", gil.get_type_bound::<Value>())].into_py_dict_bound(gil);
+        py_run!(gil, *locals, test);
+    });
+}
+
+#[test]
 fn test_async_method_receiver() {
     #[pyclass]
     struct Counter(usize);
