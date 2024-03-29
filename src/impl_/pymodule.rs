@@ -161,6 +161,7 @@ pub trait PyAddToModule {
 pub struct AddTypeToModule<T>(PhantomData<T>);
 
 impl<T> AddTypeToModule<T> {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         AddTypeToModule(PhantomData)
     }
@@ -176,6 +177,7 @@ impl<T: PyTypeInfo> PyAddToModule for AddTypeToModule<T> {
 pub struct AddClassToModule<T>(PhantomData<T>);
 
 impl<T> AddClassToModule<T> {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         AddClassToModule(PhantomData)
     }
