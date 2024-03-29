@@ -240,15 +240,12 @@ pub fn impl_wrap_pyfunction(
         FunctionSignature::from_arguments(arguments)?
     };
 
-    let ty = method::get_return_info(&func.sig.output);
-
     let spec = method::FnSpec {
         tp,
         name: &func.sig.ident,
         convention: CallingConvention::from_signature(&signature),
         python_name,
         signature,
-        output: ty,
         text_signature,
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
