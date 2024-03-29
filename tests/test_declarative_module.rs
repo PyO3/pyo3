@@ -145,7 +145,7 @@ mod class_initialization_module {
 #[cfg(not(Py_LIMITED_API))]
 fn test_class_initialization_fails() {
     Python::with_gil(|py| {
-        let err = class_initialization_module::DEF
+        let err = class_initialization_module::_PYO3_DEF
             .make_module(py)
             .unwrap_err();
         assert_eq!(

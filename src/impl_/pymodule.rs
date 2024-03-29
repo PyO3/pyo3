@@ -1,6 +1,6 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::cell::UnsafeCell;
+use std::{cell::UnsafeCell, marker::PhantomData};
 
 #[cfg(all(
     not(any(PyPy, GraalPy)),
@@ -11,7 +11,12 @@ use portable_atomic::{AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
-use crate::{ffi, sync::GILOnceCell, types::PyModule, Bound, Py, PyResult, Python};
+use crate::{
+    ffi,
+    sync::GILOnceCell,
+    types::{PyCFunction, PyModule, PyModuleMethods},
+    Bound, Py, PyClass, PyMethodDef, PyResult, PyTypeInfo, Python,
+};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -149,7 +154,51 @@ impl ModuleDef {
 ///
 /// Currently only implemented for classes.
 pub trait PyAddToModule {
-    fn add_to_module(module: &Bound<'_, PyModule>) -> PyResult<()>;
+    fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()>;
+}
+
+/// For adding native types (non-pyclass) to a module.
+pub struct AddTypeToModule<T: PyTypeInfo>(PhantomData<T>);
+
+impl<T: PyTypeInfo> AddTypeToModule<T> {
+    pub const fn new() -> Self {
+        AddTypeToModule(PhantomData)
+    }
+}
+
+impl<T: PyTypeInfo> PyAddToModule for AddTypeToModule<T> {
+    fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
+        module.add(T::NAME, T::type_object_bound(module.py()))
+    }
+}
+
+/// For adding a class to a module.
+pub struct AddClassToModule<T: PyClass>(PhantomData<T>);
+
+impl<T: PyClass> AddClassToModule<T> {
+    pub const fn new() -> Self {
+        AddClassToModule(PhantomData)
+    }
+}
+
+impl<T: PyClass> PyAddToModule for AddClassToModule<T> {
+    fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
+        module.add_class::<T>()
+    }
+}
+
+/// For adding a function to a module.
+impl PyAddToModule for PyMethodDef {
+    fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
+        module.add_function(PyCFunction::internal_new(module.py(), self, Some(module))?)
+    }
+}
+
+/// For adding a module to a module.
+impl PyAddToModule for ModuleDef {
+    fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
+        module.add_submodule(self.make_module(module.py())?.bind(module.py()))
+    }
 }
 
 #[cfg(test)]

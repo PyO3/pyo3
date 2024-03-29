@@ -138,7 +138,7 @@ macro_rules! wrap_pyfunction {
             use $function as wrapped_pyfunction;
             $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
                 py_or_module,
-                &wrapped_pyfunction::DEF,
+                &wrapped_pyfunction::_PYO3_DEF,
             )
         }
     };
@@ -150,7 +150,7 @@ macro_rules! wrap_pyfunction {
         check_gil_refs.is_python();
         $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
             py_or_module,
-            &wrapped_pyfunction::DEF,
+            &wrapped_pyfunction::_PYO3_DEF,
         )
     }};
 }
@@ -166,7 +166,7 @@ macro_rules! wrap_pyfunction_bound {
             use $function as wrapped_pyfunction;
             $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
                 $crate::impl_::pyfunction::OnlyBound(py_or_module),
-                &wrapped_pyfunction::DEF,
+                &wrapped_pyfunction::_PYO3_DEF,
             )
         }
     };
@@ -174,7 +174,7 @@ macro_rules! wrap_pyfunction_bound {
         use $function as wrapped_pyfunction;
         $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
             $crate::impl_::pyfunction::OnlyBound($py_or_module),
-            &wrapped_pyfunction::DEF,
+            &wrapped_pyfunction::_PYO3_DEF,
         )
     }};
 }
@@ -189,7 +189,7 @@ macro_rules! wrap_pymodule {
     ($module:path) => {
         &|py| {
             use $module as wrapped_pymodule;
-            wrapped_pymodule::DEF
+            wrapped_pymodule::_PYO3_DEF
                 .make_module(py)
                 .expect("failed to wrap pymodule")
         }
