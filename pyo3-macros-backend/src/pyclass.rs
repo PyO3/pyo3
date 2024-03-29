@@ -1620,11 +1620,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path } = ctx;
         let cls = self.cls;
         quote! {
-            impl #pyo3_path::impl_::pymodule::PyAddToModule for #cls {
-                fn add_to_module(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
-                    use #pyo3_path::types::PyModuleMethods;
-                    module.add_class::<Self>()
-                }
+            impl #cls {
+                #[doc(hidden)]
+                const _PYO3_DEF: #pyo3_path::impl_::pymodule::AddClassToModule<Self> = #pyo3_path::impl_::pymodule::AddClassToModule::new();
             }
         }
     }
