@@ -556,11 +556,11 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn pool_dirty_with(
-        inc_refs: Vec<NonNull<ffi::PyObject>>,
-        dec_refs: Vec<NonNull<ffi::PyObject>>,
-    ) -> bool {
-        *POOL.pointer_ops.lock() == (inc_refs, dec_refs)
+    fn pool_dec_refs_contains(obj: &PyObject) -> bool {
+        POOL.pointer_ops
+            .lock()
+            .1
+            .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
     #[test]
@@ -633,11 +633,13 @@ mod tests {
 
             assert_eq!(obj.get_refcnt(py), 2);
             assert!(pool_inc_refs_does_not_contain(&obj));
+            assert!(pool_dec_refs_does_not_contain(&obj));
 
-            // With the GIL held, reference cound will be decreased immediately.
+            // With the GIL held, reference count will be decreased immediately.
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
+            assert!(pool_inc_refs_does_not_contain(&obj));
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
@@ -652,6 +654,7 @@ mod tests {
 
             assert_eq!(obj.get_refcnt(py), 2);
             assert!(pool_inc_refs_does_not_contain(&obj));
+            assert!(pool_dec_refs_does_not_contain(&obj));
 
             // Drop reference in a separate thread which doesn't have the GIL.
             std::thread::spawn(move || drop(reference)).join().unwrap();
@@ -659,10 +662,8 @@ mod tests {
             // The reference count should not have changed (the GIL has always
             // been held by this thread), it is remembered to release later.
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_dirty_with(
-                vec![],
-                vec![NonNull::new(obj.as_ptr()).unwrap()]
-            ));
+            assert!(pool_inc_refs_does_not_contain(&obj));
+            assert!(pool_dec_refs_contains(&obj));
             obj
         });
 
