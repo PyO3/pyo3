@@ -580,3 +580,88 @@ pub unsafe fn tp_new_impl<T: PyClass>(
         .create_class_object_of_type(py, target_type)
         .map(Bound::into_ptr)
 }
+
+/// --- Method Receivers ---
+///
+/// These methods take a Python object pointer which is assumed to be a valid
+/// instance of the class `T`, and extract a reference via a `PyRef` or `PyRefMut`.
+///
+/// There are also variants for `_checked_downcast` when it's possible the Python
+/// interpreter will allow objects of a different class.
+
+#[inline]
+pub unsafe fn receive_pyclass<'a, 'py: 'a, T: PyClass>(
+    py: Python<'py>,
+    obj: &'a *mut ffi::PyObject,
+    holder: &'a mut Option<PyRef<'py, T>>,
+) -> PyResult<&'a T> {
+    Ok(holder.insert(
+        BoundRef::ref_from_ptr(py, obj)
+            .downcast_unchecked::<T>()
+            .try_borrow()?,
+    ))
+}
+
+#[inline]
+pub unsafe fn receive_pyclass_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
+    py: Python<'py>,
+    obj: &'a *mut ffi::PyObject,
+    holder: &'a mut Option<PyRefMut<'py, T>>,
+) -> PyResult<&'a mut T> {
+    Ok(holder.insert(
+        BoundRef::ref_from_ptr(py, obj)
+            .downcast_unchecked::<T>()
+            .try_borrow_mut()?,
+    ))
+}
+
+#[inline]
+pub unsafe fn receive_pyclass_checked_downcast<'a, 'py: 'a, T: PyClass>(
+    py: Python<'py>,
+    obj: &'a *mut ffi::PyObject,
+    holder: &'a mut Option<PyRef<'py, T>>,
+) -> PyResult<&'a T> {
+    Ok(holder.insert(
+        BoundRef::ref_from_ptr(py, obj)
+            .downcast::<T>()?
+            .try_borrow()?,
+    ))
+}
+
+#[inline]
+pub unsafe fn receive_pyclass_mut_checked_downcast<'a, 'py: 'a, T: PyClass<Frozen = False>>(
+    py: Python<'py>,
+    obj: &'a *mut ffi::PyObject,
+    holder: &'a mut Option<PyRefMut<'py, T>>,
+) -> PyResult<&'a mut T> {
+    Ok(holder.insert(
+        BoundRef::ref_from_ptr(py, obj)
+            .downcast::<T>()?
+            .try_borrow_mut()?,
+    ))
+}
+
+#[inline]
+pub unsafe fn receive_pyclass_try_into<'a, 'py: 'a, T: PyClass, U>(
+    py: Python<'py>,
+    obj: &'a *mut ffi::PyObject,
+) -> PyResult<U>
+where
+    U: TryFrom<BoundRef<'a, 'py, T>>,
+    U::Error: Into<PyErr>,
+{
+    let obj = unsafe { BoundRef::ref_from_ptr(py, obj).downcast_unchecked::<T>() };
+    U::try_from(obj).map_err(Into::into)
+}
+
+#[inline]
+pub unsafe fn receive_pyclass_try_into_checked_downcast<'a, 'py: 'a, T: PyClass, U>(
+    py: Python<'py>,
+    obj: &'a *mut ffi::PyObject,
+) -> PyResult<U>
+where
+    U: TryFrom<BoundRef<'a, 'py, T>>,
+    U::Error: Into<PyErr>,
+{
+    U::try_from(BoundRef::ref_from_ptr(py, obj).downcast::<T>()?).map_err(Into::into)
+}

@@ -91,6 +91,22 @@ pub enum FnType {
     ClassAttribute,
 }
 
+/// Whether method receiver type should be assumed correct.
+#[derive(Clone, Copy)]
+pub enum AssumeCorrectReceiverType {
+    /// Use this only when the Python interpreter is expected to guarantee the
+    /// correct receiver type.
+    ///
+    /// Methods, getters, setters, and many slots will have the correct receiver type
+    /// enforced by the Python interpreter, so this is safe to use in those cases.
+    Yes,
+    /// Use this when the receiver type must be checked.
+    ///
+    /// Reversible numeric operators are a good example where the receiver type
+    /// must be checked.
+    No,
+}
+
 impl FnType {
     pub fn skip_first_rust_argument_in_python_signature(&self) -> bool {
         match self {
@@ -109,6 +125,7 @@ impl FnType {
         cls: Option<&syn::Type>,
         error_mode: ExtractErrorMode,
         holders: &mut Holders,
+        assume_correct_receiver_type: AssumeCorrectReceiverType,
         ctx: &Ctx,
     ) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
@@ -118,6 +135,7 @@ impl FnType {
                     cls.expect("no class given for Fn with a \"self\" receiver"),
                     error_mode,
                     holders,
+                    assume_correct_receiver_type,
                     ctx,
                 );
                 syn::Token![,](Span::call_site()).to_tokens(&mut receiver);
@@ -187,6 +205,7 @@ impl SelfType {
         cls: &syn::Type,
         error_mode: ExtractErrorMode,
         holders: &mut Holders,
+        assume_correct_receiver_type: AssumeCorrectReceiverType,
         ctx: &Ctx,
     ) -> TokenStream {
         // Due to use of quote_spanned in this function, need to bind these idents to the
@@ -196,17 +215,20 @@ impl SelfType {
         let Ctx { pyo3_path } = ctx;
         match self {
             SelfType::Receiver { span, mutable } => {
-                let method = if *mutable {
-                    syn::Ident::new("extract_pyclass_ref_mut", *span)
-                } else {
-                    syn::Ident::new("extract_pyclass_ref", *span)
+                let method_name = match (mutable, assume_correct_receiver_type) {
+                    (true, AssumeCorrectReceiverType::Yes) => "receive_pyclass_mut",
+                    (true, AssumeCorrectReceiverType::No) => "receive_pyclass_mut_checked_downcast",
+                    (false, AssumeCorrectReceiverType::Yes) => "receive_pyclass",
+                    (false, AssumeCorrectReceiverType::No) => "receive_pyclass_checked_downcast",
                 };
+                let method = syn::Ident::new(method_name, *span);
                 let holder = holders.push_holder(*span);
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).0,
+                        #pyo3_path::impl_::pymethods::#method::<#cls>(
+                            #py,
+                            &#slf,
                             &mut #holder,
                         )
                     },
@@ -214,18 +236,20 @@ impl SelfType {
                 )
             }
             SelfType::TryFromBoundRef(span) => {
+                let method_name = match assume_correct_receiver_type {
+                    AssumeCorrectReceiverType::Yes => "receive_pyclass_try_into",
+                    AssumeCorrectReceiverType::No => "receive_pyclass_try_into_checked_downcast",
+                };
+                let method = syn::Ident::new(method_name, *span);
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf).downcast::<#cls>()
-                            .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
-                            .and_then(
-                                #[allow(unknown_lints, clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self> (unknown_lints can be removed when MSRV is 1.75+)
-                                |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
-                            )
-
+                        #pyo3_path::impl_::pymethods::#method::<#cls, _>(
+                            #py,
+                            &#slf,
+                        )
                     },
-                    ctx
+                    ctx,
                 )
             }
         }
@@ -505,7 +529,15 @@ impl<'a> FnSpec<'a> {
         }
 
         let rust_call = |args: Vec<TokenStream>, holders: &mut Holders| {
-            let mut self_arg = || self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
+            let mut self_arg = || {
+                self.tp.self_arg(
+                    cls,
+                    ExtractErrorMode::Raise,
+                    holders,
+                    AssumeCorrectReceiverType::Yes,
+                    ctx,
+                )
+            };
 
             let call = if self.asyncness.is_some() {
                 let throw_callback = if cancel_handle.is_some() {
@@ -692,9 +724,13 @@ impl<'a> FnSpec<'a> {
             CallingConvention::TpNew => {
                 let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
-                let self_arg = self
-                    .tp
-                    .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+                let self_arg = self.tp.self_arg(
+                    cls,
+                    ExtractErrorMode::Raise,
+                    &mut holders,
+                    AssumeCorrectReceiverType::Yes,
+                    ctx,
+                );
                 let call = quote! { #rust_name(#self_arg #(#args),*) };
                 let init_holders = holders.init_holders(ctx);
                 let check_gil_refs = holders.check_gil_refs();

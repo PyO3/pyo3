@@ -1,9 +1,8 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::py_run;
-use pyo3::types::PySequence;
-use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
+use pyo3::types::{IntoPyDict, PyDict, PyList, PySequence, PySet, PyString, PyTuple, PyType};
+use pyo3::{py_run, PyTypeInfo};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -1157,4 +1156,28 @@ fn test_issue_2988() {
         #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::extract")] _data2: Vec<i32>,
     ) {
     }
+}
+
+#[test]
+fn test_wrong_self() {
+    #[pyclass(frozen)]
+    struct MyClass {}
+
+    #[pymethods]
+    impl MyClass {
+        fn method(&self) {}
+        fn __str__(&self) -> String {
+            String::from("MyClass")
+        }
+    }
+
+    Python::with_gil(|py| {
+        let ty = MyClass::type_object_bound(py);
+        py_expect_exception!(py, ty, "ty.method(object())", PyTypeError);
+        py_expect_exception!(py, ty, "ty.__str__(object())", PyTypeError);
+
+        let obj = Py::new(py, MyClass {}).unwrap();
+        assert!(ty.call_method1("method", (&obj,)).is_ok());
+        assert_py_eq!(ty.call_method1("__str__", (obj,)).unwrap(), "MyClass");
+    });
 }
