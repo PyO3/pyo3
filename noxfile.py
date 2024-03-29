@@ -406,7 +406,7 @@ def check_guide(session: nox.Session):
         session,
         "lychee",
         "--include-fragments",
-        PYO3_GUIDE_SRC,
+        str(PYO3_GUIDE_SRC),
         *remap_args,
         *session.posargs,
     )
