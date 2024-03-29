@@ -123,7 +123,7 @@ macro_rules! import_exception {
                                 ::std::panic!("Can not import module {}: {}\n{}", stringify!($module), err, traceback);
                             });
                         let cls = imp.getattr(stringify!($name)).expect(concat!(
-                            "Can not load exception class: {}.{}",
+                            "Can not load exception class: ",
                             stringify!($module),
                             ".",
                             stringify!($name)
