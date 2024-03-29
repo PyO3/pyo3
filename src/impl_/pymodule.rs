@@ -158,9 +158,9 @@ pub trait PyAddToModule {
 }
 
 /// For adding native types (non-pyclass) to a module.
-pub struct AddTypeToModule<T: PyTypeInfo>(PhantomData<T>);
+pub struct AddTypeToModule<T>(PhantomData<T>);
 
-impl<T: PyTypeInfo> AddTypeToModule<T> {
+impl<T> AddTypeToModule<T> {
     pub const fn new() -> Self {
         AddTypeToModule(PhantomData)
     }
@@ -173,9 +173,9 @@ impl<T: PyTypeInfo> PyAddToModule for AddTypeToModule<T> {
 }
 
 /// For adding a class to a module.
-pub struct AddClassToModule<T: PyClass>(PhantomData<T>);
+pub struct AddClassToModule<T>(PhantomData<T>);
 
-impl<T: PyClass> AddClassToModule<T> {
+impl<T> AddClassToModule<T> {
     pub const fn new() -> Self {
         AddClassToModule(PhantomData)
     }
