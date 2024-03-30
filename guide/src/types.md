@@ -268,8 +268,8 @@ assert_eq!((x, y, z), (1, 2, 3));
 # Python::with_gil(example).unwrap()
 ```
 
-To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.
-md#bound-and-interior-mutability) for more detail.
+To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.md#bound-and-interior-mutability)
+for more detail.
 
 ## The GIL Refs API
 
