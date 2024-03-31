@@ -29,18 +29,7 @@ macro_rules! impl_exception_boilerplate {
             }
         }
 
-        impl $name {
-            /// Creates a new [`PyErr`] of this type.
-            ///
-            /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
-            #[inline]
-            pub fn new_err<A>(args: A) -> $crate::PyErr
-            where
-                A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
-            {
-                $crate::PyErr::new::<$name, A>(args)
-            }
-        }
+        $crate::impl_exception_boilerplate_bound!($name);
 
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
@@ -56,6 +45,25 @@ macro_rules! impl_exception_boilerplate {
         }
 
         impl $crate::ToPyErr for $name {}
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_exception_boilerplate_bound {
+    ($name: ident) => {
+        impl $name {
+            /// Creates a new [`PyErr`] of this type.
+            ///
+            /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
+            #[inline]
+            pub fn new_err<A>(args: A) -> $crate::PyErr
+            where
+                A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
+            {
+                $crate::PyErr::new::<$name, A>(args)
+            }
+        }
     };
 }
 
@@ -105,34 +113,57 @@ macro_rules! import_exception {
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                use $crate::sync::GILOnceCell;
-                use $crate::prelude::PyTracebackMethods;
-                use $crate::prelude::PyAnyMethods;
-                static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
-                    GILOnceCell::new();
+                use $crate::types::PyTypeMethods;
+                static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
+                    $crate::impl_::exceptions::ImportedExceptionTypeObject::new(stringify!($module), stringify!($name));
+                TYPE_OBJECT.get(py).as_type_ptr()
+            }
+        }
+    };
+}
 
-                TYPE_OBJECT
-                    .get_or_init(py, || {
-                        let imp = py
-                            .import_bound(stringify!($module))
-                            .unwrap_or_else(|err| {
-                                let traceback = err
-                                    .traceback_bound(py)
-                                    .map(|tb| tb.format().expect("raised exception will have a traceback"))
-                                    .unwrap_or_default();
-                                ::std::panic!("Can not import module {}: {}\n{}", stringify!($module), err, traceback);
-                            });
-                        let cls = imp.getattr(stringify!($name)).expect(concat!(
-                            "Can not load exception class: ",
-                            stringify!($module),
-                            ".",
-                            stringify!($name)
-                        ));
+/// Variant of [`import_exception`](crate::import_exception) that does not emit code needed to
+/// use the imported exception type as a GIL Ref.
+///
+/// This is useful only during migration as a way to avoid generating needless code.
+#[macro_export]
+macro_rules! import_exception_bound {
+    ($module: expr, $name: ident) => {
+        /// A Rust type representing an exception defined in Python code.
+        ///
+        /// This type was created by the [`pyo3::import_exception_bound!`] macro - see its documentation
+        /// for more information.
+        ///
+        /// [`pyo3::import_exception_bound!`]: https://docs.rs/pyo3/latest/pyo3/macro.import_exception.html "import_exception in pyo3"
+        #[repr(transparent)]
+        #[allow(non_camel_case_types)] // E.g. `socket.herror`
+        pub struct $name($crate::PyAny);
 
-                        cls.extract()
-                            .expect("Imported exception should be a type object")
-                    })
-                    .as_ptr() as *mut _
+        $crate::impl_exception_boilerplate_bound!($name);
+
+        // FIXME remove this: was necessary while `PyTypeInfo` requires `HasPyGilRef`,
+        // should change in 0.22.
+        unsafe impl $crate::type_object::HasPyGilRef for $name {
+            type AsRefTarget = $crate::PyAny;
+        }
+
+        $crate::pyobject_native_type_info!(
+            $name,
+            $name::type_object_raw,
+            ::std::option::Option::Some(stringify!($module))
+        );
+
+        impl $crate::types::DerefToPyAny for $name {}
+
+        impl $name {
+            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
+                use $crate::types::PyTypeMethods;
+                static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
+                    $crate::impl_::exceptions::ImportedExceptionTypeObject::new(
+                        stringify!($module),
+                        stringify!($name),
+                    );
+                TYPE_OBJECT.get(py).as_type_ptr()
             }
         }
     };
@@ -849,8 +880,8 @@ mod tests {
     use crate::types::{IntoPyDict, PyDict};
     use crate::{PyErr, PyNativeType};
 
-    import_exception!(socket, gaierror);
-    import_exception!(email.errors, MessageError);
+    import_exception_bound!(socket, gaierror);
+    import_exception_bound!(email.errors, MessageError);
 
     #[test]
     fn test_check_exception() {
