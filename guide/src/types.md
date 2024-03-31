@@ -78,7 +78,7 @@ Or, without the type annotations:
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
-# fn example(py: Python<'_>) -> PyResult<()> {
+fn example(py: Python<'_>) -> PyResult<()> {
     let x = PyList::empty_bound(py);
     x.append(1)?;
     let y = x.clone();
