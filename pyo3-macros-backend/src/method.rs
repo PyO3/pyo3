@@ -20,13 +20,20 @@ use crate::{
 pub struct FnArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
-    pub optional: Option<&'a syn::Type>,
-    pub default: Option<syn::Expr>,
-    pub py: bool,
     pub attrs: PyFunctionArgPyO3Attributes,
-    pub is_varargs: bool,
-    pub is_kwargs: bool,
-    pub is_cancel_handle: bool,
+    pub kind: FnArgKind<'a>,
+}
+
+#[derive(Clone, Debug)]
+pub enum FnArgKind<'a> {
+    Regular {
+        default: Option<syn::Expr>,
+        ty_opt: Option<&'a syn::Type>,
+    },
+    VarArgs,
+    KwArgs,
+    Py,
+    CancelHandle,
 }
 
 impl<'a> FnArg<'a> {
@@ -47,25 +54,35 @@ impl<'a> FnArg<'a> {
                     other => return Err(handle_argument_error(other)),
                 };
 
-                let is_cancel_handle = arg_attrs.cancel_handle.is_some();
+                if utils::is_python(&cap.ty) {
+                    return Ok(Self {
+                        name: ident,
+                        ty: &cap.ty,
+                        attrs: arg_attrs,
+                        kind: FnArgKind::Py,
+                    });
+                }
 
-                Ok(FnArg {
+                if arg_attrs.cancel_handle.is_some() {
+                    return Ok(Self {
+                        name: ident,
+                        ty: &cap.ty,
+                        attrs: arg_attrs,
+                        kind: FnArgKind::CancelHandle,
+                    });
+                }
+
+                Ok(Self {
                     name: ident,
                     ty: &cap.ty,
-                    optional: utils::option_type_argument(&cap.ty),
-                    default: None,
-                    py: utils::is_python(&cap.ty),
                     attrs: arg_attrs,
-                    is_varargs: false,
-                    is_kwargs: false,
-                    is_cancel_handle,
+                    kind: FnArgKind::Regular {
+                        default: None,
+                        ty_opt: utils::option_type_argument(&cap.ty),
+                    },
                 })
             }
         }
-    }
-
-    pub fn is_regular(&self) -> bool {
-        !self.py && !self.is_cancel_handle && !self.is_kwargs && !self.is_varargs
     }
 }
 
@@ -492,12 +509,22 @@ impl<'a> FnSpec<'a> {
             .signature
             .arguments
             .iter()
-            .filter(|arg| arg.is_cancel_handle);
+            .filter(|arg| matches!(arg.kind, FnArgKind::CancelHandle));
         let cancel_handle = cancel_handle_iter.next();
-        if let Some(arg) = cancel_handle {
-            ensure_spanned!(self.asyncness.is_some(), arg.name.span() => "`cancel_handle` attribute can only be used with `async fn`");
-            if let Some(arg2) = cancel_handle_iter.next() {
-                bail_spanned!(arg2.name.span() => "`cancel_handle` may only be specified once");
+        if let Some(FnArg {
+            name,
+            kind: FnArgKind::CancelHandle,
+            ..
+        }) = cancel_handle
+        {
+            ensure_spanned!(self.asyncness.is_some(), name.span() => "`cancel_handle` attribute can only be used with `async fn`");
+            if let Some(FnArg {
+                name,
+                kind: FnArgKind::CancelHandle,
+                ..
+            }) = cancel_handle_iter.next()
+            {
+                bail_spanned!(name.span() => "`cancel_handle` may only be specified once");
             }
         }
 
@@ -616,14 +643,10 @@ impl<'a> FnSpec<'a> {
                     .signature
                     .arguments
                     .iter()
-                    .map(|arg| {
-                        if arg.py {
-                            quote!(py)
-                        } else if arg.is_cancel_handle {
-                            quote!(__cancel_handle)
-                        } else {
-                            unreachable!()
-                        }
+                    .map(|arg| match arg.kind {
+                        FnArgKind::Py => quote!(py),
+                        FnArgKind::CancelHandle { .. } => quote!(__cancel_handle),
+                        _ => unreachable!(),
                     })
                     .collect();
                 let call = rust_call(args, &mut holders);
@@ -646,7 +669,7 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::Fastcall => {
                 let mut holders = Holders::new();
-                let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
                 let check_gil_refs = holders.check_gil_refs();
@@ -671,7 +694,7 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::Varargs => {
                 let mut holders = Holders::new();
-                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
                 let check_gil_refs = holders.check_gil_refs();
@@ -695,7 +718,7 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::TpNew => {
                 let mut holders = Holders::new();
-                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
                 let self_arg = self
                     .tp
                     .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);

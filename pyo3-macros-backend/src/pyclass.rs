@@ -7,7 +7,7 @@ use crate::attributes::{
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
-use crate::method::{FnArg, FnSpec};
+use crate::method::{FnArg, FnArgKind, FnSpec};
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -1151,13 +1151,8 @@ fn complex_enum_struct_variant_new<'a>(
             FnArg {
                 name: &arg_py_ident,
                 ty: &arg_py_type,
-                optional: None,
-                default: None,
-                py: true,
                 attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
+                kind: FnArgKind::Py,
             },
         ];
 
@@ -1165,13 +1160,11 @@ fn complex_enum_struct_variant_new<'a>(
             args.push(FnArg {
                 name: field.ident,
                 ty: field.ty,
-                optional: None,
-                default: None,
-                py: false,
                 attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
+                kind: FnArgKind::Regular {
+                    default: None,
+                    ty_opt: None,
+                },
             });
         }
         args

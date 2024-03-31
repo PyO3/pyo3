@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
-use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::params::{check_arg_for_gil_refs, impl_arg_param, Holders};
+use crate::method::{CallingConvention, ExtractErrorMode, FnArgKind};
+use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
 use crate::utils::Ctx;
 use crate::utils::PythonDoc;
 use crate::{
@@ -606,20 +606,18 @@ pub fn impl_py_setter_def(
                 (quote!(), syn::Ident::new("dummy", Span::call_site()))
             };
 
-            let extract = impl_arg_param(
+            let tokens = impl_regular_arg_param(
                 &args[0],
                 ident,
                 quote!(::std::option::Option::Some(_value.into())),
                 &mut holders,
                 ctx,
-            )
-            .map(|tokens| {
-                check_arg_for_gil_refs(
-                    tokens,
-                    holders.push_gil_refs_checker(value_arg.ty.span()),
-                    ctx,
-                )
-            })?;
+            );
+            let extract = check_arg_for_gil_refs(
+                tokens,
+                holders.push_gil_refs_checker(value_arg.ty.span()),
+                ctx,
+            );
             quote! {
                 #from_py_with
                 let _val = #extract;
@@ -1507,7 +1505,7 @@ fn extract_proto_arguments(
     let mut non_python_args = 0;
 
     for arg in &spec.signature.arguments {
-        if arg.py {
+        if let FnArgKind::Py = arg.kind {
             args.push(quote! { py });
         } else {
             let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());

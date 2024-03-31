@@ -10,7 +10,7 @@ use syn::{
 
 use crate::{
     attributes::{kw, KeywordAttribute},
-    method::FnArg,
+    method::{FnArg, FnArgKind},
 };
 
 pub struct Signature {
@@ -351,36 +351,39 @@ impl<'a> FunctionSignature<'a> {
 
         let mut next_non_py_argument_checked = |name: &syn::Ident| {
             for fn_arg in args_iter.by_ref() {
-                if fn_arg.py {
-                    // If the user incorrectly tried to include py: Python in the
-                    // signature, give a useful error as a hint.
-                    ensure_spanned!(
-                        name != fn_arg.name,
-                        name.span() => "arguments of type `Python` must not be part of the signature"
-                    );
-                    // Otherwise try next argument.
-                    continue;
+                match fn_arg.kind {
+                    crate::method::FnArgKind::Py => {
+                        // If the user incorrectly tried to include py: Python in the
+                        // signature, give a useful error as a hint.
+                        ensure_spanned!(
+                            name != fn_arg.name,
+                            name.span() => "arguments of type `Python` must not be part of the signature"
+                        );
+                        // Otherwise try next argument.
+                        continue;
+                    }
+                    crate::method::FnArgKind::CancelHandle => {
+                        // If the user incorrectly tried to include cancel: CoroutineCancel in the
+                        // signature, give a useful error as a hint.
+                        ensure_spanned!(
+                            name != fn_arg.name,
+                            name.span() => "`cancel_handle` argument must not be part of the signature"
+                        );
+                        // Otherwise try next argument.
+                        continue;
+                    }
+                    _ => {
+                        ensure_spanned!(
+                            name == fn_arg.name,
+                            name.span() => format!(
+                                "expected argument from function definition `{}` but got argument `{}`",
+                                fn_arg.name.unraw(),
+                                name.unraw(),
+                            )
+                        );
+                        return Ok(fn_arg);
+                    }
                 }
-                if fn_arg.is_cancel_handle {
-                    // If the user incorrectly tried to include cancel: CoroutineCancel in the
-                    // signature, give a useful error as a hint.
-                    ensure_spanned!(
-                        name != fn_arg.name,
-                        name.span() => "`cancel_handle` argument must not be part of the signature"
-                    );
-                    // Otherwise try next argument.
-                    continue;
-                }
-
-                ensure_spanned!(
-                    name == fn_arg.name,
-                    name.span() => format!(
-                        "expected argument from function definition `{}` but got argument `{}`",
-                        fn_arg.name.unraw(),
-                        name.unraw(),
-                    )
-                );
-                return Ok(fn_arg);
             }
             bail_spanned!(
                 name.span() => "signature entry does not have a corresponding function argument"
@@ -397,8 +400,15 @@ impl<'a> FunctionSignature<'a> {
                         arg.eq_and_default.is_none(),
                         arg.span(),
                     )?;
-                    if let Some((_, default)) = &arg.eq_and_default {
-                        fn_arg.default = Some(default.clone());
+                    if let Some((_, default_expr)) = &arg.eq_and_default {
+                        if let FnArgKind::Regular { default, .. } = &mut fn_arg.kind {
+                            *default = Some(default_expr.clone());
+                        } else {
+                            // FIXME: In what case can this happen? What should the error message be?
+                            bail_spanned!(
+                                default_expr.span() => "todo"
+                            )
+                        }
                     }
                 }
                 SignatureItem::VarargsSep(sep) => {
@@ -406,12 +416,22 @@ impl<'a> FunctionSignature<'a> {
                 }
                 SignatureItem::Varargs(varargs) => {
                     let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
-                    fn_arg.is_varargs = true;
+                    // FIXME: This needs a ui test covering it
+                    ensure_spanned!(
+                        matches!(fn_arg.kind, FnArgKind::Regular { ty_opt: None, .. }),
+                        fn_arg.name.span() => "args cannot be optional"
+                    );
+                    fn_arg.kind = FnArgKind::VarArgs;
                     parse_state.add_varargs(&mut python_signature, varargs)?;
                 }
                 SignatureItem::Kwargs(kwargs) => {
                     let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
-                    fn_arg.is_kwargs = true;
+                    // FIXME: This needs ui test covering it
+                    ensure_spanned!(
+                        matches!(fn_arg.kind, FnArgKind::Regular { ty_opt: Some(_), .. }),
+                        fn_arg.name.span() => "kwargs must be Option<_>"
+                    );
+                    fn_arg.kind = FnArgKind::KwArgs;
                     parse_state.add_kwargs(&mut python_signature, kwargs)?;
                 }
                 SignatureItem::PosargsSep(sep) => {
@@ -421,7 +441,9 @@ impl<'a> FunctionSignature<'a> {
         }
 
         // Ensure no non-py arguments remain
-        if let Some(arg) = args_iter.find(|arg| !arg.py && !arg.is_cancel_handle) {
+        if let Some(arg) =
+            args_iter.find(|arg| !matches!(arg.kind, FnArgKind::Py | FnArgKind::CancelHandle))
+        {
             bail_spanned!(
                 attribute.kw.span() => format!("missing signature entry for argument `{}`", arg.name)
             );
@@ -439,11 +461,11 @@ impl<'a> FunctionSignature<'a> {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
-            if arg.py || arg.is_cancel_handle {
+            if matches!(arg.kind, FnArgKind::Py | FnArgKind::CancelHandle) {
                 continue;
             }
 
-            if arg.optional.is_none() {
+            if matches!(arg.kind, FnArgKind::Regular { ty_opt: None, .. }) {
                 // This argument is required, all previous arguments must also have been required
                 ensure_spanned!(
                     python_signature.required_positional_parameters == python_signature.positional_parameters.len(),
@@ -470,7 +492,15 @@ impl<'a> FunctionSignature<'a> {
     fn default_value_for_parameter(&self, parameter: &str) -> String {
         let mut default = "...".to_string();
         if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name == parameter) {
-            if let Some(arg_default) = fn_arg.default.as_ref() {
+            if let FnArg {
+                kind:
+                    FnArgKind::Regular {
+                        default: Some(arg_default),
+                        ..
+                    },
+                ..
+            } = fn_arg
+            {
                 match arg_default {
                     // literal values
                     syn::Expr::Lit(syn::ExprLit { lit, .. }) => match lit {
@@ -496,7 +526,14 @@ impl<'a> FunctionSignature<'a> {
                     // others, unsupported yet so defaults to `...`
                     _ => {}
                 }
-            } else if fn_arg.optional.is_some() {
+            } else if let FnArg {
+                kind:
+                    FnArgKind::Regular {
+                        ty_opt: Some(..), ..
+                    },
+                ..
+            } = fn_arg
+            {
                 // functions without a `#[pyo3(signature = (...))]` option
                 // will treat trailing `Option<T>` arguments as having a default of `None`
                 default = "None".to_string();
