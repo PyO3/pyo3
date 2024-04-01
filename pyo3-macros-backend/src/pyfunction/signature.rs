@@ -416,7 +416,6 @@ impl<'a> FunctionSignature<'a> {
                 }
                 SignatureItem::Varargs(varargs) => {
                     let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
-                    // FIXME: This needs a ui test covering it
                     ensure_spanned!(
                         matches!(fn_arg.kind, FnArgKind::Regular { ty_opt: None, .. }),
                         fn_arg.name.span() => "args cannot be optional"
@@ -426,7 +425,6 @@ impl<'a> FunctionSignature<'a> {
                 }
                 SignatureItem::Kwargs(kwargs) => {
                     let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
-                    // FIXME: This needs ui test covering it
                     ensure_spanned!(
                         matches!(fn_arg.kind, FnArgKind::Regular { ty_opt: Some(_), .. }),
                         fn_arg.name.span() => "kwargs must be Option<_>"
