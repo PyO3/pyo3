@@ -247,11 +247,22 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
 - `Bound<PyString>::to_str` now borrows from the `Bound<PyString>` rather than from the `'py` lifetime, so code will need to store the smart pointer as a value in some cases where previously `&PyString` was just used as a temporary. (There are some more details relating to this in [the section below](#deactivating-the-gil-refs-feature).)
 
-To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+To convert between `&PyAny` and `&Bound<PyAny>` use the `as_borrowed()` method:
 
 ```rust,ignore
 let gil_ref: &PyAny = ...;
 let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
+```
+
+To convert between `Py<T>` and `Bound<T>` use the `bind()` / `into_bound()` methods, and `as_unbound()` / `unbind()` to go back from `Bound<T>` to `Py<T>`.
+
+```rust,ignore
+let obj: Py<PyList> = ...;
+let bound: &Bound<'py, PyList> = obj.bind(py);
+let bound: Bound<'py, PyList> = obj.into_bound(py);
+
+let obj: &Py<PyList> = bound.as_unbound();
+let obj: Py<PyList> = bound.unbind();
 ```
 
 <div class="warning">
