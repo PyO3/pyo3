@@ -522,33 +522,22 @@ impl<'a> FnSpec<'a> {
                     Some(cls) => quote!(Some(<#cls as #pyo3_path::PyTypeInfo>::NAME)),
                     None => quote!(None),
                 };
-                let evaluate_args = || -> (Vec<Ident>, TokenStream) {
-                    let mut arg_names = Vec::with_capacity(args.len());
-                    let mut evaluate_arg = quote! {};
-                    for arg in &args {
-                        let arg_name = format_ident!("arg_{}", arg_names.len());
-                        arg_names.push(arg_name.clone());
-                        evaluate_arg.extend(quote! {
-                            let #arg_name = #arg
-                        });
-                    }
-                    (arg_names, evaluate_arg)
-                };
+                let arg_names = (0..args.len())
+                    .map(|i| format_ident!("arg_{}", i))
+                    .collect::<Vec<_>>();
                 let future = match self.tp {
                     FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
-                        let (arg_name, evaluate_arg) = evaluate_args();
                         quote! {{
-                            #evaluate_arg;
+                            #(let #arg_names = #args;)*
                             let __guard = #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
-                            async move { function(&__guard, #(#arg_name),*).await }
+                            async move { function(&__guard, #(#arg_names),*).await }
                         }}
                     }
                     FnType::Fn(SelfType::Receiver { mutable: true, .. }) => {
-                        let (arg_name, evaluate_arg) = evaluate_args();
                         quote! {{
-                            #evaluate_arg;
+                            #(let #arg_names = #args;)*
                             let mut __guard = #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
-                            async move { function(&mut __guard, #(#arg_name),*).await }
+                            async move { function(&mut __guard, #(#arg_names),*).await }
                         }}
                     }
                     _ => {
