@@ -1,5 +1,5 @@
 use crate::err::{PyErr, PyResult};
-use crate::ffi::{self, Py_ssize_t};
+use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
 use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
@@ -117,7 +117,6 @@ pub trait PySliceMethods<'py>: crate::sealed::Sealed {
 
 impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
     fn indices(&self, length: isize) -> PyResult<PySliceIndices> {
-        // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
             let mut slicelength: isize = 0;
             let mut start: isize = 0;
@@ -136,6 +135,7 @@ impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
                     start,
                     stop,
                     step,
+                    // non-negative isize should always fit into usize
                     slicelength: slicelength as _,
                 })
             } else {
