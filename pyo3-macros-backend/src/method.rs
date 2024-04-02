@@ -731,7 +731,7 @@ impl<'a> FnSpec<'a> {
                     .map(|arg| match arg {
                         FnArg::Py(..) => quote!(py),
                         FnArg::CancelHandle(..) => quote!(__cancel_handle),
-                        _ => unreachable!(),
+                        _ => unreachable!("`CallingConvention::Noargs` should not contain any arguments (reaching Python) except for `self`, which is handled below."),
                     })
                     .collect();
                 let call = rust_call(args, &mut holders);
