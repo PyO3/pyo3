@@ -1,10 +1,13 @@
+use std::hint::black_box;
+
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
 
 macro_rules! test_module {
     ($py:ident, $code:literal) => {
-        PyModule::from_code($py, $code, file!(), "test_module").expect("module creation failed")
+        PyModule::from_code_bound($py, $code, file!(), "test_module")
+            .expect("module creation failed")
     };
 }
 
@@ -12,11 +15,11 @@ fn bench_call_0(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let module = test_module!(py, "def foo(): pass");
 
-        let foo_module = module.getattr("foo").unwrap();
+        let foo_module = &module.getattr("foo").unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
-                foo_module.call0().unwrap();
+                black_box(foo_module).call0().unwrap();
             }
         });
     })
@@ -33,11 +36,11 @@ class Foo:
 "
         );
 
-        let foo_module = module.getattr("Foo").unwrap().call0().unwrap();
+        let foo_module = &module.getattr("Foo").unwrap().call0().unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
-                foo_module.call_method0("foo").unwrap();
+                black_box(foo_module).call_method0("foo").unwrap();
             }
         });
     })

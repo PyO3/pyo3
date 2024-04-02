@@ -1,3 +1,5 @@
+use crate::instance::Bound;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
 use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
@@ -51,8 +53,8 @@ impl ToPyObject for OsStr {
 // be impossible to implement on Windows. Hence it's omitted entirely
 
 impl FromPyObject<'_> for OsString {
-    fn extract(ob: &PyAny) -> PyResult<Self> {
-        let pystring: &PyString = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let pystring = ob.downcast::<PyString>()?;
 
         #[cfg(not(windows))]
         {
@@ -66,22 +68,22 @@ impl FromPyObject<'_> for OsString {
 
             // Create an OsStr view into the raw bytes from Python
             #[cfg(target_os = "wasi")]
-            let os_str: &OsStr = std::os::wasi::ffi::OsStrExt::from_bytes(
-                fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
-            );
+            let os_str: &OsStr =
+                std::os::wasi::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
             #[cfg(not(target_os = "wasi"))]
-            let os_str: &OsStr = std::os::unix::ffi::OsStrExt::from_bytes(
-                fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
-            );
+            let os_str: &OsStr =
+                std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes(ob.py()));
 
             Ok(os_str.to_os_string())
         }
 
         #[cfg(windows)]
         {
+            use crate::types::string::PyStringMethods;
+
             // Take the quick and easy shortcut if UTF-8
-            if let Ok(utf8_string) = pystring.to_str() {
-                return Ok(utf8_string.to_owned().into());
+            if let Ok(utf8_string) = pystring.to_cow() {
+                return Ok(utf8_string.into_owned().into());
             }
 
             // Get an owned allocated wide char buffer from PyString, which we have to deallocate

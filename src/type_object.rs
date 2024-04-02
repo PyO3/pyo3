@@ -1,10 +1,12 @@
 //! Python type object information
 
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, PyNativeType, Python};
+use crate::{ffi, Bound, PyNativeType, Python};
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
-/// E.g., `PyCell` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
+/// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
@@ -64,19 +66,74 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
 
     /// Returns the safe abstraction over the type object.
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyTypeInfo::type_object` will be replaced by `PyTypeInfo::type_object_bound` in a future PyO3 version"
+        )
+    )]
     fn type_object(py: Python<'_>) -> &PyType {
-        unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
+        // This isn't implemented in terms of `type_object_bound` because this just borrowed the
+        // object, for legacy reasons.
+        #[allow(deprecated)]
+        unsafe {
+            py.from_borrowed_ptr(Self::type_object_raw(py) as _)
+        }
+    }
+
+    /// Returns the safe abstraction over the type object.
+    #[inline]
+    fn type_object_bound(py: Python<'_>) -> Bound<'_, PyType> {
+        // Making the borrowed object `Bound` is necessary for soundness reasons. It's an extreme
+        // edge case, but arbitrary Python code _could_ change the __class__ of an object and cause
+        // the type object to be freed.
+        //
+        // By making `Bound` we assume ownership which is then safe against races.
+        unsafe {
+            Self::type_object_raw(py)
+                .cast::<ffi::PyObject>()
+                .assume_borrowed_unchecked(py)
+                .to_owned()
+                .downcast_into_unchecked()
+        }
     }
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyTypeInfo::is_type_of` will be replaced by `PyTypeInfo::is_type_of_bound` in a future PyO3 version"
+        )
+    )]
     fn is_type_of(object: &PyAny) -> bool {
+        Self::is_type_of_bound(&object.as_borrowed())
+    }
+
+    /// Checks if `object` is an instance of this type or a subclass of this type.
+    #[inline]
+    fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
     /// Checks if `object` is an instance of this type.
     #[inline]
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.0",
+            note = "`PyTypeInfo::is_exact_type_of` will be replaced by `PyTypeInfo::is_exact_type_of_bound` in a future PyO3 version"
+        )
+    )]
     fn is_exact_type_of(object: &PyAny) -> bool {
+        Self::is_exact_type_of_bound(&object.as_borrowed())
+    }
+
+    /// Checks if `object` is an instance of this type.
+    #[inline]
+    fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
     }
 }
@@ -89,7 +146,7 @@ pub trait PyTypeCheck: HasPyGilRef {
     /// Checks if `object` is an instance of `Self`, which may include a subtype.
     ///
     /// This should be equivalent to the Python expression `isinstance(object, Self)`.
-    fn type_check(object: &PyAny) -> bool;
+    fn type_check(object: &Bound<'_, PyAny>) -> bool;
 }
 
 impl<T> PyTypeCheck for T
@@ -99,8 +156,8 @@ where
     const NAME: &'static str = <T as PyTypeInfo>::NAME;
 
     #[inline]
-    fn type_check(object: &PyAny) -> bool {
-        <T as PyTypeInfo>::is_type_of(object)
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
+        T::is_type_of_bound(object)
     }
 }
 

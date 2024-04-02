@@ -1,8 +1,11 @@
+use crate::instance::Bound;
+use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
-use crate::{exceptions, PyErr};
 use crate::{
-    ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, Python, ToPyObject,
+    err::DowncastError, ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
 };
+use crate::{exceptions, PyErr};
 
 impl<T, const N: usize> IntoPy<PyObject> for [T; N]
 where
@@ -42,33 +45,33 @@ where
     }
 }
 
-impl<'a, T, const N: usize> FromPyObject<'a> for [T; N]
+impl<'py, T, const N: usize> FromPyObject<'py> for [T; N]
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         create_array_from_obj(obj)
     }
 }
 
-fn create_array_from_obj<'s, T, const N: usize>(obj: &'s PyAny) -> PyResult<[T; N]>
+fn create_array_from_obj<'py, T, const N: usize>(obj: &Bound<'py, PyAny>) -> PyResult<[T; N]>
 where
-    T: FromPyObject<'s>,
+    T: FromPyObject<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq: &PySequence = unsafe {
+    let seq = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.downcast_unchecked()
+            obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(PyDowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new(obj, "Sequence").into());
         }
     };
     let seq_len = seq.len()?;
     if seq_len != N {
         return Err(invalid_sequence_length(N, seq_len));
     }
-    array_try_from_fn(|idx| seq.get_item(idx).and_then(PyAny::extract))
+    array_try_from_fn(|idx| seq.get_item(idx).and_then(|any| any.extract()))
 }
 
 // TODO use std::array::try_from_fn, if that stabilises:
@@ -127,6 +130,7 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering},
     };
 
+    use crate::types::any::PyAnyMethods;
     use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
 
     #[test]
@@ -154,7 +158,7 @@ mod tests {
     fn test_extract_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 33] = py
-                .eval(
+                .eval_bound(
                     "bytearray(b'abcabcabcabcabcabcabcabcabcabcabc')",
                     None,
                     None,
@@ -170,7 +174,7 @@ mod tests {
     fn test_extract_small_bytearray_to_array() {
         Python::with_gil(|py| {
             let v: [u8; 3] = py
-                .eval("bytearray(b'abc')", None, None)
+                .eval_bound("bytearray(b'abc')", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -194,7 +198,7 @@ mod tests {
     fn test_extract_invalid_sequence_length() {
         Python::with_gil(|py| {
             let v: PyResult<[u8; 3]> = py
-                .eval("bytearray(b'abcdefg')", None, None)
+                .eval_bound("bytearray(b'abcdefg')", None, None)
                 .unwrap()
                 .extract();
             assert_eq!(
@@ -220,7 +224,7 @@ mod tests {
     #[test]
     fn test_extract_non_iterable_to_array() {
         Python::with_gil(|py| {
-            let v = py.eval("42", None, None).unwrap();
+            let v = py.eval_bound("42", None, None).unwrap();
             v.extract::<i32>().unwrap();
             v.extract::<[i32; 1]>().unwrap_err();
         });
@@ -235,8 +239,8 @@ mod tests {
         Python::with_gil(|py| {
             let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
             let pyobject = array.into_py(py);
-            let list: &PyList = pyobject.downcast(py).unwrap();
-            let _cell: &crate::PyCell<Foo> = list.get_item(4).unwrap().extract().unwrap();
+            let list = pyobject.downcast_bound::<PyList>(py).unwrap();
+            let _bound = list.get_item(4).unwrap().downcast::<Foo>().unwrap();
         });
     }
 

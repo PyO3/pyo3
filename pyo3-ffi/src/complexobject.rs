@@ -30,6 +30,7 @@ extern "C" {
 // non-limited
 pub struct PyComplexObject {
     pub ob_base: PyObject,
+    #[cfg(not(GraalPy))]
     pub cval: Py_complex,
 }
 

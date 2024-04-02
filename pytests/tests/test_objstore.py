@@ -12,6 +12,11 @@ def test_objstore_doesnot_leak_memory():
     # check refcount on PyPy
     getrefcount = getattr(sys, "getrefcount", lambda obj: 0)
 
+    if sys.implementation.name == "graalpy":
+        # GraalPy has an incomplete sys.getrefcount implementation
+        def getrefcount(obj):
+            return 0
+
     before = getrefcount(message)
     store = ObjStore()
     for _ in range(N):

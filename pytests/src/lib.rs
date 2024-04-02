@@ -18,7 +18,7 @@ pub mod sequence;
 pub mod subclassing;
 
 #[pymodule]
-fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn pyo3_pytests(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(awaitable::awaitable))?;
     #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
@@ -39,8 +39,8 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas
 
-    let sys = PyModule::import(py, "sys")?;
-    let sys_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+    let sys = PyModule::import_bound(py, "sys")?;
+    let sys_modules = sys.getattr("modules")?.downcast_into::<PyDict>()?;
     sys_modules.set_item("pyo3_pytests.awaitable", m.getattr("awaitable")?)?;
     sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
     sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;

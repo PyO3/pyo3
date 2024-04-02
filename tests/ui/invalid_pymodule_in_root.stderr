@@ -1,0 +1,13 @@
+error[E0658]: non-inline modules in proc macro input are unstable
+ --> tests/ui/invalid_pymodule_in_root.rs:4:1
+  |
+4 | mod invalid_pymodule_in_root_module;
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: see issue #54727 <https://github.com/rust-lang/rust/issues/54727> for more information
+
+error: `#[pymodule]` can only be used on inline modules
+ --> tests/ui/invalid_pymodule_in_root.rs:4:1
+  |
+4 | mod invalid_pymodule_in_root_module;
+  | ^^^

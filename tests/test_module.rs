@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 
 use pyo3::py_run;
+use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
 
 #[path = "../src/tests/common.rs"]
@@ -35,7 +36,7 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
-fn module_with_functions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m)]
     #[pyo3(name = "no_parameters")]
     fn function_with_name() -> usize {
@@ -44,7 +45,7 @@ fn module_with_functions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m)]
     #[pyo3(pass_module)]
-    fn with_module(module: &PyModule) -> PyResult<&str> {
+    fn with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyString>> {
         module.name()
     }
 
@@ -53,14 +54,14 @@ fn module_with_functions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
         v.value * 2
     }
 
-    m.add_class::<AnonClass>().unwrap();
-    m.add_class::<ValueClass>().unwrap();
-    m.add_class::<LocatedClass>().unwrap();
+    m.add_class::<AnonClass>()?;
+    m.add_class::<ValueClass>()?;
+    m.add_class::<LocatedClass>()?;
 
-    m.add("foo", "bar").unwrap();
+    m.add("foo", "bar")?;
 
-    m.add_function(wrap_pyfunction!(double, m)?).unwrap();
-    m.add("also_double", wrap_pyfunction!(double, m)?).unwrap();
+    m.add_function(wrap_pyfunction!(double, m)?)?;
+    m.add("also_double", wrap_pyfunction!(double, m)?)?;
 
     Ok(())
 }
@@ -74,7 +75,7 @@ fn test_module_with_functions() {
             "module_with_functions",
             wrap_pymodule!(module_with_functions)(py),
         )]
-        .into_py_dict(py);
+        .into_py_dict_bound(py);
 
         py_assert!(
             py,
@@ -115,9 +116,31 @@ fn test_module_with_functions() {
     });
 }
 
+/// This module uses a legacy two-argument module function.
+#[pymodule]
+fn module_with_explicit_py_arg(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(double, m)?)?;
+    Ok(())
+}
+
+#[test]
+fn test_module_with_explicit_py_arg() {
+    use pyo3::wrap_pymodule;
+
+    Python::with_gil(|py| {
+        let d = [(
+            "module_with_explicit_py_arg",
+            wrap_pymodule!(module_with_explicit_py_arg)(py),
+        )]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *d, "module_with_explicit_py_arg.double(3) == 6");
+    });
+}
+
 #[pymodule]
 #[pyo3(name = "other_name")]
-fn some_name(_: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn some_name(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("other_name", "other_name")?;
     Ok(())
 }
@@ -127,16 +150,16 @@ fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
     Python::with_gil(|py| {
-        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
+        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict_bound(py);
 
         py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
     });
 }
 
 #[test]
-fn test_module_from_code() {
+fn test_module_from_code_bound() {
     Python::with_gil(|py| {
-        let adder_mod = PyModule::from_code(
+        let adder_mod = PyModule::from_code_bound(
             py,
             "def add(a,b):\n\treturn a+b",
             "adder_mod.py",
@@ -165,7 +188,7 @@ fn r#move() -> usize {
 }
 
 #[pymodule]
-fn raw_ident_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+fn raw_ident_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(r#move, module)?)
 }
 
@@ -189,7 +212,7 @@ fn custom_named_fn() -> usize {
 #[test]
 fn test_custom_names() {
     #[pymodule]
-    fn custom_names(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn custom_names(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_function(wrap_pyfunction!(custom_named_fn, m)?)?;
         Ok(())
     }
@@ -205,7 +228,7 @@ fn test_custom_names() {
 #[test]
 fn test_module_dict() {
     #[pymodule]
-    fn module_dict(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn module_dict(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.dict().set_item("yay", "me")?;
         Ok(())
     }
@@ -221,7 +244,7 @@ fn test_module_dict() {
 fn test_module_dunder_all() {
     Python::with_gil(|py| {
         #[pymodule]
-        fn dunder_all(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+        fn dunder_all(m: &Bound<'_, PyModule>) -> PyResult<()> {
             m.dict().set_item("yay", "me")?;
             m.add_function(wrap_pyfunction!(custom_named_fn, m)?)?;
             Ok(())
@@ -238,13 +261,13 @@ fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
-fn submodule(module: &PyModule) -> PyResult<()> {
+fn submodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
 
 #[pymodule]
-fn submodule_with_init_fn(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+fn submodule_with_init_fn(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
@@ -255,14 +278,14 @@ fn superfunction() -> String {
 }
 
 #[pymodule]
-fn supermodule(py: Python<'_>, module: &PyModule) -> PyResult<()> {
+fn supermodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
-    let module_to_add = PyModule::new(py, "submodule")?;
-    submodule(module_to_add)?;
-    module.add_submodule(module_to_add)?;
-    let module_to_add = PyModule::new(py, "submodule_with_init_fn")?;
-    submodule_with_init_fn(py, module_to_add)?;
-    module.add_submodule(module_to_add)?;
+    let module_to_add = PyModule::new_bound(module.py(), "submodule")?;
+    submodule(&module_to_add)?;
+    module.add_submodule(&module_to_add)?;
+    let module_to_add = PyModule::new_bound(module.py(), "submodule_with_init_fn")?;
+    submodule_with_init_fn(&module_to_add)?;
+    module.add_submodule(&module_to_add)?;
     Ok(())
 }
 
@@ -294,14 +317,14 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(signature = (a=5, *args))]
-fn ext_vararg_fn(py: Python<'_>, a: i32, args: &PyTuple) -> PyObject {
-    [a.to_object(py), args.into()].to_object(py)
+fn ext_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
+    [a.to_object(py), args.into_py(py)].to_object(py)
 }
 
 #[pymodule]
-fn vararg_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn vararg_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m, signature = (a=5, *args))]
-    fn int_vararg_fn(py: Python<'_>, a: i32, args: &PyTuple) -> PyObject {
+    fn int_vararg_fn(py: Python<'_>, a: i32, args: &Bound<'_, PyTuple>) -> PyObject {
         ext_vararg_fn(py, a, args)
     }
 
@@ -327,7 +350,7 @@ fn test_module_with_constant() {
     // Regression test for #1102
 
     #[pymodule]
-    fn module_with_constant(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn module_with_constant(m: &Bound<'_, PyModule>) -> PyResult<()> {
         const ANON: AnonClass = AnonClass {};
 
         m.add("ANON", ANON)?;
@@ -344,47 +367,60 @@ fn test_module_with_constant() {
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
+fn pyfunction_with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyString>> {
     module.name()
 }
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_owned(module: Py<PyModule>) -> PyResult<String> {
-    Python::with_gil(|gil| module.as_ref(gil).name().map(Into::into))
-}
-
-#[pyfunction]
-#[pyo3(pass_module)]
-fn pyfunction_with_module_and_py<'a>(
-    module: &'a PyModule,
-    _python: Python<'a>,
-) -> PyResult<&'a str> {
+#[cfg(feature = "gil-refs")]
+fn pyfunction_with_module_gil_ref(module: &PyModule) -> PyResult<&str> {
     module.name()
 }
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_and_arg(module: &PyModule, string: String) -> PyResult<(&str, String)> {
+fn pyfunction_with_module_owned(
+    module: Py<PyModule>,
+    py: Python<'_>,
+) -> PyResult<Bound<'_, PyString>> {
+    module.bind(py).name()
+}
+
+#[pyfunction]
+#[pyo3(pass_module)]
+fn pyfunction_with_module_and_py<'py>(
+    module: &Bound<'py, PyModule>,
+    _python: Python<'py>,
+) -> PyResult<Bound<'py, PyString>> {
+    module.name()
+}
+
+#[pyfunction]
+#[pyo3(pass_module)]
+fn pyfunction_with_module_and_arg<'py>(
+    module: &Bound<'py, PyModule>,
+    string: String,
+) -> PyResult<(Bound<'py, PyString>, String)> {
     module.name().map(|s| (s, string))
 }
 
 #[pyfunction(signature = (string="foo"))]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_and_default_arg<'a>(
-    module: &'a PyModule,
+fn pyfunction_with_module_and_default_arg<'py>(
+    module: &Bound<'py, PyModule>,
     string: &str,
-) -> PyResult<(&'a str, String)> {
+) -> PyResult<(Bound<'py, PyString>, String)> {
     module.name().map(|s| (s, string.into()))
 }
 
 #[pyfunction(signature = (*args, **kwargs))]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_and_args_kwargs<'a>(
-    module: &'a PyModule,
-    args: &PyTuple,
-    kwargs: Option<&PyDict>,
-) -> PyResult<(&'a str, usize, Option<usize>)> {
+fn pyfunction_with_module_and_args_kwargs<'py>(
+    module: &Bound<'py, PyModule>,
+    args: &Bound<'py, PyTuple>,
+    kwargs: Option<&Bound<'py, PyDict>>,
+) -> PyResult<(Bound<'py, PyString>, usize, Option<usize>)> {
     module
         .name()
         .map(|s| (s, args.len(), kwargs.map(|d| d.len())))
@@ -392,18 +428,22 @@ fn pyfunction_with_module_and_args_kwargs<'a>(
 
 #[pyfunction]
 #[pyo3(pass_module)]
+#[cfg(feature = "gil-refs")]
 fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str> {
     module.name()
 }
 
 #[pymodule]
-fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn module_with_functions_with_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
+    #[cfg(feature = "gil-refs")]
+    m.add_function(wrap_pyfunction!(pyfunction_with_module_gil_ref, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_owned, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_py, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_arg, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_default_arg, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_args_kwargs, m)?)?;
+    #[cfg(feature = "gil-refs")]
     m.add_function(wrap_pyfunction!(
         pyfunction_with_pass_module_in_attribute,
         m
@@ -420,6 +460,12 @@ fn test_module_functions_with_module() {
             py,
             m,
             "m.pyfunction_with_module() == 'module_with_functions_with_module'"
+        );
+        #[cfg(feature = "gil-refs")]
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_module_gil_ref() == 'module_with_functions_with_module'"
         );
         py_assert!(
             py,
@@ -443,6 +489,7 @@ fn test_module_functions_with_module() {
             "m.pyfunction_with_module_and_args_kwargs(1, x=1, y=2) \
                         == ('module_with_functions_with_module', 1, 2)"
         );
+        #[cfg(feature = "gil-refs")]
         py_assert!(
             py,
             m,
@@ -456,7 +503,7 @@ fn test_module_doc_hidden() {
     #[doc(hidden)]
     #[allow(clippy::unnecessary_wraps)]
     #[pymodule]
-    fn my_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
+    fn my_module(_m: &Bound<'_, PyModule>) -> PyResult<()> {
         Ok(())
     }
 

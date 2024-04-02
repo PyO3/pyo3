@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::{exceptions, py_run, PyErr, PyResult};
+use pyo3::{exceptions, py_run};
 use std::error::Error;
 use std::fmt;
 #[cfg(not(target_os = "windows"))]
@@ -22,7 +22,7 @@ fn fail_to_open_file() -> PyResult<()> {
 #[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
     Python::with_gil(|py| {
-        let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
+        let fail_to_open_file = wrap_pyfunction_bound!(fail_to_open_file)(py).unwrap();
 
         py_run!(
             py,
@@ -68,7 +68,7 @@ fn call_fail_with_custom_error() -> PyResult<()> {
 fn test_custom_error() {
     Python::with_gil(|py| {
         let call_fail_with_custom_error =
-            wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
+            wrap_pyfunction_bound!(call_fail_with_custom_error)(py).unwrap();
 
         py_run!(
             py,
@@ -118,7 +118,7 @@ fn test_write_unraisable() {
         assert!(object.is_none(py));
 
         let err = PyRuntimeError::new_err("bar");
-        err.write_unraisable(py, Some(py.NotImplemented()));
+        err.write_unraisable(py, Some(py.NotImplemented().as_ref(py)));
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: bar");

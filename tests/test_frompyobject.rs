@@ -22,13 +22,13 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
 }
 
 #[derive(Debug, FromPyObject)]
-pub struct A<'a> {
+pub struct A<'py> {
     #[pyo3(attribute)]
     s: String,
     #[pyo3(item)]
-    t: &'a PyString,
+    t: Bound<'py, PyString>,
     #[pyo3(attribute("foo"))]
-    p: &'a PyAny,
+    p: Bound<'py, PyAny>,
 }
 
 #[pyclass]
@@ -58,8 +58,9 @@ fn test_named_fields_struct() {
             foo: None,
         };
         let py_c = Py::new(py, pya).unwrap();
-        let a: A<'_> =
-            FromPyObject::extract(py_c.as_ref(py)).expect("Failed to extract A from PyA");
+        let a = py_c
+            .extract::<A<'_>>(py)
+            .expect("Failed to extract A from PyA");
         assert_eq!(a.s, "foo");
         assert_eq!(a.t.to_string_lossy(), "bar");
         assert!(a.p.is_none());
@@ -76,10 +77,12 @@ pub struct B {
 fn test_transparent_named_field_struct() {
     Python::with_gil(|py| {
         let test: PyObject = "test".into_py(py);
-        let b: B = FromPyObject::extract(test.as_ref(py)).expect("Failed to extract B from String");
+        let b = test
+            .extract::<B>(py)
+            .expect("Failed to extract B from String");
         assert_eq!(b.test, "test");
         let test: PyObject = 1.into_py(py);
-        let b = B::extract(test.as_ref(py));
+        let b = test.extract::<B>(py);
         assert!(b.is_err());
     });
 }
@@ -94,12 +97,14 @@ pub struct D<T> {
 fn test_generic_transparent_named_field_struct() {
     Python::with_gil(|py| {
         let test: PyObject = "test".into_py(py);
-        let d: D<String> =
-            D::extract(test.as_ref(py)).expect("Failed to extract D<String> from String");
+        let d = test
+            .extract::<D<String>>(py)
+            .expect("Failed to extract D<String> from String");
         assert_eq!(d.test, "test");
         let test = 1usize.into_py(py);
-        let d: D<usize> =
-            D::extract(test.as_ref(py)).expect("Failed to extract D<usize> from String");
+        let d = test
+            .extract::<D<usize>>(py)
+            .expect("Failed to extract D<usize> from String");
         assert_eq!(d.test, 1);
     });
 }
@@ -128,11 +133,12 @@ fn test_generic_named_fields_struct() {
         }
         .into_py(py);
 
-        let e: E<String, usize> =
-            E::extract(pye.as_ref(py)).expect("Failed to extract E<String, usize> from PyE");
+        let e = pye
+            .extract::<E<String, usize>>(py)
+            .expect("Failed to extract E<String, usize> from PyE");
         assert_eq!(e.test, "test");
         assert_eq!(e.test2, 2);
-        let e = E::<usize, usize>::extract(pye.as_ref(py));
+        let e = pye.extract::<E<usize, usize>>(py);
         assert!(e.is_err());
     });
 }
@@ -151,7 +157,7 @@ fn test_named_field_with_ext_fn() {
             test2: 0,
         }
         .into_py(py);
-        let c = C::extract(pyc.as_ref(py)).expect("Failed to extract C from PyE");
+        let c = pyc.extract::<C>(py).expect("Failed to extract C from PyE");
         assert_eq!(c.test, "foo");
     });
 }
@@ -163,10 +169,12 @@ pub struct Tuple(String, usize);
 fn test_tuple_struct() {
     Python::with_gil(|py| {
         let tup = PyTuple::new_bound(py, &[1.into_py(py), "test".into_py(py)]);
-        let tup = Tuple::extract(tup.as_gil_ref());
+        let tup = tup.extract::<Tuple>();
         assert!(tup.is_err());
         let tup = PyTuple::new_bound(py, &["test".into_py(py), 1.into_py(py)]);
-        let tup = Tuple::extract(tup.as_gil_ref()).expect("Failed to extract Tuple from PyTuple");
+        let tup = tup
+            .extract::<Tuple>()
+            .expect("Failed to extract Tuple from PyTuple");
         assert_eq!(tup.0, "test");
         assert_eq!(tup.1, 1);
     });
@@ -179,10 +187,11 @@ pub struct TransparentTuple(String);
 fn test_transparent_tuple_struct() {
     Python::with_gil(|py| {
         let tup: PyObject = 1.into_py(py);
-        let tup = TransparentTuple::extract(tup.as_ref(py));
+        let tup = tup.extract::<TransparentTuple>(py);
         assert!(tup.is_err());
         let test: PyObject = "test".into_py(py);
-        let tup = TransparentTuple::extract(test.as_ref(py))
+        let tup = test
+            .extract::<TransparentTuple>(py)
             .expect("Failed to extract TransparentTuple from PyTuple");
         assert_eq!(tup.0, "test");
     });
@@ -215,7 +224,7 @@ fn test_struct_nested_type_errors() {
         }
         .into_py(py);
 
-        let test: PyResult<Baz<String, usize>> = FromPyObject::extract(pybaz.as_ref(py));
+        let test = pybaz.extract::<Baz<String, usize>>(py);
         assert!(test.is_err());
         assert_eq!(
             extract_traceback(py,test.unwrap_err()),
@@ -237,7 +246,7 @@ fn test_struct_nested_type_errors_with_generics() {
         }
         .into_py(py);
 
-        let test: PyResult<Baz<usize, String>> = FromPyObject::extract(pybaz.as_ref(py));
+        let test = pybaz.extract::<Baz<usize, usize>>(py);
         assert!(test.is_err());
         assert_eq!(
             extract_traceback(py, test.unwrap_err()),
@@ -251,7 +260,7 @@ fn test_struct_nested_type_errors_with_generics() {
 fn test_transparent_struct_error_message() {
     Python::with_gil(|py| {
         let tup: PyObject = 1.into_py(py);
-        let tup = B::extract(tup.as_ref(py));
+        let tup = tup.extract::<B>(py);
         assert!(tup.is_err());
         assert_eq!(
             extract_traceback(py,tup.unwrap_err()),
@@ -265,7 +274,7 @@ fn test_transparent_struct_error_message() {
 fn test_tuple_struct_error_message() {
     Python::with_gil(|py| {
         let tup: PyObject = (1, "test").into_py(py);
-        let tup = Tuple::extract(tup.as_ref(py));
+        let tup = tup.extract::<Tuple>(py);
         assert!(tup.is_err());
         assert_eq!(
             extract_traceback(py, tup.unwrap_err()),
@@ -279,7 +288,7 @@ fn test_tuple_struct_error_message() {
 fn test_transparent_tuple_error_message() {
     Python::with_gil(|py| {
         let tup: PyObject = 1.into_py(py);
-        let tup = TransparentTuple::extract(tup.as_ref(py));
+        let tup = tup.extract::<TransparentTuple>(py);
         assert!(tup.is_err());
         assert_eq!(
             extract_traceback(py, tup.unwrap_err()),
@@ -290,10 +299,10 @@ fn test_transparent_tuple_error_message() {
 }
 
 #[derive(Debug, FromPyObject)]
-pub enum Foo<'a> {
+pub enum Foo<'py> {
     TupleVar(usize, String),
     StructVar {
-        test: &'a PyString,
+        test: Bound<'py, PyString>,
     },
     #[pyo3(transparent)]
     TransparentTuple(usize),
@@ -325,7 +334,9 @@ pub struct PyBool {
 fn test_enum() {
     Python::with_gil(|py| {
         let tup = PyTuple::new_bound(py, &[1.into_py(py), "test".into_py(py)]);
-        let f = Foo::extract(tup.as_gil_ref()).expect("Failed to extract Foo from tuple");
+        let f = tup
+            .extract::<Foo<'_>>()
+            .expect("Failed to extract Foo from tuple");
         match f {
             Foo::TupleVar(test, test2) => {
                 assert_eq!(test, 1);
@@ -339,43 +350,55 @@ fn test_enum() {
             test2: 0,
         }
         .into_py(py);
-        let f = Foo::extract(pye.as_ref(py)).expect("Failed to extract Foo from PyE");
+        let f = pye
+            .extract::<Foo<'_>>(py)
+            .expect("Failed to extract Foo from PyE");
         match f {
             Foo::StructVar { test } => assert_eq!(test.to_string_lossy(), "foo"),
             _ => panic!("Expected extracting Foo::StructVar, got {:?}", f),
         }
 
         let int: PyObject = 1.into_py(py);
-        let f = Foo::extract(int.as_ref(py)).expect("Failed to extract Foo from int");
+        let f = int
+            .extract::<Foo<'_>>(py)
+            .expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentTuple(test) => assert_eq!(test, 1),
             _ => panic!("Expected extracting Foo::TransparentTuple, got {:?}", f),
         }
         let none = py.None();
-        let f = Foo::extract(none).expect("Failed to extract Foo from int");
+        let f = none
+            .extract::<Foo<'_>>(py)
+            .expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentStructVar { a } => assert!(a.is_none()),
             _ => panic!("Expected extracting Foo::TransparentStructVar, got {:?}", f),
         }
 
         let pybool = PyBool { bla: true }.into_py(py);
-        let f = Foo::extract(pybool.as_ref(py)).expect("Failed to extract Foo from PyBool");
+        let f = pybool
+            .extract::<Foo<'_>>(py)
+            .expect("Failed to extract Foo from PyBool");
         match f {
             Foo::StructVarGetAttrArg { a } => assert!(a),
             _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {:?}", f),
         }
 
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item("a", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = dict
+            .extract::<Foo<'_>>()
+            .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItem { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItem, got {:?}", f),
         }
 
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item("foo", "test").expect("Failed to set item");
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let f = dict
+            .extract::<Foo<'_>>()
+            .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItemArg { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {:?}", f),
@@ -386,8 +409,8 @@ fn test_enum() {
 #[test]
 fn test_enum_error() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let err = Foo::extract(dict.as_ref()).unwrap_err();
+        let dict = PyDict::new_bound(py);
+        let err = dict.extract::<Foo<'_>>().unwrap_err();
         assert_eq!(
             err.to_string(),
             "\
@@ -402,7 +425,7 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
         );
 
         let tup = PyTuple::empty_bound(py);
-        let err = Foo::extract(tup.as_gil_ref()).unwrap_err();
+        let err = tup.extract::<Foo<'_>>().unwrap_err();
         assert_eq!(
             err.to_string(),
             "\
@@ -419,23 +442,24 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 }
 
 #[derive(Debug, FromPyObject)]
-enum EnumWithCatchAll<'a> {
+enum EnumWithCatchAll<'py> {
     #[allow(dead_code)]
     #[pyo3(transparent)]
-    Foo(Foo<'a>),
+    Foo(Foo<'py>),
     #[pyo3(transparent)]
-    CatchAll(&'a PyAny),
+    CatchAll(Bound<'py, PyAny>),
 }
 
 #[test]
 fn test_enum_catch_all() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let f = EnumWithCatchAll::extract(dict.as_ref())
+        let dict = PyDict::new_bound(py);
+        let f = dict
+            .extract::<EnumWithCatchAll<'_>>()
             .expect("Failed to extract EnumWithCatchAll from dict");
         match f {
             EnumWithCatchAll::CatchAll(any) => {
-                let d = <&PyDict>::extract(any).expect("Expected pydict");
+                let d = any.extract::<Bound<'_, PyDict>>().expect("Expected pydict");
                 assert!(d.is_empty());
             }
             _ => panic!(
@@ -459,8 +483,8 @@ pub enum Bar {
 #[test]
 fn test_err_rename() {
     Python::with_gil(|py| {
-        let dict = PyDict::new(py);
-        let f = Bar::extract(dict.as_ref());
+        let dict = PyDict::new_bound(py);
+        let f = dict.extract::<Bar>();
         assert!(f.is_err());
         assert_eq!(
             f.unwrap_err().to_string(),
@@ -478,7 +502,7 @@ pub struct Zap {
     #[pyo3(item)]
     name: String,
 
-    #[pyo3(from_py_with = "PyAny::len", item("my_object"))]
+    #[pyo3(from_py_with = "Bound::<'_, PyAny>::len", item("my_object"))]
     some_object_length: usize,
 }
 
@@ -486,14 +510,14 @@ pub struct Zap {
 fn test_from_py_with() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(
+            .eval_bound(
                 r#"{"name": "whatever", "my_object": [1, 2, 3]}"#,
                 None,
                 None,
             )
             .expect("failed to create dict");
 
-        let zap = Zap::extract(py_zap).unwrap();
+        let zap = py_zap.extract::<Zap>().unwrap();
 
         assert_eq!(zap.name, "whatever");
         assert_eq!(zap.some_object_length, 3usize);
@@ -501,16 +525,19 @@ fn test_from_py_with() {
 }
 
 #[derive(Debug, FromPyObject)]
-pub struct ZapTuple(String, #[pyo3(from_py_with = "PyAny::len")] usize);
+pub struct ZapTuple(
+    String,
+    #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize,
+);
 
 #[test]
 fn test_from_py_with_tuple_struct() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
-        let zap = ZapTuple::extract(py_zap).unwrap();
+        let zap = py_zap.extract::<ZapTuple>().unwrap();
 
         assert_eq!(zap.0, "whatever");
         assert_eq!(zap.1, 3usize);
@@ -521,10 +548,10 @@ fn test_from_py_with_tuple_struct() {
 fn test_from_py_with_tuple_struct_error() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3], "third")"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3], "third")"#, None, None)
             .expect("failed to create tuple");
 
-        let f = ZapTuple::extract(py_zap);
+        let f = py_zap.extract::<ZapTuple>();
 
         assert!(f.is_err());
         assert_eq!(
@@ -536,18 +563,21 @@ fn test_from_py_with_tuple_struct_error() {
 
 #[derive(Debug, FromPyObject, PartialEq, Eq)]
 pub enum ZapEnum {
-    Zip(#[pyo3(from_py_with = "PyAny::len")] usize),
-    Zap(String, #[pyo3(from_py_with = "PyAny::len")] usize),
+    Zip(#[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize),
+    Zap(
+        String,
+        #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")] usize,
+    ),
 }
 
 #[test]
 fn test_from_py_with_enum() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval_bound(r#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
-        let zap = ZapEnum::extract(py_zap).unwrap();
+        let zap = py_zap.extract::<ZapEnum>().unwrap();
         let expected_zap = ZapEnum::Zip(2);
 
         assert_eq!(zap, expected_zap);
@@ -557,14 +587,16 @@ fn test_from_py_with_enum() {
 #[derive(Debug, FromPyObject, PartialEq, Eq)]
 #[pyo3(transparent)]
 pub struct TransparentFromPyWith {
-    #[pyo3(from_py_with = "PyAny::len")]
+    #[pyo3(from_py_with = "Bound::<'_, PyAny>::len")]
     len: usize,
 }
 
 #[test]
 fn test_transparent_from_py_with() {
     Python::with_gil(|py| {
-        let result = TransparentFromPyWith::extract(PyList::new(py, [1, 2, 3])).unwrap();
+        let result = PyList::new_bound(py, [1, 2, 3])
+            .extract::<TransparentFromPyWith>()
+            .unwrap();
         let expected = TransparentFromPyWith { len: 3 };
 
         assert_eq!(result, expected);

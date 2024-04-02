@@ -68,5 +68,5 @@ pub use self::pystate::*;
 pub use self::pythonrun::*;
 pub use self::tupleobject::*;
 pub use self::unicodeobject::*;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub use self::weakrefobject::*;

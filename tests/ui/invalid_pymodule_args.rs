@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 #[pymodule(some_arg)]
-fn module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 

@@ -12,7 +12,7 @@ This feature is required when building a Python extension module using PyO3.
 
 It tells PyO3's build script to skip linking against `libpython.so` on Unix platforms, where this must not be done.
 
-See the [building and distribution](building_and_distribution.md#linking) section for further detail.
+See the [building and distribution](building-and-distribution.md#the-extension-module-feature) section for further detail.
 
 ### `abi3`
 
@@ -20,7 +20,7 @@ This feature is used when building Python extension modules to create wheels whi
 
 It restricts PyO3's API to a subset of the full Python API which is guaranteed by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forwards-compatible with future Python versions.
 
-See the [building and distribution](building_and_distribution.md#py_limited_apiabi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#py_limited_apiabi3) section for further detail.
 
 ### The `abi3-pyXY` features
 
@@ -28,7 +28,7 @@ See the [building and distribution](building_and_distribution.md#py_limited_apia
 
 These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
-See the [building and distribution](building_and_distribution.md#minimum-python-version-for-abi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#minimum-python-version-for-abi3) section for further detail.
 
 ### `generate-import-lib`
 
@@ -38,18 +38,30 @@ for MinGW-w64 and MSVC (cross-)compile targets.
 Enabling it allows to (cross-)compile extension modules to any Windows targets
 without having to install the Windows Python distribution files for the target.
 
-See the [building and distribution](building_and_distribution.md#building-abi3-extensions-without-a-python-interpreter)
+See the [building and distribution](building-and-distribution.md#building-abi3-extensions-without-a-python-interpreter)
 section for further detail.
 
 ## Features for embedding Python in Rust
 
 ### `auto-initialize`
 
-This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.with_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
+This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.with_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
 
 If you do not enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
 
 ## Advanced Features
+
+### `experimental-async`
+
+This feature adds support for `async fn` in `#[pyfunction]` and `#[pymethods]`.
+
+The feature has some unfinished refinements and performance improvements. To help finish this off, see [issue #1632](https://github.com/PyO3/pyo3/issues/1632) and its associated draft PRs.
+
+### `experimental-declarative-modules`
+
+This feature allows to declare Python modules using `#[pymodule] mod my_module { ... }` syntax. 
+
+The feature has some unfinished refinements and edge cases. To help finish this off, see [issue #3900](https://github.com/PyO3/pyo3/issues/3900).
 
 ### `experimental-inspect`
 
@@ -108,7 +120,7 @@ Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from
 ### `chrono`
 
 Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
-- [Duration](https://docs.rs/chrono/latest/chrono/struct.Duration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [TimeDelta](https://docs.rs/chrono/latest/chrono/struct.TimeDelta.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [FixedOffset](https://docs.rs/chrono/latest/chrono/offset/struct.FixedOffset.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
 - [Utc](https://docs.rs/chrono/latest/chrono/offset/struct.Utc.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
 - [NaiveDate](https://docs.rs/chrono/latest/chrono/naive/struct.NaiveDate.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
@@ -123,7 +135,7 @@ It requires at least Python 3.9.
 
 ### `either`
 
-Adds a dependency on [either](https://docs.rs/either). Enables a conversions into [either](https://docs.rs/either)’s [`Either`](https://docs.rs/either/latest/either/struct.Report.html) type.
+Adds a dependency on [either](https://docs.rs/either). Enables a conversions into [either](https://docs.rs/either)’s [`Either`](https://docs.rs/either/latest/either/enum.Either.html) type.
 
 ### `eyre`
 
@@ -139,7 +151,7 @@ Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversion
 
 ### `num-bigint`
 
-Adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conversions into its [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUInt.html) types.
+Adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conversions into its [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html) types.
 
 ### `num-complex`
 

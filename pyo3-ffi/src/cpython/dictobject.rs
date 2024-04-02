@@ -7,6 +7,7 @@ opaque_struct!(PyDictKeysObject);
 #[cfg(Py_3_11)]
 opaque_struct!(PyDictValues);
 
+#[cfg(not(GraalPy))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyDictObject {

@@ -46,7 +46,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPy, PyAny,
+    PyObject, PyResult, Python, ToPyObject,
 };
 use either::Either;
 
@@ -81,19 +82,25 @@ where
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-impl<'source, L, R> FromPyObject<'source> for Either<L, R>
+impl<'py, L, R> FromPyObject<'py> for Either<L, R>
 where
-    L: FromPyObject<'source>,
-    R: FromPyObject<'source>,
+    L: FromPyObject<'py>,
+    R: FromPyObject<'py>,
 {
     #[inline]
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if let Ok(l) = obj.extract::<L>() {
             Ok(Either::Left(l))
         } else if let Ok(r) = obj.extract::<R>() {
             Ok(Either::Right(r))
         } else {
-            let err_msg = format!("failed to convert the value to '{}'", Self::type_input());
+            // TODO: it might be nice to use the `type_input()` name here once `type_input`
+            // is not experimental, rather than the Rust type names.
+            let err_msg = format!(
+                "failed to convert the value to 'Union[{}, {}]'",
+                std::any::type_name::<L>(),
+                std::any::type_name::<R>()
+            );
             Err(PyTypeError::new_err(err_msg))
         }
     }
@@ -106,6 +113,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use crate::exceptions::PyTypeError;
     use crate::{Python, ToPyObject};
 
@@ -125,7 +134,7 @@ mod tests {
 
             let r = E::Right("foo".to_owned());
             let obj_r = r.to_object(py);
-            assert_eq!(obj_r.extract::<&str>(py).unwrap(), "foo");
+            assert_eq!(obj_r.extract::<Cow<'_, str>>(py).unwrap(), "foo");
             assert_eq!(obj_r.extract::<E>(py).unwrap(), r);
 
             let obj_s = "foo".to_object(py);
@@ -133,7 +142,7 @@ mod tests {
             assert!(err.is_instance_of::<PyTypeError>(py));
             assert_eq!(
                 err.to_string(),
-                "TypeError: failed to convert the value to 'Union[int, float]'"
+                "TypeError: failed to convert the value to 'Union[i32, f32]'"
             );
 
             let obj_i = 42.to_object(py);

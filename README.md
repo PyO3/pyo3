@@ -5,7 +5,7 @@
 [![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
 [![minimum rustc 1.56](https://img.shields.io/badge/rustc-1.56+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
-[![dev chat](https://img.shields.io/gitter/room/PyO3/Lobby?logo=gitter)](https://gitter.im/PyO3/Lobby)
+[![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/33kcChzH7f)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
 [Rust](https://www.rust-lang.org/) bindings for [Python](https://www.python.org/), including tools for creating native Python extension modules. Running and interacting with Python code from a Rust binary is also supported.
@@ -17,7 +17,7 @@
 ## Usage
 
 PyO3 supports the following software versions:
-  - Python 3.7 and up (CPython and PyPy)
+  - Python 3.7 and up (CPython, PyPy, and GraalPy)
   - Rust 1.56 and up
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.20.2", features = ["extension-module"] }
+pyo3 = { version = "0.21.1", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -86,7 +86,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn string_sum(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     Ok(())
 }
@@ -118,7 +118,7 @@ maturin develop
 
 If you want to be able to run `cargo test` or use this project in a Cargo workspace and are running into linker issues, there are some workarounds in [the FAQ](https://pyo3.rs/latest/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror).
 
-As well as with `maturin`, it is possible to build using [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds). Both offer more flexibility than `maturin` but require more configuration to get started.
+As well as with `maturin`, it is possible to build using [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building-and-distribution.html#manual-builds). Both offer more flexibility than `maturin` but require more configuration to get started.
 
 ### Using Python from Rust
 
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.20.2"
+version = "0.21.1"
 features = ["auto-initialize"]
 ```
 
@@ -149,12 +149,12 @@ use pyo3::types::IntoPyDict;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let sys = py.import("sys")?;
+        let sys = py.import_bound("sys")?;
         let version: String = sys.getattr("version")?.extract()?;
 
-        let locals = [("os", py.import("os")?)].into_py_dict(py);
+        let locals = [("os", py.import_bound("os")?)].into_py_dict_bound(py);
         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-        let user: String = py.eval(code, None, Some(&locals))?.extract()?;
+        let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
 
         println!("Hello {}, I'm Python {}", user, version);
         Ok(())
@@ -162,7 +162,7 @@ fn main() -> PyResult<()> {
 }
 ```
 
-The guide has [a section](https://pyo3.rs/latest/python_from_rust.html) with lots of examples
+The guide has [a section](https://pyo3.rs/latest/python-from-rust.html) with lots of examples
 about this topic.
 
 ## Tools and libraries
@@ -192,10 +192,12 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [greptimedb](https://github.com/GreptimeTeam/greptimedb/tree/main/src/script) _Support [Python scripting](https://docs.greptime.com/user-guide/python-scripts/overview) in the database_
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._
 - [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
+- [johnnycanencrypt](https://github.com/kushaldas/johnnycanencrypt) OpenPGP library with Yubikey support.
 - [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python) _Fast JSON Schema validation library._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
@@ -236,7 +238,7 @@ about this topic.
 
 Everyone is welcomed to contribute to PyO3! There are many ways to support the project, such as:
 
-- help PyO3 users with issues on GitHub and Gitter
+- help PyO3 users with issues on GitHub and [Discord](https://discord.gg/33kcChzH7f)
 - improve documentation
 - write features and bugfixes
 - publish blogs and examples of how to use PyO3

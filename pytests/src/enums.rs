@@ -1,11 +1,13 @@
-use pyo3::{pyclass, pyfunction, pymodule, types::PyModule, wrap_pyfunction, PyResult, Python};
+use pyo3::{
+    pyclass, pyfunction, pymodule, types::PyModule, wrap_pyfunction_bound, Bound, PyResult,
+};
 
 #[pymodule]
-pub fn enums(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SimpleEnum>()?;
     m.add_class::<ComplexEnum>()?;
-    m.add_wrapped(wrap_pyfunction!(do_simple_stuff))?;
-    m.add_wrapped(wrap_pyfunction!(do_complex_stuff))?;
+    m.add_wrapped(wrap_pyfunction_bound!(do_simple_stuff))?;
+    m.add_wrapped(wrap_pyfunction_bound!(do_complex_stuff))?;
     Ok(())
 }
 

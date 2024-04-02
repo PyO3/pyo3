@@ -6,7 +6,7 @@ use pyo3::types::PySlice;
 #[derive(FromPyObject)]
 enum IntOrSlice<'py> {
     Int(i32),
-    Slice(&'py PySlice),
+    Slice(Bound<'py, PySlice>),
 }
 
 #[pyclass]
@@ -22,7 +22,7 @@ impl ExampleContainer {
         ExampleContainer { max_length: 100 }
     }
 
-    fn __getitem__(&self, key: &PyAny) -> PyResult<i32> {
+    fn __getitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<i32> {
         if let Ok(position) = key.extract::<i32>() {
             return Ok(position);
         } else if let Ok(slice) = key.downcast::<PySlice>() {
@@ -62,7 +62,10 @@ impl ExampleContainer {
         match idx {
             IntOrSlice::Slice(slice) => {
                 let index = slice.indices(self.max_length as isize).unwrap();
-                println!("Got a slice! {}-{}, step: {}, value: {}", index.start, index.stop, index.step, value);
+                println!(
+                    "Got a slice! {}-{}, step: {}, value: {}",
+                    index.start, index.stop, index.step, value
+                );
             }
             IntOrSlice::Int(index) => {
                 println!("Got an index! {} : value: {}", index, value);
@@ -74,7 +77,7 @@ impl ExampleContainer {
 
 #[pymodule]
 #[pyo3(name = "getitem")]
-fn example(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn example(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ? -https://github.com/PyO3/maturin/issues/475
     m.add_class::<ExampleContainer>()?;
     Ok(())

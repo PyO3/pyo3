@@ -3,7 +3,9 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    types::{IntoPyDict, PyDict},
+    instance::Bound,
+    types::dict::PyDictMethods,
+    types::{any::PyAnyMethods, IntoPyDict, PyDict},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
@@ -14,7 +16,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        IntoPyDict::into_py_dict_bound(self, py).into()
     }
 }
 
@@ -24,7 +26,7 @@ where
     V: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict(self, py).into()
+        IntoPyDict::into_py_dict_bound(self, py).into()
     }
 }
 
@@ -38,7 +40,7 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict_bound(iter, py).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -56,7 +58,7 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict_bound(iter, py).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -65,17 +67,17 @@ where
     }
 }
 
-impl<'source, K, V, S> FromPyObject<'source> for collections::HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'py> for collections::HashMap<K, V, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObject<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
@@ -86,16 +88,16 @@ where
     }
 }
 
-impl<'source, K, V> FromPyObject<'source> for collections::BTreeMap<K, V>
+impl<'py, K, V> FromPyObject<'py> for collections::BTreeMap<K, V>
 where
-    K: FromPyObject<'source> + cmp::Ord,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'py> + cmp::Ord,
+    V: FromPyObject<'py>,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict: &PyDict = ob.downcast()?;
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
         for (k, v) in dict {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
     }
@@ -109,7 +111,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{IntoPy, PyObject, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -119,7 +120,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -142,7 +143,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -165,7 +166,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(
@@ -187,7 +188,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map: &PyDict = m.downcast(py).unwrap();
+            let py_map = m.downcast_bound::<PyDict>(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(

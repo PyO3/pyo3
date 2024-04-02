@@ -31,7 +31,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+//! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())
 //! }
@@ -47,8 +47,13 @@
 //! assert n + 1 == value
 //! ```
 
+#[cfg(Py_LIMITED_API)]
+use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    ffi, types::*, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    ffi,
+    instance::Bound,
+    types::{any::PyAnyMethods, PyLong},
+    FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -78,16 +83,16 @@ macro_rules! bigint_conversion {
             #[cfg(Py_LIMITED_API)]
             fn to_object(&self, py: Python<'_>) -> PyObject {
                 let bytes = $to_bytes(self);
-                let bytes_obj = PyBytes::new(py, &bytes);
+                let bytes_obj = PyBytes::new_bound(py, &bytes);
                 let kwargs = if $is_signed > 0 {
-                    let kwargs = PyDict::new(py);
+                    let kwargs = crate::types::PyDict::new_bound(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
                     Some(kwargs)
                 } else {
                     None
                 };
-                py.get_type::<PyLong>()
-                    .call_method("from_bytes", (bytes_obj, "little"), kwargs)
+                py.get_type_bound::<PyLong>()
+                    .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
             }
@@ -106,8 +111,8 @@ bigint_conversion!(BigUint, 0, BigUint::to_bytes_le);
 bigint_conversion!(BigInt, 1, BigInt::to_signed_bytes_le);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-impl<'source> FromPyObject<'source> for BigInt {
-    fn extract(ob: &'source PyAny) -> PyResult<BigInt> {
+impl<'py> FromPyObject<'py> for BigInt {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigInt> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyLong>;
@@ -115,7 +120,7 @@ impl<'source> FromPyObject<'source> for BigInt {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.as_ref(py)
+            num_owned.bind(py)
         };
         let n_bits = int_n_bits(num)?;
         if n_bits == 0 {
@@ -154,8 +159,8 @@ impl<'source> FromPyObject<'source> for BigInt {
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-impl<'source> FromPyObject<'source> for BigUint {
-    fn extract(ob: &'source PyAny) -> PyResult<BigUint> {
+impl<'py> FromPyObject<'py> for BigUint {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigUint> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyLong>;
@@ -163,7 +168,7 @@ impl<'source> FromPyObject<'source> for BigUint {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.as_ref(py)
+            num_owned.bind(py)
         };
         let n_bits = int_n_bits(num)?;
         if n_bits == 0 {
@@ -184,7 +189,11 @@ impl<'source> FromPyObject<'source> for BigUint {
 
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
-fn int_to_u32_vec(long: &PyLong, n_digits: usize, is_signed: bool) -> PyResult<Vec<u32>> {
+fn int_to_u32_vec(
+    long: &Bound<'_, PyLong>,
+    n_digits: usize,
+    is_signed: bool,
+) -> PyResult<Vec<u32>> {
     let mut buffer = Vec::with_capacity(n_digits);
     unsafe {
         crate::err::error_on_minusone(
@@ -207,11 +216,15 @@ fn int_to_u32_vec(long: &PyLong, n_digits: usize, is_signed: bool) -> PyResult<V
 }
 
 #[cfg(Py_LIMITED_API)]
-fn int_to_py_bytes(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<&PyBytes> {
+fn int_to_py_bytes<'py>(
+    long: &Bound<'py, PyLong>,
+    n_bytes: usize,
+    is_signed: bool,
+) -> PyResult<Bound<'py, PyBytes>> {
     use crate::intern;
     let py = long.py();
     let kwargs = if is_signed {
-        let kwargs = PyDict::new(py);
+        let kwargs = crate::types::PyDict::new_bound(py);
         kwargs.set_item(intern!(py, "signed"), true)?;
         Some(kwargs)
     } else {
@@ -220,13 +233,13 @@ fn int_to_py_bytes(long: &PyLong, n_bytes: usize, is_signed: bool) -> PyResult<&
     let bytes = long.call_method(
         intern!(py, "to_bytes"),
         (n_bytes, intern!(py, "little")),
-        kwargs,
+        kwargs.as_ref(),
     )?;
-    Ok(bytes.downcast()?)
+    Ok(bytes.downcast_into()?)
 }
 
 #[inline]
-fn int_n_bits(long: &PyLong) -> PyResult<usize> {
+fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
     let py = long.py();
     #[cfg(not(Py_LIMITED_API))]
     {
@@ -242,7 +255,7 @@ fn int_n_bits(long: &PyLong) -> PyResult<usize> {
     {
         // slow path
         long.call_method0(crate::intern!(py, "bit_length"))
-            .and_then(PyAny::extract)
+            .and_then(|any| any.extract())
     }
 }
 
@@ -269,7 +282,7 @@ mod tests {
         let mut f0 = 1.to_object(py);
         let mut f1 = 1.to_object(py);
         std::iter::from_fn(move || {
-            let f2 = f0.call_method1(py, "__add__", (f1.as_ref(py),)).unwrap();
+            let f2 = f0.call_method1(py, "__add__", (f1.bind(py),)).unwrap();
             Some(std::mem::replace(&mut f0, std::mem::replace(&mut f1, f2)))
         })
     }
@@ -282,7 +295,7 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigUint>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(rs_result).unwrap());
+                assert!(py_result.bind(py).eq(rs_result).unwrap());
             }
         });
     }
@@ -295,7 +308,7 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(&rs_result).unwrap());
+                assert!(py_result.bind(py).eq(&rs_result).unwrap());
 
                 // negate
 
@@ -305,12 +318,12 @@ mod tests {
                 // Python -> Rust
                 assert_eq!(py_result.extract::<BigInt>(py).unwrap(), rs_result);
                 // Rust -> Python
-                assert!(py_result.as_ref(py).eq(rs_result).unwrap());
+                assert!(py_result.bind(py).eq(rs_result).unwrap());
             }
         });
     }
 
-    fn python_index_class(py: Python<'_>) -> &PyModule {
+    fn python_index_class(py: Python<'_>) -> Bound<'_, PyModule> {
         let index_code = indoc!(
             r#"
                 class C:
@@ -320,17 +333,17 @@ mod tests {
                         return self.x
                 "#
         );
-        PyModule::from_code(py, index_code, "index.py", "index").unwrap()
+        PyModule::from_code_bound(py, index_code, "index.py", "index").unwrap()
     }
 
     #[test]
     fn convert_index_class() {
         Python::with_gil(|py| {
             let index = python_index_class(py);
-            let locals = PyDict::new(py);
+            let locals = PyDict::new_bound(py);
             locals.set_item("index", index).unwrap();
-            let ob = py.eval("index.C(10)", None, Some(locals)).unwrap();
-            let _: BigInt = FromPyObject::extract(ob).unwrap();
+            let ob = py.eval_bound("index.C(10)", None, Some(&locals)).unwrap();
+            let _: BigInt = ob.extract().unwrap();
         });
     }
 

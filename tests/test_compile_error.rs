@@ -18,6 +18,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
+    #[cfg(not(feature = "gil-refs"))]
     t.compile_fail("tests/ui/deprecations.rs");
     t.compile_fail("tests/ui/invalid_closure.rs");
     t.compile_fail("tests/ui/pyclass_send.rs");
@@ -27,7 +28,8 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
-    #[cfg(Py_LIMITED_API)]
+    // output changes with async feature
+    #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     t.compile_fail("tests/ui/invalid_intern_arg.rs");
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
@@ -40,4 +42,15 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/not_send2.rs");
     t.compile_fail("tests/ui/get_set_all.rs");
     t.compile_fail("tests/ui/traverse.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_in_root.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_glob.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_trait.rs");
+    #[cfg(feature = "experimental-declarative-modules")]
+    t.compile_fail("tests/ui/invalid_pymodule_two_pymodule_init.rs");
+    #[cfg(feature = "experimental-async")]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))] // to avoid PyFunctionArgument for &str
+    t.compile_fail("tests/ui/invalid_cancel_handle.rs");
 }

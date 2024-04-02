@@ -34,7 +34,6 @@
 //!
 //! ```rust
 //! use pyo3::prelude::*;
-//! use pyo3::wrap_pyfunction;
 //! use std::path::PathBuf;
 //!
 //! // A wrapper around a Rust function.
@@ -47,7 +46,7 @@
 //!
 //! fn main() {
 //!     let error = Python::with_gil(|py| -> PyResult<Vec<u8>> {
-//!         let fun = wrap_pyfunction!(py_open, py)?;
+//!         let fun = wrap_pyfunction_bound!(py_open, py)?;
 //!         let text = fun.call1(("foo.txt",))?.extract::<Vec<u8>>()?;
 //!         Ok(text)
 //!     }).unwrap_err();
@@ -74,9 +73,9 @@
 //!     // could call inside an application...
 //!     // This might return a `PyErr`.
 //!     let res = Python::with_gil(|py| {
-//!         let zlib = PyModule::import(py, "zlib")?;
+//!         let zlib = PyModule::import_bound(py, "zlib")?;
 //!         let decompress = zlib.getattr("decompress")?;
-//!         let bytes = PyBytes::new(py, bytes);
+//!         let bytes = PyBytes::new_bound(py, bytes);
 //!         let value = decompress.call1((bytes,))?;
 //!         value.extract::<Vec<u8>>()
 //!     })?;
@@ -152,9 +151,9 @@ mod tests {
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
-            assert_eq!(pyerr.value(py).to_string(), expected_contents);
+            let locals = [("err", pyerr)].into_py_dict_bound(py);
+            let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
+            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
         })
     }
 
@@ -169,9 +168,9 @@ mod tests {
         let pyerr = PyErr::from(err);
 
         Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
-            assert_eq!(pyerr.value(py).to_string(), expected_contents);
+            let locals = [("err", pyerr)].into_py_dict_bound(py);
+            let pyerr = py.run_bound("raise err", None, Some(&locals)).unwrap_err();
+            assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
         })
     }
 

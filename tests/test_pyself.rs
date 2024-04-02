@@ -3,7 +3,6 @@
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::PyCell;
 use std::collections::HashMap;
 
 #[path = "../src/tests/common.rs"]
@@ -19,15 +18,18 @@ struct Reader {
 
 #[pymethods]
 impl Reader {
-    fn clone_ref(slf: &PyCell<Self>) -> &PyCell<Self> {
+    fn clone_ref<'a, 'py>(slf: &'a Bound<'py, Self>) -> &'a Bound<'py, Self> {
         slf
     }
-    fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<Self> {
+    fn clone_ref_with_py<'a, 'py>(
+        slf: &'a Bound<'py, Self>,
+        _py: Python<'py>,
+    ) -> &'a Bound<'py, Self> {
         slf
     }
-    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> Iter {
+    fn get_iter(slf: &Bound<'_, Self>, keys: Py<PyBytes>) -> Iter {
         Iter {
-            reader: slf.into(),
+            reader: slf.clone().unbind(),
             keys,
             idx: 0,
         }
@@ -63,17 +65,17 @@ impl Iter {
     }
 
     fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyObject>> {
-        let bytes = slf.keys.as_ref(slf.py()).as_bytes();
+        let bytes = slf.keys.bind(slf.py()).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
                 slf.idx += 1;
                 let py = slf.py();
-                let reader = slf.reader.as_ref(py);
+                let reader = slf.reader.bind(py);
                 let reader_ref = reader.try_borrow()?;
                 let res = reader_ref
                     .inner
                     .get(&b)
-                    .map(|s| PyString::new(py, s).into());
+                    .map(|s| PyString::new_bound(py, s).into());
                 Ok(res)
             }
             None => Ok(None),
@@ -112,7 +114,7 @@ fn test_clone_ref() {
 #[test]
 fn test_nested_iter_reset() {
     Python::with_gil(|py| {
-        let reader = PyCell::new(py, reader()).unwrap();
+        let reader = Bound::new(py, reader()).unwrap();
         py_assert!(
             py,
             reader,

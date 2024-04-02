@@ -14,10 +14,10 @@ use crate::{
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
-///     let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
+///     let list = py.eval_bound("iter([1, 2, 3, 4])", None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .iter()?
-///         .map(|i| i.and_then(PyAny::extract::<usize>))
+///         .map(|i| i.and_then(|i|i.extract::<usize>()))
 ///         .collect();
 ///     let sum: usize = numbers?.iter().sum();
 ///     assert_eq!(sum, 10);
@@ -111,10 +111,19 @@ impl<'py> Borrowed<'_, 'py, PyIterator> {
     }
 }
 
+impl<'py> IntoIterator for &Bound<'py, PyIterator> {
+    type Item = PyResult<Bound<'py, PyAny>>;
+    type IntoIter = Bound<'py, PyIterator>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.clone()
+    }
+}
+
 impl PyTypeCheck for PyIterator {
     const NAME: &'static str = "Iterator";
 
-    fn type_check(object: &PyAny) -> bool {
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
     }
 }
@@ -243,6 +252,39 @@ def fibonacci(target):
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
             }
+        });
+    }
+
+    #[test]
+    fn fibonacci_generator_bound() {
+        use crate::types::any::PyAnyMethods;
+        use crate::Bound;
+
+        let fibonacci_generator = r#"
+def fibonacci(target):
+    a = 1
+    b = 1
+    for _ in range(target):
+        yield a
+        a, b = b, a + b
+"#;
+
+        Python::with_gil(|py| {
+            let context = PyDict::new_bound(py);
+            py.run_bound(fibonacci_generator, None, Some(&context))
+                .unwrap();
+
+            let generator: Bound<'_, PyIterator> = py
+                .eval_bound("fibonacci(5)", None, Some(&context))
+                .unwrap()
+                .downcast_into()
+                .unwrap();
+            let mut items = vec![];
+            for actual in &generator {
+                let actual = actual.unwrap().extract::<usize>().unwrap();
+                items.push(actual);
+            }
+            assert_eq!(items, [1, 1, 2, 3, 5]);
         });
     }
 

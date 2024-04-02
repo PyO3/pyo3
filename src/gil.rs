@@ -67,7 +67,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
 /// software). Support for this is tracked on the
-/// [PyPy issue tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3286).
+/// [PyPy issue tracker](https://github.com/pypy/pypy/issues/3836).
 ///
 /// # Examples
 /// ```rust
@@ -75,10 +75,10 @@ fn gil_is_acquired() -> bool {
 ///
 /// # fn main() -> PyResult<()> {
 /// pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| py.run("print('Hello World')", None, None))
+/// Python::with_gil(|py| py.run_bound("print('Hello World')", None, None))
 /// # }
 /// ```
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
@@ -118,14 +118,14 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run("print('Hello World')", None, None) {
+///         if let Err(e) = py.run_bound("print('Hello World')", None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }
 ///     });
 /// }
 /// ```
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where
     F: for<'p> FnOnce(Python<'p>) -> R,
@@ -139,11 +139,12 @@ where
     ffi::Py_InitializeEx(0);
 
     // Safety: the GIL is already held because of the Py_IntializeEx call.
+    #[allow(deprecated)] // TODO: remove this with the GIL Refs feature in 0.22
     let pool = GILPool::new();
 
     // Import the threading module - this ensures that it will associate this thread as the "main"
     // thread, which is important to avoid an `AssertionError` at finalization.
-    pool.python().import("threading").unwrap();
+    pool.python().import_bound("threading").unwrap();
 
     // Execute the closure.
     let result = f(pool.python());
@@ -160,6 +161,7 @@ where
 /// RAII type that represents the Global Interpreter Lock acquisition.
 pub(crate) struct GILGuard {
     gstate: ffi::PyGILState_STATE,
+    #[allow(deprecated)] // TODO: remove this with the gil-refs feature in 0.22
     pool: mem::ManuallyDrop<GILPool>,
 }
 
@@ -180,14 +182,14 @@ impl GILGuard {
         //    auto-initialize so this avoids breaking existing builds.
         //  - Otherwise, just check the GIL is initialized.
         cfg_if::cfg_if! {
-            if #[cfg(all(feature = "auto-initialize", not(PyPy)))] {
+            if #[cfg(all(feature = "auto-initialize", not(any(PyPy, GraalPy))))] {
                 prepare_freethreaded_python();
             } else {
                 // This is a "hack" to make running `cargo test` for PyO3 convenient (i.e. no need
                 // to specify `--features auto-initialize` manually. Tests within the crate itself
                 // all depend on the auto-initialize feature for conciseness but Cargo does not
                 // provide a mechanism to specify required features for tests.
-                #[cfg(not(PyPy))]
+                #[cfg(not(any(PyPy, GraalPy)))]
                 if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
                     prepare_freethreaded_python();
                 }
@@ -222,6 +224,7 @@ impl GILGuard {
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        #[allow(deprecated)]
         let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
 
         Some(GILGuard { gstate, pool })
@@ -358,6 +361,13 @@ impl Drop for LockGIL {
 
 ///
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
+#[cfg_attr(
+    not(feature = "gil-refs"),
+    deprecated(
+        since = "0.21.0",
+        note = "`GILPool` has no function if PyO3's deprecated GIL Refs API is not used"
+    )
+)]
 pub struct GILPool {
     /// Initial length of owned objects and anys.
     /// `Option` is used since TSL can be broken when `new` is called from `atexit`.
@@ -365,6 +375,7 @@ pub struct GILPool {
     _not_send: NotSend,
 }
 
+#[allow(deprecated)]
 impl GILPool {
     /// Creates a new [`GILPool`]. This function should only ever be called with the GIL held.
     ///
@@ -401,6 +412,7 @@ impl GILPool {
     }
 }
 
+#[allow(deprecated)]
 impl Drop for GILPool {
     fn drop(&mut self) {
         if let Some(start) = self.start {
@@ -506,20 +518,17 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod tests {
-    use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
-    use crate::{ffi, gil, PyObject, Python, ToPyObject};
+    #[allow(deprecated)]
+    use super::GILPool;
+    use super::{gil_is_acquired, GIL_COUNT, OWNED_OBJECTS, POOL};
+    use crate::types::any::PyAnyMethods;
+    use crate::{ffi, gil, PyObject, Python};
     #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::{const_mutex, Condvar, Mutex};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
-        // Convenience function for getting a single unique object, using `new_pool` so as to leave
-        // the original pool state unchanged.
-        let pool = unsafe { py.new_pool() };
-        let py = pool.python();
-
-        let obj = py.eval("object()", None, None).unwrap();
-        obj.to_object(py)
+        py.eval_bound("object()", None, None).unwrap().unbind()
     }
 
     fn owned_object_count() -> usize {
@@ -547,14 +556,15 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn pool_dirty_with(
-        inc_refs: Vec<NonNull<ffi::PyObject>>,
-        dec_refs: Vec<NonNull<ffi::PyObject>>,
-    ) -> bool {
-        *POOL.pointer_ops.lock() == (inc_refs, dec_refs)
+    fn pool_dec_refs_contains(obj: &PyObject) -> bool {
+        POOL.pointer_ops
+            .lock()
+            .1
+            .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_owned() {
         Python::with_gil(|py| {
             let obj = get_object(py);
@@ -580,6 +590,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_owned_nested() {
         Python::with_gil(|py| {
             let obj = get_object(py);
@@ -622,11 +633,13 @@ mod tests {
 
             assert_eq!(obj.get_refcnt(py), 2);
             assert!(pool_inc_refs_does_not_contain(&obj));
+            assert!(pool_dec_refs_does_not_contain(&obj));
 
-            // With the GIL held, reference cound will be decreased immediately.
+            // With the GIL held, reference count will be decreased immediately.
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
+            assert!(pool_inc_refs_does_not_contain(&obj));
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
@@ -641,6 +654,7 @@ mod tests {
 
             assert_eq!(obj.get_refcnt(py), 2);
             assert!(pool_inc_refs_does_not_contain(&obj));
+            assert!(pool_dec_refs_does_not_contain(&obj));
 
             // Drop reference in a separate thread which doesn't have the GIL.
             std::thread::spawn(move || drop(reference)).join().unwrap();
@@ -648,10 +662,8 @@ mod tests {
             // The reference count should not have changed (the GIL has always
             // been held by this thread), it is remembered to release later.
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_dirty_with(
-                vec![],
-                vec![NonNull::new(obj.as_ptr()).unwrap()]
-            ));
+            assert!(pool_inc_refs_does_not_contain(&obj));
+            assert!(pool_dec_refs_contains(&obj));
             obj
         });
 
@@ -665,6 +677,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_gil_counts() {
         // Check with_gil and GILPool both increase counts correctly
         let get_gil_count = || GIL_COUNT.with(|c| c.get());
@@ -735,7 +748,7 @@ mod tests {
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
         Python::with_gil(|py| {
-            let obj = Python::with_gil(|_| py.eval("object()", None, None).unwrap());
+            let obj = Python::with_gil(|_| py.eval_bound("object()", None, None).unwrap());
 
             // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);
@@ -905,6 +918,7 @@ mod tests {
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
                 // This line will implicitly call update_counts
                 // -> and so cause deadlock if update_counts is not handling recursion correctly.
+                #[allow(deprecated)]
                 let pool = GILPool::new();
 
                 // Rebuild obj so that it can be dropped

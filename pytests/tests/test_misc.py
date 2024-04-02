@@ -2,7 +2,6 @@ import importlib
 import platform
 import sys
 
-import gevent
 import pyo3_pytests.misc
 import pytest
 
@@ -28,8 +27,8 @@ def test_multiple_imports_same_interpreter_ok():
     reason="Cannot identify subinterpreters on Python older than 3.9",
 )
 @pytest.mark.skipif(
-    platform.python_implementation() == "PyPy",
-    reason="PyPy does not support subinterpreters",
+    platform.python_implementation() in ("PyPy", "GraalVM"),
+    reason="PyPy and GraalPy do not support subinterpreters",
 )
 def test_import_in_subinterpreter_forbidden():
     import _xxsubinterpreters
@@ -83,6 +82,8 @@ class ArbitraryClass:
 
 
 def test_gevent():
+    gevent = pytest.importorskip("gevent")
+
     def worker(worker_id: int) -> None:
         for iteration in range(2):
             d = {"key": ArbitraryClass(worker_id, iteration)}

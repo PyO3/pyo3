@@ -2,7 +2,10 @@ use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criter
 
 use pyo3::prelude::*;
 use pyo3::types::PySet;
-use std::collections::{BTreeSet, HashSet};
+use std::{
+    collections::{BTreeSet, HashSet},
+    hint::black_box,
+};
 
 fn set_new(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
@@ -10,21 +13,17 @@ fn set_new(b: &mut Bencher<'_>) {
         // Create Python objects up-front, so that the benchmark doesn't need to include
         // the cost of allocating LEN Python integers
         let elements: Vec<PyObject> = (0..LEN).map(|i| i.into_py(py)).collect();
-        b.iter(|| {
-            let pool = unsafe { py.new_pool() };
-            PySet::new(py, &elements).unwrap();
-            drop(pool);
-        });
+        b.iter_with_large_drop(|| PySet::new_bound(py, &elements).unwrap());
     });
 }
 
 fn iter_set(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
+        let set = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
         let mut sum = 0;
         b.iter(|| {
-            for x in set {
+            for x in &set {
                 let i: u64 = x.extract().unwrap();
                 sum += i;
             }
@@ -35,16 +34,20 @@ fn iter_set(b: &mut Bencher<'_>) {
 fn extract_hashset(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-        b.iter(|| HashSet::<u64>::extract(set));
+        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+            .unwrap()
+            .into_any();
+        b.iter_with_large_drop(|| black_box(&any).extract::<HashSet<u64>>());
     });
 }
 
 fn extract_btreeset(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-        b.iter(|| BTreeSet::<u64>::extract(set));
+        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+            .unwrap()
+            .into_any();
+        b.iter_with_large_drop(|| black_box(&any).extract::<BTreeSet<u64>>());
     });
 }
 
@@ -52,8 +55,10 @@ fn extract_btreeset(b: &mut Bencher<'_>) {
 fn extract_hashbrown_set(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-        b.iter(|| hashbrown::HashSet::<u64>::extract(set));
+        let any = PySet::new_bound(py, &(0..LEN).collect::<Vec<_>>())
+            .unwrap()
+            .into_any();
+        b.iter_with_large_drop(|| black_box(&any).extract::<hashbrown::HashSet<u64>>());
     });
 }
 

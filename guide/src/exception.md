@@ -24,7 +24,7 @@ use pyo3::exceptions::PyException;
 create_exception!(mymodule, CustomError, PyException);
 
 Python::with_gil(|py| {
-    let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py);
+    let ctx = [("CustomError", py.get_type_bound::<CustomError>())].into_py_dict_bound(py);
     pyo3::py_run!(
         py,
         *ctx,
@@ -44,9 +44,9 @@ use pyo3::exceptions::PyException;
 pyo3::create_exception!(mymodule, CustomError, PyException);
 
 #[pymodule]
-fn mymodule(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn mymodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ... other elements added to module ...
-    m.add("CustomError", py.get_type::<CustomError>())?;
+    m.add("CustomError", py.get_type_bound::<CustomError>())?;
 
     Ok(())
 }
@@ -54,7 +54,7 @@ fn mymodule(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 ## Raising an exception
 
-As described in the [function error handling](./function/error_handling.md) chapter, to raise an exception from a `#[pyfunction]` or `#[pymethods]`, return an `Err(PyErr)`. PyO3 will automatically raise this exception for you when returning the result to Python.
+As described in the [function error handling](./function/error-handling.md) chapter, to raise an exception from a `#[pyfunction]` or `#[pymethods]`, return an `Err(PyErr)`. PyO3 will automatically raise this exception for you when returning the result to Python.
 
 You can also manually write and fetch errors in the Python interpreter's global state:
 
@@ -75,12 +75,12 @@ Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#is
 In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`] methods which do the same thing.
 
 ```rust
-use pyo3::Python;
+use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyList};
 
 Python::with_gil(|py| {
-    assert!(PyBool::new(py, true).is_instance_of::<PyBool>());
-    let list = PyList::new(py, &[1, 2, 3, 4]);
+    assert!(PyBool::new_bound(py, true).is_instance_of::<PyBool>());
+    let list = PyList::new_bound(py, &[1, 2, 3, 4]);
     assert!(!list.is_instance_of::<PyBool>());
     assert!(list.is_instance_of::<PyList>());
 });
@@ -111,7 +111,7 @@ mod io {
     pyo3::import_exception!(io, UnsupportedOperation);
 }
 
-fn tell(file: &PyAny) -> PyResult<u64> {
+fn tell(file: &Bound<'_, PyAny>) -> PyResult<u64> {
     match file.call_method0("tell") {
         Err(_) => Err(io::UnsupportedOperation::new_err("not supported: tell")),
         Ok(x) => x.extract::<u64>(),
@@ -128,5 +128,5 @@ defines exceptions for several standard library modules.
 [`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
 [`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
 [`PyErr::from_value`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_value
-[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance
-[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance_of
+[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance
+[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.is_instance_of
