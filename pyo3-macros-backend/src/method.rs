@@ -29,14 +29,12 @@ pub struct RegularArg<'a> {
 pub struct VarArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
-    pub attrs: PyFunctionArgPyO3Attributes,
 }
 
 #[derive(Clone, Debug)]
 pub struct KwArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
-    pub attrs: PyFunctionArgPyO3Attributes,
 }
 
 #[derive(Clone, Debug)]
@@ -94,19 +92,11 @@ impl<'a> FnArg<'a> {
         if let Self::Regular(RegularArg {
             name,
             ty,
-            attrs,
             option_wrapped_type: None,
             ..
         }) = self
         {
-            let attrs = std::mem::replace(
-                attrs,
-                PyFunctionArgPyO3Attributes {
-                    from_py_with: None,
-                    cancel_handle: None,
-                },
-            );
-            *self = Self::VarArgs(VarArg { name, ty, attrs });
+            *self = Self::VarArgs(VarArg { name, ty });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "args cannot be optional")
@@ -117,19 +107,11 @@ impl<'a> FnArg<'a> {
         if let Self::Regular(RegularArg {
             name,
             ty,
-            attrs,
             option_wrapped_type: Some(..),
             ..
         }) = self
         {
-            let attrs = std::mem::replace(
-                attrs,
-                PyFunctionArgPyO3Attributes {
-                    from_py_with: None,
-                    cancel_handle: None,
-                },
-            );
-            *self = Self::KwArgs(KwArg { name, ty, attrs });
+            *self = Self::KwArgs(KwArg { name, ty });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "kwargs must be Option<_>")
