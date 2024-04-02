@@ -10,7 +10,7 @@ use syn::{
 
 use crate::{
     attributes::{kw, KeywordAttribute},
-    method::{FnArg, FnArgKind},
+    method::{FnArg, RegularArg},
 };
 
 pub struct Signature {
@@ -351,22 +351,22 @@ impl<'a> FunctionSignature<'a> {
 
         let mut next_non_py_argument_checked = |name: &syn::Ident| {
             for fn_arg in args_iter.by_ref() {
-                match fn_arg.kind {
-                    crate::method::FnArgKind::Py => {
+                match fn_arg {
+                    crate::method::FnArg::Py(..) => {
                         // If the user incorrectly tried to include py: Python in the
                         // signature, give a useful error as a hint.
                         ensure_spanned!(
-                            name != fn_arg.name,
+                            name != fn_arg.name(),
                             name.span() => "arguments of type `Python` must not be part of the signature"
                         );
                         // Otherwise try next argument.
                         continue;
                     }
-                    crate::method::FnArgKind::CancelHandle => {
+                    crate::method::FnArg::CancelHandle(..) => {
                         // If the user incorrectly tried to include cancel: CoroutineCancel in the
                         // signature, give a useful error as a hint.
                         ensure_spanned!(
-                            name != fn_arg.name,
+                            name != fn_arg.name(),
                             name.span() => "`cancel_handle` argument must not be part of the signature"
                         );
                         // Otherwise try next argument.
@@ -374,10 +374,10 @@ impl<'a> FunctionSignature<'a> {
                     }
                     _ => {
                         ensure_spanned!(
-                            name == fn_arg.name,
+                            name == fn_arg.name(),
                             name.span() => format!(
                                 "expected argument from function definition `{}` but got argument `{}`",
-                                fn_arg.name.unraw(),
+                                fn_arg.name().unraw(),
                                 name.unraw(),
                             )
                         );
@@ -400,13 +400,13 @@ impl<'a> FunctionSignature<'a> {
                         arg.eq_and_default.is_none(),
                         arg.span(),
                     )?;
-                    if let Some((_, default_expr)) = &arg.eq_and_default {
-                        if let FnArgKind::Regular { default, .. } = &mut fn_arg.kind {
-                            *default = Some(default_expr.clone());
+                    if let Some((_, default)) = &arg.eq_and_default {
+                        if let FnArg::Regular(arg) = fn_arg {
+                            arg.default_value = Some(default.clone());
                         } else {
                             // FIXME: In what case can this happen? What should the error message be?
                             bail_spanned!(
-                                default_expr.span() => "todo"
+                                default.span() => "todo"
                             )
                         }
                     }
@@ -416,20 +416,12 @@ impl<'a> FunctionSignature<'a> {
                 }
                 SignatureItem::Varargs(varargs) => {
                     let fn_arg = next_non_py_argument_checked(&varargs.ident)?;
-                    ensure_spanned!(
-                        matches!(fn_arg.kind, FnArgKind::Regular { ty_opt: None, .. }),
-                        fn_arg.name.span() => "args cannot be optional"
-                    );
-                    fn_arg.kind = FnArgKind::VarArgs;
+                    fn_arg.to_varargs_mut()?;
                     parse_state.add_varargs(&mut python_signature, varargs)?;
                 }
                 SignatureItem::Kwargs(kwargs) => {
                     let fn_arg = next_non_py_argument_checked(&kwargs.ident)?;
-                    ensure_spanned!(
-                        matches!(fn_arg.kind, FnArgKind::Regular { ty_opt: Some(_), .. }),
-                        fn_arg.name.span() => "kwargs must be Option<_>"
-                    );
-                    fn_arg.kind = FnArgKind::KwArgs;
+                    fn_arg.to_kwargs_mut()?;
                     parse_state.add_kwargs(&mut python_signature, kwargs)?;
                 }
                 SignatureItem::PosargsSep(sep) => {
@@ -440,10 +432,10 @@ impl<'a> FunctionSignature<'a> {
 
         // Ensure no non-py arguments remain
         if let Some(arg) =
-            args_iter.find(|arg| !matches!(arg.kind, FnArgKind::Py | FnArgKind::CancelHandle))
+            args_iter.find(|arg| !matches!(arg, FnArg::Py(..) | FnArg::CancelHandle(..)))
         {
             bail_spanned!(
-                attribute.kw.span() => format!("missing signature entry for argument `{}`", arg.name)
+                attribute.kw.span() => format!("missing signature entry for argument `{}`", arg.name())
             );
         }
 
@@ -459,15 +451,20 @@ impl<'a> FunctionSignature<'a> {
         let mut python_signature = PythonSignature::default();
         for arg in &arguments {
             // Python<'_> arguments don't show in Python signature
-            if matches!(arg.kind, FnArgKind::Py | FnArgKind::CancelHandle) {
+            if matches!(arg, FnArg::Py(..) | FnArg::CancelHandle(..)) {
                 continue;
             }
 
-            if matches!(arg.kind, FnArgKind::Regular { ty_opt: None, .. }) {
+            if let FnArg::Regular(RegularArg {
+                ty,
+                option_wrapped_type: None,
+                ..
+            }) = arg
+            {
                 // This argument is required, all previous arguments must also have been required
                 ensure_spanned!(
                     python_signature.required_positional_parameters == python_signature.positional_parameters.len(),
-                    arg.ty.span() => "required arguments after an `Option<_>` argument are ambiguous\n\
+                    ty.span() => "required arguments after an `Option<_>` argument are ambiguous\n\
                     = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters"
                 );
 
@@ -477,7 +474,7 @@ impl<'a> FunctionSignature<'a> {
 
             python_signature
                 .positional_parameters
-                .push(arg.name.unraw().to_string());
+                .push(arg.name().unraw().to_string());
         }
 
         Ok(Self {
@@ -489,15 +486,11 @@ impl<'a> FunctionSignature<'a> {
 
     fn default_value_for_parameter(&self, parameter: &str) -> String {
         let mut default = "...".to_string();
-        if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name == parameter) {
-            if let FnArg {
-                kind:
-                    FnArgKind::Regular {
-                        default: Some(arg_default),
-                        ..
-                    },
+        if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name() == parameter) {
+            if let FnArg::Regular(RegularArg {
+                default_value: Some(arg_default),
                 ..
-            } = fn_arg
+            }) = fn_arg
             {
                 match arg_default {
                     // literal values
@@ -524,13 +517,10 @@ impl<'a> FunctionSignature<'a> {
                     // others, unsupported yet so defaults to `...`
                     _ => {}
                 }
-            } else if let FnArg {
-                kind:
-                    FnArgKind::Regular {
-                        ty_opt: Some(..), ..
-                    },
+            } else if let FnArg::Regular(RegularArg {
+                option_wrapped_type: Some(..),
                 ..
-            } = fn_arg
+            }) = fn_arg
             {
                 // functions without a `#[pyo3(signature = (...))]` option
                 // will treat trailing `Option<T>` arguments as having a default of `None`

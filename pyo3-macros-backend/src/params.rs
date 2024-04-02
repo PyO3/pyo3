@@ -1,11 +1,11 @@
 use crate::utils::Ctx;
 use crate::{
-    method::{FnArg, FnArgKind, FnSpec},
+    method::{FnArg, FnSpec, RegularArg},
     pyfunction::FunctionSignature,
     quotes::some_wrap,
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned};
 use syn::spanned::Spanned;
 
 pub struct Holders {
@@ -59,16 +59,7 @@ impl Holders {
 pub fn is_forwarded_args(signature: &FunctionSignature<'_>) -> bool {
     matches!(
         signature.arguments.as_slice(),
-        [
-            FnArg {
-                kind: FnArgKind::VarArgs,
-                ..
-            },
-            FnArg {
-                kind: FnArgKind::KwArgs,
-                ..
-            },
-        ]
+        [FnArg::VarArgs(..), FnArg::KwArgs(..),]
     )
 }
 
@@ -99,9 +90,8 @@ pub fn impl_arg_params(
         .iter()
         .enumerate()
         .filter_map(|(i, arg)| {
-            let from_py_with = &arg.attrs.from_py_with.as_ref()?.value;
-            let from_py_with_holder =
-                syn::Ident::new(&format!("from_py_with_{}", i), Span::call_site());
+            let from_py_with = &arg.from_py_with().as_ref()?.value;
+            let from_py_with_holder = format_ident!("from_py_with_{}", i);
             Some(quote_spanned! { from_py_with.span() =>
                 let e = #pyo3_path::impl_::deprecations::GilRefs::new();
                 let #from_py_with_holder = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
@@ -229,15 +219,15 @@ fn impl_arg_param(
     let Ctx { pyo3_path } = ctx;
     let args_array = syn::Ident::new("output", Span::call_site());
 
-    match arg.kind {
-        FnArgKind::Regular { .. } => {
-            let from_py_with = syn::Ident::new(&format!("from_py_with_{}", pos), Span::call_site());
+    match arg {
+        FnArg::Regular(arg) => {
+            let from_py_with = format_ident!("from_py_with_{}", pos);
             let arg_value = quote!(#args_array[#option_pos].as_deref());
             *option_pos += 1;
             let tokens = impl_regular_arg_param(arg, from_py_with, arg_value, holders, ctx);
             check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx)
         }
-        FnArgKind::VarArgs => {
+        FnArg::VarArgs(arg) => {
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
@@ -248,7 +238,7 @@ fn impl_arg_param(
                 )?
             }
         }
-        FnArgKind::KwArgs => {
+        FnArg::KwArgs(arg) => {
             let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
@@ -260,52 +250,43 @@ fn impl_arg_param(
                 )?
             }
         }
-        FnArgKind::Py => quote! { py },
-        FnArgKind::CancelHandle { .. } => quote! { __cancel_handle },
+        FnArg::Py(..) => quote! { py },
+        FnArg::CancelHandle(..) => quote! { __cancel_handle },
     }
 }
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument
 /// index and the index in option diverge when using py: Python
 pub(crate) fn impl_regular_arg_param(
-    arg: &FnArg<'_>,
+    arg: &RegularArg<'_>,
     from_py_with: syn::Ident,
     arg_value: TokenStream, // expected type: Option<&'a Bound<'py, PyAny>>
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> TokenStream {
-    // FIXME: Is there a better way to guarantee this in the type system?
-    let FnArg {
-        name,
-        ty,
-        attrs,
-        kind: FnArgKind::Regular { default, ty_opt },
-    } = arg
-    else {
-        unreachable!()
-    };
     let Ctx { pyo3_path } = ctx;
-    let pyo3_path = pyo3_path.to_tokens_spanned(ty.span());
+    let pyo3_path = pyo3_path.to_tokens_spanned(arg.ty.span());
 
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
     macro_rules! quote_arg_span {
-        ($($tokens:tt)*) => { quote_spanned!(ty.span() => $($tokens)*) }
+        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => $($tokens)*) }
     }
 
-    let name_str = name.to_string();
-    let mut default = default.as_ref().map(|expr| quote!(#expr));
+    let name_str = arg.name.to_string();
+    let mut default = arg.default_value.as_ref().map(|expr| quote!(#expr));
 
     // Option<T> arguments have special treatment: the default should be specified _without_ the
     // Some() wrapper. Maybe this should be changed in future?!
-    if ty_opt.is_some() {
+    if arg.option_wrapped_type.is_some() {
         default = Some(default.map_or_else(
             || quote!(::std::option::Option::None),
             |tokens| some_wrap(tokens, ctx),
         ));
     }
 
-    if attrs
+    if arg
+        .attrs
         .from_py_with
         .as_ref()
         .map(|attr| &attr.value)
@@ -332,7 +313,7 @@ pub(crate) fn impl_regular_arg_param(
                 )?
             }
         }
-    } else if ty_opt.is_some() {
+    } else if arg.option_wrapped_type.is_some() {
         let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_optional_argument(
@@ -346,7 +327,7 @@ pub(crate) fn impl_regular_arg_param(
             )?
         }
     } else if let Some(default) = default {
-        let holder = holders.push_holder(name.span());
+        let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                 #arg_value,
@@ -359,7 +340,7 @@ pub(crate) fn impl_regular_arg_param(
             )?
         }
     } else {
-        let holder = holders.push_holder(name.span());
+        let holder = holders.push_holder(arg.name.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value),

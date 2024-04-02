@@ -7,7 +7,7 @@ use crate::attributes::{
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
-use crate::method::{FnArg, FnArgKind, FnSpec};
+use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -1148,24 +1148,20 @@ fn complex_enum_struct_variant_new<'a>(
 
         let mut args = vec![
             // py: Python<'_>
-            FnArg {
+            FnArg::Py(PyArg {
                 name: &arg_py_ident,
                 ty: &arg_py_type,
-                attrs: attrs.clone(),
-                kind: FnArgKind::Py,
-            },
+            }),
         ];
 
         for field in &variant.fields {
-            args.push(FnArg {
+            args.push(FnArg::Regular(RegularArg {
                 name: field.ident,
                 ty: field.ty,
                 attrs: attrs.clone(),
-                kind: FnArgKind::Regular {
-                    default: None,
-                    ty_opt: None,
-                },
-            });
+                default_value: None,
+                option_wrapped_type: None,
+            }));
         }
         args
     };

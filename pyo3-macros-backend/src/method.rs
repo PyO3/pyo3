@@ -6,7 +6,7 @@ use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::utils::Ctx;
 use crate::{
-    attributes::{TextSignatureAttribute, TextSignatureAttributeValue},
+    attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     deprecations::{Deprecation, Deprecations},
     params::{impl_arg_params, Holders},
     pyfunction::{
@@ -17,26 +17,125 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct FnArg<'a> {
+pub struct RegularArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
     pub attrs: PyFunctionArgPyO3Attributes,
-    pub kind: FnArgKind<'a>,
+    pub default_value: Option<syn::Expr>,
+    pub option_wrapped_type: Option<&'a syn::Type>,
 }
 
 #[derive(Clone, Debug)]
-pub enum FnArgKind<'a> {
-    Regular {
-        default: Option<syn::Expr>,
-        ty_opt: Option<&'a syn::Type>,
-    },
-    VarArgs,
-    KwArgs,
-    Py,
-    CancelHandle,
+pub struct VarArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+    pub attrs: PyFunctionArgPyO3Attributes,
+}
+
+#[derive(Clone, Debug)]
+pub struct KwArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+    pub attrs: PyFunctionArgPyO3Attributes,
+}
+
+#[derive(Clone, Debug)]
+pub struct CancelHandleArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+}
+
+#[derive(Clone, Debug)]
+pub struct PyArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+}
+
+#[derive(Clone, Debug)]
+pub enum FnArg<'a> {
+    Regular(RegularArg<'a>),
+    VarArgs(VarArg<'a>),
+    KwArgs(KwArg<'a>),
+    Py(PyArg<'a>),
+    CancelHandle(CancelHandleArg<'a>),
 }
 
 impl<'a> FnArg<'a> {
+    pub fn name(&self) -> &'a syn::Ident {
+        match self {
+            FnArg::Regular(RegularArg { name, .. }) => name,
+            FnArg::VarArgs(VarArg { name, .. }) => name,
+            FnArg::KwArgs(KwArg { name, .. }) => name,
+            FnArg::Py(PyArg { name, .. }) => name,
+            FnArg::CancelHandle(CancelHandleArg { name, .. }) => name,
+        }
+    }
+
+    pub fn ty(&self) -> &'a syn::Type {
+        match self {
+            FnArg::Regular(RegularArg { ty, .. }) => ty,
+            FnArg::VarArgs(VarArg { ty, .. }) => ty,
+            FnArg::KwArgs(KwArg { ty, .. }) => ty,
+            FnArg::Py(PyArg { ty, .. }) => ty,
+            FnArg::CancelHandle(CancelHandleArg { ty, .. }) => ty,
+        }
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
+        if let FnArg::Regular(RegularArg { attrs, .. }) = self {
+            attrs.from_py_with.as_ref()
+        } else {
+            None
+        }
+    }
+
+    pub fn to_varargs_mut(&mut self) -> Result<&mut Self> {
+        if let Self::Regular(RegularArg {
+            name,
+            ty,
+            attrs,
+            option_wrapped_type: None,
+            ..
+        }) = self
+        {
+            let attrs = std::mem::replace(
+                attrs,
+                PyFunctionArgPyO3Attributes {
+                    from_py_with: None,
+                    cancel_handle: None,
+                },
+            );
+            *self = Self::VarArgs(VarArg { name, ty, attrs });
+            Ok(self)
+        } else {
+            bail_spanned!(self.name().span() => "args cannot be optional")
+        }
+    }
+
+    pub fn to_kwargs_mut(&mut self) -> Result<&mut Self> {
+        if let Self::Regular(RegularArg {
+            name,
+            ty,
+            attrs,
+            option_wrapped_type: Some(..),
+            ..
+        }) = self
+        {
+            let attrs = std::mem::replace(
+                attrs,
+                PyFunctionArgPyO3Attributes {
+                    from_py_with: None,
+                    cancel_handle: None,
+                },
+            );
+            *self = Self::KwArgs(KwArg { name, ty, attrs });
+            Ok(self)
+        } else {
+            bail_spanned!(self.name().span() => "kwargs must be Option<_>")
+        }
+    }
+
     /// Transforms a rust fn arg parsed with syn into a method::FnArg
     pub fn parse(arg: &'a mut syn::FnArg) -> Result<Self> {
         match arg {
@@ -55,32 +154,26 @@ impl<'a> FnArg<'a> {
                 };
 
                 if utils::is_python(&cap.ty) {
-                    return Ok(Self {
+                    return Ok(Self::Py(PyArg {
                         name: ident,
                         ty: &cap.ty,
-                        attrs: arg_attrs,
-                        kind: FnArgKind::Py,
-                    });
+                    }));
                 }
 
                 if arg_attrs.cancel_handle.is_some() {
-                    return Ok(Self {
+                    return Ok(Self::CancelHandle(CancelHandleArg {
                         name: ident,
                         ty: &cap.ty,
-                        attrs: arg_attrs,
-                        kind: FnArgKind::CancelHandle,
-                    });
+                    }));
                 }
 
-                Ok(Self {
+                Ok(Self::Regular(RegularArg {
                     name: ident,
                     ty: &cap.ty,
                     attrs: arg_attrs,
-                    kind: FnArgKind::Regular {
-                        default: None,
-                        ty_opt: utils::option_type_argument(&cap.ty),
-                    },
-                })
+                    default_value: None,
+                    option_wrapped_type: utils::option_type_argument(&cap.ty),
+                }))
             }
         }
     }
@@ -509,20 +602,12 @@ impl<'a> FnSpec<'a> {
             .signature
             .arguments
             .iter()
-            .filter(|arg| matches!(arg.kind, FnArgKind::CancelHandle));
+            .filter(|arg| matches!(arg, FnArg::CancelHandle(..)));
         let cancel_handle = cancel_handle_iter.next();
-        if let Some(FnArg {
-            name,
-            kind: FnArgKind::CancelHandle,
-            ..
-        }) = cancel_handle
-        {
+        if let Some(FnArg::CancelHandle(CancelHandleArg { name, .. })) = cancel_handle {
             ensure_spanned!(self.asyncness.is_some(), name.span() => "`cancel_handle` attribute can only be used with `async fn`");
-            if let Some(FnArg {
-                name,
-                kind: FnArgKind::CancelHandle,
-                ..
-            }) = cancel_handle_iter.next()
+            if let Some(FnArg::CancelHandle(CancelHandleArg { name, .. })) =
+                cancel_handle_iter.next()
             {
                 bail_spanned!(name.span() => "`cancel_handle` may only be specified once");
             }
@@ -643,9 +728,9 @@ impl<'a> FnSpec<'a> {
                     .signature
                     .arguments
                     .iter()
-                    .map(|arg| match arg.kind {
-                        FnArgKind::Py => quote!(py),
-                        FnArgKind::CancelHandle { .. } => quote!(__cancel_handle),
+                    .map(|arg| match arg {
+                        FnArg::Py(..) => quote!(py),
+                        FnArg::CancelHandle(..) => quote!(__cancel_handle),
                         _ => unreachable!(),
                     })
                     .collect();
