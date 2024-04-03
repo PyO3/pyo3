@@ -4,10 +4,6 @@ use crate::types::PyFrame;
 use crate::{Bound, PyAny, PyClass, PyObject, PyRefMut, PyResult, Python};
 use std::ffi::c_int;
 
-pub trait Event<'py>: Sized {
-    fn from_raw(what: c_int, arg: Option<Bound<'py, PyAny>>) -> PyResult<Self>;
-}
-
 pub enum ProfileEvent<'py> {
     Call,
     Return(Option<Bound<'py, PyAny>>),
@@ -16,7 +12,7 @@ pub enum ProfileEvent<'py> {
     CReturn(Bound<'py, PyAny>),
 }
 
-impl<'py> Event<'py> for ProfileEvent<'py> {
+impl<'py> ProfileEvent<'py> {
     fn from_raw(what: c_int, arg: Option<Bound<'py, PyAny>>) -> PyResult<ProfileEvent<'py>> {
         let event = match what {
             ffi::PyTrace_CALL => ProfileEvent::Call,
