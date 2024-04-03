@@ -75,6 +75,9 @@ experimental-async = ["macros", "pyo3-macros/experimental-async"]
 # and IntoPy traits
 experimental-inspect = []
 
+# Enables APIs for instrumenting Python.
+instrumentation = []
+
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
 
@@ -129,6 +132,7 @@ full = [
     "eyre",
     "hashbrown",
     "indexmap",
+    "instrumentation",
     "num-bigint",
     "num-complex",
     "num-rational",
