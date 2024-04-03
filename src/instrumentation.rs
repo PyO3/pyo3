@@ -13,16 +13,15 @@ pub enum ProfileEvent<'py> {
 }
 
 impl<'py> ProfileEvent<'py> {
-    fn from_raw(what: c_int, arg: Option<Bound<'py, PyAny>>) -> PyResult<ProfileEvent<'py>> {
-        let event = match what {
+    fn from_raw(what: c_int, arg: Option<Bound<'py, PyAny>>) -> ProfileEvent<'py> {
+        match what {
             ffi::PyTrace_CALL => ProfileEvent::Call,
             ffi::PyTrace_RETURN => ProfileEvent::Return(arg),
             ffi::PyTrace_C_CALL => ProfileEvent::CCall(arg.unwrap()),
             ffi::PyTrace_C_EXCEPTION => ProfileEvent::CException(arg.unwrap()),
             ffi::PyTrace_C_RETURN => ProfileEvent::CReturn(arg.unwrap()),
             _ => unreachable!(),
-        };
-        Ok(event)
+        }
     }
 }
 
@@ -81,7 +80,7 @@ where
         // https://docs.python.org/3/c-api/init.html#c.Py_tracefunc
         let arg = unsafe { Bound::from_borrowed_ptr_or_opt(py, arg) };
 
-        let event = ProfileEvent::from_raw(what, arg).unwrap();
+        let event = ProfileEvent::from_raw(what, arg);
 
         match profiler.profile(frame, event) {
             Ok(_) => 0,
