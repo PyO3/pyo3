@@ -456,6 +456,8 @@ mod gil;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
+//#[cfg(feature = "instrumentation")]
+pub mod instrumentation;
 pub mod marker;
 pub mod marshal;
 #[macro_use]
