@@ -1,14 +1,26 @@
+//! APIs wrapping the Python interpreter's instrumentation features.
 use crate::ffi;
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyFrame;
 use crate::{Bound, PyAny, PyClass, PyObject, PyRefMut, PyResult, Python};
 use std::ffi::c_int;
 
+/// Represents a monitoring event used by the profiling API
 pub enum ProfileEvent<'py> {
+    /// A python function or method was called or a generator was entered.
     Call,
+    /// A python function or method returned or a generator yielded. The
+    /// contained data is the value returned to the caller or `None` if
+    /// caused by an exception.
     Return(Option<Bound<'py, PyAny>>),
+    /// A C function is about to be called. The contained data is the
+    /// function object being called.
     CCall(Bound<'py, PyAny>),
+    /// A C function has raised an exception. The contained data is the
+    /// function object being called.
     CException(Bound<'py, PyAny>),
+    /// A C function has returned. The contained data is the function
+    /// object being called.
     CReturn(Bound<'py, PyAny>),
 }
 
@@ -25,7 +37,9 @@ impl<'py> ProfileEvent<'py> {
     }
 }
 
+/// Trait for Rust structs that can be used with Python's profiling API.
 pub trait Profiler: PyClass<Frozen = False> {
+    /// Callback for implementing custom profiling logic.
     fn profile<'py>(
         &mut self,
         frame: Bound<'py, PyFrame>,
@@ -33,6 +47,7 @@ pub trait Profiler: PyClass<Frozen = False> {
     ) -> PyResult<()>;
 }
 
+/// Register a custom Profiler with the Python interpreter.
 pub fn register_profiler<P: Profiler>(profiler: Bound<'_, P>) {
     unsafe { ffi::PyEval_SetProfile(Some(profile_callback::<P>), profiler.into_ptr()) };
 }
