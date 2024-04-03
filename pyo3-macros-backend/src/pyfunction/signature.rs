@@ -404,10 +404,11 @@ impl<'a> FunctionSignature<'a> {
                         if let FnArg::Regular(arg) = fn_arg {
                             arg.default_value = Some(default.clone());
                         } else {
-                            // FIXME: In what case can this happen? What should the error message be?
-                            bail_spanned!(
-                                default.span() => "todo"
-                            )
+                            unreachable!(
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                parsed and transformed below. Because the have to come last and are only allowed \
+                                once, this has to be a regular argument."
+                            );
                         }
                     }
                 }
