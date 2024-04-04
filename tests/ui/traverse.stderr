@@ -1,28 +1,28 @@
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
   --> tests/ui/traverse.rs:10:26
    |
 10 |     fn __traverse__(slf: PyRef<Self>, visit: PyVisit) -> Result<(), PyTraverseError> {
    |                          ^^^^^
 
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
   --> tests/ui/traverse.rs:20:26
    |
 20 |     fn __traverse__(slf: PyRefMut<Self>, visit: PyVisit) -> Result<(), PyTraverseError> {
    |                          ^^^^^^^^
 
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
   --> tests/ui/traverse.rs:30:26
    |
 30 |     fn __traverse__(slf: Bound<'_, Self>, visit: PyVisit) -> Result<(), PyTraverseError> {
    |                          ^^^^^
 
-error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
+error: __traverse__ may not take a receiver other than `&self`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
   --> tests/ui/traverse.rs:40:21
    |
 40 |     fn __traverse__(&mut self, visit: PyVisit) -> Result<(), PyTraverseError> {
    |                     ^
 
-error: __traverse__ may not take `Python`. Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
+error: __traverse__ may not take `Python`. Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic.
   --> tests/ui/traverse.rs:60:32
    |
 60 |     fn __traverse__(&self, py: Python<'_>, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
