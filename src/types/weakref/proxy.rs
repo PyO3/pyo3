@@ -5,7 +5,7 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
 use crate::{ffi, Borrowed, Bound, PyNativeType, ToPyObject};
 
-use super::PyWeakRefMethods;
+use super::PyWeakrefMethods;
 
 /// Represents any Python `weakref` Proxy type.
 ///
@@ -562,7 +562,7 @@ impl PyWeakrefProxy {
     }
 }
 
-impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakrefProxy> {
+impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
     #[track_caller]
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny> {
         // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
@@ -575,7 +575,7 @@ impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakrefProxy> {
 mod tests {
     use crate::exceptions::{PyAttributeError, PyReferenceError, PyTypeError};
     use crate::types::any::{PyAny, PyAnyMethods};
-    use crate::types::weakref::{PyWeakRefMethods, PyWeakrefProxy};
+    use crate::types::weakref::{PyWeakrefMethods, PyWeakrefProxy};
     use crate::{Bound, PyResult, Python};
 
     mod proxy {

@@ -48,7 +48,7 @@ pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
 #[cfg(not(PyPy))]
-pub use self::weakref::{PyWeakRef, PyWeakRefMethods, PyWeakref, PyWeakrefProxy};
+pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
 
 /// Iteration over Python collections.
 ///
