@@ -27,6 +27,22 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 
 * When using pyenv on macOS, installing a Python version using `--enable-shared` is required to make it work. i.e `env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.12`
 
+### Testing, linting, etc. with nox
+
+[`Nox`][nox] is used to automate many of our CI tasks and can be used locally to handle verfication tasks as you code. We recommend running these actions via nox to make use of our prefered configuration options. You can install nox into your global python with pip: `pip install nox` or (recommended) with [`pipx`][pipx] `pip install pipx`, `pipx install nox`
+
+The main nox commands we have implemented are:
+
+* `nox -s test` will run the full suite of recommended rust and python tests
+* `nox -s ruff` will check python linting and apply standard formatting rules
+* `nox -s rustfmt` will check basic rust linting and apply standard formatting rules
+* `nox -s clippy-all` will run clippy to make recommendations on rust style
+* `nox -s bench` will benchmark your rust code
+* `nox -s codspeed` runs our suite of rust and python performance tests
+* `nox -s coverage` will create analyse test coverage and output `coverage.json`, `nox -s coverage lcov` outputs `lcov.info`
+
+## Ways to help
+
 ### Help users identify bugs
 
 The [PyO3 Discord server](https://discord.gg/33kcChzH7f) is very active with users who are new to PyO3, and often completely new to Rust. Helping them debug is a great way to get experience with the PyO3 codebase.
@@ -242,3 +258,4 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
 [lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox
+[pipx]: https://pipx.pypa.io/stable/
