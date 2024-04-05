@@ -36,7 +36,7 @@ The main nox commands we have implemented are:
 * `nox -s test` will run the full suite of recommended rust and python tests
 * `nox -s ruff` will check python linting and apply standard formatting rules
 * `nox -s rustfmt` will check basic rust linting and apply standard formatting rules
-* `nox -s clippy-all` will run clippy to make recommendations on rust style
+* `nox -s clippy` will run clippy to make recommendations on rust style
 * `nox -s bench` will benchmark your rust code
 * `nox -s codspeed` runs our suite of rust and python performance tests
 * `nox -s coverage` will create analyse test coverage and output `coverage.json`, `nox -s coverage lcov` outputs `lcov.info`
