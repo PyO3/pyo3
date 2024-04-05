@@ -1,6 +1,8 @@
+use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::types::PyAny;
-use crate::{ffi, Borrowed, Bound, PyNativeType, PyResult, PyTypeCheck, PyTypeInfo};
+use crate::type_object::{PyTypeCheck, PyTypeInfo};
+use crate::types::any::PyAny;
+use crate::{ffi, Borrowed, Bound, PyNativeType};
 
 use super::PyWeakRefMethods;
 
@@ -43,7 +45,7 @@ impl PyWeakref {
         doc = "```rust"
     )]
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyWeakref, PyWeakProxy};
+    /// use pyo3::types::{PyWeakref, PyWeakrefProxy};
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
@@ -68,7 +70,7 @@ impl PyWeakref {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let proxy = PyWeakProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.
+    ///     let proxy = PyWeakrefProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.
     ///     let reference = proxy.downcast::<PyWeakref>()?;
     ///
     ///     assert_eq!(
@@ -123,7 +125,7 @@ impl PyWeakref {
         doc = "```rust"
     )]
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyWeakref, PyWeakProxy};
+    /// use pyo3::types::{PyWeakref, PyWeakrefProxy};
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
@@ -148,7 +150,7 @@ impl PyWeakref {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let proxy = PyWeakProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.
+    ///     let proxy = PyWeakrefProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.
     ///     let reference = proxy.downcast::<PyWeakref>()?;
     ///
     ///     assert_eq!(
@@ -198,7 +200,7 @@ impl PyWeakref {
         doc = "```rust"
     )]
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyWeakref, PyWeakProxy};
+    /// use pyo3::types::{PyWeakref, PyWeakrefProxy};
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
@@ -223,7 +225,7 @@ impl PyWeakref {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let proxy = PyWeakProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.  
+    ///     let proxy = PyWeakrefProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.  
     ///     let reference = proxy.downcast::<PyWeakref>()?;
     ///
     ///     assert_eq!(
@@ -277,7 +279,7 @@ impl PyWeakref {
         doc = "```rust"
     )]
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyWeakref, PyWeakProxy};
+    /// use pyo3::types::{PyWeakref, PyWeakrefProxy};
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
@@ -293,7 +295,7 @@ impl PyWeakref {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let data = Bound::new(py, Foo{})?;
-    ///     let proxy = PyWeakProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.
+    ///     let proxy = PyWeakrefProxy::new_bound(&data)?; // Retrieve this as an PyMethods argument.
     ///     let reference = proxy.downcast::<PyWeakref>()?;
     ///
     ///     assert_eq!(
@@ -340,7 +342,7 @@ impl PyWeakref {
         doc = "```rust"
     )]
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyWeakref, PyWeakProxy};
+    /// use pyo3::types::{PyWeakref, PyWeakrefProxy};
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
@@ -357,7 +359,7 @@ impl PyWeakref {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     let object = Bound::new(py, Foo{})?;
-    ///     let proxy = PyWeakProxy::new_bound(&object)?; // Retrieve this as an PyMethods argument.
+    ///     let proxy = PyWeakrefProxy::new_bound(&object)?; // Retrieve this as an PyMethods argument.
     ///     let reference = proxy.downcast::<PyWeakref>()?;
     ///
     ///     assert_eq!(
@@ -396,7 +398,7 @@ impl<'py> PyWeakRefMethods<'py> for Bound<'py, PyWeakref> {
 #[cfg(test)]
 mod tests {
     use crate::types::any::{PyAny, PyAnyMethods};
-    use crate::types::weakref::{PyWeakProxy, PyWeakRef, PyWeakRefMethods, PyWeakref};
+    use crate::types::weakref::{PyWeakRef, PyWeakRefMethods, PyWeakref, PyWeakrefProxy};
     use crate::{Bound, PyResult, Python};
 
     fn new_reference<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakref>> {
@@ -405,7 +407,7 @@ mod tests {
     }
 
     fn new_proxy<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyWeakref>> {
-        let reference = PyWeakProxy::new_bound(object)?;
+        let reference = PyWeakrefProxy::new_bound(object)?;
         reference.into_any().downcast_into().map_err(Into::into)
     }
 
