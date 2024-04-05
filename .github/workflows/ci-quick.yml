@@ -1,7 +1,7 @@
 name: Quick CI
 
 # A short version of the CI, designed to run in seconds (<200s) on every push.
-# Runs lints, tests and coverage analysis only on ALL branches EXCEPT main.
+# Runs lints & basic tests on ALL branches EXCEPT main.
 
 on:
   push:
