@@ -31,12 +31,10 @@ pyobject_native_type_core!(
 
 impl PySet {
     /// Deprecated form of [`PySet::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PySet::new` will be replaced by `PySet::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PySet::new` will be replaced by `PySet::new_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn new<'a, 'p, T: ToPyObject + 'a>(
@@ -58,12 +56,10 @@ impl PySet {
     }
 
     /// Deprecated form of [`PySet::empty_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.2",
-            note = "`PySet::empty` will be replaced by `PySet::empty_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.2",
+        note = "`PySet::empty` will be replaced by `PySet::empty_bound` in a future PyO3 version"
     )]
     pub fn empty(py: Python<'_>) -> PyResult<&PySet> {
         Self::empty_bound(py).map(Bound::into_gil_ref)
@@ -396,27 +392,29 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::PySet;
-    use crate::{Python, ToPyObject};
+    use crate::{
+        types::{PyAnyMethods, PySetMethods},
+        Python, ToPyObject,
+    };
     use std::collections::HashSet;
 
     #[test]
     fn test_set_new() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+            let set = PySet::new_bound(py, &[1]).unwrap();
             assert_eq!(1, set.len());
 
             let v = vec![1];
-            assert!(PySet::new(py, &[v]).is_err());
+            assert!(PySet::new_bound(py, &[v]).is_err());
         });
     }
 
     #[test]
     fn test_set_empty() {
         Python::with_gil(|py| {
-            let set = PySet::empty(py).unwrap();
+            let set = PySet::empty_bound(py).unwrap();
             assert_eq!(0, set.len());
             assert!(set.is_empty());
         });
@@ -427,11 +425,11 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashSet::new();
             let ob = v.to_object(py);
-            let set: &PySet = ob.downcast(py).unwrap();
+            let set = ob.downcast_bound::<PySet>(py).unwrap();
             assert_eq!(0, set.len());
             v.insert(7);
             let ob = v.to_object(py);
-            let set2: &PySet = ob.downcast(py).unwrap();
+            let set2 = ob.downcast_bound::<PySet>(py).unwrap();
             assert_eq!(1, set2.len());
         });
     }
@@ -439,7 +437,7 @@ mod tests {
     #[test]
     fn test_set_clear() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+            let set = PySet::new_bound(py, &[1]).unwrap();
             assert_eq!(1, set.len());
             set.clear();
             assert_eq!(0, set.len());
@@ -449,7 +447,7 @@ mod tests {
     #[test]
     fn test_set_contains() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+            let set = PySet::new_bound(py, &[1]).unwrap();
             assert!(set.contains(1).unwrap());
         });
     }
@@ -457,7 +455,7 @@ mod tests {
     #[test]
     fn test_set_discard() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+            let set = PySet::new_bound(py, &[1]).unwrap();
             assert!(!set.discard(2).unwrap());
             assert_eq!(1, set.len());
 
@@ -472,7 +470,7 @@ mod tests {
     #[test]
     fn test_set_add() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2]).unwrap();
+            let set = PySet::new_bound(py, &[1, 2]).unwrap();
             set.add(1).unwrap(); // Add a dupliated element
             assert!(set.contains(1).unwrap());
         });
@@ -481,13 +479,13 @@ mod tests {
     #[test]
     fn test_set_pop() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+            let set = PySet::new_bound(py, &[1]).unwrap();
             let val = set.pop();
             assert!(val.is_some());
             let val2 = set.pop();
             assert!(val2.is_none());
             assert!(py
-                .eval("print('Exception state should not be set.')", None, None)
+                .eval_bound("print('Exception state should not be set.')", None, None)
                 .is_ok());
         });
     }
@@ -495,7 +493,7 @@ mod tests {
     #[test]
     fn test_set_iter() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+            let set = PySet::new_bound(py, &[1]).unwrap();
 
             for el in set {
                 assert_eq!(1i32, el.extract::<'_, i32>().unwrap());
@@ -520,9 +518,9 @@ mod tests {
     #[should_panic]
     fn test_set_iter_mutation() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
 
-            for _ in set {
+            for _ in &set {
                 let _ = set.add(42);
             }
         });
@@ -532,9 +530,9 @@ mod tests {
     #[should_panic]
     fn test_set_iter_mutation_same_len() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let set = PySet::new_bound(py, &[1, 2, 3, 4, 5]).unwrap();
 
-            for item in set {
+            for item in &set {
                 let item: i32 = item.extract().unwrap();
                 let _ = set.del_item(item);
                 let _ = set.add(item + 10);
@@ -545,7 +543,7 @@ mod tests {
     #[test]
     fn test_set_iter_size_hint() {
         Python::with_gil(|py| {
-            let set = PySet::new(py, &[1]).unwrap();
+            let set = PySet::new_bound(py, &[1]).unwrap();
             let mut iter = set.iter();
 
             // Exact size
