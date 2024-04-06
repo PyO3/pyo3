@@ -33,7 +33,8 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 
 The main nox commands we have implemented are:
 
-* `nox -s test` will run the full suite of recommended rust and python tests
+* `nox -s test` will run the full suite of recommended rust and python tests (>10 minutes)
+* `nox -s test-rust -- skip-full` will run a short suite of rust tests (2-3 minutes)
 * `nox -s ruff` will check python linting and apply standard formatting rules
 * `nox -s rustfmt` will check basic rust linting and apply standard formatting rules
 * `nox -s clippy` will run clippy to make recommendations on rust style
