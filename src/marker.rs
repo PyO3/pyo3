@@ -280,6 +280,7 @@ mod nightly {
     impl !Ungil for crate::PyAny {}
 
     // All the borrowing wrappers
+    #[allow(deprecated)]
     impl<T> !Ungil for crate::PyCell<T> {}
     impl<T> !Ungil for crate::PyRef<'_, T> {}
     impl<T> !Ungil for crate::PyRefMut<'_, T> {}
