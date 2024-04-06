@@ -42,6 +42,10 @@ The main nox commands we have implemented are:
 * `nox -s codspeed` will run our suite of rust and python performance tests
 * `nox -s coverage` will analyse test coverage and output `coverage.json` (alternatively: `nox -s coverage lcov` outputs `lcov.info`)
 
+### Github workflow
+
+In addition to the larger CI workflow which runs on each Pull Request, we provide a short CI workflow which runs on every push to github. This workflow runs the nox sessions: `fustfmt`, `ruff`, `clippy` and `test-rust -- skip-full` and is designed to run in under 200s to provide feedback within a reasonable timeframe and not use all your github actions minutes.
+
 ## Ways to help
 
 ### Help users identify bugs
