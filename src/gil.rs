@@ -1,14 +1,18 @@
 //! Interaction with Python's global interpreter lock
 
-use crate::impl_::not_send::{NotSend, NOT_SEND};
-use crate::{ffi, Python};
-use parking_lot::{const_mutex, Mutex, Once};
-use std::cell::Cell;
 #[cfg(debug_assertions)]
 use std::cell::RefCell;
 #[cfg(not(debug_assertions))]
 use std::cell::UnsafeCell;
-use std::{mem, ptr::NonNull};
+use std::{cell::Cell, mem, ptr::NonNull};
+
+use parking_lot::{const_mutex, Mutex, Once};
+
+use crate::{
+    ffi,
+    impl_::not_send::{NotSend, NOT_SEND},
+    Python,
+};
 
 static START: Once = Once::new();
 
@@ -799,8 +803,9 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_clone_without_gil() {
-        use crate::{Py, PyAny};
         use std::{sync::Arc, thread};
+
+        use crate::{Py, PyAny};
 
         // Some events for synchronizing
         static GIL_ACQUIRED: Event = Event::new();
@@ -864,8 +869,9 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_clone_in_other_thread() {
-        use crate::Py;
         use std::{sync::Arc, thread};
+
+        use crate::Py;
 
         // Some events for synchronizing
         static OBJECT_CLONED: Event = Event::new();
@@ -937,6 +943,49 @@ mod tests {
 
             // Updating the counts will call decref on the capsule, which calls capsule_drop
             POOL.update_counts(py);
+        })
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn allow_threads_fn() {
+        #[crate::pyfunction(allow_threads, crate = "crate")]
+        fn without_gil(_arg1: PyObject, _arg2: PyObject) {
+            GIL_COUNT.with(|c| assert_eq!(c.get(), 0));
+        }
+        Python::with_gil(|gil| {
+            let without_gil = crate::wrap_pyfunction_bound!(without_gil, gil).unwrap();
+            crate::py_run!(gil, without_gil, "without_gil(..., ...)");
+        })
+    }
+
+    #[cfg(feature = "experimental-async")]
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn allow_threads_async_fn() {
+        #[crate::pyfunction(allow_threads, crate = "crate")]
+        async fn without_gil(_arg1: PyObject, _arg2: PyObject) {
+            use std::task::Poll;
+            GIL_COUNT.with(|c| assert_eq!(c.get(), 0));
+            let mut ready = false;
+            futures::future::poll_fn(|cx| {
+                if ready {
+                    return Poll::Ready(());
+                }
+                ready = true;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            })
+            .await;
+            GIL_COUNT.with(|c| assert_eq!(c.get(), 0));
+        }
+        Python::with_gil(|gil| {
+            let without_gil = crate::wrap_pyfunction_bound!(without_gil, gil).unwrap();
+            crate::py_run!(
+                gil,
+                without_gil,
+                "import asyncio; asyncio.run(without_gil(..., ...))"
+            );
         })
     }
 }

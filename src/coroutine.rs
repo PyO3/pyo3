@@ -21,9 +21,46 @@ use crate::{
 pub(crate) mod cancel;
 mod waker;
 
+use crate::marker::Ungil;
 pub use cancel::CancelHandle;
 
 const COROUTINE_REUSED_ERROR: &str = "cannot reuse already awaited coroutine";
+
+trait CoroutineFuture: Send {
+    fn poll(self: Pin<&mut Self>, py: Python<'_>, waker: &Waker) -> Poll<PyResult<PyObject>>;
+}
+
+impl<F, T, E> CoroutineFuture for F
+where
+    F: Future<Output = Result<T, E>> + Send,
+    T: IntoPy<PyObject> + Send,
+    E: Into<PyErr> + Send,
+{
+    fn poll(self: Pin<&mut Self>, py: Python<'_>, waker: &Waker) -> Poll<PyResult<PyObject>> {
+        self.poll(&mut Context::from_waker(waker))
+            .map_ok(|obj| obj.into_py(py))
+            .map_err(Into::into)
+    }
+}
+
+struct AllowThreads<F> {
+    future: F,
+}
+
+impl<F, T, E> CoroutineFuture for AllowThreads<F>
+where
+    F: Future<Output = Result<T, E>> + Send + Ungil,
+    T: IntoPy<PyObject> + Send + Ungil,
+    E: Into<PyErr> + Send + Ungil,
+{
+    fn poll(self: Pin<&mut Self>, py: Python<'_>, waker: &Waker) -> Poll<PyResult<PyObject>> {
+        // SAFETY: future field is pinned when self is
+        let future = unsafe { self.map_unchecked_mut(|a| &mut a.future) };
+        py.allow_threads(|| future.poll(&mut Context::from_waker(waker)))
+            .map_ok(|obj| obj.into_py(py))
+            .map_err(Into::into)
+    }
+}
 
 /// Python coroutine wrapping a [`Future`].
 #[pyclass(crate = "crate")]
@@ -31,7 +68,7 @@ pub struct Coroutine {
     name: Option<Py<PyString>>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
-    future: Option<Pin<Box<dyn Future<Output = PyResult<PyObject>> + Send>>>,
+    future: Option<Pin<Box<dyn CoroutineFuture>>>,
     waker: Option<Arc<AsyncioWaker>>,
 }
 
@@ -46,23 +83,23 @@ impl Coroutine {
         name: Option<Py<PyString>>,
         qualname_prefix: Option<&'static str>,
         throw_callback: Option<ThrowCallback>,
+        allow_threads: bool,
         future: F,
     ) -> Self
     where
-        F: Future<Output = Result<T, E>> + Send + 'static,
-        T: IntoPy<PyObject>,
-        E: Into<PyErr>,
+        F: Future<Output = Result<T, E>> + Send + Ungil + 'static,
+        T: IntoPy<PyObject> + Send + Ungil,
+        E: Into<PyErr> + Send + Ungil,
     {
-        let wrap = async move {
-            let obj = future.await.map_err(Into::into)?;
-            // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
-            Ok(obj.into_py(unsafe { Python::assume_gil_acquired() }))
-        };
         Self {
             name,
             qualname_prefix,
             throw_callback,
-            future: Some(Box::pin(wrap)),
+            future: Some(if allow_threads {
+                Box::pin(AllowThreads { future })
+            } else {
+                Box::pin(future)
+            }),
             waker: None,
         }
     }
@@ -88,10 +125,10 @@ impl Coroutine {
         } else {
             self.waker = Some(Arc::new(AsyncioWaker::new()));
         }
-        let waker = Waker::from(self.waker.clone().unwrap());
-        // poll the Rust future and forward its results if ready
+        // poll the future and forward its results if ready
         // polling is UnwindSafe because the future is dropped in case of panic
-        let poll = || future_rs.as_mut().poll(&mut Context::from_waker(&waker));
+        let waker = Waker::from(self.waker.clone().unwrap());
+        let poll = || future_rs.as_mut().poll(py, &waker);
         match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
             Ok(Poll::Ready(res)) => {
                 self.close();
