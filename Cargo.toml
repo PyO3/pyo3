@@ -137,6 +137,7 @@ members = [
     "pyo3-build-config",
     "pyo3-macros",
     "pyo3-macros-backend",
+    "pyo3-testing",
     "pytests",
     "examples",
 ]
