@@ -171,6 +171,27 @@ pub trait IntoPy<T>: Sized {
     }
 }
 
+pub trait IntoPyObject<'py, T>: Sized {
+    type Error;
+
+    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, T>, Self::Error>;
+}
+
+pub trait IntoPyObjectExt: Sized {
+    fn into_pyobject<'py, T, E>(self, py: Python<'py>) -> Result<Bound<'py, T>, E>
+    where
+        Self: IntoPyObject<'py, T, Error = E>;
+}
+
+impl<T> IntoPyObjectExt for T {
+    fn into_pyobject<'py, Target, E>(self, py: Python<'py>) -> Result<Bound<'py, Target>, E>
+    where
+        Self: IntoPyObject<'py, Target, Error = E>,
+    {
+        self.into_pyobj(py)
+    }
+}
+
 /// Extract a type from a Python object.
 ///
 ///
