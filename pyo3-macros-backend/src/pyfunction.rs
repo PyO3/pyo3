@@ -91,6 +91,7 @@ pub struct PyFunctionOptions {
     pub signature: Option<SignatureAttribute>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub krate: Option<CrateAttribute>,
+    pub allow_threads: Option<attributes::kw::allow_threads>,
 }
 
 impl Parse for PyFunctionOptions {
@@ -99,7 +100,8 @@ impl Parse for PyFunctionOptions {
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
-            if lookahead.peek(attributes::kw::name)
+            if lookahead.peek(attributes::kw::allow_threads)
+                || lookahead.peek(attributes::kw::name)
                 || lookahead.peek(attributes::kw::pass_module)
                 || lookahead.peek(attributes::kw::signature)
                 || lookahead.peek(attributes::kw::text_signature)
@@ -121,6 +123,7 @@ impl Parse for PyFunctionOptions {
 }
 
 pub enum PyFunctionOption {
+    AllowThreads(attributes::kw::allow_threads),
     Name(NameAttribute),
     PassModule(attributes::kw::pass_module),
     Signature(SignatureAttribute),
@@ -131,7 +134,9 @@ pub enum PyFunctionOption {
 impl Parse for PyFunctionOption {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
-        if lookahead.peek(attributes::kw::name) {
+        if lookahead.peek(attributes::kw::allow_threads) {
+            input.parse().map(PyFunctionOption::AllowThreads)
+        } else if lookahead.peek(attributes::kw::name) {
             input.parse().map(PyFunctionOption::Name)
         } else if lookahead.peek(attributes::kw::pass_module) {
             input.parse().map(PyFunctionOption::PassModule)
@@ -171,6 +176,7 @@ impl PyFunctionOptions {
         }
         for attr in attrs {
             match attr {
+                PyFunctionOption::AllowThreads(allow_threads) => set_option!(allow_threads),
                 PyFunctionOption::Name(name) => set_option!(name),
                 PyFunctionOption::PassModule(pass_module) => set_option!(pass_module),
                 PyFunctionOption::Signature(signature) => set_option!(signature),
@@ -198,6 +204,7 @@ pub fn impl_wrap_pyfunction(
 ) -> syn::Result<TokenStream> {
     check_generic(&func.sig)?;
     let PyFunctionOptions {
+        allow_threads,
         pass_module,
         name,
         signature,
@@ -247,6 +254,7 @@ pub fn impl_wrap_pyfunction(
         python_name,
         signature,
         text_signature,
+        allow_threads,
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
         deprecations: Deprecations::new(ctx),
