@@ -27,6 +27,7 @@ pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::function::PyFunction;
+pub use self::future::PyFuture;
 pub use self::iterator::PyIterator;
 pub use self::list::{PyList, PyListMethods};
 pub use self::mapping::{PyMapping, PyMappingMethods};
@@ -333,6 +334,7 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
+mod future;
 pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
