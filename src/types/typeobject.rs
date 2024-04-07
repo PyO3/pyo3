@@ -77,9 +77,19 @@ impl PyType {
         self.as_borrowed().qualname()
     }
 
-    /// Gets the full name, which includes the module, of the `PyType`.
+    /// Gets the module of the `PyType`.
+    pub fn module(&self) -> PyResult<Cow<'_, str>> {
+        self.as_borrowed().module()
+    }
+
+    /// Gets the name of the `PyType`.
     pub fn name(&self) -> PyResult<Cow<'_, str>> {
         self.as_borrowed().name()
+    }
+
+    /// Gets the full name, which includes the module, of the `PyType`.
+    pub fn full_name(&self) -> PyResult<Cow<'_, str>> {
+        self.as_borrowed().full_name()
     }
 
     /// Checks whether `self` is a subclass of `other`.
@@ -111,8 +121,14 @@ pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     fn as_type_ptr(&self) -> *mut ffi::PyTypeObject;
 
-    /// Gets the full name, which includes the module, of the `PyType`.
+    /// Gets the module of the `PyType`.
+    fn module(&self) -> PyResult<Cow<'_, str>>;
+
+    /// Gets the name of the `PyType`.
     fn name(&self) -> PyResult<Cow<'_, str>>;
+
+    /// Gets the full name, which includes the module, of the `PyType`.
+    fn full_name(&self) -> PyResult<Cow<'_, str>>;
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
     fn qualname(&self) -> PyResult<String>;
@@ -138,9 +154,19 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
         self.as_ptr() as *mut ffi::PyTypeObject
     }
 
+    /// Gets the module of the `PyType`.
+    fn module(&self) -> PyResult<Cow<'_, str>> {
+        Borrowed::from(self).module()
+    }
+
     /// Gets the name of the `PyType`.
     fn name(&self) -> PyResult<Cow<'_, str>> {
         Borrowed::from(self).name()
+    }
+
+    /// Gets the full name, which includes the module, of the `PyType`.
+    fn full_name(&self) -> PyResult<Cow<'_, str>> {
+        Borrowed::from(self).full_name()
     }
 
     fn qualname(&self) -> PyResult<String> {
@@ -182,12 +208,43 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 }
 
 impl<'a> Borrowed<'a, '_, PyType> {
+    fn module(self) -> PyResult<Cow<'a, str>> {
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        {
+            let ptr = self.as_type_ptr();
+
+            if let Some((module, _)) = unsafe { CStr::from_ptr((*ptr).tp_name) }
+                .to_str()?
+                .rsplit_once('.')
+            {
+                #[cfg(Py_3_10)]
+                if unsafe { ffi::PyType_HasFeature(ptr, ffi::Py_TPFLAGS_IMMUTABLETYPE) } != 0 {
+                    return Ok(Cow::Borrowed(module));
+                }
+
+                Ok(Cow::Owned(module.to_owned()))
+            } else {
+                let module = self.getattr(intern!(self.py(), "__module__"))?;
+
+                Ok(Cow::Owned(module.str()?.to_string()))
+            }
+        }
+
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        {
+            let module = self.getattr(intern!(self.py(), "__module__"))?;
+
+            Ok(Cow::Owned(module.str()?.to_string()))
+        }
+    }
+
     fn name(self) -> PyResult<Cow<'a, str>> {
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         {
             let ptr = self.as_type_ptr();
 
-            let name = unsafe { CStr::from_ptr((*ptr).tp_name) }.to_str()?;
+            let tp_name = unsafe { CStr::from_ptr((*ptr).tp_name) }.to_str()?;
+            let name = tp_name.rsplit_once('.').map_or(tp_name, |(_, s)| s);
 
             #[cfg(Py_3_10)]
             if unsafe { ffi::PyType_HasFeature(ptr, ffi::Py_TPFLAGS_IMMUTABLETYPE) } != 0 {
@@ -199,8 +256,6 @@ impl<'a> Borrowed<'a, '_, PyType> {
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
         {
-            let module = self.getattr(intern!(self.py(), "__module__"))?;
-
             #[cfg(not(Py_3_11))]
             let name = self.getattr(intern!(self.py(), "__name__"))?;
 
@@ -210,6 +265,43 @@ impl<'a> Borrowed<'a, '_, PyType> {
                 unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? }
             };
 
+            Ok(Cow::Owned(name.str()?.to_string()))
+        }
+    }
+
+    fn full_name(self) -> PyResult<Cow<'a, str>> {
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        {
+            let ptr = self.as_type_ptr();
+
+            let name = unsafe { CStr::from_ptr((*ptr).tp_name) }.to_str()?;
+            if name.contains('.') {
+                #[cfg(Py_3_10)]
+                if unsafe { ffi::PyType_HasFeature(ptr, ffi::Py_TPFLAGS_IMMUTABLETYPE) } != 0 {
+                    return Ok(Cow::Borrowed(name));
+                }
+
+                Ok(Cow::Owned(name.to_owned()))
+            } else {
+                let module = self.getattr(intern!(self.py(), "__module__"))?;
+
+                Ok(Cow::Owned(format!("{}.{}", module, name)))
+            }
+        }
+
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        {
+            #[cfg(not(Py_3_11))]
+            let name = self.getattr(intern!(self.py(), "__name__"))?;
+
+            #[cfg(Py_3_11)]
+            let name = {
+                use crate::ffi_ptr_ext::FfiPtrExt;
+                unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? }
+            };
+
+            let module = self.getattr(intern!(self.py(), "__module__"))?;
+
             Ok(Cow::Owned(format!("{}.{}", module, name)))
         }
     }
@@ -217,9 +309,11 @@ impl<'a> Borrowed<'a, '_, PyType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::typeobject::PyTypeMethods;
-    use crate::types::{PyBool, PyLong};
-    use crate::Python;
+    use crate::types::PyType;
+    use crate::{
+        types::{any::PyAnyMethods, typeobject::PyTypeMethods, PyBool, PyLong},
+        Python,
+    };
 
     #[test]
     fn test_type_is_subclass() {
@@ -238,5 +332,35 @@ mod tests {
                 .is_subclass_of::<PyLong>()
                 .unwrap());
         });
+    }
+
+    #[test]
+    fn test_type_full_name() {
+        Python::with_gil(|py| {
+            // C type
+            let datetime = py.import_bound("datetime").unwrap();
+            let date = datetime
+                .getattr("date")
+                .unwrap()
+                .downcast_into::<PyType>()
+                .unwrap();
+            assert_eq!(date.module().unwrap(), "datetime");
+            assert_eq!(date.name().unwrap(), "date");
+            assert_eq!(date.full_name().unwrap(), "datetime.date");
+
+            // Python type
+            let asyncio = py.import_bound("asyncio").unwrap();
+            let date = asyncio
+                .getattr("CancelledError")
+                .unwrap()
+                .downcast_into::<PyType>()
+                .unwrap();
+            assert_eq!(date.module().unwrap(), "asyncio.exceptions");
+            assert_eq!(date.name().unwrap(), "CancelledError");
+            assert_eq!(
+                date.full_name().unwrap(),
+                "asyncio.exceptions.CancelledError"
+            );
+        })
     }
 }
