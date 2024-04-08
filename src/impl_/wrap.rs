@@ -22,14 +22,14 @@ impl<T> SomeWrap<T> for Option<T> {
 }
 
 /// Used to wrap the result of `#[pyfunction]` and `#[pymethods]`.
-pub trait OkWrap<T> {
+pub trait OkWrapIntoPy<T> {
     type Error;
     fn wrap(self) -> Result<T, Self::Error>;
 }
 
 // The T: IntoPy<PyObject> bound here is necessary to prevent the
 // implementation for Result<T, E> from conflicting
-impl<T> OkWrap<T> for T
+impl<T> OkWrapIntoPy<T> for T
 where
     T: IntoPy<PyObject>,
 {
@@ -40,9 +40,39 @@ where
     }
 }
 
-impl<T, E> OkWrap<T> for Result<T, E>
+impl<T, E> OkWrapIntoPy<T> for Result<T, E>
 where
     T: IntoPy<PyObject>,
+{
+    type Error = E;
+    #[inline]
+    fn wrap(self) -> Result<T, Self::Error> {
+        self
+    }
+}
+
+/// Used to wrap the result of `#[pyfunction]` and `#[pymethods]`.
+pub trait OkWrapIntoPyObject<T> {
+    type Error;
+    fn wrap(self) -> Result<T, Self::Error>;
+}
+
+// The T: IntoPy<PyObject> bound here is necessary to prevent the
+// implementation for Result<T, E> from conflicting
+impl<'py, T> OkWrapIntoPyObject<T> for T
+where
+    T: IntoPyObject<'py, PyAny>,
+{
+    type Error = Infallible;
+    #[inline]
+    fn wrap(self) -> Result<T, Infallible> {
+        Ok(self)
+    }
+}
+
+impl<'py, T, E> OkWrapIntoPyObject<T> for Result<T, E>
+where
+    T: IntoPyObject<'py, PyAny>,
 {
     type Error = E;
     #[inline]
@@ -54,12 +84,17 @@ where
 pub struct IntoPyTag;
 impl IntoPyTag {
     #[inline]
-    pub fn new<T: IntoPy<PyObject>>(
+    pub fn map_into_ptr<T: IntoPy<PyObject>>(
         self,
         py: Python<'_>,
         obj: PyResult<T>,
     ) -> PyResult<*mut ffi::PyObject> {
         obj.map(|obj| obj.into_py(py).into_ptr())
+    }
+
+    #[inline]
+    pub fn wrap<S, T: OkWrapIntoPy<S>>(self, obj: T) -> Result<S, T::Error> {
+        obj.wrap()
     }
 }
 pub trait IntoPyKind {
@@ -68,17 +103,23 @@ pub trait IntoPyKind {
         IntoPyTag
     }
 }
+impl<T: IntoPy<PyObject>> IntoPyKind for &T {} // required autoref
 impl<T: IntoPy<PyObject>, E> IntoPyKind for &Result<T, E> {} // required autoref
 
 pub struct IntoPyObjectTag;
 impl IntoPyObjectTag {
     #[inline]
-    pub fn new<'py, T: IntoPyObject<'py, PyAny, Error = PyErr>>(
+    pub fn map_into_ptr<'py, T: IntoPyObject<'py, PyAny, Error = PyErr>>(
         self,
         py: Python<'py>,
         obj: PyResult<T>,
     ) -> PyResult<*mut ffi::PyObject> {
         obj.and_then(|obj| obj.into_pyobj(py)).map(Bound::into_ptr)
+    }
+
+    #[inline]
+    pub fn wrap<S, T: OkWrapIntoPyObject<S>>(self, obj: T) -> Result<S, T::Error> {
+        obj.wrap()
     }
 }
 pub trait IntoPyObjectKind {
@@ -87,6 +128,7 @@ pub trait IntoPyObjectKind {
         IntoPyObjectTag
     }
 }
+impl<'py, T: IntoPyObject<'py, PyAny>> IntoPyObjectKind for T {}
 impl<'py, T: IntoPyObject<'py, PyAny>, E> IntoPyObjectKind for Result<T, E> {}
 
 /// This is a follow-up function to `OkWrap::wrap` that converts the result into
@@ -122,13 +164,13 @@ mod tests {
 
     #[test]
     fn wrap_result() {
-        let a: Result<u8, _> = OkWrap::wrap(42u8);
+        let a: Result<u8, _> = OkWrapIntoPy::wrap(42u8);
         assert!(matches!(a, Ok(42)));
 
-        let b: PyResult<u8> = OkWrap::wrap(Ok(42u8));
+        let b: PyResult<u8> = OkWrapIntoPy::wrap(Ok(42u8));
         assert!(matches!(b, Ok(42)));
 
-        let c: Result<u8, &str> = OkWrap::wrap(Err("error"));
+        let c: Result<u8, &str> = OkWrapIntoPy::wrap(Err("error"));
         assert_eq!(c, Err("error"));
     }
 }

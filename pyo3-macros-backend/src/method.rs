@@ -673,7 +673,11 @@ impl<'a> FnSpec<'a> {
                         #pyo3_path::intern!(py, stringify!(#python_name)),
                         #qualname_prefix,
                         #throw_callback,
-                        async move { #pyo3_path::impl_::wrap::OkWrap::wrap(future.await) },
+                        async move {
+                            use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
+                            let fut = future.await;
+                            (&fut).into_py_kind().wrap(fut)
+                        },
                     )
                 }};
                 if cancel_handle.is_some() {
@@ -699,14 +703,7 @@ impl<'a> FnSpec<'a> {
                     }
                 }
             };
-            let result = quotes::ok_wrap(call, ctx);
-            quote! {
-                {
-                    use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
-                    let result = #result;
-                    (&result).into_py_kind().new(py, result)
-                }
-            }
+            quotes::map_result_into_ptr(quotes::ok_wrap(call, ctx), ctx)
         };
 
         let func_name = &self.name;
