@@ -19,7 +19,7 @@ pub(crate) fn ok_wrap(obj: TokenStream, ctx: &Ctx) -> TokenStream {
         #[allow(unused_imports)]
         use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
         let obj = #obj;
-        (&obj).into_py_kind().wrap(obj).map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
+        (&obj).conversion_kind().wrap(obj).map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
     }}
 }
 
@@ -34,6 +34,6 @@ pub(crate) fn map_result_into_ptr(result: TokenStream, ctx: &Ctx) -> TokenStream
         #[allow(unused_imports)]
         use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
         let result = #result;
-        (&result).into_py_kind().map_into_ptr(#py, result)
+        (&result).conversion_kind().map_into_ptr(#py, result)
     }}
 }

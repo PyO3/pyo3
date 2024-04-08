@@ -108,7 +108,7 @@ impl IntoPyTag {
 }
 pub trait IntoPyKind {
     #[inline]
-    fn into_py_kind(&self) -> IntoPyTag {
+    fn conversion_kind(&self) -> IntoPyTag {
         IntoPyTag
     }
 }
@@ -138,7 +138,7 @@ impl IntoPyObjectTag {
 }
 pub trait IntoPyObjectKind {
     #[inline]
-    fn into_py_kind(&self) -> IntoPyObjectTag {
+    fn conversion_kind(&self) -> IntoPyObjectTag {
         IntoPyObjectTag
     }
 }

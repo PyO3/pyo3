@@ -171,13 +171,21 @@ pub trait IntoPy<T>: Sized {
     }
 }
 
+/// Defines a conversion from a Rust type to a Python object, which may fail.
+///
+/// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
+/// as an argument.
 pub trait IntoPyObject<'py, T>: Sized {
+    /// The type returned in the event of a conversion error.
     type Error;
 
+    /// Performs the conversion.
     fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, T>, Self::Error>;
 }
 
+/// Extension of [`IntoPyObject`] which allows type hinting using turbo fish syntax.
 pub trait IntoPyObjectExt: Sized {
+    /// Performs the conversion.
     fn into_pyobject<'py, T, E>(self, py: Python<'py>) -> Result<Bound<'py, T>, E>
     where
         Self: IntoPyObject<'py, T, Error = E>;

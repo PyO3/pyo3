@@ -1,4 +1,4 @@
-error[E0599]: the method `into_py_kind` exists for reference `&Blah`, but its trait bounds were not satisfied
+error[E0599]: the method `conversion_kind` exists for reference `&Blah`, but its trait bounds were not satisfied
  --> tests/ui/missing_intopy.rs:4:14
   |
 1 | struct Blah;
@@ -23,6 +23,6 @@ note: the traits `IntoPy` and `IntoPyObject` must be implemented
   | pub trait IntoPyObject<'py, T>: Sized {
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   = help: items from traits can only be used if the trait is implemented and in scope
-  = note: the following traits define an item `into_py_kind`, perhaps you need to implement one of them:
+  = note: the following traits define an item `conversion_kind`, perhaps you need to implement one of them:
           candidate #1: `IntoPyKind`
           candidate #2: `IntoPyObjectKind`
