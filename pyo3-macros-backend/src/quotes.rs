@@ -15,10 +15,12 @@ pub(crate) fn ok_wrap(obj: TokenStream, ctx: &Ctx) -> TokenStream {
         output_span,
     } = ctx;
     let pyo3_path = pyo3_path.to_tokens_spanned(*output_span);
-    quote_spanned! {*output_span=>
-        #pyo3_path::impl_::wrap::OkWrap::wrap(#obj)
-            .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
-    }
+    quote_spanned! { *output_span => {
+        #[allow(unused_imports)]
+        use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
+        let obj = #obj;
+        (&obj).into_py_kind().wrap(obj).map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
+    }}
 }
 
 pub(crate) fn map_result_into_ptr(result: TokenStream, ctx: &Ctx) -> TokenStream {
@@ -28,5 +30,10 @@ pub(crate) fn map_result_into_ptr(result: TokenStream, ctx: &Ctx) -> TokenStream
     } = ctx;
     let pyo3_path = pyo3_path.to_tokens_spanned(*output_span);
     let py = syn::Ident::new("py", proc_macro2::Span::call_site());
-    quote_spanned! {*output_span=> #pyo3_path::impl_::wrap::map_result_into_ptr(#py, #result) }
+    quote_spanned! { *output_span => {
+        #[allow(unused_imports)]
+        use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
+        let result = #result;
+        (&result).into_py_kind().map_into_ptr(#py, result)
+    }}
 }
