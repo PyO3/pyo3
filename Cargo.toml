@@ -35,7 +35,7 @@ inventory = { version = "0.3.0", optional = true }
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
 chrono = { version = "0.4.25", default-features = false, optional = true }
-chrono-tz = { version = ">= 0.6, < 0.9", default-features = false, optional = true }
+chrono-tz = { version = ">= 0.6, < 0.10", default-features = false, optional = true }
 either = { version = "1.9", optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.15", optional = true }
@@ -49,7 +49,7 @@ smallvec = { version = "1.0", optional = true }
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
 chrono = "0.4.25"
-chrono-tz = ">= 0.6, < 0.9"
+chrono-tz = ">= 0.6, < 0.10"
 # Required for "and $N others" normalization
 trybuild = ">=1.0.70"
 proptest = { version = "1.0", default-features = false, features = ["std"] }
