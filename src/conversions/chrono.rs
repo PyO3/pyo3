@@ -478,7 +478,7 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py, PyAny> for DateTime<Tz> {
 
         #[cfg(Py_LIMITED_API)]
         {
-            let tz = self.offset().fix().into_pyobject::<PyTzInfo, _>(py)?;
+            let tz = self.offset().fix().into_pyobject::<PyAny, _>(py)?;
             let DateArgs { year, month, day } = (&self.naive_local().date()).into();
             let TimeArgs {
                 hour,

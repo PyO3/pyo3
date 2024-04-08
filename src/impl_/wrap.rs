@@ -118,12 +118,17 @@ impl<T: IntoPy<PyObject>, E> IntoPyKind for &Result<T, E> {} // required autoref
 pub struct IntoPyObjectTag;
 impl IntoPyObjectTag {
     #[inline]
-    pub fn map_into_ptr<'py, T: IntoPyObject<'py, PyAny, Error = PyErr>>(
+    pub fn map_into_ptr<'py, T>(
         self,
         py: Python<'py>,
         obj: PyResult<T>,
-    ) -> PyResult<*mut ffi::PyObject> {
-        obj.and_then(|obj| obj.into_pyobj(py)).map(Bound::into_ptr)
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        T: IntoPyObject<'py, PyAny>,
+        PyErr: From<T::Error>,
+    {
+        obj.and_then(|obj| obj.into_pyobj(py).map_err(Into::into))
+            .map(Bound::into_ptr)
     }
 
     #[inline]
