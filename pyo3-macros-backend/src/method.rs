@@ -699,7 +699,14 @@ impl<'a> FnSpec<'a> {
                     }
                 }
             };
-            quotes::map_result_into_ptr(quotes::ok_wrap(call, ctx), ctx)
+            let result = quotes::ok_wrap(call, ctx);
+            quote! {
+                {
+                    use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
+                    let result = #result;
+                    (&result).into_py_kind().new(py, result)
+                }
+            }
         };
 
         let func_name = &self.name;

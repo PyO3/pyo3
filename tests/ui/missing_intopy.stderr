@@ -7,3 +7,32 @@ error[E0277]: the trait bound `Blah: OkWrap<Blah>` is not satisfied
   = help: the trait `OkWrap<T>` is implemented for `Result<T, E>`
   = note: required for `Blah` to implement `OkWrap<Blah>`
   = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: the method `into_py_kind` exists for reference `&Result<Blah, PyErr>`, but its trait bounds were not satisfied
+ --> tests/ui/missing_intopy.rs:3:1
+  |
+1 | struct Blah;
+  | ----------- doesn't satisfy `Blah: IntoPy<Py<PyAny>>` or `Blah: IntoPyObject<'_, PyAny>`
+2 |
+3 | #[pyo3::pyfunction]
+  | ^^^^^^^^^^^^^^^^^^^ method cannot be called on `&Result<Blah, PyErr>` due to unsatisfied trait bounds
+  |
+ ::: $RUST/core/src/result.rs
+  |
+  | pub enum Result<T, E> {
+  | --------------------- doesn't satisfy `Result<Blah, PyErr>: IntoPyObjectKind`
+  |
+  = note: the following trait bounds were not satisfied:
+          `Blah: IntoPyObject<'_, PyAny>`
+          which is required by `Result<Blah, PyErr>: IntoPyObjectKind`
+          `Blah: IntoPy<Py<PyAny>>`
+          which is required by `&Result<Blah, PyErr>: IntoPyKind`
+note: the traits `IntoPy` and `IntoPyObject` must be implemented
+ --> src/conversion.rs
+  |
+  | pub trait IntoPy<T>: Sized {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+  | pub trait IntoPyObject<'py, T>: Sized {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

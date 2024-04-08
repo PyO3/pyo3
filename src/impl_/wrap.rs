@@ -1,6 +1,8 @@
 use std::convert::Infallible;
 
-use crate::{ffi, IntoPy, PyObject, PyResult, Python};
+use crate::{
+    conversion::IntoPyObject, ffi, Bound, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
+};
 
 /// Used to wrap values in `Option<T>` for default arguments.
 pub trait SomeWrap<T> {
@@ -48,6 +50,44 @@ where
         self
     }
 }
+
+pub struct IntoPyTag;
+impl IntoPyTag {
+    #[inline]
+    pub fn new<T: IntoPy<PyObject>>(
+        self,
+        py: Python<'_>,
+        obj: PyResult<T>,
+    ) -> PyResult<*mut ffi::PyObject> {
+        obj.map(|obj| obj.into_py(py).into_ptr())
+    }
+}
+pub trait IntoPyKind {
+    #[inline]
+    fn into_py_kind(&self) -> IntoPyTag {
+        IntoPyTag
+    }
+}
+impl<T: IntoPy<PyObject>, E> IntoPyKind for &Result<T, E> {} // required autoref
+
+pub struct IntoPyObjectTag;
+impl IntoPyObjectTag {
+    #[inline]
+    pub fn new<'py, T: IntoPyObject<'py, PyAny, Error = PyErr>>(
+        self,
+        py: Python<'py>,
+        obj: PyResult<T>,
+    ) -> PyResult<*mut ffi::PyObject> {
+        obj.and_then(|obj| obj.into_pyobj(py)).map(Bound::into_ptr)
+    }
+}
+pub trait IntoPyObjectKind {
+    #[inline]
+    fn into_py_kind(&self) -> IntoPyObjectTag {
+        IntoPyObjectTag
+    }
+}
+impl<'py, T: IntoPyObject<'py, PyAny>, E> IntoPyObjectKind for Result<T, E> {}
 
 /// This is a follow-up function to `OkWrap::wrap` that converts the result into
 /// a `*mut ffi::PyObject` pointer.
