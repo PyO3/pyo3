@@ -33,12 +33,13 @@
 //!     });
 //! }
 //! ```
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::pybacked::PyBackedStr;
 use crate::sync::GILOnceCell;
 use crate::types::{any::PyAnyMethods, PyType};
 use crate::{
-    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use chrono_tz::Tz;
 use std::str::FromStr;
@@ -58,6 +59,17 @@ impl ToPyObject for Tz {
 impl IntoPy<PyObject> for Tz {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py, PyAny> for Tz {
+    type Error = PyErr;
+
+    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        ZONE_INFO
+            .get_or_try_init_type_ref(py, "zoneinfo", "ZoneInfo")
+            .and_then(|obj| obj.call1((self.name(),)))
     }
 }
 
