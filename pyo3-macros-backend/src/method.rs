@@ -676,7 +676,7 @@ impl<'a> FnSpec<'a> {
                         async move {
                             use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
                             let fut = future.await;
-                            (&fut).into_py_kind().wrap(fut)
+                            (&fut).conversion_kind().wrap(fut)
                         },
                     )
                 }};

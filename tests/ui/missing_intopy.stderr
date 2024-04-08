@@ -1,4 +1,4 @@
-error[E0599]: the method `into_py_kind` exists for reference `&Blah`, but its trait bounds were not satisfied
+error[E0599]: the method `conversion_kind` exists for reference `&Blah`, but its trait bounds were not satisfied
  --> tests/ui/missing_intopy.rs:3:1
   |
 1 | struct Blah;
