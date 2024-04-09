@@ -2,13 +2,15 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Ident;
 
+
+#[allow(dead_code)] // Not yet fully implemented
 fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
     let moduleident = import.moduleidentifier;
     let pymoduleident = Ident::new(&import.modulename, Span::mixed_site());
     let modulename = import.modulename;
     let modulerror = "Failed to import ".to_string() + &modulename;
     let functionname = import.functionname;
-    let functionerror = "Failed to get ".to_string() + &functionname + &" function".to_string();
+    let functionerror = "Failed to get ".to_string() + &functionname + " function";
 
     quote!(
         pyo3::append_to_inittab!(#moduleident);
