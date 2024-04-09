@@ -2,7 +2,6 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Ident;
 
-
 #[allow(dead_code)] // Not yet fully implemented
 fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
     let moduleident = import.moduleidentifier;
