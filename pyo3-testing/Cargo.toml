@@ -12,3 +12,6 @@ crate-type = ["rlib"]  # cdylib required for python import, rlib required for ru
 quote = "1.0.35"
 proc-macro2 = "1.0.74"
 syn = "2.0.55"
+
+[lints]
+workspace = true
