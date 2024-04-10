@@ -8,6 +8,13 @@ use syn::{
 
 /// Takes a code block which should be executed using the python gil, after importing a pyo3-wrapped
 /// function and adds the required `import` and `with_gil` statements.
+/// 
+/// Technically this is the equivalent to the python statements:
+/// ```python
+/// import module
+/// function = module.function
+/// ```
+/// and not `from module import function`
 #[allow(dead_code)] // Not yet fully implemented
 fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
     let moduleident = import.moduleidentifier;
