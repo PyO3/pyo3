@@ -106,8 +106,14 @@ mod tests {
             functionname: "function".to_string(),
         };
 
-        let parsed: Pyo3Import = import.parse_args().unwrap();
+        let parsed: Option<Pyo3Import>;
 
-        assert_eq!(parsed, expected)
+        if import.path().is_ident("pyo3import") {
+            parsed = Some(import.parse_args().unwrap());
+        } else {
+            parsed = None;
+        }
+
+        assert_eq!(parsed.unwrap(), expected)
     }
 }
