@@ -810,7 +810,10 @@ impl PyAny {
     }
 
     /// Returns the reference count for the Python object.
-    pub fn get_refcnt(&self) -> isize {
+    ///
+    /// Only used to validate behaviour in tests.
+    #[cfg(test)]
+    pub(crate) fn get_refcnt(&self) -> isize {
         self.as_borrowed().get_refcnt()
     }
 
@@ -1648,9 +1651,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         T: FromPyObjectBound<'a, 'py>;
 
-    /// Returns the reference count for the Python object.
-    fn get_refcnt(&self) -> isize;
-
     /// Computes the "repr" representation of self.
     ///
     /// This is equivalent to the Python expression `repr(self)`.
@@ -2186,10 +2186,6 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         T: FromPyObjectBound<'a, 'py>,
     {
         FromPyObjectBound::from_py_object_bound(self.as_borrowed())
-    }
-
-    fn get_refcnt(&self) -> isize {
-        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 
     fn repr(&self) -> PyResult<Bound<'py, PyString>> {

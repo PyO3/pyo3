@@ -242,16 +242,16 @@ mod inheriting_native_type {
     fn inherit_dict_drop() {
         Python::with_gil(|py| {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
-            assert_eq!(dict_sub.get_refcnt(py), 1);
+            assert_eq!(unsafe { pyo3::ffi::Py_REFCNT(dict_sub.as_ptr()) }, 1);
 
             let item = &py.eval_bound("object()", None, None).unwrap();
-            assert_eq!(item.get_refcnt(), 1);
+            assert_eq!(unsafe { pyo3::ffi::Py_REFCNT(item.as_ptr()) }, 1);
 
             dict_sub.bind(py).set_item("foo", item).unwrap();
-            assert_eq!(item.get_refcnt(), 2);
+            assert_eq!(unsafe { pyo3::ffi::Py_REFCNT(item.as_ptr()) }, 2);
 
             drop(dict_sub);
-            assert_eq!(item.get_refcnt(), 1);
+            assert_eq!(unsafe { pyo3::ffi::Py_REFCNT(item.as_ptr()) }, 1);
         })
     }
 
