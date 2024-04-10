@@ -44,6 +44,8 @@ struct Pyo3Import {
 }
 
 impl Parse for Pyo3Import {
+    /// Attributes parsing to Pyo3Imports should have the format:
+    /// `moduleidentifier: from modulename import functionname`
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let moduleidentifier = input.parse()?;
         let _colon: Colon = input.parse()?;
