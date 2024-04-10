@@ -3,7 +3,7 @@ use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
     token::Colon,
-    Ident,
+    Attribute, Ident,
 };
 
 #[allow(dead_code)] // Not yet fully implemented
@@ -50,6 +50,14 @@ impl Parse for Pyo3Import {
             modulename: modulename.to_string(),
             functionname: functionname.to_string(),
         })
+    }
+}
+#[allow(dead_code)] // Not yet fully implemented
+fn parseimport(import: Attribute) -> Option<Pyo3Import> {
+    if import.path().is_ident("pyo3import") {
+        Some(import.parse_args().unwrap())
+    } else {
+        None
     }
 }
 
@@ -106,13 +114,7 @@ mod tests {
             functionname: "function".to_string(),
         };
 
-        let parsed: Option<Pyo3Import>;
-
-        if import.path().is_ident("pyo3import") {
-            parsed = Some(import.parse_args().unwrap());
-        } else {
-            parsed = None;
-        }
+        let parsed = parseimport(import);
 
         assert_eq!(parsed.unwrap(), expected)
     }
