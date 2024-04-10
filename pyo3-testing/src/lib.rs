@@ -1,6 +1,10 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::Ident;
+use syn::{
+    parse::{Parse, ParseStream},
+    token::Colon,
+    Ident,
+};
 
 #[allow(dead_code)] // Not yet fully implemented
 fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
@@ -26,14 +30,33 @@ fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
     )
 }
 
+#[derive(Debug, PartialEq)]
 struct Pyo3Import {
     moduleidentifier: Ident,
     modulename: String,
     functionname: String,
 }
 
+impl Parse for Pyo3Import {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let moduleidentifier = input.parse()?;
+        let _colon: Colon = input.parse()?;
+        let _from: Ident = input.parse()?;
+        let modulename: Ident = input.parse()?;
+        let _import: Ident = input.parse()?;
+        let functionname: Ident = input.parse()?;
+        Ok(Pyo3Import {
+            moduleidentifier,
+            modulename: modulename.to_string(),
+            functionname: functionname.to_string(),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use syn::{parse_quote, Attribute};
+
     use super::*;
 
     #[test]
@@ -67,5 +90,24 @@ mod tests {
         let output = import_pyo3_from(module, input);
 
         assert_eq!(output.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_parseimport() {
+        let import: Attribute = parse_quote! {
+            #[pyo3import(o3module: from module import function)]
+        };
+
+        let o3module = Ident::new("o3module", Span::call_site());
+
+        let expected = Pyo3Import {
+            moduleidentifier: o3module,
+            modulename: "module".to_string(),
+            functionname: "function".to_string(),
+        };
+
+        let parsed: Pyo3Import = import.parse_args().unwrap();
+
+        assert_eq!(parsed, expected)
     }
 }
