@@ -68,7 +68,7 @@ impl Parse for Pyo3Import {
 /// `#[pyo3import(foo: from foo import bar)]`
 /// - `None` for Attributes with other paths.
 #[allow(dead_code)] // Not yet fully implemented
-fn parseimport(import: Attribute) -> Option<Pyo3Import> {
+fn parsepyo3import(import: Attribute) -> Option<Pyo3Import> {
     if import.path().is_ident("pyo3import") {
         Some(import.parse_args().unwrap())
     } else {
@@ -129,7 +129,7 @@ mod tests {
             functionname: "function".to_string(),
         };
 
-        let parsed = parseimport(import);
+        let parsed = parsepyo3import(import);
 
         assert_eq!(parsed.unwrap(), expected)
     }
