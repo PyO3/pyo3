@@ -324,6 +324,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
 
     Ok(quote! {
         #function
+        #[doc(hidden)]
         #vis mod #ident {
             #initialization
         }
