@@ -6,6 +6,8 @@ use syn::{
     Attribute, Ident,
 };
 
+/// Takes a code block which should be executed using the python gil, after importing a pyo3-wrapped
+/// function and adds the required `import` and `with_gil` statements.
 #[allow(dead_code)] // Not yet fully implemented
 fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
     let moduleident = import.moduleidentifier;
@@ -16,24 +18,28 @@ fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
     let functionerror = "Failed to get ".to_string() + &functionname + " function";
 
     quote!(
-        pyo3::append_to_inittab!(#moduleident);
+        pyo3::append_to_inittab!(#moduleident); // allow python to import from this wrapped module
         pyo3::prepare_freethreaded_python();
         Python::with_gil(|py| {
             let #pymoduleident = py
-                .import_bound(#modulename)
+                .import_bound(#modulename) // import the wrapped module
                 .expect(#modulerror);
             let fizzbuzz = fizzbuzzo3
-                .getattr(#functionname)
+                .getattr(#functionname) // import the wrapped function
                 .expect(#functionerror);
             #input
         });
     )
 }
 
+/// A python `import` statement for a pyo3-wrapped function.
 #[derive(Debug, PartialEq)]
 struct Pyo3Import {
+    /// The *rust* `ident` of the wrapped module
     moduleidentifier: Ident,
+    /// The *python* module name
     modulename: String,
+    /// The *python* function name
     functionname: String,
 }
 
@@ -52,6 +58,13 @@ impl Parse for Pyo3Import {
         })
     }
 }
+
+/// Parse an `Attribute` as a `pyo3import`, including path validation.
+///
+/// Return:
+/// - `Some(Pyo3Import)` for Attributes with the path `pyo3import` e.g.:
+/// `#[pyo3import(foo: from foo import bar)]`
+/// - `None` for Attributes with other paths.
 #[allow(dead_code)] // Not yet fully implemented
 fn parseimport(import: Attribute) -> Option<Pyo3Import> {
     if import.path().is_ident("pyo3import") {
