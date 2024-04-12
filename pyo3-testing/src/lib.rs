@@ -20,6 +20,7 @@ fn import_pyo3_from(import: Pyo3Import, input: ItemFn) -> TokenStream2 {
     let modulerror = "Failed to import ".to_string() + &modulename;
     let functionname = import.functionname;
     let functionerror = "Failed to get ".to_string() + &functionname + " function";
+    let pyfunctionident = Ident::new(&functionname, Span::mixed_site());
     let fnsig = &input.sig;
     let fnstmts = &input.block.stmts;
 
@@ -31,7 +32,7 @@ fn import_pyo3_from(import: Pyo3Import, input: ItemFn) -> TokenStream2 {
                 let #pymoduleident = py
                     .import_bound(#modulename) // import the wrapped module
                     .expect(#modulerror);
-                let fizzbuzz = fizzbuzzo3
+                let #pyfunctionident = #pymoduleident
                     .getattr(#functionname) // import the wrapped function
                     .expect(#functionerror);
                 #(#fnstmts)*
@@ -102,7 +103,7 @@ mod tests {
     fn test_importmodule() {
         let input = parse_quote! {
             fn test_fizzbuzz() {
-                assert!(true);
+                assert!(true)
             }
         };
 
@@ -125,7 +126,7 @@ mod tests {
                     let fizzbuzz = fizzbuzzo3
                     .getattr("fizzbuzz")
                     .expect("Failed to get fizzbuzz function");
-                    assert!(true);
+                    assert!(true)
                 });
             }
         };
@@ -177,7 +178,7 @@ mod tests {
                     let pybar = pyfoo
                     .getattr("pybar")
                     .expect("Failed to get pybar function");
-                    assert!(true);
+                    assert!(true)
                 });
             }
         };
