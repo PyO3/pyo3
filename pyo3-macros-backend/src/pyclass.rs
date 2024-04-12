@@ -1614,7 +1614,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         quote! {
             impl #cls {
                 #[doc(hidden)]
-                const _PYO3_DEF: #pyo3_path::impl_::pymodule::AddClassToModule<Self> = #pyo3_path::impl_::pymodule::AddClassToModule::new();
+                pub const _PYO3_DEF: #pyo3_path::impl_::pymodule::AddClassToModule<Self> = #pyo3_path::impl_::pymodule::AddClassToModule::new();
             }
         }
     }
