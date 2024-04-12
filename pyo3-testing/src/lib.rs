@@ -1,7 +1,10 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    parse::{Parse, ParseStream}, parse2, token::Colon, Attribute, Ident, ItemFn
+    parse::{Parse, ParseStream},
+    parse2,
+    token::Colon,
+    Attribute, Ident, ItemFn,
 };
 
 /// Takes a code block which should be executed using the python gil, after importing a pyo3-wrapped
@@ -157,8 +160,7 @@ mod tests {
 
     #[test]
     fn test_macro() {
-        let attr = quote! {
-        };
+        let attr = quote! {};
 
         let input = quote! {
             #[pyo3import(foo_o3: from pyfoo import pybar)]
