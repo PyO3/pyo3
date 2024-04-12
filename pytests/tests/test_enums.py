@@ -138,12 +138,14 @@ def test_complex_enum_pyfunction_in_out_desugared_match(variant: enums.ComplexEn
     else:
         assert False
 
+
 def test_tuple_enum_variant_constructors():
     tuple_variant = enums.TupleEnum.Full(42, 3.14, False)
     assert isinstance(tuple_variant, enums.TupleEnum.Full)
 
     empty_tuple_variant = enums.TupleEnum.EmptyTuple()
     assert isinstance(empty_tuple_variant, enums.TupleEnum.EmptyTuple)
+
 
 @pytest.mark.parametrize(
     "variant",
@@ -154,6 +156,7 @@ def test_tuple_enum_variant_constructors():
 )
 def test_tuple_enum_variant_subclasses(variant: enums.TupleEnum):
     assert isinstance(variant, enums.TupleEnum)
+
 
 def test_tuple_enum_field_getters():
     tuple_variant = enums.TupleEnum.Full(42, 3.14, False)
