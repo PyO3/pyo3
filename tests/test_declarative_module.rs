@@ -9,6 +9,13 @@ use pyo3::types::PyBool;
 #[path = "../src/tests/common.rs"]
 mod common;
 
+mod some_module {
+    use pyo3::prelude::*;
+
+    #[pyclass]
+    pub struct SomePyClass;
+}
+
 #[pyclass]
 struct ValueClass {
     value: usize,
@@ -49,6 +56,10 @@ mod declarative_module {
     use super::*;
     #[pymodule_export]
     use super::{declarative_module2, double, MyError, ValueClass as Value};
+
+    // test for #4036
+    #[pymodule_export]
+    use super::some_module::SomePyClass;
 
     #[pymodule]
     mod inner {
