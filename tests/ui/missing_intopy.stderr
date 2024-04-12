@@ -2,7 +2,7 @@ error[E0599]: the method `conversion_kind` exists for reference `&&&Blah`, but i
  --> tests/ui/missing_intopy.rs:4:14
   |
 1 | struct Blah;
-  | ----------- doesn't satisfy `Blah: IntoPy<Py<PyAny>>`, `Blah: IntoPyKind` or `Blah: IntoPyObject<'_, PyAny>`
+  | ----------- doesn't satisfy `Blah: IntoPy<Py<PyAny>>`, `Blah: IntoPyKind` or `Blah: IntoPyObject<'_>`
 ...
 4 | fn blah() -> Blah{
   |              ^^^^ method cannot be called on `&&&Blah` due to unsatisfied trait bounds
@@ -10,15 +10,15 @@ error[E0599]: the method `conversion_kind` exists for reference `&&&Blah`, but i
   = note: the following trait bounds were not satisfied:
           `&&Blah: IntoPy<Py<PyAny>>`
           which is required by `&&Blah: IntoPyKind`
-          `&Blah: IntoPyObject<'_, PyAny>`
+          `&Blah: IntoPyObject<'_>`
           which is required by `&&Blah: IntoPyObjectKind`
           `&&&Blah: IntoPy<Py<PyAny>>`
           which is required by `&&&Blah: IntoPyKind`
-          `&&Blah: IntoPyObject<'_, PyAny>`
+          `&&Blah: IntoPyObject<'_>`
           which is required by `&&&Blah: IntoPyObjectKind`
           `&Blah: IntoPy<Py<PyAny>>`
           which is required by `&Blah: IntoPyKind`
-          `Blah: IntoPyObject<'_, PyAny>`
+          `Blah: IntoPyObject<'_>`
           which is required by `&Blah: IntoPyObjectKind`
           `Blah: IntoPy<Py<PyAny>>`
           which is required by `Blah: IntoPyKind`
@@ -28,8 +28,8 @@ note: the traits `IntoPy` and `IntoPyObject` must be implemented
   | pub trait IntoPy<T>: Sized {
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
 ...
-  | pub trait IntoPyObject<'py, T>: Sized {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | pub trait IntoPyObject<'py>: Sized {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   = help: items from traits can only be used if the trait is implemented and in scope
   = note: the following traits define an item `conversion_kind`, perhaps you need to implement one of them:
           candidate #1: `IntoPyKind`

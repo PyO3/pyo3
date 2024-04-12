@@ -43,10 +43,11 @@ impl ToPyObject for Ipv4Addr {
     }
 }
 
-impl<'py> IntoPyObject<'py, PyAny> for Ipv4Addr {
+impl<'py> IntoPyObject<'py> for Ipv4Addr {
+    type Target = PyAny;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         static IPV4_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
         IPV4_ADDRESS
             .get_or_try_init_type_ref(py, "ipaddress", "IPv4Address")?
@@ -66,10 +67,11 @@ impl ToPyObject for Ipv6Addr {
     }
 }
 
-impl<'py> IntoPyObject<'py, PyAny> for Ipv6Addr {
+impl<'py> IntoPyObject<'py> for Ipv6Addr {
+    type Target = PyAny;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         static IPV6_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
         IPV6_ADDRESS
             .get_or_try_init_type_ref(py, "ipaddress", "IPv6Address")?
@@ -92,13 +94,14 @@ impl IntoPy<PyObject> for IpAddr {
     }
 }
 
-impl<'py> IntoPyObject<'py, PyAny> for IpAddr {
+impl<'py> IntoPyObject<'py> for IpAddr {
+    type Target = PyAny;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         match self {
-            IpAddr::V4(ip) => ip.into_pyobj(py),
-            IpAddr::V6(ip) => ip.into_pyobj(py),
+            IpAddr::V4(ip) => ip.into_pyobject(py),
+            IpAddr::V6(ip) => ip.into_pyobject(py),
         }
     }
 }

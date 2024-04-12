@@ -1,8 +1,7 @@
 use std::convert::Infallible;
 
 use crate::{
-    conversion::IntoPyObject, ffi, types::PyNone, Bound, IntoPy, PyAny, PyErr, PyObject, PyResult,
-    Python,
+    conversion::IntoPyObject, ffi, types::PyNone, Bound, IntoPy, PyErr, PyObject, PyResult, Python,
 };
 
 /// Used to wrap values in `Option<T>` for default arguments.
@@ -71,7 +70,7 @@ pub trait OkWrapIntoPyObject<T> {
 // implementation for Result<T, E> from conflicting
 impl<'py, T> OkWrapIntoPyObject<T> for T
 where
-    T: IntoPyObject<'py, PyAny>,
+    T: IntoPyObject<'py>,
 {
     type Error = Infallible;
     #[inline]
@@ -82,7 +81,7 @@ where
 
 impl<'py, T, E> OkWrapIntoPyObject<T> for Result<T, E>
 where
-    T: IntoPyObject<'py, PyAny>,
+    T: IntoPyObject<'py>,
 {
     type Error = E;
     #[inline]
@@ -125,10 +124,10 @@ impl IntoPyObjectTag {
         obj: PyResult<T>,
     ) -> PyResult<*mut ffi::PyObject>
     where
-        T: IntoPyObject<'py, PyAny>,
+        T: IntoPyObject<'py>,
         PyErr: From<T::Error>,
     {
-        obj.and_then(|obj| obj.into_pyobj(py).map_err(Into::into))
+        obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
             .map(Bound::into_ptr)
     }
 
@@ -143,8 +142,8 @@ pub trait IntoPyObjectKind {
         IntoPyObjectTag
     }
 }
-impl<'py, T: IntoPyObject<'py, PyAny>> IntoPyObjectKind for &T {}
-impl<'py, T: IntoPyObject<'py, PyAny>, E> IntoPyObjectKind for &Result<T, E> {}
+impl<'py, T: IntoPyObject<'py>> IntoPyObjectKind for &T {}
+impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectKind for &Result<T, E> {}
 
 pub struct IntoPyNoneTag;
 impl IntoPyNoneTag {

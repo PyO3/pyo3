@@ -176,28 +176,25 @@ pub trait IntoPy<T>: Sized {
 ///
 /// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
 /// as an argument.
-pub trait IntoPyObject<'py, T>: Sized {
+pub trait IntoPyObject<'py>: Sized {
+    /// The Python output type
+    type Target;
     /// The type returned in the event of a conversion error.
     type Error;
 
     /// Performs the conversion.
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, T>, Self::Error>;
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error>;
 }
 
-/// Extension of [`IntoPyObject`] which allows type hinting using turbo fish syntax.
-pub trait IntoPyObjectExt: Sized {
-    /// Performs the conversion.
-    fn into_pyobject<'py, T, E>(self, py: Python<'py>) -> Result<Bound<'py, T>, E>
-    where
-        Self: IntoPyObject<'py, T, Error = E>;
-}
+impl<'py, T> IntoPyObject<'py> for &'_ T
+where
+    T: Copy + IntoPyObject<'py>,
+{
+    type Target = T::Target;
+    type Error = T::Error;
 
-impl<T> IntoPyObjectExt for T {
-    fn into_pyobject<'py, Target, E>(self, py: Python<'py>) -> Result<Bound<'py, Target>, E>
-    where
-        Self: IntoPyObject<'py, Target, Error = E>,
-    {
-        self.into_pyobj(py)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
@@ -384,18 +381,11 @@ impl IntoPy<Py<PyTuple>> for () {
     }
 }
 
-impl<'py> IntoPyObject<'py, PyAny> for () {
+impl<'py> IntoPyObject<'py> for () {
+    type Target = PyTuple;
     type Error = Infallible;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.into_pyobject::<PyTuple, _>(py).map(Bound::into_any)
-    }
-}
-
-impl<'py> IntoPyObject<'py, PyTuple> for () {
-    type Error = Infallible;
-
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyTuple>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         Ok(PyTuple::empty(py))
     }
 }
