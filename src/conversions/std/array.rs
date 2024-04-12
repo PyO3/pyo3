@@ -1,4 +1,4 @@
-use crate::conversion::{IntoPyObject, IntoPyObjectExt};
+use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
@@ -38,13 +38,14 @@ where
     }
 }
 
-impl<'py, T, const N: usize> IntoPyObject<'py, PyList> for [T; N]
+impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
-    T: IntoPyObject<'py, PyAny>,
+    T: IntoPyObject<'py>,
 {
+    type Target = PyList;
     type Error = T::Error;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyList>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         unsafe {
             let len = N as ffi::Py_ssize_t;
 
@@ -66,17 +67,6 @@ where
 
             Ok(list)
         }
-    }
-}
-
-impl<'py, T, const N: usize> IntoPyObject<'py, PyAny> for [T; N]
-where
-    T: IntoPyObject<'py, PyAny>,
-{
-    type Error = T::Error;
-
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.into_pyobject::<PyList, _>(py).map(Bound::into_any)
     }
 }
 

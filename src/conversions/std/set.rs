@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{IntoPyObject, IntoPyObjectExt},
+    conversion::IntoPyObject,
     instance::Bound,
     types::{
         any::PyAnyMethods,
@@ -54,15 +54,16 @@ where
     }
 }
 
-impl<'py, K, S> IntoPyObject<'py, PySet> for collections::HashSet<K, S>
+impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
 where
-    K: IntoPyObject<'py, PyAny> + Eq + hash::Hash,
+    K: IntoPyObject<'py> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
     PyErr: From<K::Error>,
 {
+    type Target = PySet;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PySet>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         try_new_from_iter(
             py,
             self.into_iter().map(|item| {
@@ -72,19 +73,6 @@ where
                     .map_err(Into::into)
             }),
         )
-    }
-}
-
-impl<'py, K, S> IntoPyObject<'py, PyAny> for collections::HashSet<K, S>
-where
-    K: IntoPyObject<'py, PyAny> + Eq + hash::Hash,
-    S: hash::BuildHasher + Default,
-    PyErr: From<K::Error>,
-{
-    type Error = PyErr;
-
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.into_pyobject::<PySet, _>(py).map(Bound::into_any)
     }
 }
 
@@ -128,14 +116,15 @@ where
     }
 }
 
-impl<'py, K> IntoPyObject<'py, PySet> for collections::BTreeSet<K>
+impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
 where
-    K: IntoPyObject<'py, PyAny> + Eq + hash::Hash,
+    K: IntoPyObject<'py> + Eq + hash::Hash,
     PyErr: From<K::Error>,
 {
+    type Target = PySet;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PySet>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         try_new_from_iter(
             py,
             self.into_iter().map(|item| {
@@ -145,18 +134,6 @@ where
                     .map_err(Into::into)
             }),
         )
-    }
-}
-
-impl<'py, K> IntoPyObject<'py, PyAny> for collections::BTreeSet<K>
-where
-    K: IntoPyObject<'py, PyAny> + Eq + hash::Hash,
-    PyErr: From<K::Error>,
-{
-    type Error = PyErr;
-
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.into_pyobject::<PySet, _>(py).map(Bound::into_any)
     }
 }
 

@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{IntoPyObject, IntoPyObjectExt},
+    conversion::IntoPyObject,
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, IntoPyDict, PyDict},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
@@ -49,35 +49,22 @@ where
     }
 }
 
-impl<'py, K, V, H> IntoPyObject<'py, PyDict> for collections::HashMap<K, V, H>
+impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPyObject<'py, PyAny>,
-    V: IntoPyObject<'py, PyAny>,
+    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
     H: hash::BuildHasher,
     PyErr: From<K::Error> + From<V::Error>,
 {
+    type Target = PyDict;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyDict>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         let dict = PyDict::new_bound(py);
         for (k, v) in self {
             dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
         }
         Ok(dict)
-    }
-}
-
-impl<'py, K, V, H> IntoPyObject<'py, PyAny> for collections::HashMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + IntoPyObject<'py, PyAny>,
-    V: IntoPyObject<'py, PyAny>,
-    H: hash::BuildHasher,
-    PyErr: From<K::Error> + From<V::Error>,
-{
-    type Error = PyErr;
-
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.into_pyobject::<PyDict, _>(py).map(Bound::into_any)
     }
 }
 
@@ -99,33 +86,21 @@ where
     }
 }
 
-impl<'py, K, V> IntoPyObject<'py, PyDict> for collections::BTreeMap<K, V>
+impl<'py, K, V> IntoPyObject<'py> for collections::BTreeMap<K, V>
 where
-    K: cmp::Eq + IntoPyObject<'py, PyAny>,
-    V: IntoPyObject<'py, PyAny>,
+    K: cmp::Eq + IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
     PyErr: From<K::Error> + From<V::Error>,
 {
+    type Target = PyDict;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyDict>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, PyDict>, Self::Error> {
         let dict = PyDict::new_bound(py);
         for (k, v) in self {
             dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
         }
         Ok(dict)
-    }
-}
-
-impl<'py, K, V> IntoPyObject<'py, PyAny> for collections::BTreeMap<K, V>
-where
-    K: cmp::Eq + IntoPyObject<'py, PyAny>,
-    V: IntoPyObject<'py, PyAny>,
-    PyErr: From<K::Error> + From<V::Error>,
-{
-    type Error = PyErr;
-
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.into_pyobject::<PyDict, _>(py).map(Bound::into_any)
     }
 }
 

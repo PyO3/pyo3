@@ -24,14 +24,18 @@ where
     }
 }
 
-impl<'py, T> IntoPyObject<'py, PyAny> for Option<T>
+impl<'py, T> IntoPyObject<'py> for Option<T>
 where
-    T: IntoPyObject<'py, PyAny>,
+    T: IntoPyObject<'py>,
 {
+    type Target = PyAny;
     type Error = T::Error;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.map_or_else(|| Ok(py.None().into_bound(py)), |val| val.into_pyobj(py))
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        self.map_or_else(
+            || Ok(py.None().into_bound(py)),
+            |val| val.into_pyobject(py).map(Bound::into_any),
+        )
     }
 }
 

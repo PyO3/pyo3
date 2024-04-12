@@ -1,9 +1,9 @@
-use crate::conversion::{IntoPyObject, IntoPyObjectExt};
+use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::list::{new_from_iter, try_new_from_iter};
 use crate::types::PyList;
-use crate::{Bound, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject};
+use crate::{Bound, IntoPy, PyErr, PyObject, Python, ToPyObject};
 
 impl<T> ToPyObject for [T]
 where
@@ -41,14 +41,15 @@ where
     }
 }
 
-impl<'py, T> IntoPyObject<'py, PyList> for Vec<T>
+impl<'py, T> IntoPyObject<'py> for Vec<T>
 where
-    T: IntoPyObject<'py, PyAny>,
+    T: IntoPyObject<'py>,
     PyErr: From<T::Error>,
 {
+    type Target = PyList;
     type Error = PyErr;
 
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyList>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         let mut iter = self.into_iter().map(|e| {
             e.into_pyobject(py)
                 .map(Bound::into_any)
@@ -57,17 +58,5 @@ where
         });
 
         try_new_from_iter(py, &mut iter)
-    }
-}
-
-impl<'py, T> IntoPyObject<'py, PyAny> for Vec<T>
-where
-    T: IntoPyObject<'py, PyAny>,
-    PyErr: From<T::Error>,
-{
-    type Error = PyErr;
-
-    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
-        self.into_pyobject::<PyList, _>(py).map(Bound::into_any)
     }
 }
