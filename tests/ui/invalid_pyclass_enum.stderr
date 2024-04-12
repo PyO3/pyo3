@@ -24,14 +24,6 @@ error: Unit variant `UnitVariant` is not yet supported in a complex enum
 21 |     UnitVariant,
    |     ^^^^^^^^^^^
 
-error: Tuple variant `TupleVariant` is not yet supported in a complex enum
-       = help: change to a struct variant with named fields: `TupleVariant { /* fields */ }`
-       = note: the enum is complex because of non-unit variant `StructVariant`
-  --> tests/ui/invalid_pyclass_enum.rs:27:5
-   |
-27 |     TupleVariant(i32),
-   |     ^^^^^^^^^^^^
-
 error: `constructor` can't be used on a simple enum variant
   --> tests/ui/invalid_pyclass_enum.rs:32:12
    |

@@ -57,3 +57,22 @@ def test_complex_enum_pyfunction_in_out(variant: enums.ComplexEnum):
             assert z is True
         case _:
             assert False
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        enums.TupleEnum.Full(42, 3.14, True),
+        enums.TupleEnum.EmptyTuple(),
+    ],
+)
+def test_tuple_enum_match_statement(variant: enums.TupleEnum):
+    match variant:
+        case enums.TupleEnum.Full(_0=x, _1=y, _2=z):
+            assert x == 42
+            assert y == 3.14
+            assert z == True
+        case enums.TupleEnum.EmptyTuple():
+            assert True
+        case _:
+            print(variant)
+            assert False
