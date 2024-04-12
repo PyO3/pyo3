@@ -22,3 +22,28 @@ note: required by a bound in `PyRefMut`
   | pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
   |                                    ^^^^^^^^^^^^^^ required by this bound in `PyRefMut`
   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0271]: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
+  --> tests/ui/invalid_pymethod_enum.rs:27:24
+   |
+27 |     fn mutate_in_place(&mut self) {
+   |                        ^ expected `False`, found `True`
+   |
+note: required by a bound in `extract_pyclass_ref_mut`
+  --> src/impl_/extract_argument.rs
+   |
+   | pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
+   |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+
+error[E0271]: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
+  --> tests/ui/invalid_pymethod_enum.rs:25:1
+   |
+25 | #[pymethods]
+   | ^^^^^^^^^^^^ expected `False`, found `True`
+   |
+note: required by a bound in `PyRefMut`
+  --> src/pycell.rs
+   |
+   | pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
+   |                                    ^^^^^^^^^^^^^^ required by this bound in `PyRefMut`
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)

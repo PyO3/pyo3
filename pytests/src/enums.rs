@@ -6,8 +6,10 @@ use pyo3::{
 pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SimpleEnum>()?;
     m.add_class::<ComplexEnum>()?;
+    m.add_class::<TupleEnum>()?;
     m.add_wrapped(wrap_pyfunction_bound!(do_simple_stuff))?;
     m.add_wrapped(wrap_pyfunction_bound!(do_complex_stuff))?;
+    m.add_wrapped(wrap_pyfunction_bound!(do_tuple_stuff))?;
     Ok(())
 }
 
@@ -56,5 +58,33 @@ pub fn do_complex_stuff(thing: &ComplexEnum) -> ComplexEnum {
             b: *b,
             c: *c,
         },
+    }
+}
+
+#[pyclass]
+pub enum TupleEnum {
+    Full(i32, f64, bool),
+    EmptyTuple(),
+}
+
+#[pyfunction]
+pub fn do_tuple_stuff(thing: &TupleEnum) -> TupleEnum {
+    match thing {
+        TupleEnum::Full(a, b, c) => TupleEnum::Full(*a, *b, *c),
+        TupleEnum::EmptyTuple() => TupleEnum::EmptyTuple(),
+    }
+}
+
+#[pyclass]
+pub enum MixedComplexEnum {
+    Nothing {},
+    Empty(),
+}
+
+#[pyfunction]
+pub fn do_mixed_complex_stuff(thing: &MixedComplexEnum) -> MixedComplexEnum {
+    match thing {
+        MixedComplexEnum::Nothing {} => MixedComplexEnum::Nothing{},
+        MixedComplexEnum::Empty() => MixedComplexEnum::Empty (),
     }
 }
