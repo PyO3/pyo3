@@ -1,11 +1,14 @@
+use crate::conversion::{IntoPyObject, IntoPyObjectExt};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
+use crate::types::PyLong;
 use crate::{
     exceptions, ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
     ToPyObject,
 };
+use std::convert::Infallible;
 use std::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
     NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
@@ -28,6 +31,22 @@ macro_rules! int_fits_larger_int {
             #[cfg(feature = "experimental-inspect")]
             fn type_output() -> TypeInfo {
                 <$larger_type>::type_output()
+            }
+        }
+
+        impl<'py> IntoPyObject<'py, PyLong> for $rust_type {
+            type Error = Infallible;
+
+            fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyLong>, Self::Error> {
+                (self as $larger_type).into_pyobj(py)
+            }
+        }
+
+        impl<'py> IntoPyObject<'py, PyAny> for $rust_type {
+            type Error = Infallible;
+
+            fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+                self.into_pyobject::<PyLong, _>(py).map(Bound::into_any)
             }
         }
 
@@ -90,6 +109,24 @@ macro_rules! int_convert_u64_or_i64 {
                 TypeInfo::builtin("int")
             }
         }
+        impl<'py> IntoPyObject<'py, PyLong> for $rust_type {
+            type Error = Infallible;
+
+            fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyLong>, Self::Error> {
+                unsafe {
+                    Ok($pylong_from_ll_or_ull(self)
+                        .assume_owned(py)
+                        .downcast_into_unchecked())
+                }
+            }
+        }
+        impl<'py> IntoPyObject<'py, PyAny> for $rust_type {
+            type Error = Infallible;
+
+            fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+                self.into_pyobject::<PyLong, _>(py).map(Bound::into_any)
+            }
+        }
         impl FromPyObject<'_> for $rust_type {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
@@ -118,6 +155,26 @@ macro_rules! int_fits_c_long {
             #[cfg(feature = "experimental-inspect")]
             fn type_output() -> TypeInfo {
                 TypeInfo::builtin("int")
+            }
+        }
+
+        impl<'py> IntoPyObject<'py, PyLong> for $rust_type {
+            type Error = Infallible;
+
+            fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyLong>, Self::Error> {
+                unsafe {
+                    Ok(ffi::PyLong_FromLong(self as c_long)
+                        .assume_owned(py)
+                        .downcast_into_unchecked())
+                }
+            }
+        }
+
+        impl<'py> IntoPyObject<'py, PyAny> for $rust_type {
+            type Error = Infallible;
+
+            fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+                self.into_pyobject::<PyLong, _>(py).map(Bound::into_any)
             }
         }
 

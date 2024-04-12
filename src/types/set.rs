@@ -248,27 +248,29 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
     py: Python<'_>,
     elements: impl IntoIterator<Item = T>,
 ) -> PyResult<Bound<'_, PySet>> {
-    fn inner<'py>(
-        py: Python<'py>,
-        elements: &mut dyn Iterator<Item = PyObject>,
-    ) -> PyResult<Bound<'py, PySet>> {
-        let set = unsafe {
-            // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
-            ffi::PySet_New(std::ptr::null_mut())
-                .assume_owned_or_err(py)?
-                .downcast_into_unchecked()
-        };
-        let ptr = set.as_ptr();
+    let mut iter = elements.into_iter().map(|e| Ok(e.to_object(py)));
+    try_new_from_iter(py, &mut iter)
+}
 
-        for obj in elements {
-            err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })?;
-        }
+#[inline]
+pub(crate) fn try_new_from_iter(
+    py: Python<'_>,
+    elements: impl IntoIterator<Item = PyResult<PyObject>>,
+) -> PyResult<Bound<'_, PySet>> {
+    let set = unsafe {
+        // We create the `Bound` pointer because its Drop cleans up the set if
+        // user code errors or panics.
+        ffi::PySet_New(std::ptr::null_mut())
+            .assume_owned_or_err(py)?
+            .downcast_into_unchecked()
+    };
+    let ptr = set.as_ptr();
 
-        Ok(set)
+    for obj in elements {
+        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj?.as_ptr()) })?;
     }
 
-    let mut iter = elements.into_iter().map(|e| e.to_object(py));
-    inner(py, &mut iter)
+    Ok(set)
 }
 
 #[cfg(test)]
