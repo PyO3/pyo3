@@ -7,7 +7,7 @@ use syn::{
     Attribute, Ident, ItemFn,
 };
 
-/// Takes a code block which should be executed using the python gil, after importing a pyo3-wrapped
+/// Takes a code block which should be executed using Python::with_gil, and after importing a pyo3-wrapped
 /// function and adds the required `import` and `with_gil` statements.
 ///
 /// Technically this is the equivalent to the python statements:
@@ -16,7 +16,7 @@ use syn::{
 /// function = module.function
 /// ```
 /// and not `from module import function`
-fn import_pyo3_from(import: Pyo3Import, input: ItemFn) -> TokenStream2 {
+fn wrap_testcase(import: Pyo3Import, testcase: ItemFn) -> TokenStream2 {
     let moduleident = import.moduleidentifier;
     let pymoduleident = Ident::new(&import.modulename, Span::mixed_site());
     let modulename = import.modulename;
@@ -24,8 +24,8 @@ fn import_pyo3_from(import: Pyo3Import, input: ItemFn) -> TokenStream2 {
     let functionname = import.functionname;
     let functionerror = "Failed to get ".to_string() + &functionname + " function";
     let pyfunctionident = Ident::new(&functionname, Span::mixed_site());
-    let fnsig = &input.sig;
-    let fnstmts = &input.block.stmts;
+    let fnsig = &testcase.sig;
+    let fnstmts = &testcase.block.stmts;
 
     quote!(
         #fnsig {
@@ -93,7 +93,7 @@ fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let input: ItemFn = parse2(input).unwrap();
     let import = parsepyo3import(&input.attrs[0]).unwrap();
-    import_pyo3_from(import, input)
+    wrap_testcase(import, input)
 }
 
 #[cfg(test)]
@@ -103,8 +103,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_importmodule() {
-        let input = parse_quote! {
+    fn test_wrap_testcase() {
+        let testcase = parse_quote! {
             fn test_fizzbuzz() {
                 assert!(true)
             }
@@ -112,7 +112,7 @@ mod tests {
 
         let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
 
-        let module = Pyo3Import {
+        let import = Pyo3Import {
             moduleidentifier: py_fizzbuzzo3,
             modulename: "fizzbuzzo3".to_string(),
             functionname: "fizzbuzz".to_string(),
@@ -134,7 +134,7 @@ mod tests {
             }
         };
 
-        let output = import_pyo3_from(module, input);
+        let output = wrap_testcase(import, testcase);
 
         assert_eq!(output.to_string(), expected.to_string());
     }
