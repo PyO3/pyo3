@@ -114,7 +114,15 @@ fn pyfunction_from_py_with(
 fn pyfunction_gil_ref(_any: &PyAny) {}
 
 #[pyfunction]
+#[pyo3(signature = (_any))]
 fn pyfunction_option_gil_ref(_any: Option<&PyAny>) {}
+
+#[pyfunction]
+#[pyo3(signature = (_i, _any=None))]
+fn pyfunction_option_1(_i: u32, _any: Option<i32>) {}
+
+#[pyfunction]
+fn pyfunction_option_2(_i: u32, _any: Option<i32>) {}
 
 #[derive(Debug, FromPyObject)]
 pub struct Zap {

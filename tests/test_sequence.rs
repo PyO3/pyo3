@@ -17,6 +17,7 @@ struct ByteSequence {
 #[pymethods]
 impl ByteSequence {
     #[new]
+    #[pyo3(signature=(elements = None))]
     fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());

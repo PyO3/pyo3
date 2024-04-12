@@ -12,6 +12,7 @@ use futures::channel::oneshot;
 use pyo3::prelude::*;
 
 #[pyfunction]
+#[pyo3(signature=(seconds, result=None))]
 async fn sleep(seconds: f64, result: Option<PyObject>) -> Option<PyObject> {
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {

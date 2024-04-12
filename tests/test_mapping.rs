@@ -21,6 +21,7 @@ struct Mapping {
 #[pymethods]
 impl Mapping {
     #[new]
+    #[pyo3(signature=(elements=None))]
     fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = HashMap::with_capacity(pylist.len());
@@ -59,6 +60,7 @@ impl Mapping {
         }
     }
 
+    #[pyo3(signature=(key, default=None))]
     fn get(&self, py: Python<'_>, key: &str, default: Option<PyObject>) -> Option<PyObject> {
         self.index
             .get(key)

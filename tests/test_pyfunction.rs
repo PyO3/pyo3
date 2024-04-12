@@ -216,6 +216,7 @@ struct ValueClass {
 }
 
 #[pyfunction]
+#[pyo3(signature=(str_arg, int_arg, tuple_arg, option_arg = None, struct_arg = None))]
 fn conversion_error(
     str_arg: &str,
     int_arg: i64,
@@ -542,6 +543,7 @@ fn test_some_wrap_arguments() {
 #[test]
 fn test_reference_to_bound_arguments() {
     #[pyfunction]
+    #[pyo3(signature = (x, y = None))]
     fn reference_args<'py>(
         x: &Bound<'py, PyAny>,
         y: Option<&Bound<'py, PyAny>>,

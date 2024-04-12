@@ -630,6 +630,7 @@ pub fn impl_py_setter_def(
 
             let tokens = impl_regular_arg_param(
                 arg,
+                spec.signature.attribute.is_some(),
                 ident,
                 quote!(::std::option::Option::Some(_value.into())),
                 &mut holders,

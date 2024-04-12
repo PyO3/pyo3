@@ -134,7 +134,16 @@ pub fn impl_arg_params(
             .arguments
             .iter()
             .enumerate()
-            .map(|(i, arg)| impl_arg_param(arg, i, &mut 0, holders, ctx))
+            .map(|(i, arg)| {
+                impl_arg_param(
+                    arg,
+                    spec.signature.attribute.is_some(),
+                    i,
+                    &mut 0,
+                    holders,
+                    ctx,
+                )
+            })
             .collect();
         return (
             quote! {
@@ -174,7 +183,16 @@ pub fn impl_arg_params(
         .arguments
         .iter()
         .enumerate()
-        .map(|(i, arg)| impl_arg_param(arg, i, &mut option_pos, holders, ctx))
+        .map(|(i, arg)| {
+            impl_arg_param(
+                arg,
+                spec.signature.attribute.is_some(),
+                i,
+                &mut option_pos,
+                holders,
+                ctx,
+            )
+        })
         .collect();
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
@@ -237,6 +255,7 @@ pub fn impl_arg_params(
 
 fn impl_arg_param(
     arg: &FnArg<'_>,
+    has_signature_attr: bool,
     pos: usize,
     option_pos: &mut usize,
     holders: &mut Holders,
@@ -250,7 +269,14 @@ fn impl_arg_param(
             let from_py_with = format_ident!("from_py_with_{}", pos);
             let arg_value = quote!(#args_array[#option_pos].as_deref());
             *option_pos += 1;
-            let tokens = impl_regular_arg_param(arg, from_py_with, arg_value, holders, ctx);
+            let tokens = impl_regular_arg_param(
+                arg,
+                has_signature_attr,
+                from_py_with,
+                arg_value,
+                holders,
+                ctx,
+            );
             check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx)
         }
         FnArg::VarArgs(arg) => {
@@ -285,6 +311,7 @@ fn impl_arg_param(
 /// index and the index in option diverge when using py: Python
 pub(crate) fn impl_regular_arg_param(
     arg: &RegularArg<'_>,
+    has_signature_attr: bool,
     from_py_with: syn::Ident,
     arg_value: TokenStream, // expected type: Option<&'a Bound<'py, PyAny>>
     holders: &mut Holders,
@@ -335,6 +362,11 @@ pub(crate) fn impl_regular_arg_param(
         }
     } else if arg.option_wrapped_type.is_some() {
         let holder = holders.push_holder(arg.name.span());
+        let arg_value = if !has_signature_attr {
+            quote_arg_span! { #pyo3_path::impl_::deprecations::deprecate_implicit_option(#arg_value) }
+        } else {
+            quote!(#arg_value)
+        };
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_optional_argument(
                 #arg_value,
