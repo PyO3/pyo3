@@ -13,27 +13,30 @@ use syn::{
 /// function = module.function
 /// ```
 /// and not `from module import function`
-#[allow(dead_code)] // Not yet fully implemented
-fn import_pyo3_from(import: Pyo3Import, input: TokenStream2) -> TokenStream2 {
+fn import_pyo3_from(import: Pyo3Import, input: ItemFn) -> TokenStream2 {
     let moduleident = import.moduleidentifier;
     let pymoduleident = Ident::new(&import.modulename, Span::mixed_site());
     let modulename = import.modulename;
     let modulerror = "Failed to import ".to_string() + &modulename;
     let functionname = import.functionname;
     let functionerror = "Failed to get ".to_string() + &functionname + " function";
+    let fnsig = &input.sig;
+    let fnstmts = &input.block.stmts;
 
     quote!(
-        pyo3::append_to_inittab!(#moduleident); // allow python to import from this wrapped module
-        pyo3::prepare_freethreaded_python();
-        Python::with_gil(|py| {
-            let #pymoduleident = py
-                .import_bound(#modulename) // import the wrapped module
-                .expect(#modulerror);
-            let fizzbuzz = fizzbuzzo3
-                .getattr(#functionname) // import the wrapped function
-                .expect(#functionerror);
-            #input
-        });
+        #fnsig {
+            pyo3::append_to_inittab!(#moduleident); // allow python to import from this wrapped module
+            pyo3::prepare_freethreaded_python();
+            Python::with_gil(|py| {
+                let #pymoduleident = py
+                    .import_bound(#modulename) // import the wrapped module
+                    .expect(#modulerror);
+                let fizzbuzz = fizzbuzzo3
+                    .getattr(#functionname) // import the wrapped function
+                    .expect(#functionerror);
+                #(#fnstmts)*
+            });
+        }
     )
 }
 
@@ -86,7 +89,6 @@ fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let input: ItemFn = parse2(input).unwrap();
     let import = parsepyo3import(&input.attrs[0]).unwrap();
-    let input = quote!(input);
     import_pyo3_from(import, input)
 }
 
@@ -98,8 +100,10 @@ mod tests {
 
     #[test]
     fn test_importmodule() {
-        let input = quote! {
-            assert!(true);
+        let input = parse_quote! {
+            fn test_fizzbuzz() {
+                assert!(true);
+            }
         };
 
         let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
@@ -111,17 +115,19 @@ mod tests {
         };
 
         let expected = quote! {
-            pyo3::append_to_inittab!(py_fizzbuzzo3);
-            pyo3::prepare_freethreaded_python();
-            Python::with_gil(|py| {
-                let fizzbuzzo3 = py
-                .import_bound("fizzbuzzo3")
-                .expect("Failed to import fizzbuzzo3");
-                let fizzbuzz = fizzbuzzo3
-                .getattr("fizzbuzz")
-                .expect("Failed to get fizzbuzz function");
-                assert!(true);
-            });
+            fn test_fizzbuzz() {
+                pyo3::append_to_inittab!(py_fizzbuzzo3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let fizzbuzzo3 = py
+                    .import_bound("fizzbuzzo3")
+                    .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzz = fizzbuzzo3
+                    .getattr("fizzbuzz")
+                    .expect("Failed to get fizzbuzz function");
+                    assert!(true);
+                });
+            }
         };
 
         let output = import_pyo3_from(module, input);
@@ -173,7 +179,7 @@ mod tests {
                     .expect("Failed to get pybar function");
                     assert!(true);
                 });
-            };
+            }
         };
 
         let result = impl_pyo3test(attr, input);
