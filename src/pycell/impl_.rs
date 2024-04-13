@@ -55,7 +55,7 @@ struct BorrowFlag(usize);
 
 impl BorrowFlag {
     pub(crate) const UNUSED: BorrowFlag = BorrowFlag(0);
-    const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::max_value());
+    const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::MAX);
     const fn increment(self) -> Self {
         Self(self.0 + 1)
     }

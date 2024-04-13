@@ -366,6 +366,7 @@ pub fn impl_py_method_def_new(
                     #deprecations
 
                     use #pyo3_path::impl_::pyclass::*;
+                    #[allow(unknown_lints, non_local_definitions)]
                     impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {
                         #[inline]
                         fn new_text_signature(self) -> ::std::option::Option<&'static str> {
