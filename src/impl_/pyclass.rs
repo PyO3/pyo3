@@ -852,6 +852,7 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_richcompare_slot {
     ($cls:ty) => {{
+        #[allow(unknown_lints, non_local_definitions)]
         impl $cls {
             #[allow(non_snake_case)]
             unsafe extern "C" fn __pymethod___richcmp____(
