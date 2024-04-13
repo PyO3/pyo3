@@ -249,6 +249,7 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
 
             #initialization
 
+            #[allow(unknown_lints, non_local_definitions)]
             impl MakeDef {
                 const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
                     use #pyo3_path::impl_::pymodule as impl_;
@@ -333,6 +334,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pymodule] is
         // inside a function body)
+        #[allow(unknown_lints, non_local_definitions)]
         impl #ident::MakeDef {
             const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
                 fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
