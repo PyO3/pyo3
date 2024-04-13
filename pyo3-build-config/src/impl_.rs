@@ -775,6 +775,8 @@ pub fn is_linking_libpython() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
+        // See https://github.com/PyO3/pyo3/issues/4068#issuecomment-2051159852
+        || target.operating_system == OperatingSystem::Aix
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
         || !is_extension_module()
