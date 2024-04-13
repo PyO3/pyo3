@@ -445,7 +445,7 @@ mod test_128bit_integers {
     #[test]
     fn test_i128_max() {
         Python::with_gil(|py| {
-            let v = std::i128::MAX;
+            let v = i128::MAX;
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<i128>(py).unwrap());
             assert_eq!(v as u128, obj.extract::<u128>(py).unwrap());
@@ -456,7 +456,7 @@ mod test_128bit_integers {
     #[test]
     fn test_i128_min() {
         Python::with_gil(|py| {
-            let v = std::i128::MIN;
+            let v = i128::MIN;
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<i128>(py).unwrap());
             assert!(obj.extract::<i64>(py).is_err());
@@ -467,7 +467,7 @@ mod test_128bit_integers {
     #[test]
     fn test_u128_max() {
         Python::with_gil(|py| {
-            let v = std::u128::MAX;
+            let v = u128::MAX;
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<u128>(py).unwrap());
             assert!(obj.extract::<i128>(py).is_err());
@@ -495,7 +495,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_max() {
         Python::with_gil(|py| {
-            let v = NonZeroI128::new(std::i128::MAX).unwrap();
+            let v = NonZeroI128::new(i128::MAX).unwrap();
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<NonZeroI128>(py).unwrap());
             assert_eq!(
@@ -509,7 +509,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_min() {
         Python::with_gil(|py| {
-            let v = NonZeroI128::new(std::i128::MIN).unwrap();
+            let v = NonZeroI128::new(i128::MIN).unwrap();
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<NonZeroI128>(py).unwrap());
             assert!(obj.extract::<NonZeroI64>(py).is_err());
@@ -520,7 +520,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_u128_max() {
         Python::with_gil(|py| {
-            let v = NonZeroU128::new(std::u128::MAX).unwrap();
+            let v = NonZeroU128::new(u128::MAX).unwrap();
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<NonZeroU128>(py).unwrap());
             assert!(obj.extract::<NonZeroI128>(py).is_err());
@@ -573,7 +573,7 @@ mod tests {
     #[test]
     fn test_u32_max() {
         Python::with_gil(|py| {
-            let v = std::u32::MAX;
+            let v = u32::MAX;
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<u32>(py).unwrap());
             assert_eq!(u64::from(v), obj.extract::<u64>(py).unwrap());
@@ -584,7 +584,7 @@ mod tests {
     #[test]
     fn test_i64_max() {
         Python::with_gil(|py| {
-            let v = std::i64::MAX;
+            let v = i64::MAX;
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<i64>(py).unwrap());
             assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
@@ -595,7 +595,7 @@ mod tests {
     #[test]
     fn test_i64_min() {
         Python::with_gil(|py| {
-            let v = std::i64::MIN;
+            let v = i64::MIN;
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<i64>(py).unwrap());
             assert!(obj.extract::<i32>(py).is_err());
@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn test_u64_max() {
         Python::with_gil(|py| {
-            let v = std::u64::MAX;
+            let v = u64::MAX;
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<u64>(py).unwrap());
             assert!(obj.extract::<i64>(py).is_err());
@@ -664,7 +664,7 @@ mod tests {
     #[test]
     fn test_nonzero_u32_max() {
         Python::with_gil(|py| {
-            let v = NonZeroU32::new(std::u32::MAX).unwrap();
+            let v = NonZeroU32::new(u32::MAX).unwrap();
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<NonZeroU32>(py).unwrap());
             assert_eq!(NonZeroU64::from(v), obj.extract::<NonZeroU64>(py).unwrap());
@@ -675,7 +675,7 @@ mod tests {
     #[test]
     fn test_nonzero_i64_max() {
         Python::with_gil(|py| {
-            let v = NonZeroI64::new(std::i64::MAX).unwrap();
+            let v = NonZeroI64::new(i64::MAX).unwrap();
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<NonZeroI64>(py).unwrap());
             assert_eq!(
@@ -689,7 +689,7 @@ mod tests {
     #[test]
     fn test_nonzero_i64_min() {
         Python::with_gil(|py| {
-            let v = NonZeroI64::new(std::i64::MIN).unwrap();
+            let v = NonZeroI64::new(i64::MIN).unwrap();
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<NonZeroI64>(py).unwrap());
             assert!(obj.extract::<NonZeroI32>(py).is_err());
@@ -700,7 +700,7 @@ mod tests {
     #[test]
     fn test_nonzero_u64_max() {
         Python::with_gil(|py| {
-            let v = NonZeroU64::new(std::u64::MAX).unwrap();
+            let v = NonZeroU64::new(u64::MAX).unwrap();
             let obj = v.to_object(py);
             assert_eq!(v, obj.extract::<NonZeroU64>(py).unwrap());
             assert!(obj.extract::<NonZeroI64>(py).is_err());
