@@ -1,7 +1,8 @@
 use std::convert::Infallible;
 
 use crate::{
-    conversion::IntoPyObject, ffi, Bound, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
+    conversion::IntoPyObject, ffi, types::PyNone, Bound, IntoPy, PyAny, PyErr, PyObject, PyResult,
+    Python,
 };
 
 /// Used to wrap values in `Option<T>` for default arguments.
@@ -112,8 +113,8 @@ pub trait IntoPyKind {
         IntoPyTag
     }
 }
-impl<T: IntoPy<PyObject>> IntoPyKind for &T {} // required autoref
-impl<T: IntoPy<PyObject>, E> IntoPyKind for &Result<T, E> {} // required autoref
+impl<T: IntoPy<PyObject>> IntoPyKind for T {}
+impl<T: IntoPy<PyObject>, E> IntoPyKind for Result<T, E> {}
 
 pub struct IntoPyObjectTag;
 impl IntoPyObjectTag {
@@ -142,8 +143,23 @@ pub trait IntoPyObjectKind {
         IntoPyObjectTag
     }
 }
-impl<'py, T: IntoPyObject<'py, PyAny>> IntoPyObjectKind for T {}
-impl<'py, T: IntoPyObject<'py, PyAny>, E> IntoPyObjectKind for Result<T, E> {}
+impl<'py, T: IntoPyObject<'py, PyAny>> IntoPyObjectKind for &T {}
+impl<'py, T: IntoPyObject<'py, PyAny>, E> IntoPyObjectKind for &Result<T, E> {}
+
+pub struct IntoPyNoneTag;
+impl IntoPyNoneTag {
+    #[inline]
+    pub fn map_into_ptr(self, py: Python<'_>, obj: PyResult<()>) -> PyResult<*mut ffi::PyObject> {
+        obj.map(|_| PyNone::get_bound(py).to_owned().into_ptr())
+    }
+}
+pub trait IntoPyNoneKind {
+    #[inline]
+    fn conversion_kind(&self) -> IntoPyNoneTag {
+        IntoPyNoneTag
+    }
+}
+impl<E> IntoPyNoneKind for &&Result<(), E> {}
 
 /// This is a follow-up function to `OkWrap::wrap` that converts the result into
 /// a `*mut ffi::PyObject` pointer.

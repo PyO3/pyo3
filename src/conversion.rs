@@ -6,6 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
+use std::convert::Infallible;
 
 /// Returns a borrowed pointer to a Python object.
 ///
@@ -380,6 +381,22 @@ where
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty(py).unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py, PyAny> for () {
+    type Error = Infallible;
+
+    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+        self.into_pyobject::<PyTuple, _>(py).map(Bound::into_any)
+    }
+}
+
+impl<'py> IntoPyObject<'py, PyTuple> for () {
+    type Error = Infallible;
+
+    fn into_pyobj(self, py: Python<'py>) -> Result<Bound<'py, PyTuple>, Self::Error> {
+        Ok(PyTuple::empty(py))
     }
 }
 

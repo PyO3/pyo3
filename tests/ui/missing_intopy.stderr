@@ -1,19 +1,27 @@
-error[E0599]: the method `conversion_kind` exists for reference `&Blah`, but its trait bounds were not satisfied
+error[E0599]: the method `conversion_kind` exists for reference `&&&Blah`, but its trait bounds were not satisfied
  --> tests/ui/missing_intopy.rs:4:14
   |
 1 | struct Blah;
-  | ----------- doesn't satisfy `Blah: IntoPy<Py<PyAny>>`, `Blah: IntoPyObject<'_, PyAny>` or `Blah: IntoPyObjectKind`
+  | ----------- doesn't satisfy `Blah: IntoPy<Py<PyAny>>`, `Blah: IntoPyKind` or `Blah: IntoPyObject<'_, PyAny>`
 ...
 4 | fn blah() -> Blah{
-  |              ^^^^ method cannot be called on `&Blah` due to unsatisfied trait bounds
+  |              ^^^^ method cannot be called on `&&&Blah` due to unsatisfied trait bounds
   |
   = note: the following trait bounds were not satisfied:
-          `Blah: IntoPyObject<'_, PyAny>`
-          which is required by `Blah: IntoPyObjectKind`
-          `Blah: IntoPy<Py<PyAny>>`
-          which is required by `&Blah: IntoPyKind`
+          `&&Blah: IntoPy<Py<PyAny>>`
+          which is required by `&&Blah: IntoPyKind`
           `&Blah: IntoPyObject<'_, PyAny>`
+          which is required by `&&Blah: IntoPyObjectKind`
+          `&&&Blah: IntoPy<Py<PyAny>>`
+          which is required by `&&&Blah: IntoPyKind`
+          `&&Blah: IntoPyObject<'_, PyAny>`
+          which is required by `&&&Blah: IntoPyObjectKind`
+          `&Blah: IntoPy<Py<PyAny>>`
+          which is required by `&Blah: IntoPyKind`
+          `Blah: IntoPyObject<'_, PyAny>`
           which is required by `&Blah: IntoPyObjectKind`
+          `Blah: IntoPy<Py<PyAny>>`
+          which is required by `Blah: IntoPyKind`
 note: the traits `IntoPy` and `IntoPyObject` must be implemented
  --> src/conversion.rs
   |
@@ -25,4 +33,5 @@ note: the traits `IntoPy` and `IntoPyObject` must be implemented
   = help: items from traits can only be used if the trait is implemented and in scope
   = note: the following traits define an item `conversion_kind`, perhaps you need to implement one of them:
           candidate #1: `IntoPyKind`
-          candidate #2: `IntoPyObjectKind`
+          candidate #2: `IntoPyNoneKind`
+          candidate #3: `IntoPyObjectKind`
