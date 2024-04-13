@@ -674,9 +674,11 @@ impl<'a> FnSpec<'a> {
                         #qualname_prefix,
                         #throw_callback,
                         async move {
-                            use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
                             let fut = future.await;
-                            (&fut).conversion_kind().wrap(fut)
+                            {
+                                use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
+                                (&&&fut).conversion_kind().wrap(fut)
+                            }
                         },
                     )
                 }};
