@@ -115,6 +115,7 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let testfn_statements = testcase.statements;
 
     quote!(
+        #[test]
         #testfn_signature {
             #(pyo3::append_to_inittab!(#o3_moduleidents);)* // allow python to import from each wrapped module
             pyo3::prepare_freethreaded_python();
@@ -184,6 +185,7 @@ mod tests {
         };
 
         let expected = quote! {
+            #[test]
             fn test_fizzbuzz() {
                 pyo3::append_to_inittab!(py_fizzbuzzo3);
                 pyo3::prepare_freethreaded_python();
@@ -235,6 +237,7 @@ mod tests {
         };
 
         let expected = quote! {
+            #[test]
             fn pytest() {
                 pyo3::append_to_inittab!(foo_o3);
                 pyo3::prepare_freethreaded_python();
@@ -267,6 +270,7 @@ mod tests {
         };
 
         let expected: TokenStream2 = quote! {
+            #[test]
             fn test_fizzbuzz() {
                 pyo3::append_to_inittab!(py_fizzbuzzo3);
                 pyo3::prepare_freethreaded_python();
@@ -300,6 +304,7 @@ mod tests {
         };
 
         let expected = quote! {
+            #[test]
             fn pytest() {
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
@@ -323,6 +328,7 @@ mod tests {
         };
 
         let expected: TokenStream2 = quote! {
+            #[test]
             fn test_fizzbuzz() {
                 pyo3::append_to_inittab!(py_fizzbuzzo3);
                 pyo3::append_to_inittab!(py_foo_o3);
