@@ -92,9 +92,23 @@ Here are a few things to note when you are writing PRs.
 
 ### Continuous Integration
 
-The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful.
+The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
-Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
+#### Linting Python code
+`nox -s ruff`
+
+#### Linting Rust code
+`nox -s rustfmt`
+
+#### Semver checks
+`cargo semver-checks check-release`
+
+#### Clippy
+`nox -s clippy-all`
+
+#### Tests
+`cargo test --features full`
+```
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
