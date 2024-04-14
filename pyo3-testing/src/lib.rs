@@ -124,18 +124,23 @@ struct Pyo3TestCase {
     statements: Vec<Stmt>,
 }
 
+impl From<ItemFn> for Pyo3TestCase {
+    fn from(testcase: ItemFn) -> Pyo3TestCase {
+        Pyo3TestCase {
+            imports: testcase
+                .attrs
+                .into_iter()
+                .map(|attr| { parsepyo3import(&attr) }.unwrap())
+                .collect(),
+            signature: testcase.sig,
+            statements: testcase.block.stmts,
+        }
+    }
+}
+
 #[allow(dead_code)] // Not yet fully implemented
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
-    let input: ItemFn = parse2(input).unwrap();
-    let testcase = Pyo3TestCase {
-        imports: input
-            .attrs
-            .into_iter()
-            .map(|attr| { parsepyo3import(&attr) }.unwrap())
-            .collect(),
-        signature: input.sig,
-        statements: input.block.stmts,
-    };
+    let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().into();
     wrap_testcase(testcase)
 }
 
