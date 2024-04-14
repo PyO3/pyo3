@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
+use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3_testing::pyo3test;
-use pyo3::prelude::*;
 
 #[pyfunction]
 #[pyo3(name = "addone")]
@@ -23,9 +23,7 @@ fn test_pyo3test_without_macro() {
     pyo3::append_to_inittab!(py_adders);
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
-        let adders = py
-            .import_bound("adders")
-            .expect("Failed to import adders");
+        let adders = py.import_bound("adders").expect("Failed to import adders");
         let addone = adders
             .getattr("addone")
             .expect("Failed to get addone function");
