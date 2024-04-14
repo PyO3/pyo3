@@ -58,7 +58,14 @@ impl PySet {
     }
 
     /// Deprecated form of [`PySet::empty_bound`].
-    pub fn empty(py: Python<'_>) -> PyResult<&'_ PySet> {
+    #[cfg_attr(
+        not(feature = "gil-refs"),
+        deprecated(
+            since = "0.21.2",
+            note = "`PySet::empty` will be replaced by `PySet::empty_bound` in a future PyO3 version"
+        )
+    )]
+    pub fn empty(py: Python<'_>) -> PyResult<&PySet> {
         Self::empty_bound(py).map(Bound::into_gil_ref)
     }
 
