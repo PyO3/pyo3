@@ -1,4 +1,4 @@
-#![cfg(all(feature = "macros", feature = "testing", not(any(PyPy, GraalPy))))]
+#![cfg(all(feature = "testing", not(any(PyPy, GraalPy))))]
 use pyo3::prelude::*;
 
 #[pyfunction]

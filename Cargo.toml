@@ -85,7 +85,7 @@ macros = ["pyo3-macros", "indoc", "unindent"]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 
 # Enables #[pyo3test] and #[pyo3import]
-testing = ["pyo3-testing"]
+testing = ["pyo3-testing", "macros"]
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
