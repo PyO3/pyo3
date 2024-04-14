@@ -1,3 +1,4 @@
+use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
@@ -6,6 +7,11 @@ use syn::{
     token::Colon,
     Attribute, Ident, ItemFn, Signature, Stmt,
 };
+
+#[proc_macro_attribute]
+pub fn pyo3test(attr: TokenStream1, input: TokenStream1) -> TokenStream1 {
+    impl_pyo3test(attr.into(), input.into()).into()
+}
 
 /// The function which is called by the proc macro `pyo3test`.
 /// Takes a TokenStream2 input, parses it as a Pyo3TestCase and returns a wrapped

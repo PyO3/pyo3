@@ -32,6 +32,9 @@ unindent = { version = "0.2.1", optional = true }
 # support crate for multiple-pymethods feature
 inventory = { version = "0.3.0", optional = true }
 
+# support crate for testing pyo3 wrapped functions
+pyo3-testing = { path = "pyo3-testing"}
+
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
 chrono = { version = "0.4.25", default-features = false, optional = true }

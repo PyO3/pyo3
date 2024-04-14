@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "pyo3testing"
+name = "pyo3_testing"
 path = "src/lib.rs"
-crate-type = ["rlib"]  # cdylib required for python import, rlib required for rust tests.
+# crate-type = ["rlib"]  # cdylib required for python import, rlib required for rust tests.
+proc-macro = true
 
 [dependencies]
 quote = "1.0.35"
