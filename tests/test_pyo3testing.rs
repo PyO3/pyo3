@@ -1,6 +1,5 @@
 #![cfg(feature = "macros")]
 use pyo3::prelude::*;
-#[allow(unused_imports)]
 use pyo3_testing::pyo3test;
 
 #[pyfunction]
