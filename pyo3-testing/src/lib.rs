@@ -18,23 +18,28 @@ use syn::{
 /// and not `from module import function`
 #[allow(non_snake_case)] // "follow python exception naming for error messages
 fn wrap_testcase(testcase: TestCase) -> TokenStream2 {
-
     let mut o3_moduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
     let mut pyo3_modulenames = Vec::<String>::new();
-    let mut ModuleNotFoundErrormsgs= Vec::<String>::new();
-    let mut pyo3_functionnames= Vec::<String>::new();
-    let mut AttributeErrormsgs= Vec::<String>::new();
-    let mut py_functionidents= Vec::<Ident>::new();
+    let mut ModuleNotFoundErrormsgs = Vec::<String>::new();
+    let mut pyo3_functionnames = Vec::<String>::new();
+    let mut AttributeErrormsgs = Vec::<String>::new();
+    let mut py_functionidents = Vec::<Ident>::new();
 
     for import in testcase.imports {
         o3_moduleidents.push(import.moduleidentifier);
         py_moduleidents.push(Ident::new(&import.modulename, Span::mixed_site()));
         pyo3_modulenames.push(import.modulename);
-        ModuleNotFoundErrormsgs.push("Failed to import ".to_string() + &pyo3_modulenames.iter().last().unwrap());
+        ModuleNotFoundErrormsgs
+            .push("Failed to import ".to_string() + &pyo3_modulenames.iter().last().unwrap());
         pyo3_functionnames.push(import.functionname);
-        AttributeErrormsgs.push("Failed to get ".to_string() + &pyo3_functionnames.iter().last().unwrap() + " function");
-        py_functionidents.push(Ident::new(&pyo3_functionnames.iter().last().unwrap(), Span::mixed_site()));
+        AttributeErrormsgs.push(
+            "Failed to get ".to_string() + &pyo3_functionnames.iter().last().unwrap() + " function",
+        );
+        py_functionidents.push(Ident::new(
+            pyo3_functionnames.iter().last().unwrap(),
+            Span::mixed_site(),
+        ));
     }
 
     let testfn_signature = testcase.signature;
@@ -105,16 +110,20 @@ fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
 struct TestCase {
     imports: Vec<Pyo3Import>,
     signature: Signature,
-    statements: Vec<Stmt>
+    statements: Vec<Stmt>,
 }
 
 #[allow(dead_code)] // Not yet fully implemented
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let input: ItemFn = parse2(input).unwrap();
     let testcase = TestCase {
-        imports: input.attrs.into_iter().map(|attr| {parsepyo3import(&attr)}.unwrap()).collect(),
+        imports: input
+            .attrs
+            .into_iter()
+            .map(|attr| { parsepyo3import(&attr) }.unwrap())
+            .collect(),
         signature: input.sig,
-        statements: input.block.stmts
+        statements: input.block.stmts,
     };
     wrap_testcase(testcase)
 }
@@ -143,10 +152,10 @@ mod tests {
 
         let imports = vec![import];
 
-        let testcase: TestCase = TestCase{
+        let testcase: TestCase = TestCase {
             imports,
             signature: testcase.sig,
-            statements: testcase.block.stmts
+            statements: testcase.block.stmts,
         };
 
         let expected = quote! {
@@ -190,10 +199,10 @@ mod tests {
 
         let imports = vec![import];
 
-        let testcase: TestCase = TestCase{
+        let testcase: TestCase = TestCase {
             imports,
             signature: testcase.sig,
-            statements: testcase.block.stmts
+            statements: testcase.block.stmts,
         };
 
         let expected = quote! {
@@ -244,10 +253,10 @@ mod tests {
 
         let imports = vec![import1, import2];
 
-        let testcase: TestCase = TestCase{
+        let testcase: TestCase = TestCase {
             imports,
             signature: testcase.sig,
-            statements: testcase.block.stmts
+            statements: testcase.block.stmts,
         };
 
         let expected = quote! {
