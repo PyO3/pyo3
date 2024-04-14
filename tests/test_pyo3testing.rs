@@ -16,6 +16,8 @@ fn py_adders(module: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+// This is how the test would be written WITHOUT using the pyo3test macro. This validates that
+// adders.addone is correctly constructed.
 #[test]
 fn test_pyo3test_without_macro() {
     pyo3::append_to_inittab!(py_adders);
@@ -35,4 +37,17 @@ fn test_pyo3test_without_macro() {
         let expected_result = 2_isize;
         assert_eq!(result, expected_result);
     });
+}
+
+// ... and this is how the test can be written using the pyo3test macro and pyo3import attribute
+#[pyo3test]
+#[pyo3import(py_adders: from adders import addone)]
+fn test_pyo3test_simple_case() {
+    let result: PyResult<isize> = match addone.call1((1_isize,)) {
+        Ok(r) => r.extract(),
+        Err(e) => Err(e),
+    };
+    let result = result.unwrap();
+    let expected_result = 2_isize;
+    assert_eq!(result, expected_result);
 }

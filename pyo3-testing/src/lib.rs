@@ -107,7 +107,7 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
             "Failed to get ".to_string() + &pyo3_functionnames.iter().last().unwrap() + " function",
         );
         py_functionidents.push(
-            Ident::new(pyo3_functionnames.iter().last().unwrap(), Span::mixed_site())
+            Ident::new(pyo3_functionnames.iter().last().unwrap(), Span::call_site())
         );
     }
 
