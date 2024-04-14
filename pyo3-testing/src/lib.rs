@@ -18,7 +18,7 @@ use syn::{
 /// and not `from module import function`
 #[allow(non_snake_case)] // follow python exception naming for error messages
 #[rustfmt::skip] // for import in testcase.imports ... want consistent formatting for each line
-fn wrap_testcase(testcase: TestCase) -> TokenStream2 {
+fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let mut o3_moduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
     let mut pyo3_modulenames = Vec::<String>::new();
@@ -56,7 +56,7 @@ fn wrap_testcase(testcase: TestCase) -> TokenStream2 {
 
     quote!(
         #testfn_signature {
-            #(pyo3::append_to_inittab!(#o3_moduleidents);)* // allow python to import from this wrapped module
+            #(pyo3::append_to_inittab!(#o3_moduleidents);)* // allow python to import from each wrapped module
             pyo3::prepare_freethreaded_python();
             Python::with_gil(|py| {
                 #(let #py_moduleidents = py
@@ -116,7 +116,9 @@ fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
     }
 }
 
-struct TestCase {
+/// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
+/// execute in Python::with_gil
+struct Pyo3TestCase {
     imports: Vec<Pyo3Import>,
     signature: Signature,
     statements: Vec<Stmt>,
@@ -125,7 +127,7 @@ struct TestCase {
 #[allow(dead_code)] // Not yet fully implemented
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let input: ItemFn = parse2(input).unwrap();
-    let testcase = TestCase {
+    let testcase = Pyo3TestCase {
         imports: input
             .attrs
             .into_iter()
@@ -161,7 +163,7 @@ mod tests {
 
         let imports = vec![import];
 
-        let testcase: TestCase = TestCase {
+        let testcase: Pyo3TestCase = Pyo3TestCase {
             imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
@@ -208,7 +210,7 @@ mod tests {
 
         let imports = vec![import];
 
-        let testcase: TestCase = TestCase {
+        let testcase: Pyo3TestCase = Pyo3TestCase {
             imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
@@ -262,7 +264,7 @@ mod tests {
 
         let imports = vec![import1, import2];
 
-        let testcase: TestCase = TestCase {
+        let testcase: Pyo3TestCase = Pyo3TestCase {
             imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
