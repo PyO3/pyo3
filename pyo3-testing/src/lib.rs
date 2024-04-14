@@ -157,7 +157,7 @@ impl From<ItemFn> for Pyo3TestCase {
 
 #[cfg(test)]
 mod tests {
-    use syn::{parse_quote, Attribute};
+    use syn::parse_quote;
 
     use super::*;
 
