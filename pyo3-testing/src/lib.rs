@@ -9,7 +9,7 @@ use syn::{
 
 /// The function which is called by the proc macro `pyo3test`.
 /// Takes a TokenStream2 input, parses it as a Pyo3TestCase and returns a wrapped
-/// function with the requested imports, run in Python::with_gil 
+/// function with the requested imports, run in Python::with_gil
 #[allow(dead_code)] // Proc macro is not yet implemented
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().into();
@@ -61,8 +61,8 @@ impl Parse for Pyo3Import {
     }
 }
 
-/// Takes a code block which should be executed using Python::with_gil, and after importing a pyo3-wrapped
-/// function and adds the required `import` and `with_gil` statements.
+/// Takes a code block which should be executed using Python::with_gil and adds the required
+/// pyo3 equivalent `import` and `with_gil` statements.
 ///
 /// Technically this is the equivalent to the python statements:
 /// ```python
