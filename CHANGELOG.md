@@ -10,6 +10,20 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.21.2] - 2024-04-16
+
+### Changed
+
+- Deprecate the `PySet::empty()` gil-ref constructor. [#4082](https://github.com/PyO3/pyo3/pull/4082)
+
+### Fixed
+
+- Fix compile error for `async fn` in `#[pymethods]` with a `&self` receiver and more than one additional argument. [#4035](https://github.com/PyO3/pyo3/pull/4035)
+- Improve error message for wrong receiver type in `__traverse__`. [#4045](https://github.com/PyO3/pyo3/pull/4045)
+- Fix compile error when exporting a `#[pyclass]` living in a different Rust module using the `experimental-declarative-modules` feature. [#4054](https://github.com/PyO3/pyo3/pull/4054)
+- Fix `missing_docs` lint triggering on documented `#[pymodule]` functions. [#4067](https://github.com/PyO3/pyo3/pull/4067)
+- Fix undefined symbol errors for extension modules on AIX (by linking `libpython`). [#4073](https://github.com/PyO3/pyo3/pull/4073)
+
 ## [0.21.1] - 2024-04-01
 
 ### Added
@@ -1731,7 +1745,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.21.2...HEAD
+[0.21.2]: https://github.com/pyo3/pyo3/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/pyo3/pyo3/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/pyo3/pyo3/compare/v0.20.3...v0.21.0
 [0.21.0-beta.0]: https://github.com/pyo3/pyo3/compare/v0.20.3...v0.21.0-beta.0
