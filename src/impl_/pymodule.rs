@@ -2,6 +2,7 @@
 
 use std::{cell::UnsafeCell, marker::PhantomData};
 
+use parking_lot::Once;
 #[cfg(all(
     not(any(PyPy, GraalPy)),
     Py_3_9,
@@ -19,9 +20,11 @@ use crate::{
 };
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
+#[repr(C)] // Necessary to cast from `*mut ffi::PyModuleDef` to `ModuleDef`
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
+    ffi_def_initialized: Once,
     initializer: ModuleInitializer,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
@@ -49,26 +52,21 @@ impl ModuleDef {
         doc: &'static str,
         initializer: ModuleInitializer,
     ) -> Self {
-        const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
+        let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
-            m_name: std::ptr::null(),
-            m_doc: std::ptr::null(),
+            m_name: name.as_ptr().cast(),
+            m_doc: doc.as_ptr().cast(),
             m_size: 0,
             m_methods: std::ptr::null_mut(),
             m_slots: std::ptr::null_mut(),
             m_traverse: None,
             m_clear: None,
             m_free: None,
-        };
-
-        let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
-            m_name: name.as_ptr() as *const _,
-            m_doc: doc.as_ptr() as *const _,
-            ..INIT
         });
 
         ModuleDef {
             ffi_def,
+            ffi_def_initialized: Once::new(),
             initializer,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
@@ -80,6 +78,30 @@ impl ModuleDef {
             module: GILOnceCell::new(),
         }
     }
+    pub fn make_def(&'static self) -> *mut ffi::PyModuleDef {
+        struct ModuleDefSlots([ffi::PyModuleDef_Slot; 1]);
+        // Safety: this type is an UnsafeCell so the compiler
+        // will not assume this data is immutable. We have no guarantees with
+        // whatever the Python interpreter wants to do with this data, sadly.
+        // We do nothing with it.
+        unsafe impl Sync for ModuleDefSlots {}
+
+        static SLOTS: ModuleDefSlots = ModuleDefSlots([
+            // SAFETY: a zeroed sentinel required to mark the end
+            unsafe { std::mem::zeroed() },
+        ]);
+
+        let ffi_def = self.ffi_def.get();
+        self.ffi_def_initialized.call_once(|| unsafe {
+            // Safety:
+            // - ffi_def is known to be written to just this once
+            // - SLOTS will never be used from Rust; the Python API requires *mut PyModuleDef_Slot
+            (*ffi_def).m_slots = SLOTS.0.as_ptr() as *mut _;
+            ffi::PyModuleDef_Init(ffi_def);
+        });
+        ffi_def
+    }
+
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
     pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
         #[cfg(all(PyPy, not(Py_3_8)))]

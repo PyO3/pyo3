@@ -369,8 +369,8 @@ fn module_initialization(options: PyModuleOptions, ident: &syn::Ident) -> TokenS
         /// the module.
         #[doc(hidden)]
         #[export_name = #pyinit_symbol]
-        pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyObject {
-            #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py))
+        pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyModuleDef {
+            _PYO3_DEF.make_def()
         }
     }
 }
