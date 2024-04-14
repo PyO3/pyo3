@@ -64,8 +64,10 @@ impl FromPyObject<'_> for Decimal {
         if let Ok(val) = obj.extract() {
             Ok(Decimal::new(val, 0))
         } else {
-            Decimal::from_str(&obj.str()?.to_cow()?)
-                .map_err(|e| PyValueError::new_err(e.to_string()))
+            Decimal::from_str(&obj.str()?.to_cow()?).or_else(|_| {
+                Decimal::from_scientific(&obj.str()?.to_cow()?)
+                    .map_err(|e| PyValueError::new_err(e.to_string()))
+            })
         }
     }
 }
@@ -191,6 +193,23 @@ mod test_rust_decimal {
             let py_dec = locals.get_item("py_dec").unwrap().unwrap();
             let roundtripped: Result<Decimal, PyErr> = py_dec.extract();
             assert!(roundtripped.is_err());
+        })
+    }
+
+    #[test]
+    fn test_scientific_notation() {
+        Python::with_gil(|py| {
+            let locals = PyDict::new_bound(py);
+            py.run_bound(
+                "import decimal\npy_dec = decimal.Decimal(\"1e3\")",
+                None,
+                Some(&locals),
+            )
+            .unwrap();
+            let py_dec = locals.get_item("py_dec").unwrap().unwrap();
+            let roundtripped: Decimal = py_dec.extract().unwrap();
+            let rs_dec = Decimal::from_scientific("1e3").unwrap();
+            assert_eq!(rs_dec, roundtripped);
         })
     }
 
