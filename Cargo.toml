@@ -33,7 +33,7 @@ unindent = { version = "0.2.1", optional = true }
 inventory = { version = "0.3.0", optional = true }
 
 # support crate for testing pyo3 wrapped functions
-pyo3-testing = { path = "pyo3-testing"}
+pyo3-testing = { path = "pyo3-testing", version = "=0.1.0", optional = true}
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
@@ -66,7 +66,7 @@ futures = "0.3.28"
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.21.0", features = ["resolve-config"] }
 
 [features]
-default = ["macros"]
+default = ["macros", "testing"]
 
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
 experimental-async = ["macros", "pyo3-macros/experimental-async"]
@@ -83,6 +83,9 @@ macros = ["pyo3-macros", "indoc", "unindent"]
 
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
+
+# Enables #[pyo3test] and #[pyo3import]
+testing = ["pyo3-testing"]
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,

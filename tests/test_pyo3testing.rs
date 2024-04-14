@@ -1,4 +1,4 @@
-#![cfg(feature = "macros")]
+#![cfg(all(feature = "macros", feature = "testing"))] // TODO: this line doesn't seem to work
 use pyo3::prelude::*;
 use pyo3_testing::pyo3test;
 
