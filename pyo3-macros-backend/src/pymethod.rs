@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
-use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::params::{check_arg_for_gil_refs, impl_arg_param, Holders};
+use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
+use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
 use crate::utils::Ctx;
 use crate::utils::PythonDoc;
 use crate::{
@@ -487,7 +487,7 @@ fn impl_py_class_attribute(
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     ensure_spanned!(
         args.is_empty(),
-        args[0].ty.span() => "#[classattr] can only have one argument (of type pyo3::Python)"
+        args[0].ty().span() => "#[classattr] can only have one argument (of type pyo3::Python)"
     );
 
     let name = &spec.name;
@@ -537,7 +537,7 @@ fn impl_call_setter(
         bail_spanned!(spec.name.span() => "setter function expected to have one argument");
     } else if args.len() > 1 {
         bail_spanned!(
-            args[1].ty.span() =>
+            args[1].ty().span() =>
             "setter function can have at most two arguments ([pyo3::Python,] and value)"
         );
     }
@@ -607,7 +607,7 @@ pub fn impl_py_setter_def(
             let (_, args) = split_off_python_arg(&spec.signature.arguments);
             let value_arg = &args[0];
             let (from_py_with, ident) = if let Some(from_py_with) =
-                &value_arg.attrs.from_py_with.as_ref().map(|f| &f.value)
+                &value_arg.from_py_with().as_ref().map(|f| &f.value)
             {
                 let ident = syn::Ident::new("from_py_with", from_py_with.span());
                 (
@@ -622,20 +622,21 @@ pub fn impl_py_setter_def(
                 (quote!(), syn::Ident::new("dummy", Span::call_site()))
             };
 
-            let extract = impl_arg_param(
-                &args[0],
+            let arg = if let FnArg::Regular(arg) = &value_arg {
+                arg
+            } else {
+                bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
+            };
+
+            let tokens = impl_regular_arg_param(
+                arg,
                 ident,
                 quote!(::std::option::Option::Some(_value.into())),
                 &mut holders,
                 ctx,
-            )
-            .map(|tokens| {
-                check_arg_for_gil_refs(
-                    tokens,
-                    holders.push_gil_refs_checker(value_arg.ty.span()),
-                    ctx,
-                )
-            })?;
+            );
+            let extract =
+                check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx);
             quote! {
                 #from_py_with
                 let _val = #extract;
@@ -721,7 +722,7 @@ fn impl_call_getter(
     let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
     ensure_spanned!(
         args.is_empty(),
-        args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
+        args[0].ty().span() => "getter function can only have one argument (of type pyo3::Python)"
     );
 
     let name = &spec.name;
@@ -843,9 +844,9 @@ pub fn impl_py_getter_def(
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
-fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg<'_>>, &[FnArg<'_>]) {
+fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&PyArg<'_>>, &[FnArg<'_>]) {
     match args {
-        [py, args @ ..] if utils::is_python(py.ty) => (Some(py), args),
+        [FnArg::Py(py), args @ ..] => (Some(py), args),
         args => (None, args),
     }
 }
@@ -1052,14 +1053,14 @@ impl Ty {
         ctx: &Ctx,
     ) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
-        let name_str = arg.name.unraw().to_string();
+        let name_str = arg.name().unraw().to_string();
         match self {
             Ty::Object => extract_object(
                 extract_error_mode,
                 holders,
                 &name_str,
                 quote! { #ident },
-                arg.ty.span(),
+                arg.ty().span(),
                 ctx
             ),
             Ty::MaybeNullObject => extract_object(
@@ -1073,7 +1074,7 @@ impl Ty {
                         #ident
                     }
                 },
-                arg.ty.span(),
+                arg.ty().span(),
                 ctx
             ),
             Ty::NonNullObject => extract_object(
@@ -1081,7 +1082,7 @@ impl Ty {
                 holders,
                 &name_str,
                 quote! { #ident.as_ptr() },
-                arg.ty.span(),
+                arg.ty().span(),
                 ctx
             ),
             Ty::IPowModulo => extract_object(
@@ -1089,7 +1090,7 @@ impl Ty {
                 holders,
                 &name_str,
                 quote! { #ident.as_ptr() },
-                arg.ty.span(),
+                arg.ty().span(),
                 ctx
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
@@ -1100,7 +1101,7 @@ impl Ty {
                 ctx
             ),
             Ty::PySsizeT => {
-                let ty = arg.ty;
+                let ty = arg.ty();
                 extract_error_mode.handle_error(
                     quote! {
                             ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
@@ -1523,12 +1524,12 @@ fn extract_proto_arguments(
     let mut non_python_args = 0;
 
     for arg in &spec.signature.arguments {
-        if arg.py {
+        if let FnArg::Py(..) = arg {
             args.push(quote! { py });
         } else {
             let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
             let conversions = proto_args.get(non_python_args)
-                .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
+                .ok_or_else(|| err_spanned!(arg.ty().span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
                 .extract(&ident, arg, extract_error_mode, holders, ctx);
             non_python_args += 1;
             args.push(conversions);

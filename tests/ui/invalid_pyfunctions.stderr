@@ -29,16 +29,28 @@ error: required arguments after an `Option<_>` argument are ambiguous
 17 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
    |                                                               ^^^
 
-error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`
-  --> tests/ui/invalid_pyfunctions.rs:20:37
+error: args cannot be optional
+  --> tests/ui/invalid_pyfunctions.rs:21:32
    |
-20 | fn pass_module_but_no_arguments<'py>() {}
+21 | fn function_with_optional_args(args: Option<Bound<'_, PyTuple>>) {}
+   |                                ^^^^
+
+error: kwargs must be Option<_>
+  --> tests/ui/invalid_pyfunctions.rs:25:34
+   |
+25 | fn function_with_required_kwargs(kwargs: Bound<'_, PyDict>) {}
+   |                                  ^^^^^^
+
+error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`
+  --> tests/ui/invalid_pyfunctions.rs:28:37
+   |
+28 | fn pass_module_but_no_arguments<'py>() {}
    |                                     ^^
 
 error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not satisfied
-  --> tests/ui/invalid_pyfunctions.rs:24:13
+  --> tests/ui/invalid_pyfunctions.rs:32:13
    |
-24 |     string: &str,
+32 |     string: &str,
    |             ^ the trait `From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::prelude::PyModule>: Into<_>`
    |
    = help: the following other types implement trait `From<T>`:

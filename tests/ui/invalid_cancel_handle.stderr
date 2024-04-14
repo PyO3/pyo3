@@ -16,6 +16,12 @@ error: `cancel_handle` attribute can only be used with `async fn`
 14 | fn cancel_handle_synchronous(#[pyo3(cancel_handle)] _param: String) {}
    |                                                     ^^^^^^
 
+error: `from_py_with` and `cancel_handle` cannot be specified together
+  --> tests/ui/invalid_cancel_handle.rs:24:12
+   |
+24 |     #[pyo3(cancel_handle, from_py_with = "cancel_handle")] _param: pyo3::coroutine::CancelHandle,
+   |            ^^^^^^^^^^^^^
+
 error[E0308]: mismatched types
   --> tests/ui/invalid_cancel_handle.rs:16:1
    |
