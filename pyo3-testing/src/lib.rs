@@ -140,6 +140,47 @@ mod tests {
     }
 
     #[test]
+    fn test_wrap_testcase_multiline_block() {
+        let testcase = parse_quote! {
+            fn test_fizzbuzz() {
+                let x = 1;
+                let y = 1;
+                assert_eq!(x, y)
+            }
+        };
+
+        let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
+
+        let import = Pyo3Import {
+            moduleidentifier: py_fizzbuzzo3,
+            modulename: "fizzbuzzo3".to_string(),
+            functionname: "fizzbuzz".to_string(),
+        };
+
+        let expected = quote! {
+            fn test_fizzbuzz() {
+                pyo3::append_to_inittab!(py_fizzbuzzo3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let fizzbuzzo3 = py
+                    .import_bound("fizzbuzzo3")
+                    .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzz = fizzbuzzo3
+                    .getattr("fizzbuzz")
+                    .expect("Failed to get fizzbuzz function");
+                    let x = 1;
+                    let y = 1;
+                    assert_eq!(x, y)
+                });
+            }
+        };
+
+        let output = wrap_testcase(import, testcase);
+
+        assert_eq!(output.to_string(), expected.to_string());
+    }
+
+    #[test]
     fn test_parseimport() {
         let import: Attribute = parse_quote! {
             #[pyo3import(o3module: from module import function)]
