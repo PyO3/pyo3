@@ -17,28 +17,30 @@ use syn::{
 /// ```
 /// and not `from module import function`
 fn wrap_testcase(import: Pyo3Import, testcase: ItemFn) -> TokenStream2 {
-    let moduleident = import.moduleidentifier;
-    let pymoduleident = Ident::new(&import.modulename, Span::mixed_site());
-    let modulename = import.modulename;
-    let modulerror = "Failed to import ".to_string() + &modulename;
-    let functionname = import.functionname;
-    let functionerror = "Failed to get ".to_string() + &functionname + " function";
-    let pyfunctionident = Ident::new(&functionname, Span::mixed_site());
-    let fnsig = &testcase.sig;
-    let fnstmts = &testcase.block.stmts;
+    let o3_moduleident = import.moduleidentifier;
+    let py_moduleident = Ident::new(&import.modulename, Span::mixed_site());
+    let pyo3_modulename = import.modulename;
+    #[allow(non_snake_case)] // "follow python exception naming
+    let ModuleNotFoundErrormsg = "Failed to import ".to_string() + &pyo3_modulename;
+    let pyo3_functionname = import.functionname;
+    #[allow(non_snake_case)] // "follow python exception naming
+    let AttributeErrormsg = "Failed to get ".to_string() + &pyo3_functionname + " function";
+    let py_functionident = Ident::new(&pyo3_functionname, Span::mixed_site());
+    let testfn_signature = &testcase.sig;
+    let testfn_statements = &testcase.block.stmts;
 
     quote!(
-        #fnsig {
-            pyo3::append_to_inittab!(#moduleident); // allow python to import from this wrapped module
+        #testfn_signature {
+            pyo3::append_to_inittab!(#o3_moduleident); // allow python to import from this wrapped module
             pyo3::prepare_freethreaded_python();
             Python::with_gil(|py| {
-                let #pymoduleident = py
-                    .import_bound(#modulename) // import the wrapped module
-                    .expect(#modulerror);
-                let #pyfunctionident = #pymoduleident
-                    .getattr(#functionname) // import the wrapped function
-                    .expect(#functionerror);
-                #(#fnstmts)*
+                let #py_moduleident = py
+                    .import_bound(#pyo3_modulename) // import the wrapped module
+                    .expect(#ModuleNotFoundErrormsg);
+                let #py_functionident = #py_moduleident
+                    .getattr(#pyo3_functionname) // import the wrapped function
+                    .expect(#AttributeErrormsg);
+                #(#testfn_statements)*
             });
         }
     )
