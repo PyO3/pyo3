@@ -98,13 +98,13 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
             import.modulename
         );
         ModuleNotFoundErrormsgs.push(
-            "Failed to import ".to_string() + &pyo3_modulenames.iter().last().unwrap()
+            "Failed to import ".to_string() + pyo3_modulenames.iter().last().unwrap()
         );
         pyo3_functionnames.push(
             import.functionname
         );
         AttributeErrormsgs.push(
-            "Failed to get ".to_string() + &pyo3_functionnames.iter().last().unwrap() + " function",
+            "Failed to get ".to_string() + pyo3_functionnames.iter().last().unwrap() + " function",
         );
         py_functionidents.push(
             Ident::new(pyo3_functionnames.iter().last().unwrap(), Span::call_site())
