@@ -98,6 +98,9 @@ Tests run with all supported Python versions with the latest stable Rust compile
 
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
+You can run these tests yourself with
+`nox`. Use  `nox -l` to list the full set of subcommands you can run.
+
 #### Linting Python code
 `nox -s ruff`
 
@@ -112,10 +115,6 @@ If you are adding a new feature, you should add it to the `full` feature in our 
 
 #### Tests
 `cargo test --features full`
-
-
-You can run these tests yourself with
-`nox`. Use  `nox -l` to list the full set of subcommands you can run.
 
 #### UI Tests
 
