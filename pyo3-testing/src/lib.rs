@@ -16,7 +16,8 @@ use syn::{
 /// function = module.function
 /// ```
 /// and not `from module import function`
-#[allow(non_snake_case)] // "follow python exception naming for error messages
+#[allow(non_snake_case)] // follow python exception naming for error messages
+#[rustfmt::skip] // for import in testcase.imports ... want consistent formatting for each line
 fn wrap_testcase(testcase: TestCase) -> TokenStream2 {
     let mut o3_moduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
@@ -25,21 +26,29 @@ fn wrap_testcase(testcase: TestCase) -> TokenStream2 {
     let mut pyo3_functionnames = Vec::<String>::new();
     let mut AttributeErrormsgs = Vec::<String>::new();
     let mut py_functionidents = Vec::<Ident>::new();
-
+    
     for import in testcase.imports {
-        o3_moduleidents.push(import.moduleidentifier);
-        py_moduleidents.push(Ident::new(&import.modulename, Span::mixed_site()));
-        pyo3_modulenames.push(import.modulename);
-        ModuleNotFoundErrormsgs
-            .push("Failed to import ".to_string() + &pyo3_modulenames.iter().last().unwrap());
-        pyo3_functionnames.push(import.functionname);
+        o3_moduleidents.push(
+            import.moduleidentifier
+        );
+        py_moduleidents.push(
+            Ident::new(&import.modulename, Span::mixed_site())
+        );
+        pyo3_modulenames.push(
+            import.modulename
+        );
+        ModuleNotFoundErrormsgs.push(
+            "Failed to import ".to_string() + &pyo3_modulenames.iter().last().unwrap()
+        );
+        pyo3_functionnames.push(
+            import.functionname
+        );
         AttributeErrormsgs.push(
             "Failed to get ".to_string() + &pyo3_functionnames.iter().last().unwrap() + " function",
         );
-        py_functionidents.push(Ident::new(
-            pyo3_functionnames.iter().last().unwrap(),
-            Span::mixed_site(),
-        ));
+        py_functionidents.push(
+            Ident::new(pyo3_functionnames.iter().last().unwrap(), Span::mixed_site())
+        );
     }
 
     let testfn_signature = testcase.signature;
