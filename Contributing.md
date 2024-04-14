@@ -116,6 +116,9 @@ You can run these tests yourself with
 #### Tests
 `cargo test --features full`
 
+#### Check all conditional compilation
+`nox -s check-feature-powerset`
+
 #### UI Tests
 
 PyO3 uses [`trybuild`][trybuild] to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
