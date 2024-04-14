@@ -27,7 +27,7 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let mut AttributeErrormsgs = Vec::<String>::new();
     let mut py_functionidents = Vec::<Ident>::new();
     
-    for import in testcase.imports {
+    for import in testcase.pythonimports {
         o3_moduleidents.push(
             import.moduleidentifier
         );
@@ -117,9 +117,9 @@ fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
 }
 
 /// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
-/// execute in Python::with_gil
+/// execute in Python::with_gil. Don't construct this directly but use .into() on a suitable ItemFn
 struct Pyo3TestCase {
-    imports: Vec<Pyo3Import>,
+    pythonimports: Vec<Pyo3Import>,
     signature: Signature,
     statements: Vec<Stmt>,
 }
@@ -127,7 +127,7 @@ struct Pyo3TestCase {
 impl From<ItemFn> for Pyo3TestCase {
     fn from(testcase: ItemFn) -> Pyo3TestCase {
         Pyo3TestCase {
-            imports: testcase
+            pythonimports: testcase
                 .attrs
                 .into_iter()
                 .map(|attr| { parsepyo3import(&attr) }.unwrap())
@@ -169,7 +169,7 @@ mod tests {
         let imports = vec![import];
 
         let testcase: Pyo3TestCase = Pyo3TestCase {
-            imports,
+            pythonimports: imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
         };
@@ -216,7 +216,7 @@ mod tests {
         let imports = vec![import];
 
         let testcase: Pyo3TestCase = Pyo3TestCase {
-            imports,
+            pythonimports: imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
         };
@@ -270,7 +270,7 @@ mod tests {
         let imports = vec![import1, import2];
 
         let testcase: Pyo3TestCase = Pyo3TestCase {
-            imports,
+            pythonimports: imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
         };
@@ -344,6 +344,30 @@ mod tests {
                     let pybar = pyfoo
                     .getattr("pybar")
                     .expect("Failed to get pybar function");
+                    assert!(true)
+                });
+            }
+        };
+
+        let result = impl_pyo3test(attr, input);
+
+        assert_eq!(result.to_string(), expected.to_string())
+    }
+
+    #[test]
+    fn test_zero_imports() {
+        let attr = quote! {};
+
+        let input = quote! {
+            fn pytest() {
+                assert!(true)
+            }
+        };
+
+        let expected = quote! {
+            fn pytest() {
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
                     assert!(true)
                 });
             }
