@@ -94,6 +94,10 @@ Here are a few things to note when you are writing PRs.
 
 The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
+Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
+
+If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
+
 #### Linting Python code
 `nox -s ruff`
 
@@ -108,11 +112,7 @@ The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not suc
 
 #### Tests
 `cargo test --features full`
-```
 
-Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
-
-If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
 You can run these tests yourself with
 `nox`. Use  `nox -l` to list the full set of subcommands you can run.
