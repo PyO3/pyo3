@@ -61,11 +61,11 @@ use std::str::FromStr;
 impl FromPyObject<'_> for Decimal {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         // use the string representation to not be lossy
-        let py_str = &obj.str()?;
-        let rs_str = &py_str.to_cow()?;
         if let Ok(val) = obj.extract() {
             Ok(Decimal::new(val, 0))
         } else {
+            let py_str = &obj.str()?;
+            let rs_str = &py_str.to_cow()?;
             Decimal::from_str(rs_str).or_else(|_| {
                 Decimal::from_scientific(rs_str).map_err(|e| PyValueError::new_err(e.to_string()))
             })
