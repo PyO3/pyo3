@@ -125,140 +125,158 @@ mod tests {
 
     use super::*;
 
-    // #[test]
-    // fn test_wrap_testcase() {
-    //     let testcase = parse_quote! {
-    //         fn test_fizzbuzz() {
-    //             assert!(true)
-    //         }
-    //     };
+    #[test]
+    fn test_wrap_testcase() {
+        let testcase: ItemFn = parse_quote! {
+            fn test_fizzbuzz() {
+                assert!(true)
+            }
+        };
 
-    //     let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
+        let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
 
-    //     let import = Pyo3Import {
-    //         moduleidentifier: py_fizzbuzzo3,
-    //         modulename: "fizzbuzzo3".to_string(),
-    //         functionname: "fizzbuzz".to_string(),
-    //     };
+        let import = Pyo3Import {
+            moduleidentifier: py_fizzbuzzo3,
+            modulename: "fizzbuzzo3".to_string(),
+            functionname: "fizzbuzz".to_string(),
+        };
 
-    //     let imports = vec![import];
+        let imports = vec![import];
 
-    //     let expected = quote! {
-    //         fn test_fizzbuzz() {
-    //             pyo3::append_to_inittab!(py_fizzbuzzo3);
-    //             pyo3::prepare_freethreaded_python();
-    //             Python::with_gil(|py| {
-    //                 let fizzbuzzo3 = py
-    //                 .import_bound("fizzbuzzo3")
-    //                 .expect("Failed to import fizzbuzzo3");
-    //                 let fizzbuzz = fizzbuzzo3
-    //                 .getattr("fizzbuzz")
-    //                 .expect("Failed to get fizzbuzz function");
-    //                 assert!(true)
-    //             });
-    //         }
-    //     };
+        let testcase: TestCase = TestCase{
+            imports,
+            signature: testcase.sig,
+            statements: testcase.block.stmts
+        };
 
-    //     let output = wrap_testcase(imports, testcase);
+        let expected = quote! {
+            fn test_fizzbuzz() {
+                pyo3::append_to_inittab!(py_fizzbuzzo3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let fizzbuzzo3 = py
+                    .import_bound("fizzbuzzo3")
+                    .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzz = fizzbuzzo3
+                    .getattr("fizzbuzz")
+                    .expect("Failed to get fizzbuzz function");
+                    assert!(true)
+                });
+            }
+        };
 
-    //     assert_eq!(output.to_string(), expected.to_string());
-    // }
+        let output = wrap_testcase(testcase);
 
-    // #[test]
-    // fn test_wrap_testcase_multiline_block() {
-    //     let testcase = parse_quote! {
-    //         fn test_fizzbuzz() {
-    //             let x = 1;
-    //             let y = 1;
-    //             assert_eq!(x, y)
-    //         }
-    //     };
+        assert_eq!(output.to_string(), expected.to_string());
+    }
 
-    //     let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
+    #[test]
+    fn test_wrap_testcase_multiline_block() {
+        let testcase: ItemFn = parse_quote! {
+            fn test_fizzbuzz() {
+                let x = 1;
+                let y = 1;
+                assert_eq!(x, y)
+            }
+        };
 
-    //     let import = Pyo3Import {
-    //         moduleidentifier: py_fizzbuzzo3,
-    //         modulename: "fizzbuzzo3".to_string(),
-    //         functionname: "fizzbuzz".to_string(),
-    //     };
+        let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
 
-    //     let imports = vec![import];
+        let import = Pyo3Import {
+            moduleidentifier: py_fizzbuzzo3,
+            modulename: "fizzbuzzo3".to_string(),
+            functionname: "fizzbuzz".to_string(),
+        };
 
-    //     let expected = quote! {
-    //         fn test_fizzbuzz() {
-    //             pyo3::append_to_inittab!(py_fizzbuzzo3);
-    //             pyo3::prepare_freethreaded_python();
-    //             Python::with_gil(|py| {
-    //                 let fizzbuzzo3 = py
-    //                 .import_bound("fizzbuzzo3")
-    //                 .expect("Failed to import fizzbuzzo3");
-    //                 let fizzbuzz = fizzbuzzo3
-    //                 .getattr("fizzbuzz")
-    //                 .expect("Failed to get fizzbuzz function");
-    //                 let x = 1;
-    //                 let y = 1;
-    //                 assert_eq!(x, y)
-    //             });
-    //         }
-    //     };
+        let imports = vec![import];
 
-    //     let output = wrap_testcase(imports, testcase);
+        let testcase: TestCase = TestCase{
+            imports,
+            signature: testcase.sig,
+            statements: testcase.block.stmts
+        };
 
-    //     assert_eq!(output.to_string(), expected.to_string());
-    // }
+        let expected = quote! {
+            fn test_fizzbuzz() {
+                pyo3::append_to_inittab!(py_fizzbuzzo3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let fizzbuzzo3 = py
+                    .import_bound("fizzbuzzo3")
+                    .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzz = fizzbuzzo3
+                    .getattr("fizzbuzz")
+                    .expect("Failed to get fizzbuzz function");
+                    let x = 1;
+                    let y = 1;
+                    assert_eq!(x, y)
+                });
+            }
+        };
 
-    // #[test]
-    // fn test_wrap_testcase_multiple_imports() {
-    //     let testcase = parse_quote! {
-    //         fn test_fizzbuzz() {
-    //             assert!(true)
-    //         }
-    //     };
+        let output = wrap_testcase(testcase);
 
-    //     let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
-    //     let py_foo_o3 = Ident::new("py_foo_o3", Span::call_site());
+        assert_eq!(output.to_string(), expected.to_string());
+    }
 
-    //     let import1 = Pyo3Import {
-    //         moduleidentifier: py_fizzbuzzo3,
-    //         modulename: "fizzbuzzo3".to_string(),
-    //         functionname: "fizzbuzz".to_string(),
-    //     };
+    #[test]
+    fn test_wrap_testcase_multiple_imports() {
+        let testcase: ItemFn = parse_quote! {
+            fn test_fizzbuzz() {
+                assert!(true)
+            }
+        };
 
-    //     let import2 = Pyo3Import {
-    //         moduleidentifier: py_foo_o3,
-    //         modulename: "foo_o3".to_string(),
-    //         functionname: "bar".to_string(),
-    //     };
+        let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
+        let py_foo_o3 = Ident::new("py_foo_o3", Span::call_site());
 
-    //     let imports = vec![import1, import2];
+        let import1 = Pyo3Import {
+            moduleidentifier: py_fizzbuzzo3,
+            modulename: "fizzbuzzo3".to_string(),
+            functionname: "fizzbuzz".to_string(),
+        };
 
-    //     let expected = quote! {
-    //         fn test_fizzbuzz() {
-    //             pyo3::append_to_inittab!(py_fizzbuzzo3);
-    //             pyo3::append_to_inittab!(py_foo_o3);
-    //             pyo3::prepare_freethreaded_python();
-    //             Python::with_gil(|py| {
-    //                 let fizzbuzzo3 = py
-    //                 .import_bound("fizzbuzzo3")
-    //                 .expect("Failed to import fizzbuzzo3");
-    //                 let foo_o3 = py
-    //                 .import_bound("foo_o3")
-    //                 .expect("Failed to import foo_o3");
-    //                 let fizzbuzz = fizzbuzzo3
-    //                 .getattr("fizzbuzz")
-    //                 .expect("Failed to get fizzbuzz function");
-    //                 let bar = foo_o3
-    //                 .getattr("bar")
-    //                 .expect("Failed to get bar function");
-    //                 assert!(true)
-    //             });
-    //         }
-    //     };
+        let import2 = Pyo3Import {
+            moduleidentifier: py_foo_o3,
+            modulename: "foo_o3".to_string(),
+            functionname: "bar".to_string(),
+        };
 
-    //     let output = wrap_testcase(imports, testcase);
+        let imports = vec![import1, import2];
 
-    //     assert_eq!(output.to_string(), expected.to_string());
-    // }
+        let testcase: TestCase = TestCase{
+            imports,
+            signature: testcase.sig,
+            statements: testcase.block.stmts
+        };
+
+        let expected = quote! {
+            fn test_fizzbuzz() {
+                pyo3::append_to_inittab!(py_fizzbuzzo3);
+                pyo3::append_to_inittab!(py_foo_o3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let fizzbuzzo3 = py
+                    .import_bound("fizzbuzzo3")
+                    .expect("Failed to import fizzbuzzo3");
+                    let foo_o3 = py
+                    .import_bound("foo_o3")
+                    .expect("Failed to import foo_o3");
+                    let fizzbuzz = fizzbuzzo3
+                    .getattr("fizzbuzz")
+                    .expect("Failed to get fizzbuzz function");
+                    let bar = foo_o3
+                    .getattr("bar")
+                    .expect("Failed to get bar function");
+                    assert!(true)
+                });
+            }
+        };
+
+        let output = wrap_testcase(testcase);
+
+        assert_eq!(output.to_string(), expected.to_string());
+    }
 
     #[test]
     fn test_parseimport() {
