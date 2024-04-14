@@ -115,42 +115,44 @@ mod tests {
 
     use super::*;
 
-    // #[test]
-    // fn test_wrap_testcase() {
-    //     let testcase = parse_quote! {
-    //         fn test_fizzbuzz() {
-    //             assert!(true)
-    //         }
-    //     };
+    #[test]
+    fn test_wrap_testcase() {
+        let testcase = parse_quote! {
+            fn test_fizzbuzz() {
+                assert!(true)
+            }
+        };
 
-    //     let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
+        let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
 
-    //     let import = Pyo3Import {
-    //         moduleidentifier: py_fizzbuzzo3,
-    //         modulename: "fizzbuzzo3".to_string(),
-    //         functionname: "fizzbuzz".to_string(),
-    //     };
+        let import = Pyo3Import {
+            moduleidentifier: py_fizzbuzzo3,
+            modulename: "fizzbuzzo3".to_string(),
+            functionname: "fizzbuzz".to_string(),
+        };
 
-    //     let expected = quote! {
-    //         fn test_fizzbuzz() {
-    //             pyo3::append_to_inittab!(py_fizzbuzzo3);
-    //             pyo3::prepare_freethreaded_python();
-    //             Python::with_gil(|py| {
-    //                 let fizzbuzzo3 = py
-    //                 .import_bound("fizzbuzzo3")
-    //                 .expect("Failed to import fizzbuzzo3");
-    //                 let fizzbuzz = fizzbuzzo3
-    //                 .getattr("fizzbuzz")
-    //                 .expect("Failed to get fizzbuzz function");
-    //                 assert!(true)
-    //             });
-    //         }
-    //     };
+        let imports = vec![import];
 
-    //     let output = wrap_testcase(import, testcase);
+        let expected = quote! {
+            fn test_fizzbuzz() {
+                pyo3::append_to_inittab!(py_fizzbuzzo3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let fizzbuzzo3 = py
+                    .import_bound("fizzbuzzo3")
+                    .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzz = fizzbuzzo3
+                    .getattr("fizzbuzz")
+                    .expect("Failed to get fizzbuzz function");
+                    assert!(true)
+                });
+            }
+        };
 
-    //     assert_eq!(output.to_string(), expected.to_string());
-    // }
+        let output = wrap_testcase(imports, testcase);
+
+        assert_eq!(output.to_string(), expected.to_string());
+    }
 
     // #[test]
     // fn test_wrap_testcase_multiline_block() {
