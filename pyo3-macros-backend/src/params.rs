@@ -90,7 +90,7 @@ pub fn impl_arg_params(
         .iter()
         .enumerate()
         .filter_map(|(i, arg)| {
-            let from_py_with = &arg.from_py_with().as_ref()?.value;
+            let from_py_with = &arg.from_py_with()?.value;
             let from_py_with_holder = format_ident!("from_py_with_{}", i);
             Some(quote_spanned! { from_py_with.span() =>
                 let e = #pyo3_path::impl_::deprecations::GilRefs::new();
@@ -285,13 +285,7 @@ pub(crate) fn impl_regular_arg_param(
         ));
     }
 
-    if arg
-        .attrs
-        .from_py_with
-        .as_ref()
-        .map(|attr| &attr.value)
-        .is_some()
-    {
+    if arg.from_py_with.is_some() {
         if let Some(default) = default {
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(

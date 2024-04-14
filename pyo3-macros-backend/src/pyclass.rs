@@ -1143,9 +1143,6 @@ fn complex_enum_struct_variant_new<'a>(
     let arg_py_type: syn::Type = parse_quote!(#pyo3_path::Python<'_>);
 
     let args = {
-        let mut no_pyo3_attrs = vec![];
-        let attrs = crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
-
         let mut args = vec![
             // py: Python<'_>
             FnArg::Py(PyArg {
@@ -1158,7 +1155,7 @@ fn complex_enum_struct_variant_new<'a>(
             args.push(FnArg::Regular(RegularArg {
                 name: field.ident,
                 ty: field.ty,
-                attrs: attrs.clone(),
+                from_py_with: None,
                 default_value: None,
                 option_wrapped_type: None,
             }));

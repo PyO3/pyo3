@@ -609,7 +609,7 @@ pub fn impl_py_setter_def(
             let arg = if let FnArg::Regular(arg) = &value_arg {
                 arg
             } else {
-                bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args or **kwargs");
+                bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
             };
 
             let tokens = impl_regular_arg_param(

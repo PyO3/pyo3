@@ -20,19 +20,21 @@ use crate::{
 pub struct RegularArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
-    pub attrs: PyFunctionArgPyO3Attributes,
+    pub from_py_with: Option<FromPyWithAttribute>,
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
 }
 
+/// Pythons *args argument
 #[derive(Clone, Debug)]
-pub struct VarArg<'a> {
+pub struct VarargsArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
 }
 
+/// Pythons **kwarg argument
 #[derive(Clone, Debug)]
-pub struct KwArg<'a> {
+pub struct KwargsArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
 }
@@ -52,8 +54,8 @@ pub struct PyArg<'a> {
 #[derive(Clone, Debug)]
 pub enum FnArg<'a> {
     Regular(RegularArg<'a>),
-    VarArgs(VarArg<'a>),
-    KwArgs(KwArg<'a>),
+    VarArgs(VarargsArg<'a>),
+    KwArgs(KwargsArg<'a>),
     Py(PyArg<'a>),
     CancelHandle(CancelHandleArg<'a>),
 }
@@ -62,8 +64,8 @@ impl<'a> FnArg<'a> {
     pub fn name(&self) -> &'a syn::Ident {
         match self {
             FnArg::Regular(RegularArg { name, .. }) => name,
-            FnArg::VarArgs(VarArg { name, .. }) => name,
-            FnArg::KwArgs(KwArg { name, .. }) => name,
+            FnArg::VarArgs(VarargsArg { name, .. }) => name,
+            FnArg::KwArgs(KwargsArg { name, .. }) => name,
             FnArg::Py(PyArg { name, .. }) => name,
             FnArg::CancelHandle(CancelHandleArg { name, .. }) => name,
         }
@@ -72,8 +74,8 @@ impl<'a> FnArg<'a> {
     pub fn ty(&self) -> &'a syn::Type {
         match self {
             FnArg::Regular(RegularArg { ty, .. }) => ty,
-            FnArg::VarArgs(VarArg { ty, .. }) => ty,
-            FnArg::KwArgs(KwArg { ty, .. }) => ty,
+            FnArg::VarArgs(VarargsArg { ty, .. }) => ty,
+            FnArg::KwArgs(KwargsArg { ty, .. }) => ty,
             FnArg::Py(PyArg { ty, .. }) => ty,
             FnArg::CancelHandle(CancelHandleArg { ty, .. }) => ty,
         }
@@ -81,8 +83,8 @@ impl<'a> FnArg<'a> {
 
     #[allow(clippy::wrong_self_convention)]
     pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
-        if let FnArg::Regular(RegularArg { attrs, .. }) = self {
-            attrs.from_py_with.as_ref()
+        if let FnArg::Regular(RegularArg { from_py_with, .. }) = self {
+            from_py_with.as_ref()
         } else {
             None
         }
@@ -96,7 +98,7 @@ impl<'a> FnArg<'a> {
             ..
         }) = self
         {
-            *self = Self::VarArgs(VarArg { name, ty });
+            *self = Self::VarArgs(VarargsArg { name, ty });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "args cannot be optional")
@@ -111,7 +113,7 @@ impl<'a> FnArg<'a> {
             ..
         }) = self
         {
-            *self = Self::KwArgs(KwArg { name, ty });
+            *self = Self::KwArgs(KwargsArg { name, ty });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "kwargs must be Option<_>")
@@ -129,7 +131,10 @@ impl<'a> FnArg<'a> {
                     bail_spanned!(cap.ty.span() => IMPL_TRAIT_ERR);
                 }
 
-                let arg_attrs = PyFunctionArgPyO3Attributes::from_attrs(&mut cap.attrs)?;
+                let PyFunctionArgPyO3Attributes {
+                    from_py_with,
+                    cancel_handle,
+                } = PyFunctionArgPyO3Attributes::from_attrs(&mut cap.attrs)?;
                 let ident = match &*cap.pat {
                     syn::Pat::Ident(syn::PatIdent { ident, .. }) => ident,
                     other => return Err(handle_argument_error(other)),
@@ -142,7 +147,11 @@ impl<'a> FnArg<'a> {
                     }));
                 }
 
-                if arg_attrs.cancel_handle.is_some() {
+                if cancel_handle.is_some() {
+                    // `PyFunctionArgPyO3Attributes::from_attrs` validates that
+                    // only compatible attributes are specified, either
+                    // `cancel_handle` or `from_py_with`, dublicates and any
+                    // combination of the two are already rejected.
                     return Ok(Self::CancelHandle(CancelHandleArg {
                         name: ident,
                         ty: &cap.ty,
@@ -152,7 +161,7 @@ impl<'a> FnArg<'a> {
                 Ok(Self::Regular(RegularArg {
                     name: ident,
                     ty: &cap.ty,
-                    attrs: arg_attrs,
+                    from_py_with,
                     default_value: None,
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
                 }))
