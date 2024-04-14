@@ -7,6 +7,57 @@ use syn::{
     Attribute, Ident, ItemFn, Signature, Stmt,
 };
 
+#[allow(dead_code)] // Proc macro is not yet implemented
+fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
+    let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().into();
+    wrap_testcase(testcase)
+}
+
+/// Parse an `Attribute` as a `pyo3import`, including path validation.
+///
+/// Return:
+/// - `Some(Pyo3Import)` for Attributes with the path `pyo3import` e.g.:
+/// `#[pyo3import(foo: from foo import bar)]`
+/// - `None` for Attributes with other paths.
+fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
+    if import.path().is_ident("pyo3import") {
+        Some(import.parse_args().unwrap())
+    } else {
+        None
+    }
+}
+
+/// A python `import` statement for a pyo3-wrapped function.
+#[derive(Debug, PartialEq)]
+struct Pyo3Import {
+    /// The *rust* `ident` of the wrapped module
+    moduleidentifier: Ident,
+    /// The *python* module name
+    modulename: String,
+    /// The *python* function name
+    functionname: String,
+}
+
+impl Parse for Pyo3Import {
+    /// Attributes parsing to Pyo3Imports should have the format:
+    /// `moduleidentifier: from modulename import functionname`
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        // Written by a rust newbie, if there is a better option than all these assignments; please
+        // feel free to change this code...
+        let moduleidentifier = input.parse()?;
+        let _colon: Colon = input.parse()?;
+        let _from: Ident = input.parse()?;
+        let modulename: Ident = input.parse()?;
+        let _import: Ident = input.parse()?;
+        let functionname: Ident = input.parse()?;
+        Ok(Pyo3Import {
+            moduleidentifier,
+            modulename: modulename.to_string(),
+            functionname: functionname.to_string(),
+        })
+    }
+}
+
 /// Takes a code block which should be executed using Python::with_gil, and after importing a pyo3-wrapped
 /// function and adds the required `import` and `with_gil` statements.
 ///
@@ -71,51 +122,6 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     )
 }
 
-/// A python `import` statement for a pyo3-wrapped function.
-#[derive(Debug, PartialEq)]
-struct Pyo3Import {
-    /// The *rust* `ident` of the wrapped module
-    moduleidentifier: Ident,
-    /// The *python* module name
-    modulename: String,
-    /// The *python* function name
-    functionname: String,
-}
-
-impl Parse for Pyo3Import {
-    /// Attributes parsing to Pyo3Imports should have the format:
-    /// `moduleidentifier: from modulename import functionname`
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        // Written by a rust newbie, if there is a better option than all these assignments; please
-        // feel free to change this code...
-        let moduleidentifier = input.parse()?;
-        let _colon: Colon = input.parse()?;
-        let _from: Ident = input.parse()?;
-        let modulename: Ident = input.parse()?;
-        let _import: Ident = input.parse()?;
-        let functionname: Ident = input.parse()?;
-        Ok(Pyo3Import {
-            moduleidentifier,
-            modulename: modulename.to_string(),
-            functionname: functionname.to_string(),
-        })
-    }
-}
-
-/// Parse an `Attribute` as a `pyo3import`, including path validation.
-///
-/// Return:
-/// - `Some(Pyo3Import)` for Attributes with the path `pyo3import` e.g.:
-/// `#[pyo3import(foo: from foo import bar)]`
-/// - `None` for Attributes with other paths.
-fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
-    if import.path().is_ident("pyo3import") {
-        Some(import.parse_args().unwrap())
-    } else {
-        None
-    }
-}
-
 /// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
 /// execute in Python::with_gil. Don't construct this directly but use .into() on a suitable ItemFn
 struct Pyo3TestCase {
@@ -136,12 +142,6 @@ impl From<ItemFn> for Pyo3TestCase {
             statements: testcase.block.stmts,
         }
     }
-}
-
-#[allow(dead_code)] // Not yet fully implemented
-fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
-    let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().into();
-    wrap_testcase(testcase)
 }
 
 #[cfg(test)]
