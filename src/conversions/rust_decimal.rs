@@ -66,8 +66,8 @@ impl FromPyObject<'_> for Decimal {
         if let Ok(val) = obj.extract() {
             Ok(Decimal::new(val, 0))
         } else {
-            Decimal::from_str(&rs_str).or_else(|_| {
-                Decimal::from_scientific(&rs_str).map_err(|e| PyValueError::new_err(e.to_string()))
+            Decimal::from_str(rs_str).or_else(|_| {
+                Decimal::from_scientific(rs_str).map_err(|e| PyValueError::new_err(e.to_string()))
             })
         }
     }
