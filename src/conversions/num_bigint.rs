@@ -50,10 +50,11 @@
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
+    conversion::IntoPyObject,
     ffi,
     instance::Bound,
     types::{any::PyAnyMethods, PyLong},
-    FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -102,6 +103,53 @@ macro_rules! bigint_conversion {
         impl IntoPy<PyObject> for $rust_ty {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 self.to_object(py)
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
+        impl<'py> IntoPyObject<'py> for $rust_ty {
+            type Target = PyLong;
+            type Error = PyErr;
+
+            #[cfg(not(Py_LIMITED_API))]
+            fn into_pyobject(
+                self,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, Self::Target>, Self::Error> {
+                use crate::ffi_ptr_ext::FfiPtrExt;
+                let bytes = $to_bytes(&self);
+                unsafe {
+                    Ok(ffi::_PyLong_FromByteArray(
+                        bytes.as_ptr().cast(),
+                        bytes.len(),
+                        1,
+                        $is_signed,
+                    )
+                    .assume_owned(py)
+                    .downcast_into_unchecked())
+                }
+            }
+
+            #[cfg(Py_LIMITED_API)]
+            fn into_pyobject(
+                self,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, Self::Target>, Self::Error> {
+                use $crate::py_result_ext::PyResultExt;
+                let bytes = $to_bytes(&self);
+                let bytes_obj = PyBytes::new_bound(py, &bytes);
+                let kwargs = if $is_signed > 0 {
+                    let kwargs = crate::types::PyDict::new_bound(py);
+                    kwargs.set_item(crate::intern!(py, "signed"), true)?;
+                    Some(kwargs)
+                } else {
+                    None
+                };
+                unsafe {
+                    py.get_type_bound::<PyLong>()
+                        .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
+                        .downcast_into_unchecked()
+                }
             }
         }
     };
