@@ -355,4 +355,34 @@ mod tests {
 
         assert_eq!(output.to_string(), expected.to_string());
     }
+
+    #[test]
+    fn test_import_module_only() {
+        let attr = quote! {};
+
+        let input = quote! {
+            #[pyo3import(foo_o3: import pyfoo)]
+            fn pytest() {
+                assert!(true)
+            }
+        };
+
+        let expected = quote! {
+            #[test]
+            fn pytest() {
+                pyo3::append_to_inittab!(foo_o3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let pyfoo = py
+                    .import_bound("pyfoo")
+                    .expect("Failed to import pyfoo");
+                    assert!(true)
+                });
+            }
+        };
+
+        let result = impl_pyo3test(attr, input);
+
+        assert_eq!(result.to_string(), expected.to_string())
+    }
 }
