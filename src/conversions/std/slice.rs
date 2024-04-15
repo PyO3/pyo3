@@ -1,10 +1,11 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, convert::Infallible};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
+    conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    Bound, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
@@ -15,6 +16,15 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("bytes")
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &[u8] {
+    type Target = PyBytes;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(PyBytes::new_bound(py, self))
     }
 }
 
@@ -59,6 +69,15 @@ impl ToPyObject for Cow<'_, [u8]> {
 impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         self.to_object(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for Cow<'_, [u8]> {
+    type Target = PyBytes;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(PyBytes::new_bound(py, &self))
     }
 }
 

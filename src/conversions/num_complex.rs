@@ -138,6 +138,25 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
+        impl<'py> crate::conversion::IntoPyObject<'py> for Complex<$float> {
+            type Target = PyComplex;
+            type Error = std::convert::Infallible;
+
+            fn into_pyobject(
+                self,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, Self::Target>, Self::Error> {
+                unsafe {
+                    Ok(
+                        ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double)
+                            .assume_owned(py)
+                            .downcast_into_unchecked(),
+                    )
+                }
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl FromPyObject<'_> for Complex<$float> {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Complex<$float>> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]

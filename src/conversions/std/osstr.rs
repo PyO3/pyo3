@@ -1,15 +1,27 @@
+use crate::conversion::IntoPyObject;
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
 use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
+use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
 
 impl ToPyObject for OsStr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
+        self.into_pyobject(py).unwrap().into_any().unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &OsStr {
+    type Target = PyString;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
         // If the string is UTF-8, take the quick and easy shortcut
         if let Some(valid_utf8_path) = self.to_str() {
-            return valid_utf8_path.to_object(py);
+            return valid_utf8_path.into_pyobject(py);
         }
 
         // All targets besides windows support the std::os::unix::ffi::OsStrExt API:
@@ -26,8 +38,9 @@ impl ToPyObject for OsStr {
             unsafe {
                 // DecodeFSDefault automatically chooses an appropriate decoding mechanism to
                 // parse os strings losslessly (i.e. surrogateescape most of the time)
-                let pystring = ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len);
-                PyObject::from_owned_ptr(py, pystring)
+                Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len)
+                    .assume_owned(py)
+                    .downcast_into_unchecked::<PyString>())
             }
         }
 
@@ -38,9 +51,11 @@ impl ToPyObject for OsStr {
             unsafe {
                 // This will not panic because the data from encode_wide is well-formed Windows
                 // string data
-                PyObject::from_owned_ptr(
-                    py,
-                    ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t),
+
+                Ok(
+                    ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t)
+                        .assume_owned(py)
+                        .downcast_into_unchecked::<PyString>(),
                 )
             }
         }
@@ -124,6 +139,15 @@ impl IntoPy<PyObject> for Cow<'_, OsStr> {
     }
 }
 
+impl<'py> IntoPyObject<'py> for Cow<'_, OsStr> {
+    type Target = PyString;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl ToPyObject for OsString {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -137,9 +161,27 @@ impl IntoPy<PyObject> for OsString {
     }
 }
 
+impl<'py> IntoPyObject<'py> for OsString {
+    type Target = PyString;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        self.as_os_str().into_pyobject(py)
+    }
+}
+
 impl<'a> IntoPy<PyObject> for &'a OsString {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &OsString {
+    type Target = PyString;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        self.as_os_str().into_pyobject(py)
     }
 }
 

@@ -186,15 +186,48 @@ pub trait IntoPyObject<'py>: Sized {
     fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error>;
 }
 
-impl<'py, T> IntoPyObject<'py> for &'_ T
-where
-    T: Copy + IntoPyObject<'py>,
-{
-    type Target = T::Target;
-    type Error = T::Error;
+impl<'py, T> IntoPyObject<'py> for Bound<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for &Bound<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.clone())
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Borrowed<'_, 'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.to_owned())
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Py<T> {
+    type Target = T;
+    type Error = Infallible;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
-        (*self).into_pyobject(py)
+        Ok(self.into_bound(py))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for &Py<T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.bind(py).clone())
     }
 }
 

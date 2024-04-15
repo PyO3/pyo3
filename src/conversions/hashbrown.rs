@@ -17,11 +17,14 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
-    types::any::PyAnyMethods,
-    types::dict::PyDictMethods,
-    types::frozenset::PyFrozenSetMethods,
-    types::set::{new_from_iter, PySetMethods},
-    types::{IntoPyDict, PyDict, PyFrozenSet, PySet},
+    conversion::IntoPyObject,
+    types::{
+        any::PyAnyMethods,
+        dict::PyDictMethods,
+        frozenset::PyFrozenSetMethods,
+        set::{new_from_iter, try_new_from_iter, PySetMethods},
+        IntoPyDict, PyDict, PyFrozenSet, PySet,
+    },
     Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
@@ -48,6 +51,25 @@ where
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
         IntoPyDict::into_py_dict(iter, py).into()
+    }
+}
+
+impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
+    H: hash::BuildHasher,
+    PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        let dict = PyDict::new_bound(py);
+        for (k, v) in self {
+            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+        }
+        Ok(dict)
     }
 }
 
@@ -87,6 +109,28 @@ where
         new_from_iter(py, self.into_iter().map(|item| item.into_py(py)))
             .expect("Failed to create Python set from hashbrown::HashSet")
             .into()
+    }
+}
+
+impl<'py, K, H> IntoPyObject<'py> for hashbrown::HashSet<K, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    H: hash::BuildHasher,
+    PyErr: From<K::Error>,
+{
+    type Target = PySet;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        try_new_from_iter(
+            py,
+            self.into_iter().map(|item| {
+                item.into_pyobject(py)
+                    .map(Bound::into_any)
+                    .map(Bound::unbind)
+                    .map_err(Into::into)
+            }),
+        )
     }
 }
 

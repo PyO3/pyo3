@@ -15,12 +15,14 @@
 //!
 //! Note that you must use compatible versions of smallvec and PyO3.
 //! The required smallvec version may vary based on the version of PyO3.
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::list::new_from_iter;
-use crate::types::{PySequence, PyString};
+use crate::types::list::{new_from_iter, try_new_from_iter};
+use crate::types::{PyList, PySequence, PyString};
+use crate::PyErr;
 use crate::{
     err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
     ToPyObject,
@@ -51,6 +53,26 @@ where
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::list_of(A::Item::type_output())
+    }
+}
+
+impl<'py, A> IntoPyObject<'py> for SmallVec<A>
+where
+    A: Array,
+    A::Item: IntoPyObject<'py>,
+    PyErr: From<<A::Item as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyList;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        let mut iter = self.into_iter().map(|e| {
+            e.into_pyobject(py)
+                .map(Bound::into_any)
+                .map(Bound::unbind)
+                .map_err(Into::into)
+        });
+        try_new_from_iter(py, &mut iter)
     }
 }
 

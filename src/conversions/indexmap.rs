@@ -87,6 +87,7 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
+use crate::conversion::IntoPyObject;
 use crate::types::*;
 use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
@@ -113,6 +114,25 @@ where
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
         IntoPyDict::into_py_dict(iter, py).into()
+    }
+}
+
+impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
+    H: hash::BuildHasher,
+    PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        let dict = PyDict::new_bound(py);
+        for (k, v) in self {
+            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+        }
+        Ok(dict)
     }
 }
 

@@ -46,8 +46,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPy, PyAny,
-    PyObject, PyResult, Python, ToPyObject,
+    conversion::IntoPyObject, exceptions::PyTypeError, types::any::PyAnyMethods, Bound,
+    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 use either::Either;
 
@@ -62,6 +62,23 @@ where
         match self {
             Either::Left(l) => l.into_py(py),
             Either::Right(r) => r.into_py(py),
+        }
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "either")))]
+impl<'py, L, R, T, E> IntoPyObject<'py> for Either<L, R>
+where
+    L: IntoPyObject<'py, Target = T, Error = E>,
+    R: IntoPyObject<'py, Target = T, Error = E>,
+{
+    type Target = T;
+    type Error = E;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        match self {
+            Either::Left(l) => l.into_pyobject(py),
+            Either::Right(r) => r.into_pyobject(py),
         }
     }
 }

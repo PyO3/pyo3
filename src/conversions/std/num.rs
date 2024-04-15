@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::PyLong;
+use crate::types::PyInt;
 use crate::{
     exceptions, ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
     ToPyObject,
@@ -35,7 +35,7 @@ macro_rules! int_fits_larger_int {
         }
 
         impl<'py> IntoPyObject<'py> for $rust_type {
-            type Target = PyLong;
+            type Target = PyInt;
             type Error = Infallible;
 
             fn into_pyobject(
@@ -106,7 +106,7 @@ macro_rules! int_convert_u64_or_i64 {
             }
         }
         impl<'py> IntoPyObject<'py> for $rust_type {
-            type Target = PyLong;
+            type Target = PyInt;
             type Error = Infallible;
 
             fn into_pyobject(
@@ -152,7 +152,7 @@ macro_rules! int_fits_c_long {
         }
 
         impl<'py> IntoPyObject<'py> for $rust_type {
-            type Target = PyLong;
+            type Target = PyInt;
             type Error = Infallible;
 
             fn into_pyobject(
