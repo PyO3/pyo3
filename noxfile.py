@@ -45,6 +45,7 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-build-config")
     _run_cargo_test(session, package="pyo3-macros-backend")
     _run_cargo_test(session, package="pyo3-macros")
+    _run_cargo_test(session, package="pyo3-testing")
     _run_cargo_test(session, package="pyo3-ffi")
 
     _run_cargo_test(session)
