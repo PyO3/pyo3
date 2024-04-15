@@ -155,7 +155,7 @@ impl<'py> IntoPyObject<'py> for &String {
     type Error = Infallible;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
-        Ok(PyString::new_bound(py, &self))
+        Ok(PyString::new_bound(py, self))
     }
 }
 

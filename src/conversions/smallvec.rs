@@ -119,7 +119,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyDict, PyList};
+    use crate::types::PyDict;
 
     #[test]
     fn test_smallvec_into_py() {
