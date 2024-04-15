@@ -117,7 +117,6 @@ impl<'py> IntoPyObject<'py> for Decimal {
 #[cfg(test)]
 mod test_rust_decimal {
     use super::*;
-    use crate::err::PyErr;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
 
