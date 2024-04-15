@@ -17,10 +17,31 @@ pub fn pyo3test(attr: TokenStream1, input: TokenStream1) -> TokenStream1 {
 /// The function which is called by the proc macro `pyo3test`.
 /// Takes a TokenStream2 input, parses it as a Pyo3TestCase and returns a wrapped
 /// function with the requested imports, run in Python::with_gil
-#[allow(dead_code)] // Proc macro is not yet implemented
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().into();
     wrap_testcase(testcase)
+}
+
+/// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
+/// execute in Python::with_gil. Don't construct this directly but use .into() on a suitable ItemFn
+struct Pyo3TestCase {
+    pythonimports: Vec<Pyo3Import>,
+    signature: Signature,
+    statements: Vec<Stmt>,
+}
+
+impl From<ItemFn> for Pyo3TestCase {
+    fn from(testcase: ItemFn) -> Pyo3TestCase {
+        Pyo3TestCase {
+            pythonimports: testcase
+                .attrs
+                .into_iter()
+                .map(|attr| { parsepyo3import(&attr) }.unwrap())
+                .collect(),
+            signature: testcase.sig,
+            statements: testcase.block.stmts,
+        }
+    }
 }
 
 /// Parse an `Attribute` as a `pyo3import`, including path validation.
@@ -131,28 +152,6 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
             });
         }
     )
-}
-
-/// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
-/// execute in Python::with_gil. Don't construct this directly but use .into() on a suitable ItemFn
-struct Pyo3TestCase {
-    pythonimports: Vec<Pyo3Import>,
-    signature: Signature,
-    statements: Vec<Stmt>,
-}
-
-impl From<ItemFn> for Pyo3TestCase {
-    fn from(testcase: ItemFn) -> Pyo3TestCase {
-        Pyo3TestCase {
-            pythonimports: testcase
-                .attrs
-                .into_iter()
-                .map(|attr| { parsepyo3import(&attr) }.unwrap())
-                .collect(),
-            signature: testcase.sig,
-            statements: testcase.block.stmts,
-        }
-    }
 }
 
 #[cfg(test)]
