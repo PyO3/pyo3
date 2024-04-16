@@ -10,10 +10,14 @@ use pyo3::types::PyBool;
 mod common;
 
 mod some_module {
+    use pyo3::create_exception;
+    use pyo3::exceptions::PyException;
     use pyo3::prelude::*;
 
     #[pyclass]
     pub struct SomePyClass;
+
+    create_exception!(some_module, SomeException, PyException);
 }
 
 #[pyclass]
@@ -60,6 +64,10 @@ mod declarative_module {
     // test for #4036
     #[pymodule_export]
     use super::some_module::SomePyClass;
+
+    // test for #4036
+    #[pymodule_export]
+    use super::some_module::SomeException;
 
     #[pymodule]
     mod inner {
