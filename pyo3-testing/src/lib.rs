@@ -3,10 +3,7 @@ use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    parse::{Parse, ParseStream},
-    parse2,
-    token::Colon,
-    Attribute, Ident, ItemFn, Signature, Stmt,
+    parse::{Parse, ParseStream}, parse2, token::Colon, Attribute, Ident, ItemFn, Signature, Stmt
 };
 
 #[proc_macro_attribute]
@@ -66,7 +63,7 @@ struct Pyo3Import {
     /// The *python* module name
     modulename: String,
     /// The *python* function name
-    functionname: String,
+    functionname: Option<String>,
 }
 
 impl Parse for Pyo3Import {
@@ -77,14 +74,22 @@ impl Parse for Pyo3Import {
         // feel free to change this code...
         let moduleidentifier = input.parse()?;
         let _colon: Colon = input.parse()?;
-        let _from: Ident = input.parse()?;
+        let firstkeyword: String = input.parse::<Ident>()?.to_string();
         let modulename: Ident = input.parse()?;
-        let _import: Ident = input.parse()?;
-        let functionname: Ident = input.parse()?;
+        let functionname: Option<String>;
+        match firstkeyword.as_str() {
+            "from" => {
+                let _import: Ident = input.parse()?;
+                functionname = Some(input.parse::<Ident>()?.to_string());
+            }
+            "import" => {functionname = None;}
+            _ => return Err(syn::Error::new(input.span(), "invalid import statement"))
+        }
+        
         Ok(Pyo3Import {
             moduleidentifier,
             modulename: modulename.to_string(),
-            functionname: functionname.to_string(),
+            functionname: functionname,
         })
     }
 }
@@ -122,15 +127,15 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
         ModuleNotFoundErrormsgs.push(
             "Failed to import ".to_string() + pyo3_modulenames.iter().last().unwrap()
         );
-        pyo3_functionnames.push(
-            import.functionname
-        );
-        AttributeErrormsgs.push(
-            "Failed to get ".to_string() + pyo3_functionnames.iter().last().unwrap() + " function",
-        );
-        py_functionidents.push(
-            Ident::new(pyo3_functionnames.iter().last().unwrap(), Span::call_site())
-        );
+        match import.functionname {
+            Some(functionname) => {
+                AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
+                py_functionidents.push(Ident::new(&functionname, Span::call_site()));
+                pyo3_functionnames.push(functionname);
+            }
+            None => {}
+        };
+
     }
 
     let testfn_signature = testcase.signature;
@@ -173,7 +178,7 @@ mod tests {
         let import = Pyo3Import {
             moduleidentifier: py_fizzbuzzo3,
             modulename: "fizzbuzzo3".to_string(),
-            functionname: "fizzbuzz".to_string(),
+            functionname: Some("fizzbuzz".to_string()),
         };
 
         let imports = vec![import];
@@ -217,7 +222,7 @@ mod tests {
         let expected = Pyo3Import {
             moduleidentifier: o3module,
             modulename: "module".to_string(),
-            functionname: "function".to_string(),
+            functionname: Some("function".to_string()),
         };
 
         let parsed = parsepyo3import(&import);
