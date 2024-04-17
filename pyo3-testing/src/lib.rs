@@ -115,24 +115,25 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let mut py_moduleidents = Vec::<Ident>::new();
     let mut py_modulenames = Vec::<String>::new();
     let mut py_ModuleNotFoundErrormsgs = Vec::<String>::new();
-    let mut py_functionnames = Vec::<String>::new();
-    let mut py_AttributeErrormsgs = Vec::<String>::new();
     let mut py_functionidents = Vec::<Ident>::new();
     let mut py_moduleswithfnsidents = Vec::<Ident>::new();
+    let mut py_functionnames = Vec::<String>::new();
+    let mut py_AttributeErrormsgs = Vec::<String>::new();
+
     
     for import in testcase.pythonimports {
-        o3_moduleidents.push(
-            import.o3_moduleident
-        );
-        py_moduleidents.push(
-            Ident::new(&import.py_modulename, Span::mixed_site())
-        );
         if let Some(functionname) = import.py_functionname {
             py_AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
             py_functionidents.push(Ident::new(&functionname, Span::call_site()));
             py_moduleswithfnsidents.push(Ident::new(&import.py_modulename, Span::mixed_site()));
             py_functionnames.push(functionname);
         };
+        o3_moduleidents.push(
+            import.o3_moduleident
+        );
+        py_moduleidents.push(
+            Ident::new(&import.py_modulename, Span::mixed_site())
+        );
         py_modulenames.push(
             import.py_modulename
         );   
