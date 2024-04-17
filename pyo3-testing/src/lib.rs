@@ -77,14 +77,14 @@ impl Parse for Pyo3Import {
         // feel free to change this code...
         let moduleidentifier = input.parse()?;
         let _colon: Colon = input.parse()?;
-        let firstkeyword: PythonImportKeywordIdent = input.parse()?;
+        let firstkeyword: PythonImportKeyword = input.parse()?;
         let modulename: Ident = input.parse()?;
-        let functionname = match firstkeyword.keyword {
+        let functionname = match firstkeyword {
             PythonImportKeyword::from => {
                 let _import: Ident = input.parse()?;
                 Some(input.parse::<Ident>()?.to_string())
             }
-            PythonImportKeyword::import => None
+            PythonImportKeyword::import => None,
         };
 
         Ok(Pyo3Import {
@@ -98,19 +98,15 @@ impl Parse for Pyo3Import {
 #[allow(non_camel_case_types)] // represent actual keywords in python which are lower case
 enum PythonImportKeyword {
     from,
-    import
+    import,
 }
 
-struct PythonImportKeywordIdent {
-    keyword: PythonImportKeyword
-}
-
-impl Parse for PythonImportKeywordIdent {
+impl Parse for PythonImportKeyword {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let keyword = input.parse::<Ident>()?.to_string();
         match keyword.as_str() {
-            "from" => Ok(PythonImportKeywordIdent{keyword: PythonImportKeyword::from}),
-            "import" => Ok(PythonImportKeywordIdent{keyword: PythonImportKeyword::import}),
+            "from" => Ok(PythonImportKeyword::from),
+            "import" => Ok(PythonImportKeyword::import),
             _ => return Err(syn::Error::new(input.span(), "invalid import statement")),
         }
     }
