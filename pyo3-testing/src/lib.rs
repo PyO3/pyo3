@@ -3,7 +3,10 @@ use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    parse::{Parse, ParseStream}, parse2, token::Colon, Attribute, Ident, ItemFn, Signature, Stmt
+    parse::{Parse, ParseStream},
+    parse2,
+    token::Colon,
+    Attribute, Ident, ItemFn, Signature, Stmt,
 };
 
 #[proc_macro_attribute]
@@ -82,10 +85,12 @@ impl Parse for Pyo3Import {
                 let _import: Ident = input.parse()?;
                 functionname = Some(input.parse::<Ident>()?.to_string());
             }
-            "import" => {functionname = None;}
-            _ => return Err(syn::Error::new(input.span(), "invalid import statement"))
+            "import" => {
+                functionname = None;
+            }
+            _ => return Err(syn::Error::new(input.span(), "invalid import statement")),
         }
-        
+
         Ok(Pyo3Import {
             moduleidentifier,
             modulename: modulename.to_string(),
@@ -429,5 +434,4 @@ mod tests {
 
         assert_eq!(result.to_string(), expected.to_string())
     }
-
 }
