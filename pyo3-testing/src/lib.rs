@@ -79,17 +79,14 @@ impl Parse for Pyo3Import {
         let _colon: Colon = input.parse()?;
         let firstkeyword: String = input.parse::<Ident>()?.to_string();
         let modulename: Ident = input.parse()?;
-        let functionname: Option<String>;
-        match firstkeyword.as_str() {
+        let functionname = match firstkeyword.as_str() {
             "from" => {
                 let _import: Ident = input.parse()?;
-                functionname = Some(input.parse::<Ident>()?.to_string());
+                Some(input.parse::<Ident>()?.to_string())
             }
-            "import" => {
-                functionname = None;
-            }
+            "import" => None,
             _ => return Err(syn::Error::new(input.span(), "invalid import statement")),
-        }
+        };
 
         Ok(Pyo3Import {
             o3_moduleident: moduleidentifier,
