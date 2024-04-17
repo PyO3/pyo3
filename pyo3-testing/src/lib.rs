@@ -62,11 +62,11 @@ fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
 #[derive(Debug, PartialEq)]
 struct Pyo3Import {
     /// The *rust* `ident` of the wrapped module
-    moduleidentifier: Ident,
+    o3_moduleident: Ident,
     /// The *python* module name
-    modulename: String,
+    py_modulename: String,
     /// The *python* function name
-    functionname: Option<String>,
+    py_functionname: Option<String>,
 }
 
 impl Parse for Pyo3Import {
@@ -92,9 +92,9 @@ impl Parse for Pyo3Import {
         }
 
         Ok(Pyo3Import {
-            moduleidentifier,
-            modulename: modulename.to_string(),
-            functionname: functionname,
+            o3_moduleident: moduleidentifier,
+            py_modulename: modulename.to_string(),
+            py_functionname: functionname,
         })
     }
 }
@@ -113,34 +113,34 @@ impl Parse for Pyo3Import {
 fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let mut o3_moduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
-    let mut pyo3_modulenames = Vec::<String>::new();
-    let mut ModuleNotFoundErrormsgs = Vec::<String>::new();
-    let mut pyo3_functionnames = Vec::<String>::new();
-    let mut AttributeErrormsgs = Vec::<String>::new();
+    let mut py_modulenames = Vec::<String>::new();
+    let mut py_ModuleNotFoundErrormsgs = Vec::<String>::new();
+    let mut py_functionnames = Vec::<String>::new();
+    let mut py_AttributeErrormsgs = Vec::<String>::new();
     let mut py_functionidents = Vec::<Ident>::new();
     let mut py_moduleswithfnsidents = Vec::<Ident>::new();
     
     for import in testcase.pythonimports {
         o3_moduleidents.push(
-            import.moduleidentifier
+            import.o3_moduleident
         );
         py_moduleidents.push(
-            Ident::new(&import.modulename, Span::mixed_site())
+            Ident::new(&import.py_modulename, Span::mixed_site())
         );
-        match import.functionname {
+        match import.py_functionname {
             Some(functionname) => {
-                AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
+                py_AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
                 py_functionidents.push(Ident::new(&functionname, Span::call_site()));
-                py_moduleswithfnsidents.push(Ident::new(&import.modulename, Span::mixed_site()));
-                pyo3_functionnames.push(functionname);
+                py_moduleswithfnsidents.push(Ident::new(&import.py_modulename, Span::mixed_site()));
+                py_functionnames.push(functionname);
             }
             None => {}
         };
-        pyo3_modulenames.push(
-            import.modulename
+        py_modulenames.push(
+            import.py_modulename
         );   
-        ModuleNotFoundErrormsgs.push(
-            "Failed to import ".to_string() + pyo3_modulenames.iter().last().unwrap()
+        py_ModuleNotFoundErrormsgs.push(
+            "Failed to import ".to_string() + py_modulenames.iter().last().unwrap()
         );
     }
 
@@ -154,11 +154,11 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
             pyo3::prepare_freethreaded_python();
             Python::with_gil(|py| {
                 #(let #py_moduleidents = py
-                    .import_bound(#pyo3_modulenames) // import the wrapped module
-                    .expect(#ModuleNotFoundErrormsgs);)*
+                    .import_bound(#py_modulenames) // import the wrapped module
+                    .expect(#py_ModuleNotFoundErrormsgs);)*
                 #(let #py_functionidents = #py_moduleswithfnsidents
-                    .getattr(#pyo3_functionnames) // import the wrapped function
-                    .expect(#AttributeErrormsgs);)*
+                    .getattr(#py_functionnames) // import the wrapped function
+                    .expect(#py_AttributeErrormsgs);)*
                 #(#testfn_statements)*
             });
         }
@@ -182,9 +182,9 @@ mod tests {
         let py_fizzbuzzo3 = Ident::new("py_fizzbuzzo3", Span::call_site());
 
         let import = Pyo3Import {
-            moduleidentifier: py_fizzbuzzo3,
-            modulename: "fizzbuzzo3".to_string(),
-            functionname: Some("fizzbuzz".to_string()),
+            o3_moduleident: py_fizzbuzzo3,
+            py_modulename: "fizzbuzzo3".to_string(),
+            py_functionname: Some("fizzbuzz".to_string()),
         };
 
         let imports = vec![import];
@@ -226,9 +226,9 @@ mod tests {
         let o3module = Ident::new("o3module", Span::call_site());
 
         let expected = Pyo3Import {
-            moduleidentifier: o3module,
-            modulename: "module".to_string(),
-            functionname: Some("function".to_string()),
+            o3_moduleident: o3module,
+            py_modulename: "module".to_string(),
+            py_functionname: Some("function".to_string()),
         };
 
         let parsed = parsepyo3import(&import);
