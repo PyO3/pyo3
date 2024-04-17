@@ -106,7 +106,6 @@ impl Parse for Pyo3Import {
 /// ```
 /// and not `from module import function`
 #[allow(non_snake_case)] // follow python exception naming for error messages
-#[rustfmt::skip] // for import in testcase.imports ... want consistent formatting for each line
 fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let mut o3_moduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
@@ -117,26 +116,20 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let mut py_functionnames = Vec::<String>::new();
     let mut py_AttributeErrormsgs = Vec::<String>::new();
 
-    
     for import in testcase.pythonimports {
-        if let Some(functionname) = import.py_functionname {
-            py_AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
-            py_functionidents.push(Ident::new(&functionname, Span::call_site()));
-            py_moduleswithfnsidents.push(Ident::new(&import.py_modulename, Span::mixed_site()));
-            py_functionnames.push(functionname);
+        // statements ordered to allow multiple borrows of module and functionname before moving to Vec
+        let py_modulename = import.py_modulename;
+        if let Some(py_functionname) = import.py_functionname {
+            py_AttributeErrormsgs
+                .push("Failed to get ".to_string() + &py_functionname + " function");
+            py_functionidents.push(Ident::new(&py_functionname, Span::call_site()));
+            py_moduleswithfnsidents.push(Ident::new(&py_modulename, Span::mixed_site()));
+            py_functionnames.push(py_functionname);
         };
-        o3_moduleidents.push(
-            import.o3_moduleident
-        );
-        py_moduleidents.push(
-            Ident::new(&import.py_modulename, Span::mixed_site())
-        );
-        py_modulenames.push(
-            import.py_modulename
-        );   
-        py_ModuleNotFoundErrormsgs.push(
-            "Failed to import ".to_string() + py_modulenames.iter().last().unwrap()
-        );
+        py_ModuleNotFoundErrormsgs.push("Failed to import ".to_string() + &py_modulename);
+        py_moduleidents.push(Ident::new(&py_modulename, Span::mixed_site()));
+        py_modulenames.push(py_modulename);
+        o3_moduleidents.push(import.o3_moduleident);
     }
 
     let testfn_signature = testcase.signature;
