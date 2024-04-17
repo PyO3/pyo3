@@ -113,6 +113,7 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let mut pyo3_functionnames = Vec::<String>::new();
     let mut AttributeErrormsgs = Vec::<String>::new();
     let mut py_functionidents = Vec::<Ident>::new();
+    let mut py_moduleswithfnsidents = Vec::<Ident>::new();
     
     for import in testcase.pythonimports {
         o3_moduleidents.push(
@@ -121,21 +122,21 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
         py_moduleidents.push(
             Ident::new(&import.modulename, Span::mixed_site())
         );
-        pyo3_modulenames.push(
-            import.modulename
-        );
-        ModuleNotFoundErrormsgs.push(
-            "Failed to import ".to_string() + pyo3_modulenames.iter().last().unwrap()
-        );
         match import.functionname {
             Some(functionname) => {
                 AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
                 py_functionidents.push(Ident::new(&functionname, Span::call_site()));
+                py_moduleswithfnsidents.push(Ident::new(&import.modulename, Span::mixed_site()));
                 pyo3_functionnames.push(functionname);
             }
             None => {}
         };
-
+        pyo3_modulenames.push(
+            import.modulename
+        );   
+        ModuleNotFoundErrormsgs.push(
+            "Failed to import ".to_string() + pyo3_modulenames.iter().last().unwrap()
+        );
     }
 
     let testfn_signature = testcase.signature;
@@ -150,7 +151,7 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
                 #(let #py_moduleidents = py
                     .import_bound(#pyo3_modulenames) // import the wrapped module
                     .expect(#ModuleNotFoundErrormsgs);)*
-                #(let #py_functionidents = #py_moduleidents
+                #(let #py_functionidents = #py_moduleswithfnsidents
                     .getattr(#pyo3_functionnames) // import the wrapped function
                     .expect(#AttributeErrormsgs);)*
                 #(#testfn_statements)*
