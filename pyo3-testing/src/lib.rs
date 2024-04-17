@@ -127,14 +127,11 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
         py_moduleidents.push(
             Ident::new(&import.py_modulename, Span::mixed_site())
         );
-        match import.py_functionname {
-            Some(functionname) => {
-                py_AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
-                py_functionidents.push(Ident::new(&functionname, Span::call_site()));
-                py_moduleswithfnsidents.push(Ident::new(&import.py_modulename, Span::mixed_site()));
-                py_functionnames.push(functionname);
-            }
-            None => {}
+        if let Some(functionname) = import.py_functionname {
+            py_AttributeErrormsgs.push("Failed to get ".to_string() + &functionname + " function");
+            py_functionidents.push(Ident::new(&functionname, Span::call_site()));
+            py_moduleswithfnsidents.push(Ident::new(&import.py_modulename, Span::mixed_site()));
+            py_functionnames.push(functionname);
         };
         py_modulenames.push(
             import.py_modulename
