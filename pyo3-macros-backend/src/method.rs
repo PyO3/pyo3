@@ -1,12 +1,12 @@
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::utils::Ctx;
 use crate::{
-    attributes::{TextSignatureAttribute, TextSignatureAttributeValue},
+    attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     deprecations::{Deprecation, Deprecations},
     params::{impl_arg_params, Holders},
     pyfunction::{
@@ -17,19 +17,109 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct FnArg<'a> {
+pub struct RegularArg<'a> {
     pub name: &'a syn::Ident,
     pub ty: &'a syn::Type,
-    pub optional: Option<&'a syn::Type>,
-    pub default: Option<syn::Expr>,
-    pub py: bool,
-    pub attrs: PyFunctionArgPyO3Attributes,
-    pub is_varargs: bool,
-    pub is_kwargs: bool,
-    pub is_cancel_handle: bool,
+    pub from_py_with: Option<FromPyWithAttribute>,
+    pub default_value: Option<syn::Expr>,
+    pub option_wrapped_type: Option<&'a syn::Type>,
+}
+
+/// Pythons *args argument
+#[derive(Clone, Debug)]
+pub struct VarargsArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+}
+
+/// Pythons **kwarg argument
+#[derive(Clone, Debug)]
+pub struct KwargsArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+}
+
+#[derive(Clone, Debug)]
+pub struct CancelHandleArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+}
+
+#[derive(Clone, Debug)]
+pub struct PyArg<'a> {
+    pub name: &'a syn::Ident,
+    pub ty: &'a syn::Type,
+}
+
+#[derive(Clone, Debug)]
+pub enum FnArg<'a> {
+    Regular(RegularArg<'a>),
+    VarArgs(VarargsArg<'a>),
+    KwArgs(KwargsArg<'a>),
+    Py(PyArg<'a>),
+    CancelHandle(CancelHandleArg<'a>),
 }
 
 impl<'a> FnArg<'a> {
+    pub fn name(&self) -> &'a syn::Ident {
+        match self {
+            FnArg::Regular(RegularArg { name, .. }) => name,
+            FnArg::VarArgs(VarargsArg { name, .. }) => name,
+            FnArg::KwArgs(KwargsArg { name, .. }) => name,
+            FnArg::Py(PyArg { name, .. }) => name,
+            FnArg::CancelHandle(CancelHandleArg { name, .. }) => name,
+        }
+    }
+
+    pub fn ty(&self) -> &'a syn::Type {
+        match self {
+            FnArg::Regular(RegularArg { ty, .. }) => ty,
+            FnArg::VarArgs(VarargsArg { ty, .. }) => ty,
+            FnArg::KwArgs(KwargsArg { ty, .. }) => ty,
+            FnArg::Py(PyArg { ty, .. }) => ty,
+            FnArg::CancelHandle(CancelHandleArg { ty, .. }) => ty,
+        }
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
+        if let FnArg::Regular(RegularArg { from_py_with, .. }) = self {
+            from_py_with.as_ref()
+        } else {
+            None
+        }
+    }
+
+    pub fn to_varargs_mut(&mut self) -> Result<&mut Self> {
+        if let Self::Regular(RegularArg {
+            name,
+            ty,
+            option_wrapped_type: None,
+            ..
+        }) = self
+        {
+            *self = Self::VarArgs(VarargsArg { name, ty });
+            Ok(self)
+        } else {
+            bail_spanned!(self.name().span() => "args cannot be optional")
+        }
+    }
+
+    pub fn to_kwargs_mut(&mut self) -> Result<&mut Self> {
+        if let Self::Regular(RegularArg {
+            name,
+            ty,
+            option_wrapped_type: Some(..),
+            ..
+        }) = self
+        {
+            *self = Self::KwArgs(KwargsArg { name, ty });
+            Ok(self)
+        } else {
+            bail_spanned!(self.name().span() => "kwargs must be Option<_>")
+        }
+    }
+
     /// Transforms a rust fn arg parsed with syn into a method::FnArg
     pub fn parse(arg: &'a mut syn::FnArg) -> Result<Self> {
         match arg {
@@ -41,25 +131,40 @@ impl<'a> FnArg<'a> {
                     bail_spanned!(cap.ty.span() => IMPL_TRAIT_ERR);
                 }
 
-                let arg_attrs = PyFunctionArgPyO3Attributes::from_attrs(&mut cap.attrs)?;
+                let PyFunctionArgPyO3Attributes {
+                    from_py_with,
+                    cancel_handle,
+                } = PyFunctionArgPyO3Attributes::from_attrs(&mut cap.attrs)?;
                 let ident = match &*cap.pat {
                     syn::Pat::Ident(syn::PatIdent { ident, .. }) => ident,
                     other => return Err(handle_argument_error(other)),
                 };
 
-                let is_cancel_handle = arg_attrs.cancel_handle.is_some();
+                if utils::is_python(&cap.ty) {
+                    return Ok(Self::Py(PyArg {
+                        name: ident,
+                        ty: &cap.ty,
+                    }));
+                }
 
-                Ok(FnArg {
+                if cancel_handle.is_some() {
+                    // `PyFunctionArgPyO3Attributes::from_attrs` validates that
+                    // only compatible attributes are specified, either
+                    // `cancel_handle` or `from_py_with`, dublicates and any
+                    // combination of the two are already rejected.
+                    return Ok(Self::CancelHandle(CancelHandleArg {
+                        name: ident,
+                        ty: &cap.ty,
+                    }));
+                }
+
+                Ok(Self::Regular(RegularArg {
                     name: ident,
                     ty: &cap.ty,
-                    optional: utils::option_type_argument(&cap.ty),
-                    default: None,
-                    py: utils::is_python(&cap.ty),
-                    attrs: arg_attrs,
-                    is_varargs: false,
-                    is_kwargs: false,
-                    is_cancel_handle,
-                })
+                    from_py_with,
+                    default_value: None,
+                    option_wrapped_type: utils::option_type_argument(&cap.ty),
+                }))
             }
         }
     }
@@ -269,19 +374,11 @@ pub struct FnSpec<'a> {
     // r# can be removed by syn::ext::IdentExt::unraw()
     pub python_name: syn::Ident,
     pub signature: FunctionSignature<'a>,
-    pub output: syn::Type,
     pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub deprecations: Deprecations<'a>,
-}
-
-pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
-    match output {
-        syn::ReturnType::Default => syn::Type::Infer(syn::parse_quote! {_}),
-        syn::ReturnType::Type(_, ty) => *ty.clone(),
-    }
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -329,7 +426,6 @@ impl<'a> FnSpec<'a> {
         ensure_signatures_on_valid_method(&fn_type, signature.as_ref(), text_signature.as_ref())?;
 
         let name = &sig.ident;
-        let ty = get_return_info(&sig.output);
         let python_name = python_name.as_ref().unwrap_or(name).unraw();
 
         let arguments: Vec<_> = sig
@@ -361,7 +457,6 @@ impl<'a> FnSpec<'a> {
             convention,
             python_name,
             signature,
-            output: ty,
             text_signature,
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
@@ -498,12 +593,14 @@ impl<'a> FnSpec<'a> {
             .signature
             .arguments
             .iter()
-            .filter(|arg| arg.is_cancel_handle);
+            .filter(|arg| matches!(arg, FnArg::CancelHandle(..)));
         let cancel_handle = cancel_handle_iter.next();
-        if let Some(arg) = cancel_handle {
-            ensure_spanned!(self.asyncness.is_some(), arg.name.span() => "`cancel_handle` attribute can only be used with `async fn`");
-            if let Some(arg2) = cancel_handle_iter.next() {
-                bail_spanned!(arg2.name.span() => "`cancel_handle` may only be specified once");
+        if let Some(FnArg::CancelHandle(CancelHandleArg { name, .. })) = cancel_handle {
+            ensure_spanned!(self.asyncness.is_some(), name.span() => "`cancel_handle` attribute can only be used with `async fn`");
+            if let Some(FnArg::CancelHandle(CancelHandleArg { name, .. })) =
+                cancel_handle_iter.next()
+            {
+                bail_spanned!(name.span() => "`cancel_handle` may only be specified once");
             }
         }
 
@@ -528,17 +625,22 @@ impl<'a> FnSpec<'a> {
                     Some(cls) => quote!(Some(<#cls as #pyo3_path::PyTypeInfo>::NAME)),
                     None => quote!(None),
                 };
+                let arg_names = (0..args.len())
+                    .map(|i| format_ident!("arg_{}", i))
+                    .collect::<Vec<_>>();
                 let future = match self.tp {
                     FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
                         quote! {{
+                            #(let #arg_names = #args;)*
                             let __guard = #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
-                            async move { function(&__guard, #(#args),*).await }
+                            async move { function(&__guard, #(#arg_names),*).await }
                         }}
                     }
                     FnType::Fn(SelfType::Receiver { mutable: true, .. }) => {
                         quote! {{
+                            #(let #arg_names = #args;)*
                             let mut __guard = #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))?;
-                            async move { function(&mut __guard, #(#args),*).await }
+                            async move { function(&mut __guard, #(#arg_names),*).await }
                         }}
                     }
                     _ => {
@@ -606,14 +708,10 @@ impl<'a> FnSpec<'a> {
                     .signature
                     .arguments
                     .iter()
-                    .map(|arg| {
-                        if arg.py {
-                            quote!(py)
-                        } else if arg.is_cancel_handle {
-                            quote!(__cancel_handle)
-                        } else {
-                            unreachable!()
-                        }
+                    .map(|arg| match arg {
+                        FnArg::Py(..) => quote!(py),
+                        FnArg::CancelHandle(..) => quote!(__cancel_handle),
+                        _ => unreachable!("`CallingConvention::Noargs` should not contain any arguments (reaching Python) except for `self`, which is handled below."),
                     })
                     .collect();
                 let call = rust_call(args, &mut holders);
@@ -636,7 +734,7 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::Fastcall => {
                 let mut holders = Holders::new();
-                let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
                 let check_gil_refs = holders.check_gil_refs();
@@ -661,7 +759,7 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::Varargs => {
                 let mut holders = Holders::new();
-                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
                 let check_gil_refs = holders.check_gil_refs();
@@ -685,7 +783,7 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::TpNew => {
                 let mut holders = Holders::new();
-                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
                 let self_arg = self
                     .tp
                     .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);

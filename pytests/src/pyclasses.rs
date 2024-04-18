@@ -11,6 +11,12 @@ impl EmptyClass {
     fn new() -> Self {
         EmptyClass {}
     }
+
+    fn method(&self) {}
+
+    fn __len__(&self) -> usize {
+        0
+    }
 }
 
 /// This is for demonstrating how to return a value from __next__

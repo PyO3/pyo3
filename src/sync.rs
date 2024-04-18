@@ -201,13 +201,17 @@ impl GILOnceCell<Py<PyType>> {
     ///
     /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
     pub(crate) fn get_or_try_init_type_ref<'py>(
-        &'py self,
+        &self,
         py: Python<'py>,
         module_name: &str,
         attr_name: &str,
     ) -> PyResult<&Bound<'py, PyType>> {
         self.get_or_try_init(py, || {
-            py.import_bound(module_name)?.getattr(attr_name)?.extract()
+            let type_object = py
+                .import_bound(module_name)?
+                .getattr(attr_name)?
+                .downcast_into()?;
+            Ok(type_object.unbind())
         })
         .map(|ty| ty.bind(py))
     }

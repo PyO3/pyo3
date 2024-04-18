@@ -10,6 +10,42 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.21.2] - 2024-04-16
+
+### Changed
+
+- Deprecate the `PySet::empty()` gil-ref constructor. [#4082](https://github.com/PyO3/pyo3/pull/4082)
+
+### Fixed
+
+- Fix compile error for `async fn` in `#[pymethods]` with a `&self` receiver and more than one additional argument. [#4035](https://github.com/PyO3/pyo3/pull/4035)
+- Improve error message for wrong receiver type in `__traverse__`. [#4045](https://github.com/PyO3/pyo3/pull/4045)
+- Fix compile error when exporting a `#[pyclass]` living in a different Rust module using the `experimental-declarative-modules` feature. [#4054](https://github.com/PyO3/pyo3/pull/4054)
+- Fix `missing_docs` lint triggering on documented `#[pymodule]` functions. [#4067](https://github.com/PyO3/pyo3/pull/4067)
+- Fix undefined symbol errors for extension modules on AIX (by linking `libpython`). [#4073](https://github.com/PyO3/pyo3/pull/4073)
+
+## [0.21.1] - 2024-04-01
+
+### Added
+
+- Implement `Send` and `Sync` for `PyBackedStr` and `PyBackedBytes`. [#4007](https://github.com/PyO3/pyo3/pull/4007)
+- Implement `Clone`, `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord` and `Hash` implementation for `PyBackedBytes` and `PyBackedStr`, and `Display` for `PyBackedStr`. [#4020](https://github.com/PyO3/pyo3/pull/4020)
+- Add `import_exception_bound!` macro to import exception types without generating GIL Ref functionality for them. [#4027](https://github.com/PyO3/pyo3/pull/4027)
+
+### Changed
+
+- Emit deprecation warning for uses of GIL Refs as `#[setter]` function arguments. [#3998](https://github.com/PyO3/pyo3/pull/3998)
+- Add `#[inline]` hints on many `Bound` and `Borrowed` methods. [#4024](https://github.com/PyO3/pyo3/pull/4024)
+
+### Fixed
+
+- Handle `#[pyo3(from_py_with = "")]` in `#[setter]` methods [#3995](https://github.com/PyO3/pyo3/pull/3995)
+- Allow extraction of `&Bound` in `#[setter]` methods. [#3998](https://github.com/PyO3/pyo3/pull/3998)
+- Fix some uncovered code blocks emitted by `#[pymodule]`, `#[pyfunction]` and `#[pyclass]` macros. [#4009](https://github.com/PyO3/pyo3/pull/4009)
+- Fix typo in the panic message when a class referenced in `pyo3::import_exception!` does not exist. [#4012](https://github.com/PyO3/pyo3/pull/4012)
+- Fix compile error when using an async `#[pymethod]` with a receiver and additional arguments. [#4015](https://github.com/PyO3/pyo3/pull/4015)
+
+
 ## [0.21.0] - 2024-03-25
 
 ### Added
@@ -1709,6 +1745,9 @@ Yanked
 
 - Initial release
 
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.21.2...HEAD
+[0.21.2]: https://github.com/pyo3/pyo3/compare/v0.21.1...v0.21.2
+[0.21.1]: https://github.com/pyo3/pyo3/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/pyo3/pyo3/compare/v0.20.3...v0.21.0
 [0.21.0-beta.0]: https://github.com/pyo3/pyo3/compare/v0.20.3...v0.21.0-beta.0
 [0.20.3]: https://github.com/pyo3/pyo3/compare/v0.20.2...v0.20.3

@@ -7,7 +7,7 @@ use crate::attributes::{
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
-use crate::method::{FnArg, FnSpec};
+use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -975,13 +975,8 @@ fn impl_complex_enum_struct_variant_cls(
         let field_type = field.ty;
         let field_with_type = quote! { #field_name: #field_type };
 
-        let field_getter = complex_enum_variant_field_getter(
-            &variant_cls_type,
-            field_name,
-            field_type,
-            field.span,
-            ctx,
-        )?;
+        let field_getter =
+            complex_enum_variant_field_getter(&variant_cls_type, field_name, field.span, ctx)?;
 
         let field_getter_impl = quote! {
             fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#field_type> {
@@ -1148,36 +1143,22 @@ fn complex_enum_struct_variant_new<'a>(
     let arg_py_type: syn::Type = parse_quote!(#pyo3_path::Python<'_>);
 
     let args = {
-        let mut no_pyo3_attrs = vec![];
-        let attrs = crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
-
         let mut args = vec![
             // py: Python<'_>
-            FnArg {
+            FnArg::Py(PyArg {
                 name: &arg_py_ident,
                 ty: &arg_py_type,
-                optional: None,
-                default: None,
-                py: true,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            },
+            }),
         ];
 
         for field in &variant.fields {
-            args.push(FnArg {
+            args.push(FnArg::Regular(RegularArg {
                 name: field.ident,
                 ty: field.ty,
-                optional: None,
-                default: None,
-                py: false,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            });
+                from_py_with: None,
+                default_value: None,
+                option_wrapped_type: None,
+            }));
         }
         args
     };
@@ -1188,7 +1169,6 @@ fn complex_enum_struct_variant_new<'a>(
         name: &format_ident!("__pymethod_constructor__"),
         python_name: format_ident!("__new__"),
         signature,
-        output: variant_cls_type.clone(),
         convention: crate::method::CallingConvention::TpNew,
         text_signature: None,
         asyncness: None,
@@ -1202,7 +1182,6 @@ fn complex_enum_struct_variant_new<'a>(
 fn complex_enum_variant_field_getter<'a>(
     variant_cls_type: &'a syn::Type,
     field_name: &'a syn::Ident,
-    field_type: &'a syn::Type,
     field_span: Span,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
@@ -1215,7 +1194,6 @@ fn complex_enum_variant_field_getter<'a>(
         name: field_name,
         python_name: field_name.clone(),
         signature,
-        output: field_type.clone(),
         convention: crate::method::CallingConvention::Noargs,
         text_signature: None,
         asyncness: None,
@@ -1620,11 +1598,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path } = ctx;
         let cls = self.cls;
         quote! {
-            impl #pyo3_path::impl_::pymodule::PyAddToModule for #cls {
-                fn add_to_module(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
-                    use #pyo3_path::types::PyModuleMethods;
-                    module.add_class::<Self>()
-                }
+            impl #cls {
+                #[doc(hidden)]
+                pub const _PYO3_DEF: #pyo3_path::impl_::pymodule::AddClassToModule<Self> = #pyo3_path::impl_::pymodule::AddClassToModule::new();
             }
         }
     }

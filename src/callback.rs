@@ -4,7 +4,6 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
 use crate::{IntoPy, PyObject, Python};
-use std::isize;
 use std::os::raw::c_int;
 
 /// A type which can be the return type of a python C-API callback
@@ -85,11 +84,7 @@ impl IntoPyCallbackOutput<()> for () {
 impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
     #[inline]
     fn convert(self, _py: Python<'_>) -> PyResult<ffi::Py_ssize_t> {
-        if self <= (isize::MAX as usize) {
-            Ok(self as isize)
-        } else {
-            Err(PyOverflowError::new_err(()))
-        }
+        self.try_into().map_err(|_err| PyOverflowError::new_err(()))
     }
 }
 

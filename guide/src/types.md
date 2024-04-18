@@ -78,7 +78,7 @@ Or, without the type annotations:
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
-# fn example(py: Python<'_>) -> PyResult<()> {
+fn example(py: Python<'_>) -> PyResult<()> {
     let x = PyList::empty_bound(py);
     x.append(1)?;
     let y = x.clone();
@@ -158,6 +158,45 @@ for i in 0..=2 {
 # Ok(())
 # }
 # Python::with_gil(example).unwrap();
+```
+
+### Casting between smart pointer types
+
+To convert between `Py<T>` and `Bound<'py, T>` use the `bind()` / `into_bound()` methods. Use the `as_unbound()` / `unbind()` methods to go back from `Bound<'py, T>` to `Py<T>`.
+
+```rust,ignore
+let obj: Py<PyAny> = ...;
+let bound: &Bound<'py, PyAny> = obj.bind(py);
+let bound: Bound<'py, PyAny> = obj.into_bound(py);
+
+let obj: &Py<PyAny> = bound.as_unbound();
+let obj: Py<PyAny> = bound.unbind();
+```
+
+To convert between `Bound<'py, T>` and `Borrowed<'a, 'py, T>` use the `as_borrowed()` method. `Borrowed<'a, 'py, T>` has a deref coercion to `Bound<'py, T>`. Use the `to_owned()` method to increment the Python reference count and to create a new `Bound<'py, T>` from the `Borrowed<'a, 'py, T>`.
+
+```rust,ignore
+let bound: Bound<'py, PyAny> = ...;
+let borrowed: Borrowed<'_, 'py, PyAny> = bound.as_borrowed();
+
+// deref coercion
+let bound: &Bound<'py, PyAny> = &borrowed;
+
+// create a new Bound by increase the Python reference count
+let bound: Bound<'py, PyAny> = borrowed.to_owned();
+```
+
+To convert between `Py<T>` and `Borrowed<'a, 'py, T>` use the `bind_borrowed()` method. Use either `as_unbound()` or `.to_owned().unbind()` to go back to `Py<T>` from `Borrowed<'a, 'py, T>`, via `Bound<'py, T>`.
+
+```rust,ignore
+let obj: Py<PyAny> = ...;
+let borrowed: Borrowed<'_, 'py, PyAny> = bound.as_borrowed();
+
+// via deref coercion to Bound and then using Bound::as_unbound
+let obj: &Py<PyAny> = borrowed.as_unbound();
+
+// via a new Bound by increasing the Python reference count, and unbind it
+let obj: Py<PyAny> = borrowed.to_owned().unbind().
 ```
 
 ## Concrete Python types
@@ -268,8 +307,8 @@ assert_eq!((x, y, z), (1, 2, 3));
 # Python::with_gil(example).unwrap()
 ```
 
-To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.
-md#bound-and-interior-mutability) for more detail.
+To avoid copying data, [`#[pyclass]`][pyclass] types can directly reference Rust data stored within the Python objects without needing to `.extract()`. See the [corresponding documentation in the class section of the guide](./class.md#bound-and-interior-mutability)
+for more detail.
 
 ## The GIL Refs API
 

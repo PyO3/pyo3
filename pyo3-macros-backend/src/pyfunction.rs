@@ -240,15 +240,12 @@ pub fn impl_wrap_pyfunction(
         FunctionSignature::from_arguments(arguments)?
     };
 
-    let ty = method::get_return_info(&func.sig.output);
-
     let spec = method::FnSpec {
         tp,
         name: &func.sig.ident,
         convention: CallingConvention::from_signature(&signature),
         python_name,
         signature,
-        output: ty,
         text_signature,
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
@@ -269,21 +266,16 @@ pub fn impl_wrap_pyfunction(
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
-            pub const DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::DEF;
-
-            pub fn add_to_module(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
-                use #pyo3_path::prelude::PyModuleMethods;
-                use ::std::convert::Into;
-                module.add_function(#pyo3_path::types::PyCFunction::internal_new(module.py(), &DEF, module.into())?)
-            }
+            pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
+        #[allow(unknown_lints, non_local_definitions)]
         impl #name::MakeDef {
-            const DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
+            const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
         }
 
         #[allow(non_snake_case)]

@@ -439,6 +439,7 @@ jobs:
         run: nox -s test-emscripten
 
   test-debug:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:

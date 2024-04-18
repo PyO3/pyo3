@@ -847,6 +847,7 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
         self.inner.clone().into_ptr()
     }
 
+    #[inline]
     pub(crate) fn borrow(obj: &Bound<'py, T>) -> Self {
         Self::try_borrow(obj).expect("Already borrowed")
     }

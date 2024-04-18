@@ -308,3 +308,36 @@ fn test_async_method_receiver() {
 
     assert!(IS_DROPPED.load(Ordering::SeqCst));
 }
+
+#[test]
+fn test_async_method_receiver_with_other_args() {
+    #[pyclass]
+    struct Value(i32);
+    #[pymethods]
+    impl Value {
+        #[new]
+        fn new() -> Self {
+            Self(0)
+        }
+        async fn get_value_plus_with(&self, v1: i32, v2: i32) -> i32 {
+            self.0 + v1 + v2
+        }
+        async fn set_value(&mut self, new_value: i32) -> i32 {
+            self.0 = new_value;
+            self.0
+        }
+    }
+
+    Python::with_gil(|gil| {
+        let test = r#"
+        import asyncio
+
+        v = Value()
+        assert asyncio.run(v.get_value_plus_with(3, 0)) == 3
+        assert asyncio.run(v.set_value(10)) == 10
+        assert asyncio.run(v.get_value_plus_with(1, 1)) == 12
+        "#;
+        let locals = [("Value", gil.get_type_bound::<Value>())].into_py_dict_bound(gil);
+        py_run!(gil, *locals, test);
+    });
+}

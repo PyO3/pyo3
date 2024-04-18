@@ -103,6 +103,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// - `ptr` must be a valid pointer to a Python object
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    #[inline]
     pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
@@ -113,6 +114,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    #[inline]
     pub unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
         Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(py, ManuallyDrop::new(obj)))
     }
@@ -124,6 +126,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
+    #[inline]
     pub unsafe fn from_owned_ptr_or_err(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -137,6 +140,7 @@ impl<'py> Bound<'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object
+    #[inline]
     pub unsafe fn from_borrowed_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_borrowed_ptr(py, ptr)))
     }
@@ -147,6 +151,7 @@ impl<'py> Bound<'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
+    #[inline]
     pub unsafe fn from_borrowed_ptr_or_opt(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -160,6 +165,7 @@ impl<'py> Bound<'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
+    #[inline]
     pub unsafe fn from_borrowed_ptr_or_err(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -235,6 +241,7 @@ where
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
+    #[inline]
     pub fn borrow(&self) -> PyRef<'py, T> {
         PyRef::borrow(self)
     }
@@ -268,6 +275,7 @@ where
     /// # Panics
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
+    #[inline]
     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
     where
         T: PyClass<Frozen = False>,
@@ -282,6 +290,7 @@ where
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
+    #[inline]
     pub fn try_borrow(&self) -> Result<PyRef<'py, T>, PyBorrowError> {
         PyRef::try_borrow(self)
     }
@@ -291,6 +300,7 @@ where
     /// The borrow lasts while the returned [`PyRefMut`] exists.
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
+    #[inline]
     pub fn try_borrow_mut(&self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
     where
         T: PyClass<Frozen = False>,
@@ -321,6 +331,7 @@ where
     ///     py_counter.get().value.fetch_add(1, Ordering::Relaxed);
     /// });
     /// ```
+    #[inline]
     pub fn get(&self) -> &T
     where
         T: PyClass<Frozen = True> + Sync,
@@ -328,6 +339,7 @@ where
         self.1.get()
     }
 
+    #[inline]
     pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
         self.1.get_class_object()
     }
@@ -503,6 +515,7 @@ impl<'py, T> Bound<'py, T> {
 }
 
 unsafe impl<T> AsPyPointer for Bound<'_, T> {
+    #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.1.as_ptr()
     }
@@ -559,6 +572,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
+    #[inline]
     pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(
             NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
@@ -578,6 +592,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
+    #[inline]
     pub unsafe fn from_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
         NonNull::new(ptr).map(|ptr| Self(ptr, PhantomData, py))
     }
@@ -594,6 +609,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
+    #[inline]
     pub unsafe fn from_ptr_or_err(py: Python<'py>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
         NonNull::new(ptr).map_or_else(
             || Err(PyErr::fetch(py)),
@@ -605,6 +621,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// This is similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     /// the caller and it's the caller's responsibility to ensure that the reference this is
     /// derived from is valid for the lifetime `'a`.
+    #[inline]
     pub(crate) unsafe fn from_ptr_unchecked(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(NonNull::new_unchecked(ptr), PhantomData, py)
     }
@@ -627,6 +644,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     ///
     /// # Safety
     /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
     pub(crate) unsafe fn downcast_unchecked<T>(self) -> Borrowed<'a, 'py, T> {
         Borrowed(self.0, PhantomData, self.2)
     }
@@ -634,6 +652,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
 
 impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {
     /// Create borrow on a Bound
+    #[inline]
     fn from(instance: &'a Bound<'py, T>) -> Self {
         instance.as_borrowed()
     }
@@ -1118,6 +1137,7 @@ where
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
+    #[inline]
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
         self.bind(py).borrow()
     }
@@ -1154,6 +1174,7 @@ where
     /// # Panics
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
+    #[inline]
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
     where
         T: PyClass<Frozen = False>,
@@ -1171,6 +1192,7 @@ where
     ///
     /// Equivalent to `self.as_ref(py).borrow_mut()` -
     /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
+    #[inline]
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
         self.bind(py).try_borrow()
     }
@@ -1183,6 +1205,7 @@ where
     ///
     /// Equivalent to `self.as_ref(py).try_borrow_mut()` -
     /// see [`PyCell::try_borrow_mut`](crate::pycell::PyCell::try_borrow_mut).
+    #[inline]
     pub fn try_borrow_mut<'py>(
         &'py self,
         py: Python<'py>,
@@ -1216,6 +1239,7 @@ where
     ///
     /// cell.get().value.fetch_add(1, Ordering::Relaxed);
     /// ```
+    #[inline]
     pub fn get(&self) -> &T
     where
         T: PyClass<Frozen = True> + Sync,
@@ -1225,6 +1249,7 @@ where
     }
 
     /// Get a view on the underlying `PyClass` contents.
+    #[inline]
     pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
         let class_object = self.as_ptr().cast::<PyClassObject<T>>();
         // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
