@@ -1807,6 +1807,7 @@ where
 /// Otherwise this registers the [`Py`]`<T>` instance to have its reference count
 /// incremented the next time PyO3 acquires the GIL.
 impl<T> Clone for Py<T> {
+    #[track_caller]
     fn clone(&self) -> Self {
         unsafe {
             gil::register_incref(self.0);
@@ -1817,6 +1818,7 @@ impl<T> Clone for Py<T> {
 
 /// Dropping a `Py` instance decrements the reference count on the object by 1.
 impl<T> Drop for Py<T> {
+    #[track_caller]
     fn drop(&mut self) {
         unsafe {
             gil::register_decref(self.0);
