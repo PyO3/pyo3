@@ -1,10 +1,12 @@
 #![cfg(not(any(PyPy, GraalPy)))]
+use std::fmt::Debug;
+
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::quote;
+use quote::ToTokens;
 use syn::{
     parse::{Parse, ParseStream},
-    parse2,
+    parse2, parse_quote,
     token::Colon,
     Attribute, Ident, ItemFn, Signature, Stmt,
 };
@@ -28,33 +30,27 @@ struct Pyo3TestCase {
     pythonimports: Vec<Pyo3Import>,
     signature: Signature,
     statements: Vec<Stmt>,
+    otherattributes: Vec<Attribute>,
 }
 
 impl From<ItemFn> for Pyo3TestCase {
     fn from(testcase: ItemFn) -> Pyo3TestCase {
+        let mut pythonimports = Vec::<Pyo3Import>::new();
+        let mut otherattributes = Vec::<Attribute>::new();
+        for attr in testcase.attrs {
+            if attr.path().is_ident("pyo3import") {
+                pythonimports.push(attr.parse_args().unwrap());
+            } else {
+                otherattributes.push(attr);
+            };
+        }
+
         Pyo3TestCase {
-            pythonimports: testcase
-                .attrs
-                .into_iter()
-                .map(|attr| { parsepyo3import(&attr) }.unwrap())
-                .collect(),
+            pythonimports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
+            otherattributes,
         }
-    }
-}
-
-/// Parse an `Attribute` as a `pyo3import`, including path validation.
-///
-/// Return:
-/// - `Some(Pyo3Import)` for Attributes with the path `pyo3import` e.g.:
-/// `#[pyo3import(foo: from foo import bar)]`
-/// - `None` for Attributes with other paths.
-fn parsepyo3import(import: &Attribute) -> Option<Pyo3Import> {
-    if import.path().is_ident("pyo3import") {
-        Some(import.parse_args().unwrap())
-    } else {
-        None
     }
 }
 
@@ -122,7 +118,7 @@ impl Parse for PythonImportKeyword {
 /// ```
 /// and not `from module import function`
 #[allow(non_snake_case)] // follow python exception naming for error messages
-fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
+fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
     let mut o3_moduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
     let mut py_modulenames = Vec::<String>::new();
@@ -151,8 +147,7 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
     let testfn_signature = testcase.signature;
     let testfn_statements = testcase.statements;
 
-    quote!(
-        #[test]
+    let mut testfn: ItemFn = parse_quote!(
         #testfn_signature {
             #(pyo3::append_to_inittab!(#o3_moduleidents);)* // allow python to import from each wrapped module
             pyo3::prepare_freethreaded_python();
@@ -166,11 +161,20 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
                 #(#testfn_statements)*
             });
         }
-    )
+    );
+
+    testfn.attrs.push(parse_quote!(
+        #[test]
+    ));
+
+    testfn.attrs.append(&mut testcase.otherattributes);
+
+    testfn.into_token_stream()
 }
 
 #[cfg(test)]
 mod tests {
+    use quote::quote;
     use syn::parse_quote;
 
     use super::*;
@@ -197,6 +201,7 @@ mod tests {
             pythonimports: imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
+            otherattributes: Vec::<Attribute>::new(),
         };
 
         let expected = quote! {
@@ -219,25 +224,6 @@ mod tests {
         let output = wrap_testcase(testcase);
 
         assert_eq!(output.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_parseimport() {
-        let import: Attribute = parse_quote! {
-            #[pyo3import(o3module: from module import function)]
-        };
-
-        let o3module = Ident::new("o3module", Span::call_site());
-
-        let expected = Pyo3Import {
-            o3_moduleident: o3module,
-            py_modulename: "module".to_string(),
-            py_functionname: Some("function".to_string()),
-        };
-
-        let parsed = parsepyo3import(&import);
-
-        assert_eq!(parsed.unwrap(), expected)
     }
 
     #[test]
@@ -344,6 +330,47 @@ mod tests {
 
         let expected: TokenStream2 = quote! {
             #[test]
+            fn test_fizzbuzz() {
+                pyo3::append_to_inittab!(py_fizzbuzzo3);
+                pyo3::append_to_inittab!(py_foo_o3);
+                pyo3::prepare_freethreaded_python();
+                Python::with_gil(|py| {
+                    let fizzbuzzo3 = py
+                    .import_bound("fizzbuzzo3")
+                    .expect("Failed to import fizzbuzzo3");
+                    let foo_o3 = py
+                    .import_bound("foo_o3")
+                    .expect("Failed to import foo_o3");
+                    let fizzbuzz = fizzbuzzo3
+                    .getattr("fizzbuzz")
+                    .expect("Failed to get fizzbuzz function");
+                    let bar = foo_o3
+                    .getattr("bar")
+                    .expect("Failed to get bar function");
+                    assert!(true)
+                });
+            }
+        };
+
+        let output: TokenStream2 = impl_pyo3test(quote! {}, testcase);
+
+        assert_eq!(output.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_other_attribute() {
+        let testcase: TokenStream2 = quote! {
+            #[pyo3import(py_fizzbuzzo3: from fizzbuzzo3 import fizzbuzz)]
+            #[anotherattribute]
+            #[pyo3import(py_foo_o3: from foo_o3 import bar)]
+            fn test_fizzbuzz() {
+                assert!(true)
+            }
+        };
+
+        let expected: TokenStream2 = quote! {
+            #[test]
+            #[anotherattribute]
             fn test_fizzbuzz() {
                 pyo3::append_to_inittab!(py_fizzbuzzo3);
                 pyo3::append_to_inittab!(py_foo_o3);
