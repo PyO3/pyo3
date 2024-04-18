@@ -13,6 +13,7 @@ use super::PyWeakrefMethods;
 #[repr(transparent)]
 pub struct PyWeakrefReference(PyAny);
 
+#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 pyobject_native_type!(
     PyWeakrefReference,
     ffi::PyWeakReference,
@@ -20,6 +21,21 @@ pyobject_native_type!(
     #module=Some("weakref"),
     #checkfunction=ffi::PyWeakref_CheckRefExact
 );
+
+// When targetting alternative or multiple interpreters, it is better to not use the internal API.
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+pyobject_native_type_named!(PyWeakrefReference);
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+pyobject_native_type_extract!(PyWeakrefReference);
+
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+impl PyTypeCheck for PyWeakrefReference {
+    const NAME: &'static str = "weakref.ReferenceType";
+
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
+        unsafe { ffi::PyWeakref_CheckRef(object.as_ptr()) > 0 }
+    }
+}
 
 impl PyWeakrefReference {
     /// Deprecated form of [`PyWeakrefReference::new_bound`].

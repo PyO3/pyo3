@@ -46,5 +46,4 @@ pub use crate::types::string::PyStringMethods;
 pub use crate::types::traceback::PyTracebackMethods;
 pub use crate::types::tuple::PyTupleMethods;
 pub use crate::types::typeobject::PyTypeMethods;
-#[cfg(not(PyPy))]
 pub use crate::types::weakref::PyWeakrefMethods;
