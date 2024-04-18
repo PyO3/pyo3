@@ -148,6 +148,7 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
     let testfn_statements = testcase.statements;
 
     let mut testfn: ItemFn = parse_quote!(
+        #[test]
         #testfn_signature {
             #(pyo3::append_to_inittab!(#o3_moduleidents);)* // allow python to import from each wrapped module
             pyo3::prepare_freethreaded_python();
@@ -162,10 +163,6 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
             });
         }
     );
-
-    testfn.attrs.push(parse_quote!(
-        #[test]
-    ));
 
     testfn.attrs.append(&mut testcase.otherattributes);
 
