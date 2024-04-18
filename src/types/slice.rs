@@ -1,13 +1,12 @@
 use crate::err::{PyErr, PyResult};
-use crate::ffi::{self, Py_ssize_t};
+use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
 use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
-use std::os::raw::c_long;
 
 /// Represents a Python `slice`.
 ///
-/// Only `c_long` indices supported at the moment by the `PySlice` object.
+/// Only `isize` indices supported at the moment by the `PySlice` object.
 #[repr(transparent)]
 pub struct PySlice(PyAny);
 
@@ -22,13 +21,17 @@ pyobject_native_type!(
 #[derive(Debug, Eq, PartialEq)]
 pub struct PySliceIndices {
     /// Start of the slice
+    ///
+    /// It can be -1 when the step is negative, otherwise it's non-negative.
     pub start: isize,
     /// End of the slice
+    ///
+    /// It can be -1 when the step is negative, otherwise it's non-negative.
     pub stop: isize,
     /// Increment to use when iterating the slice from `start` to `stop`.
     pub step: isize,
     /// The length of the slice calculated from the original input sequence.
-    pub slicelength: isize,
+    pub slicelength: usize,
 }
 
 impl PySliceIndices {
@@ -94,7 +97,7 @@ impl PySlice {
     /// assuming a sequence of length `length`, and stores the length of the
     /// slice in its `slicelength` member.
     #[inline]
-    pub fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
+    pub fn indices(&self, length: isize) -> PyResult<PySliceIndices> {
         self.as_borrowed().indices(length)
     }
 }
@@ -109,12 +112,11 @@ pub trait PySliceMethods<'py>: crate::sealed::Sealed {
     /// Retrieves the start, stop, and step indices from the slice object,
     /// assuming a sequence of length `length`, and stores the length of the
     /// slice in its `slicelength` member.
-    fn indices(&self, length: c_long) -> PyResult<PySliceIndices>;
+    fn indices(&self, length: isize) -> PyResult<PySliceIndices>;
 }
 
 impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
-    fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
-        // non-negative Py_ssize_t should always fit into Rust usize
+    fn indices(&self, length: isize) -> PyResult<PySliceIndices> {
         unsafe {
             let mut slicelength: isize = 0;
             let mut start: isize = 0;
@@ -122,7 +124,7 @@ impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
             let mut step: isize = 0;
             let r = ffi::PySlice_GetIndicesEx(
                 self.as_ptr(),
-                length as Py_ssize_t,
+                length,
                 &mut start,
                 &mut stop,
                 &mut step,
@@ -133,7 +135,8 @@ impl<'py> PySliceMethods<'py> for Bound<'py, PySlice> {
                     start,
                     stop,
                     step,
-                    slicelength,
+                    // non-negative isize should always fit into usize
+                    slicelength: slicelength as _,
                 })
             } else {
                 Err(PyErr::fetch(self.py()))
