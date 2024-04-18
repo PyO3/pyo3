@@ -139,11 +139,11 @@ fn wrap_testcase(testcase: Pyo3TestCase) -> TokenStream2 {
             py_AttributeErrormsgs
                 .push("Failed to get ".to_string() + &py_functionname + " function");
             py_functionidents.push(Ident::new(&py_functionname, Span::call_site()));
-            py_moduleswithfnsidents.push(Ident::new(&py_modulename, Span::mixed_site()));
+            py_moduleswithfnsidents.push(Ident::new(&py_modulename, Span::call_site()));
             py_functionnames.push(py_functionname);
         };
         py_ModuleNotFoundErrormsgs.push("Failed to import ".to_string() + &py_modulename);
-        py_moduleidents.push(Ident::new(&py_modulename, Span::mixed_site()));
+        py_moduleidents.push(Ident::new(&py_modulename, Span::call_site()));
         py_modulenames.push(py_modulename);
         o3_moduleidents.push(import.o3_moduleident);
     }

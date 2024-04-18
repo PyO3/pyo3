@@ -47,3 +47,17 @@ fn test_pyo3test_simple_case() {
     let expected_result = 2_isize;
     assert_eq!(result, expected_result);
 }
+
+#[pyo3test]
+#[pyo3import(py_adders: import adders)]
+fn test_pyo3test_import_module_only() {
+    let result: isize = adders
+        .getattr("addone")
+        .unwrap()
+        .call1((1_isize,))
+        .unwrap()
+        .extract()
+        .unwrap();
+    let expected_result = 2_isize;
+    assert_eq!(result, expected_result);
+}
