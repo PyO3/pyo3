@@ -20,12 +20,12 @@ pub fn pyo3test(attr: TokenStream1, input: TokenStream1) -> TokenStream1 {
 /// Takes a TokenStream2 input, parses it as a Pyo3TestCase and returns a wrapped
 /// function with the requested imports, run in Python::with_gil
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
-    let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().into();
+    let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().try_into().unwrap();
     wrap_testcase(testcase)
 }
 
 /// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
-/// execute in Python::with_gil. Don't construct this directly but use .into() on a suitable ItemFn
+/// execute in Python::with_gil. Don't construct this directly but use .try_into() on a suitable ItemFn
 struct Pyo3TestCase {
     pythonimports: Vec<Pyo3Import>,
     signature: Signature,
@@ -33,24 +33,28 @@ struct Pyo3TestCase {
     otherattributes: Vec<Attribute>,
 }
 
-impl From<ItemFn> for Pyo3TestCase {
-    fn from(testcase: ItemFn) -> Pyo3TestCase {
+/// Attempt to convert an ItemFn into a Pyo3TestCase. This is a fallible conversion as the arguments
+/// provided to a pyo3import attribute may be empty.
+impl TryFrom<ItemFn> for Pyo3TestCase {
+    type Error = syn::Error;
+
+    fn try_from(testcase: ItemFn) -> syn::Result<Pyo3TestCase> {
         let mut pythonimports = Vec::<Pyo3Import>::new();
         let mut otherattributes = Vec::<Attribute>::new();
         for attr in testcase.attrs {
             if attr.path().is_ident("pyo3import") {
-                pythonimports.push(attr.parse_args().unwrap());
+                pythonimports.push(attr.parse_args()?);
             } else {
                 otherattributes.push(attr);
             };
         }
 
-        Pyo3TestCase {
+        Ok(Pyo3TestCase {
             pythonimports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
             otherattributes,
-        }
+        })
     }
 }
 
