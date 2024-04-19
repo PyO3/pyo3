@@ -127,12 +127,11 @@ enum PythonImportKeyword {
 
 impl Parse for PythonImportKeyword {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let keyword_span = input.span();
-        let keyword = input.parse::<Ident>()?.to_string();
-        match keyword.as_str() {
+        let keyword = input.parse::<Ident>()?;
+        match keyword.to_string().as_str() {
             "from" => Ok(PythonImportKeyword::from),
             "import" => Ok(PythonImportKeyword::import),
-            _ => Err(syn::Error::new(keyword_span, "invalid import statement")),
+            _ => Err(syn::Error::new(keyword.span(), "invalid import statement")),
         }
     }
 }
