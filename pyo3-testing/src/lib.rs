@@ -11,6 +11,19 @@ use syn::{
     Attribute, Ident, ItemFn, Signature, Stmt,
 };
 
+/// A proc macro which takes a function (the "testcase") designed to test either a #[pyo3module] or a #[pyo3function],
+/// imports the pyo3module and pyo3function so they are accessible to python and executes the body of
+/// the testcase within the Python GIL.
+/// 
+/// The #[pyo3module] and #[pyo3function] are exposed to rust as functions named using the names exposed to python
+/// e.g. as defined by #[pyo3(name = pythonname)] - see [Using Rust from Python in the guide][2];
+/// and can be called within the testcase using the `.call()` methods described in [Calling Python functions][3]
+/// 
+/// For full usage details see [testing section of the guide][1].
+/// 
+/// [1]: https://pyo3.rs/latest/testing.html
+/// [2]: https://pyo3.rs/latest/rust-from-python
+/// [3]: https://pyo3.rs/latest/python-from-rust/function-calls.html#calling-python-functions
 #[proc_macro_attribute]
 pub fn pyo3test(attr: TokenStream1, input: TokenStream1) -> TokenStream1 {
     impl_pyo3test(attr.into(), input.into()).into()
@@ -18,7 +31,10 @@ pub fn pyo3test(attr: TokenStream1, input: TokenStream1) -> TokenStream1 {
 
 /// The function which is called by the proc macro `pyo3test`.
 /// Takes a TokenStream2 input, parses it as a Pyo3TestCase and returns a wrapped
-/// function with the requested imports, run in Python::with_gil
+/// function with the requested imports, run in Python::with_gil.
+/// 
+/// The parsing is fallible as the testcase or attributes may be incorrectly constructed. In case of
+/// a parsing error this will be converted to a compile error and returned.
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let testcase: Pyo3TestCase = match parse2::<ItemFn>(input).and_then(|itemfn| itemfn.try_into())
     {
@@ -38,7 +54,7 @@ struct Pyo3TestCase {
 }
 
 /// Attempt to convert an ItemFn into a Pyo3TestCase. This is a fallible conversion as the arguments
-/// provided to a pyo3import attribute may be empty.
+/// provided to a Pyo3Import Attribute may be empty.
 impl TryFrom<ItemFn> for Pyo3TestCase {
     type Error = syn::Error;
 
@@ -99,6 +115,10 @@ impl Parse for Pyo3Import {
     }
 }
 
+/// Only the keywords `from` and `import` are valid for a python import statement, which has to take
+/// the form: `from x import y` or `import x`.
+/// Note we do not accept the additional keyword `as` by design: this is a simple testing framework
+/// to validate correct binding, type conversion and errorhandling. 
 #[allow(non_camel_case_types)] // represent actual keywords in python which are lower case
 enum PythonImportKeyword {
     from,
@@ -127,6 +147,12 @@ impl Parse for PythonImportKeyword {
 /// and not `from module import function`
 #[allow(non_snake_case)] // follow python exception naming for error messages
 fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
+    //The quote crate cannot interpolate fields within structs so we need to separate out all
+    //import statements into Vecs of the individual fields. To make the final `quote` more readable,
+    //we also construct the longer strings and the Idents in advance.
+    //
+    //This is safe as the order of a Vec is guaranteed, so we will not mismatch fields from different
+    //imports (but note the two different Vecs `py_moduleidents` and `py_moduleswithfnsidents`).
     let mut o3_moduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
     let mut py_modulenames = Vec::<String>::new();
