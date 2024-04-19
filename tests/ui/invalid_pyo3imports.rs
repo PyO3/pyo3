@@ -22,4 +22,8 @@ fn typo_first_keyword() {}
 #[pyo3import(py_adders: from adders improt addone)]
 fn typo_second_keyword() {}
 
+#[pyo3test]
+#[pyo3import]
+fn empty_import() {}
+
 fn main() {}

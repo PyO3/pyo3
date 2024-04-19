@@ -9,3 +9,9 @@ error: invalid import statement
    |
 22 | #[pyo3import(py_adders: from adders improt addone)]
    |                                     ^^^^^^
+
+error: expected attribute arguments in parentheses: #[pyo3import(...)]
+  --> tests/ui/invalid_pyo3imports.rs:26:3
+   |
+26 | #[pyo3import]
+   |   ^^^^^^^^^^
