@@ -8,7 +8,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse2, parse_quote,
     token::Colon,
-    Attribute, Ident, ItemFn, Signature, Stmt,
+    Attribute, Ident, ItemFn, Signature, Stmt, Token,
 };
 
 /// A proc macro which takes a function (the "testcase") designed to test either a #[pyo3module] or a #[pyo3function],
@@ -95,8 +95,13 @@ impl Parse for Pyo3Import {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         // Written by a rust newbie, if there is a better option than all these assignments; please
         // feel free to change this code...
-        let moduleidentifier = input.parse()?;
-        let _colon: Colon = input.parse()?;
+        let moduleidentifier;
+        if input.peek2(Token![:]) {
+            moduleidentifier = input.parse()?;
+            let _: Colon = input.parse()?;
+        } else {
+            return Err(input.error("invalid import statement: expected a colon (':') after this"))
+        }
         let firstkeyword: PythonImportKeyword = input.parse()?;
         let modulename: Ident = input.parse()?;
         let functionname = match firstkeyword {
