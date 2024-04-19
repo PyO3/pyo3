@@ -1,0 +1,5 @@
+error: invalid import statement
+  --> tests/ui/invalid_pyo3imports.rs:18:25
+   |
+18 | #[pyo3import(py_adders: form adders import addone)]
+   |                         ^^^^

@@ -1,5 +1,4 @@
 #![cfg(feature = "macros")]
-
 #[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
 #[test]
 fn test_compile_errors() {
@@ -53,4 +52,11 @@ fn test_compile_errors() {
     #[cfg(feature = "experimental-async")]
     #[cfg(any(not(Py_LIMITED_API), Py_3_10))] // to avoid PyFunctionArgument for &str
     t.compile_fail("tests/ui/invalid_cancel_handle.rs");
+}
+
+#[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
+#[test]
+fn test_compile_errors_pyo3testing() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/ui/invalid_pyo3imports.rs");
 }
