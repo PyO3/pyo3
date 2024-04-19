@@ -18,4 +18,8 @@ fn py_adders(module: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pyo3import(py_adders: form adders import addone)]
 fn typo_first_keyword() {}
 
+#[pyo3test]
+#[pyo3import(py_adders: from adders improt addone)]
+fn typo_second_keyword() {}
+
 fn main() {}

@@ -101,7 +101,7 @@ impl Parse for Pyo3Import {
         let modulename: Ident = input.parse()?;
         let functionname = match firstkeyword {
             PythonImportKeyword::from => {
-                let _import: Ident = input.parse()?;
+                let _import: PythonImportKeyword = input.parse()?;
                 Some(input.parse::<Ident>()?.to_string())
             }
             PythonImportKeyword::import => None,
