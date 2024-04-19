@@ -104,6 +104,7 @@ impl<'py> Bound<'py, PyAny> {
     /// - `ptr` must be a valid pointer to a Python object
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
     #[inline]
+    #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
@@ -141,6 +142,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// - `ptr` must be a valid pointer to a Python object
     #[inline]
+    #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_borrowed_ptr(py, ptr)))
     }
@@ -242,6 +244,7 @@ where
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
+    #[track_caller]
     pub fn borrow(&self) -> PyRef<'py, T> {
         PyRef::borrow(self)
     }
@@ -276,6 +279,7 @@ where
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
+    #[track_caller]
     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
     where
         T: PyClass<Frozen = False>,
@@ -573,6 +577,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
+    #[track_caller]
     pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(
             NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
@@ -1138,6 +1143,7 @@ where
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
+    #[track_caller]
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
         self.bind(py).borrow()
     }
@@ -1175,6 +1181,7 @@ where
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
+    #[track_caller]
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
     where
         T: PyClass<Frozen = False>,
@@ -1585,6 +1592,7 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
+    #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
@@ -1628,6 +1636,7 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
+    #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
         match Self::from_borrowed_ptr_or_opt(py, ptr) {
             Some(slf) => slf,
