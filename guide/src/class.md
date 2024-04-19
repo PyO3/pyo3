@@ -52,22 +52,20 @@ enum HttpResponse {
     // ...
 }
 
-/// PyO3 also supports enums with Struct and Tuple variants
-/// These complex enums have sligtly different behavior from the simple enums above
-/// They are meant to work with instance checks and match statement patterns
-/// The variants can be mixed and matched
-/// Struct variants have named fields while tuple enums generate generic names for fields in order _0, _1, _2, ...
-/// Apart from this both types are functionally identical
+// PyO3 also supports enums with Struct and Tuple variants
+// These complex enums have sligtly different behavior from the simple enums above
+// They are meant to work with instance checks and match statement patterns
+// The variants can be mixed and matched
+// Struct variants have named fields while tuple enums generate generic names for fields in order _0, _1, _2, ...
+// Apart from this both types are functionally identical
 #[pyclass]
 enum Shape {
     Circle { radius: f64 },
-    Rectangle{ height : f64, width : f64},
-    Square(u32),
+    Rectangle { height: f64, width: f64 },
+    RegularPolygon(u32, f64),
     Nothing(),
 }
 ```
-
-
 
 The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] for `MyClass`, `Number`, `MyEnum`, `HttpResponse`, and `Shape`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
@@ -1195,14 +1193,14 @@ PyO3 adds a class attribute for each variant, which may be used to construct val
 enum Shape {
     Circle { radius: f64 },
     Rectangle { width: f64, height: f64 },
-    RegularPolygon ( u32, f64 ),
+    RegularPolygon(u32, f64),
     Nothing { },
 }
 
 # #[cfg(Py_3_10)]
 Python::with_gil(|py| {
     let circle = Shape::Circle { radius: 10.0 }.into_py(py);
-    let square = Shape::RegularPolygon ( 4, 10.0 ).into_py(py);
+    let square = Shape::RegularPolygon(4, 10.0).into_py(py);
     let cls = py.get_type_bound::<Shape>();
     pyo3::py_run!(py, circle square cls, r#"
         assert isinstance(circle, cls)
