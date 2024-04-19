@@ -19,6 +19,7 @@
         non_local_definitions,
     )
 )))]
+#![deny(clippy::inefficient_to_string)]
 
 //! Rust bindings to the Python interpreter.
 //!
