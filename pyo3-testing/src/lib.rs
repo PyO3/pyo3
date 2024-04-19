@@ -20,7 +20,11 @@ pub fn pyo3test(attr: TokenStream1, input: TokenStream1) -> TokenStream1 {
 /// Takes a TokenStream2 input, parses it as a Pyo3TestCase and returns a wrapped
 /// function with the requested imports, run in Python::with_gil
 fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
-    let testcase: Pyo3TestCase = parse2::<ItemFn>(input).unwrap().try_into().unwrap();
+    let testcase: Pyo3TestCase = match parse2::<ItemFn>(input).and_then(|itemfn| itemfn.try_into())
+    {
+        Ok(testcase) => testcase,
+        Err(e) => return e.into_compile_error(),
+    };
     wrap_testcase(testcase)
 }
 
