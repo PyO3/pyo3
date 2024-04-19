@@ -1113,6 +1113,84 @@ fn impl_complex_enum_tuple_variant_cls(
         field_getter_impls.push(field_getter_impl);
     }
 
+    let num_fields = variant.fields.len();
+    let match_arms: Vec<_> = (0..num_fields)
+        .map(|i| {
+            let field_access = format!("tup.{}", i);
+            quote! {
+                #i => Ok(Box::new(#field_access.clone()))
+            }
+        })
+        .collect();
+
+    let matcher = if num_fields > 0 {
+        quote! {
+            let tup = &*slf.into_super();
+            match key {
+                #( #match_arms, )*
+                _ => Err(pyo3::exceptions::PyIndexError::new_err("tuple index out of range")),
+            }
+        }
+    } else {
+        quote! {
+            Err(#pyo3_path::exceptions::PyIndexError::new_err("tuple index out of range"))
+        }
+    };
+
+    let getitem_method = {
+        let arg_py_ident: syn::Ident = parse_quote!(py);
+        let arg_py_type: syn::Type = parse_quote!(#pyo3_path::Python<'_>);
+        let mut no_pyo3_attrs = vec![];
+        let attrs = crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
+        let key_name = format_ident!("key");
+        let arg_key_type: syn::Type = parse_quote!(usize);
+        let args = vec![
+            // py: Python<'_>
+            FnArg {
+                name: &arg_py_ident,
+                ty: &arg_py_type,
+                optional: None,
+                default: None,
+                py: true,
+                attrs: attrs.clone(),
+                is_varargs: false,
+                is_kwargs: false,
+                is_cancel_handle: false,
+            },
+            FnArg {
+                name: &key_name,
+                ty: &arg_key_type,
+                optional: None,
+                default: None,
+                py: false,
+                attrs: attrs.clone(),
+                is_varargs: false,
+                is_kwargs: false,
+                is_cancel_handle: false,
+            },
+        ];
+        let signature = crate::pyfunction::FunctionSignature::from_arguments(args)?;
+        let func_self_type: syn::Type = parse_quote!(Box<dyn std::any::Any>);
+        let self_type = crate::method::SelfType::TryFromBoundRef(func_self_type.span());
+        let spec = FnSpec {
+            tp: crate::method::FnType::Fn(self_type.clone()),
+            name: &format_ident!("getitem"),
+            python_name: format_ident!("__getitem__"),
+            signature,
+            convention: crate::method::CallingConvention::Varargs,
+            text_signature: None,
+            asyncness: None,
+            unsafety: None,
+            deprecations: Deprecations::new(ctx),
+        };
+        // This is the function I'm struggling with
+        // If this is removed, the code compiles fine and all existing tests pass
+        // but obviously __getitem__ isn't implemented on Python side
+        crate::pymethod::impl_py_getitem_def(&variant_cls_type, &self_type, spec, ctx)?
+    };
+
+    field_getters.push(getitem_method);
+
     let cls_impl = quote! {
         #[doc(hidden)]
         #[allow(non_snake_case)]
@@ -1120,6 +1198,10 @@ fn impl_complex_enum_tuple_variant_cls(
             fn __pymethod_constructor__(py: #pyo3_path::Python<'_>, #(#fields_with_types,)*) -> #pyo3_path::PyClassInitializer<#variant_cls> {
                 let base_value = #enum_name::#variant_ident ( #(#field_names,)* );
                 #pyo3_path::PyClassInitializer::from(base_value).add_subclass(#variant_cls)
+            }
+
+            fn getitem(slf: #pyo3_path::PyRef<Self>, key: usize) -> #pyo3_path::PyResult<Box<dyn std::any::Any>> {
+                #matcher
             }
 
             #(#field_getter_impls)*
