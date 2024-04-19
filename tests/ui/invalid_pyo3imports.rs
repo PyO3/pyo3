@@ -26,4 +26,8 @@ fn typo_second_keyword() {}
 #[pyo3import]
 fn empty_import() {}
 
+#[pyo3test]
+#[pyo3import(py_adders from adders import addone)]
+fn no_colon() {}
+
 fn main() {}

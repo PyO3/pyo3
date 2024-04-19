@@ -15,3 +15,9 @@ error: expected attribute arguments in parentheses: #[pyo3import(...)]
    |
 26 | #[pyo3import]
    |   ^^^^^^^^^^
+
+error: expected `:`
+  --> tests/ui/invalid_pyo3imports.rs:30:24
+   |
+30 | #[pyo3import(py_adders from adders import addone)]
+   |                        ^^^^
