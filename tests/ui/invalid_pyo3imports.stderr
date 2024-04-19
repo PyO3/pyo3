@@ -21,3 +21,9 @@ error: expected `:`
    |
 30 | #[pyo3import(py_adders from adders import addone)]
    |                        ^^^^
+
+error: unexpected end of input, expected identifier
+  --> tests/ui/invalid_pyo3imports.rs:34:43
+   |
+34 | #[pyo3import(py_adders: from adders import)]
+   |                                           ^
