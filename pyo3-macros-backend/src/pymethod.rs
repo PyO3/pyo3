@@ -733,6 +733,94 @@ fn impl_call_getter(
     Ok(fncall)
 }
 
+pub fn impl_py_getitem_def(
+    cls: &syn::Type,
+    _self_type: &SelfType,
+    spec: FnSpec<'_>,
+    ctx: &Ctx,
+) -> Result<MethodAndMethodDef> {
+
+    //
+    // APPROACH 1
+    // This is what the #[pymethods] macro uses
+    //
+    // Not used...
+    // let method = {
+    //     let kind = PyMethodKind::from_name("__getitem__");
+    //     let method_name = spec.python_name.to_string();
+    //     PyMethod {
+    //         kind,
+    //         method_name,
+    //         spec,
+    //     }
+    // };
+    let doc = crate::get_doc(&[], None);
+    Ok(impl_py_method_def(cls, &spec, &doc, None, ctx)?)
+
+    // APPROACH 2
+    // APPROACH 2-a
+    // use the `generate_method_body`...
+    // let Ctx { pyo3_path } = ctx;
+    // let python_name = spec.null_terminated_python_name();
+    // let mut holders = Holders::new();
+    // let arguments: Vec<Ty> = vec![Ty::Int];
+    // let extract_error_mode = ExtractErrorMode::Raise;
+    // let body = generate_method_body(
+    //     cls,
+    //     spec,
+    //     &arguments,
+    //     extract_error_mode,
+    //     &mut holders,
+    //     None,
+    //     ctx,
+    // )?;
+
+    // APPROACH 2-b
+    // Modify code lifted from `impl_py_getter_def`
+    // let body = {
+    //     let slf = self_type.receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+    //     let name = &spec.name;
+    //     let fncall = quote!(#cls::#name(#slf, py, key));
+    //     quote! {
+    //         #pyo3_path::callback::convert(py, #fncall, key)
+    //     }
+    // };
+    //
+    // let wrapper_ident = format_ident!("__pymethod_getitem_wrapper__");
+    // let cfg_attrs = TokenStream::new();
+    // let init_holders = holders.init_holders(ctx);
+    // let check_gil_refs = holders.check_gil_refs();
+    // let associated_method = quote! {
+    //     #cfg_attrs
+    //     unsafe fn #wrapper_ident(
+    //         py: #pyo3_path::Python<'_>,
+    //         _slf: *mut #pyo3_path::ffi::PyObject,
+    //         key: #pyo3_path::ffi::PyObject,
+    //     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+    //         #init_holders
+    //         let result = #body;
+    //         #check_gil_refs
+    //         result
+    //     }
+    // };
+    //
+    // let method_def = quote! {
+    //     #cfg_attrs
+    //     #pyo3_path::class::PyMethodDefType::Getter(
+    //         #pyo3_path::class::PyMethodDef::new(
+    //             #python_name,
+    //             #pyo3_path::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
+    //             #doc
+    //         )
+    //     )
+    // };
+    //
+    // Ok(MethodAndMethodDef {
+    //     associated_method,
+    //     method_def,
+    // })
+}
+
 // Used here for PropertyType::Function, used in pyclass for descriptors.
 pub fn impl_py_getter_def(
     cls: &syn::Type,
