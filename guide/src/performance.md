@@ -96,3 +96,45 @@ impl PartialEq<Foo> for FooBound<'_> {
     }
 }
 ```
+
+## Disable the global reference pool
+
+PyO3 uses global mutable state to keep track of deferred reference count updates implied by `impl Clone for Py<T>` and `impl Drop for Py<T>` being called without the GIL being held. The necessary synchronization to obtain and apply these reference count updates when PyO3-based code next acquires the GIL is somewhat expensive and can become a significant part of the cost of crossing the Python-Rust boundary.
+
+This functionality can be avoided by disabling default features and not enabling the `reference-pool` feature. This removes the global reference pool and the associated costs completely. However, it does _not_ remove the `Clone` and `Drop` implementations for `Py<T>` which are often necessary to fulfil trait requirements imposed by existing Rust code written without PyO3-based code in mind. To stay compatible with the wider Rust ecosystem in these cases, we keep the implementations but panic when `Clone` is called without the GIL being held and abort when `Drop` is called without the GIL being held.
+
+This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` returned from `Python::with_gil` without making sure to re-acquire the GIL beforehand. For example, the following code
+
+```rust,ignore
+# use pyo3::prelude::*;
+# use pyo3::types::PyList;
+let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty_bound(py).unbind());
+
+Python::with_gil(|py| {
+    numbers.bind(py).append(23).unwrap();
+});
+
+Python::with_gil(|py| {
+    numbers.bind(py).append(42).unwrap();
+});
+```
+
+will abort if the list not explicitly disposed via
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyList;
+let numbers: Py<PyList> = Python::with_gil(|py| PyList::empty_bound(py).unbind());
+
+Python::with_gil(|py| {
+    numbers.bind(py).append(23).unwrap();
+});
+
+Python::with_gil(|py| {
+    numbers.bind(py).append(42).unwrap();
+});
+
+Python::with_gil(move |py| {
+    drop(numbers);
+});
+```
