@@ -100,7 +100,7 @@ impl Parse for Pyo3Import {
             moduleidentifier = input.parse()?;
             let _: Colon = input.parse()?;
         } else {
-            return Err(input.error("invalid import statement: expected a colon (':') after this"))
+            return Err(input.error("invalid import statement: expected a colon (':') after this"));
         }
         let firstkeyword: PythonImportKeyword = input.parse()?;
         let modulename: Ident = input.parse()?;
