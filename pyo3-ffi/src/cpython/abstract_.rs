@@ -4,8 +4,6 @@ use std::os::raw::{c_char, c_int};
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
-#[cfg(Py_3_8)]
-use crate::pyport::PY_SSIZE_T_MAX;
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
 use crate::{
     vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET, PyTuple_Check,
@@ -42,14 +40,14 @@ extern "C" {
 }
 
 #[cfg(Py_3_8)]
-const PY_VECTORCALL_ARGUMENTS_OFFSET: Py_ssize_t =
-    1 << (8 * std::mem::size_of::<Py_ssize_t>() as Py_ssize_t - 1);
+const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
+    1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
 
 #[cfg(Py_3_8)]
 #[inline(always)]
 pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
-    assert!(n <= (PY_SSIZE_T_MAX as size_t));
-    (n as Py_ssize_t) & !PY_VECTORCALL_ARGUMENTS_OFFSET
+    let n = n & !PY_VECTORCALL_ARGUMENTS_OFFSET;
+    n.try_into().expect("cannot fail due to mask")
 }
 
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
@@ -184,7 +182,7 @@ pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *m
     let args = args_array.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
     let tstate = PyThreadState_GET();
     let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
-    _PyObject_VectorcallTstate(tstate, func, args, nargsf as size_t, std::ptr::null_mut())
+    _PyObject_VectorcallTstate(tstate, func, args, nargsf, std::ptr::null_mut())
 }
 
 extern "C" {
@@ -206,7 +204,7 @@ pub unsafe fn PyObject_CallMethodNoArgs(
     PyObject_VectorcallMethod(
         name,
         &self_,
-        1 | PY_VECTORCALL_ARGUMENTS_OFFSET as size_t,
+        1 | PY_VECTORCALL_ARGUMENTS_OFFSET,
         std::ptr::null_mut(),
     )
 }
@@ -223,7 +221,7 @@ pub unsafe fn PyObject_CallMethodOneArg(
     PyObject_VectorcallMethod(
         name,
         args.as_ptr(),
-        2 | PY_VECTORCALL_ARGUMENTS_OFFSET as size_t,
+        2 | PY_VECTORCALL_ARGUMENTS_OFFSET,
         std::ptr::null_mut(),
     )
 }
