@@ -15,6 +15,7 @@
       - [Basic object customization](class/object.md)
       - [Emulating numeric types](class/numeric.md)
       - [Emulating callable objects](class/call.md)
+  - [Testing your code](testing.md)
 - [Calling Python from Rust](python-from-rust.md)
   - [Python object types](types.md)
   - [Python exceptions](exception.md)

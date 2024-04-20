@@ -1,10 +1,15 @@
 #![cfg(all(feature = "testing", not(any(PyPy, GraalPy))))]
 use pyo3::prelude::*;
 
+// The example from the Guide ...
+fn o3_addone(num: isize) -> isize {
+    num + 1
+}
+
 #[pyfunction]
 #[pyo3(name = "addone")]
 fn py_addone(num: isize) -> isize {
-    num + 1
+    o3_addone(num)
 }
 
 #[pymodule]
