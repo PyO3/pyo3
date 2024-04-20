@@ -32,6 +32,6 @@ fn no_colon() {}
 
 #[pyo3test]
 #[pyo3import(py_adders: from adders import)]
-fn no_missing_function() {}
+fn missing_function() {}
 
 fn main() {}
