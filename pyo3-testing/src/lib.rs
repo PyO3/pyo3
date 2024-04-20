@@ -136,7 +136,10 @@ impl Parse for PythonImportKeyword {
         match keyword.to_string().as_str() {
             "from" => Ok(PythonImportKeyword::from),
             "import" => Ok(PythonImportKeyword::import),
-            _ => Err(syn::Error::new(keyword.span(), "invalid import statement: expect 'from' or 'import' here")),
+            _ => Err(syn::Error::new(
+                keyword.span(),
+                "invalid import statement: expect 'from' or 'import' here",
+            )),
         }
     }
 }
