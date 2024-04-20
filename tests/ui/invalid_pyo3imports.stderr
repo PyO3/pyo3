@@ -1,10 +1,10 @@
-error: invalid import statement
+error: invalid import statement: expect 'from' or 'import' here
   --> tests/ui/invalid_pyo3imports.rs:18:25
    |
 18 | #[pyo3import(py_adders: form adders import addone)]
    |                         ^^^^
 
-error: invalid import statement
+error: invalid import statement: expect 'from' or 'import' here
   --> tests/ui/invalid_pyo3imports.rs:22:37
    |
 22 | #[pyo3import(py_adders: from adders improt addone)]
