@@ -17,27 +17,28 @@ mod py_addone {
     pub const _PYO3_DEF: ::pyo3::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
 }
 impl py_addone::MakeDef {
-    const _PYO3_DEF: ::pyo3::impl_::pymethods::PyMethodDef = ::pyo3::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
-        "addone\0",
-        ::pyo3::impl_::pymethods::PyCFunctionFastWithKeywords({
-            unsafe extern "C" fn trampoline(
-                _slf: *mut ::pyo3::ffi::PyObject,
-                _args: *const *mut ::pyo3::ffi::PyObject,
-                _nargs: ::pyo3::ffi::Py_ssize_t,
-                _kwnames: *mut ::pyo3::ffi::PyObject,
-            ) -> *mut ::pyo3::ffi::PyObject {
-                ::pyo3::impl_::trampoline::fastcall_with_keywords(
-                    _slf,
-                    _args,
-                    _nargs,
-                    _kwnames,
-                    __pyfunction_py_addone,
-                )
-            }
-            trampoline
-        }),
-        "addone(num)\n--\n\n\0",
-    );
+    const _PYO3_DEF: ::pyo3::impl_::pymethods::PyMethodDef =
+        ::pyo3::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
+            "addone\0",
+            ::pyo3::impl_::pymethods::PyCFunctionFastWithKeywords({
+                unsafe extern "C" fn trampoline(
+                    _slf: *mut ::pyo3::ffi::PyObject,
+                    _args: *const *mut ::pyo3::ffi::PyObject,
+                    _nargs: ::pyo3::ffi::Py_ssize_t,
+                    _kwnames: *mut ::pyo3::ffi::PyObject,
+                ) -> *mut ::pyo3::ffi::PyObject {
+                    ::pyo3::impl_::trampoline::fastcall_with_keywords(
+                        _slf,
+                        _args,
+                        _nargs,
+                        _kwnames,
+                        __pyfunction_py_addone,
+                    )
+                }
+                trampoline
+            }),
+            "addone(num)\n--\n\n\0",
+        );
 }
 #[allow(non_snake_case)]
 unsafe fn __pyfunction_py_addone<'py>(
@@ -49,14 +50,15 @@ unsafe fn __pyfunction_py_addone<'py>(
 ) -> ::pyo3::PyResult<*mut ::pyo3::ffi::PyObject> {
     let _slf_ref = &_slf;
     let function = py_addone;
-    const DESCRIPTION: ::pyo3::impl_::extract_argument::FunctionDescription = ::pyo3::impl_::extract_argument::FunctionDescription {
-        cls_name: ::std::option::Option::None,
-        func_name: "addone",
-        positional_parameter_names: &["num"],
-        positional_only_parameters: 0usize,
-        required_positional_parameters: 1usize,
-        keyword_only_parameters: &[],
-    };
+    const DESCRIPTION: ::pyo3::impl_::extract_argument::FunctionDescription =
+        ::pyo3::impl_::extract_argument::FunctionDescription {
+            cls_name: ::std::option::Option::None,
+            func_name: "addone",
+            positional_parameter_names: &["num"],
+            positional_only_parameters: 0usize,
+            required_positional_parameters: 1usize,
+            keyword_only_parameters: &[],
+        };
     let mut output = [::std::option::Option::None; 1usize];
     let (_args, _kwargs) = DESCRIPTION
         .extract_arguments_fastcall::<
@@ -68,21 +70,17 @@ unsafe fn __pyfunction_py_addone<'py>(
     let gil_refs_checker_0 = ::pyo3::impl_::deprecations::GilRefs::new();
     let result = ::pyo3::impl_::wrap::map_result_into_ptr(
         py,
-        ::pyo3::impl_::wrap::OkWrap::wrap(
-                function(
-                    ::pyo3::impl_::deprecations::inspect_type(
-                        ::pyo3::impl_::extract_argument::extract_argument(
-                            ::pyo3::impl_::extract_argument::unwrap_required_argument(
-                                output[0usize].as_deref(),
-                            ),
-                            &mut holder_0,
-                            "num",
-                        )?,
-                        &gil_refs_checker_0,
-                    ),
+        ::pyo3::impl_::wrap::OkWrap::wrap(function(::pyo3::impl_::deprecations::inspect_type(
+            ::pyo3::impl_::extract_argument::extract_argument(
+                ::pyo3::impl_::extract_argument::unwrap_required_argument(
+                    output[0usize].as_deref(),
                 ),
-            )
-            .map_err(::core::convert::Into::<::pyo3::PyErr>::into),
+                &mut holder_0,
+                "num",
+            )?,
+            &gil_refs_checker_0,
+        )))
+        .map_err(::core::convert::Into::<::pyo3::PyErr>::into),
     );
     gil_refs_checker_0.function_arg();
     result
@@ -93,23 +91,17 @@ fn py_adders(module: &Bound<'_, PyModule>) -> PyResult<()> {
     let module = ::pyo3::impl_::deprecations::inspect_type(module, &check_gil_refs);
     check_gil_refs.function_arg();
     #[allow(unknown_lints, unused_imports, redundant_imports)]
-    use ::pyo3::{PyNativeType, types::PyModuleMethods};
-    module
-        .add_function(
-            {
-                use py_addone as wrapped_pyfunction;
-                let check_gil_refs = ::pyo3::impl_::deprecations::GilRefs::new();
-                let py_or_module = ::pyo3::impl_::deprecations::inspect_type(
-                    module,
-                    &check_gil_refs,
-                );
-                check_gil_refs.is_python();
-                ::pyo3::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
-                    py_or_module,
-                    &wrapped_pyfunction::_PYO3_DEF,
-                )
-            }?,
-        )?;
+    use ::pyo3::{types::PyModuleMethods, PyNativeType};
+    module.add_function({
+        use py_addone as wrapped_pyfunction;
+        let check_gil_refs = ::pyo3::impl_::deprecations::GilRefs::new();
+        let py_or_module = ::pyo3::impl_::deprecations::inspect_type(module, &check_gil_refs);
+        check_gil_refs.is_python();
+        ::pyo3::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
+            py_or_module,
+            &wrapped_pyfunction::_PYO3_DEF,
+        )
+    }?)?;
     Ok(())
 }
 mod py_adders {
@@ -131,19 +123,14 @@ impl py_adders::MakeDef {
         fn __pyo3_pymodule(
             module: &::pyo3::Bound<'_, ::pyo3::types::PyModule>,
         ) -> ::pyo3::PyResult<()> {
-            py_adders(
-                ::std::convert::Into::into(::pyo3::impl_::pymethods::BoundRef(module)),
-            )
+            py_adders(::std::convert::Into::into(
+                ::pyo3::impl_::pymethods::BoundRef(module),
+            ))
         }
-        const INITIALIZER: ::pyo3::impl_::pymodule::ModuleInitializer = ::pyo3::impl_::pymodule::ModuleInitializer(
-            __pyo3_pymodule,
-        );
+        const INITIALIZER: ::pyo3::impl_::pymodule::ModuleInitializer =
+            ::pyo3::impl_::pymodule::ModuleInitializer(__pyo3_pymodule);
         unsafe {
-            ::pyo3::impl_::pymodule::ModuleDef::new(
-                py_adders::__PYO3_NAME,
-                "\0",
-                INITIALIZER,
-            )
+            ::pyo3::impl_::pymodule::ModuleDef::new(py_adders::__PYO3_NAME, "\0", INITIALIZER)
         }
     }
 }
@@ -174,11 +161,9 @@ fn test_pyo3test_without_macro() {
     unsafe {
         if ::pyo3::ffi::Py_IsInitialized() != 0 {
             {
-                ::core::panicking::panic_fmt(
-                    format_args!(
-                        "called `append_to_inittab` but a Python interpreter is already running.",
-                    ),
-                );
+                ::core::panicking::panic_fmt(format_args!(
+                    "called `append_to_inittab` but a Python interpreter is already running.",
+                ));
             };
         }
         ::pyo3::ffi::PyImport_AppendInittab(
@@ -189,7 +174,9 @@ fn test_pyo3test_without_macro() {
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
         let adders = py.import_bound("adders").expect("Failed to import adders");
-        let addone = adders.getattr("addone").expect("Failed to get addone function");
+        let addone = adders
+            .getattr("addone")
+            .expect("Failed to get addone function");
         let result: PyResult<isize> = match addone.call1((1_isize,)) {
             Ok(r) => r.extract(),
             Err(e) => Err(e),
@@ -238,11 +225,9 @@ fn test_pyo3test_simple_case() {
     unsafe {
         if ::pyo3::ffi::Py_IsInitialized() != 0 {
             {
-                ::core::panicking::panic_fmt(
-                    format_args!(
-                        "called `append_to_inittab` but a Python interpreter is already running.",
-                    ),
-                );
+                ::core::panicking::panic_fmt(format_args!(
+                    "called `append_to_inittab` but a Python interpreter is already running.",
+                ));
             };
         }
         ::pyo3::ffi::PyImport_AppendInittab(
@@ -253,7 +238,9 @@ fn test_pyo3test_simple_case() {
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
         let adders = py.import_bound("adders").expect("Failed to import adders");
-        let addone = adders.getattr("addone").expect("Failed to get addone function");
+        let addone = adders
+            .getattr("addone")
+            .expect("Failed to get addone function");
         let result: PyResult<isize> = match addone.call1((1_isize,)) {
             Ok(r) => r.extract(),
             Err(e) => Err(e),
@@ -302,11 +289,9 @@ fn test_pyo3test_import_module_only() {
     unsafe {
         if ::pyo3::ffi::Py_IsInitialized() != 0 {
             {
-                ::core::panicking::panic_fmt(
-                    format_args!(
-                        "called `append_to_inittab` but a Python interpreter is already running.",
-                    ),
-                );
+                ::core::panicking::panic_fmt(format_args!(
+                    "called `append_to_inittab` but a Python interpreter is already running.",
+                ));
             };
         }
         ::pyo3::ffi::PyImport_AppendInittab(
@@ -344,11 +329,9 @@ fn test_pyo3test_import_module_only() {
 #[coverage(off)]
 pub fn main() -> () {
     extern crate test;
-    test::test_main_static(
-        &[
-            &test_pyo3test_import_module_only,
-            &test_pyo3test_simple_case,
-            &test_pyo3test_without_macro,
-        ],
-    )
+    test::test_main_static(&[
+        &test_pyo3test_import_module_only,
+        &test_pyo3test_simple_case,
+        &test_pyo3test_without_macro,
+    ])
 }

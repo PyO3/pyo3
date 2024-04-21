@@ -26,9 +26,12 @@ fn test_pyo3test_without_macro() {
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
         let sys = PyModule::import_bound(py, "sys").unwrap();
-        let py_modules: Bound<'_, PyDict> = sys.getattr("modules").unwrap().downcast_into().unwrap();
-        let py_adders_pymodule = unsafe {Bound::from_owned_ptr(py, py_adders::__pyo3_init())};
-        py_modules.set_item("adders", py_adders_pymodule).expect("Failed to import adders");
+        let py_modules: Bound<'_, PyDict> =
+            sys.getattr("modules").unwrap().downcast_into().unwrap();
+        let py_adders_pymodule = unsafe { Bound::from_owned_ptr(py, py_adders::__pyo3_init()) };
+        py_modules
+            .set_item("adders", py_adders_pymodule)
+            .expect("Failed to import adders");
         let adders = py_modules.get_item("adders").unwrap().unwrap();
         let addone = adders
             .getattr("addone")
