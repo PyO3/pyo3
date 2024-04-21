@@ -47,7 +47,7 @@ fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
 /// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
 /// execute in Python::with_gil. Don't construct this directly but use .try_into() on a suitable ItemFn
 struct Pyo3TestCase {
-    pythonimports: Vec<Pyo3Import>,
+    pyo3imports: Vec<Pyo3Import>,
     signature: Signature,
     statements: Vec<Stmt>,
     otherattributes: Vec<Attribute>,
@@ -59,18 +59,18 @@ impl TryFrom<ItemFn> for Pyo3TestCase {
     type Error = syn::Error;
 
     fn try_from(testcase: ItemFn) -> syn::Result<Pyo3TestCase> {
-        let mut pythonimports = Vec::<Pyo3Import>::new();
+        let mut pyo3imports = Vec::<Pyo3Import>::new();
         let mut otherattributes = Vec::<Attribute>::new();
         for attr in testcase.attrs {
             if attr.path().is_ident("pyo3import") {
-                pythonimports.push(attr.parse_args()?);
+                pyo3imports.push(attr.parse_args()?);
             } else {
                 otherattributes.push(attr);
             };
         }
 
         Ok(Pyo3TestCase {
-            pythonimports,
+            pyo3imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
             otherattributes,
@@ -170,10 +170,10 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
     let mut py_functionnames = Vec::<String>::new();
     let mut py_AttributeErrormsgs = Vec::<String>::new();
 
-    for import in testcase.pythonimports {
+    for pyo3import in testcase.pyo3imports {
         // statements ordered to allow multiple borrows of module and functionname before moving to Vec
-        let py_modulename = import.py_modulename;
-        if let Some(py_functionname) = import.py_functionname {
+        let py_modulename = pyo3import.py_modulename;
+        if let Some(py_functionname) = pyo3import.py_functionname {
             py_AttributeErrormsgs
                 .push("Failed to get ".to_string() + &py_functionname + " function");
             py_functionidents.push(Ident::new(&py_functionname, Span::call_site()));
@@ -183,7 +183,7 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
         py_ModuleNotFoundErrormsgs.push("Failed to import ".to_string() + &py_modulename);
         py_moduleidents.push(Ident::new(&py_modulename, Span::call_site()));
         py_modulenames.push(py_modulename);
-        o3_moduleidents.push(import.o3_moduleident);
+        o3_moduleidents.push(pyo3import.o3_moduleident);
     }
 
     let testfn_signature = testcase.signature;
@@ -237,7 +237,7 @@ mod tests {
         let imports = vec![import];
 
         let testcase: Pyo3TestCase = Pyo3TestCase {
-            pythonimports: imports,
+            pyo3imports: imports,
             signature: testcase.sig,
             statements: testcase.block.stmts,
             otherattributes: Vec::<Attribute>::new(),
