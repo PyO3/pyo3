@@ -71,7 +71,7 @@ mod tests {
 
 ## Testing your wrapped functions in Rust
 
-Once you are confident, that your functionality is sound, you can wrap it for Python with a simple
+Once you are confident that your functionality is sound, you can wrap it for Python with a simple
 one-liner:
 
 ```rust
@@ -80,7 +80,11 @@ one-liner:
 fn py_addone(num: isize) -> isize {
     o3_addone(num)
 }
+```
 
+and then create a Python module which can be imported:
+
+```rust
 #[pymodule]
 #[pyo3(name = "adders")]
 fn py_adders(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -112,6 +116,59 @@ fn test_one_plus_one_wrapped() {
 
 In a non-trivial case, you will likely have Type conversions and Error handling which you wish to
 validate at this point.
+
+## The full example in Rust
+
+The full code then looks like this:
+
+```rust
+use pyo3::prelude::*;
+
+/// Add one to an isize
+fn o3_addone(num: isize) -> isize {
+    num + 1
+}
+
+/// Rust function for use in Python which adds one to a given int
+#[pyfunction]
+#[pyo3(name = "addone")]
+fn py_addone(num: isize) -> isize {
+    o3_addone(num)
+}
+
+/// A module containing various "adders", written in Rust, for use in Python.
+#[pymodule]
+#[pyo3(name = "adders")]
+fn py_adders(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(py_addone, module)?)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Check that the `o3_addone` function correctly adds one to 1_isize
+    #[test]
+    fn test_one_plus_one () {
+        let result = o3_addone(1_isize);
+        asserteq!(result, 2_isize)
+    }
+
+    /// Check that the Python function `adders.addone` can be run in Python
+    #[pyo3test]
+    #[pyo3import(py_adders: from adders import addone)]
+    fn test_one_plus_one_wrapped() {
+        let result: PyResult<isize> = match addone.call1((1_isize,)) {
+            Ok(r) => r.extract(),
+            Err(e) => Err(e),
+        };
+        let result = result.unwrap();
+        let expected_result = 2_isize;
+        assert_eq!(result, expected_result);
+    }
+}
+```
 
 ## Testing the final integration in Python
 
