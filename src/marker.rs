@@ -688,10 +688,8 @@ impl<'py> Python<'py> {
                 return Err(PyErr::fetch(self));
             }
 
-            let globals = globals
-                .map(|dict| dict.as_ptr())
-                .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(|dict| dict.as_ptr()).unwrap_or(globals);
+            let globals = globals.map_or_else(|| ffi::PyModule_GetDict(mptr), |dict| dict.as_ptr());
+            let locals = locals.map_or(globals, |dict| dict.as_ptr());
 
             // If `globals` don't provide `__builtins__`, most of the code will fail if Python
             // version is <3.10. That's probably not what user intended, so insert `__builtins__`

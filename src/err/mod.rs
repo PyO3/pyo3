@@ -428,9 +428,10 @@ impl PyErr {
             let msg = pvalue
                 .as_ref()
                 .and_then(|obj| obj.bind(py).str().ok())
-                .map(|py_str| py_str.to_string_lossy().into())
-                .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
-
+                .map_or_else(
+                    || String::from("Unwrapped panic from Python code"),
+                    |py_str| py_str.to_string_lossy().into(),
+                );
             let state = PyErrState::FfiTuple {
                 ptype,
                 pvalue,
@@ -451,10 +452,10 @@ impl PyErr {
         let state = PyErrStateNormalized::take(py)?;
         let pvalue = state.pvalue.bind(py);
         if pvalue.get_type().as_ptr() == PanicException::type_object_raw(py).cast() {
-            let msg: String = pvalue
-                .str()
-                .map(|py_str| py_str.to_string_lossy().into())
-                .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
+            let msg: String = pvalue.str().map_or_else(
+                |_| String::from("Unwrapped panic from Python code"),
+                |py_str| py_str.to_string_lossy().into(),
+            );
             Self::print_panic_and_unwind(py, PyErrState::Normalized(state), msg)
         }
 

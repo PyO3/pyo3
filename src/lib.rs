@@ -19,7 +19,11 @@
         non_local_definitions,
     )
 )))]
-#![deny(clippy::inefficient_to_string, clippy::type_repetition_in_bounds)]
+#![deny(
+    clippy::inefficient_to_string,
+    clippy::map_unwrap_or,
+    clippy::type_repetition_in_bounds
+)]
 
 //! Rust bindings to the Python interpreter.
 //!
