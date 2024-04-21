@@ -37,10 +37,7 @@ where
     }
 }
 
-impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
-where
-    T: PyTypeCheck,
-{
+impl<'a, 'py, T: 'py + PyTypeCheck> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T> {
     type Holder = Option<()>;
 
     #[inline]
@@ -49,10 +46,7 @@ where
     }
 }
 
-impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for Option<&'a Bound<'py, T>>
-where
-    T: PyTypeCheck,
-{
+impl<'a, 'py, T: 'py + PyTypeCheck> PyFunctionArgument<'a, 'py> for Option<&'a Bound<'py, T>> {
     type Holder = ();
 
     #[inline]
