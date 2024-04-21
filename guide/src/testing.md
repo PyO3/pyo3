@@ -183,8 +183,19 @@ def test_one_plus_one ():
     assert addone(1) == 2
 ```
 
-Before you can execute this test, you need to compile and install your rust library. The easiest way
-to do this, with both maturin and setuptools-rust is to run `pip install -e .` in the root of your
-Python package which will build and install the package in editable mode. (If you have additional
-dependencies for development, e.g.: pytest, then you will need to install these as well, or include
-them as optional dependencies in `pyproject.toml` and run `pip install -e .[dev]`for example).
+Before you can execute this test, you need to compile and install your rust library.
+
+The easiest way to do this, with both maturin and setuptools-rust is to run `pip install -e .` in the
+root of your Python package. This will build and install the package in editable mode.
+
+Note: If you have additional dependencies for development, e.g.: pytest, then you will need to install
+these manually, or include them as optional dependencies in `pyproject.toml` e.g.:
+
+```toml
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    ]
+```
+
+and then run `pip install -e .[dev]`
