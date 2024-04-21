@@ -5,7 +5,7 @@ some helper macros to make this task easier when coupled with a few good practic
 
 This chapter of the Guide explains:
 
-- [How to structure your code to make testing easier](#Structuring-for-testability)
+- [How to structure your code to make testing easier](#structuring-for-testability)
 - [How to test your functionality](#testing-your-functionality-in-rust)
 - [Testing your wrapping with `#[pyo3test]`](#testing-your-wrapped-functions---in-rust)
 - [Final integration testing in Python](#testing-the-final-integration-in-python)
