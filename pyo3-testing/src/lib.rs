@@ -46,6 +46,8 @@ fn impl_pyo3test(_attr: TokenStream2, input: TokenStream2) -> TokenStream2 {
 
 /// A pyo3 test case consisting of zero or more imports and an ItemFn which should be wrapped to
 /// execute in Python::with_gil. Don't construct this directly but use .try_into() on a suitable ItemFn
+
+// #[derive(Debug, PartialEq)] - Signature, Stmt, Attribute don't allow either Debug or PartialEq currently.
 struct Pyo3TestCase {
     pyo3imports: Vec<Pyo3Import>,
     signature: Signature,
@@ -125,6 +127,7 @@ impl Parse for Pyo3Import {
 /// Note we do not accept the additional keyword `as` by design: this is a simple testing framework
 /// to validate correct binding, type conversion and errorhandling.
 #[allow(non_camel_case_types)] // represent actual keywords in python which are lower case
+#[derive(Debug, PartialEq)]
 enum PythonImportKeyword {
     from,
     import,
