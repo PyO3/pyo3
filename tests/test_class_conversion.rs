@@ -54,12 +54,14 @@ impl SubClass {
     }
 }
 
+#[cfg(feature = "py-clone")]
 #[pyclass]
 struct PolymorphicContainer {
     #[pyo3(get, set)]
     inner: Py<BaseClass>,
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_polymorphic_container_stores_base_class() {
     Python::with_gil(|py| {
@@ -76,6 +78,7 @@ fn test_polymorphic_container_stores_base_class() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_polymorphic_container_stores_sub_class() {
     Python::with_gil(|py| {
@@ -103,6 +106,7 @@ fn test_polymorphic_container_stores_sub_class() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_polymorphic_container_does_not_accept_other_types() {
     Python::with_gil(|py| {

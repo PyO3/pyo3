@@ -25,7 +25,7 @@ pub struct Bar {
     a: u8,
     #[pyo3(get, set)]
     b: Foo,
-    #[pyo3(get, set)]
+    #[pyo3(set)]
     c: ::std::option::Option<crate::Py<Foo2>>,
 }
 

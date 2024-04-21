@@ -866,7 +866,9 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///     // All of these are valid syntax
 ///     let second = Py::clone_ref(&first, py);
 ///     let third = first.clone_ref(py);
+///     #[cfg(feature = "py-clone")]
 ///     let fourth = Py::clone(&first);
+///     #[cfg(feature = "py-clone")]
 ///     let fifth = first.clone();
 ///
 ///     // Disposing of our original `Py<PyDict>` just decrements the reference count.
@@ -874,7 +876,9 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 ///     // They all point to the same object
 ///     assert!(second.is(&third));
+///     #[cfg(feature = "py-clone")]
 ///     assert!(fourth.is(&fifth));
+///     #[cfg(feature = "py-clone")]
 ///     assert!(second.is(&fourth));
 /// });
 /// # }

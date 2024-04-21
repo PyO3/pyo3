@@ -336,6 +336,7 @@ mod test {
         is_sync::<PyBackedBytes>();
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_str_clone() {
         Python::with_gil(|py| {
@@ -398,6 +399,7 @@ mod test {
         })
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_bytes_from_bytes_clone() {
         Python::with_gil(|py| {
@@ -410,6 +412,7 @@ mod test {
         });
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_bytes_from_bytearray_clone() {
         Python::with_gil(|py| {
