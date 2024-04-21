@@ -7,7 +7,7 @@ This chapter of the Guide explains:
 
 - [How to structure your code to make testing easier](#structuring-for-testability)
 - [How to test your functionality](#testing-your-functionality-in-rust)
-- [Testing your wrapping with `#[pyo3test]`](#testing-your-wrapped-functions---in-rust)
+- [Testing your wrapping with `#[pyo3test]`](#testing-your-wrapped-functions-in-rust)
 - [Final integration testing in Python](#testing-the-final-integration-in-python)
 
 ## Structuring for testability
@@ -49,7 +49,8 @@ fn o3_addone(num: isize) -> isize {
 }
 ```
 
-You can test this in the same file as described in [Unit tests](https://doc.rust-lang.org/stable/book/ch11-03-test-organization.html#unit-tests)
+You can test this in the same file. More details on how to do this are described in
+[Unit tests](https://doc.rust-lang.org/stable/book/ch11-03-test-organization.html#unit-tests)
 in "The Book":
 
 ```rust
@@ -63,11 +64,12 @@ mod tests {
 
     #[test]
     fn test_one_plus_one () {
-        asserteq!(o3_addone(1_isize), 2_isize)
+        let result = o3_addone(1_isize);
+        asserteq!(result, 2_isize)
     }
 ```
 
-## Testing your wrapped functions - in Rust!
+## Testing your wrapped functions in Rust
 
 Once you are confident, that your functionality is sound, you can wrap it for Python with a simple
 one-liner:
