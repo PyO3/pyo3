@@ -435,6 +435,8 @@ impl Drop for GILPool {
                 }
             }
         }
+        // Update counts of PyObjects / Py that have been cloned or dropped on background threads before releasing the GIL back to Python code
+        POOL.update_counts(unsafe { Python::assume_gil_acquired() });
         decrement_gil_count();
     }
 }
