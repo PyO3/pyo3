@@ -95,16 +95,16 @@ impl Parse for Pyo3Import {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         // Written by a rust newbie, if there is a better option than all these assignments; please
         // feel free to change this code...
-        let moduleidentifier;
+        let o3_moduleident;
         if input.peek2(Token![:]) {
-            moduleidentifier = input.parse()?;
+            o3_moduleident = input.parse()?;
             let _: Colon = input.parse()?;
         } else {
             return Err(input.error("invalid import statement: expected a colon (':') after this"));
         }
         let firstkeyword: PythonImportKeyword = input.parse()?;
-        let modulename: Ident = input.parse()?;
-        let functionname = match firstkeyword {
+        let py_modulename = input.parse::<Ident>()?.to_string();
+        let py_functionname = match firstkeyword {
             PythonImportKeyword::from => {
                 let _import: PythonImportKeyword = input.parse()?;
                 Some(input.parse::<Ident>()?.to_string())
@@ -113,9 +113,9 @@ impl Parse for Pyo3Import {
         };
 
         Ok(Pyo3Import {
-            o3_moduleident: moduleidentifier,
-            py_modulename: modulename.to_string(),
-            py_functionname: functionname,
+            o3_moduleident,
+            py_modulename,
+            py_functionname,
         })
     }
 }
