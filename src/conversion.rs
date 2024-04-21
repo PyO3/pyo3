@@ -674,6 +674,7 @@ mod test_no_clone {}
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     mod deprecated {
         use super::super::PyTryFrom;

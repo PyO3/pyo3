@@ -2034,7 +2034,7 @@ mod tests {
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
-            let obj: PyObject = PyDict::new(py).into();
+            let obj: PyObject = PyDict::new_bound(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
             assert!(obj
                 .call_method(py, "nonexistent_method", (1,), None)
@@ -2047,7 +2047,7 @@ mod tests {
     #[test]
     fn py_from_dict() {
         let dict: Py<PyDict> = Python::with_gil(|py| {
-            let native = PyDict::new(py);
+            let native = PyDict::new_bound(py);
             Py::from(native)
         });
 
@@ -2057,7 +2057,7 @@ mod tests {
     #[test]
     fn pyobject_from_py() {
         Python::with_gil(|py| {
-            let dict: Py<PyDict> = PyDict::new(py).into();
+            let dict: Py<PyDict> = PyDict::new_bound(py).unbind();
             let cnt = dict.get_refcnt(py);
             let p: PyObject = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
