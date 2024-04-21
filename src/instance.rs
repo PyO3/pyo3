@@ -1806,6 +1806,7 @@ where
 /// If the GIL is held this increments `self`'s reference count.
 /// Otherwise this registers the [`Py`]`<T>` instance to have its reference count
 /// incremented the next time PyO3 acquires the GIL.
+#[cfg(feature = "py-clone")]
 impl<T> Clone for Py<T> {
     #[track_caller]
     fn clone(&self) -> Self {

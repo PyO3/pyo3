@@ -108,6 +108,9 @@ auto-initialize = []
 # Allows use of the deprecated "GIL Refs" APIs.
 gil-refs = []
 
+# Enables `Clone`ing references to Python objects which aborts if the GIL is not held.
+py-clone = []
+
 # Disables global reference pool which allows `Drop`ing references to Python objects without the GIL being held.
 disable-reference-pool = []
 
@@ -132,6 +135,7 @@ full = [
     "num-bigint",
     "num-complex",
     "num-rational",
+    "py-clone",
     "rust_decimal",
     "serde",
     "smallvec",

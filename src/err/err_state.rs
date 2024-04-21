@@ -5,7 +5,6 @@ use crate::{
     Bound, IntoPy, Py, PyAny, PyObject, PyTypeInfo, Python,
 };
 
-#[derive(Clone)]
 pub(crate) struct PyErrStateNormalized {
     #[cfg(not(Py_3_12))]
     ptype: Py<PyType>,
@@ -61,6 +60,19 @@ impl PyErrStateNormalized {
             ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
             pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
             ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
+        }
+    }
+
+    pub fn clone_ref(&self, py: Python<'_>) -> Self {
+        Self {
+            #[cfg(not(Py_3_12))]
+            ptype: self.ptype.clone_ref(py),
+            pvalue: self.pvalue.clone_ref(py),
+            #[cfg(not(Py_3_12))]
+            ptraceback: self
+                .ptraceback
+                .as_ref()
+                .map(|ptraceback| ptraceback.clone_ref(py)),
         }
     }
 }

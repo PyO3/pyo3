@@ -238,41 +238,29 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 #[cfg(not(feature = "disable-reference-pool"))]
 /// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
 struct ReferencePool {
-    // .0 is INCREFs, .1 is DECREFs
-    pointer_ops: sync::Mutex<(PyObjVec, PyObjVec)>,
+    pending_decrefs: sync::Mutex<PyObjVec>,
 }
 
 #[cfg(not(feature = "disable-reference-pool"))]
 impl ReferencePool {
     const fn new() -> Self {
         Self {
-            pointer_ops: sync::Mutex::new((Vec::new(), Vec::new())),
+            pending_decrefs: sync::Mutex::new(Vec::new()),
         }
-    }
-
-    fn register_incref(&self, obj: NonNull<ffi::PyObject>) {
-        self.pointer_ops.lock().unwrap().0.push(obj);
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
-        self.pointer_ops.lock().unwrap().1.push(obj);
+        self.pending_decrefs.lock().unwrap().push(obj);
     }
 
     fn update_counts(&self, _py: Python<'_>) {
-        let mut ops = self.pointer_ops.lock().unwrap();
-        if ops.0.is_empty() && ops.1.is_empty() {
+        let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
+        if pending_decrefs.is_empty() {
             return;
         }
 
-        let (increfs, decrefs) = mem::take(&mut *ops);
-        drop(ops);
-
-        // Always increase reference counts first - as otherwise objects which have a
-        // nonzero total reference count might be incorrectly dropped by Python during
-        // this update.
-        for ptr in increfs {
-            unsafe { ffi::Py_INCREF(ptr.as_ptr()) };
-        }
+        let decrefs = mem::take(&mut *pending_decrefs);
+        drop(pending_decrefs);
 
         for ptr in decrefs {
             unsafe { ffi::Py_DECREF(ptr.as_ptr()) };
@@ -442,14 +430,12 @@ impl Drop for GILPool {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
+#[cfg(feature = "py-clone")]
 #[track_caller]
 pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
         ffi::Py_INCREF(obj.as_ptr())
     } else {
-        #[cfg(not(feature = "disable-reference-pool"))]
-        POOL.register_incref(obj);
-        #[cfg(feature = "disable-reference-pool")]
         panic!("Cannot clone pointer into Python heap without the GIL being held.");
     }
 }
@@ -539,8 +525,6 @@ mod tests {
 
     #[cfg(not(feature = "disable-reference-pool"))]
     use std::ptr::NonNull;
-    #[cfg(all(not(target_arch = "wasm32"), not(feature = "disable-reference-pool")))]
-    use std::sync;
 
     fn get_object(py: Python<'_>) -> PyObject {
         py.eval_bound("object()", None, None).unwrap().unbind()
@@ -556,31 +540,19 @@ mod tests {
     }
 
     #[cfg(not(feature = "disable-reference-pool"))]
-    fn pool_inc_refs_does_not_contain(obj: &PyObject) -> bool {
-        !POOL
-            .pointer_ops
-            .lock()
-            .unwrap()
-            .0
-            .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
-    }
-
-    #[cfg(not(feature = "disable-reference-pool"))]
     fn pool_dec_refs_does_not_contain(obj: &PyObject) -> bool {
         !POOL
-            .pointer_ops
+            .pending_decrefs
             .lock()
             .unwrap()
-            .1
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
     #[cfg(all(not(feature = "disable-reference-pool"), not(target_arch = "wasm32")))]
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
-        POOL.pointer_ops
+        POOL.pending_decrefs
             .lock()
             .unwrap()
-            .1
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
@@ -656,16 +628,12 @@ mod tests {
 
             assert_eq!(obj.get_refcnt(py), 2);
             #[cfg(not(feature = "disable-reference-pool"))]
-            assert!(pool_inc_refs_does_not_contain(&obj));
-            #[cfg(not(feature = "disable-reference-pool"))]
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // With the GIL held, reference count will be decreased immediately.
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
-            #[cfg(not(feature = "disable-reference-pool"))]
-            assert!(pool_inc_refs_does_not_contain(&obj));
             #[cfg(not(feature = "disable-reference-pool"))]
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
@@ -680,7 +648,6 @@ mod tests {
             let reference = obj.clone_ref(py);
 
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_inc_refs_does_not_contain(&obj));
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // Drop reference in a separate thread which doesn't have the GIL.
@@ -689,7 +656,6 @@ mod tests {
             // The reference count should not have changed (the GIL has always
             // been held by this thread), it is remembered to release later.
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_inc_refs_does_not_contain(&obj));
             assert!(pool_dec_refs_contains(&obj));
             obj
         });
@@ -697,9 +663,7 @@ mod tests {
         // Next time the GIL is acquired, the reference is released
         Python::with_gil(|py| {
             assert_eq!(obj.get_refcnt(py), 1);
-            let non_null = unsafe { NonNull::new_unchecked(obj.as_ptr()) };
-            assert!(!POOL.pointer_ops.lock().unwrap().0.contains(&non_null));
-            assert!(!POOL.pointer_ops.lock().unwrap().1.contains(&non_null));
+            assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
 
@@ -756,19 +720,14 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(feature = "disable-reference-pool", should_panic)]
+    #[should_panic]
     fn test_allow_threads_updates_refcounts() {
         Python::with_gil(|py| {
             // Make a simple object with 1 reference
             let obj = get_object(py);
             assert!(obj.get_refcnt(py) == 1);
-            // Clone the object without the GIL to use internal tracking
-            let escaped_ref = py.allow_threads(|| obj.clone());
-            // But after the block the refcounts are updated
-            assert!(obj.get_refcnt(py) == 2);
-            drop(escaped_ref);
-            assert!(obj.get_refcnt(py) == 1);
-            drop(obj);
+            // Clone the object without the GIL which should panic
+            py.allow_threads(|| obj.clone());
         });
     }
 
@@ -794,146 +753,6 @@ mod tests {
             let c = obj.clone();
             assert_eq!(count + 1, c.get_refcnt(py));
         })
-    }
-
-    #[cfg(all(not(feature = "disable-reference-pool"), not(target_arch = "wasm32")))]
-    struct Event {
-        set: sync::Mutex<bool>,
-        wait: sync::Condvar,
-    }
-
-    #[cfg(all(not(feature = "disable-reference-pool"), not(target_arch = "wasm32")))]
-    impl Event {
-        const fn new() -> Self {
-            Self {
-                set: sync::Mutex::new(false),
-                wait: sync::Condvar::new(),
-            }
-        }
-
-        fn set(&self) {
-            *self.set.lock().unwrap() = true;
-            self.wait.notify_all();
-        }
-
-        fn wait(&self) {
-            drop(
-                self.wait
-                    .wait_while(self.set.lock().unwrap(), |s| !*s)
-                    .unwrap(),
-            );
-        }
-    }
-
-    #[test]
-    #[cfg(all(not(feature = "disable-reference-pool"), not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
-    fn test_clone_without_gil() {
-        use crate::{Py, PyAny};
-        use std::{sync::Arc, thread};
-
-        // Some events for synchronizing
-        static GIL_ACQUIRED: Event = Event::new();
-        static OBJECT_CLONED: Event = Event::new();
-        static REFCNT_CHECKED: Event = Event::new();
-
-        Python::with_gil(|py| {
-            let obj: Arc<Py<PyAny>> = Arc::new(get_object(py));
-            let thread_obj = Arc::clone(&obj);
-
-            let count = obj.get_refcnt(py);
-            println!(
-                "1: The object has been created and its reference count is {}",
-                count
-            );
-
-            let handle = thread::spawn(move || {
-                Python::with_gil(move |py| {
-                    println!("3. The GIL has been acquired on another thread.");
-                    GIL_ACQUIRED.set();
-
-                    // Wait while the main thread registers obj in POOL
-                    OBJECT_CLONED.wait();
-                    println!("5. Checking refcnt");
-                    assert_eq!(thread_obj.get_refcnt(py), count);
-
-                    REFCNT_CHECKED.set();
-                })
-            });
-
-            let cloned = py.allow_threads(|| {
-                println!("2. The GIL has been released.");
-
-                // Wait until the GIL has been acquired on the thread.
-                GIL_ACQUIRED.wait();
-
-                println!("4. The other thread is now hogging the GIL, we clone without it held");
-                // Cloning without GIL should not update reference count
-                let cloned = Py::clone(&*obj);
-                OBJECT_CLONED.set();
-                cloned
-            });
-
-            REFCNT_CHECKED.wait();
-
-            println!("6. The main thread has acquired the GIL again and processed the pool.");
-
-            // Total reference count should be one higher
-            assert_eq!(obj.get_refcnt(py), count + 1);
-
-            // Clone dropped
-            drop(cloned);
-            // Ensure refcount of the arc is 1
-            handle.join().unwrap();
-
-            // Overall count is now back to the original, and should be no pending change
-            assert_eq!(Arc::try_unwrap(obj).unwrap().get_refcnt(py), count);
-        });
-    }
-
-    #[test]
-    #[cfg(all(not(feature = "disable-reference-pool"), not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
-    fn test_clone_in_other_thread() {
-        use crate::Py;
-        use std::{sync::Arc, thread};
-
-        // Some events for synchronizing
-        static OBJECT_CLONED: Event = Event::new();
-
-        let (obj, count, ptr) = Python::with_gil(|py| {
-            let obj = Arc::new(get_object(py));
-            let count = obj.get_refcnt(py);
-            let thread_obj = Arc::clone(&obj);
-
-            // Start a thread which does not have the GIL, and clone it
-            let t = thread::spawn(move || {
-                // Cloning without GIL should not update reference count
-                #[allow(clippy::redundant_clone)]
-                let _ = Py::clone(&*thread_obj);
-                OBJECT_CLONED.set();
-            });
-
-            OBJECT_CLONED.wait();
-            assert_eq!(count, obj.get_refcnt(py));
-
-            t.join().unwrap();
-            let ptr = NonNull::new(obj.as_ptr()).unwrap();
-
-            // The pointer should appear once in the incref pool, and once in the
-            // decref pool (for the clone being created and also dropped)
-            assert!(POOL.pointer_ops.lock().unwrap().0.contains(&ptr));
-            assert!(POOL.pointer_ops.lock().unwrap().1.contains(&ptr));
-
-            (obj, count, ptr)
-        });
-
-        Python::with_gil(|py| {
-            // Acquiring the gil clears the pool
-            assert!(!POOL.pointer_ops.lock().unwrap().0.contains(&ptr));
-            assert!(!POOL.pointer_ops.lock().unwrap().1.contains(&ptr));
-
-            // Overall count is still unchanged
-            assert_eq!(count, obj.get_refcnt(py));
-        });
     }
 
     #[test]

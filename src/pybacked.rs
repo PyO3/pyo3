@@ -13,7 +13,7 @@ use crate::{
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
 ///
 /// This type gives access to the underlying data via a `Deref` implementation.
-#[derive(Clone)]
+#[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedStr {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: Py<PyAny>,
@@ -88,7 +88,7 @@ impl FromPyObject<'_> for PyBackedStr {
 /// A wrapper around `[u8]` where the storage is either owned by a Python `bytes` object, or a Rust `Box<[u8]>`.
 ///
 /// This type gives access to the underlying data via a `Deref` implementation.
-#[derive(Clone)]
+#[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedBytes {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: PyBackedBytesStorage,
@@ -96,7 +96,7 @@ pub struct PyBackedBytes {
 }
 
 #[allow(dead_code)]
-#[derive(Clone)]
+#[cfg_attr(feature = "py-clone", derive(Clone))]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
     Rust(Arc<[u8]>),
