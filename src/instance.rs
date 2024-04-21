@@ -81,10 +81,11 @@ where
     /// struct Foo {/* fields omitted */}
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<Py<Foo>> {
+    /// let foo: Py<Foo> = Python::with_gil(|py| -> PyResult<_> {
     ///     let foo: Bound<'_, Foo> = Bound::new(py, Foo {})?;
     ///     Ok(foo.into())
     /// })?;
+    /// # Python::with_gil(move |_py| drop(foo));
     /// # Ok(())
     /// # }
     /// ```
@@ -935,10 +936,11 @@ where
     /// struct Foo {/* fields omitted */}
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<Py<Foo>> {
+    /// let foo = Python::with_gil(|py| -> PyResult<_> {
     ///     let foo: Py<Foo> = Py::new(py, Foo {})?;
     ///     Ok(foo)
     /// })?;
+    /// # Python::with_gil(move |_py| drop(foo));
     /// # Ok(())
     /// # }
     /// ```
@@ -1244,6 +1246,7 @@ where
     /// });
     ///
     /// cell.get().value.fetch_add(1, Ordering::Relaxed);
+    /// # Python::with_gil(move |_py| drop(cell));
     /// ```
     #[inline]
     pub fn get(&self) -> &T
@@ -2042,7 +2045,9 @@ mod tests {
             Py::from(native)
         });
 
-        assert_eq!(Python::with_gil(|py| dict.get_refcnt(py)), 1);
+        Python::with_gil(move |py| {
+            assert_eq!(dict.get_refcnt(py), 1);
+        });
     }
 
     #[test]

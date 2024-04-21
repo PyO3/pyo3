@@ -685,7 +685,7 @@ drop(second);
 
 The replacement is [`Python::with_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.with_gil) which is more cumbersome but enforces the proper nesting by design, e.g.
 
-```rust
+```rust,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -710,7 +710,7 @@ let second = Python::with_gil(|py| Object::new(py));
 drop(first);
 drop(second);
 
-// Or it ensure releasing the inner lock before the outer one.
+// Or it ensures releasing the inner lock before the outer one.
 Python::with_gil(|py| {
     let first = Object::new(py);
     let second = Python::with_gil(|py| Object::new(py));

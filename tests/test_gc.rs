@@ -445,6 +445,7 @@ impl DropDuringTraversal {
     }
 }
 
+#[cfg(not(feature = "disable-reference-pool"))]
 #[test]
 fn drop_during_traversal_with_gil() {
     let drop_called = Arc::new(AtomicBool::new(false));
@@ -476,6 +477,7 @@ fn drop_during_traversal_with_gil() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
+#[cfg(not(feature = "disable-reference-pool"))]
 #[test]
 fn drop_during_traversal_without_gil() {
     let drop_called = Arc::new(AtomicBool::new(false));
