@@ -65,7 +65,7 @@ futures = "0.3.28"
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.21.2", features = ["resolve-config"] }
 
 [features]
-default = ["macros", "reference-pool"]
+default = ["macros"]
 
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
 experimental-async = ["macros", "pyo3-macros/experimental-async"]
@@ -108,8 +108,8 @@ auto-initialize = []
 # Allows use of the deprecated "GIL Refs" APIs.
 gil-refs = []
 
-# Allows `Clone`ing references to Python objects without the GIL being held.
-reference-pool = []
+# Disables global reference pool which allows `Drop`ing references to Python objects without the GIL being held.
+disable-reference-pool = []
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
