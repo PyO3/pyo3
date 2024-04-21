@@ -1,4 +1,4 @@
-#![cfg(not(any(PyPy, GraalPy)))]
+#![cfg(not(any(PyPy, GraalPy)))] // Due to use of append_to_inittab!
 use std::fmt::Debug;
 
 use proc_macro::TokenStream as TokenStream1;
