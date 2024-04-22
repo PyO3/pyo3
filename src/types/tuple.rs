@@ -59,12 +59,10 @@ pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyT
 impl PyTuple {
     /// Deprecated form of `PyTuple::new_bound`.
     #[track_caller]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTuple::new` will be replaced by `PyTuple::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTuple::new` will be replaced by `PyTuple::new_bound` in a future PyO3 version"
     )]
     pub fn new<T, U>(
         py: Python<'_>,
@@ -117,12 +115,10 @@ impl PyTuple {
     }
 
     /// Deprecated form of `PyTuple::empty_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTuple::empty` will be replaced by `PyTuple::empty_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTuple::empty` will be replaced by `PyTuple::empty_bound` in a future PyO3 version"
     )]
     pub fn empty(py: Python<'_>) -> &PyTuple {
         Self::empty_bound(py).into_gil_ref()
@@ -832,24 +828,23 @@ tuple_conversion!(
 );
 
 #[cfg(test)]
-#[allow(deprecated)] // TODO: remove allow when GIL Pool is removed
 mod tests {
-    use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyAny, PyList, PyTuple};
+    use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
     use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
     fn test_new() {
         Python::with_gil(|py| {
-            let ob = PyTuple::new(py, [1, 2, 3]);
+            let ob = PyTuple::new_bound(py, [1, 2, 3]);
             assert_eq!(3, ob.len());
-            let ob: &PyAny = ob.into();
+            let ob = ob.as_any();
             assert_eq!((1, 2, 3), ob.extract().unwrap());
 
             let mut map = HashSet::new();
             map.insert(1);
             map.insert(2);
-            PyTuple::new(py, map);
+            PyTuple::new_bound(py, map);
         });
     }
 
@@ -857,10 +852,10 @@ mod tests {
     fn test_len() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             assert_eq!(3, tuple.len());
             assert!(!tuple.is_empty());
-            let ob: &PyAny = tuple.into();
+            let ob = tuple.as_any();
             assert_eq!((1, 2, 3), ob.extract().unwrap());
         });
     }
@@ -868,7 +863,7 @@ mod tests {
     #[test]
     fn test_empty() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::empty(py);
+            let tuple = PyTuple::empty_bound(py);
             assert!(tuple.is_empty());
             assert_eq!(0, tuple.len());
         });
@@ -877,7 +872,7 @@ mod tests {
     #[test]
     fn test_slice() {
         Python::with_gil(|py| {
-            let tup = PyTuple::new(py, [2, 3, 5, 7]);
+            let tup = PyTuple::new_bound(py, [2, 3, 5, 7]);
             let slice = tup.get_slice(1, 3);
             assert_eq!(2, slice.len());
             let slice = tup.get_slice(1, 7);
@@ -889,7 +884,7 @@ mod tests {
     fn test_iter() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter();
 
@@ -913,7 +908,7 @@ mod tests {
     fn test_iter_rev() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter().rev();
 
@@ -983,7 +978,7 @@ mod tests {
     fn test_into_iter() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             assert_eq!(3, tuple.len());
 
             for (i, item) in tuple.iter().enumerate() {
@@ -1014,7 +1009,7 @@ mod tests {
     fn test_as_slice() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
 
             let slice = tuple.as_slice();
             assert_eq!(3, slice.len());
@@ -1092,7 +1087,7 @@ mod tests {
     fn test_tuple_get_item_invalid_index() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             let obj = tuple.get_item(5);
             assert!(obj.is_err());
             assert_eq!(
@@ -1106,7 +1101,7 @@ mod tests {
     fn test_tuple_get_item_sanity() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             let obj = tuple.get_item(0);
             assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
         });
@@ -1117,13 +1112,15 @@ mod tests {
     fn test_tuple_get_item_unchecked_sanity() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             let obj = unsafe { tuple.get_item_unchecked(0) };
             assert_eq!(obj.extract::<i32>().unwrap(), 1);
         });
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
+    #[allow(deprecated)]
     fn test_tuple_index_trait() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1136,6 +1133,8 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(feature = "gil-refs")]
+    #[allow(deprecated)]
     fn test_tuple_index_trait_panic() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1145,6 +1144,8 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
+    #[allow(deprecated)]
     fn test_tuple_index_trait_ranges() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1165,6 +1166,8 @@ mod tests {
 
     #[test]
     #[should_panic = "range start index 5 out of range for tuple of length 3"]
+    #[cfg(feature = "gil-refs")]
+    #[allow(deprecated)]
     fn test_tuple_index_trait_range_panic_start() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1175,6 +1178,8 @@ mod tests {
 
     #[test]
     #[should_panic = "range end index 10 out of range for tuple of length 3"]
+    #[cfg(feature = "gil-refs")]
+    #[allow(deprecated)]
     fn test_tuple_index_trait_range_panic_end() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1185,6 +1190,8 @@ mod tests {
 
     #[test]
     #[should_panic = "slice index starts at 2 but ends at 1"]
+    #[cfg(feature = "gil-refs")]
+    #[allow(deprecated)]
     fn test_tuple_index_trait_range_panic_wrong_order() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1196,6 +1203,8 @@ mod tests {
 
     #[test]
     #[should_panic = "range start index 8 out of range for tuple of length 3"]
+    #[cfg(feature = "gil-refs")]
+    #[allow(deprecated)]
     fn test_tuple_index_trait_range_from_panic() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
@@ -1208,7 +1217,7 @@ mod tests {
     fn test_tuple_contains() {
         Python::with_gil(|py| {
             let ob = (1, 1, 2, 3, 5, 8).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             assert_eq!(6, tuple.len());
 
             let bad_needle = 7i32.to_object(py);
@@ -1226,7 +1235,7 @@ mod tests {
     fn test_tuple_index() {
         Python::with_gil(|py| {
             let ob = (1, 1, 2, 3, 5, 8).to_object(py);
-            let tuple: &PyTuple = ob.downcast(py).unwrap();
+            let tuple = ob.downcast_bound::<PyTuple>(py).unwrap();
             assert_eq!(0, tuple.index(1i32).unwrap());
             assert_eq!(2, tuple.index(2i32).unwrap());
             assert_eq!(3, tuple.index(3i32).unwrap());
@@ -1263,7 +1272,7 @@ mod tests {
     fn too_long_iterator() {
         Python::with_gil(|py| {
             let iter = FaultyIter(0..usize::MAX, 73);
-            let _tuple = PyTuple::new(py, iter);
+            let _tuple = PyTuple::new_bound(py, iter);
         })
     }
 
@@ -1274,7 +1283,7 @@ mod tests {
     fn too_short_iterator() {
         Python::with_gil(|py| {
             let iter = FaultyIter(0..35, 73);
-            let _tuple = PyTuple::new(py, iter);
+            let _tuple = PyTuple::new_bound(py, iter);
         })
     }
 
@@ -1286,14 +1295,14 @@ mod tests {
         Python::with_gil(|py| {
             let iter = FaultyIter(0..0, usize::MAX);
 
-            let _tuple = PyTuple::new(py, iter);
+            let _tuple = PyTuple::new_bound(py, iter);
         })
     }
 
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks() {
-        use crate::{IntoPy, Py};
+        use crate::{IntoPy, Py, PyAny};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -1346,7 +1355,7 @@ mod tests {
         Python::with_gil(|py| {
             std::panic::catch_unwind(|| {
                 let iter = FaultyIter(0..50, 50);
-                let _tuple = PyTuple::new(py, iter);
+                let _tuple = PyTuple::new_bound(py, iter);
             })
             .unwrap_err();
         });
@@ -1361,7 +1370,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks_2() {
-        use crate::{IntoPy, Py};
+        use crate::{IntoPy, Py, PyAny};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -1412,9 +1421,9 @@ mod tests {
     #[test]
     fn test_tuple_to_list() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new(py, vec![1, 2, 3]);
+            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
             let list = tuple.to_list();
-            let list_expected = PyList::new(py, vec![1, 2, 3]);
+            let list_expected = PyList::new_bound(py, vec![1, 2, 3]);
             assert!(list.eq(list_expected).unwrap());
         })
     }
