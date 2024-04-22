@@ -160,7 +160,7 @@ fn ascii_object_bitfield() {
 }
 
 #[test]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ascii() {
     Python::with_gil(|py| {
@@ -202,7 +202,7 @@ fn ascii() {
 }
 
 #[test]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ucs4() {
     Python::with_gil(|py| {
