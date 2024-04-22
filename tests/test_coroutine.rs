@@ -1,13 +1,14 @@
 #![cfg(feature = "experimental-async")]
 #![cfg(not(target_arch = "wasm32"))]
-use std::{task::Poll, thread, time::Duration};
+use std::{sync::Arc, task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};
 use portable_atomic::{AtomicBool, Ordering};
 use pyo3::{
-    coroutine::CancelHandle,
+    coroutine::{CancelHandle, Coroutine},
     prelude::*,
     py_run,
+    sync::GILOnceCell,
     types::{IntoPyDict, PyType},
 };
 
@@ -319,4 +320,55 @@ fn test_async_method_receiver_with_other_args() {
         let locals = [("Value", gil.get_type_bound::<Value>())].into_py_dict_bound(gil);
         py_run!(gil, *locals, &common::asyncio_windows(test));
     });
+}
+
+#[test]
+fn multi_thread_event_loop() {
+    Python::with_gil(|gil| {
+        let sleep = wrap_pyfunction_bound!(sleep, gil).unwrap();
+        let test = r#"
+        import asyncio
+        import threading
+        loop = asyncio.new_event_loop()
+        # spawn the sleep task and run just one iteration of the event loop
+        # to schedule the sleep wakeup
+        task = loop.create_task(sleep(0.1))
+        loop.stop()
+        loop.run_forever()
+        assert not task.done()
+        # spawn a thread to complete the execution of the sleep task
+        def target(loop, task):
+            loop.run_until_complete(task)
+        thread = threading.Thread(target=target, args=(loop, task))
+        thread.start()
+        thread.join()
+        assert task.result() == 42
+        "#;
+        py_run!(gil, sleep, &common::asyncio_windows(test));
+    })
+}
+
+#[test]
+fn closed_event_loop() {
+    let waker = Arc::new(GILOnceCell::new());
+    let waker2 = waker.clone();
+    let future = poll_fn(move |cx| {
+        Python::with_gil(|gil| waker2.set(gil, cx.waker().clone()).unwrap());
+        Poll::Pending::<PyResult<()>>
+    });
+    Python::with_gil(|gil| {
+        let register_waker = Coroutine::new("register_waker", future).into_py(gil);
+        let test = r#"
+        import asyncio
+        loop = asyncio.new_event_loop()
+        # register a waker by spawning a task and polling it once, then close the loop
+        task = loop.create_task(register_waker)
+        loop.stop()
+        loop.run_forever()
+        loop.close()
+        "#;
+        py_run!(gil, register_waker, &common::asyncio_windows(test));
+        // asyncio waker can be used even if the event loop is closed
+        Python::with_gil(|gil| waker.get(gil).unwrap().wake_by_ref())
+    })
 }

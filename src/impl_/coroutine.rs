@@ -1,38 +1,9 @@
-use std::{
-    future::Future,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use crate::{
-    coroutine::{Coroutine, ThrowCallback},
-    instance::Bound,
-    marker::Ungil,
-    pycell::impl_::PyClassBorrowChecker,
-    pyclass::boolean_struct::False,
-    types::{PyAnyMethods, PyString},
-    IntoPy, Py, PyAny, PyClass, PyErr, PyObject, PyResult, Python,
+    instance::Bound, pycell::impl_::PyClassBorrowChecker, pyclass::boolean_struct::False,
+    types::PyAnyMethods, Py, PyAny, PyClass, PyResult, Python,
 };
-
-pub fn new_coroutine<F, T, E>(
-    name: &Bound<'_, PyString>,
-    qualname_prefix: Option<&'static str>,
-    throw_callback: Option<ThrowCallback>,
-    allow_threads: bool,
-    future: F,
-) -> Coroutine
-where
-    F: Future<Output = Result<T, E>> + Send + Ungil + 'static,
-    T: IntoPy<PyObject> + Send + Ungil,
-    E: Into<PyErr> + Send + Ungil,
-{
-    Coroutine::new(
-        Some(name.clone().into()),
-        qualname_prefix,
-        throw_callback,
-        allow_threads,
-        future,
-    )
-}
 
 fn get_ptr<T: PyClass>(obj: &Py<T>) -> *mut T {
     obj.get_class_object().get_ptr()
