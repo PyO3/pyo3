@@ -186,8 +186,11 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
         };
         py_ModuleNotFoundErrormsgs.push("Failed to import ".to_string() + &py_modulename);
         py_moduleidents.push(Ident::new(&py_modulename, Span::call_site()));
-                py_modulenames.push(py_modulename);
-        o3_pymoduleidents.push(Ident::new(&("".to_string() + &pyo3import.o3_moduleident.to_string() + "_pymodule"), Span::call_site()));
+        py_modulenames.push(py_modulename);
+        o3_pymoduleidents.push(Ident::new(
+            &("".to_string() + &pyo3import.o3_moduleident.to_string() + "_pymodule"),
+            Span::call_site(),
+        ));
         o3_moduleidents.push(pyo3import.o3_moduleident);
     }
 
