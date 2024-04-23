@@ -435,6 +435,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_mapping_try_from() {
         use crate::PyTryFrom;
