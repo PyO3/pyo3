@@ -1,4 +1,4 @@
-#![cfg(all(feature = "testing", not(any(PyPy, GraalPy))))]
+#![cfg(all(feature = "testing", not(any(PyPy, GraalPy, Py_3_7, Py_3_8))))]
 use pyo3::{prelude::*, types::PyDict};
 
 // The example from the Guide ...

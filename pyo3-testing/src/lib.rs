@@ -1,4 +1,4 @@
-#![cfg(not(any(PyPy, GraalPy)))] // Due to use of append_to_inittab!
+#![cfg(not(any(PyPy, GraalPy, Py_3_7, Py_3_8)))] // See src/impl_/pymodule.rs:127
 use std::fmt::Debug;
 
 use proc_macro::TokenStream as TokenStream1;
@@ -11,15 +11,15 @@ use syn::{
     Attribute, Ident, ItemFn, Signature, Stmt, Token,
 };
 
-/// A proc macro which takes a function (the "testcase") designed to test either a #[pyo3module] or a #[pyo3function],
+/// A proc macro which takes a function (the "testcase") designed to test either a `#[pyo3module]` or a `#[pyo3function]`,
 /// imports the pyo3module and pyo3function so they are accessible to python and executes the body of
 /// the testcase within the Python GIL.
 ///
-/// The #[pyo3module] and #[pyo3function] are exposed to rust as functions named using the names exposed to python
-/// e.g. as defined by #[pyo3(name = pythonname)] - see [Using Rust from Python in the guide][2];
+/// The `#[pyo3module]` and `#[pyo3function]` are exposed to rust as functions named using the names exposed to python
+/// e.g. as defined by `#[pyo3(name = pythonname)]` - see [Using Rust from Python in the guide][2];
 /// and can be called within the testcase using the `.call()` methods described in [Calling Python functions][3]
 ///
-/// For full usage details see [testing section of the guide][1].
+/// For full usage details see the [testing section of the guide][1].
 ///
 /// [1]: https://pyo3.rs/latest/testing.html
 /// [2]: https://pyo3.rs/latest/rust-from-python
