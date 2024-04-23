@@ -20,6 +20,7 @@
     )
 )))]
 #![deny(
+    clippy::implicit_clone,
     clippy::inefficient_to_string,
     clippy::map_unwrap_or,
     clippy::type_repetition_in_bounds

@@ -152,7 +152,7 @@ impl From<Bound<'_, PyBytes>> for PyBackedBytes {
         let b = py_bytes.as_bytes();
         let data = NonNull::from(b);
         Self {
-            storage: PyBackedBytesStorage::Python(py_bytes.to_owned().unbind()),
+            storage: PyBackedBytesStorage::Python(py_bytes.clone().unbind()),
             data,
         }
     }
