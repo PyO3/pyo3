@@ -9,7 +9,7 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), feature = "gil-refs"))]
 pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
