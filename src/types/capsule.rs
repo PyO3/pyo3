@@ -47,12 +47,10 @@ pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::P
 
 impl PyCapsule {
     /// Deprecated form of [`PyCapsule::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCapsule::new` will be replaced by `PyCapsule::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCapsule::new` will be replaced by `PyCapsule::new_bound` in a future PyO3 version"
     )]
     pub fn new<T: 'static + Send + AssertNotZeroSized>(
         py: Python<'_>,
@@ -102,12 +100,10 @@ impl PyCapsule {
     }
 
     /// Deprecated form of [`PyCapsule::new_bound_with_destructor`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCapsule::new_with_destructor` will be replaced by `PyCapsule::new_bound_with_destructor` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCapsule::new_with_destructor` will be replaced by `PyCapsule::new_bound_with_destructor` in a future PyO3 version"
     )]
     pub fn new_with_destructor<
         T: 'static + Send + AssertNotZeroSized,
@@ -441,7 +437,6 @@ fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use libc::c_void;
 
