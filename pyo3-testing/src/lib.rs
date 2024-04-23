@@ -199,17 +199,31 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
         #testfn_signature {
             pyo3::prepare_freethreaded_python();
             Python::with_gil(|py| {
+
+                // from sys import modules as sys_modules
                 let sys = PyModule::import_bound(py, "sys").unwrap();
                 let sys_modules: Bound<'_, PyDict> =
                     sys.getattr("modules").unwrap().downcast_into().unwrap();
-                #(let #o3_pymoduleidents = unsafe { Bound::from_owned_ptr(py, #o3_moduleidents::__pyo3_init()) };
-                sys_modules
-                    .set_item(#py_modulenames, #o3_pymoduleidents)
-                    .expect(#py_ModuleNotFoundErrormsgs);
-                let #py_moduleidents = sys_modules.get_item(#py_modulenames).unwrap().unwrap();)*
+
+                #( // for each module to import
+
+                    // create the PyModule and bind it to our GIL token `py`
+                    let #o3_pymoduleidents = unsafe { Bound::from_owned_ptr(py, #o3_moduleidents::__pyo3_init()) };
+
+                    // insert module into sys_modules
+                    sys_modules
+                        .set_item(#py_modulenames, #o3_pymoduleidents)
+                        .expect(#py_ModuleNotFoundErrormsgs);
+
+                    // and get it back - cannot fail as we just put it there
+                    let #py_moduleidents = sys_modules.get_item(#py_modulenames).unwrap().unwrap();
+                )*
+
+                // assign each wrapped function to a rust Ident of the same name
                 #(let #py_functionidents = #py_moduleswithfnsidents
-                    .getattr(#py_functionnames) // import the wrapped function
+                    .getattr(#py_functionnames)
                     .expect(#py_AttributeErrormsgs);)*
+
                 #(#testfn_statements)*
             });
         }
