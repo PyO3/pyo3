@@ -165,6 +165,7 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
     //This is safe as the order of a Vec is guaranteed, so we will not mismatch fields from different
     //imports (but note the two different Vecs `py_moduleidents` and `py_moduleswithfnsidents`).
     let mut o3_moduleidents = Vec::<Ident>::new();
+    let mut o3_pymoduleidents = Vec::<Ident>::new();
     let mut py_moduleidents = Vec::<Ident>::new();
     let mut py_modulenames = Vec::<String>::new();
     let mut py_ModuleNotFoundErrormsgs = Vec::<String>::new();
@@ -185,7 +186,8 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
         };
         py_ModuleNotFoundErrormsgs.push("Failed to import ".to_string() + &py_modulename);
         py_moduleidents.push(Ident::new(&py_modulename, Span::call_site()));
-        py_modulenames.push(py_modulename);
+                py_modulenames.push(py_modulename);
+        o3_pymoduleidents.push(Ident::new(&("".to_string() + &pyo3import.o3_moduleident.to_string() + "_pymodule"), Span::call_site()));
         o3_moduleidents.push(pyo3import.o3_moduleident);
     }
 
@@ -195,12 +197,16 @@ fn wrap_testcase(mut testcase: Pyo3TestCase) -> TokenStream2 {
     let mut testfn: ItemFn = parse_quote!(
         #[test]
         #testfn_signature {
-            #(pyo3::append_to_inittab!(#o3_moduleidents);)* // allow python to import from each wrapped module
             pyo3::prepare_freethreaded_python();
             Python::with_gil(|py| {
-                #(let #py_moduleidents = py
-                    .import_bound(#py_modulenames) // import the wrapped module
-                    .expect(#py_ModuleNotFoundErrormsgs);)*
+                let sys = PyModule::import_bound(py, "sys").unwrap();
+                let py_modules: Bound<'_, PyDict> =
+                    sys.getattr("modules").unwrap().downcast_into().unwrap();
+                #(let #o3_pymoduleidents = unsafe { Bound::from_owned_ptr(py, #o3_moduleidents::__pyo3_init()) };
+                py_modules
+                    .set_item(#py_modulenames, #o3_pymoduleidents)
+                    .expect(#py_ModuleNotFoundErrormsgs);
+                let #py_moduleidents = py_modules.get_item(#py_modulenames).unwrap().unwrap();)*
                 #(let #py_functionidents = #py_moduleswithfnsidents
                     .getattr(#py_functionnames) // import the wrapped function
                     .expect(#py_AttributeErrormsgs);)*
@@ -249,12 +255,16 @@ mod tests {
         let expected = quote! {
             #[test]
             fn test_fizzbuzz() {
-                pyo3::append_to_inittab!(py_fizzbuzzo3);
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
-                    let fizzbuzzo3 = py
-                    .import_bound("fizzbuzzo3")
-                    .expect("Failed to import fizzbuzzo3");
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
+                    let py_fizzbuzzo3_pymodule = unsafe { Bound::from_owned_ptr(py, py_fizzbuzzo3::__pyo3_init()) };
+                    py_modules
+                        .set_item("fizzbuzzo3", py_fizzbuzzo3_pymodule)
+                        .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzzo3 = py_modules.get_item("fizzbuzzo3").unwrap().unwrap();
                     let fizzbuzz = fizzbuzzo3
                     .getattr("fizzbuzz")
                     .expect("Failed to get fizzbuzz function");
@@ -282,12 +292,16 @@ mod tests {
         let expected = quote! {
             #[test]
             fn pytest() {
-                pyo3::append_to_inittab!(foo_o3);
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
-                    let pyfoo = py
-                    .import_bound("pyfoo")
-                    .expect("Failed to import pyfoo");
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
+                    let foo_o3_pymodule = unsafe { Bound::from_owned_ptr(py, foo_o3::__pyo3_init()) };
+                    py_modules
+                        .set_item("pyfoo", foo_o3_pymodule)
+                        .expect("Failed to import pyfoo");
+                    let pyfoo = py_modules.get_item("pyfoo").unwrap().unwrap();
                     let pybar = pyfoo
                     .getattr("pybar")
                     .expect("Failed to get pybar function");
@@ -315,12 +329,16 @@ mod tests {
         let expected: TokenStream2 = quote! {
             #[test]
             fn test_fizzbuzz() {
-                pyo3::append_to_inittab!(py_fizzbuzzo3);
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
-                    let fizzbuzzo3 = py
-                    .import_bound("fizzbuzzo3")
-                    .expect("Failed to import fizzbuzzo3");
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
+                    let py_fizzbuzzo3_pymodule = unsafe { Bound::from_owned_ptr(py, py_fizzbuzzo3::__pyo3_init()) };
+                    py_modules
+                        .set_item("fizzbuzzo3", py_fizzbuzzo3_pymodule)
+                        .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzzo3 = py_modules.get_item("fizzbuzzo3").unwrap().unwrap();
                     let fizzbuzz = fizzbuzzo3
                     .getattr("fizzbuzz")
                     .expect("Failed to get fizzbuzz function");
@@ -351,6 +369,9 @@ mod tests {
             fn pytest() {
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
                     assert!(true)
                 });
             }
@@ -364,7 +385,7 @@ mod tests {
     fn test_multiple_imports() {
         let testcase: TokenStream2 = quote! {
             #[pyo3import(py_fizzbuzzo3: from fizzbuzzo3 import fizzbuzz)]
-            #[pyo3import(py_foo_o3: from foo_o3 import bar)]
+            #[pyo3import(foo_o3: from pyfoo import pybar)]
             fn test_fizzbuzz() {
                 assert!(true)
             }
@@ -373,22 +394,27 @@ mod tests {
         let expected: TokenStream2 = quote! {
             #[test]
             fn test_fizzbuzz() {
-                pyo3::append_to_inittab!(py_fizzbuzzo3);
-                pyo3::append_to_inittab!(py_foo_o3);
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
-                    let fizzbuzzo3 = py
-                    .import_bound("fizzbuzzo3")
-                    .expect("Failed to import fizzbuzzo3");
-                    let foo_o3 = py
-                    .import_bound("foo_o3")
-                    .expect("Failed to import foo_o3");
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
+                    let py_fizzbuzzo3_pymodule = unsafe { Bound::from_owned_ptr(py, py_fizzbuzzo3::__pyo3_init()) };
+                    py_modules
+                        .set_item("fizzbuzzo3", py_fizzbuzzo3_pymodule)
+                        .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzzo3 = py_modules.get_item("fizzbuzzo3").unwrap().unwrap();
+                    let foo_o3_pymodule = unsafe { Bound::from_owned_ptr(py, foo_o3::__pyo3_init()) };
+                    py_modules
+                        .set_item("pyfoo", foo_o3_pymodule)
+                        .expect("Failed to import pyfoo");
+                    let pyfoo = py_modules.get_item("pyfoo").unwrap().unwrap();
                     let fizzbuzz = fizzbuzzo3
                     .getattr("fizzbuzz")
                     .expect("Failed to get fizzbuzz function");
-                    let bar = foo_o3
-                    .getattr("bar")
-                    .expect("Failed to get bar function");
+                    let pybar = pyfoo
+                    .getattr("pybar")
+                    .expect("Failed to get pybar function");
                     assert!(true)
                 });
             }
@@ -404,7 +430,7 @@ mod tests {
         let testcase: TokenStream2 = quote! {
             #[pyo3import(py_fizzbuzzo3: from fizzbuzzo3 import fizzbuzz)]
             #[anotherattribute]
-            #[pyo3import(py_foo_o3: from foo_o3 import bar)]
+            #[pyo3import(foo_o3: from pyfoo import pybar)]
             fn test_fizzbuzz() {
                 assert!(true)
             }
@@ -414,22 +440,27 @@ mod tests {
             #[test]
             #[anotherattribute]
             fn test_fizzbuzz() {
-                pyo3::append_to_inittab!(py_fizzbuzzo3);
-                pyo3::append_to_inittab!(py_foo_o3);
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
-                    let fizzbuzzo3 = py
-                    .import_bound("fizzbuzzo3")
-                    .expect("Failed to import fizzbuzzo3");
-                    let foo_o3 = py
-                    .import_bound("foo_o3")
-                    .expect("Failed to import foo_o3");
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
+                    let py_fizzbuzzo3_pymodule = unsafe { Bound::from_owned_ptr(py, py_fizzbuzzo3::__pyo3_init()) };
+                    py_modules
+                        .set_item("fizzbuzzo3", py_fizzbuzzo3_pymodule)
+                        .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzzo3 = py_modules.get_item("fizzbuzzo3").unwrap().unwrap();
+                    let foo_o3_pymodule = unsafe { Bound::from_owned_ptr(py, foo_o3::__pyo3_init()) };
+                    py_modules
+                        .set_item("pyfoo", foo_o3_pymodule)
+                        .expect("Failed to import pyfoo");
+                    let pyfoo = py_modules.get_item("pyfoo").unwrap().unwrap();
                     let fizzbuzz = fizzbuzzo3
                     .getattr("fizzbuzz")
                     .expect("Failed to get fizzbuzz function");
-                    let bar = foo_o3
-                    .getattr("bar")
-                    .expect("Failed to get bar function");
+                    let pybar = pyfoo
+                    .getattr("pybar")
+                    .expect("Failed to get pybar function");
                     assert!(true)
                 });
             }
@@ -454,12 +485,16 @@ mod tests {
         let expected = quote! {
             #[test]
             fn pytest() {
-                pyo3::append_to_inittab!(foo_o3);
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
-                    let pyfoo = py
-                    .import_bound("pyfoo")
-                    .expect("Failed to import pyfoo");
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
+                    let foo_o3_pymodule = unsafe { Bound::from_owned_ptr(py, foo_o3::__pyo3_init()) };
+                    py_modules
+                        .set_item("pyfoo", foo_o3_pymodule)
+                        .expect("Failed to import pyfoo");
+                    let pyfoo = py_modules.get_item("pyfoo").unwrap().unwrap();
                     assert!(true)
                 });
             }
@@ -475,8 +510,8 @@ mod tests {
         let attr = quote! {};
 
         let input = quote! {
-            #[pyo3import(foo_o3: import pyfoo)]
-            #[pyo3import(bar_o3: from pybar import bang)]
+            #[pyo3import(py_fizzbuzzo3: import fizzbuzzo3)]
+            #[pyo3import(foo_o3: from pyfoo import pybar)]
             fn pytest() {
                 assert!(true)
             }
@@ -485,19 +520,25 @@ mod tests {
         let expected = quote! {
             #[test]
             fn pytest() {
-                pyo3::append_to_inittab!(foo_o3);
-                pyo3::append_to_inittab!(bar_o3);
                 pyo3::prepare_freethreaded_python();
                 Python::with_gil(|py| {
-                    let pyfoo = py
-                    .import_bound("pyfoo")
-                    .expect("Failed to import pyfoo");
-                    let pybar = py
-                    .import_bound("pybar")
-                    .expect("Failed to import pybar");
-                    let bang = pybar
-                    .getattr("bang")
-                    .expect("Failed to get bang function");
+                    let sys = PyModule::import_bound(py, "sys").unwrap();
+                    let py_modules: Bound<'_, PyDict> =
+                        sys.getattr("modules").unwrap().downcast_into().unwrap();
+                    let py_fizzbuzzo3_pymodule = unsafe { Bound::from_owned_ptr(py, py_fizzbuzzo3::__pyo3_init()) };
+                    py_modules
+                        .set_item("fizzbuzzo3", py_fizzbuzzo3_pymodule)
+                        .expect("Failed to import fizzbuzzo3");
+                    let fizzbuzzo3 = py_modules.get_item("fizzbuzzo3").unwrap().unwrap();
+                    let foo_o3_pymodule = unsafe { Bound::from_owned_ptr(py, foo_o3::__pyo3_init()) };
+                    py_modules
+                        .set_item("pyfoo", foo_o3_pymodule)
+                        .expect("Failed to import pyfoo");
+                    let pyfoo = py_modules.get_item("pyfoo").unwrap().unwrap();
+                    let pybar = pyfoo
+                    .getattr("pybar")
+                    .expect("Failed to get pybar function");
+
                     assert!(true)
                 });
             }
