@@ -1,4 +1,4 @@
-#![cfg(not(any(PyPy, GraalPy, Py_3_7, Py_3_8)))] // See src/impl_/pymodule.rs:127
+#![cfg(not(any(PyPy, GraalPy, Py_3_7, Py_3_8, all(windows, Py_LIMITED_API, Py_3_9))))] // See src/impl_/pymodule.rs:127
 use std::fmt::Debug;
 
 use proc_macro::TokenStream as TokenStream1;
