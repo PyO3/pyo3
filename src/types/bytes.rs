@@ -91,7 +91,7 @@ impl PyBytes {
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytestring in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
-            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
+            init(std::slice::from_raw_parts_mut(buffer, len)).map(|()| pybytes)
         }
     }
 

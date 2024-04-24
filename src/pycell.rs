@@ -404,7 +404,7 @@ impl<T: PyClass> PyCell<T> {
         self.0
             .borrow_checker()
             .try_borrow_unguarded()
-            .map(|_: ()| &*self.0.get_ptr())
+            .map(|()| &*self.0.get_ptr())
     }
 
     /// Provide an immutable borrow of the value `T` without acquiring the GIL.
@@ -662,7 +662,7 @@ impl<'py, T: PyClass> PyRef<'py, T> {
         cell.ensure_threadsafe();
         cell.borrow_checker()
             .try_borrow()
-            .map(|_| Self { inner: obj.clone() })
+            .map(|()| Self { inner: obj.clone() })
     }
 
     pub(crate) fn try_borrow_threadsafe(obj: &Bound<'py, T>) -> Result<Self, PyBorrowError> {
@@ -670,7 +670,7 @@ impl<'py, T: PyClass> PyRef<'py, T> {
         cell.check_threadsafe()?;
         cell.borrow_checker()
             .try_borrow()
-            .map(|_| Self { inner: obj.clone() })
+            .map(|()| Self { inner: obj.clone() })
     }
 }
 
@@ -859,7 +859,7 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
         cell.ensure_threadsafe();
         cell.borrow_checker()
             .try_borrow_mut()
-            .map(|_| Self { inner: obj.clone() })
+            .map(|()| Self { inner: obj.clone() })
     }
 }
 

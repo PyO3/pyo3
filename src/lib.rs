@@ -20,6 +20,7 @@
     )
 )))]
 #![deny(
+    clippy::ignored_unit_patterns,
     clippy::implicit_clone,
     clippy::inefficient_to_string,
     clippy::map_unwrap_or,
