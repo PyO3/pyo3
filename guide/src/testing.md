@@ -9,6 +9,7 @@ This chapter of the Guide explains:
 - [How to test your functionality](#testing-your-functionality-in-rust)
 - [Testing your wrapping with `#[pyo3test]`](#testing-your-wrapped-functions-in-rust)
 - [Final integration testing in Python](#testing-the-final-integration-in-python)
+- [Compatibility with older Python versions (CI)](#compatibility-with-older-python-versions)
 
 ## Structuring for testability
 
@@ -199,3 +200,14 @@ dev = [
 ```
 
 and then run `pip install -e .[dev]`
+
+## Compatibility with older Python versions
+
+Due to limitations in older Python interpreters the `#[pyo3test]` macro can only be used with cPython >= 3.9,
+it is also not compatible with PyPy or GraalPy. This is because the macro attempts to (re-)initialise your
+wrapped `PyModule` for each test case and this is not handled well in older versions if done in the same
+interpreter instance.
+
+Your wrapped code can still be built for, and used in, other versions of Python as per standard Pyo3 compatibility.
+You should ensure that any automated CI tasks which run on multiple versions of Python skip these tests where
+applicable and only execute the rust unit tests and python-side integration tests.
