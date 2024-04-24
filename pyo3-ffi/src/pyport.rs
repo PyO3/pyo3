@@ -11,8 +11,8 @@ pub type Py_ssize_t = ::libc::ssize_t;
 pub type Py_hash_t = Py_ssize_t;
 pub type Py_uhash_t = ::libc::size_t;
 
-pub const PY_SSIZE_T_MIN: Py_ssize_t = std::isize::MIN as Py_ssize_t;
-pub const PY_SSIZE_T_MAX: Py_ssize_t = std::isize::MAX as Py_ssize_t;
+pub const PY_SSIZE_T_MIN: Py_ssize_t = isize::MIN as Py_ssize_t;
+pub const PY_SSIZE_T_MAX: Py_ssize_t = isize::MAX as Py_ssize_t;
 
 #[cfg(target_endian = "big")]
 pub const PY_BIG_ENDIAN: usize = 1;

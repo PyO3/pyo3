@@ -252,7 +252,7 @@ macro_rules! pyobject_native_type_info(
 
         impl $name {
             #[doc(hidden)]
-            const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
+            pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
         }
     };
 );

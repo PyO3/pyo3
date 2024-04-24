@@ -246,12 +246,24 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
 - `Bound<PyString>::to_str` now borrows from the `Bound<PyString>` rather than from the `'py` lifetime, so code will need to store the smart pointer as a value in some cases where previously `&PyString` was just used as a temporary. (There are some more details relating to this in [the section below](#deactivating-the-gil-refs-feature).)
+- `.extract::<&str>()` now borrows from the source Python object. The simplest way to update is to change to `.extract::<PyBackedStr>()`, which retains ownership of the Python reference. See more information [in the section on deactivating the `gil-refs` feature](#deactivating-the-gil-refs-feature).
 
-To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+To convert between `&PyAny` and `&Bound<PyAny>` use the `as_borrowed()` method:
 
 ```rust,ignore
 let gil_ref: &PyAny = ...;
 let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
+```
+
+To convert between `Py<T>` and `Bound<T>` use the `bind()` / `into_bound()` methods, and `as_unbound()` / `unbind()` to go back from `Bound<T>` to `Py<T>`.
+
+```rust,ignore
+let obj: Py<PyList> = ...;
+let bound: &Bound<'py, PyList> = obj.bind(py);
+let bound: Bound<'py, PyList> = obj.into_bound(py);
+
+let obj: &Py<PyList> = bound.as_unbound();
+let obj: Py<PyList> = bound.unbind();
 ```
 
 <div class="warning">
@@ -324,6 +336,8 @@ At this point code that needed to manage GIL Ref memory can safely remove uses o
 There is just one case of code that changes upon disabling these features: `FromPyObject` trait implementations for types that borrow directly from the input data cannot be implemented by PyO3 without GIL Refs (while the GIL Refs API is in the process of being removed). The main types affected are `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>`.
 
 To make PyO3's core functionality continue to work while the GIL Refs API is in the process of being removed, disabling the `gil-refs` feature moves the implementations of `FromPyObject` for `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>` to a new temporary trait `FromPyObjectBound`. This trait is the expected future form of `FromPyObject` and has an additional lifetime `'a` to enable these types to borrow data from Python objects.
+
+PyO3 0.21 has introduced the [`PyBackedStr`]({{#PYO3_DOCS_URL}}/pyo3/pybacked/struct.PyBackedStr.html) and [`PyBackedBytes`]({{#PYO3_DOCS_URL}}/pyo3/pybacked/struct.PyBackedBytes.html) types to help with this case. The easiest way to avoid lifetime challenges from extracting `&str` is to use these. For more complex types like `Vec<&str>`, is now impossible to extract directly from a Python object and `Vec<PyBackedStr>` is the recommended upgrade path.
 
 A key thing to note here is because extracting to these types now ties them to the input lifetime, some extremely common patterns may need to be split into multiple Rust lines. For example, the following snippet of calling `.extract::<&str>()` directly on the result of `.getattr()` needs to be adjusted when deactivating the `gil-refs-migration` feature.
 

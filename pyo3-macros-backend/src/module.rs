@@ -249,6 +249,7 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
 
             #initialization
 
+            #[allow(unknown_lints, non_local_definitions)]
             impl MakeDef {
                 const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
                     use #pyo3_path::impl_::pymodule as impl_;
@@ -324,6 +325,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
 
     Ok(quote! {
         #function
+        #[doc(hidden)]
         #vis mod #ident {
             #initialization
         }
@@ -332,6 +334,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pymodule] is
         // inside a function body)
+        #[allow(unknown_lints, non_local_definitions)]
         impl #ident::MakeDef {
             const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
                 fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
@@ -379,10 +382,7 @@ fn module_initialization(options: PyModuleOptions, ident: &syn::Ident) -> TokenS
 fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn) -> Result<()> {
     let ctx = &Ctx::new(&options.krate);
     let Ctx { pyo3_path } = ctx;
-    let mut stmts: Vec<syn::Stmt> = vec![syn::parse_quote!(
-        #[allow(unknown_lints, unused_imports, redundant_imports)]
-        use #pyo3_path::{PyNativeType, types::PyModuleMethods};
-    )];
+    let mut stmts: Vec<syn::Stmt> = Vec::new();
 
     for mut stmt in func.block.stmts.drain(..) {
         if let syn::Stmt::Item(Item::Fn(func)) = &mut stmt {
@@ -392,7 +392,11 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.as_borrowed().add_function(#pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
+                    {
+                        #[allow(unknown_lints, unused_imports, redundant_imports)]
+                        use #pyo3_path::{PyNativeType, types::PyModuleMethods};
+                        #module_name.as_borrowed().add_function(#pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
+                    }
                 };
                 stmts.extend(statements);
             }

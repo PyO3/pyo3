@@ -136,12 +136,10 @@ pyobject_native_type_core!(PyString, pyobject_native_static_type_object!(ffi::Py
 
 impl PyString {
     /// Deprecated form of [`PyString::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyString::new` will be replaced by `PyString::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyString::new` will be replaced by `PyString::new_bound` in a future PyO3 version"
     )]
     pub fn new<'py>(py: Python<'py>, s: &str) -> &'py Self {
         Self::new_bound(py, s).into_gil_ref()
@@ -161,12 +159,10 @@ impl PyString {
     }
 
     /// Deprecated form of [`PyString::intern_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyString::intern` will be replaced by `PyString::intern_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyString::intern` will be replaced by `PyString::intern_bound` in a future PyO3 version"
     )]
     pub fn intern<'py>(py: Python<'py>, s: &str) -> &'py Self {
         Self::intern_bound(py, s).into_gil_ref()
@@ -176,8 +172,8 @@ impl PyString {
     ///
     /// This will return a reference to the same Python string object if called repeatedly with the same string.
     ///
-    /// Note that while this is more memory efficient than [`PyString::new`], it unconditionally allocates a
-    /// temporary Python string object and is thereby slower than [`PyString::new`].
+    /// Note that while this is more memory efficient than [`PyString::new_bound`], it unconditionally allocates a
+    /// temporary Python string object and is thereby slower than [`PyString::new_bound`].
     ///
     /// Panics if out of memory.
     pub fn intern_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
@@ -193,12 +189,10 @@ impl PyString {
     }
 
     /// Deprecated form of [`PyString::from_object_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyString::from_object` will be replaced by `PyString::from_object_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyString::from_object` will be replaced by `PyString::from_object_bound` in a future PyO3 version"
     )]
     pub fn from_object<'py>(src: &'py PyAny, encoding: &str, errors: &str) -> PyResult<&'py Self> {
         Self::from_object_bound(&src.as_borrowed(), encoding, errors).map(Bound::into_gil_ref)
@@ -502,37 +496,37 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
     use crate::{PyObject, ToPyObject};
 
     #[test]
-    fn test_to_str_utf8() {
+    fn test_to_cow_utf8() {
         Python::with_gil(|py| {
             let s = "ascii 🐈";
-            let obj: PyObject = PyString::new(py, s).into();
-            let py_string: &PyString = obj.downcast(py).unwrap();
-            assert_eq!(s, py_string.to_str().unwrap());
+            let py_string = PyString::new_bound(py, s);
+            assert_eq!(s, py_string.to_cow().unwrap());
         })
     }
 
     #[test]
-    fn test_to_str_surrogate() {
+    fn test_to_cow_surrogate() {
         Python::with_gil(|py| {
-            let obj: PyObject = py.eval(r"'\ud800'", None, None).unwrap().into();
-            let py_string: &PyString = obj.downcast(py).unwrap();
-            assert!(py_string.to_str().is_err());
+            let py_string = py
+                .eval_bound(r"'\ud800'", None, None)
+                .unwrap()
+                .downcast_into::<PyString>()
+                .unwrap();
+            assert!(py_string.to_cow().is_err());
         })
     }
 
     #[test]
-    fn test_to_str_unicode() {
+    fn test_to_cow_unicode() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
-            let obj: PyObject = PyString::new(py, s).into();
-            let py_string: &PyString = obj.downcast(py).unwrap();
-            assert_eq!(s, py_string.to_str().unwrap());
+            let py_string = PyString::new_bound(py, s);
+            assert_eq!(s, py_string.to_cow().unwrap());
         })
     }
 
@@ -548,7 +542,7 @@ mod tests {
     #[test]
     fn test_encode_utf8_surrogate() {
         Python::with_gil(|py| {
-            let obj: PyObject = py.eval(r"'\ud800'", None, None).unwrap().into();
+            let obj: PyObject = py.eval_bound(r"'\ud800'", None, None).unwrap().into();
             assert!(obj
                 .bind(py)
                 .downcast::<PyString>()
@@ -561,11 +555,12 @@ mod tests {
     #[test]
     fn test_to_string_lossy() {
         Python::with_gil(|py| {
-            let obj: PyObject = py
-                .eval(r"'🐈 Hello \ud800World'", None, None)
+            let py_string = py
+                .eval_bound(r"'🐈 Hello \ud800World'", None, None)
                 .unwrap()
-                .into();
-            let py_string: &PyString = obj.downcast(py).unwrap();
+                .downcast_into::<PyString>()
+                .unwrap();
+
             assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
         })
     }
@@ -574,7 +569,7 @@ mod tests {
     fn test_debug_string() {
         Python::with_gil(|py| {
             let v = "Hello\n".to_object(py);
-            let s: &PyString = v.downcast(py).unwrap();
+            let s = v.downcast_bound::<PyString>(py).unwrap();
             assert_eq!(format!("{:?}", s), "'Hello\\n'");
         })
     }
@@ -583,7 +578,7 @@ mod tests {
     fn test_display_string() {
         Python::with_gil(|py| {
             let v = "Hello\n".to_object(py);
-            let s: &PyString = v.downcast(py).unwrap();
+            let s = v.downcast_bound::<PyString>(py).unwrap();
             assert_eq!(format!("{}", s), "Hello\n");
         })
     }
@@ -592,7 +587,7 @@ mod tests {
     #[cfg(not(Py_LIMITED_API))]
     fn test_string_data_ucs1() {
         Python::with_gil(|py| {
-            let s = PyString::new(py, "hello, world");
+            let s = PyString::new_bound(py, "hello, world");
             let data = unsafe { s.data().unwrap() };
 
             assert_eq!(data, PyStringData::Ucs1(b"hello, world"));
@@ -615,11 +610,13 @@ mod tests {
                 )
             };
             assert!(!ptr.is_null());
-            let s: &PyString = unsafe { py.from_owned_ptr(ptr) };
+            let s = unsafe { ptr.assume_owned(py).downcast_into_unchecked::<PyString>() };
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
-            assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err
+                .get_type_bound(py)
+                .is(&py.get_type_bound::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
@@ -631,7 +628,7 @@ mod tests {
     #[cfg(not(Py_LIMITED_API))]
     fn test_string_data_ucs2() {
         Python::with_gil(|py| {
-            let s = py.eval("'foo\\ud800'", None, None).unwrap();
+            let s = py.eval_bound("'foo\\ud800'", None, None).unwrap();
             let py_string = s.downcast::<PyString>().unwrap();
             let data = unsafe { py_string.data().unwrap() };
 
@@ -657,11 +654,13 @@ mod tests {
                 )
             };
             assert!(!ptr.is_null());
-            let s: &PyString = unsafe { py.from_owned_ptr(ptr) };
+            let s = unsafe { ptr.assume_owned(py).downcast_into_unchecked::<PyString>() };
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err
+                .get_type_bound(py)
+                .is(&py.get_type_bound::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-16' codec can't decode bytes in position 0-3"));
@@ -674,7 +673,7 @@ mod tests {
     fn test_string_data_ucs4() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
-            let py_string = PyString::new(py, s);
+            let py_string = PyString::new_bound(py, s);
             let data = unsafe { py_string.data().unwrap() };
 
             assert_eq!(data, PyStringData::Ucs4(&[21704, 21704, 128008]));
@@ -696,11 +695,13 @@ mod tests {
                 )
             };
             assert!(!ptr.is_null());
-            let s: &PyString = unsafe { py.from_owned_ptr(ptr) };
+            let s = unsafe { ptr.assume_owned(py).downcast_into_unchecked::<PyString>() };
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
+            assert!(err
+                .get_type_bound(py)
+                .is(&py.get_type_bound::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));
@@ -711,16 +712,16 @@ mod tests {
     #[test]
     fn test_intern_string() {
         Python::with_gil(|py| {
-            let py_string1 = PyString::intern(py, "foo");
-            assert_eq!(py_string1.to_str().unwrap(), "foo");
+            let py_string1 = PyString::intern_bound(py, "foo");
+            assert_eq!(py_string1.to_cow().unwrap(), "foo");
 
-            let py_string2 = PyString::intern(py, "foo");
-            assert_eq!(py_string2.to_str().unwrap(), "foo");
+            let py_string2 = PyString::intern_bound(py, "foo");
+            assert_eq!(py_string2.to_cow().unwrap(), "foo");
 
             assert_eq!(py_string1.as_ptr(), py_string2.as_ptr());
 
-            let py_string3 = PyString::intern(py, "bar");
-            assert_eq!(py_string3.to_str().unwrap(), "bar");
+            let py_string3 = PyString::intern_bound(py, "bar");
+            assert_eq!(py_string3.to_cow().unwrap(), "bar");
 
             assert_ne!(py_string1.as_ptr(), py_string3.as_ptr());
         });
@@ -730,7 +731,7 @@ mod tests {
     fn test_py_to_str_utf8() {
         Python::with_gil(|py| {
             let s = "ascii 🐈";
-            let py_string: Py<PyString> = PyString::new(py, s).into_py(py);
+            let py_string: Py<PyString> = PyString::new_bound(py, s).into_py(py);
 
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert_eq!(s, py_string.to_str(py).unwrap());
@@ -742,8 +743,11 @@ mod tests {
     #[test]
     fn test_py_to_str_surrogate() {
         Python::with_gil(|py| {
-            let py_string: Py<PyString> =
-                py.eval(r"'\ud800'", None, None).unwrap().extract().unwrap();
+            let py_string: Py<PyString> = py
+                .eval_bound(r"'\ud800'", None, None)
+                .unwrap()
+                .extract()
+                .unwrap();
 
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert!(py_string.to_str(py).is_err());
@@ -756,7 +760,7 @@ mod tests {
     fn test_py_to_string_lossy() {
         Python::with_gil(|py| {
             let py_string: Py<PyString> = py
-                .eval(r"'🐈 Hello \ud800World'", None, None)
+                .eval_bound(r"'🐈 Hello \ud800World'", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();

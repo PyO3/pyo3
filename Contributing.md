@@ -92,9 +92,7 @@ Here are a few things to note when you are writing PRs.
 
 ### Continuous Integration
 
-The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful.
-
-Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
+The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
@@ -102,6 +100,24 @@ If you are adding a new feature, you should add it to the `full` feature in our 
 
 You can run these tests yourself with
 `nox`. Use  `nox -l` to list the full set of subcommands you can run.
+
+#### Linting Python code
+`nox -s ruff`
+
+#### Linting Rust code
+`nox -s rustfmt`
+
+#### Semver checks
+`cargo semver-checks check-release`
+
+#### Clippy
+`nox -s clippy-all`
+
+#### Tests
+`cargo test --features full`
+
+#### Check all conditional compilation
+`nox -s check-feature-powerset`
 
 #### UI Tests
 
@@ -190,7 +206,7 @@ Second, there is a Python-based benchmark contained in the `pytests` subdirector
 
 You can view what code is and isn't covered by PyO3's tests. We aim to have 100% coverage - please check coverage and add tests if you notice a lack of coverage!
 
-- First, ensure the llmv-cov cargo plugin is installed. You may need to run the plugin through cargo once before using it with `nox`.
+- First, ensure the llvm-cov cargo plugin is installed. You may need to run the plugin through cargo once before using it with `nox`.
 ```shell
 cargo install cargo-llvm-cov
 cargo llvm-cov
