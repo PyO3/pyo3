@@ -38,6 +38,14 @@ impl MyClass {
 
     #[setter]
     fn set_bar_bound(&self, _value: &Bound<'_, PyAny>) {}
+
+    fn __eq__(&self, #[pyo3(from_py_with = "extract_gil_ref")] _other: i32) -> bool {
+        true
+    }
+
+    fn __contains__(&self, #[pyo3(from_py_with = "extract_bound")] _value: i32) -> bool {
+        true
+    }
 }
 
 fn main() {}

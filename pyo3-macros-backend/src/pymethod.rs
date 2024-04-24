@@ -1053,20 +1053,18 @@ impl Ty {
         ctx: &Ctx,
     ) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
-        let name_str = arg.name().unraw().to_string();
         match self {
             Ty::Object => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident },
-                arg.ty().span(),
                 ctx
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! {
                     if #ident.is_null() {
                         #pyo3_path::ffi::Py_None()
@@ -1074,23 +1072,20 @@ impl Ty {
                         #ident
                     }
                 },
-                arg.ty().span(),
                 ctx
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident.as_ptr() },
-                arg.ty().span(),
                 ctx
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident.as_ptr() },
-                arg.ty().span(),
                 ctx
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
@@ -1118,24 +1113,37 @@ impl Ty {
 fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
-    name: &str,
+    arg: &FnArg<'_>,
     source_ptr: TokenStream,
-    span: Span,
     ctx: &Ctx,
 ) -> TokenStream {
     let Ctx { pyo3_path } = ctx;
-    let holder = holders.push_holder(Span::call_site());
-    let gil_refs_checker = holders.push_gil_refs_checker(span);
-    let extracted = extract_error_mode.handle_error(
+    let gil_refs_checker = holders.push_gil_refs_checker(arg.ty().span());
+    let name = arg.name().unraw().to_string();
+
+    let extract = if let Some(from_py_with) =
+        arg.from_py_with().map(|from_py_with| &from_py_with.value)
+    {
+        let from_py_with_checker = holders.push_from_py_with_checker(from_py_with.span());
+        quote! {
+            #pyo3_path::impl_::extract_argument::from_py_with(
+                #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
+                #name,
+                #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &#from_py_with_checker) as fn(_) -> _,
+            )
+        }
+    } else {
+        let holder = holders.push_holder(Span::call_site());
         quote! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
                 &mut #holder,
                 #name
             )
-        },
-        ctx,
-    );
+        }
+    };
+
+    let extracted = extract_error_mode.handle_error(extract, ctx);
     quote! {
         #pyo3_path::impl_::deprecations::inspect_type(#extracted, &#gil_refs_checker)
     }
