@@ -22,7 +22,7 @@ use syn::{
 /// For full usage details see the [testing section of the guide][1].
 ///
 /// [1]: https://pyo3.rs/latest/testing.html
-/// [2]: https://pyo3.rs/latest/rust-from-python
+/// [2]: https://pyo3.rs/latest/rust-from-python.html
 /// [3]: https://pyo3.rs/latest/python-from-rust/function-calls.html#calling-python-functions
 #[proc_macro_attribute]
 pub fn pyo3test(attr: TokenStream1, input: TokenStream1) -> TokenStream1 {
