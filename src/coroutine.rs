@@ -1,5 +1,6 @@
 //! Python coroutine implementation, used notably when wrapping `async fn`
 //! with `#[pyfunction]`/`#[pymethods]`.
+use std::borrow::Cow;
 use std::{
     future::Future,
     panic,
@@ -11,28 +12,74 @@ use std::{
 use pyo3_macros::{pyclass, pymethods};
 
 use crate::{
-    coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
-    exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
+    coroutine::waker::CoroutineWaker,
+    exceptions::{PyGeneratorExit, PyRuntimeError, PyStopIteration},
+    marker::Ungil,
     panic::PanicException,
-    types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    types::PyString,
+    Bound, IntoPy, Py, PyErr, PyObject, PyResult, Python,
 };
 
-pub(crate) mod cancel;
+#[cfg(feature = "anyio")]
+mod anyio;
+mod asyncio;
+mod awaitable;
+mod cancel;
+#[cfg(feature = "anyio")]
+mod trio;
 mod waker;
 
-pub use cancel::CancelHandle;
+pub use awaitable::await_in_coroutine;
+pub use cancel::{CancelHandle, ThrowCallback};
 
 const COROUTINE_REUSED_ERROR: &str = "cannot reuse already awaited coroutine";
+
+pub(crate) enum CoroOp {
+    Send(PyObject),
+    Throw(PyObject),
+    Close,
+}
+
+trait CoroutineFuture: Send {
+    fn poll(
+        self: Pin<&mut Self>,
+        py: Python<'_>,
+        waker: &Waker,
+        allow_threads: bool,
+    ) -> Poll<PyResult<PyObject>>;
+}
+
+impl<F, T, E> CoroutineFuture for F
+where
+    F: Future<Output = Result<T, E>> + Send + Ungil,
+    T: IntoPy<PyObject> + Send + Ungil,
+    E: Into<PyErr> + Send + Ungil,
+{
+    fn poll(
+        self: Pin<&mut Self>,
+        py: Python<'_>,
+        waker: &Waker,
+        allow_threads: bool,
+    ) -> Poll<PyResult<PyObject>> {
+        if allow_threads {
+            py.allow_threads(|| self.poll(&mut Context::from_waker(waker)))
+        } else {
+            self.poll(&mut Context::from_waker(waker))
+        }
+        .map_ok(|obj| obj.into_py(py))
+        .map_err(Into::into)
+    }
+}
 
 /// Python coroutine wrapping a [`Future`].
 #[pyclass(crate = "crate")]
 pub struct Coroutine {
-    name: Option<Py<PyString>>,
+    future: Option<Pin<Box<dyn CoroutineFuture>>>,
+    name: Cow<'static, str>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
-    future: Option<Pin<Box<dyn Future<Output = PyResult<PyObject>> + Send>>>,
-    waker: Option<Arc<AsyncioWaker>>,
+    allow_threads: bool,
+    waker: Option<Arc<CoroutineWaker>>,
 }
 
 impl Coroutine {
@@ -41,120 +88,125 @@ impl Coroutine {
     /// Coroutine `send` polls the wrapped future, ignoring the value passed
     /// (should always be `None` anyway).
     ///
-    /// `Coroutine `throw` drop the wrapped future and reraise the exception passed
-    pub(crate) fn new<F, T, E>(
-        name: Option<Py<PyString>>,
-        qualname_prefix: Option<&'static str>,
-        throw_callback: Option<ThrowCallback>,
-        future: F,
-    ) -> Self
+    /// `Coroutine `throw` drop the wrapped future and reraise the exception passed.
+    pub fn new<F, T, E>(name: impl Into<Cow<'static, str>>, future: F) -> Self
     where
-        F: Future<Output = Result<T, E>> + Send + 'static,
-        T: IntoPy<PyObject>,
-        E: Into<PyErr>,
+        F: Future<Output = Result<T, E>> + Send + Ungil + 'static,
+        T: IntoPy<PyObject> + Send + Ungil,
+        E: Into<PyErr> + Send + Ungil,
     {
-        let wrap = async move {
-            let obj = future.await.map_err(Into::into)?;
-            // SAFETY: GIL is acquired when future is polled (see `Coroutine::poll`)
-            Ok(obj.into_py(unsafe { Python::assume_gil_acquired() }))
-        };
         Self {
-            name,
-            qualname_prefix,
-            throw_callback,
-            future: Some(Box::pin(wrap)),
+            future: Some(Box::pin(future)),
+            name: name.into(),
+            qualname_prefix: None,
+            throw_callback: None,
+            allow_threads: false,
             waker: None,
         }
     }
 
-    fn poll(&mut self, py: Python<'_>, throw: Option<PyObject>) -> PyResult<PyObject> {
+    /// Set a prefix for `__qualname__`, which will be joined with a "."
+    pub fn with_qualname_prefix(mut self, prefix: impl Into<Option<&'static str>>) -> Self {
+        self.qualname_prefix = prefix.into();
+        self
+    }
+
+    /// Register a callback for coroutine `throw` method.
+    ///
+    /// The exception passed to `throw` is then redirected to this callback, notifying the
+    /// associated [`CancelHandle`], without being reraised.
+    pub fn with_throw_callback(mut self, callback: impl Into<Option<ThrowCallback>>) -> Self {
+        self.throw_callback = callback.into();
+        self
+    }
+
+    /// Release the GIL while polling the future wrapped.
+    pub fn with_allow_threads(mut self, allow_threads: bool) -> Self {
+        self.allow_threads = allow_threads;
+        self
+    }
+
+    fn poll_inner(&mut self, py: Python<'_>, mut op: CoroOp) -> PyResult<PyObject> {
         // raise if the coroutine has already been run to completion
         let future_rs = match self.future {
             Some(ref mut fut) => fut,
             None => return Err(PyRuntimeError::new_err(COROUTINE_REUSED_ERROR)),
         };
-        // reraise thrown exception it
-        match (throw, &self.throw_callback) {
-            (Some(exc), Some(cb)) => cb.throw(exc),
-            (Some(exc), None) => {
-                self.close();
-                return Err(PyErr::from_value_bound(exc.into_bound(py)));
-            }
-            (None, _) => {}
+        // if the future is not pending on a Python awaitable,
+        // execute throw callback or complete on close
+        if !matches!(self.waker, Some(ref w) if w.is_delegated(py)) {
+            match op {
+                send @ CoroOp::Send(_) => op = send,
+                CoroOp::Throw(exc) => match &self.throw_callback {
+                    Some(cb) => {
+                        cb.throw(exc.clone_ref(py));
+                        op = CoroOp::Send(py.None());
+                    }
+                    None => return Err(PyErr::from_value_bound(exc.into_bound(py))),
+                },
+                CoroOp::Close => return Err(PyGeneratorExit::new_err(py.None())),
+            };
         }
         // create a new waker, or try to reset it in place
         if let Some(waker) = self.waker.as_mut().and_then(Arc::get_mut) {
-            waker.reset();
+            waker.reset(op);
         } else {
-            self.waker = Some(Arc::new(AsyncioWaker::new()));
+            self.waker = Some(Arc::new(CoroutineWaker::new(op)));
         }
-        let waker = Waker::from(self.waker.clone().unwrap());
-        // poll the Rust future and forward its results if ready
+        // poll the future and forward its results if ready; otherwise, yield from waker
         // polling is UnwindSafe because the future is dropped in case of panic
-        let poll = || future_rs.as_mut().poll(&mut Context::from_waker(&waker));
+        let waker = Waker::from(self.waker.clone().unwrap());
+        let poll = || future_rs.as_mut().poll(py, &waker, self.allow_threads);
         match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
-            Ok(Poll::Ready(res)) => {
-                self.close();
-                return Err(PyStopIteration::new_err(res?));
-            }
-            Err(err) => {
-                self.close();
-                return Err(PanicException::from_panic_payload(err));
-            }
-            _ => {}
+            Err(err) => Err(PanicException::from_panic_payload(err)),
+            Ok(Poll::Ready(res)) => Err(PyStopIteration::new_err(res?)),
+            Ok(Poll::Pending) => match self.waker.as_ref().unwrap().yield_(py) {
+                Ok(to_yield) => Ok(to_yield),
+                Err(err) => Err(err),
+            },
         }
-        // otherwise, initialize the waker `asyncio.Future`
-        if let Some(future) = self.waker.as_ref().unwrap().initialize_future(py)? {
-            // `asyncio.Future` must be awaited; fortunately, it implements `__iter__ = __await__`
-            // and will yield itself if its result has not been set in polling above
-            if let Some(future) = PyIterator::from_bound_object(&future.as_borrowed())
-                .unwrap()
-                .next()
-            {
-                // future has not been leaked into Python for now, and Rust code can only call
-                // `set_result(None)` in `Wake` implementation, so it's safe to unwrap
-                return Ok(future.unwrap().into());
-            }
+    }
+
+    fn poll(&mut self, py: Python<'_>, op: CoroOp) -> PyResult<PyObject> {
+        let result = self.poll_inner(py, op);
+        if result.is_err() {
+            // the Rust future is dropped, and the field set to `None`
+            // to indicate the coroutine has been run to completion
+            drop(self.future.take());
         }
-        // if waker has been waken during future polling, this is roughly equivalent to
-        // `await asyncio.sleep(0)`, so just yield `None`.
-        Ok(py.None().into_py(py))
+        result
     }
 }
 
 #[pymethods(crate = "crate")]
 impl Coroutine {
     #[getter]
-    fn __name__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
-        match &self.name {
-            Some(name) => Ok(name.clone_ref(py)),
-            None => Err(PyAttributeError::new_err("__name__")),
-        }
+    fn __name__<'py>(&self, py: Python<'py>) -> Bound<'py, PyString> {
+        PyString::new_bound(py, &self.name)
     }
 
     #[getter]
-    fn __qualname__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
-        match (&self.name, &self.qualname_prefix) {
-            (Some(name), Some(prefix)) => Ok(format!("{}.{}", prefix, name.bind(py).to_cow()?)
-                .as_str()
-                .into_py(py)),
-            (Some(name), None) => Ok(name.clone_ref(py)),
-            (None, _) => Err(PyAttributeError::new_err("__qualname__")),
-        }
+    fn __qualname__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
+        Ok(match &self.qualname_prefix {
+            Some(prefix) => PyString::new_bound(py, &format!("{}.{}", prefix, self.name)),
+            None => self.__name__(py),
+        })
     }
 
-    fn send(&mut self, py: Python<'_>, _value: &Bound<'_, PyAny>) -> PyResult<PyObject> {
-        self.poll(py, None)
+    fn send(&mut self, py: Python<'_>, value: PyObject) -> PyResult<PyObject> {
+        self.poll(py, CoroOp::Send(value))
     }
 
     fn throw(&mut self, py: Python<'_>, exc: PyObject) -> PyResult<PyObject> {
-        self.poll(py, Some(exc))
+        self.poll(py, CoroOp::Throw(exc))
     }
 
-    fn close(&mut self) {
-        // the Rust future is dropped, and the field set to `None`
-        // to indicate the coroutine has been run to completion
-        drop(self.future.take());
+    fn close(&mut self, py: Python<'_>) -> PyResult<()> {
+        match self.poll(py, CoroOp::Close) {
+            Ok(_) => Ok(()),
+            Err(err) if err.is_instance_of::<PyGeneratorExit>(py) => Ok(()),
+            Err(err) => Err(err),
+        }
     }
 
     fn __await__(self_: Py<Self>) -> Py<Self> {
@@ -162,6 +214,6 @@ impl Coroutine {
     }
 
     fn __next__(&mut self, py: Python<'_>) -> PyResult<PyObject> {
-        self.poll(py, None)
+        self.poll(py, CoroOp::Send(py.None()))
     }
 }

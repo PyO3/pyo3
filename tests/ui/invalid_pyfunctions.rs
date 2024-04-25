@@ -35,4 +35,10 @@ fn first_argument_not_module<'a, 'py>(
     module.name()
 }
 
+#[pyfunction(allow_threads)]
+fn allow_threads_with_gil(_py: Python<'_>) {}
+
+#[pyfunction(allow_threads)]
+fn allow_threads_with_bound(_obj: &Bound<'_, PyAny>) {}
+
 fn main() {}

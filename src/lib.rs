@@ -312,27 +312,29 @@
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 //! [`Ungil`]: crate::marker::Ungil
-pub use crate::class::*;
-pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[allow(deprecated)]
 pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
-pub use crate::err::{
-    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
-};
 #[allow(deprecated)]
 pub use crate::gil::GILPool;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::instance::{Borrowed, Bound, Py, PyNativeType, PyObject};
-pub use crate::marker::Python;
 #[allow(deprecated)]
 pub use crate::pycell::PyCell;
-pub use crate::pycell::{PyRef, PyRefMut};
-pub use crate::pyclass::PyClass;
-pub use crate::pyclass_init::PyClassInitializer;
-pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
-pub use crate::types::PyAny;
-pub use crate::version::PythonVersionInfo;
+pub use crate::{
+    class::*,
+    conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject},
+    err::{
+        DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
+    },
+    instance::{Borrowed, Bound, Py, PyNativeType, PyObject},
+    marker::Python,
+    pycell::{PyRef, PyRefMut},
+    pyclass::PyClass,
+    pyclass_init::PyClassInitializer,
+    type_object::{PyTypeCheck, PyTypeInfo},
+    types::PyAny,
+    version::PythonVersionInfo,
+};
 
 pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
@@ -347,7 +349,6 @@ pub(crate) mod sealed;
 /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
     pub use self::gc::{PyTraverseError, PyVisit};
-
     #[doc(hidden)]
     pub use self::methods::{
         PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
@@ -410,16 +411,15 @@ pub mod class {
     }
 }
 
+#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
+#[doc(hidden)]
+pub use inventory;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use {
     indoc,    // Re-exported for py_run
     unindent, // Re-exported for py_run
-};
-
-#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
-#[doc(hidden)]
-pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.
+}; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.
 
 /// Tests and helpers which reside inside PyO3's main library. Declared first so that macros
 /// are available in unit tests.
@@ -462,14 +462,7 @@ pub mod type_object;
 pub mod types;
 mod version;
 
-#[allow(unused_imports)] // with no features enabled this module has no public exports
-pub use crate::conversions::*;
-
-#[cfg(feature = "macros")]
-pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
-
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
-///
 #[doc = include_str!("../guide/pyclass-parameters.md")]
 ///
 /// For more on creating Python classes,
@@ -478,6 +471,11 @@ pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
 /// [1]: https://pyo3.rs/latest/class.html
 #[cfg(feature = "macros")]
 pub use pyo3_macros::pyclass;
+#[cfg(feature = "macros")]
+pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
+
+#[allow(unused_imports)] // with no features enabled this module has no public exports
+pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
 #[macro_use]
@@ -512,6 +510,7 @@ pub mod doc_test {
         "README.md" => readme_md,
         "guide/src/advanced.md" => guide_advanced_md,
         "guide/src/async-await.md" => guide_async_await_md,
+        "guide/src/async-await/awaiting_python_awaitables.md" => guide_async_await_awaiting_python_awaitable_md,
         "guide/src/building-and-distribution.md" => guide_building_and_distribution_md,
         "guide/src/building-and-distribution/multiple-python-versions.md" => guide_bnd_multiple_python_versions_md,
         "guide/src/class.md" => guide_class_md,

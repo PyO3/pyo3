@@ -6,6 +6,7 @@ use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::utils::Ctx;
 use crate::{
+    attributes,
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     deprecations::{Deprecation, Deprecations},
     params::{impl_arg_params, Holders},
@@ -379,6 +380,7 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub deprecations: Deprecations<'a>,
+    pub allow_threads: Option<attributes::kw::allow_threads>,
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -416,6 +418,7 @@ impl<'a> FnSpec<'a> {
             text_signature,
             name,
             signature,
+            allow_threads,
             ..
         } = options;
 
@@ -461,6 +464,7 @@ impl<'a> FnSpec<'a> {
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
             deprecations,
+            allow_threads,
         })
     }
 
@@ -603,6 +607,21 @@ impl<'a> FnSpec<'a> {
                 bail_spanned!(name.span() => "`cancel_handle` may only be specified once");
             }
         }
+        if let Some(FnArg::Py(py_arg)) = self
+            .signature
+            .arguments
+            .iter()
+            .find(|arg| matches!(arg, FnArg::Py(_)))
+        {
+            ensure_spanned!(
+                self.asyncness.is_none(),
+                py_arg.ty.span() => "GIL token cannot be passed to async function"
+            );
+            ensure_spanned!(
+                self.allow_threads.is_none(),
+                py_arg.ty.span() => "GIL cannot be held in function annotated with `allow_threads`"
+            );
+        }
 
         if self.asyncness.is_some() {
             ensure_spanned!(
@@ -612,8 +631,21 @@ impl<'a> FnSpec<'a> {
         }
 
         let rust_call = |args: Vec<TokenStream>, holders: &mut Holders| {
-            let mut self_arg = || self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
-
+            let allow_threads = self.allow_threads.is_some();
+            let mut self_arg = || {
+                let self_arg = self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
+                if self_arg.is_empty() {
+                    self_arg
+                } else {
+                    let self_checker = holders.push_gil_refs_checker(self_arg.span());
+                    quote! {
+                        #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                    }
+                }
+            };
+            let arg_names = (0..args.len())
+                .map(|i| format_ident!("arg_{}", i))
+                .collect::<Vec<_>>();
             let call = if self.asyncness.is_some() {
                 let throw_callback = if cancel_handle.is_some() {
                     quote! { Some(__throw_callback) }
@@ -625,9 +657,6 @@ impl<'a> FnSpec<'a> {
                     Some(cls) => quote!(Some(<#cls as #pyo3_path::PyTypeInfo>::NAME)),
                     None => quote!(None),
                 };
-                let arg_names = (0..args.len())
-                    .map(|i| format_ident!("arg_{}", i))
-                    .collect::<Vec<_>>();
                 let future = match self.tp {
                     FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
                         quote! {{
@@ -645,28 +674,18 @@ impl<'a> FnSpec<'a> {
                     }
                     _ => {
                         let self_arg = self_arg();
-                        if self_arg.is_empty() {
-                            quote! { function(#(#args),*) }
-                        } else {
-                            let self_checker = holders.push_gil_refs_checker(self_arg.span());
-                            quote! {
-                                function(
-                                    // NB #self_arg includes a comma, so none inserted here
-                                    #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
-                                    #(#args),*
-                                )
-                            }
-                        }
+                        quote!(function(#self_arg #(#args),*))
                     }
                 };
                 let mut call = quote! {{
                     let future = #future;
-                    #pyo3_path::impl_::coroutine::new_coroutine(
-                        #pyo3_path::intern!(py, stringify!(#python_name)),
-                        #qualname_prefix,
-                        #throw_callback,
+                    #pyo3_path::coroutine::Coroutine::new(
+                        stringify!(#python_name),
                         async move { #pyo3_path::impl_::wrap::OkWrap::wrap(future.await) },
                     )
+                    .with_qualname_prefix(#qualname_prefix)
+                    .with_throw_callback(#throw_callback)
+                    .with_allow_threads(#allow_threads)
                 }};
                 if cancel_handle.is_some() {
                     call = quote! {{
@@ -676,20 +695,21 @@ impl<'a> FnSpec<'a> {
                     }};
                 }
                 call
+            } else if allow_threads {
+                let self_arg = self_arg();
+                let (self_arg_name, self_arg_decl) = if self_arg.is_empty() {
+                    (quote!(), quote!())
+                } else {
+                    (quote!(__self,), quote! { let (__self,) = (#self_arg); })
+                };
+                quote! {{
+                    #self_arg_decl
+                    #(let #arg_names = #args;)*
+                    py.allow_threads(|| function(#self_arg_name #(#arg_names),*))
+                }}
             } else {
                 let self_arg = self_arg();
-                if self_arg.is_empty() {
-                    quote! { function(#(#args),*) }
-                } else {
-                    let self_checker = holders.push_gil_refs_checker(self_arg.span());
-                    quote! {
-                        function(
-                            // NB #self_arg includes a comma, so none inserted here
-                            #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
-                            #(#args),*
-                        )
-                    }
-                }
+                quote!(function(#self_arg #(#args),*))
             };
             quotes::map_result_into_ptr(quotes::ok_wrap(call, ctx), ctx)
         };

@@ -1,9 +1,13 @@
-use crate::{Py, PyAny, PyObject};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll, Waker},
+};
+
 use parking_lot::Mutex;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll, Waker};
+
+use crate::PyObject;
 
 #[derive(Debug, Default)]
 struct Inner {
@@ -45,30 +49,29 @@ impl CancelHandle {
 
     /// Retrieve the exception thrown in the associated coroutine.
     pub async fn cancelled(&mut self) -> PyObject {
+        // TODO use `std::future::poll_fn` with MSRV 1.64+
+        struct Cancelled<'a>(&'a mut CancelHandle);
+
+        impl Future for Cancelled<'_> {
+            type Output = PyObject;
+            fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+                self.0.poll_cancelled(cx)
+            }
+        }
         Cancelled(self).await
     }
 
-    #[doc(hidden)]
+    /// Instantiate a [`ThrowCallback`] associated to this cancel handle.
     pub fn throw_callback(&self) -> ThrowCallback {
         ThrowCallback(self.0.clone())
     }
 }
 
-// Because `poll_fn` is not available in MSRV
-struct Cancelled<'a>(&'a mut CancelHandle);
-
-impl Future for Cancelled<'_> {
-    type Output = PyObject;
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.0.poll_cancelled(cx)
-    }
-}
-
-#[doc(hidden)]
+/// Callback for coroutine `throw` method, notifying the associated [`CancelHandle`]
 pub struct ThrowCallback(Arc<Mutex<Inner>>);
 
 impl ThrowCallback {
-    pub(super) fn throw(&self, exc: Py<PyAny>) {
+    pub(super) fn throw(&self, exc: PyObject) {
         let mut inner = self.0.lock();
         inner.exception = Some(exc);
         if let Some(waker) = inner.waker.take() {

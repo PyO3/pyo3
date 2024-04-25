@@ -47,6 +47,12 @@ error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_modul
 28 | fn pass_module_but_no_arguments<'py>() {}
    |                                     ^^
 
+error: GIL cannot be held in function annotated with `allow_threads`
+  --> tests/ui/invalid_pyfunctions.rs:39:32
+   |
+39 | fn allow_threads_with_gil(_py: Python<'_>) {}
+   |                                ^^^^^^
+
 error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not satisfied
   --> tests/ui/invalid_pyfunctions.rs:32:13
    |
@@ -61,3 +67,54 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModu
              <String as From<&mut str>>
              <String as From<&String>>
    = note: required for `BoundRef<'_, '_, pyo3::prelude::PyModule>` to implement `Into<&str>`
+
+error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
+  --> tests/ui/invalid_pyfunctions.rs:41:1
+   |
+41 | #[pyfunction(allow_threads)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
+   |
+   = help: within `&pyo3::Bound<'_, pyo3::PyAny>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`, which is required by `{closure@$DIR/tests/ui/invalid_pyfunctions.rs:41:1: 41:29}: Ungil`
+note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: ?Sized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `impl_::not_send::NotSend`
+  --> src/impl_/not_send.rs
+   |
+   | pub(crate) struct NotSend(PhantomData<*mut Python<'static>>);
+   |                   ^^^^^^^
+   = note: required because it appears within the type `(&pyo3::gil::GILGuard, impl_::not_send::NotSend)`
+note: required because it appears within the type `PhantomData<(&pyo3::gil::GILGuard, impl_::not_send::NotSend)>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: ?Sized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `pyo3::Python<'_>`
+  --> src/marker.rs
+   |
+   | pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
+   |            ^^^^^^
+note: required because it appears within the type `pyo3::Bound<'_, pyo3::PyAny>`
+  --> src/instance.rs
+   |
+   | pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
+   |            ^^^^^
+   = note: required because it appears within the type `&pyo3::Bound<'_, pyo3::PyAny>`
+   = note: required for `&&pyo3::Bound<'_, pyo3::PyAny>` to implement `Send`
+note: required because it's used within this closure
+  --> tests/ui/invalid_pyfunctions.rs:41:1
+   |
+41 | #[pyfunction(allow_threads)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `{closure@$DIR/tests/ui/invalid_pyfunctions.rs:41:1: 41:29}` to implement `Ungil`
+note: required by a bound in `pyo3::Python::<'py>::allow_threads`
+  --> src/marker.rs
+   |
+   |     pub fn allow_threads<T, F>(self, f: F) -> T
+   |            ------------- required by a bound in this associated function
+   |     where
+   |         F: Ungil + FnOnce() -> T,
+   |            ^^^^^ required by this bound in `Python::<'py>::allow_threads`
+   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
