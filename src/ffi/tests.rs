@@ -2,11 +2,14 @@ use crate::ffi::*;
 use crate::types::any::PyAnyMethods;
 use crate::Python;
 
+#[cfg(all(PyPy, feature = "macros"))]
+use crate::types::PyString;
+
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+use crate::types::PyString;
+
 #[cfg(not(Py_LIMITED_API))]
-use crate::{
-    types::{PyDict, PyString},
-    Bound, IntoPy, Py, PyAny,
-};
+use crate::{types::PyDict, Bound, IntoPy, Py, PyAny};
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
 
