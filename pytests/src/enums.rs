@@ -39,11 +39,26 @@ pub fn do_simple_stuff(thing: &SimpleEnum) -> SimpleEnum {
 
 #[pyclass]
 pub enum ComplexEnum {
-    Int { i: i32 },
-    Float { f: f64 },
-    Str { s: String },
+    Int {
+        i: i32,
+    },
+    Float {
+        f: f64,
+    },
+    Str {
+        s: String,
+    },
     EmptyStruct {},
-    MultiFieldStruct { a: i32, b: f64, c: bool },
+    MultiFieldStruct {
+        a: i32,
+        b: f64,
+        c: bool,
+    },
+    #[pyo3(signature = (a = 42, b = None))]
+    VariantWithDefault {
+        a: i32,
+        b: Option<String>,
+    },
 }
 
 #[pyfunction]
@@ -57,6 +72,10 @@ pub fn do_complex_stuff(thing: &ComplexEnum) -> ComplexEnum {
             a: *a,
             b: *b,
             c: *c,
+        },
+        ComplexEnum::VariantWithDefault { a, b } => ComplexEnum::VariantWithDefault {
+            a: 2 * a,
+            b: b.as_ref().map(|s| s.to_uppercase()),
         },
     }
 }

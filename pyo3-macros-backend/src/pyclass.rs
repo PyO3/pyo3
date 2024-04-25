@@ -8,6 +8,7 @@ use crate::attributes::{
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
+use crate::pyfunction::SignatureAttribute;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -622,10 +623,12 @@ struct PyClassEnumVariantNamedField<'a> {
 /// `#[pyo3()]` options for pyclass enum variants
 struct EnumVariantPyO3Options {
     name: Option<NameAttribute>,
+    signature: Option<SignatureAttribute>,
 }
 
 enum EnumVariantPyO3Option {
     Name(NameAttribute),
+    Signature(SignatureAttribute),
 }
 
 impl Parse for EnumVariantPyO3Option {
@@ -633,6 +636,8 @@ impl Parse for EnumVariantPyO3Option {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::name) {
             input.parse().map(EnumVariantPyO3Option::Name)
+        } else if lookahead.peek(attributes::kw::signature) {
+            input.parse().map(EnumVariantPyO3Option::Signature)
         } else {
             Err(lookahead.error())
         }
@@ -641,7 +646,10 @@ impl Parse for EnumVariantPyO3Option {
 
 impl EnumVariantPyO3Options {
     fn take_pyo3_options(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
-        let mut options = EnumVariantPyO3Options { name: None };
+        let mut options = EnumVariantPyO3Options {
+            name: None,
+            signature: None,
+        };
 
         for option in take_pyo3_options(attrs)? {
             match option {
@@ -651,6 +659,13 @@ impl EnumVariantPyO3Options {
                         name.span() => "`name` may only be specified once"
                     );
                     options.name = Some(name);
+                }
+                EnumVariantPyO3Option::Signature(signature) => {
+                    ensure_spanned!(
+                        options.signature.is_none(),
+                        signature.span() => "`signature` may only be specified once"
+                    );
+                    options.signature = Some(signature);
                 }
             }
         }
@@ -691,6 +706,7 @@ fn impl_simple_enum(
 
     let (default_repr, default_repr_slot) = {
         let variants_repr = variants.iter().map(|variant| {
+            ensure_spanned!(variant.options.signature.is_none(), variant.options.signature.span() => "`signature` can't be used on a simple enum variant");
             let variant_name = variant.ident;
             // Assuming all variants are unit variants because they are the only type we support.
             let repr = format!(
@@ -698,12 +714,12 @@ fn impl_simple_enum(
                 get_class_python_name(cls, args),
                 variant.get_python_name(args),
             );
-            quote! { #cls::#variant_name => #repr, }
-        });
+            Ok(quote! { #cls::#variant_name => #repr, })
+        }).collect::<Result<TokenStream>>()?;
         let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
             fn __pyo3__repr__(&self) -> &'static str {
                 match self {
-                    #(#variants_repr)*
+                    #variants_repr
                 }
             }
         };
@@ -889,7 +905,7 @@ fn impl_complex_enum(
     let mut variant_cls_pytypeinfos = vec![];
     let mut variant_cls_pyclass_impls = vec![];
     let mut variant_cls_impls = vec![];
-    for variant in &variants {
+    for variant in variants {
         let variant_cls = gen_complex_enum_variant_class_ident(cls, variant.get_ident());
 
         let variant_cls_zst = quote! {
@@ -908,10 +924,10 @@ fn impl_complex_enum(
         let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, None, ctx);
         variant_cls_pytypeinfos.push(variant_cls_pytypeinfo);
 
-        let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
-
-        let (variant_cls_impl, field_getters) = impl_complex_enum_variant_cls(cls, variant, ctx)?;
+        let (variant_cls_impl, field_getters) = impl_complex_enum_variant_cls(cls, &variant, ctx)?;
         variant_cls_impls.push(variant_cls_impl);
+
+        let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
 
         let pyclass_impl = PyClassImplsBuilder::new(
             &variant_cls,
@@ -1120,7 +1136,7 @@ pub fn gen_complex_enum_variant_attr(
 
 fn complex_enum_variant_new<'a>(
     cls: &'a syn::Ident,
-    variant: &'a PyClassEnumVariant<'a>,
+    variant: PyClassEnumVariant<'a>,
     ctx: &Ctx,
 ) -> Result<MethodAndSlotDef> {
     match variant {
@@ -1132,7 +1148,7 @@ fn complex_enum_variant_new<'a>(
 
 fn complex_enum_struct_variant_new<'a>(
     cls: &'a syn::Ident,
-    variant: &'a PyClassEnumStructVariant<'a>,
+    variant: PyClassEnumStructVariant<'a>,
     ctx: &Ctx,
 ) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path } = ctx;
@@ -1162,7 +1178,12 @@ fn complex_enum_struct_variant_new<'a>(
         }
         args
     };
-    let signature = crate::pyfunction::FunctionSignature::from_arguments(args)?;
+
+    let signature = if let Some(signature) = variant.options.signature {
+        crate::pyfunction::FunctionSignature::from_arguments_and_attribute(args, signature)?
+    } else {
+        crate::pyfunction::FunctionSignature::from_arguments(args)?
+    };
 
     let spec = FnSpec {
         tp: crate::method::FnType::FnNew,
