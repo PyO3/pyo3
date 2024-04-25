@@ -568,7 +568,7 @@ impl<'v> crate::PyTryFrom<'v> for PySequence {
 #[cfg(test)]
 #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
-    use crate::types::{PyList, PySequence, PyTuple};
+    use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
     use crate::{PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
@@ -832,11 +832,11 @@ mod tests {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
             let w: Vec<i32> = vec![7, 4];
             let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
+            let seq = ob.downcast_bound::<PySequence>(py).unwrap();
             let ins = w.to_object(py);
-            seq.set_slice(1, 4, ins.as_ref(py)).unwrap();
+            seq.set_slice(1, 4, ins.bind(py)).unwrap();
             assert_eq!([1, 7, 4, 5, 8], seq.extract::<[i32; 5]>().unwrap());
-            seq.set_slice(3, 100, PyList::empty(py)).unwrap();
+            seq.set_slice(3, 100, &PyList::empty_bound(py)).unwrap();
             assert_eq!([1, 7, 4], seq.extract::<[i32; 3]>().unwrap());
         });
     }
@@ -981,8 +981,12 @@ mod tests {
         Python::with_gil(|py| {
             let v = vec!["foo", "bar"];
             let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            assert!(seq.to_list().unwrap().eq(PyList::new(py, &v)).unwrap());
+            let seq = ob.downcast_bound::<PySequence>(py).unwrap();
+            assert!(seq
+                .to_list()
+                .unwrap()
+                .eq(PyList::new_bound(py, &v))
+                .unwrap());
         });
     }
 
@@ -991,11 +995,11 @@ mod tests {
         Python::with_gil(|py| {
             let v = "foo";
             let ob = v.to_object(py);
-            let seq: &PySequence = ob.downcast(py).unwrap();
+            let seq = ob.downcast_bound::<PySequence>(py).unwrap();
             assert!(seq
                 .to_list()
                 .unwrap()
-                .eq(PyList::new(py, ["f", "o", "o"]))
+                .eq(PyList::new_bound(py, ["f", "o", "o"]))
                 .unwrap());
         });
     }
@@ -1073,6 +1077,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_seq_try_from() {
         use crate::PyTryFrom;

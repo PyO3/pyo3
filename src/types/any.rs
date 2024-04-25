@@ -2736,13 +2736,13 @@ class SimpleClass:
     #[test]
     fn test_is_empty() {
         Python::with_gil(|py| {
-            let empty_list: &PyAny = PyList::empty(py);
+            let empty_list = PyList::empty_bound(py).into_any();
             assert!(empty_list.is_empty().unwrap());
 
-            let list: &PyAny = PyList::new(py, vec![1, 2, 3]);
+            let list = PyList::new_bound(py, vec![1, 2, 3]).into_any();
             assert!(!list.is_empty().unwrap());
 
-            let not_container = 5.to_object(py).into_ref(py);
+            let not_container = 5.to_object(py).into_bound(py);
             assert!(not_container.is_empty().is_err());
         });
     }

@@ -60,7 +60,7 @@ To migrate, switch all type casts to use `obj.downcast()` instead of `try_from(o
 
 Before:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::{PyInt, PyList};
@@ -75,7 +75,7 @@ Python::with_gil(|py| {
 
 After:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::{PyInt, PyList};
 # fn main() -> PyResult<()> {
@@ -1089,7 +1089,7 @@ An additional advantage of using Rust's indexing conventions for these types is
 that these types can now also support Rust's indexing operators as part of a
 consistent API:
 
-```rust
+```rust,ignore
 #![allow(deprecated)]
 use pyo3::{Python, types::PyList};
 
