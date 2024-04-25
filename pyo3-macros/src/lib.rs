@@ -1,6 +1,7 @@
 //! This crate declares only the proc macro attributes, as a crate defining proc macro attributes
 //! must not contain any other public items.
 
+#![deny(clippy::all, clippy::pedantic, clippy::nursery)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
@@ -204,7 +205,7 @@ fn pymethods_impl(
     .into()
 }
 
-fn methods_type() -> PyClassMethodsType {
+const fn methods_type() -> PyClassMethodsType {
     if cfg!(feature = "multiple-pymethods") {
         PyClassMethodsType::Inventory
     } else {
@@ -218,6 +219,6 @@ trait UnwrapOrCompileError {
 
 impl UnwrapOrCompileError for syn::Result<TokenStream2> {
     fn unwrap_or_compile_error(self) -> TokenStream2 {
-        self.unwrap_or_else(|e| e.into_compile_error())
+        self.unwrap_or_else(syn::Error::into_compile_error)
     }
 }
