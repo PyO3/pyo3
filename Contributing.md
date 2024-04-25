@@ -42,6 +42,7 @@ The main nox commands we have implemented are:
 * `nox -s bench` will benchmark your rust code
 * `nox -s codspeed` will run our suite of rust and python performance tests
 * `nox -s coverage` will analyse test coverage and output `coverage.json` (alternatively: `nox -s coverage lcov` outputs `lcov.info`)
+* `nox -s check-guide` will use [`lychee`][lychee] to check all the links in the guide and doc comments.
 
 Use  `nox -l` to list the full set of subcommands you can run.
 
@@ -145,6 +146,7 @@ You can run these tests yourself with `nox`. The full set of actions run in CI i
 1. `nox -s test-version-limits`
 1. `nox -s check-feature-powerset` to check conditional compilation
 1. cross-compilation tests
+1. `nox -s check-guide` to build the guide and doc-comments docummentation and use [`lychee`][lychee] to validate all links
 
 If you wish to validate your code against this suite before raising a PR, then you can manually trigger the CI in github actions.
 
