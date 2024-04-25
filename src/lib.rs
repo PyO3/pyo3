@@ -24,6 +24,7 @@
     clippy::implicit_clone,
     clippy::inefficient_to_string,
     clippy::map_unwrap_or,
+    clippy::redundant_else,
     clippy::type_repetition_in_bounds
 )]
 

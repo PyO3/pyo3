@@ -691,14 +691,14 @@ fn type_output() -> TypeInfo {
         fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
         {
             let t = obj.downcast::<PyTuple>()?;
-            if t.len() == $length {
+            if t.len() != $length {
+                Err(wrong_tuple_length(t, $length))
+            } else {
                 #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
                 return Ok(($(t.get_borrowed_item($n)?.extract::<$T>()?,)+));
 
                 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
                 unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>()?,)+));}
-            } else {
-                Err(wrong_tuple_length(t, $length))
             }
         }
 
