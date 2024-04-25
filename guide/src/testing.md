@@ -33,8 +33,7 @@ In the first case: you can create both unit- and integration tests as defined an
 In the second case: you are restricted to "unit tests" within the same source file as the code itself.
 This can be perfectly adequate, as you will test integration with Python later...
 
-For the remainder of this guide we will focus on the second case. An example of the first can be found
-at [MusicalNinjaDad/FizzBuzz](https://github.com/MusicalNinjaDad/FizzBuzz) on github.
+For the remainder of this guide we will focus on the second case.
 
 ## Testing your functionality in Rust
 
