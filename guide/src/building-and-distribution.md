@@ -151,7 +151,7 @@ rustflags = [
 ]
 ```
 
-Alternatively, on rust >= 1.56, one can include in `build.rs`:
+Alternatively, one can include in `build.rs`:
 
 ```rust
 fn main() {

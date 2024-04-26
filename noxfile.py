@@ -557,22 +557,11 @@ def set_minimal_package_versions(session: nox.Session):
         "examples/word-count",
     )
     min_pkg_versions = {
-        "rust_decimal": "1.26.1",
-        "csv": "1.1.6",
-        "indexmap": "1.6.2",
-        "hashbrown": "0.9.1",
-        "log": "0.4.17",
-        "once_cell": "1.17.2",
-        "rayon": "1.6.1",
-        "rayon-core": "1.10.2",
-        "regex": "1.7.3",
-        "proptest": "1.0.0",
-        "chrono": "0.4.25",
-        "byteorder": "1.4.3",
-        "crossbeam-channel": "0.5.8",
-        "crossbeam-deque": "0.8.3",
-        "crossbeam-epoch": "0.9.15",
-        "crossbeam-utils": "0.8.16",
+        "regex": "1.9.6",
+        "proptest": "1.2.0",
+        "trybuild": "1.0.89",
+        "eyre": "0.6.8",
+        "allocator-api2": "0.2.10",
     }
 
     # run cargo update first to ensure that everything is at highest
