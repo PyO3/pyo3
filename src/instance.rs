@@ -204,6 +204,14 @@ impl<'py> Bound<'py, PyAny> {
     ) -> &'a Option<Self> {
         &*(ptr as *const *mut ffi::PyObject).cast::<Option<Bound<'py, PyAny>>>()
     }
+
+    /// Returns the reference count for the Python object.
+    ///
+    /// Only used to validate behaviour in tests.
+    #[cfg(test)]
+    pub(crate) fn get_refcnt(&self) -> isize {
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
+    }
 }
 
 impl<'py, T> Bound<'py, T>
@@ -1295,8 +1303,10 @@ impl<T> Py<T> {
     }
 
     /// Gets the reference count of the `ffi::PyObject` pointer.
-    #[inline]
-    pub fn get_refcnt(&self, _py: Python<'_>) -> isize {
+    ///
+    /// Only used to validate behaviour in tests.
+    #[cfg(test)]
+    pub(crate) fn get_refcnt(&self, _py: Python<'_>) -> isize {
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 

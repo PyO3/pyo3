@@ -521,7 +521,6 @@ mod tests {
     #[allow(deprecated)]
     use super::GILPool;
     use super::{gil_is_acquired, GIL_COUNT, OWNED_OBJECTS, POOL};
-    use crate::types::any::PyAnyMethods;
     use crate::{ffi, gil, PyObject, Python};
     #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::{const_mutex, Condvar, Mutex};
