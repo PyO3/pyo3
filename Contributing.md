@@ -60,6 +60,8 @@ nox -s update-ui-tests
 
 In addition to the larger CI workflow which runs on each Pull Request, we provide a short CI workflow which runs on every push to github. This workflow runs the nox sessions: `rustfmt`, `ruff`, `clippy` and `test-rust -- skip-full` and is designed to run in under 200s to provide feedback within a reasonable timeframe and not use all your github actions minutes.
 
+In order to save resources this workflow is opt-in. If you wish to make use of the workflow then please name your branch `ci/...`.
+
 ## Ways to help
 
 ### Help users identify bugs
