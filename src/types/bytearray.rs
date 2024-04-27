@@ -15,12 +15,10 @@ pyobject_native_type_core!(PyByteArray, pyobject_native_static_type_object!(ffi:
 
 impl PyByteArray {
     /// Deprecated form of [`PyByteArray::new_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyByteArray::new` will be replaced by `PyByteArray::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyByteArray::new` will be replaced by `PyByteArray::new_bound` in a future PyO3 version"
     )]
     pub fn new<'py>(py: Python<'py>, src: &[u8]) -> &'py PyByteArray {
         Self::new_bound(py, src).into_gil_ref()
@@ -40,12 +38,10 @@ impl PyByteArray {
     }
 
     /// Deprecated form of [`PyByteArray::new_bound_with`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyByteArray::new_with` will be replaced by `PyByteArray::new_bound_with` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyByteArray::new_with` will be replaced by `PyByteArray::new_bound_with` in a future PyO3 version"
     )]
     pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyByteArray>
     where
@@ -104,12 +100,10 @@ impl PyByteArray {
     }
 
     /// Deprecated form of [`PyByteArray::from_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyByteArray::from` will be replaced by `PyByteArray::from_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyByteArray::from` will be replaced by `PyByteArray::from_bound` in a future PyO3 version"
     )]
     pub fn from(src: &PyAny) -> PyResult<&PyByteArray> {
         PyByteArray::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
