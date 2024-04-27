@@ -12,12 +12,10 @@ pyobject_native_type_extract!(PyEllipsis);
 
 impl PyEllipsis {
     /// Returns the `Ellipsis` object.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyEllipsis::get` will be replaced by `PyEllipsis::get_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyEllipsis::get` will be replaced by `PyEllipsis::get_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn get(py: Python<'_>) -> &PyEllipsis {
