@@ -2726,9 +2726,9 @@ class SimpleClass:
     #[test]
     fn test_is_callable() {
         Python::with_gil(|py| {
-            assert!(PyList::type_object(py).is_callable());
+            assert!(PyList::type_object_bound(py).is_callable());
 
-            let not_callable = 5.to_object(py).into_ref(py);
+            let not_callable = 5.to_object(py).into_bound(py);
             assert!(!not_callable.is_callable());
         });
     }

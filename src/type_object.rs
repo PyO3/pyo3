@@ -66,12 +66,10 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
 
     /// Returns the safe abstraction over the type object.
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTypeInfo::type_object` will be replaced by `PyTypeInfo::type_object_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTypeInfo::type_object` will be replaced by `PyTypeInfo::type_object_bound` in a future PyO3 version"
     )]
     fn type_object(py: Python<'_>) -> &PyType {
         // This isn't implemented in terms of `type_object_bound` because this just borrowed the
@@ -101,12 +99,10 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTypeInfo::is_type_of` will be replaced by `PyTypeInfo::is_type_of_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTypeInfo::is_type_of` will be replaced by `PyTypeInfo::is_type_of_bound` in a future PyO3 version"
     )]
     fn is_type_of(object: &PyAny) -> bool {
         Self::is_type_of_bound(&object.as_borrowed())
@@ -120,12 +116,10 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
 
     /// Checks if `object` is an instance of this type.
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTypeInfo::is_exact_type_of` will be replaced by `PyTypeInfo::is_exact_type_of_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTypeInfo::is_exact_type_of` will be replaced by `PyTypeInfo::is_exact_type_of_bound` in a future PyO3 version"
     )]
     fn is_exact_type_of(object: &PyAny) -> bool {
         Self::is_exact_type_of_bound(&object.as_borrowed())
