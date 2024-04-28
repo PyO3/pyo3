@@ -189,7 +189,7 @@ fn configure_pyo3() -> Result<()> {
         println!("{}", line);
     }
 
-    // Emit cfgs like `thread_local_const_init`
+    // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
 
     Ok(())

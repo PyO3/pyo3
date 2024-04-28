@@ -54,7 +54,7 @@ jobs:
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-      - if: inputs.rust == '1.56.0'
+      - if: inputs.rust == '1.63.0'
         name: Prepare minimal package versions (MSRV only)
         run: nox -s set-minimal-package-versions
 

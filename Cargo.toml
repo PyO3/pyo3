@@ -12,14 +12,12 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
 exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py", "/.github", "/tests/test_compile_error.rs", "/tests/ui"]
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.63"
 
 [dependencies]
 cfg-if = "1.0"
 libc = "0.2.62"
-parking_lot = ">= 0.11, < 0.13"
 memoffset = "0.9"
-portable-atomic = "1.0"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
 pyo3-ffi = { path = "pyo3-ffi", version = "=0.21.2" }
@@ -45,6 +43,9 @@ num-complex = { version = ">= 0.2, < 0.5", optional = true }
 rust_decimal = { version = "1.0.0", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 smallvec = { version = "1.0", optional = true }
+
+[target.'cfg(not(target_has_atomic = "64"))'.dependencies]
+portable-atomic = "1.0"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"

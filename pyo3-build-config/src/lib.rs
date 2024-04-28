@@ -145,11 +145,6 @@ pub fn print_feature_cfgs() {
 
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
 
-    // Enable use of const initializer for thread_local! on Rust 1.59 and greater
-    if rustc_minor_version >= 59 {
-        println!("cargo:rustc-cfg=thread_local_const_init");
-    }
-
     // invalid_from_utf8 lint was added in Rust 1.74
     if rustc_minor_version >= 74 {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
