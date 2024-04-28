@@ -2310,8 +2310,6 @@ a = A()
 
     #[cfg(feature = "macros")]
     mod using_macros {
-        use crate::PyCell;
-
         use super::*;
 
         #[crate::pyclass(crate = "crate")]
@@ -2371,9 +2369,10 @@ a = A()
         }
 
         #[test]
+        #[cfg(feature = "gil-refs")]
         #[allow(deprecated)]
         fn cell_tryfrom() {
-            use crate::PyTryInto;
+            use crate::{PyCell, PyTryInto};
             // More detailed tests of the underlying semantics in pycell.rs
             Python::with_gil(|py| {
                 let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);

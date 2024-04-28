@@ -15,12 +15,10 @@ pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyTy
 impl PyType {
     /// Deprecated form of [`PyType::new_bound`].
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyType::new` will be replaced by `PyType::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyType::new` will be replaced by `PyType::new_bound` in a future PyO3 version"
     )]
     pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
         T::type_object_bound(py).into_gil_ref()
@@ -44,12 +42,10 @@ impl PyType {
     ///
     /// - The pointer must a valid non-null reference to a `PyTypeObject`.
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "Use `PyType::from_borrowed_type_ptr` instead"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `PyType::from_borrowed_type_ptr` instead"
     )]
     pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
         Self::from_borrowed_type_ptr(py, p).into_gil_ref()
