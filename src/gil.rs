@@ -11,19 +11,7 @@ use std::{mem, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
 
-cfg_if::cfg_if! {
-    if #[cfg(thread_local_const_init)] {
-        use std::thread_local as thread_local_const_init;
-    } else {
-        macro_rules! thread_local_const_init {
-            ($($(#[$attr:meta])* static $name:ident: $ty:ty = const { $init:expr };)*) => (
-                thread_local! { $($(#[$attr])* static $name: $ty = $init;)* }
-            )
-        }
-    }
-}
-
-thread_local_const_init! {
+std::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread has the GIL.
     ///
     /// It will be incremented whenever a GILGuard or GILPool is created, and decremented whenever
