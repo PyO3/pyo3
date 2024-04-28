@@ -165,6 +165,7 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
     println!("cargo:rustc-check-cfg=cfg(invalid_from_utf8_lint)");
+    println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)

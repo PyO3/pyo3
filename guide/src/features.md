@@ -79,11 +79,9 @@ This feature and the APIs it enables is expected to be removed in a future PyO3 
 
 This feature was introduced to ease migration. It was found that delayed reference counts cannot be made sound and hence `Clon`ing an instance of `Py<T>` must panic without the GIL being held. To avoid migrations introducing new panics without warning, the `Clone` implementation itself is now gated behind this feature.
 
-### `disable-reference-pool`
+### `pyo3_disable_reference_pool`
 
-This is a performance-oriented feature which disabled the global reference pool and the assocaited overhead for the crossing the Python-Rust boundary. However, if enabled, `Drop`ping an instance of `Py<T>` without the GIL being held will abort the process.
-
-Since this feature does not really have additive semantics, it should only be enabled in leaf crates, i.e. in a crate producing a Python extension or embedding the Python interpreter.
+This is a performance-oriented conditional compilation flag, e.g. [set via `$RUSTFLAGS`][set-configuration-options], which disabled the global reference pool and the assocaited overhead for the crossing the Python-Rust boundary. However, if enabled, `Drop`ping an instance of `Py<T>` without the GIL being held will abort the process.
 
 ### `macros`
 
@@ -205,3 +203,5 @@ struct User {
 ### `smallvec`
 
 Adds a dependency on [smallvec](https://docs.rs/smallvec) and enables conversions into its [`SmallVec`](https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html) type.
+
+[set-configuration-options]: https://doc.rust-lang.org/reference/conditional-compilation.html#set-configuration-options

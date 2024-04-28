@@ -1263,7 +1263,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(feature = "disable-reference-pool"))]
+    #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
     fn test_allow_threads_pass_stuff_in() {
         let list = Python::with_gil(|py| PyList::new_bound(py, vec!["foo", "bar"]).unbind());

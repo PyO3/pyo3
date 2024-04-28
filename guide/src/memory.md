@@ -213,7 +213,7 @@ we are *not* holding the GIL?
 
 ```rust
 # #![allow(unused_imports, dead_code)]
-# #[cfg(not(feature = "disable-reference-pool"))] {
+# #[cfg(not(pyo3_disable_reference_pool))] {
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
@@ -245,9 +245,9 @@ Python::with_gil(|py|
 
 When `hello` is dropped *nothing* happens to the pointed-to memory on Python's
 heap because nothing _can_ happen if we're not holding the GIL.  Fortunately,
-the memory isn't leaked. If the `disable-reference-pool` feature is not enabled,
-PyO3 keeps track of the memory internally and will release it the next time
-we acquire the GIL.
+the memory isn't leaked. If the `pyo3_disable_reference_pool` conditional compilation flag
+is not enabled, PyO3 keeps track of the memory internally and will release it
+the next time we acquire the GIL.
 
 We can avoid the delay in releasing memory if we are careful to drop the
 `Py<Any>` while the GIL is held.

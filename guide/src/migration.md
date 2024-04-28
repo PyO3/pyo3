@@ -44,7 +44,7 @@ If you rely on `impl<T> Clone for Py<T>` to fulfil trait requirements imposed by
 
 However, take care to note that the behaviour is different from previous versions. If `Clone` was called without the GIL being held, we tried to delay the application of these reference count increments until PyO3-based code would re-acquire it. This turned out to be impossible to implement in a sound manner and hence was removed. Now, if `Clone` is called without the GIL being held, we panic instead for which calling code might not be prepared.
 
-Related to this, we also added a `disable-reference-pool` feature which removes the infrastructure necessary to apply delayed reference count decrements implied by `impl<T> Drop for Py<T>`. They do not appear to be a soundness hazard as they should lead to memory leaks in the worst case. However, the global synchronization adds significant overhead to cross the Python-Rust boundary. Enabling this feature will remove these costs and make the `Drop` implementation abort the process if called without the GIL being held instead.
+Related to this, we also added a `pyo3_disable_reference_pool` conditional compilation flag which removes the infrastructure necessary to apply delayed reference count decrements implied by `impl<T> Drop for Py<T>`. They do not appear to be a soundness hazard as they should lead to memory leaks in the worst case. However, the global synchronization adds significant overhead to cross the Python-Rust boundary. Enabling this feature will remove these costs and make the `Drop` implementation abort the process if called without the GIL being held instead.
 </details>
 
 ## from 0.20.* to 0.21

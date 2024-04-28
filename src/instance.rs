@@ -1831,8 +1831,8 @@ impl<T> Clone for Py<T> {
 /// Otherwise and by default, this registers the underlying pointer to have its reference count
 /// decremented the next time PyO3 acquires the GIL.
 ///
-/// However, if the `disable-reference-pool` feature is enabled,
-/// it will abort the process.
+/// However, if the `pyo3_disable_reference_pool` conditional compilation flag
+/// is enabled, it will abort the process.
 impl<T> Drop for Py<T> {
     #[track_caller]
     fn drop(&mut self) {

@@ -111,9 +111,6 @@ gil-refs = []
 # Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
 py-clone = []
 
-# Disables global reference pool which allows `Drop`ing references to Python objects `Py<T>` without the GIL being held.
-disable-reference-pool = []
-
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
