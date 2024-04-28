@@ -103,7 +103,7 @@ PyO3 uses global mutable state to keep track of deferred reference count updates
 
 This functionality can be avoided by adding the `disable-reference-pool` feature. This removes the global reference pool and the associated costs completely. However, it does _not_ remove the `Drop` implementation for `Py<T>` which is necessary to interoperate with existing Rust code written without PyO3-based code in mind. To stay compatible with the wider Rust ecosystem in these cases, we keep the implementation but abort when `Drop` is called without the GIL being held.
 
-This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` returned from `Python::with_gil` without making sure to re-acquire the GIL beforehand. For example, the following code
+This limitation is important to keep in mind when this setting is used, especially when embedding Python code into a Rust application as it is quite easy to accidentally drop a `Py<T>` (or types containing it like `PyErr`, `PyBackedStr` or `PyBackedBytes`) returned from `Python::with_gil` without making sure to re-acquire the GIL beforehand. For example, the following code
 
 ```rust,ignore
 # use pyo3::prelude::*;

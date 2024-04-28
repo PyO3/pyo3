@@ -1811,8 +1811,9 @@ where
 }
 
 /// If the GIL is held this increments `self`'s reference count.
-/// Otherwise this registers the [`Py`]`<T>` instance to have its reference count
-/// incremented the next time PyO3 acquires the GIL.
+/// Otherwise, it will panic.
+///
+/// Only available if the `py-clone` feature is enabled.
 #[cfg(feature = "py-clone")]
 impl<T> Clone for Py<T> {
     #[track_caller]
@@ -1824,7 +1825,14 @@ impl<T> Clone for Py<T> {
     }
 }
 
-/// Dropping a `Py` instance decrements the reference count on the object by 1.
+/// Dropping a `Py` instance decrements the reference count
+/// on the object by one if the GIL is held.
+///
+/// Otherwise and by default, this registers the underlying pointer to have its reference count
+/// decremented the next time PyO3 acquires the GIL.
+///
+/// However, if the `disable-reference-pool` feature is enabled,
+/// it will abort the process.
 impl<T> Drop for Py<T> {
     #[track_caller]
     fn drop(&mut self) {
