@@ -24,9 +24,9 @@ use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 /// compatibility with `?` and other Rust errors) this type supports creating exceptions instances
 /// in a lazy fashion, where the full Python object for the exception is created only when needed.
 ///
-/// Accessing the contained exception in any way, such as with [`value`](PyErr::value),
-/// [`get_type`](PyErr::get_type), or [`is_instance`](PyErr::is_instance) will create the full
-/// exception object if it was not already created.
+/// Accessing the contained exception in any way, such as with [`value_bound`](PyErr::value_bound),
+/// [`get_type_bound`](PyErr::get_type_bound), or [`is_instance_bound`](PyErr::is_instance_bound)
+/// will create the full exception object if it was not already created.
 pub struct PyErr {
     // Safety: can only hand out references when in the "normalized" state. Will never change
     // after normalization.
@@ -136,7 +136,7 @@ impl PyErr {
     ///
     /// This exception instance will be initialized lazily. This avoids the need for the Python GIL
     /// to be held, but requires `args` to be `Send` and `Sync`. If `args` is not `Send` or `Sync`,
-    /// consider using [`PyErr::from_value`] instead.
+    /// consider using [`PyErr::from_value_bound`] instead.
     ///
     /// If `T` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
@@ -192,12 +192,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::from_type_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::from_type` will be replaced by `PyErr::from_type_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::from_type` will be replaced by `PyErr::from_type_bound` in a future PyO3 version"
     )]
     pub fn from_type<A>(ty: &PyType, args: A) -> PyErr
     where
@@ -224,12 +222,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::from_value_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::from_value` will be replaced by `PyErr::from_value_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::from_value` will be replaced by `PyErr::from_value_bound` in a future PyO3 version"
     )]
     pub fn from_value(obj: &PyAny) -> PyErr {
         PyErr::from_value_bound(obj.as_borrowed().to_owned())
@@ -284,12 +280,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::get_type_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::get_type` will be replaced by `PyErr::get_type_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::get_type` will be replaced by `PyErr::get_type_bound` in a future PyO3 version"
     )]
     pub fn get_type<'py>(&'py self, py: Python<'py>) -> &'py PyType {
         self.get_type_bound(py).into_gil_ref()
@@ -311,12 +305,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::value_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::value` will be replaced by `PyErr::value_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::value` will be replaced by `PyErr::value_bound` in a future PyO3 version"
     )]
     pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
         self.value_bound(py).as_gil_ref()
@@ -355,12 +347,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::traceback_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::traceback` will be replaced by `PyErr::traceback_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::traceback` will be replaced by `PyErr::traceback_bound` in a future PyO3 version"
     )]
     pub fn traceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
         self.normalized(py).ptraceback(py).map(|b| b.into_gil_ref())
@@ -508,12 +498,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::new_type_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::new_type` will be replaced by `PyErr::new_type_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::new_type` will be replaced by `PyErr::new_type_bound` in a future PyO3 version"
     )]
     pub fn new_type(
         py: Python<'_>,
@@ -636,12 +624,10 @@ impl PyErr {
     }
 
     /// Deprecated form of `PyErr::is_instance_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::is_instance` will be replaced by `PyErr::is_instance_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::is_instance` will be replaced by `PyErr::is_instance_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
@@ -675,12 +661,10 @@ impl PyErr {
     }
 
     /// Deprecated form of `PyErr::write_unraisable_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::write_unraisable` will be replaced by `PyErr::write_unraisable_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::write_unraisable` will be replaced by `PyErr::write_unraisable_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn write_unraisable(self, py: Python<'_>, obj: Option<&PyAny>) {
@@ -722,12 +706,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::warn_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::warn` will be replaced by `PyErr::warn_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::warn` will be replaced by `PyErr::warn_bound` in a future PyO3 version"
     )]
     pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
         Self::warn_bound(py, &category.as_borrowed(), message, stacklevel)
@@ -771,12 +753,10 @@ impl PyErr {
     }
 
     /// Deprecated form of [`PyErr::warn_explicit_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyErr::warn_explicit` will be replaced by `PyErr::warn_explicit_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyErr::warn_explicit` will be replaced by `PyErr::warn_explicit_bound` in a future PyO3 version"
     )]
     pub fn warn_explicit(
         py: Python<'_>,
