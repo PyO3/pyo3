@@ -9,7 +9,7 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), feature = "gil-refs"))]
 pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
@@ -252,7 +252,7 @@ macro_rules! pyobject_native_type_info(
 
         impl $name {
             #[doc(hidden)]
-            const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
+            pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
         }
     };
 );

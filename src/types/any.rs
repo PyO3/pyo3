@@ -845,8 +845,8 @@ impl PyAny {
     /// Returns the list of attributes of this object.
     ///
     /// This is equivalent to the Python expression `dir(self)`.
-    pub fn dir(&self) -> &PyList {
-        self.as_borrowed().dir().into_gil_ref()
+    pub fn dir(&self) -> PyResult<&PyList> {
+        self.as_borrowed().dir().map(Bound::into_gil_ref)
     }
 
     /// Checks whether this object is an instance of type `ty`.
@@ -1674,7 +1674,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Returns the list of attributes of this object.
     ///
     /// This is equivalent to the Python expression `dir(self)`.
-    fn dir(&self) -> Bound<'py, PyList>;
+    fn dir(&self) -> PyResult<Bound<'py, PyList>>;
 
     /// Checks whether this object is an instance of type `ty`.
     ///
@@ -2220,10 +2220,10 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         Ok(v as usize)
     }
 
-    fn dir(&self) -> Bound<'py, PyList> {
+    fn dir(&self) -> PyResult<Bound<'py, PyList>> {
         unsafe {
             ffi::PyObject_Dir(self.as_ptr())
-                .assume_owned(self.py())
+                .assume_owned_or_err(self.py())
                 .downcast_into_unchecked()
         }
     }
@@ -2471,6 +2471,7 @@ class SimpleClass:
                 .unwrap();
             let a = obj
                 .dir()
+                .unwrap()
                 .into_iter()
                 .map(|x| x.extract::<String>().unwrap());
             let b = dir.into_iter().map(|x| x.extract::<String>().unwrap());
@@ -2491,6 +2492,7 @@ class SimpleClass:
 
     #[cfg(feature = "macros")]
     #[test]
+    #[allow(unknown_lints, non_local_definitions)]
     fn test_hasattr_error() {
         use crate::exceptions::PyValueError;
         use crate::prelude::*;
@@ -2724,9 +2726,9 @@ class SimpleClass:
     #[test]
     fn test_is_callable() {
         Python::with_gil(|py| {
-            assert!(PyList::type_object(py).is_callable());
+            assert!(PyList::type_object_bound(py).is_callable());
 
-            let not_callable = 5.to_object(py).into_ref(py);
+            let not_callable = 5.to_object(py).into_bound(py);
             assert!(!not_callable.is_callable());
         });
     }
@@ -2743,5 +2745,28 @@ class SimpleClass:
             let not_container = 5.to_object(py).into_ref(py);
             assert!(not_container.is_empty().is_err());
         });
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    #[allow(unknown_lints, non_local_definitions)]
+    fn test_fallible_dir() {
+        use crate::exceptions::PyValueError;
+        use crate::prelude::*;
+
+        #[pyclass(crate = "crate")]
+        struct DirFail;
+
+        #[pymethods(crate = "crate")]
+        impl DirFail {
+            fn __dir__(&self) -> PyResult<PyObject> {
+                Err(PyValueError::new_err("uh-oh!"))
+            }
+        }
+
+        Python::with_gil(|py| {
+            let obj = Bound::new(py, DirFail).unwrap();
+            assert!(obj.dir().unwrap_err().is_instance_of::<PyValueError>(py));
+        })
     }
 }

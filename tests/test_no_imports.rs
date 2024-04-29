@@ -30,7 +30,10 @@ fn basic_module_bound(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyRes
         42
     }
 
-    m.add_function(pyo3::wrap_pyfunction_bound!(basic_function, m)?)?;
+    pyo3::types::PyModuleMethods::add_function(
+        m,
+        pyo3::wrap_pyfunction_bound!(basic_function, m)?,
+    )?;
 
     Ok(())
 }

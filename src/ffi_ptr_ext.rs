@@ -39,6 +39,7 @@ impl FfiPtrExt for *mut ffi::PyObject {
     }
 
     #[inline]
+    #[track_caller]
     unsafe fn assume_owned(self, py: Python<'_>) -> Bound<'_, PyAny> {
         Bound::from_owned_ptr(py, self)
     }
@@ -57,6 +58,7 @@ impl FfiPtrExt for *mut ffi::PyObject {
     }
 
     #[inline]
+    #[track_caller]
     unsafe fn assume_borrowed<'a>(self, py: Python<'_>) -> Borrowed<'a, '_, PyAny> {
         Borrowed::from_ptr(py, self)
     }

@@ -652,6 +652,7 @@ impl<'py, T: PyClass> PyRef<'py, T> {
         self.inner.clone().into_ptr()
     }
 
+    #[track_caller]
     pub(crate) fn borrow(obj: &Bound<'py, T>) -> Self {
         Self::try_borrow(obj).expect("Already mutably borrowed")
     }
@@ -848,6 +849,7 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 
     #[inline]
+    #[track_caller]
     pub(crate) fn borrow(obj: &Bound<'py, T>) -> Self {
         Self::try_borrow(obj).expect("Already borrowed")
     }

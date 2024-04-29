@@ -104,6 +104,7 @@ impl<'py> Bound<'py, PyAny> {
     /// - `ptr` must be a valid pointer to a Python object
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
     #[inline]
+    #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_owned_ptr(py, ptr)))
     }
@@ -141,6 +142,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// - `ptr` must be a valid pointer to a Python object
     #[inline]
+    #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(py, ManuallyDrop::new(Py::from_borrowed_ptr(py, ptr)))
     }
@@ -242,6 +244,7 @@ where
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
+    #[track_caller]
     pub fn borrow(&self) -> PyRef<'py, T> {
         PyRef::borrow(self)
     }
@@ -276,6 +279,7 @@ where
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
+    #[track_caller]
     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
     where
         T: PyClass<Frozen = False>,
@@ -573,6 +577,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
+    #[track_caller]
     pub unsafe fn from_ptr(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(
             NonNull::new(ptr).unwrap_or_else(|| crate::err::panic_after_error(py)),
@@ -1138,6 +1143,7 @@ where
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     #[inline]
+    #[track_caller]
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
         self.bind(py).borrow()
     }
@@ -1175,6 +1181,7 @@ where
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     #[inline]
+    #[track_caller]
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
     where
         T: PyClass<Frozen = False>,
@@ -1585,6 +1592,7 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
+    #[track_caller]
     pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
@@ -1628,6 +1636,7 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
+    #[track_caller]
     pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
         match Self::from_borrowed_ptr_or_opt(py, ptr) {
             Some(slf) => slf,
@@ -2025,7 +2034,7 @@ mod tests {
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
-            let obj: PyObject = PyDict::new(py).into();
+            let obj: PyObject = PyDict::new_bound(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
             assert!(obj
                 .call_method(py, "nonexistent_method", (1,), None)
@@ -2038,7 +2047,7 @@ mod tests {
     #[test]
     fn py_from_dict() {
         let dict: Py<PyDict> = Python::with_gil(|py| {
-            let native = PyDict::new(py);
+            let native = PyDict::new_bound(py);
             Py::from(native)
         });
 
@@ -2048,7 +2057,7 @@ mod tests {
     #[test]
     fn pyobject_from_py() {
         Python::with_gil(|py| {
-            let dict: Py<PyDict> = PyDict::new(py).into();
+            let dict: Py<PyDict> = PyDict::new_bound(py).unbind();
             let cnt = dict.get_refcnt(py);
             let p: PyObject = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
@@ -2301,8 +2310,6 @@ a = A()
 
     #[cfg(feature = "macros")]
     mod using_macros {
-        use crate::PyCell;
-
         use super::*;
 
         #[crate::pyclass(crate = "crate")]
@@ -2362,9 +2369,10 @@ a = A()
         }
 
         #[test]
+        #[cfg(feature = "gil-refs")]
         #[allow(deprecated)]
         fn cell_tryfrom() {
-            use crate::PyTryInto;
+            use crate::{PyCell, PyTryInto};
             // More detailed tests of the underlying semantics in pycell.rs
             Python::with_gil(|py| {
                 let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);

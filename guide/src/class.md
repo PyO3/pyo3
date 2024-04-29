@@ -1001,6 +1001,44 @@ impl MyClass {
 Note that `text_signature` on `#[new]` is not compatible with compilation in
 `abi3` mode until Python 3.10 or greater.
 
+### Method receivers and lifetime elision
+
+PyO3 supports writing instance methods using the normal method receivers for shared `&self` and unique `&mut self` references. This interacts with [lifetime elision][lifetime-elision] insofar as the lifetime of a such a receiver is assigned to all elided output lifetime parameters.
+
+This is a good default for general Rust code where return values are more likely to borrow from the receiver than from the other arguments, if they contain any lifetimes at all. However, when returning bound references `Bound<'py, T>` in PyO3-based code, the GIL lifetime `'py` should usually be derived from a GIL token `py: Python<'py>` passed as an argument instead of the receiver.
+
+Specifically, signatures like
+
+```rust,ignore
+fn frobnicate(&self, py: Python) -> Bound<Foo>;
+```
+
+will not work as they are inferred as
+
+```rust,ignore
+fn frobnicate<'a, 'py>(&'a self, py: Python<'py>) -> Bound<'a, Foo>;
+```
+
+instead of the intended
+
+```rust,ignore
+fn frobnicate<'a, 'py>(&'a self, py: Python<'py>) -> Bound<'py, Foo>;
+```
+
+and should usually be written as
+
+```rust,ignore
+fn frobnicate<'py>(&self, py: Python<'py>) -> Bound<'py, Foo>;
+```
+
+The same problem does not exist for `#[pyfunction]`s as the special case for receiver lifetimes does not apply and indeed a signature like
+
+```rust,ignore
+fn frobnicate(bar: &Bar, py: Python) -> Bound<Foo>;
+```
+
+will yield compiler error [E0106 "missing lifetime specifier"][compiler-error-e0106].
+
 ## `#[pyclass]` enums
 
 Enum support in PyO3 comes in two flavors, depending on what kind of variants the enum has: simple and complex.
@@ -1332,3 +1370,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 [classattr]: https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables
 
 [`multiple-pymethods`]: features.md#multiple-pymethods
+
+[lifetime-elision]: https://doc.rust-lang.org/reference/lifetime-elision.html
+[compiler-error-e0106]: https://doc.rust-lang.org/error_codes/E0106.html

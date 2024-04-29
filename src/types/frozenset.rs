@@ -39,12 +39,10 @@ impl<'py> PyFrozenSetBuilder<'py> {
     }
 
     /// Deprecated form of [`PyFrozenSetBuilder::finalize_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSetBuilder::finalize` will be replaced by `PyFrozenSetBuilder::finalize_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSetBuilder::finalize` will be replaced by `PyFrozenSetBuilder::finalize_bound` in a future PyO3 version"
     )]
     pub fn finalize(self) -> &'py PyFrozenSet {
         self.finalize_bound().into_gil_ref()
@@ -78,12 +76,10 @@ pyobject_native_type_core!(
 impl PyFrozenSet {
     /// Deprecated form of [`PyFrozenSet::new_bound`].
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
     )]
     pub fn new<'a, 'p, T: ToPyObject + 'a>(
         py: Python<'p>,
@@ -104,12 +100,10 @@ impl PyFrozenSet {
     }
 
     /// Deprecated form of [`PyFrozenSet::empty_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
     )]
     pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
         Self::empty_bound(py).map(Bound::into_gil_ref)
@@ -324,25 +318,24 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
 
     #[test]
     fn test_frozenset_new_and_len() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
             assert_eq!(1, set.len());
 
             let v = vec![1];
-            assert!(PyFrozenSet::new(py, &[v]).is_err());
+            assert!(PyFrozenSet::new_bound(py, &[v]).is_err());
         });
     }
 
     #[test]
     fn test_frozenset_empty() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::empty(py).unwrap();
+            let set = PyFrozenSet::empty_bound(py).unwrap();
             assert_eq!(0, set.len());
             assert!(set.is_empty());
         });
@@ -351,7 +344,7 @@ mod tests {
     #[test]
     fn test_frozenset_contains() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
             assert!(set.contains(1).unwrap());
         });
     }
@@ -359,7 +352,7 @@ mod tests {
     #[test]
     fn test_frozenset_iter() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
 
             for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
@@ -381,7 +374,7 @@ mod tests {
     #[test]
     fn test_frozenset_iter_size_hint() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
             let mut iter = set.iter();
 
             // Exact size

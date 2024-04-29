@@ -4,7 +4,7 @@
 [![benchmark](https://img.shields.io/badge/benchmark-✓-Green?logo=github)](https://pyo3.rs/dev/bench/)
 [![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.56](https://img.shields.io/badge/rustc-1.56+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.63](https://img.shields.io/badge/rustc-1.63+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/33kcChzH7f)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
@@ -18,7 +18,7 @@
 
 PyO3 supports the following software versions:
   - Python 3.7 and up (CPython, PyPy, and GraalPy)
-  - Rust 1.56 and up
+  - Rust 1.63 and up
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21.1", features = ["extension-module"] }
+pyo3 = { version = "0.21.2", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.21.1"
+version = "0.21.2"
 features = ["auto-initialize"]
 ```
 

@@ -2,6 +2,7 @@
 
 set -uex
 
+rustup update nightly
 rustup default nightly
 
 PYO3_VERSION=$(cargo search pyo3 --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')

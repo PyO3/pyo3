@@ -3,6 +3,7 @@
 use std::{task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};
+#[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicBool, Ordering};
 use pyo3::{
     coroutine::CancelHandle,
@@ -10,6 +11,8 @@ use pyo3::{
     py_run,
     types::{IntoPyDict, PyType},
 };
+#[cfg(target_has_atomic = "64")]
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[path = "../src/tests/common.rs"]
 mod common;

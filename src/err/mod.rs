@@ -1091,6 +1091,7 @@ fn display_downcast_error(
     )
 }
 
+#[track_caller]
 pub fn panic_after_error(_py: Python<'_>) -> ! {
     unsafe {
         ffi::PyErr_Print();

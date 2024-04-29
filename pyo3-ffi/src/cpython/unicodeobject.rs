@@ -449,19 +449,19 @@ pub const PyUnicode_1BYTE_KIND: c_uint = 1;
 pub const PyUnicode_2BYTE_KIND: c_uint = 2;
 pub const PyUnicode_4BYTE_KIND: c_uint = 4;
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 {
     PyUnicode_DATA(op) as *mut Py_UCS1
 }
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 {
     PyUnicode_DATA(op) as *mut Py_UCS2
 }
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
     PyUnicode_DATA(op) as *mut Py_UCS4
@@ -487,7 +487,7 @@ pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     }
 }
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
@@ -495,7 +495,7 @@ pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     (*(op as *mut PyUnicodeObject)).data.any
 }
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
     debug_assert!(crate::PyUnicode_Check(op) != 0);

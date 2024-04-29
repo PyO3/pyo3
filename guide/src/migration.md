@@ -60,7 +60,7 @@ To migrate, switch all type casts to use `obj.downcast()` instead of `try_from(o
 
 Before:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::{PyInt, PyList};

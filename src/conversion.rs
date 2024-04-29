@@ -3,7 +3,6 @@ use crate::err::{self, PyDowncastError, PyResult};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
-use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{
@@ -435,9 +434,11 @@ pub trait PyTryInto<T>: Sized {
     fn try_into_exact(&self) -> Result<&T, PyDowncastError<'_>>;
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 mod implementations {
     use super::*;
+    use crate::type_object::PyTypeInfo;
 
     // TryFrom implies TryInto
     impl<U> PyTryInto<U> for PyAny
@@ -674,6 +675,7 @@ mod test_no_clone {}
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     mod deprecated {
         use super::super::PyTryFrom;

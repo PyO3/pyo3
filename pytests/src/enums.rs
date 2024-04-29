@@ -1,5 +1,7 @@
 use pyo3::{
-    pyclass, pyfunction, pymodule, types::PyModule, wrap_pyfunction_bound, Bound, PyResult,
+    pyclass, pyfunction, pymodule,
+    types::{PyModule, PyModuleMethods},
+    wrap_pyfunction_bound, Bound, PyResult,
 };
 
 #[pymodule]

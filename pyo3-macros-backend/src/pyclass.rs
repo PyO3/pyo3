@@ -7,7 +7,7 @@ use crate::attributes::{
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
-use crate::method::{FnArg, FnSpec};
+use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -1326,36 +1326,22 @@ fn complex_enum_struct_variant_new<'a>(
     let arg_py_type: syn::Type = parse_quote!(#pyo3_path::Python<'_>);
 
     let args = {
-        let mut no_pyo3_attrs = vec![];
-        let attrs = crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
-
         let mut args = vec![
             // py: Python<'_>
-            FnArg {
+            FnArg::Py(PyArg {
                 name: &arg_py_ident,
                 ty: &arg_py_type,
-                optional: None,
-                default: None,
-                py: true,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            },
+            }),
         ];
 
         for field in &variant.fields {
-            args.push(FnArg {
+            args.push(FnArg::Regular(RegularArg {
                 name: field.ident,
                 ty: field.ty,
-                optional: None,
-                default: None,
-                py: false,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            });
+                from_py_with: None,
+                default_value: None,
+                option_wrapped_type: None,
+            }));
         }
         args
     };

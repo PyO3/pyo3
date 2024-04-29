@@ -8,6 +8,6 @@ Please consider adding the following to your pull request:
  - docs to all new functions and / or detail in the guide
  - tests for all new or changed functions
 
-PyO3's CI pipeline will check your pull request. To run its tests
+PyO3's CI pipeline will check your pull request, thus make sure you have checked the `Contributing.md` guidelines. To run most of its tests
 locally, you can run ```nox```. See ```nox --list-sessions```
 for a list of supported actions.
