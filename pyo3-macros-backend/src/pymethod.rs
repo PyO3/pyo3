@@ -741,7 +741,6 @@ pub fn impl_py_getitem_def(
     spec: FnSpec<'_>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-
     //
     // APPROACH 1
     // This is what the #[pymethods] macro uses
