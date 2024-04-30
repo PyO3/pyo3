@@ -330,8 +330,10 @@ For a `&PyAny` object reference `any` where the underlying object is a Python-na
 a list:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
 let obj: &PyAny = PyList::empty(py);
@@ -390,8 +392,10 @@ To see all Python types exposed by `PyO3` consult the [`pyo3::types`][pyo3::type
 **Conversions:**
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
 let list = PyList::empty(py);
