@@ -2324,12 +2324,11 @@ impl<'py> Bound<'py, PyAny> {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::{
         basic::CompareOp,
-        types::{any::PyAnyMethods, IntoPyDict, PyAny, PyBool, PyList, PyLong, PyModule},
-        Bound, PyNativeType, PyTypeInfo, Python, ToPyObject,
+        types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyList, PyLong, PyModule, PyTypeMethods},
+        Bound, PyTypeInfo, Python, ToPyObject,
     };
 
     #[test]
@@ -2407,7 +2406,7 @@ class NonHeapNonDescriptorInt:
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
-            let a = py.eval("42", None, None).unwrap();
+            let a = py.eval_bound("42", None, None).unwrap();
             a.call_method0("__str__").unwrap(); // ok
             assert!(a.call_method("nonexistent_method", (1,), None).is_err());
             assert!(a.call_method0("nonexistent_method").is_err());
@@ -2455,7 +2454,7 @@ class SimpleClass:
     #[test]
     fn test_type() {
         Python::with_gil(|py| {
-            let obj = py.eval("42", None, None).unwrap();
+            let obj = py.eval_bound("42", None, None).unwrap();
             assert_eq!(obj.get_type().as_type_ptr(), obj.get_type_ptr());
         });
     }
@@ -2463,11 +2462,11 @@ class SimpleClass:
     #[test]
     fn test_dir() {
         Python::with_gil(|py| {
-            let obj = py.eval("42", None, None).unwrap();
+            let obj = py.eval_bound("42", None, None).unwrap();
             let dir = py
-                .eval("dir(42)", None, None)
+                .eval_bound("dir(42)", None, None)
                 .unwrap()
-                .downcast::<PyList>()
+                .downcast_into::<PyList>()
                 .unwrap();
             let a = obj
                 .dir()
@@ -2482,7 +2481,7 @@ class SimpleClass:
     #[test]
     fn test_hasattr() {
         Python::with_gil(|py| {
-            let x = 5.to_object(py).into_ref(py);
+            let x = 5.to_object(py).into_bound(py);
             assert!(x.is_instance_of::<PyLong>());
 
             assert!(x.hasattr("to_bytes").unwrap());
@@ -2509,7 +2508,7 @@ class SimpleClass:
 
         Python::with_gil(|py| {
             let obj = Py::new(py, GetattrFail).unwrap();
-            let obj = obj.as_ref(py).as_ref();
+            let obj = obj.bind(py).as_ref();
 
             assert!(obj
                 .hasattr("foo")
@@ -2521,18 +2520,18 @@ class SimpleClass:
     #[test]
     fn test_nan_eq() {
         Python::with_gil(|py| {
-            let nan = py.eval("float('nan')", None, None).unwrap();
-            assert!(nan.compare(nan).is_err());
+            let nan = py.eval_bound("float('nan')", None, None).unwrap();
+            assert!(nan.compare(&nan).is_err());
         });
     }
 
     #[test]
     fn test_any_is_instance_of() {
         Python::with_gil(|py| {
-            let x = 5.to_object(py).into_ref(py);
+            let x = 5.to_object(py).into_bound(py);
             assert!(x.is_instance_of::<PyLong>());
 
-            let l = vec![x, x].to_object(py).into_ref(py);
+            let l = vec![&x, &x].to_object(py).into_bound(py);
             assert!(l.is_instance_of::<PyList>());
         });
     }
@@ -2540,15 +2539,15 @@ class SimpleClass:
     #[test]
     fn test_any_is_instance() {
         Python::with_gil(|py| {
-            let l = vec![1u8, 2].to_object(py).into_ref(py);
-            assert!(l.is_instance(py.get_type::<PyList>()).unwrap());
+            let l = vec![1u8, 2].to_object(py).into_bound(py);
+            assert!(l.is_instance(&py.get_type_bound::<PyList>()).unwrap());
         });
     }
 
     #[test]
     fn test_any_is_exact_instance_of() {
         Python::with_gil(|py| {
-            let x = 5.to_object(py).into_ref(py);
+            let x = 5.to_object(py).into_bound(py);
             assert!(x.is_exact_instance_of::<PyLong>());
 
             let t = PyBool::new_bound(py, true);
@@ -2556,7 +2555,7 @@ class SimpleClass:
             assert!(!t.is_exact_instance_of::<PyLong>());
             assert!(t.is_exact_instance_of::<PyBool>());
 
-            let l = vec![x, x].to_object(py).into_ref(py);
+            let l = vec![&x, &x].to_object(py).into_bound(py);
             assert!(l.is_exact_instance_of::<PyList>());
         });
     }
@@ -2565,11 +2564,9 @@ class SimpleClass:
     fn test_any_is_exact_instance() {
         Python::with_gil(|py| {
             let t = PyBool::new_bound(py, true);
-            assert!(t
-                .is_instance(&py.get_type::<PyLong>().as_borrowed())
-                .unwrap());
-            assert!(!t.is_exact_instance(&py.get_type::<PyLong>().as_borrowed()));
-            assert!(t.is_exact_instance(&py.get_type::<PyBool>().as_borrowed()));
+            assert!(t.is_instance(&py.get_type_bound::<PyLong>()).unwrap());
+            assert!(!t.is_exact_instance(&py.get_type_bound::<PyLong>()));
+            assert!(t.is_exact_instance(&py.get_type_bound::<PyBool>()));
         });
     }
 
@@ -2577,7 +2574,7 @@ class SimpleClass:
     fn test_any_contains() {
         Python::with_gil(|py| {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-            let ob = v.to_object(py).into_ref(py);
+            let ob = v.to_object(py).into_bound(py);
 
             let bad_needle = 7i32.to_object(py);
             assert!(!ob.contains(&bad_needle).unwrap());
@@ -2589,7 +2586,7 @@ class SimpleClass:
             assert!(ob.contains(&type_coerced_needle).unwrap());
 
             let n: u32 = 42;
-            let bad_haystack = n.to_object(py).into_ref(py);
+            let bad_haystack = n.to_object(py).into_bound(py);
             let irrelevant_needle = 0i32.to_object(py);
             assert!(bad_haystack.contains(&irrelevant_needle).is_err());
         });
@@ -2603,12 +2600,12 @@ class SimpleClass:
         Python::with_gil(|py| {
             for a in list {
                 for b in list {
-                    let a_py = a.to_object(py).into_ref(py);
-                    let b_py = b.to_object(py).into_ref(py);
+                    let a_py = a.to_object(py).into_bound(py);
+                    let b_py = b.to_object(py).into_bound(py);
 
                     assert_eq!(
                         a.lt(b),
-                        a_py.lt(b_py).unwrap(),
+                        a_py.lt(&b_py).unwrap(),
                         "{} < {} should be {}.",
                         a_py,
                         b_py,
@@ -2616,7 +2613,7 @@ class SimpleClass:
                     );
                     assert_eq!(
                         a.le(b),
-                        a_py.le(b_py).unwrap(),
+                        a_py.le(&b_py).unwrap(),
                         "{} <= {} should be {}.",
                         a_py,
                         b_py,
@@ -2624,7 +2621,7 @@ class SimpleClass:
                     );
                     assert_eq!(
                         a.eq(b),
-                        a_py.eq(b_py).unwrap(),
+                        a_py.eq(&b_py).unwrap(),
                         "{} == {} should be {}.",
                         a_py,
                         b_py,
@@ -2632,7 +2629,7 @@ class SimpleClass:
                     );
                     assert_eq!(
                         a.ne(b),
-                        a_py.ne(b_py).unwrap(),
+                        a_py.ne(&b_py).unwrap(),
                         "{} != {} should be {}.",
                         a_py,
                         b_py,
@@ -2640,7 +2637,7 @@ class SimpleClass:
                     );
                     assert_eq!(
                         a.gt(b),
-                        a_py.gt(b_py).unwrap(),
+                        a_py.gt(&b_py).unwrap(),
                         "{} > {} should be {}.",
                         a_py,
                         b_py,
@@ -2648,7 +2645,7 @@ class SimpleClass:
                     );
                     assert_eq!(
                         a.ge(b),
-                        a_py.ge(b_py).unwrap(),
+                        a_py.ge(&b_py).unwrap(),
                         "{} >= {} should be {}.",
                         a_py,
                         b_py,
@@ -2695,10 +2692,10 @@ class SimpleClass:
     #[test]
     fn test_rich_compare_type_error() {
         Python::with_gil(|py| {
-            let py_int = 1.to_object(py).into_ref(py);
-            let py_str = "1".to_object(py).into_ref(py);
+            let py_int = 1.to_object(py).into_bound(py);
+            let py_str = "1".to_object(py).into_bound(py);
 
-            assert!(py_int.rich_compare(py_str, CompareOp::Lt).is_err());
+            assert!(py_int.rich_compare(&py_str, CompareOp::Lt).is_err());
             assert!(!py_int
                 .rich_compare(py_str, CompareOp::Eq)
                 .unwrap()
@@ -2736,13 +2733,13 @@ class SimpleClass:
     #[test]
     fn test_is_empty() {
         Python::with_gil(|py| {
-            let empty_list: &PyAny = PyList::empty(py);
+            let empty_list = PyList::empty_bound(py).into_any();
             assert!(empty_list.is_empty().unwrap());
 
-            let list: &PyAny = PyList::new(py, vec![1, 2, 3]);
+            let list = PyList::new_bound(py, vec![1, 2, 3]).into_any();
             assert!(!list.is_empty().unwrap());
 
-            let not_container = 5.to_object(py).into_ref(py);
+            let not_container = 5.to_object(py).into_bound(py);
             assert!(not_container.is_empty().is_err());
         });
     }
