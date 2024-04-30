@@ -48,12 +48,10 @@ impl PySliceIndices {
 
 impl PySlice {
     /// Deprecated form of `PySlice::new_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PySlice::new` will be replaced by `PySlice::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PySlice::new` will be replaced by `PySlice::new_bound` in a future PyO3 version"
     )]
     pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
         Self::new_bound(py, start, stop, step).into_gil_ref()
@@ -73,12 +71,10 @@ impl PySlice {
     }
 
     /// Deprecated form of `PySlice::full_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PySlice::full` will be replaced by `PySlice::full_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PySlice::full` will be replaced by `PySlice::full_bound` in a future PyO3 version"
     )]
     pub fn full(py: Python<'_>) -> &PySlice {
         PySlice::full_bound(py).into_gil_ref()
