@@ -742,9 +742,8 @@ fn impl_call_getter(
 pub fn impl_py_len_def(
     cls: &syn::Type,
     ctx: &Ctx,
-    signature : &mut syn::Signature
+    signature: &mut syn::Signature,
 ) -> Result<MethodAndSlotDef> {
-
     let len_spec = FnSpec::parse(
         signature,
         &mut Vec::new(),
@@ -752,33 +751,22 @@ pub fn impl_py_len_def(
         ctx,
     )?;
 
-    Ok(__LEN__.generate_type_slot(
-        &cls,
-        &len_spec,
-        "__len__",
-        ctx,
-    )?)
+    Ok(__LEN__.generate_type_slot(&cls, &len_spec, "__len__", ctx)?)
 }
 
 pub fn impl_py_getitem_def(
     cls: &syn::Type,
     ctx: &Ctx,
-    signature : &mut syn::Signature,
+    signature: &mut syn::Signature,
 ) -> Result<MethodAndSlotDef> {
-
     let get_item_spec = FnSpec::parse(
         signature,
         &mut Vec::new(),
         PyFunctionOptions::default(),
         ctx,
     )?;
-    
-    Ok(__GETITEM__.generate_type_slot(
-        &cls,
-        &get_item_spec,
-        "__getitem__",
-        ctx,
-    )?)
+
+    Ok(__GETITEM__.generate_type_slot(&cls, &get_item_spec, "__getitem__", ctx)?)
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.

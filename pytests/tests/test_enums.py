@@ -167,4 +167,5 @@ def test_tuple_enum_field_getters():
 
 def test_tuple_enum_index_getter():
     tuple_variant = enums.TupleEnum.Full(42, 3.14, False)
+    assert tuple_variant.__len__() == 3
     assert tuple_variant[0] == 42
