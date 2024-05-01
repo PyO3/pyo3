@@ -1329,17 +1329,10 @@ fn complex_enum_tuple_variant_new<'a>(
 
         let mut args = vec![
             // py: Python<'_>
-            FnArg {
+            FnArg::Py (PyArg {
                 name: &arg_py_ident,
                 ty: &arg_py_type,
-                optional: None,
-                default: None,
-                py: true,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            },
+            }),
         ];
 
         for (i, field) in variant.fields.iter().enumerate() {
@@ -1347,17 +1340,15 @@ fn complex_enum_tuple_variant_new<'a>(
             let field_ident = format_ident!("_{}", i);
             let boxed_ident = Box::from(field_ident);
             let leaky_ident = Box::leak(boxed_ident);
-            args.push(FnArg {
-                name: leaky_ident,
-                ty: field.ty,
-                optional: None,
-                default: None,
-                py: false,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            });
+            args.push(FnArg::Regular(
+                RegularArg {
+                    name: leaky_ident,
+                    ty: field.ty,
+                    from_py_with: None,
+                    default_value: None,
+                    option_wrapped_type: None,
+                },
+            ));
         }
         args
     };
