@@ -817,8 +817,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(not(any(PyPy, GraalPy)))]
-    use crate::exceptions;
     use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
@@ -948,7 +946,7 @@ mod tests {
 
     #[test]
     #[allow(deprecated)]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(all(not(any(PyPy, GraalPy)), feature = "gil-refs"))]
     fn test_get_item_with_error() {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
@@ -967,7 +965,7 @@ mod tests {
             assert!(dict
                 .get_item_with_error(dict)
                 .unwrap_err()
-                .is_instance_of::<exceptions::PyTypeError>(py));
+                .is_instance_of::<crate::exceptions::PyTypeError>(py));
         });
     }
 

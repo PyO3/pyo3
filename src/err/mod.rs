@@ -64,6 +64,7 @@ impl<'a> PyDowncastError<'a> {
 
     /// Compatibility API to convert the Bound variant `DowncastError` into the
     /// gil-ref variant
+    #[cfg(feature = "gil-refs")]
     pub(crate) fn from_downcast_err(DowncastError { from, to }: DowncastError<'a, 'a>) -> Self {
         #[allow(deprecated)]
         let from = unsafe { from.py().from_borrowed_ptr(from.as_ptr()) };

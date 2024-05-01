@@ -353,8 +353,10 @@ let _: Py<PyList> = obj.extract()?;
 For a `&PyAny` object reference `any` where the underlying object is a `#[pyclass]`:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # #[pyclass] #[derive(Clone)] struct MyClass { }
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // into_ref is part of the deprecated GIL Refs API
 let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
