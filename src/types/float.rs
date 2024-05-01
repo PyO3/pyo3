@@ -26,12 +26,10 @@ pyobject_native_type!(
 impl PyFloat {
     /// Deprecated form of [`PyFloat::new_bound`].
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFloat::new` will be replaced by `PyFloat::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFloat::new` will be replaced by `PyFloat::new_bound` in a future PyO3 version"
     )]
     pub fn new(py: Python<'_>, val: f64) -> &'_ Self {
         Self::new_bound(py, val).into_gil_ref()
@@ -154,9 +152,11 @@ impl<'py> FromPyObject<'py> for f32 {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
-    use crate::{types::PyFloat, Python, ToPyObject};
+    use crate::{
+        types::{PyFloat, PyFloatMethods},
+        Python, ToPyObject,
+    };
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (
@@ -184,7 +184,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let v = 1.23f64;
-            let obj = PyFloat::new(py, 1.23);
+            let obj = PyFloat::new_bound(py, 1.23);
             assert_approx_eq!(v, obj.value());
         });
     }

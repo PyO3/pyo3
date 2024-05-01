@@ -104,12 +104,10 @@ use std::os::raw::c_double;
 
 impl PyComplex {
     /// Deprecated form of [`PyComplex::from_complex_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyComplex::from_complex` will be replaced by `PyComplex::from_complex_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyComplex::from_complex` will be replaced by `PyComplex::from_complex_bound` in a future PyO3 version"
     )]
     pub fn from_complex<F: Into<c_double>>(py: Python<'_>, complex: Complex<F>) -> &PyComplex {
         Self::from_complex_bound(py, complex).into_gil_ref()
