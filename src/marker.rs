@@ -116,18 +116,17 @@
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
-use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::py_result_ext::PyResultExt;
-use crate::type_object::HasPyGilRef;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyNativeType, PyObject, PyTypeCheck, PyTypeInfo};
+use crate::{ffi, Bound, IntoPy, Py, PyNativeType, PyObject, PyTypeInfo};
 #[allow(deprecated)]
 use crate::{gil::GILPool, FromPyPointer};
 use std::ffi::{CStr, CString};
@@ -839,16 +838,17 @@ impl<'py> Python<'py> {
     }
 
     /// Registers the object in the release pool, and tries to downcast to specific type.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
     )]
-    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
+    pub fn checked_cast_as<T>(
+        self,
+        obj: PyObject,
+    ) -> Result<&'py T, crate::err::PyDowncastError<'py>>
     where
-        T: PyTypeCheck<AsRefTarget = T>,
+        T: crate::PyTypeCheck<AsRefTarget = T>,
     {
         #[allow(deprecated)]
         obj.into_ref(self).downcast()
@@ -860,16 +860,14 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
     )]
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
     where
-        T: HasPyGilRef<AsRefTarget = T>,
+        T: crate::type_object::HasPyGilRef<AsRefTarget = T>,
     {
         #[allow(deprecated)]
         obj.into_ref(self).downcast_unchecked()

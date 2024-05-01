@@ -107,7 +107,7 @@ fn main() -> PyResult<()> {
 
 <div class="warning">
 
-During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](../migration.md#migrating-from-the-gil-refs-api-to-boundt), [`Py<T>::call`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.call) is temporarily named `call_bound` (and `call_method` is temporarily `call_method_bound`).
+During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](../migration.md#migrating-from-the-gil-refs-api-to-boundt), `Py<T>::call` is temporarily named [`Py<T>::call_bound`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.call_bound) (and `call_method` is temporarily `call_method_bound`).
 
 (This temporary naming is only the case for the `Py<T>` smart pointer. The methods on the `&PyAny` GIL Ref such as `call` have not been given replacements, and the methods on the `Bound<PyAny>` smart pointer such as [`Bound<PyAny>::call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) already use follow the newest API conventions.)
 

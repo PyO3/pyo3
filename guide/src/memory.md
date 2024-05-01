@@ -177,9 +177,11 @@ What happens to the memory when the last `Py<PyAny>` is dropped and its
 reference count reaches zero?  It depends whether or not we are holding the GIL.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     #[allow(deprecated)] // py.eval() is part of the GIL Refs API
     let hello: Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract()?;
@@ -203,9 +205,12 @@ This example wasn't very interesting.  We could have just used a GIL-bound
 we are *not* holding the GIL?
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
+# {
 let hello: Py<PyString> = Python::with_gil(|py| {
     #[allow(deprecated)] // py.eval() is part of the GIL Refs API
     py.eval("\"Hello World!\"", None, None)?.extract()
@@ -224,6 +229,7 @@ Python::with_gil(|py|
     // Memory for `hello` is released here.
 # ()
 );
+# }
 # Ok(())
 # }
 ```
@@ -237,9 +243,12 @@ We can avoid the delay in releasing memory if we are careful to drop the
 `Py<Any>` while the GIL is held.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
+# {
 #[allow(deprecated)] // py.eval() is part of the GIL Refs API
 let hello: Py<PyString> =
     Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
@@ -252,6 +261,7 @@ Python::with_gil(|py| {
     }
     drop(hello); // Memory released here.
 });
+# }
 # Ok(())
 # }
 ```
@@ -263,9 +273,12 @@ that rather than being released immediately, the memory will not be released
 until the GIL is dropped.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
+# {
 #[allow(deprecated)] // py.eval() is part of the GIL Refs API
 let hello: Py<PyString> =
     Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
@@ -280,6 +293,7 @@ Python::with_gil(|py| {
     // Do more stuff...
     // Memory released here at end of `with_gil()` closure.
 });
+# }
 # Ok(())
 # }
 ```

@@ -1,4 +1,4 @@
-use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::err::{self, PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
@@ -721,12 +721,12 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 /// This type does not auto-dereference to the inner object because you must prove you hold the GIL to access it.
 /// Instead, call one of its methods to access the inner object:
-///  - [`Py::as_ref`], to borrow a GIL-bound reference to the contained object.
+///  - [`Py::bind`] or [`Py::into_bound`], to borrow a GIL-bound reference to the contained object.
 ///  - [`Py::borrow`], [`Py::try_borrow`], [`Py::borrow_mut`], or [`Py::try_borrow_mut`],
 /// to get a (mutable) reference to a contained pyclass, using a scheme similar to std's [`RefCell`].
-/// See the [`PyCell` guide entry](https://pyo3.rs/latest/class.html#pycell-and-interior-mutability)
+/// See the [guide entry](https://pyo3.rs/latest/class.html#bound-and-interior-mutability)
 /// for more information.
-///  - You can call methods directly on `Py` with [`Py::call`], [`Py::call_method`] and friends.
+///  - You can call methods directly on `Py` with [`Py::call_bound`], [`Py::call_method_bound`] and friends.
 /// These require passing in the [`Python<'py>`](crate::Python) token but are otherwise similar to the corresponding
 /// methods on [`PyAny`].
 ///
@@ -991,12 +991,10 @@ where
     ///     assert!(my_class_cell.try_borrow().is_ok());
     /// });
     /// ```
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `obj.bind(py)` instead of `obj.as_ref(py)`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `obj.bind(py)` instead of `obj.as_ref(py)`"
     )]
     pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py T::AsRefTarget {
         let any = self.as_ptr() as *const PyAny;
@@ -1046,12 +1044,10 @@ where
     ///     obj.into_ref(py)
     /// }
     /// ```
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
     )]
     pub fn into_ref(self, py: Python<'_>) -> &T::AsRefTarget {
         #[allow(deprecated)]
@@ -1464,12 +1460,10 @@ impl<T> Py<T> {
     }
 
     /// Deprecated form of [`call_bound`][Py::call_bound].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`call` will be replaced by `call_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`call` will be replaced by `call_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn call<A>(&self, py: Python<'_>, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
@@ -1506,12 +1500,10 @@ impl<T> Py<T> {
     }
 
     /// Deprecated form of [`call_method_bound`][Py::call_method_bound].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`call_method` will be replaced by `call_method_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`call_method` will be replaced by `call_method_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn call_method<N, A>(
@@ -1779,6 +1771,7 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
 }
 
 // `&PyCell<T>` can be converted to `Py<T>`
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl<T> std::convert::From<&crate::PyCell<T>> for Py<T>
 where
@@ -1844,10 +1837,7 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        // TODO update MSRV past 1.59 and use .cloned() to make
-        // clippy happy
-        #[allow(clippy::map_clone)]
-        ob.downcast().map(Clone::clone).map_err(Into::into)
+        ob.downcast().cloned().map_err(Into::into)
     }
 }
 
@@ -1888,21 +1878,22 @@ pub type PyObject = Py<PyAny>;
 
 impl PyObject {
     /// Deprecated form of [`PyObject::downcast_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyObject::downcast` will be replaced by `PyObject::downcast_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyObject::downcast` will be replaced by `PyObject::downcast_bound` in a future PyO3 version"
     )]
     #[inline]
-    pub fn downcast<'py, T>(&'py self, py: Python<'py>) -> Result<&'py T, PyDowncastError<'py>>
+    pub fn downcast<'py, T>(
+        &'py self,
+        py: Python<'py>,
+    ) -> Result<&'py T, crate::err::PyDowncastError<'py>>
     where
         T: PyTypeCheck<AsRefTarget = T>,
     {
         self.downcast_bound::<T>(py)
             .map(Bound::as_gil_ref)
-            .map_err(PyDowncastError::from_downcast_err)
+            .map_err(crate::err::PyDowncastError::from_downcast_err)
     }
     /// Downcast this `PyObject` to a concrete Python type or pyclass.
     ///
@@ -1970,12 +1961,10 @@ impl PyObject {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyObject::downcast_unchecked` will be replaced by `PyObject::downcast_bound_unchecked` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyObject::downcast_unchecked` will be replaced by `PyObject::downcast_bound_unchecked` in a future PyO3 version"
     )]
     #[inline]
     pub unsafe fn downcast_unchecked<'py, T>(&'py self, py: Python<'py>) -> &T
@@ -1997,35 +1986,31 @@ impl PyObject {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::{Bound, Py, PyObject};
     use crate::types::any::PyAnyMethods;
     use crate::types::{dict::IntoPyDict, PyDict, PyString};
     use crate::types::{PyCapsule, PyStringMethods};
-    use crate::{ffi, Borrowed, PyAny, PyNativeType, PyResult, Python, ToPyObject};
+    use crate::{ffi, Borrowed, PyAny, PyResult, Python, ToPyObject};
 
     #[test]
     fn test_call() {
         Python::with_gil(|py| {
-            let obj = py.get_type::<PyDict>().to_object(py);
+            let obj = py.get_type_bound::<PyDict>().to_object(py);
 
-            let assert_repr = |obj: &PyAny, expected: &str| {
-                assert_eq!(obj.repr().unwrap().to_str().unwrap(), expected);
+            let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
+                assert_eq!(obj.repr().unwrap().to_cow().unwrap(), expected);
             };
 
-            assert_repr(obj.call0(py).unwrap().as_ref(py), "{}");
-            assert_repr(obj.call1(py, ()).unwrap().as_ref(py), "{}");
-            assert_repr(obj.call(py, (), None).unwrap().as_ref(py), "{}");
+            assert_repr(obj.call0(py).unwrap().bind(py), "{}");
+            assert_repr(obj.call1(py, ()).unwrap().bind(py), "{}");
+            assert_repr(obj.call_bound(py, (), None).unwrap().bind(py), "{}");
 
-            assert_repr(
-                obj.call1(py, ((('x', 1),),)).unwrap().as_ref(py),
-                "{'x': 1}",
-            );
+            assert_repr(obj.call1(py, ((('x', 1),),)).unwrap().bind(py), "{'x': 1}");
             assert_repr(
                 obj.call_bound(py, (), Some(&[('x', 1)].into_py_dict_bound(py)))
                     .unwrap()
-                    .as_ref(py),
+                    .bind(py),
                 "{'x': 1}",
             );
         })
@@ -2037,7 +2022,7 @@ mod tests {
             let obj: PyObject = PyDict::new_bound(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
             assert!(obj
-                .call_method(py, "nonexistent_method", (1,), None)
+                .call_method_bound(py, "nonexistent_method", (1,), None)
                 .is_err());
             assert!(obj.call_method0(py, "nonexistent_method").is_err());
             assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
@@ -2083,7 +2068,7 @@ a = A()
 
             assert!(instance
                 .getattr(py, "foo")?
-                .as_ref(py)
+                .bind(py)
                 .eq(PyString::new_bound(py, "bar"))?);
 
             instance.getattr(py, "foo")?;
@@ -2109,7 +2094,7 @@ a = A()
 
             instance.getattr(py, foo).unwrap_err();
             instance.setattr(py, foo, bar)?;
-            assert!(instance.getattr(py, foo)?.as_ref(py).eq(bar)?);
+            assert!(instance.getattr(py, foo)?.bind(py).eq(bar)?);
             Ok(())
         })
     }
@@ -2117,7 +2102,7 @@ a = A()
     #[test]
     fn invalid_attr() -> PyResult<()> {
         Python::with_gil(|py| {
-            let instance: Py<PyAny> = py.eval("object()", None, None)?.into();
+            let instance: Py<PyAny> = py.eval_bound("object()", None, None)?.into();
 
             instance.getattr(py, "foo").unwrap_err();
 
@@ -2130,7 +2115,7 @@ a = A()
     #[test]
     fn test_py2_from_py_object() {
         Python::with_gil(|py| {
-            let instance: &PyAny = py.eval("object()", None, None).unwrap();
+            let instance = py.eval_bound("object()", None, None).unwrap();
             let ptr = instance.as_ptr();
             let instance: Bound<'_, PyAny> = instance.extract().unwrap();
             assert_eq!(instance.as_ptr(), ptr);
@@ -2141,7 +2126,7 @@ a = A()
     fn test_py2_into_py_object() {
         Python::with_gil(|py| {
             let instance = py
-                .eval("object()", None, None)
+                .eval_bound("object()", None, None)
                 .unwrap()
                 .as_borrowed()
                 .to_owned();

@@ -2705,17 +2705,16 @@ class SimpleClass:
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py
-                .eval("...", None, None)
+                .eval_bound("...", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 
             assert!(v.is_ellipsis());
 
-            let not_ellipsis = 5.to_object(py).into_ref(py);
+            let not_ellipsis = 5.to_object(py).into_bound(py);
             assert!(!not_ellipsis.is_ellipsis());
         });
     }
