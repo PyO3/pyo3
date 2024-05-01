@@ -20,12 +20,10 @@ pyobject_native_type!(
 
 impl PyComplex {
     /// Deprecated form of [`PyComplex::from_doubles_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyComplex::from_doubles` will be replaced by `PyComplex::from_doubles_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyComplex::from_doubles` will be replaced by `PyComplex::from_doubles_bound` in a future PyO3 version"
     )]
     pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> &PyComplex {
         Self::from_doubles_bound(py, real, imag).into_gil_ref()
