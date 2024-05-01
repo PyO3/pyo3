@@ -86,6 +86,8 @@ pub fn get() -> &'static InterpreterConfig {
             .map(|path| path.exists())
             .unwrap_or(false);
 
+        // CONFIG_FILE is generated in build.rs, so it's content can vary
+        #[allow(unknown_lints, clippy::const_is_empty)]
         if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
             interpreter_config
         } else if !CONFIG_FILE.is_empty() {
@@ -177,6 +179,8 @@ pub mod pyo3_build_script_impl {
     /// correct value for CARGO_CFG_TARGET_OS).
     #[cfg(feature = "resolve-config")]
     pub fn resolve_interpreter_config() -> Result<InterpreterConfig> {
+        // CONFIG_FILE is generated in build.rs, so it's content can vary
+        #[allow(unknown_lints, clippy::const_is_empty)]
         if !CONFIG_FILE.is_empty() {
             let mut interperter_config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))?;
             interperter_config.generate_import_libs()?;
