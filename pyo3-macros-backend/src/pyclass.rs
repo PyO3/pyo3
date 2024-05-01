@@ -1063,21 +1063,18 @@ fn impl_complex_enum_struct_variant_cls(
     Ok((cls_impl, field_getters))
 }
 
-fn impl_complex_enum_tuple_variant_cls(
-    enum_name: &syn::Ident,
-    variant: &PyClassEnumTupleVariant<'_>,
+fn impl_complex_enum_tuple_variant_match_arms(
     ctx: &Ctx,
-) -> Result<(TokenStream, Vec<MethodAndMethodDef>)> {
+    variant: &PyClassEnumTupleVariant<'_>,
+    enum_name: &syn::Ident,
+    variant_cls_type: &syn::Type,
+    variant_ident: &&Ident,
+    field_names: &mut Vec<Ident>,
+    fields_with_types: &mut Vec<TokenStream>,
+    field_getters: &mut Vec<MethodAndMethodDef>,
+    field_getter_impls: &mut Vec<TokenStream>,
+) -> Result<()> {
     let Ctx { pyo3_path } = ctx;
-    let variant_ident = &variant.ident;
-    let variant_cls = gen_complex_enum_variant_class_ident(enum_name, variant.ident);
-    let variant_cls_type = parse_quote!(#variant_cls);
-
-    // represents the index of the field
-    let mut field_names: Vec<Ident> = vec![];
-    let mut fields_with_types: Vec<TokenStream> = vec![];
-    let mut field_getters: Vec<MethodAndMethodDef> = vec![];
-    let mut field_getter_impls: Vec<TokenStream> = vec![];
 
     for (index, field) in variant.fields.iter().enumerate() {
         let field_name = format_ident!("_{}", index);
@@ -1113,20 +1110,69 @@ fn impl_complex_enum_tuple_variant_cls(
         field_getter_impls.push(field_getter_impl);
     }
 
+    Ok(())
+}
+
+fn impl_complex_enum_tuple_variant_cls(
+    enum_name: &syn::Ident,
+    variant: &PyClassEnumTupleVariant<'_>,
+    ctx: &Ctx,
+) -> Result<(TokenStream, Vec<MethodAndMethodDef>)> {
+    let Ctx { pyo3_path } = ctx;
+    let variant_ident = &variant.ident;
+    let variant_cls = gen_complex_enum_variant_class_ident(enum_name, variant.ident);
+    let variant_cls_type = parse_quote!(#variant_cls);
+
+    // represents the index of the field
+    let mut field_names: Vec<Ident> = vec![];
+    let mut fields_with_types: Vec<TokenStream> = vec![];
+    let mut field_getters: Vec<MethodAndMethodDef> = vec![];
+    let mut field_getter_impls: Vec<TokenStream> = vec![];
+
+    impl_complex_enum_tuple_variant_match_arms(
+        ctx,
+        variant,
+        enum_name,
+        &variant_cls_type,
+        &variant_ident,
+        &mut field_names,
+        &mut fields_with_types,
+        &mut field_getters,
+        &mut field_getter_impls,
+    )?;
+
     let num_fields = variant.fields.len();
+
+    let mut len_signature : syn::Signature = syn::parse_quote!(fn __len__(slf: PyRef<Self>) -> PyResult<usize>);
+    let _len_method = crate::pymethod::impl_py_len_def(&variant_cls_type, ctx, &mut len_signature)?;
+
+    let len_method_impl = quote! {
+        fn __len__(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<usize> {
+            Ok(#num_fields)
+        }
+    };
+
+    let options = PyFunctionOptions::default();
+    let generated_len_method = crate::pymethod::gen_py_method(&variant_cls_type, &mut len_signature, &mut Vec::new(), options, ctx);
+
+
     let match_arms: Vec<_> = (0..num_fields)
         .map(|i| {
-            let field_access = format!("tup.{}", i);
+            let field_access = format_ident!("_{}", i);
             quote! {
-                #i => Ok(Box::new(#field_access.clone()))
-            }
+                #i => Ok(
+                    #pyo3_path::IntoPy::into_py(
+                        #variant_cls::#field_access(slf)?
+                        , unsafe { pyo3::Python::assume_gil_acquired() })
+                    )
+                    
+                }
         })
         .collect();
 
     let matcher = if num_fields > 0 {
         quote! {
-            let tup = &*slf.into_super();
-            match key {
+            match idx {
                 #( #match_arms, )*
                 _ => Err(pyo3::exceptions::PyIndexError::new_err("tuple index out of range")),
             }
@@ -1136,60 +1182,15 @@ fn impl_complex_enum_tuple_variant_cls(
             Err(#pyo3_path::exceptions::PyIndexError::new_err("tuple index out of range"))
         }
     };
+    
+    let mut get_item_signature : syn::Signature = syn::parse_quote!(fn __getitem__(slf: PyRef<Self>, idx: usize) -> PyResult<PyObject>);
+    let _getitem_method = crate::pymethod::impl_py_getitem_def(&variant_cls_type, ctx, &mut get_item_signature)?;
 
-    let getitem_method = {
-        let arg_py_ident: syn::Ident = parse_quote!(py);
-        let arg_py_type: syn::Type = parse_quote!(#pyo3_path::Python<'_>);
-        let mut no_pyo3_attrs = vec![];
-        let attrs = crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
-        let key_name = format_ident!("key");
-        let arg_key_type: syn::Type = parse_quote!(usize);
-        let args = vec![
-            // py: Python<'_>
-            FnArg {
-                name: &arg_py_ident,
-                ty: &arg_py_type,
-                optional: None,
-                default: None,
-                py: true,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            },
-            FnArg {
-                name: &key_name,
-                ty: &arg_key_type,
-                optional: None,
-                default: None,
-                py: false,
-                attrs: attrs.clone(),
-                is_varargs: false,
-                is_kwargs: false,
-                is_cancel_handle: false,
-            },
-        ];
-        let signature = crate::pyfunction::FunctionSignature::from_arguments(args)?;
-        let func_self_type: syn::Type = parse_quote!(Box<dyn std::any::Any>);
-        let self_type = crate::method::SelfType::TryFromBoundRef(func_self_type.span());
-        let spec = FnSpec {
-            tp: crate::method::FnType::Fn(self_type.clone()),
-            name: &format_ident!("getitem"),
-            python_name: format_ident!("__getitem__"),
-            signature,
-            convention: crate::method::CallingConvention::Varargs,
-            text_signature: None,
-            asyncness: None,
-            unsafety: None,
-            deprecations: Deprecations::new(ctx),
-        };
-        // This is the function I'm struggling with
-        // If this is removed, the code compiles fine and all existing tests pass
-        // but obviously __getitem__ isn't implemented on Python side
-        crate::pymethod::impl_py_getitem_def(&variant_cls_type, &self_type, spec, ctx)?
+    let get_item_method_impl = quote! {
+        fn __getitem__(slf: #pyo3_path::PyRef<Self>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
+            #matcher
+        }
     };
-
-    field_getters.push(getitem_method);
 
     let cls_impl = quote! {
         #[doc(hidden)]
@@ -1200,9 +1201,9 @@ fn impl_complex_enum_tuple_variant_cls(
                 #pyo3_path::PyClassInitializer::from(base_value).add_subclass(#variant_cls)
             }
 
-            fn getitem(slf: #pyo3_path::PyRef<Self>, key: usize) -> #pyo3_path::PyResult<Box<dyn std::any::Any>> {
-                #matcher
-            }
+            #len_method_impl
+
+            #get_item_method_impl
 
             #(#field_getter_impls)*
         }
@@ -1407,11 +1408,11 @@ fn complex_enum_tuple_variant_new<'a>(
 
     let args = {
         let mut no_pyo3_attrs = vec![];
-        let attrs = crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
+        let _attrs = crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
 
         let mut args = vec![
             // py: Python<'_>
-            FnArg::Py (PyArg {
+            FnArg::Py(PyArg {
                 name: &arg_py_ident,
                 ty: &arg_py_type,
             }),
@@ -1422,15 +1423,13 @@ fn complex_enum_tuple_variant_new<'a>(
             let field_ident = format_ident!("_{}", i);
             let boxed_ident = Box::from(field_ident);
             let leaky_ident = Box::leak(boxed_ident);
-            args.push(FnArg::Regular(
-                RegularArg {
-                    name: leaky_ident,
-                    ty: field.ty,
-                    from_py_with: None,
-                    default_value: None,
-                    option_wrapped_type: None,
-                },
-            ));
+            args.push(FnArg::Regular(RegularArg {
+                name: leaky_ident,
+                ty: field.ty,
+                from_py_with: None,
+                default_value: None,
+                option_wrapped_type: None,
+            }));
         }
         args
     };
