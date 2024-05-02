@@ -21,9 +21,9 @@ error[E0277]: the trait bound `TwoNew: PyTypeInfo` is not satisfied
             PyByteArray
             PyBytes
             PyCapsule
+            PyCode
             PyComplex
-            PyDict
-            PyDictKeys
+            PyDate
           and $N others
 
 error[E0277]: the trait bound `TwoNew: HasPyGilRef` is not satisfied
