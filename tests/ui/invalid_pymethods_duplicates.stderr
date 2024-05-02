@@ -9,6 +9,40 @@ error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyClas
   |
   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error[E0277]: the trait bound `TwoNew: PyTypeInfo` is not satisfied
+ --> tests/ui/invalid_pymethods_duplicates.rs:9:6
+  |
+9 | impl TwoNew {
+  |      ^^^^^^ the trait `PyTypeInfo` is not implemented for `TwoNew`
+  |
+  = help: the following other types implement trait `PyTypeInfo`:
+            PyAny
+            PyBool
+            PyByteArray
+            PyBytes
+            PyCapsule
+            PyComplex
+            PyDict
+            PyDictKeys
+          and $N others
+
+error[E0277]: the trait bound `TwoNew: HasPyGilRef` is not satisfied
+ --> tests/ui/invalid_pymethods_duplicates.rs:9:6
+  |
+9 | impl TwoNew {
+  |      ^^^^^^ the trait `PyNativeType` is not implemented for `TwoNew`, which is required by `TwoNew: HasPyGilRef`
+  |
+  = help: the trait `HasPyGilRef` is implemented for `pyo3::coroutine::Coroutine`
+  = note: required for `TwoNew` to implement `HasPyGilRef`
+note: required by a bound in `pyo3::PyTypeInfo::NAME`
+ --> src/type_object.rs
+  |
+  | pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
+  |                                      ^^^^^^^^^^^ required by this bound in `PyTypeInfo::NAME`
+  |     /// Class name.
+  |     const NAME: &'static str;
+  |           ---- required by a bound in this associated constant
+
 error[E0592]: duplicate definitions with name `__pymethod___new____`
  --> tests/ui/invalid_pymethods_duplicates.rs:8:1
   |
@@ -30,3 +64,71 @@ error[E0592]: duplicate definitions with name `__pymethod_func__`
    | other definition for `__pymethod_func__`
    |
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `TwoNew: PyClass` is not satisfied
+ --> tests/ui/invalid_pymethods_duplicates.rs:8:1
+  |
+8 | #[pymethods]
+  | ^^^^^^^^^^^^ the trait `PyClass` is not implemented for `TwoNew`
+  |
+  = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
+note: required by a bound in `PyClassInitializer`
+ --> src/pyclass_init.rs
+  |
+  | pub struct PyClassInitializer<T: PyClass>(PyClassInitializerImpl<T>);
+  |                                  ^^^^^^^ required by this bound in `PyClassInitializer`
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `convert` found for struct `TwoNew` in the current scope
+ --> tests/ui/invalid_pymethods_duplicates.rs:8:1
+  |
+6 | struct TwoNew {}
+  | ------------- method `convert` not found for this struct
+7 |
+8 | #[pymethods]
+  | ^^^^^^^^^^^^ method not found in `TwoNew`
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following trait defines an item `convert`, perhaps you need to implement it:
+          candidate #1: `IntoPyCallbackOutput`
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DuplicateMethod: PyClass` is not satisfied
+  --> tests/ui/invalid_pymethods_duplicates.rs:26:15
+   |
+26 |     fn func_a(&self) {}
+   |               ^ the trait `PyClass` is not implemented for `DuplicateMethod`
+   |
+   = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
+note: required by a bound in `extract_pyclass_ref`
+  --> src/impl_/extract_argument.rs
+   |
+   | pub fn extract_pyclass_ref<'a, 'py: 'a, T: PyClass>(
+   |                                            ^^^^^^^ required by this bound in `extract_pyclass_ref`
+
+error[E0277]: the trait bound `DuplicateMethod: PyClass` is not satisfied
+  --> tests/ui/invalid_pymethods_duplicates.rs:23:1
+   |
+23 | #[pymethods]
+   | ^^^^^^^^^^^^ the trait `PyClass` is not implemented for `DuplicateMethod`
+   |
+   = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
+note: required by a bound in `PyRef`
+  --> src/pycell.rs
+   |
+   | pub struct PyRef<'p, T: PyClass> {
+   |                         ^^^^^^^ required by this bound in `PyRef`
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `DuplicateMethod: PyClass` is not satisfied
+  --> tests/ui/invalid_pymethods_duplicates.rs:29:15
+   |
+29 |     fn func_b(&self) {}
+   |               ^ the trait `PyClass` is not implemented for `DuplicateMethod`
+   |
+   = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
+note: required by a bound in `extract_pyclass_ref`
+  --> src/impl_/extract_argument.rs
+   |
+   | pub fn extract_pyclass_ref<'a, 'py: 'a, T: PyClass>(
+   |                                            ^^^^^^^ required by this bound in `extract_pyclass_ref`

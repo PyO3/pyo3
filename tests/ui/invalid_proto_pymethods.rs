@@ -54,11 +54,11 @@ struct EqAndRichcmp;
 
 #[pymethods]
 impl EqAndRichcmp {
-    fn __eq__(&self, other: &Self) -> bool {
+    fn __eq__(&self, _other: &Self) -> bool {
         true
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp) -> bool {
+    fn __richcmp__(&self, _other: &Self, _op: CompareOp) -> bool {
         true
     }
 }

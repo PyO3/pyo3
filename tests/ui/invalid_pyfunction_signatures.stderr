@@ -41,19 +41,19 @@ error: `*args` not allowed after `**kwargs`
    |                               ^
 
 error: `**kwargs_b` not allowed after `**kwargs_a`
-  --> tests/ui/invalid_pyfunction_signatures.rs:41:33
+  --> tests/ui/invalid_pyfunction_signatures.rs:42:33
    |
-41 | #[pyo3(signature = (**kwargs_a, **kwargs_b))]
+42 | #[pyo3(signature = (**kwargs_a, **kwargs_b))]
    |                                 ^
 
 error: arguments of type `Python` must not be part of the signature
-  --> tests/ui/invalid_pyfunction_signatures.rs:47:27
+  --> tests/ui/invalid_pyfunction_signatures.rs:48:27
    |
-47 | #[pyfunction(signature = (py))]
+48 | #[pyfunction(signature = (py))]
    |                           ^^
 
 error: cannot find attribute `args` in this scope
-  --> tests/ui/invalid_pyfunction_signatures.rs:57:7
+  --> tests/ui/invalid_pyfunction_signatures.rs:58:7
    |
-57 |     #[args(x)]
+58 |     #[args(x)]
    |       ^^^^

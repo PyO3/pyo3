@@ -1,8 +1,8 @@
 error: #[classattr] can only have one argument (of type pyo3::Python)
- --> tests/ui/invalid_pymethods.rs:9:34
+ --> tests/ui/invalid_pymethods.rs:9:35
   |
-9 |     fn class_attr_with_args(foo: i32) {}
-  |                                  ^^^
+9 |     fn class_attr_with_args(_foo: i32) {}
+  |                                   ^^^
 
 error: `#[classattr]` does not take any arguments
   --> tests/ui/invalid_pymethods.rs:14:5
@@ -144,20 +144,20 @@ error: `#[classattr]` does not take any arguments
 error: Python functions cannot have generic type parameters
    --> tests/ui/invalid_pymethods.rs:167:23
     |
-167 |     fn generic_method<T>(value: T) {}
+167 |     fn generic_method<T>(_value: T) {}
     |                       ^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:172:48
+   --> tests/ui/invalid_pymethods.rs:172:49
     |
-172 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
-    |                                                ^^^^
+172 |     fn impl_trait_method_first_arg(_impl_trait: impl AsRef<PyAny>) {}
+    |                                                 ^^^^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:177:56
+   --> tests/ui/invalid_pymethods.rs:177:57
     |
-177 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
-    |                                                        ^^^^
+177 |     fn impl_trait_method_second_arg(&self, _impl_trait: impl AsRef<PyAny>) {}
+    |                                                         ^^^^
 
 error: `pass_module` cannot be used on Python methods
    --> tests/ui/invalid_pymethods.rs:182:12
@@ -191,5 +191,4 @@ error[E0277]: the trait bound `i32: From<BoundRef<'_, '_, PyType>>` is not satis
              <i32 as From<i16>>
              <i32 as From<u8>>
              <i32 as From<u16>>
-             <i32 as From<NonZero<i32>>>
    = note: required for `BoundRef<'_, '_, PyType>` to implement `Into<i32>`
