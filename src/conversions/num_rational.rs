@@ -66,7 +66,7 @@ macro_rules! rational_conversion {
             fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
                 let py = obj.py();
                 let py_numerator_obj = unsafe {
-                    Bound::from_owned_ptr(
+                    Bound::from_owned_ptr_or_err(
                         py,
                         ffi::PyObject_GetAttrString(
                             obj.as_ptr(),
@@ -75,7 +75,7 @@ macro_rules! rational_conversion {
                     )
                 };
                 let py_denominator_obj = unsafe {
-                    Bound::from_owned_ptr(
+                    Bound::from_owned_ptr_or_err(
                         py,
                         ffi::PyObject_GetAttrString(
                             obj.as_ptr(),
@@ -84,12 +84,15 @@ macro_rules! rational_conversion {
                     )
                 };
                 let numerator_owned = unsafe {
-                    Bound::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_numerator_obj.as_ptr()))?
+                    Bound::from_owned_ptr_or_err(
+                        py,
+                        ffi::PyNumber_Long(py_numerator_obj?.as_ptr()),
+                    )?
                 };
                 let denominator_owned = unsafe {
                     Bound::from_owned_ptr_or_err(
                         py,
-                        ffi::PyNumber_Long(py_denominator_obj.as_ptr()),
+                        ffi::PyNumber_Long(py_denominator_obj?.as_ptr()),
                     )?
                 };
                 let rs_numerator: $int = numerator_owned.extract()?;
@@ -143,6 +146,20 @@ mod tests {
             let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
             let rs_frac = Ratio::new(-1, 8);
             assert_eq!(roundtripped, rs_frac);
+        })
+    }
+    #[test]
+    fn test_obj_with_incorrect_atts() {
+        Python::with_gil(|py| {
+            let locals = PyDict::new_bound(py);
+            py.run_bound(
+                "not_fraction = \"contains_incorrect_atts\"",
+                None,
+                Some(&locals),
+            )
+            .unwrap();
+            let py_frac = locals.get_item("not_fraction").unwrap().unwrap();
+            assert!(py_frac.extract::<Ratio<i32>>().is_err());
         })
     }
 
