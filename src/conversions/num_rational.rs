@@ -46,7 +46,6 @@
 use crate::ffi;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
-use crate::types::PyLong;
 use crate::types::PyType;
 use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::os::raw::c_char;
@@ -67,24 +66,34 @@ macro_rules! rational_conversion {
             fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
                 let py = obj.py();
                 let py_numerator_obj = unsafe {
-                    ffi::PyObject_GetAttrString(
-                        obj.as_ptr(),
-                        "numerator\0".as_ptr() as *const c_char,
+                    Bound::from_owned_ptr(
+                        py,
+                        ffi::PyObject_GetAttrString(
+                            obj.as_ptr(),
+                            "numerator\0".as_ptr() as *const c_char,
+                        ),
                     )
                 };
                 let py_denominator_obj = unsafe {
-                    ffi::PyObject_GetAttrString(
-                        obj.as_ptr(),
-                        "denominator\0".as_ptr() as *const c_char,
+                    Bound::from_owned_ptr(
+                        py,
+                        ffi::PyObject_GetAttrString(
+                            obj.as_ptr(),
+                            "denominator\0".as_ptr() as *const c_char,
+                        ),
                     )
                 };
-                let numerator_owned: Py<PyLong> =
-                    unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_numerator_obj))? };
-                let denominator_owned: Py<PyLong> = unsafe {
-                    Py::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_denominator_obj))?
+                let numerator_owned = unsafe {
+                    Bound::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_numerator_obj.as_ptr()))?
                 };
-                let rs_numerator: $int = numerator_owned.bind(py).extract()?;
-                let rs_denominator: $int = denominator_owned.bind(py).extract()?;
+                let denominator_owned = unsafe {
+                    Bound::from_owned_ptr_or_err(
+                        py,
+                        ffi::PyNumber_Long(py_denominator_obj.as_ptr()),
+                    )?
+                };
+                let rs_numerator: $int = numerator_owned.extract()?;
+                let rs_denominator: $int = denominator_owned.extract()?;
                 Ok(Ratio::new(rs_numerator, rs_denominator))
             }
         }
@@ -93,7 +102,7 @@ macro_rules! rational_conversion {
             fn to_object(&self, py: Python<'_>) -> PyObject {
                 let fraction_cls = get_fraction_cls(py).expect("failed to load fractions.Fraction");
                 let ret = fraction_cls
-                    .call1((self.to_string(),))
+                    .call1((self.numer().clone(), self.denom().clone()))
                     .expect("failed to call fractions.Fraction(value)");
                 ret.to_object(py)
             }
@@ -105,7 +114,6 @@ macro_rules! rational_conversion {
         }
     };
 }
-
 rational_conversion!(i8);
 rational_conversion!(i16);
 rational_conversion!(i32);
