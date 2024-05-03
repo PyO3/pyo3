@@ -11,12 +11,10 @@ pyobject_native_type_core!(PyMemoryView, pyobject_native_static_type_object!(ffi
 
 impl PyMemoryView {
     /// Deprecated form of [`PyMemoryView::from_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyMemoryView::from` will be replaced by `PyMemoryView::from_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyMemoryView::from` will be replaced by `PyMemoryView::from_bound` in a future PyO3 version"
     )]
     pub fn from(src: &PyAny) -> PyResult<&PyMemoryView> {
         PyMemoryView::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
