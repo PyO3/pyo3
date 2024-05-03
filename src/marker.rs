@@ -352,7 +352,7 @@ pub use nightly::Ungil;
 /// # Releasing and freeing memory
 ///
 /// The [`Python`] type can be used to create references to variables owned by the Python
-/// interpreter, using functions such as [`Python::eval`] and [`PyModule::import`]. These
+/// interpreter, using functions such as [`Python::eval`] and `PyModule::import`. These
 /// references are tied to a [`GILPool`] whose references are not cleared until it is dropped.
 /// This can cause apparent "memory leaks" if it is kept around for a long time.
 ///
