@@ -1,14 +1,17 @@
+#[cfg(feature = "gil-refs")]
 use crate::derive_utils::PyFunctionArguments;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
 use crate::types::module::PyModuleMethods;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef, PyMethodDefDestructor},
     types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
-use crate::{Bound, IntoPy, Py, PyAny, PyNativeType, PyResult, Python};
+use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
@@ -20,12 +23,10 @@ pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi:
 
 impl PyCFunction {
     /// Deprecated form of [`PyCFunction::new_with_keywords_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCFunction::new_with_keywords` will be replaced by `PyCFunction::new_with_keywords_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCFunction::new_with_keywords` will be replaced by `PyCFunction::new_with_keywords_bound` in a future PyO3 version"
     )]
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
@@ -66,12 +67,10 @@ impl PyCFunction {
     }
 
     /// Deprecated form of [`PyCFunction::new`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCFunction::new` will be replaced by `PyCFunction::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCFunction::new` will be replaced by `PyCFunction::new_bound` in a future PyO3 version"
     )]
     pub fn new<'a>(
         fun: ffi::PyCFunction,
@@ -104,12 +103,10 @@ impl PyCFunction {
     }
 
     /// Deprecated form of [`PyCFunction::new_closure`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCFunction::new_closure` will be replaced by `PyCFunction::new_closure_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCFunction::new_closure` will be replaced by `PyCFunction::new_closure_bound` in a future PyO3 version"
     )]
     pub fn new_closure<'a, F, R>(
         py: Python<'a>,
