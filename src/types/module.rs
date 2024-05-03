@@ -27,12 +27,10 @@ pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::Py
 impl PyModule {
     /// Deprecated form of [`PyModule::new_bound`].
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyModule::new` will be replaced by `PyModule::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyModule::new` will be replaced by `PyModule::new_bound` in a future PyO3 version"
     )]
     pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<&'py PyModule> {
         Self::new_bound(py, name).map(Bound::into_gil_ref)
@@ -66,12 +64,10 @@ impl PyModule {
 
     /// Deprecated form of [`PyModule::import_bound`].
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyModule::import` will be replaced by `PyModule::import_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyModule::import` will be replaced by `PyModule::import_bound` in a future PyO3 version"
     )]
     pub fn import<N>(py: Python<'_>, name: N) -> PyResult<&PyModule>
     where
@@ -112,12 +108,10 @@ impl PyModule {
 
     /// Deprecated form of [`PyModule::from_code_bound`].
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyModule::from_code` will be replaced by `PyModule::from_code_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyModule::from_code` will be replaced by `PyModule::from_code_bound` in a future PyO3 version"
     )]
     pub fn from_code<'py>(
         py: Python<'py>,
@@ -722,7 +716,6 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::{
         types::{module::PyModuleMethods, string::PyStringMethods, PyModule},
