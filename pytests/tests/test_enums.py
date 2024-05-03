@@ -167,5 +167,22 @@ def test_tuple_enum_field_getters():
 
 def test_tuple_enum_index_getter():
     tuple_variant = enums.TupleEnum.Full(42, 3.14, False)
-    assert tuple_variant.__len__() == 3
+    assert len(tuple_variant) == 3
     assert tuple_variant[0] == 42
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [enums.MixedComplexEnum.Nothing()],
+)
+def test_mixed_complex_enum_pyfunction_instance_nothing(variant: enums.MixedComplexEnum):
+    assert isinstance(variant, enums.MixedComplexEnum.Nothing)
+    assert isinstance(enums.do_mixed_complex_stuff(variant), enums.MixedComplexEnum.Empty)
+
+@pytest.mark.parametrize(
+    "variant",
+    [enums.MixedComplexEnum.Empty()],
+)
+def test_mixed_complex_enum_pyfunction_instance_empty(variant: enums.MixedComplexEnum):
+    assert isinstance(variant, enums.MixedComplexEnum.Empty)
+    assert isinstance(enums.do_mixed_complex_stuff(variant), enums.MixedComplexEnum.Nothing)

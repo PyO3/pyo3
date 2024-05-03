@@ -739,34 +739,36 @@ fn impl_call_getter(
     Ok(fncall)
 }
 
-pub fn impl_py_len_def(
+
+pub fn impl_py_slot_def(
     cls: &syn::Type,
     ctx: &Ctx,
-    signature: &mut syn::Signature,
+    signature: &mut syn::Signature
 ) -> Result<MethodAndSlotDef> {
-    let len_spec = FnSpec::parse(
+
+    let spec = FnSpec::parse(
         signature,
         &mut Vec::new(),
         PyFunctionOptions::default(),
         ctx,
     )?;
 
-    Ok(__LEN__.generate_type_slot(&cls, &len_spec, "__len__", ctx)?)
-}
+    let method_name = spec.python_name.to_string();
 
-pub fn impl_py_getitem_def(
-    cls: &syn::Type,
-    ctx: &Ctx,
-    signature: &mut syn::Signature,
-) -> Result<MethodAndSlotDef> {
-    let get_item_spec = FnSpec::parse(
-        signature,
-        &mut Vec::new(),
-        PyFunctionOptions::default(),
-        ctx,
-    )?;
+    let slot = match PyMethodKind::from_name(&method_name) {
+        PyMethodKind::Proto(proto_kind) => {
+            ensure_no_forbidden_protocol_attributes(&proto_kind, &spec, &method_name)?;
+            match proto_kind {
+                PyMethodProtoKind::Slot(slot_def) => {
+                    slot_def
+                }
+                _ => bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]"),
+            }
+    },
+    _ => bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]"),
+    };
 
-    Ok(__GETITEM__.generate_type_slot(&cls, &get_item_spec, "__getitem__", ctx)?)
+    Ok(slot.generate_type_slot(&cls, &spec, &method_name, ctx)?)
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.

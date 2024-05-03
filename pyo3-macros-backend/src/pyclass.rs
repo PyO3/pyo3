@@ -1119,17 +1119,11 @@ fn impl_complex_enum_tuple_variant_field_getters(
 
 fn impl_complex_enum_tuple_variant_len(
     ctx: &Ctx,
-    _variant: &PyClassEnumTupleVariant<'_>,
-    _enum_name: &syn::Ident,
-    variant_cls_type: &syn::Type,
-    _variant_ident: &&Ident,
-    num_fields: usize,
-) -> Result<(MethodAndSlotDef, TokenStream)> {
-    let Ctx { pyo3_path } = ctx;
 
-    let mut len_signature: syn::Signature =
-        syn::parse_quote!(fn __len__(slf: PyRef<Self>) -> PyResult<usize>);
-    let variant_len = crate::pymethod::impl_py_len_def(&variant_cls_type, ctx, &mut len_signature)?;
+    variant_cls_type: &syn::Type,
+    num_fields: usize,
+) -> Result<(MethodAndSlotDef, syn::ImplItemFn)> {
+    let Ctx { pyo3_path } = ctx;
 
     let len_method_impl = quote! {
         fn __len__(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<usize> {
@@ -1137,24 +1131,20 @@ fn impl_complex_enum_tuple_variant_len(
         }
     };
 
+    let mut len_method_impl : syn ::ImplItemFn = syn::parse2(len_method_impl).unwrap();
+
+    let variant_len = crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut len_method_impl.sig)?;
+
     Ok((variant_len, len_method_impl))
 }
 
 fn impl_complex_enum_tuple_variant_getitem(
     ctx: &Ctx,
-    _variant: &PyClassEnumTupleVariant<'_>,
-    _enum_name: &syn::Ident,
     variant_cls: &syn::Ident,
     variant_cls_type: &syn::Type,
-    _variant_ident: &&Ident,
     num_fields: usize,
-) -> Result<(MethodAndSlotDef, TokenStream)> {
+) -> Result<(MethodAndSlotDef, syn::ImplItemFn)> {
     let Ctx { pyo3_path } = ctx;
-
-    let mut get_item_signature: syn::Signature =
-        syn::parse_quote!(fn __getitem__(slf: PyRef<Self>, idx: usize) -> PyResult<PyObject>);
-    let variant_getitem =
-        crate::pymethod::impl_py_getitem_def(&variant_cls_type, ctx, &mut get_item_signature)?;
 
     let match_arms: Vec<_> = (0..num_fields)
         .map(|i| {
@@ -1163,31 +1153,30 @@ fn impl_complex_enum_tuple_variant_getitem(
             #i => Ok(
                 #pyo3_path::IntoPy::into_py(
                     #variant_cls::#field_access(slf)?
-                    , unsafe { pyo3::Python::assume_gil_acquired() })
+                    , py)
                 )
 
             }
         })
         .collect();
 
-    let matcher = if num_fields > 0 {
+    let matcher = 
         quote! {
+            let py = slf.py();
             match idx {
                 #( #match_arms, )*
                 _ => Err(pyo3::exceptions::PyIndexError::new_err("tuple index out of range")),
             }
-        }
-    } else {
-        quote! {
-            Err(#pyo3_path::exceptions::PyIndexError::new_err("tuple index out of range"))
-        }
-    };
+        };
 
     let get_item_method_impl = quote! {
         fn __getitem__(slf: #pyo3_path::PyRef<Self>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
             #matcher
         }
     };
+
+    let mut get_item_method_impl : syn ::ImplItemFn = syn::parse2(get_item_method_impl).unwrap();
+    let variant_getitem = crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut get_item_method_impl.sig)?;
 
     Ok((variant_getitem, get_item_method_impl))
 }
@@ -1222,10 +1211,7 @@ fn impl_complex_enum_tuple_variant_cls(
 
     let (variant_len, len_method_impl) = impl_complex_enum_tuple_variant_len(
         ctx,
-        variant,
-        enum_name,
         &variant_cls_type,
-        &variant_ident,
         num_fields,
     )?;
 
@@ -1233,11 +1219,8 @@ fn impl_complex_enum_tuple_variant_cls(
 
     let (variant_getitem, getitem_method_impl) = impl_complex_enum_tuple_variant_getitem(
         ctx,
-        variant,
-        enum_name,
         &variant_cls,
         &variant_cls_type,
-        &variant_ident,
         num_fields,
     )?;
 
@@ -1463,7 +1446,6 @@ fn complex_enum_tuple_variant_new<'a>(
             crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
 
         let mut args = vec![
-            // py: Python<'_>
             FnArg::Py(PyArg {
                 name: &arg_py_ident,
                 ty: &arg_py_type,
@@ -1471,7 +1453,8 @@ fn complex_enum_tuple_variant_new<'a>(
         ];
 
         for (i, field) in variant.fields.iter().enumerate() {
-            // ! Warning : This leaks memory. I have no idea how else to do this - is this even bad?
+            // TODO (@newcomertv): Open tracking issue and PR to modify FnArg to take a Cow
+            // ! Warning : This leaks memory. This is a temporary solution until we can modify FnArg to take a Cow
             let field_ident = format_ident!("_{}", i);
             let boxed_ident = Box::from(field_ident);
             let leaky_ident = Box::leak(boxed_ident);

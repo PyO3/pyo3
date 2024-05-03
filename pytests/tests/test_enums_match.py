@@ -58,6 +58,19 @@ def test_complex_enum_pyfunction_in_out(variant: enums.ComplexEnum):
         case _:
             assert False
 
+@pytest.mark.parametrize(
+    "variant",
+    [
+        enums.ComplexEnum.MultiFieldStruct(42, 3.14, True),
+    ],
+)
+@pytest.mark.skip(reason="__match_args__ is not supported for struct enums yet. TODO : Open an issue")
+def test_complex_enum_partial_match(variant: enums.ComplexEnum):
+    match variant:
+        case enums.ComplexEnum.MultiFieldStruct(a):
+            assert a == 42
+        case _:
+            assert False
 
 @pytest.mark.parametrize(
     "variant",
@@ -76,4 +89,51 @@ def test_tuple_enum_match_statement(variant: enums.TupleEnum):
             assert True
         case _:
             print(variant)
+            assert False
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        enums.TupleEnum.Full(42, 3.14, True),
+    ],
+)
+@pytest.mark.skip(reason="__match_args__ is not supported for tuple enums yet. TODO : Open an issue")
+def test_tuple_enum_match_match_args(variant : enums.TupleEnum):
+    match variant:
+        case enums.TupleEnum.Full(x, y, z):
+            assert x == 42
+            assert y == 3.14
+            assert z is True
+            assert True
+        case _:
+            assert False
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        enums.TupleEnum.Full(42, 3.14, True),
+    ],
+)
+@pytest.mark.skip(reason="__match_args__ is not supported for tuple enums yet. TODO : Open an issue")
+def test_tuple_enum_partial_match(variant : enums.TupleEnum):
+    match variant:
+        case enums.TupleEnum.Full(a):
+            assert a == 42
+        case _:
+            assert False
+
+@pytest.mark.parametrize(
+        "variant",
+    [
+    enums.MixedComplexEnum.Nothing(),
+    enums.MixedComplexEnum.Empty(),
+    ]
+)
+def test_mixed_complex_enum_match_statement(variant: enums.MixedComplexEnum):
+    match variant:
+        case enums.MixedComplexEnum.Nothing():
+            assert True
+        case enums.MixedComplexEnum.Empty():
+            assert True
+        case _:
             assert False

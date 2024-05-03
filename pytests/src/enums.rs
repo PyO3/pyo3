@@ -9,9 +9,11 @@ pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SimpleEnum>()?;
     m.add_class::<ComplexEnum>()?;
     m.add_class::<TupleEnum>()?;
+    m.add_class::<MixedComplexEnum>()?;
     m.add_wrapped(wrap_pyfunction_bound!(do_simple_stuff))?;
     m.add_wrapped(wrap_pyfunction_bound!(do_complex_stuff))?;
     m.add_wrapped(wrap_pyfunction_bound!(do_tuple_stuff))?;
+    m.add_wrapped(wrap_pyfunction_bound!(do_mixed_complex_stuff))?;
     Ok(())
 }
 
@@ -105,7 +107,7 @@ pub enum MixedComplexEnum {
 #[pyfunction]
 pub fn do_mixed_complex_stuff(thing: &MixedComplexEnum) -> MixedComplexEnum {
     match thing {
-        MixedComplexEnum::Nothing {} => MixedComplexEnum::Nothing {},
-        MixedComplexEnum::Empty() => MixedComplexEnum::Empty(),
+        MixedComplexEnum::Nothing {} => MixedComplexEnum::Empty (),
+        MixedComplexEnum::Empty() => MixedComplexEnum::Nothing{},
     }
 }
