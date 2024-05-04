@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
@@ -18,7 +19,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct RegularArg<'a> {
-    pub name: &'a syn::Ident,
+    pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     pub from_py_with: Option<FromPyWithAttribute>,
     pub default_value: Option<syn::Expr>,
@@ -28,14 +29,14 @@ pub struct RegularArg<'a> {
 /// Pythons *args argument
 #[derive(Clone, Debug)]
 pub struct VarargsArg<'a> {
-    pub name: &'a syn::Ident,
+    pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
 }
 
 /// Pythons **kwarg argument
 #[derive(Clone, Debug)]
 pub struct KwargsArg<'a> {
-    pub name: &'a syn::Ident,
+    pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
 }
 
@@ -61,7 +62,7 @@ pub enum FnArg<'a> {
 }
 
 impl<'a> FnArg<'a> {
-    pub fn name(&self) -> &'a syn::Ident {
+    pub fn name(&self) -> &syn::Ident {
         match self {
             FnArg::Regular(RegularArg { name, .. }) => name,
             FnArg::VarArgs(VarargsArg { name, .. }) => name,
@@ -98,7 +99,10 @@ impl<'a> FnArg<'a> {
             ..
         }) = self
         {
-            *self = Self::VarArgs(VarargsArg { name, ty });
+            *self = Self::VarArgs(VarargsArg {
+                name: name.clone(),
+                ty,
+            });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "args cannot be optional")
@@ -113,7 +117,10 @@ impl<'a> FnArg<'a> {
             ..
         }) = self
         {
-            *self = Self::KwArgs(KwargsArg { name, ty });
+            *self = Self::KwArgs(KwargsArg {
+                name: name.clone(),
+                ty,
+            });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "kwargs must be Option<_>")
@@ -159,7 +166,7 @@ impl<'a> FnArg<'a> {
                 }
 
                 Ok(Self::Regular(RegularArg {
-                    name: ident,
+                    name: Cow::Borrowed(ident),
                     ty: &cap.ty,
                     from_py_with,
                     default_value: None,
