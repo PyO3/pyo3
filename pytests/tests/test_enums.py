@@ -175,9 +175,14 @@ def test_tuple_enum_index_getter():
     "variant",
     [enums.MixedComplexEnum.Nothing()],
 )
-def test_mixed_complex_enum_pyfunction_instance_nothing(variant: enums.MixedComplexEnum):
+def test_mixed_complex_enum_pyfunction_instance_nothing(
+    variant: enums.MixedComplexEnum,
+):
     assert isinstance(variant, enums.MixedComplexEnum.Nothing)
-    assert isinstance(enums.do_mixed_complex_stuff(variant), enums.MixedComplexEnum.Empty)
+    assert isinstance(
+        enums.do_mixed_complex_stuff(variant), enums.MixedComplexEnum.Empty
+    )
+
 
 @pytest.mark.parametrize(
     "variant",
@@ -185,4 +190,6 @@ def test_mixed_complex_enum_pyfunction_instance_nothing(variant: enums.MixedComp
 )
 def test_mixed_complex_enum_pyfunction_instance_empty(variant: enums.MixedComplexEnum):
     assert isinstance(variant, enums.MixedComplexEnum.Empty)
-    assert isinstance(enums.do_mixed_complex_stuff(variant), enums.MixedComplexEnum.Nothing)
+    assert isinstance(
+        enums.do_mixed_complex_stuff(variant), enums.MixedComplexEnum.Nothing
+    )
