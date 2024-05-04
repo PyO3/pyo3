@@ -1131,9 +1131,10 @@ fn impl_complex_enum_tuple_variant_len(
         }
     };
 
-    let mut len_method_impl : syn ::ImplItemFn = syn::parse2(len_method_impl).unwrap();
+    let mut len_method_impl: syn::ImplItemFn = syn::parse2(len_method_impl).unwrap();
 
-    let variant_len = crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut len_method_impl.sig)?;
+    let variant_len =
+        crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut len_method_impl.sig)?;
 
     Ok((variant_len, len_method_impl))
 }
@@ -1160,14 +1161,13 @@ fn impl_complex_enum_tuple_variant_getitem(
         })
         .collect();
 
-    let matcher = 
-        quote! {
-            let py = slf.py();
-            match idx {
-                #( #match_arms, )*
-                _ => Err(pyo3::exceptions::PyIndexError::new_err("tuple index out of range")),
-            }
-        };
+    let matcher = quote! {
+        let py = slf.py();
+        match idx {
+            #( #match_arms, )*
+            _ => Err(pyo3::exceptions::PyIndexError::new_err("tuple index out of range")),
+        }
+    };
 
     let get_item_method_impl = quote! {
         fn __getitem__(slf: #pyo3_path::PyRef<Self>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
@@ -1175,8 +1175,9 @@ fn impl_complex_enum_tuple_variant_getitem(
         }
     };
 
-    let mut get_item_method_impl : syn ::ImplItemFn = syn::parse2(get_item_method_impl).unwrap();
-    let variant_getitem = crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut get_item_method_impl.sig)?;
+    let mut get_item_method_impl: syn::ImplItemFn = syn::parse2(get_item_method_impl).unwrap();
+    let variant_getitem =
+        crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut get_item_method_impl.sig)?;
 
     Ok((variant_getitem, get_item_method_impl))
 }
@@ -1209,20 +1210,13 @@ fn impl_complex_enum_tuple_variant_cls(
 
     let num_fields = variant.fields.len();
 
-    let (variant_len, len_method_impl) = impl_complex_enum_tuple_variant_len(
-        ctx,
-        &variant_cls_type,
-        num_fields,
-    )?;
+    let (variant_len, len_method_impl) =
+        impl_complex_enum_tuple_variant_len(ctx, &variant_cls_type, num_fields)?;
 
     slots.push(variant_len);
 
-    let (variant_getitem, getitem_method_impl) = impl_complex_enum_tuple_variant_getitem(
-        ctx,
-        &variant_cls,
-        &variant_cls_type,
-        num_fields,
-    )?;
+    let (variant_getitem, getitem_method_impl) =
+        impl_complex_enum_tuple_variant_getitem(ctx, &variant_cls, &variant_cls_type, num_fields)?;
 
     slots.push(variant_getitem);
 
@@ -1445,12 +1439,10 @@ fn complex_enum_tuple_variant_new<'a>(
         let _attrs =
             crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
 
-        let mut args = vec![
-            FnArg::Py(PyArg {
-                name: &arg_py_ident,
-                ty: &arg_py_type,
-            }),
-        ];
+        let mut args = vec![FnArg::Py(PyArg {
+            name: &arg_py_ident,
+            ty: &arg_py_type,
+        })];
 
         for (i, field) in variant.fields.iter().enumerate() {
             // TODO : Tracking issue for Cow in FnArg : #4156

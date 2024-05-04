@@ -739,13 +739,11 @@ fn impl_call_getter(
     Ok(fncall)
 }
 
-
 pub fn impl_py_slot_def(
     cls: &syn::Type,
     ctx: &Ctx,
-    signature: &mut syn::Signature
+    signature: &mut syn::Signature,
 ) -> Result<MethodAndSlotDef> {
-
     let spec = FnSpec::parse(
         signature,
         &mut Vec::new(),
@@ -759,13 +757,13 @@ pub fn impl_py_slot_def(
         PyMethodKind::Proto(proto_kind) => {
             ensure_no_forbidden_protocol_attributes(&proto_kind, &spec, &method_name)?;
             match proto_kind {
-                PyMethodProtoKind::Slot(slot_def) => {
-                    slot_def
+                PyMethodProtoKind::Slot(slot_def) => slot_def,
+                _ => {
+                    bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]")
                 }
-                _ => bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]"),
             }
-    },
-    _ => bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]"),
+        }
+        _ => bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]"),
     };
 
     Ok(slot.generate_type_slot(&cls, &spec, &method_name, ctx)?)

@@ -107,7 +107,7 @@ pub enum MixedComplexEnum {
 #[pyfunction]
 pub fn do_mixed_complex_stuff(thing: &MixedComplexEnum) -> MixedComplexEnum {
     match thing {
-        MixedComplexEnum::Nothing {} => MixedComplexEnum::Empty (),
-        MixedComplexEnum::Empty() => MixedComplexEnum::Nothing{},
+        MixedComplexEnum::Nothing {} => MixedComplexEnum::Empty(),
+        MixedComplexEnum::Empty() => MixedComplexEnum::Nothing {},
     }
 }
