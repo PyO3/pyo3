@@ -1453,7 +1453,7 @@ fn complex_enum_tuple_variant_new<'a>(
         ];
 
         for (i, field) in variant.fields.iter().enumerate() {
-            // TODO (@newcomertv): Open tracking issue and PR to modify FnArg to take a Cow
+            // TODO : Tracking issue for Cow in FnArg : #4156
             // ! Warning : This leaks memory. This is a temporary solution until we can modify FnArg to take a Cow
             let field_ident = format_ident!("_{}", i);
             let boxed_ident = Box::from(field_ident);
