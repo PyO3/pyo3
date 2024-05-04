@@ -16,12 +16,10 @@ pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!
 
 impl PyBool {
     /// Deprecated form of [`PyBool::new_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyBool::new` will be replaced by `PyBool::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBool::new` will be replaced by `PyBool::new_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn new(py: Python<'_>, val: bool) -> &PyBool {
