@@ -1,4 +1,4 @@
-use crate::err::{PyDowncastError, PyResult};
+use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
@@ -6,7 +6,9 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
-use crate::{ffi, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
+#[cfg(feature = "gil-refs")]
+use crate::{err::PyDowncastError, PyNativeType};
+use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -14,6 +16,18 @@ pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);
 pyobject_native_type_extract!(PyMapping);
 
+impl PyMapping {
+    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
+    /// library). This is equivalent to `collections.abc.Mapping.register(T)` in Python.
+    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
+    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+        let ty = T::type_object_bound(py);
+        get_mapping_abc(py)?.call_method1("register", (ty,))?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "gil-refs")]
 impl PyMapping {
     /// Returns the number of objects in the mapping.
     ///
@@ -91,15 +105,6 @@ impl PyMapping {
     #[inline]
     pub fn items(&self) -> PyResult<&PySequence> {
         self.as_borrowed().items().map(Bound::into_gil_ref)
-    }
-
-    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
-    /// library). This is equvalent to `collections.abc.Mapping.register(T)` in Python.
-    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
-    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
-        let ty = T::type_object_bound(py);
-        get_mapping_abc(py)?.call_method1("register", (ty,))?;
-        Ok(())
     }
 }
 
@@ -255,6 +260,7 @@ impl PyTypeCheck for PyMapping {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl<'v> crate::PyTryFrom<'v> for PyMapping {
     /// Downcasting to `PyMapping` requires the concrete class to be a subclass (or registered

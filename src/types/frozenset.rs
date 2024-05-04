@@ -1,11 +1,13 @@
 use crate::types::PyIterator;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
-    Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject,
+    Bound, PyAny, PyObject, Python, ToPyObject,
 };
 use std::ptr;
 
@@ -74,20 +76,6 @@ pyobject_native_type_core!(
 );
 
 impl PyFrozenSet {
-    /// Deprecated form of [`PyFrozenSet::new_bound`].
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<&'p PyFrozenSet> {
-        Self::new_bound(py, elements).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
@@ -99,16 +87,6 @@ impl PyFrozenSet {
         new_from_iter(py, elements)
     }
 
-    /// Deprecated form of [`PyFrozenSet::empty_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
-    )]
-    pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
-        Self::empty_bound(py).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new empty frozen set
     pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
         unsafe {
@@ -116,6 +94,31 @@ impl PyFrozenSet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyFrozenSet {
+    /// Deprecated form of [`PyFrozenSet::new_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'a, 'p, T: ToPyObject + 'a>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = &'a T>,
+    ) -> PyResult<&'p PyFrozenSet> {
+        Self::new_bound(py, elements).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyFrozenSet::empty_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
+    )]
+    pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
+        Self::empty_bound(py).map(Bound::into_gil_ref)
     }
 
     /// Return the number of items in the set.
@@ -201,8 +204,10 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
 }
 
 /// PyO3 implementation of an iterator for a Python `frozenset` object.
+#[cfg(feature = "gil-refs")]
 pub struct PyFrozenSetIterator<'py>(BoundFrozenSetIterator<'py>);
 
+#[cfg(feature = "gil-refs")]
 impl<'py> Iterator for PyFrozenSetIterator<'py> {
     type Item = &'py super::PyAny;
 
@@ -217,6 +222,7 @@ impl<'py> Iterator for PyFrozenSetIterator<'py> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl ExactSizeIterator for PyFrozenSetIterator<'_> {
     #[inline]
     fn len(&self) -> usize {
@@ -224,6 +230,7 @@ impl ExactSizeIterator for PyFrozenSetIterator<'_> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> IntoIterator for &'py PyFrozenSet {
     type Item = &'py PyAny;
     type IntoIter = PyFrozenSetIterator<'py>;

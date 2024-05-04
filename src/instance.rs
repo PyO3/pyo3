@@ -667,6 +667,7 @@ impl<'py, T> Borrowed<'py, 'py, T>
 where
     T: HasPyGilRef,
 {
+    #[cfg(feature = "gil-refs")]
     pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
         // Safety: self is a borrow over `'py`.
         #[allow(deprecated)]
