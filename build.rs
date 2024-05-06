@@ -46,6 +46,7 @@ fn configure_pyo3() -> Result<()> {
 }
 
 fn main() {
+    pyo3_build_config::print_expected_cfgs();
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)

@@ -339,12 +339,12 @@ To make PyO3's core functionality continue to work while the GIL Refs API is in 
 
 PyO3 0.21 has introduced the [`PyBackedStr`]({{#PYO3_DOCS_URL}}/pyo3/pybacked/struct.PyBackedStr.html) and [`PyBackedBytes`]({{#PYO3_DOCS_URL}}/pyo3/pybacked/struct.PyBackedBytes.html) types to help with this case. The easiest way to avoid lifetime challenges from extracting `&str` is to use these. For more complex types like `Vec<&str>`, is now impossible to extract directly from a Python object and `Vec<PyBackedStr>` is the recommended upgrade path.
 
-A key thing to note here is because extracting to these types now ties them to the input lifetime, some extremely common patterns may need to be split into multiple Rust lines. For example, the following snippet of calling `.extract::<&str>()` directly on the result of `.getattr()` needs to be adjusted when deactivating the `gil-refs-migration` feature.
+A key thing to note here is because extracting to these types now ties them to the input lifetime, some extremely common patterns may need to be split into multiple Rust lines. For example, the following snippet of calling `.extract::<&str>()` directly on the result of `.getattr()` needs to be adjusted when deactivating the `gil-refs` feature.
 
 Before:
 
 ```rust
-# #[cfg(feature = "gil-refs-migration")] {
+# #[cfg(feature = "gil-refs")] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
