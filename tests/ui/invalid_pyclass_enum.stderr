@@ -32,8 +32,8 @@ error: Tuple variant `TupleVariant` is not yet supported in a complex enum
 27 |     TupleVariant(i32),
    |     ^^^^^^^^^^^^
 
-error: `signature` can't be used on a simple enum variant
+error: `constructor` can't be used on a simple enum variant
   --> tests/ui/invalid_pyclass_enum.rs:32:12
    |
-32 |     #[pyo3(signature = (a, b))]
-   |            ^^^^^^^^^
+32 |     #[pyo3(constructor = (a, b))]
+   |            ^^^^^^^^^^^

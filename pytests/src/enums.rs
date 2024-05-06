@@ -54,7 +54,7 @@ pub enum ComplexEnum {
         b: f64,
         c: bool,
     },
-    #[pyo3(signature = (a = 42, b = None))]
+    #[pyo3(constructor = (a = 42, b = None))]
     VariantWithDefault {
         a: i32,
         b: Option<String>,

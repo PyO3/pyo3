@@ -29,7 +29,7 @@ enum NoTupleVariants {
 
 #[pyclass]
 enum SimpleNoSignature {
-    #[pyo3(signature = (a, b))]
+    #[pyo3(constructor = (a, b))]
     A,
     B,
 }

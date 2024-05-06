@@ -195,6 +195,16 @@ impl ToTokens for SignatureItemPosargsSep {
 }
 
 pub type SignatureAttribute = KeywordAttribute<kw::signature, Signature>;
+pub type ConstructorAttribute = KeywordAttribute<kw::constructor, Signature>;
+
+impl ConstructorAttribute {
+    pub fn into_signature(self) -> SignatureAttribute {
+        SignatureAttribute {
+            kw: kw::signature(self.kw.span),
+            value: self.value,
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct PythonSignature {

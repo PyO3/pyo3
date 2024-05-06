@@ -8,7 +8,7 @@ use crate::attributes::{
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
-use crate::pyfunction::SignatureAttribute;
+use crate::pyfunction::ConstructorAttribute;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
@@ -623,12 +623,12 @@ struct PyClassEnumVariantNamedField<'a> {
 /// `#[pyo3()]` options for pyclass enum variants
 struct EnumVariantPyO3Options {
     name: Option<NameAttribute>,
-    signature: Option<SignatureAttribute>,
+    constructor: Option<ConstructorAttribute>,
 }
 
 enum EnumVariantPyO3Option {
     Name(NameAttribute),
-    Signature(SignatureAttribute),
+    Constructor(ConstructorAttribute),
 }
 
 impl Parse for EnumVariantPyO3Option {
@@ -636,8 +636,8 @@ impl Parse for EnumVariantPyO3Option {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::name) {
             input.parse().map(EnumVariantPyO3Option::Name)
-        } else if lookahead.peek(attributes::kw::signature) {
-            input.parse().map(EnumVariantPyO3Option::Signature)
+        } else if lookahead.peek(attributes::kw::constructor) {
+            input.parse().map(EnumVariantPyO3Option::Constructor)
         } else {
             Err(lookahead.error())
         }
@@ -648,7 +648,7 @@ impl EnumVariantPyO3Options {
     fn take_pyo3_options(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
         let mut options = EnumVariantPyO3Options {
             name: None,
-            signature: None,
+            constructor: None,
         };
 
         for option in take_pyo3_options(attrs)? {
@@ -660,12 +660,12 @@ impl EnumVariantPyO3Options {
                     );
                     options.name = Some(name);
                 }
-                EnumVariantPyO3Option::Signature(signature) => {
+                EnumVariantPyO3Option::Constructor(constructor) => {
                     ensure_spanned!(
-                        options.signature.is_none(),
-                        signature.span() => "`signature` may only be specified once"
+                        options.constructor.is_none(),
+                        constructor.span() => "`constructor` may only be specified once"
                     );
-                    options.signature = Some(signature);
+                    options.constructor = Some(constructor);
                 }
             }
         }
@@ -706,7 +706,7 @@ fn impl_simple_enum(
 
     let (default_repr, default_repr_slot) = {
         let variants_repr = variants.iter().map(|variant| {
-            ensure_spanned!(variant.options.signature.is_none(), variant.options.signature.span() => "`signature` can't be used on a simple enum variant");
+            ensure_spanned!(variant.options.constructor.is_none(), variant.options.constructor.span() => "`constructor` can't be used on a simple enum variant");
             let variant_name = variant.ident;
             // Assuming all variants are unit variants because they are the only type we support.
             let repr = format!(
@@ -1179,8 +1179,11 @@ fn complex_enum_struct_variant_new<'a>(
         args
     };
 
-    let signature = if let Some(signature) = variant.options.signature {
-        crate::pyfunction::FunctionSignature::from_arguments_and_attribute(args, signature)?
+    let signature = if let Some(constructor) = variant.options.constructor {
+        crate::pyfunction::FunctionSignature::from_arguments_and_attribute(
+            args,
+            constructor.into_signature(),
+        )?
     } else {
         crate::pyfunction::FunctionSignature::from_arguments(args)?
     };

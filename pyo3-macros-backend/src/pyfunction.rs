@@ -18,7 +18,7 @@ use syn::{
 
 mod signature;
 
-pub use self::signature::{FunctionSignature, SignatureAttribute};
+pub use self::signature::{ConstructorAttribute, FunctionSignature, SignatureAttribute};
 
 #[derive(Clone, Debug)]
 pub struct PyFunctionArgPyO3Attributes {
