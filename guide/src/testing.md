@@ -114,6 +114,10 @@ fn test_one_plus_one_wrapped() {
 `#[pyo3test]` takes care of wrapping the whole test case in `Python::with_gil(|py| {...})` and making
 `addone` available in Rust.
 
+> **Note:** running multiple tests which `#[pyo3import]` the same wrapped module requires _at least python3.9_.
+>
+> This does not affect which systems you can build and release for, only the interpreter used for these tests.
+
 In a non-trivial case, you will likely have Type conversions and Error handling which you wish to
 validate at this point.
 
