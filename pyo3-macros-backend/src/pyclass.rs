@@ -1174,6 +1174,7 @@ fn complex_enum_struct_variant_new<'a>(
         asyncness: None,
         unsafety: None,
         deprecations: Deprecations::new(ctx),
+        allow_threads: None,
     };
 
     crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
@@ -1199,6 +1200,7 @@ fn complex_enum_variant_field_getter<'a>(
         asyncness: None,
         unsafety: None,
         deprecations: Deprecations::new(ctx),
+        allow_threads: None,
     };
 
     let property_type = crate::pymethod::PropertyType::Function {
