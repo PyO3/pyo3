@@ -96,7 +96,7 @@
 //! enabled, `Ungil` is defined as the following:
 //!
 //! ```rust
-//! # #[cfg(FALSE)]
+//! # #[cfg(any())]
 //! # {
 //! #![feature(auto_traits, negative_impls)]
 //!
