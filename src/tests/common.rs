@@ -6,12 +6,13 @@
 #[macro_use]
 mod inner {
 
+    use pyo3::{
+        prelude::*,
+        types::{IntoPyDict, PyList},
+    };
+
     #[allow(unused_imports)] // pulls in `use crate as pyo3` in `test_utils.rs`
     use super::*;
-
-    use pyo3::prelude::*;
-
-    use pyo3::types::{IntoPyDict, PyList};
 
     #[macro_export]
     macro_rules! py_assert {
@@ -155,6 +156,17 @@ mod inner {
             })
             .unwrap();
         }};
+    }
+
+    // see https://stackoverflow.com/questions/60359157/valueerror-set-wakeup-fd-only-works-in-main-thread-on-windows-on-python-3-8-wit
+    #[cfg(feature = "macros")]
+    pub fn asyncio_windows(test: &str) -> String {
+        let set_event_loop_policy = r#"
+        import asyncio, sys
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        "#;
+        pyo3::unindent::unindent(set_event_loop_policy) + &pyo3::unindent::unindent(test)
     }
 }
 

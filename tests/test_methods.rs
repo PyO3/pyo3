@@ -1158,3 +1158,23 @@ fn test_issue_2988() {
     ) {
     }
 }
+
+#[pyclass]
+struct NoGILCounter(usize);
+
+#[pymethods]
+impl NoGILCounter {
+    #[pyo3(allow_threads, signature = (other = 1))]
+    fn inc_no_gil(&mut self, other: usize) -> usize {
+        self.0 += other;
+        self.0
+    }
+}
+
+#[test]
+fn test_method_allow_threads() {
+    Python::with_gil(|py| {
+        let counter = Py::new(py, NoGILCounter(42)).unwrap();
+        py_run!(py, counter, "assert counter.inc_no_gil() == 43")
+    })
+}

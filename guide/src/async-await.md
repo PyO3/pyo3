@@ -24,8 +24,6 @@ async fn sleep(seconds: f64, result: Option<PyObject>) -> Option<PyObject> {
 # }
 ```
 
-*Python awaitables instantiated with this method can only be awaited in *asyncio* context. Other Python async runtime may be supported in the future.*
-
 ## `Send + 'static` constraint
 
 Resulting future of an `async fn` decorated by `#[pyfunction]` must be `Send + 'static` to be embedded in a Python object.
@@ -92,6 +90,13 @@ async fn cancellable(#[pyo3(cancel_handle)] mut cancel: CancelHandle) {
 }
 # }
 ```
+
+## *asyncio* vs. *anyio*
+
+By default, Python awaitables instantiated with `async fn` can only be awaited in *asyncio* context. 
+
+PyO3 can also target [*anyio*](https://github.com/agronholm/anyio) with the dedicated `anyio` Cargo feature. With it enabled, `async fn` become awaitable both in *asyncio* or [*trio*](https://github.com/python-trio/trio) context.
+However, it requires to have the [*sniffio*](https://github.com/python-trio/sniffio) (or *anyio*) library installed.
 
 ## The `Coroutine` type
 

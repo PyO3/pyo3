@@ -16,7 +16,7 @@ error: expected argument from function definition `y` but got argument `x`
 13 | #[pyo3(signature = (x))]
    |                     ^
 
-error: expected one of: `name`, `pass_module`, `signature`, `text_signature`, `crate`
+error: expected one of: `allow_threads`, `name`, `pass_module`, `signature`, `text_signature`, `crate`
   --> tests/ui/invalid_pyfunction_signatures.rs:18:14
    |
 18 | #[pyfunction(x)]
