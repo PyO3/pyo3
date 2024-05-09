@@ -6,7 +6,9 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
-use crate::{ffi, PyNativeType, Python, ToPyObject};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Python, ToPyObject};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -56,32 +58,9 @@ pyobject_native_type_core!(
 );
 
 impl PyDict {
-    /// Deprecated form of [`new_bound`][PyDict::new_bound].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDict::new` will be replaced by `PyDict::new_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn new(py: Python<'_>) -> &PyDict {
-        Self::new_bound(py).into_gil_ref()
-    }
-
     /// Creates a new empty dictionary.
     pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
         unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
-    }
-
-    /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDict::from_sequence` will be replaced by `PyDict::from_sequence_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
-        Self::from_sequence_bound(&seq.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -99,6 +78,30 @@ impl PyDict {
             ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyDict {
+    /// Deprecated form of [`new_bound`][PyDict::new_bound].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDict::new` will be replaced by `PyDict::new_bound` in a future PyO3 version"
+    )]
+    #[inline]
+    pub fn new(py: Python<'_>) -> &PyDict {
+        Self::new_bound(py).into_gil_ref()
+    }
+
+    /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDict::from_sequence` will be replaced by `PyDict::from_sequence_bound` in a future PyO3 version"
+    )]
+    #[inline]
+    #[cfg(not(any(PyPy, GraalPy)))]
+    pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
+        Self::from_sequence_bound(&seq.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Returns a new dictionary that contains the same key-value pairs as self.
@@ -550,8 +553,10 @@ fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
+#[cfg(feature = "gil-refs")]
 pub struct PyDictIterator<'py>(BoundDictIterator<'py>);
 
+#[cfg(feature = "gil-refs")]
 impl<'py> Iterator for PyDictIterator<'py> {
     type Item = (&'py PyAny, &'py PyAny);
 
@@ -567,12 +572,14 @@ impl<'py> Iterator for PyDictIterator<'py> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> ExactSizeIterator for PyDictIterator<'py> {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'a> IntoIterator for &'a PyDict {
     type Item = (&'a PyAny, &'a PyAny);
     type IntoIter = PyDictIterator<'a>;

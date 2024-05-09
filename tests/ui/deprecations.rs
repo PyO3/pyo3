@@ -58,8 +58,8 @@ fn pyfunction_with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_gil_ref(module: &PyModule) -> PyResult<&str> {
-    module.name()
+fn pyfunction_with_module_gil_ref(_module: &PyModule) -> PyResult<&str> {
+    todo!()
 }
 
 #[pyfunction]
@@ -68,14 +68,12 @@ fn double(x: usize) -> usize {
 }
 
 #[pymodule]
-fn module_gil_ref(m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
+fn module_gil_ref(_m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
 #[pymodule]
-fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
+fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 

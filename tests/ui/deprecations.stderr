@@ -53,69 +53,69 @@ error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`
    |                                       ^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
-  --> tests/ui/deprecations.rs:61:43
+  --> tests/ui/deprecations.rs:61:44
    |
-61 | fn pyfunction_with_module_gil_ref(module: &PyModule) -> PyResult<&str> {
-   |                                           ^
+61 | fn pyfunction_with_module_gil_ref(_module: &PyModule) -> PyResult<&str> {
+   |                                            ^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
   --> tests/ui/deprecations.rs:71:19
    |
-71 | fn module_gil_ref(m: &PyModule) -> PyResult<()> {
-   |                   ^
+71 | fn module_gil_ref(_m: &PyModule) -> PyResult<()> {
+   |                   ^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
-  --> tests/ui/deprecations.rs:77:57
+  --> tests/ui/deprecations.rs:76:57
    |
-77 | fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-   |                                                         ^
+76 | fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
+   |                                                         ^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
-   --> tests/ui/deprecations.rs:110:27
+   --> tests/ui/deprecations.rs:108:27
     |
-110 |     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
+108 |     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
     |                           ^^^^^^^^^^^^^^^^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
-   --> tests/ui/deprecations.rs:116:29
+   --> tests/ui/deprecations.rs:114:29
     |
-116 | fn pyfunction_gil_ref(_any: &PyAny) {}
+114 | fn pyfunction_gil_ref(_any: &PyAny) {}
     |                             ^
 
 error: use of deprecated method `pyo3::deprecations::OptionGilRefs::<std::option::Option<T>>::function_arg`: use `Option<&Bound<'_, T>>` instead for this function argument
-   --> tests/ui/deprecations.rs:119:36
+   --> tests/ui/deprecations.rs:117:36
     |
-119 | fn pyfunction_option_gil_ref(_any: Option<&PyAny>) {}
+117 | fn pyfunction_option_gil_ref(_any: Option<&PyAny>) {}
     |                                    ^^^^^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
-   --> tests/ui/deprecations.rs:126:27
+   --> tests/ui/deprecations.rs:124:27
     |
-126 |     #[pyo3(from_py_with = "PyAny::len", item("my_object"))]
+124 |     #[pyo3(from_py_with = "PyAny::len", item("my_object"))]
     |                           ^^^^^^^^^^^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
-   --> tests/ui/deprecations.rs:136:27
+   --> tests/ui/deprecations.rs:134:27
     |
-136 |     #[pyo3(from_py_with = "PyAny::len")] usize,
+134 |     #[pyo3(from_py_with = "PyAny::len")] usize,
     |                           ^^^^^^^^^^^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
-   --> tests/ui/deprecations.rs:142:31
+   --> tests/ui/deprecations.rs:140:31
     |
-142 |     Zip(#[pyo3(from_py_with = "extract_gil_ref")] i32),
+140 |     Zip(#[pyo3(from_py_with = "extract_gil_ref")] i32),
     |                               ^^^^^^^^^^^^^^^^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<T>::from_py_with_arg`: use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor
-   --> tests/ui/deprecations.rs:149:27
+   --> tests/ui/deprecations.rs:147:27
     |
-149 |     #[pyo3(from_py_with = "extract_gil_ref")]
+147 |     #[pyo3(from_py_with = "extract_gil_ref")]
     |                           ^^^^^^^^^^^^^^^^^
 
 error: use of deprecated method `pyo3::deprecations::GilRefs::<pyo3::Python<'_>>::is_python`: use `wrap_pyfunction_bound!` instead
-   --> tests/ui/deprecations.rs:162:13
+   --> tests/ui/deprecations.rs:160:13
     |
-162 |     let _ = wrap_pyfunction!(double, py);
+160 |     let _ = wrap_pyfunction!(double, py);
     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     |
     = note: this error originates in the macro `wrap_pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

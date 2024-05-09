@@ -1,9 +1,9 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
+use crate::{ffi, AsPyPointer, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
 #[cfg(feature = "gil-refs")]
-use crate::PyDowncastError;
-use crate::{ffi, AsPyPointer, Bound, PyAny, PyErr, PyNativeType, PyResult, PyTypeCheck};
+use crate::{PyDowncastError, PyNativeType};
 
 /// A Python iterator object.
 ///
@@ -54,6 +54,7 @@ impl PyIterator {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'p> Iterator for &'p PyIterator {
     type Item = PyResult<&'p PyAny>;
 

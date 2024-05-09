@@ -7,9 +7,11 @@ use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyNativeType, PyObject, PyResult,
-    Python, ToPyObject,
+    exceptions, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 
 #[inline]
@@ -57,24 +59,6 @@ pub struct PyTuple(PyAny);
 pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), #checkfunction=ffi::PyTuple_Check);
 
 impl PyTuple {
-    /// Deprecated form of `PyTuple::new_bound`.
-    #[track_caller]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyTuple::new` will be replaced by `PyTuple::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T, U>(
-        py: Python<'_>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> &PyTuple
-    where
-        T: ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        Self::new_bound(py, elements).into_gil_ref()
-    }
-
     /// Constructs a new tuple with the given elements.
     ///
     /// If you want to create a [`PyTuple`] with elements of different or unknown types, or from an
@@ -114,16 +98,6 @@ impl PyTuple {
         new_from_iter(py, &mut elements)
     }
 
-    /// Deprecated form of `PyTuple::empty_bound`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyTuple::empty` will be replaced by `PyTuple::empty_bound` in a future PyO3 version"
-    )]
-    pub fn empty(py: Python<'_>) -> &PyTuple {
-        Self::empty_bound(py).into_gil_ref()
-    }
-
     /// Constructs an empty tuple (on the Python side, a singleton object).
     pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
         unsafe {
@@ -131,6 +105,35 @@ impl PyTuple {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyTuple {
+    /// Deprecated form of `PyTuple::new_bound`.
+    #[track_caller]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTuple::new` will be replaced by `PyTuple::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<T, U>(
+        py: Python<'_>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> &PyTuple
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        Self::new_bound(py, elements).into_gil_ref()
+    }
+
+    /// Deprecated form of `PyTuple::empty_bound`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTuple::empty` will be replaced by `PyTuple::empty_bound` in a future PyO3 version"
+    )]
+    pub fn empty(py: Python<'_>) -> &PyTuple {
+        Self::empty_bound(py).into_gil_ref()
     }
 
     /// Gets the length of the tuple.
@@ -236,6 +239,7 @@ impl PyTuple {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 index_impls!(PyTuple, "tuple", PyTuple::len, PyTuple::get_slice);
 
 /// Implementation of functionality for [`PyTuple`].
@@ -443,8 +447,10 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
 }
 
 /// Used by `PyTuple::iter()`.
+#[cfg(feature = "gil-refs")]
 pub struct PyTupleIterator<'a>(BorrowedTupleIterator<'a, 'a>);
 
+#[cfg(feature = "gil-refs")]
 impl<'a> Iterator for PyTupleIterator<'a> {
     type Item = &'a PyAny;
 
@@ -459,6 +465,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'a> DoubleEndedIterator for PyTupleIterator<'a> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -466,14 +473,17 @@ impl<'a> DoubleEndedIterator for PyTupleIterator<'a> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl FusedIterator for PyTupleIterator<'_> {}
 
+#[cfg(feature = "gil-refs")]
 impl<'a> IntoIterator for &'a PyTuple {
     type Item = &'a PyAny;
     type IntoIter = PyTupleIterator<'a>;

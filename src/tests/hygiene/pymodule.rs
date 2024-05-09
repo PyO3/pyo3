@@ -14,6 +14,7 @@ fn foo(_py: crate::Python<'_>, _m: &crate::types::PyModule) -> crate::PyResult<(
     ::std::result::Result::Ok(())
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 #[crate::pymodule]
 #[pyo3(crate = "crate")]

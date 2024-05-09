@@ -79,11 +79,17 @@ pub use self::typeobject::{PyType, PyTypeMethods};
 /// the Limited API and PyPy, the underlying structures are opaque and that may not be possible.
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
-    pub use super::dict::{BoundDictIterator, PyDictIterator};
-    pub use super::frozenset::{BoundFrozenSetIterator, PyFrozenSetIterator};
-    pub use super::list::{BoundListIterator, PyListIterator};
-    pub use super::set::{BoundSetIterator, PySetIterator};
-    pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator, PyTupleIterator};
+    pub use super::dict::BoundDictIterator;
+    pub use super::frozenset::BoundFrozenSetIterator;
+    pub use super::list::BoundListIterator;
+    pub use super::set::BoundSetIterator;
+    pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator};
+
+    #[cfg(feature = "gil-refs")]
+    pub use super::{
+        dict::PyDictIterator, frozenset::PyFrozenSetIterator, list::PyListIterator,
+        set::PySetIterator, tuple::PyTupleIterator,
+    };
 }
 
 /// Python objects that have a base type.
