@@ -265,7 +265,7 @@ use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
 # #[derive(Debug)]
-enum RustyEnum<'a> {
+enum RustyEnum<'py> {
     Int(usize),                    // input is a positive int
     String(String),                // input is a string
     IntTuple(usize, usize),        // input is a 2-tuple with positive ints
@@ -284,7 +284,7 @@ enum RustyEnum<'a> {
         b: usize,
     },
     #[pyo3(transparent)]
-    CatchAll(&'a PyAny), // This extraction never fails
+    CatchAll(Bound<'py, PyAny>), // This extraction never fails
 }
 #
 # use pyo3::types::{PyBytes, PyString};
@@ -394,7 +394,7 @@ enum RustyEnum<'a> {
 #             assert_eq!(
 #                 b"text",
 #                 match rust_thing {
-#                     RustyEnum::CatchAll(i) => i.downcast::<PyBytes>()?.as_bytes(),
+#                     RustyEnum::CatchAll(ref i) => i.downcast::<PyBytes>()?.as_bytes(),
 #                     other => unreachable!("Error extracting: {:?}", other),
 #                 }
 #             );

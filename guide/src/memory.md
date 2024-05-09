@@ -34,9 +34,11 @@ held. (If PyO3 could not assume this, every PyO3 API would need to take a
 very simple and easy-to-understand programs like this:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     #[allow(deprecated)] // py.eval() is part of the GIL Refs API
     let hello = py
@@ -57,9 +59,11 @@ it owns are decreased, releasing them to the Python garbage collector.  Most
 of the time we don't have to think about this, but consider the following:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         #[allow(deprecated)] // py.eval() is part of the GIL Refs API
@@ -96,9 +100,11 @@ In general we don't want unbounded memory growth during loops!  One workaround
 is to acquire and release the GIL with each iteration of the loop.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 for _ in 0..10 {
     Python::with_gil(|py| -> PyResult<()> {
         #[allow(deprecated)] // py.eval() is part of the GIL Refs API
@@ -118,9 +124,11 @@ times.  Another workaround is to work with the `GILPool` object directly, but
 this is unsafe.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         #[allow(deprecated)] // `new_pool` is not needed in code not using the GIL Refs API

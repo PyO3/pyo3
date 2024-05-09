@@ -54,7 +54,7 @@ pyo3 = { version = "0.21", features = ["gil-refs"] }
 
 The `PyTryFrom` trait has aged poorly, its `try_from` method now conflicts with `TryFrom::try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
 
-To tighten up the PyO3 traits as part of the deprecation of the GIL Refs API the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
+To tighten up the PyO3 traits as part of the deprecation of the GIL Refs API the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods `PyAny::downcast` and `PyAny::downcast_exact` no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
 
 To migrate, switch all type casts to use `obj.downcast()` instead of `try_from(obj)` (and similar for `downcast_exact`).
 

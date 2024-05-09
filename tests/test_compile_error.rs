@@ -20,7 +20,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
-    #[cfg(not(feature = "gil-refs"))]
+    #[cfg(feature = "gil-refs")]
     t.compile_fail("tests/ui/deprecations.rs");
     t.compile_fail("tests/ui/invalid_closure.rs");
     t.compile_fail("tests/ui/pyclass_send.rs");
@@ -38,7 +38,13 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
     t.compile_fail("tests/ui/missing_intopy.rs");
     // adding extra error conversion impls changes the output
-    #[cfg(not(any(windows, feature = "eyre", feature = "anyhow", Py_LIMITED_API)))]
+    #[cfg(not(any(
+        windows,
+        feature = "eyre",
+        feature = "anyhow",
+        feature = "gil-refs",
+        Py_LIMITED_API
+    )))]
     t.compile_fail("tests/ui/invalid_result_conversion.rs");
     t.compile_fail("tests/ui/not_send.rs");
     t.compile_fail("tests/ui/not_send2.rs");

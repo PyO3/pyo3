@@ -41,7 +41,7 @@
 //! The [`#[pymethods]`](crate::pymethods) proc macro will generate this wrapper function (and more),
 //! using [`PyCell`] under the hood:
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use pyo3::prelude::*;
 //! # #[pyclass]
 //! # struct Number {
@@ -148,7 +148,7 @@
 //! ```
 //!
 //! It is better to write that function like this:
-//! ```rust
+//! ```rust,ignore
 //! # #![allow(deprecated)]
 //! # use pyo3::prelude::*;
 //! # #[pyclass]

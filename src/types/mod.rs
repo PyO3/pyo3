@@ -130,7 +130,8 @@ macro_rules! pyobject_native_type_base(
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.repr().or(::std::result::Result::Err(::std::fmt::Error))?;
+                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods}};
+                let s = self.as_borrowed().repr().or(::std::result::Result::Err(::std::fmt::Error))?;
                 f.write_str(&s.to_string_lossy())
             }
         }
@@ -139,19 +140,20 @@ macro_rules! pyobject_native_type_base(
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                use $crate::PyNativeType;
-                match self.str() {
+                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods, PyTypeMethods}};
+                match self.as_borrowed().str() {
                     ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
                     ::std::result::Result::Err(err) => err.write_unraisable_bound(self.py(), ::std::option::Option::Some(&self.as_borrowed())),
                 }
 
-                match self.get_type().name() {
+                match self.as_borrowed().get_type().name() {
                     ::std::result::Result::Ok(name) => ::std::write!(f, "<unprintable {} object>", name),
                     ::std::result::Result::Err(_err) => f.write_str("<unprintable object>"),
                 }
             }
         }
 
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> $crate::ToPyObject for $name
         {
             #[inline]
@@ -196,6 +198,7 @@ macro_rules! pyobject_native_type_named (
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
             fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
@@ -205,6 +208,7 @@ macro_rules! pyobject_native_type_named (
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
@@ -215,6 +219,7 @@ macro_rules! pyobject_native_type_named (
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
@@ -271,6 +276,7 @@ macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             #[inline]
             fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {

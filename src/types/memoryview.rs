@@ -1,9 +1,9 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
+use crate::{ffi, Bound, PyAny};
 #[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
-use crate::{ffi, AsPyPointer, Bound, PyAny};
+use crate::{AsPyPointer, PyNativeType};
 
 /// Represents a Python `memoryview`.
 #[repr(transparent)]

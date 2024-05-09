@@ -29,39 +29,27 @@ impl<T> GilRefs<T> {
 }
 
 impl GilRefs<Python<'_>> {
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(since = "0.21.0", note = "use `wrap_pyfunction_bound!` instead")
-    )]
+    #[deprecated(since = "0.21.0", note = "use `wrap_pyfunction_bound!` instead")]
     pub fn is_python(&self) {}
 }
 
 impl<T: IsGilRef> GilRefs<T> {
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `&Bound<'_, T>` instead for this function argument"
-        )
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `&Bound<'_, T>` instead for this function argument"
     )]
     pub fn function_arg(&self) {}
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor"
-        )
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `&Bound<'_, PyAny>` as the argument for this `from_py_with` extractor"
     )]
     pub fn from_py_with_arg(&self) {}
 }
 
 impl<T: IsGilRef> OptionGilRefs<Option<T>> {
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Option<&Bound<'_, T>>` instead for this function argument"
-        )
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Option<&Bound<'_, T>>` instead for this function argument"
     )]
     pub fn function_arg(&self) {}
 }

@@ -1283,7 +1283,7 @@ impl<T> Py<T> {
     }
 
     /// Returns whether `self` and `other` point to the same object. To compare
-    /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
+    /// the equality of two objects (the `==` operator), use [`eq`](PyAnyMethods::eq).
     ///
     /// This is equivalent to the Python expression `self is other`.
     #[inline]
@@ -2142,7 +2142,7 @@ a = A()
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py
-                .eval("...", None, None)
+                .eval_bound("...", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .to_object(py);

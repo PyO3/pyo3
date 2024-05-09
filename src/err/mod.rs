@@ -1000,6 +1000,7 @@ where
 }
 
 /// Convert `PyDowncastError` to Python `TypeError`.
+#[cfg(feature = "gil-refs")]
 impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
     fn from(err: PyDowncastError<'_>) -> PyErr {
         let args = PyDowncastErrorArguments {

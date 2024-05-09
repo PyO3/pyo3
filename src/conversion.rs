@@ -345,6 +345,7 @@ where
 }
 
 #[allow(deprecated)]
+#[cfg(feature = "gil-refs")]
 impl<'py, T> FromPyObject<'py> for &'py crate::PyCell<T>
 where
     T: PyClass,
