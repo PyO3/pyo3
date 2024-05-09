@@ -10,6 +10,7 @@ fn basic_function(py: pyo3::Python<'_>, x: Option<pyo3::PyObject>) -> pyo3::PyOb
     x.unwrap_or_else(|| py.None())
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 #[pyo3::pymodule]
 fn basic_module(_py: pyo3::Python<'_>, m: &pyo3::types::PyModule) -> pyo3::PyResult<()> {
@@ -108,7 +109,7 @@ impl BasicClass {
 #[test]
 fn test_basic() {
     pyo3::Python::with_gil(|py| {
-        let module = pyo3::wrap_pymodule!(basic_module)(py);
+        let module = pyo3::wrap_pymodule!(basic_module_bound)(py);
         let cls = py.get_type_bound::<BasicClass>();
         let d = pyo3::types::IntoPyDict::into_py_dict_bound(
             [

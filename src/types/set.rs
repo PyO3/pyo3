@@ -1,11 +1,12 @@
 use crate::types::PyIterator;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
-    PyNativeType,
 };
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
@@ -30,8 +31,30 @@ pyobject_native_type_core!(
 );
 
 impl PySet {
+    /// Creates a new set with elements from the given slice.
+    ///
+    /// Returns an error if some element is not hashable.
+    #[inline]
+    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = &'a T>,
+    ) -> PyResult<Bound<'p, PySet>> {
+        new_from_iter(py, elements)
+    }
+
+    /// Creates a new empty set.
+    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
+        unsafe {
+            ffi::PySet_New(ptr::null_mut())
+                .assume_owned_or_err(py)
+                .downcast_into_unchecked()
+        }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PySet {
     /// Deprecated form of [`PySet::new_bound`].
-    #[cfg(feature = "gil-refs")]
     #[deprecated(
         since = "0.21.0",
         note = "`PySet::new` will be replaced by `PySet::new_bound` in a future PyO3 version"
@@ -44,34 +67,13 @@ impl PySet {
         Self::new_bound(py, elements).map(Bound::into_gil_ref)
     }
 
-    /// Creates a new set with elements from the given slice.
-    ///
-    /// Returns an error if some element is not hashable.
-    #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<Bound<'p, PySet>> {
-        new_from_iter(py, elements)
-    }
-
     /// Deprecated form of [`PySet::empty_bound`].
-    #[cfg(feature = "gil-refs")]
     #[deprecated(
         since = "0.21.2",
         note = "`PySet::empty` will be replaced by `PySet::empty_bound` in a future PyO3 version"
     )]
     pub fn empty(py: Python<'_>) -> PyResult<&PySet> {
         Self::empty_bound(py).map(Bound::into_gil_ref)
-    }
-
-    /// Creates a new empty set.
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PySet>> {
-        unsafe {
-            ffi::PySet_New(ptr::null_mut())
-                .assume_owned_or_err(py)
-                .downcast_into_unchecked()
-        }
     }
 
     /// Removes all elements from the set.
@@ -259,8 +261,10 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 }
 
 /// PyO3 implementation of an iterator for a Python `set` object.
+#[cfg(feature = "gil-refs")]
 pub struct PySetIterator<'py>(BoundSetIterator<'py>);
 
+#[cfg(feature = "gil-refs")]
 impl<'py> Iterator for PySetIterator<'py> {
     type Item = &'py super::PyAny;
 
@@ -279,12 +283,14 @@ impl<'py> Iterator for PySetIterator<'py> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl ExactSizeIterator for PySetIterator<'_> {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> IntoIterator for &'py PySet {
     type Item = &'py PyAny;
     type IntoIter = PySetIterator<'py>;

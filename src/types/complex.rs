@@ -59,6 +59,7 @@ mod not_limited_impls {
     use super::*;
     use std::ops::{Add, Div, Mul, Neg, Sub};
 
+    #[cfg(feature = "gil-refs")]
     impl PyComplex {
         /// Returns `|self|`.
         pub fn abs(&self) -> c_double {
@@ -94,6 +95,7 @@ mod not_limited_impls {
                 }
             }
 
+            #[cfg(feature = "gil-refs")]
             impl<'py> $trait for &'py PyComplex {
                 type Output = &'py PyComplex;
                 fn $fn(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -136,6 +138,7 @@ mod not_limited_impls {
     bin_ops!(Mul, mul, *, ffi::_Py_c_prod);
     bin_ops!(Div, div, /, ffi::_Py_c_quot);
 
+    #[cfg(feature = "gil-refs")]
     impl<'py> Neg for &'py PyComplex {
         type Output = &'py PyComplex;
         fn neg(self) -> &'py PyComplex {

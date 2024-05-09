@@ -6,7 +6,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
 
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
@@ -55,26 +57,10 @@ pub(crate) fn new_from_iter<'py>(
 }
 
 impl PyList {
-    /// Deprecated form of [`PyList::new_bound`].
-    #[inline]
-    #[track_caller]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyList::new` will be replaced by `PyList::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
-    where
-        T: ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        Self::new_bound(py, elements).into_gil_ref()
-    }
-
     /// Constructs a new list with the given elements.
     ///
     /// If you want to create a [`PyList`] with elements of different or unknown types, or from an
-    /// iterable that doesn't implement [`ExactSizeIterator`], use [`PyList::append`].
+    /// iterable that doesn't implement [`ExactSizeIterator`], use [`PyListMethods::append`].
     ///
     /// # Examples
     ///
@@ -109,17 +95,6 @@ impl PyList {
         new_from_iter(py, &mut iter)
     }
 
-    /// Deprecated form of [`PyList::empty_bound`].
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyList::empty` will be replaced by `PyList::empty_bound` in a future PyO3 version"
-    )]
-    pub fn empty(py: Python<'_>) -> &PyList {
-        Self::empty_bound(py).into_gil_ref()
-    }
-
     /// Constructs a new empty list.
     pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyList> {
         unsafe {
@@ -127,6 +102,34 @@ impl PyList {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyList {
+    /// Deprecated form of [`PyList::new_bound`].
+    #[inline]
+    #[track_caller]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyList::new` will be replaced by `PyList::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        Self::new_bound(py, elements).into_gil_ref()
+    }
+
+    /// Deprecated form of [`PyList::empty_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyList::empty` will be replaced by `PyList::empty_bound` in a future PyO3 version"
+    )]
+    pub fn empty(py: Python<'_>) -> &PyList {
+        Self::empty_bound(py).into_gil_ref()
     }
 
     /// Returns the length of the list.
@@ -273,6 +276,7 @@ impl PyList {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 
 /// Implementation of functionality for [`PyList`].
@@ -586,8 +590,10 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 }
 
 /// Used by `PyList::iter()`.
+#[cfg(feature = "gil-refs")]
 pub struct PyListIterator<'a>(BoundListIterator<'a>);
 
+#[cfg(feature = "gil-refs")]
 impl<'a> Iterator for PyListIterator<'a> {
     type Item = &'a PyAny;
 
@@ -602,6 +608,7 @@ impl<'a> Iterator for PyListIterator<'a> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'a> DoubleEndedIterator for PyListIterator<'a> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -609,14 +616,17 @@ impl<'a> DoubleEndedIterator for PyListIterator<'a> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'a> ExactSizeIterator for PyListIterator<'a> {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl FusedIterator for PyListIterator<'_> {}
 
+#[cfg(feature = "gil-refs")]
 impl<'a> IntoIterator for &'a PyList {
     type Item = &'a PyAny;
     type IntoIter = PyListIterator<'a>;

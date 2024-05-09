@@ -1,7 +1,9 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, AsPyPointer, Bound, PyAny, PyNativeType};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, AsPyPointer, Bound, PyAny};
 
 /// Represents a Python `memoryview`.
 #[repr(transparent)]
@@ -31,6 +33,7 @@ impl PyMemoryView {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> TryFrom<&'py PyAny> for &'py PyMemoryView {
     type Error = crate::PyErr;
 

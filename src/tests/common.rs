@@ -114,15 +114,18 @@ mod inner {
     }
 
     impl<'py> CatchWarnings<'py> {
-        pub fn enter<R>(py: Python<'py>, f: impl FnOnce(&PyList) -> PyResult<R>) -> PyResult<R> {
+        pub fn enter<R>(
+            py: Python<'py>,
+            f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
+        ) -> PyResult<R> {
             let warnings = py.import_bound("warnings")?;
             let kwargs = [("record", true)].into_py_dict_bound(py);
             let catch_warnings = warnings
                 .getattr("catch_warnings")?
                 .call((), Some(&kwargs))?;
-            let list = catch_warnings.call_method0("__enter__")?.extract()?;
+            let list = catch_warnings.call_method0("__enter__")?.downcast_into()?;
             let _guard = Self { catch_warnings };
-            f(list)
+            f(&list)
         }
     }
 
@@ -139,6 +142,7 @@ mod inner {
     macro_rules! assert_warnings {
         ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
             $crate::tests::common::CatchWarnings::enter($py, |w| {
+                use $crate::types::{PyListMethods, PyStringMethods};
                 $body;
                 let expected_warnings = [$((<$category as $crate::type_object::PyTypeInfo>::type_object_bound($py), $message)),+];
                 assert_eq!(w.len(), expected_warnings.len());

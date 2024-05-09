@@ -491,6 +491,7 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> TryFrom<&'py PyAny> for &'py PyByteArray {
     type Error = crate::PyErr;
 

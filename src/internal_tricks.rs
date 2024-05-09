@@ -46,6 +46,7 @@ pub(crate) fn get_ssize_index(index: usize) -> Py_ssize_t {
 }
 
 /// Implementations used for slice indexing PySequence, PyTuple, and PyList
+#[cfg(feature = "gil-refs")]
 macro_rules! index_impls {
     (
         $ty:ty,
@@ -154,6 +155,7 @@ macro_rules! index_impls {
 #[inline(never)]
 #[cold]
 #[track_caller]
+#[cfg(feature = "gil-refs")]
 pub(crate) fn index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
     panic!(
         "index {} out of range for {} of length {}",
@@ -164,6 +166,7 @@ pub(crate) fn index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
 #[inline(never)]
 #[cold]
 #[track_caller]
+#[cfg(feature = "gil-refs")]
 pub(crate) fn slice_start_index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
     panic!(
         "range start index {} out of range for {} of length {}",
@@ -174,6 +177,7 @@ pub(crate) fn slice_start_index_len_fail(index: usize, ty_name: &str, len: usize
 #[inline(never)]
 #[cold]
 #[track_caller]
+#[cfg(feature = "gil-refs")]
 pub(crate) fn slice_end_index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
     panic!(
         "range end index {} out of range for {} of length {}",
@@ -184,6 +188,7 @@ pub(crate) fn slice_end_index_len_fail(index: usize, ty_name: &str, len: usize) 
 #[inline(never)]
 #[cold]
 #[track_caller]
+#[cfg(feature = "gil-refs")]
 pub(crate) fn slice_index_order_fail(index: usize, end: usize) -> ! {
     panic!("slice index starts at {} but ends at {}", index, end);
 }

@@ -1,4 +1,4 @@
-use crate::err::{self, DowncastError, PyDowncastError, PyErr, PyResult};
+use crate::err::{self, DowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -9,7 +9,9 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{ffi, FromPyObject, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
+#[cfg(feature = "gil-refs")]
+use crate::{err::PyDowncastError, PyNativeType};
+use crate::{ffi, FromPyObject, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -17,6 +19,18 @@ pub struct PySequence(PyAny);
 pyobject_native_type_named!(PySequence);
 pyobject_native_type_extract!(PySequence);
 
+impl PySequence {
+    /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
+    /// library). This is equivalent to `collections.abc.Sequence.register(T)` in Python.
+    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PySequence`.
+    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+        let ty = T::type_object_bound(py);
+        get_sequence_abc(py)?.call_method1("register", (ty,))?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "gil-refs")]
 impl PySequence {
     /// Returns the number of objects in sequence.
     ///
@@ -174,15 +188,6 @@ impl PySequence {
     #[inline]
     pub fn to_tuple(&self) -> PyResult<&PyTuple> {
         self.as_borrowed().to_tuple().map(Bound::into_gil_ref)
-    }
-
-    /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
-    /// library). This is equvalent to `collections.abc.Sequence.register(T)` in Python.
-    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PySequence`.
-    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
-        let ty = T::type_object_bound(py);
-        get_sequence_abc(py)?.call_method1("register", (ty,))?;
-        Ok(())
     }
 }
 
@@ -465,16 +470,19 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 }
 
 #[inline]
+#[cfg(feature = "gil-refs")]
 fn sequence_len(seq: &PySequence) -> usize {
     seq.len().expect("failed to get sequence length")
 }
 
 #[inline]
+#[cfg(feature = "gil-refs")]
 fn sequence_slice(seq: &PySequence, start: usize, end: usize) -> &PySequence {
     seq.get_slice(start, end)
         .expect("sequence slice operation failed")
 }
 
+#[cfg(feature = "gil-refs")]
 index_impls!(PySequence, "sequence", sequence_len, sequence_slice);
 
 impl<'py, T> FromPyObject<'py> for Vec<T>
@@ -539,6 +547,7 @@ impl PyTypeCheck for PySequence {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl<'v> crate::PyTryFrom<'v> for PySequence {
     /// Downcasting to `PySequence` requires the concrete class to be a subclass (or registered
