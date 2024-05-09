@@ -219,7 +219,7 @@ mod tests {
     fn test_int_roundtrip() {
         Python::with_gil(|py| {
             let rs_frac = Ratio::new(1, 2);
-            let py_frac = rs_frac.into_py(py);
+            let py_frac: PyObject = rs_frac.into_py(py);
             let roundtripped: Ratio<i32> = py_frac.extract(py).unwrap();
             assert_eq!(rs_frac, roundtripped);
             // float conversion
@@ -231,7 +231,7 @@ mod tests {
     fn test_big_int_roundtrip() {
         Python::with_gil(|py| {
             let rs_frac = Ratio::from_float(5.5).unwrap();
-            let py_frac = rs_frac.clone().into_py(py);
+            let py_frac: PyObject = rs_frac.clone().into_py(py);
             let roundtripped: Ratio<BigInt> = py_frac.extract(py).unwrap();
             assert_eq!(rs_frac, roundtripped);
         })
