@@ -232,7 +232,7 @@ not work when compiling for `abi3`. These are:
 
 If you want to embed the Python interpreter inside a Rust program, there are two modes in which this can be done: dynamically and statically. We'll cover each of these modes in the following sections. Each of them affect how you must distribute your program. Instead of learning how to do this yourself, you might want to consider using a project like [PyOxidizer] to ship your application and all of its dependencies in a single file.
 
-PyO3 automatically switches between the two linking modes depending on whether the Python distribution you have configured PyO3 to use ([see above](#configuring-the-python-version)) contains a shared library or a static library. The static library is most often seen in Python distributions compiled from source without the `--enable-shared` configuration option. For example, this is the default for `pyenv` on macOS.
+PyO3 automatically switches between the two linking modes depending on whether the Python distribution you have configured PyO3 to use ([see above](#configuring-the-python-version)) contains a shared library or a static library. The static library is most often seen in Python distributions compiled from source without the `--enable-shared` configuration option.
 
 ### Dynamically embedding the Python interpreter
 

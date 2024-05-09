@@ -13,6 +13,8 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyfunction_signatures.rs");
     #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
+    // The output is not stable across abi3 / not abi3 and features
+    #[cfg(all(not(Py_LIMITED_API), feature = "full"))]
     t.compile_fail("tests/ui/invalid_pymethods_duplicates.rs");
     t.compile_fail("tests/ui/invalid_pymethod_enum.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");

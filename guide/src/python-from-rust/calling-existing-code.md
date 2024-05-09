@@ -2,9 +2,9 @@
 
 If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:
 
-## Want to access Python APIs? Then use `PyModule::import`.
+## Want to access Python APIs? Then use `PyModule::import_bound`.
 
-[`Pymodule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
+[`PyModule::import_bound`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import_bound) can
 be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
@@ -95,9 +95,9 @@ assert userdata.as_tuple() == userdata_as_tuple
 # }
 ```
 
-## You have a Python file or code snippet? Then use `PyModule::from_code`.
+## You have a Python file or code snippet? Then use `PyModule::from_code_bound`.
 
-[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
+[`PyModule::from_code_bound`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code_bound)
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 
@@ -171,7 +171,7 @@ fn main() -> PyResult<()> {
 ```
 
 If `append_to_inittab` cannot be used due to constraints in the program,
-an alternative is to create a module using [`PyModule::new`]
+an alternative is to create a module using [`PyModule::new_bound`]
 and insert it manually into `sys.modules`:
 
 ```rust
@@ -394,4 +394,4 @@ Python::with_gil(|py| -> PyResult<()> {
 ```
 
 
-[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new
+[`PyModule::new_bound`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new_bound

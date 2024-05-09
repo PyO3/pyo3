@@ -7,7 +7,7 @@ struct TraverseTriesToTakePyRef {}
 
 #[pymethods]
 impl TraverseTriesToTakePyRef {
-    fn __traverse__(slf: PyRef<Self>, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(_slf: PyRef<Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
 }
@@ -17,7 +17,7 @@ struct TraverseTriesToTakePyRefMut {}
 
 #[pymethods]
 impl TraverseTriesToTakePyRefMut {
-    fn __traverse__(slf: PyRefMut<Self>, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(_slf: PyRefMut<Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
 }
@@ -27,7 +27,7 @@ struct TraverseTriesToTakeBound {}
 
 #[pymethods]
 impl TraverseTriesToTakeBound {
-    fn __traverse__(slf: Bound<'_, Self>, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(_slf: Bound<'_, Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
 }
@@ -37,7 +37,7 @@ struct TraverseTriesToTakeMutSelf {}
 
 #[pymethods]
 impl TraverseTriesToTakeMutSelf {
-    fn __traverse__(&mut self, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(&mut self, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
 }
@@ -47,7 +47,7 @@ struct TraverseTriesToTakeSelf {}
 
 #[pymethods]
 impl TraverseTriesToTakeSelf {
-    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
 }
@@ -57,7 +57,7 @@ struct Class;
 
 #[pymethods]
 impl Class {
-    fn __traverse__(&self, py: Python<'_>, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+    fn __traverse__(&self, _py: Python<'_>, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         Ok(())
     }
 

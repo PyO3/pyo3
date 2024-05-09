@@ -290,6 +290,10 @@ fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
     Ok(length)
 }
 
+fn is_even(obj: &Bound<'_, PyAny>) -> PyResult<bool> {
+    obj.extract::<i32>().map(|i| i % 2 == 0)
+}
+
 #[pyclass]
 struct ClassWithFromPyWithMethods {}
 
@@ -319,6 +323,10 @@ impl ClassWithFromPyWithMethods {
     fn staticmethod(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
         argument
     }
+
+    fn __contains__(&self, #[pyo3(from_py_with = "is_even")] obj: bool) -> bool {
+        obj
+    }
 }
 
 #[test]
@@ -339,6 +347,9 @@ fn test_pymethods_from_py_with() {
         if has_gil_refs:
             assert instance.classmethod_gil_ref(arg) == 2
         assert instance.staticmethod(arg) == 2
+
+        assert 42 in instance
+        assert 73 not in instance
         "#
         );
     })

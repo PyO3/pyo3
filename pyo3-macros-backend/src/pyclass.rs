@@ -1153,7 +1153,7 @@ fn complex_enum_struct_variant_new<'a>(
 
         for field in &variant.fields {
             args.push(FnArg::Regular(RegularArg {
-                name: field.ident,
+                name: Cow::Borrowed(field.ident),
                 ty: field.ty,
                 from_py_with: None,
                 default_value: None,

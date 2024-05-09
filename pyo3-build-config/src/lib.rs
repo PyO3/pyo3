@@ -43,6 +43,7 @@ use target_lexicon::OperatingSystem;
 /// For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building-and-distribution/multiple_python_versions.html).
 #[cfg(feature = "resolve-config")]
 pub fn use_pyo3_cfgs() {
+    print_expected_cfgs();
     for cargo_command in get().build_script_outputs() {
         println!("{}", cargo_command)
     }
@@ -150,6 +151,25 @@ pub fn print_feature_cfgs() {
     // invalid_from_utf8 lint was added in Rust 1.74
     if rustc_minor_version >= 74 {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
+    }
+}
+
+/// Registers `pyo3`s config names as reachable cfg expressions
+///
+/// - <https://github.com/rust-lang/cargo/pull/13571>
+/// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
+#[doc(hidden)]
+pub fn print_expected_cfgs() {
+    println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
+    println!("cargo:rustc-check-cfg=cfg(PyPy)");
+    println!("cargo:rustc-check-cfg=cfg(GraalPy)");
+    println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
+    println!("cargo:rustc-check-cfg=cfg(invalid_from_utf8_lint)");
+
+    // allow `Py_3_*` cfgs from the minimum supported version up to the
+    // maximum minor version (+1 for development for the next)
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+        println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 }
 
