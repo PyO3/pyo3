@@ -123,7 +123,7 @@ num=-1
 
 <div class="warning">
 
-⚠️ Warning: This behaviour is phased out 🛠️
+⚠️ Warning: This behaviour is being phased out 🛠️
 
 The special casing of trailing optional arguments is deprecated. In a future `pyo3` version, arguments of type `Option<..>` will share the same behaviour as other arguments, they are required unless a default is set using `#[pyo3(signature = (...))]`.
 

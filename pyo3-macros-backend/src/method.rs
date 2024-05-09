@@ -5,6 +5,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
+use crate::deprecations::deprecate_trailing_option_default;
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -708,6 +709,8 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
+        let deprecation = deprecate_trailing_option_default(self);
+
         Ok(match self.convention {
             CallingConvention::Noargs => {
                 let mut holders = Holders::new();
@@ -730,6 +733,7 @@ impl<'a> FnSpec<'a> {
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
@@ -754,6 +758,7 @@ impl<'a> FnSpec<'a> {
                         _nargs: #pyo3_path::ffi::Py_ssize_t,
                         _kwnames: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
@@ -778,6 +783,7 @@ impl<'a> FnSpec<'a> {
                         _args: *mut #pyo3_path::ffi::PyObject,
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
@@ -805,6 +811,7 @@ impl<'a> FnSpec<'a> {
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         use #pyo3_path::callback::IntoPyCallbackOutput;
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert

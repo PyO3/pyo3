@@ -182,6 +182,7 @@ fn test_from_py_with_defaults() {
 
     // issue 2280 combination of from_py_with and Option<T> did not compile
     #[pyfunction]
+    #[pyo3(signature = (int=None))]
     fn from_py_with_option(#[pyo3(from_py_with = "optional_int")] int: Option<i32>) -> i32 {
         int.unwrap_or(0)
     }

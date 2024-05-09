@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
+use crate::deprecations::deprecate_trailing_option_default;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
 use crate::utils::Ctx;
@@ -630,7 +631,6 @@ pub fn impl_py_setter_def(
 
             let tokens = impl_regular_arg_param(
                 arg,
-                spec.signature.attribute.is_some(),
                 ident,
                 quote!(::std::option::Option::Some(_value.into())),
                 &mut holders,
@@ -638,7 +638,10 @@ pub fn impl_py_setter_def(
             );
             let extract =
                 check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx);
+
+            let deprecation = deprecate_trailing_option_default(spec);
             quote! {
+                #deprecation
                 #from_py_with
                 let _val = #extract;
             }

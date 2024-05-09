@@ -73,13 +73,3 @@ impl<T> std::ops::Deref for OptionGilRefs<T> {
         &self.0
     }
 }
-
-#[deprecated(
-    since = "0.22.0",
-    note = "Implicit default for trailing optional arguments is phased out. Add an explicit \
-            `#[pyo3(signature = (...))]` attribute a to silence this warning. In a future \
-            pyo3 version `Option<..>` arguments will be treated the same as any other argument."
-)]
-pub fn deprecate_implicit_option<T>(t: T) -> T {
-    t
-}
