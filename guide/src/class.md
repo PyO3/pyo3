@@ -1243,6 +1243,46 @@ Python::with_gil(|py| {
 })
 ```
 
+The constructor of each generated class can be customized using the `#[pyo3(constructor = (...))]` attribute. This uses the same syntax as the [`#[pyo3(signature = (...))]`](function/signature.md)
+attribute on function and methods and supports the same options. To apply this attribute simply place it on top of a variant in a `#[pyclass]` complex enum as shown below:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+enum Shape {
+    #[pyo3(constructor = (radius=1.0))]
+    Circle { radius: f64 },
+    #[pyo3(constructor = (*, width, height))]
+    Rectangle { width: f64, height: f64 },
+    #[pyo3(constructor = (side_count, radius=1.0))]
+    RegularPolygon { side_count: u32, radius: f64 },
+    Nothing { },
+}
+
+# #[cfg(Py_3_10)]
+Python::with_gil(|py| {
+    let cls = py.get_type_bound::<Shape>();
+    pyo3::py_run!(py, cls, r#"
+        circle = cls.Circle()
+        assert isinstance(circle, cls)
+        assert isinstance(circle, cls.Circle)
+        assert circle.radius == 1.0
+
+        square = cls.Rectangle(width = 1, height = 1)
+        assert isinstance(square, cls)
+        assert isinstance(square, cls.Rectangle)
+        assert square.width == 1
+        assert square.height == 1
+
+        hexagon = cls.RegularPolygon(6)
+        assert isinstance(hexagon, cls)
+        assert isinstance(hexagon, cls.RegularPolygon)
+        assert hexagon.side_count == 6
+        assert hexagon.radius == 1
+    "#)
+})
+```
+
 ## Implementation details
 
 The `#[pyclass]` macros rely on a lot of conditional code generation: each `#[pyclass]` can optionally have a `#[pymethods]` block.

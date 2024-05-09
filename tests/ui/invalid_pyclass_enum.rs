@@ -27,4 +27,11 @@ enum NoTupleVariants {
     TupleVariant(i32),
 }
 
+#[pyclass]
+enum SimpleNoSignature {
+    #[pyo3(constructor = (a, b))]
+    A,
+    B,
+}
+
 fn main() {}

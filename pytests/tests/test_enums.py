@@ -18,6 +18,12 @@ def test_complex_enum_variant_constructors():
     multi_field_struct_variant = enums.ComplexEnum.MultiFieldStruct(42, 3.14, True)
     assert isinstance(multi_field_struct_variant, enums.ComplexEnum.MultiFieldStruct)
 
+    variant_with_default_1 = enums.ComplexEnum.VariantWithDefault()
+    assert isinstance(variant_with_default_1, enums.ComplexEnum.VariantWithDefault)
+
+    variant_with_default_2 = enums.ComplexEnum.VariantWithDefault(25, "Hello")
+    assert isinstance(variant_with_default_2, enums.ComplexEnum.VariantWithDefault)
+
 
 @pytest.mark.parametrize(
     "variant",
@@ -27,6 +33,7 @@ def test_complex_enum_variant_constructors():
         enums.ComplexEnum.Str("hello"),
         enums.ComplexEnum.EmptyStruct(),
         enums.ComplexEnum.MultiFieldStruct(42, 3.14, True),
+        enums.ComplexEnum.VariantWithDefault(),
     ],
 )
 def test_complex_enum_variant_subclasses(variant: enums.ComplexEnum):
@@ -48,6 +55,10 @@ def test_complex_enum_field_getters():
     assert multi_field_struct_variant.b == 3.14
     assert multi_field_struct_variant.c is True
 
+    variant_with_default = enums.ComplexEnum.VariantWithDefault()
+    assert variant_with_default.a == 42
+    assert variant_with_default.b is None
+
 
 @pytest.mark.parametrize(
     "variant",
@@ -57,6 +68,7 @@ def test_complex_enum_field_getters():
         enums.ComplexEnum.Str("hello"),
         enums.ComplexEnum.EmptyStruct(),
         enums.ComplexEnum.MultiFieldStruct(42, 3.14, True),
+        enums.ComplexEnum.VariantWithDefault(),
     ],
 )
 def test_complex_enum_desugared_match(variant: enums.ComplexEnum):
@@ -78,6 +90,11 @@ def test_complex_enum_desugared_match(variant: enums.ComplexEnum):
         assert x == 42
         assert y == 3.14
         assert z is True
+    elif isinstance(variant, enums.ComplexEnum.VariantWithDefault):
+        x = variant.a
+        y = variant.b
+        assert x == 42
+        assert y is None
     else:
         assert False
 
@@ -90,6 +107,7 @@ def test_complex_enum_desugared_match(variant: enums.ComplexEnum):
         enums.ComplexEnum.Str("hello"),
         enums.ComplexEnum.EmptyStruct(),
         enums.ComplexEnum.MultiFieldStruct(42, 3.14, True),
+        enums.ComplexEnum.VariantWithDefault(b="hello"),
     ],
 )
 def test_complex_enum_pyfunction_in_out_desugared_match(variant: enums.ComplexEnum):
@@ -112,5 +130,10 @@ def test_complex_enum_pyfunction_in_out_desugared_match(variant: enums.ComplexEn
         assert x == 42
         assert y == 3.14
         assert z is True
+    elif isinstance(variant, enums.ComplexEnum.VariantWithDefault):
+        x = variant.a
+        y = variant.b
+        assert x == 84
+        assert y == "HELLO"
     else:
         assert False
