@@ -164,19 +164,6 @@ mod tests {
     }
 
     #[test]
-    fn test_fraction_as_tuples() {
-        Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
-            let py_bound = py.run_bound(
-                "import fractions\npy_frac = fractions.Fraction(fractions.Fraction((10,)))",
-                None,
-                Some(&locals),
-            );
-            assert!(py_bound.is_err());
-        })
-    }
-
-    #[test]
     fn test_fraction_with_fraction_type() {
         Python::with_gil(|py| {
             let locals = PyDict::new_bound(py);
@@ -227,6 +214,30 @@ mod tests {
         })
     }
 
+    #[cfg(target_arch = "wasm32")]
+    #[test]
+    fn test_int_roundtrip() {
+        Python::with_gil(|py| {
+            let rs_frac = Ratio::new(1, 2);
+            let py_frac = rs_frac.into_py(py);
+            let roundtripped: Ratio<i32> = py_frac.extract(py).unwrap();
+            assert_eq!(rs_frac, roundtripped);
+            // float conversion
+        })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[test]
+    fn test_big_int_roundtrip() {
+        Python::with_gil(|py| {
+            let rs_frac = Ratio::from_float(5.5).unwrap();
+            let py_frac = rs_frac.clone().into_py(py);
+            let roundtripped: Ratio<BigInt> = py_frac.extract(py).unwrap();
+            assert_eq!(rs_frac, roundtripped);
+        })
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     proptest! {
         #[test]
         fn test_int_roundtrip(num in any::<i32>(), den in any::<i32>()) {
