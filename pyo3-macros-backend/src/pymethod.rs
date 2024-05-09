@@ -512,7 +512,7 @@ fn impl_py_class_attribute(
         #pyo3_path::class::PyMethodDefType::ClassAttribute({
             #pyo3_path::class::PyClassAttributeDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
+                #cls::#wrapper_ident
             )
         })
     };
@@ -699,7 +699,7 @@ pub fn impl_py_setter_def(
         #pyo3_path::class::PyMethodDefType::Setter(
             #pyo3_path::class::PySetterDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PySetter(#cls::#wrapper_ident),
+                #cls::#wrapper_ident,
                 #doc
             )
         )
@@ -831,7 +831,7 @@ pub fn impl_py_getter_def(
         #pyo3_path::class::PyMethodDefType::Getter(
             #pyo3_path::class::PyGetterDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
+                #cls::#wrapper_ident,
                 #doc
             )
         )

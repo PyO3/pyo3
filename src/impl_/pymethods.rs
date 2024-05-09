@@ -69,27 +69,13 @@ pub enum PyMethodDefType {
 
 #[derive(Copy, Clone, Debug)]
 pub enum PyMethodType {
-    PyCFunction(PyCFunction),
-    PyCFunctionWithKeywords(PyCFunctionWithKeywords),
+    PyCFunction(ffi::PyCFunction),
+    PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
     #[cfg(not(Py_LIMITED_API))]
-    PyCFunctionFastWithKeywords(PyCFunctionFastWithKeywords),
+    PyCFunctionFastWithKeywords(ffi::_PyCFunctionFastWithKeywords),
 }
 
-// These newtype structs serve no purpose other than wrapping which are function pointers - because
-// function pointers aren't allowed in const fn, but types wrapping them are!
-#[derive(Clone, Copy, Debug)]
-pub struct PyCFunction(pub ffi::PyCFunction);
-#[derive(Clone, Copy, Debug)]
-pub struct PyCFunctionWithKeywords(pub ffi::PyCFunctionWithKeywords);
-#[cfg(not(Py_LIMITED_API))]
-#[derive(Clone, Copy, Debug)]
-pub struct PyCFunctionFastWithKeywords(pub ffi::_PyCFunctionFastWithKeywords);
-#[derive(Clone, Copy)]
-pub struct PyGetter(pub Getter);
-#[derive(Clone, Copy)]
-pub struct PySetter(pub Setter);
-#[derive(Clone, Copy)]
-pub struct PyClassAttributeFactory(pub for<'p> fn(Python<'p>) -> PyResult<PyObject>);
+pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
 
 // TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
 // until `CStr::from_bytes_with_nul_unchecked` is const fn.
@@ -117,14 +103,14 @@ impl PyClassAttributeDef {
 #[derive(Clone)]
 pub struct PyGetterDef {
     pub(crate) name: &'static str,
-    pub(crate) meth: PyGetter,
+    pub(crate) meth: Getter,
     pub(crate) doc: &'static str,
 }
 
 #[derive(Clone)]
 pub struct PySetterDef {
     pub(crate) name: &'static str,
-    pub(crate) meth: PySetter,
+    pub(crate) meth: Setter,
     pub(crate) doc: &'static str,
 }
 
@@ -136,7 +122,11 @@ unsafe impl Sync for PySetterDef {}
 
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
-    pub const fn noargs(name: &'static str, cfunction: PyCFunction, doc: &'static str) -> Self {
+    pub const fn noargs(
+        name: &'static str,
+        cfunction: ffi::PyCFunction,
+        doc: &'static str,
+    ) -> Self {
         Self {
             ml_name: name,
             ml_meth: PyMethodType::PyCFunction(cfunction),
@@ -148,7 +138,7 @@ impl PyMethodDef {
     /// Define a function that can take `*args` and `**kwargs`.
     pub const fn cfunction_with_keywords(
         name: &'static str,
-        cfunction: PyCFunctionWithKeywords,
+        cfunction: ffi::PyCFunctionWithKeywords,
         doc: &'static str,
     ) -> Self {
         Self {
@@ -163,7 +153,7 @@ impl PyMethodDef {
     #[cfg(not(Py_LIMITED_API))]
     pub const fn fastcall_cfunction_with_keywords(
         name: &'static str,
-        cfunction: PyCFunctionFastWithKeywords,
+        cfunction: ffi::_PyCFunctionFastWithKeywords,
         doc: &'static str,
     ) -> Self {
         Self {
@@ -182,15 +172,13 @@ impl PyMethodDef {
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub(crate) fn as_method_def(&self) -> PyResult<(ffi::PyMethodDef, PyMethodDefDestructor)> {
         let meth = match self.ml_meth {
-            PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer {
-                PyCFunction: meth.0,
-            },
+            PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer { PyCFunction: meth },
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
-                PyCFunctionWithKeywords: meth.0,
+                PyCFunctionWithKeywords: meth,
             },
             #[cfg(not(Py_LIMITED_API))]
             PyMethodType::PyCFunctionFastWithKeywords(meth) => ffi::PyMethodDefPointer {
-                _PyCFunctionFastWithKeywords: meth.0,
+                _PyCFunctionFastWithKeywords: meth,
             },
         };
 
@@ -232,7 +220,7 @@ pub(crate) type Setter =
 
 impl PyGetterDef {
     /// Define a getter.
-    pub const fn new(name: &'static str, getter: PyGetter, doc: &'static str) -> Self {
+    pub const fn new(name: &'static str, getter: Getter, doc: &'static str) -> Self {
         Self {
             name,
             meth: getter,
@@ -243,7 +231,7 @@ impl PyGetterDef {
 
 impl PySetterDef {
     /// Define a setter.
-    pub const fn new(name: &'static str, setter: PySetter, doc: &'static str) -> Self {
+    pub const fn new(name: &'static str, setter: Setter, doc: &'static str) -> Self {
         Self {
             name,
             meth: setter,

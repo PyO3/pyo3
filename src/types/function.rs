@@ -37,11 +37,7 @@ impl PyCFunction {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         Self::internal_new(
             py,
-            &PyMethodDef::cfunction_with_keywords(
-                name,
-                pymethods::PyCFunctionWithKeywords(fun),
-                doc,
-            ),
+            &PyMethodDef::cfunction_with_keywords(name, fun, doc),
             module.map(PyNativeType::as_borrowed).as_deref(),
         )
         .map(Bound::into_gil_ref)
@@ -57,11 +53,7 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>> {
         Self::internal_new(
             py,
-            &PyMethodDef::cfunction_with_keywords(
-                name,
-                pymethods::PyCFunctionWithKeywords(fun),
-                doc,
-            ),
+            &PyMethodDef::cfunction_with_keywords(name, fun, doc),
             module,
         )
     }
@@ -81,7 +73,7 @@ impl PyCFunction {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         Self::internal_new(
             py,
-            &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
+            &PyMethodDef::noargs(name, fun, doc),
             module.map(PyNativeType::as_borrowed).as_deref(),
         )
         .map(Bound::into_gil_ref)
@@ -95,11 +87,7 @@ impl PyCFunction {
         doc: &'static str,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
-        Self::internal_new(
-            py,
-            &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
-            module,
-        )
+        Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
     }
 
     /// Deprecated form of [`PyCFunction::new_closure`]
@@ -153,7 +141,7 @@ impl PyCFunction {
     {
         let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
             name.unwrap_or("pyo3-closure\0"),
-            pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
+            run_closure::<F, R>,
             doc.unwrap_or("\0"),
         );
         let (def, def_destructor) = method_def.as_method_def()?;
