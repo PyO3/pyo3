@@ -3,6 +3,41 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.21.* to 0.22
+
+### Deprecation of implicit default for trailing optional arguments
+<details open>
+<summary><small>Click to expand</small></summary>
+
+With `pyo3` 0.22 the implicit `None` default for trailing `Option<T>` type argument is deprecated. To migrate, place a `#[pyo3(signature = (...))]` attribute on affected functions or methods and specify the desired behavior.
+The migration warning specifies the corresponding signature to keep the current behavior. With 0.23 the signature will be required for any function containing `Option<T>` type parameters to prevent accidental
+and unnoticed changes in behavior. With 0.24 this restriction will be lifted again and `Option<T>` type arguments will be treated as any other argument _without_ special handling.
+
+Before:
+
+```rust
+# #![allow(deprecated, dead_code)]
+# use pyo3::prelude::*;
+#[pyfunction]
+fn increment(x: u64, amount: Option<u64>) -> u64 {
+    x + amount.unwrap_or(1)
+}
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyfunction]
+#[pyo3(signature = (x, amount=None))]
+fn increment(x: u64, amount: Option<u64>) -> u64 {
+    x + amount.unwrap_or(1)
+}
+```
+
+</details>
+
 ## from 0.20.* to 0.21
 <details open>
 <summary><small>Click to expand</small></summary>
