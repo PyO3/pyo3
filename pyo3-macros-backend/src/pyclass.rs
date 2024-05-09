@@ -1107,7 +1107,7 @@ pub fn gen_complex_enum_variant_attr(
         #pyo3_path::class::PyMethodDefType::ClassAttribute({
             #pyo3_path::class::PyClassAttributeDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PyClassAttributeFactory(#cls_type::#wrapper_ident)
+                #cls_type::#wrapper_ident
             )
         })
     };

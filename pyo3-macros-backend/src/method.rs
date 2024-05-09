@@ -828,7 +828,7 @@ impl<'a> FnSpec<'a> {
             CallingConvention::Noargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::noargs(
                     #python_name,
-                    #pyo3_path::impl_::pymethods::PyCFunction({
+                    {
                         unsafe extern "C" fn trampoline(
                             _slf: *mut #pyo3_path::ffi::PyObject,
                             _args: *mut #pyo3_path::ffi::PyObject,
@@ -841,14 +841,14 @@ impl<'a> FnSpec<'a> {
                             )
                         }
                         trampoline
-                    }),
+                    },
                     #doc,
                 )
             },
             CallingConvention::Fastcall => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
                     #python_name,
-                    #pyo3_path::impl_::pymethods::PyCFunctionFastWithKeywords({
+                    {
                         unsafe extern "C" fn trampoline(
                             _slf: *mut #pyo3_path::ffi::PyObject,
                             _args: *const *mut #pyo3_path::ffi::PyObject,
@@ -865,14 +865,14 @@ impl<'a> FnSpec<'a> {
                             )
                         }
                         trampoline
-                    }),
+                    },
                     #doc,
                 )
             },
             CallingConvention::Varargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::cfunction_with_keywords(
                     #python_name,
-                    #pyo3_path::impl_::pymethods::PyCFunctionWithKeywords({
+                    {
                         unsafe extern "C" fn trampoline(
                             _slf: *mut #pyo3_path::ffi::PyObject,
                             _args: *mut #pyo3_path::ffi::PyObject,
@@ -887,7 +887,7 @@ impl<'a> FnSpec<'a> {
                             )
                         }
                         trampoline
-                    }),
+                    },
                     #doc,
                 )
             },

@@ -508,7 +508,7 @@ impl GetSetDefBuilder {
             self.doc = Some(getter.doc);
         }
         // TODO: return an error if getter already defined?
-        self.getter = Some(getter.meth.0)
+        self.getter = Some(getter.meth)
     }
 
     fn add_setter(&mut self, setter: &PySetterDef) {
@@ -517,7 +517,7 @@ impl GetSetDefBuilder {
             self.doc = Some(setter.doc);
         }
         // TODO: return an error if setter already defined?
-        self.setter = Some(setter.meth.0)
+        self.setter = Some(setter.meth)
     }
 
     fn as_get_set_def(
