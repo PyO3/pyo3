@@ -126,7 +126,9 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyNativeType, PyObject, PyTypeInfo};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 #[allow(deprecated)]
 use crate::{gil::GILPool, FromPyPointer};
 use std::ffi::{CStr, CString};
@@ -305,7 +307,7 @@ pub use nightly::Ungil;
 /// A marker token that represents holding the GIL.
 ///
 /// It serves three main purposes:
-/// - It provides a global API for the Python interpreter, such as [`Python::eval`].
+/// - It provides a global API for the Python interpreter, such as [`Python::eval_bound`].
 /// - It can be passed to functions that require a proof of holding the GIL, such as
 /// [`Py::clone_ref`].
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
@@ -321,7 +323,7 @@ pub use nightly::Ungil;
 /// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
 /// as a parameter, and PyO3 will pass in the token when Python code calls it.
 /// - If you already have something with a lifetime bound to the GIL, such as `&`[`PyAny`], you can
-/// use its [`.py()`][PyAny::py] method to get a token.
+/// use its `.py()` method to get a token.
 /// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
 /// should call [`Python::with_gil`] to do that and pass your code as a closure to it.
 ///
@@ -352,7 +354,7 @@ pub use nightly::Ungil;
 /// # Releasing and freeing memory
 ///
 /// The [`Python`] type can be used to create references to variables owned by the Python
-/// interpreter, using functions such as [`Python::eval`] and `PyModule::import`. These
+/// interpreter, using functions such as `Python::eval` and `PyModule::import`. These
 /// references are tied to a [`GILPool`] whose references are not cleared until it is dropped.
 /// This can cause apparent "memory leaks" if it is kept around for a long time.
 ///
@@ -552,12 +554,10 @@ impl<'py> Python<'py> {
     }
 
     /// Deprecated version of [`Python::eval_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::eval` will be replaced by `Python::eval_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::eval` will be replaced by `Python::eval_bound` in a future PyO3 version"
     )]
     pub fn eval(
         self,
@@ -601,12 +601,10 @@ impl<'py> Python<'py> {
     }
 
     /// Deprecated version of [`Python::run_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::run` will be replaced by `Python::run_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::run` will be replaced by `Python::run_bound` in a future PyO3 version"
     )]
     pub fn run(
         self,
@@ -728,12 +726,10 @@ impl<'py> Python<'py> {
     }
 
     /// Gets the Python type object for type `T`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::get_type` will be replaced by `Python::get_type_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::get_type` will be replaced by `Python::get_type_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn get_type<T>(self) -> &'py PyType
@@ -753,12 +749,10 @@ impl<'py> Python<'py> {
     }
 
     /// Deprecated form of [`Python::import_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::import` will be replaced by `Python::import_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::import` will be replaced by `Python::import_bound` in a future PyO3 version"
     )]
     pub fn import<N>(self, name: N) -> PyResult<&'py PyModule>
     where
