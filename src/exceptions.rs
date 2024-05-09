@@ -32,6 +32,7 @@ macro_rules! impl_exception_boilerplate {
 
         $crate::impl_exception_boilerplate_bound!($name);
 
+        #[cfg(feature = "gil-refs")]
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
                 unsafe {
@@ -58,6 +59,7 @@ macro_rules! impl_exception_boilerplate_bound {
             ///
             /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
             #[inline]
+            #[allow(dead_code)]
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
                 A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
@@ -881,7 +883,9 @@ mod tests {
     use super::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{PyErr, PyNativeType};
+    use crate::PyErr;
+    #[cfg(feature = "gil-refs")]
+    use crate::PyNativeType;
 
     import_exception_bound!(socket, gaierror);
     import_exception_bound!(email.errors, MessageError);

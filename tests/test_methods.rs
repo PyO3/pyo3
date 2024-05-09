@@ -78,13 +78,6 @@ impl ClassMethod {
     }
 
     #[classmethod]
-    /// Test class method.
-    #[cfg(feature = "gil-refs")]
-    fn method_gil_ref(cls: &PyType) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.qualname()?))
-    }
-
-    #[classmethod]
     fn method_owned(cls: Py<PyType>) -> PyResult<String> {
         let qualname = Python::with_gil(|gil| cls.bind(gil).qualname())?;
         Ok(format!("{}.method_owned()!", qualname))

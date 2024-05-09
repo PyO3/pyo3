@@ -8,6 +8,7 @@ fn do_something(x: i32) -> crate::PyResult<i32> {
 }
 
 #[test]
+#[cfg(feature = "gil-refs")]
 fn invoke_wrap_pyfunction() {
     crate::Python::with_gil(|py| {
         #[allow(deprecated)]

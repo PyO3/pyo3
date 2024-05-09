@@ -4,7 +4,7 @@ use crate::{ffi, PyAny};
 ///
 /// You can usually avoid directly working with this type
 /// by using [`ToPyObject`](crate::conversion::ToPyObject)
-/// and [`extract`](PyAny::extract)
+/// and [`extract`](super::PyAnyMethods::extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
 pub struct PyLong(PyAny);

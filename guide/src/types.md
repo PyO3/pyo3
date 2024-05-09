@@ -467,8 +467,10 @@ let _: &mut MyClass = &mut *py_ref_mut;
 `PyCell<T>` was also accessed like a Python-native type.
 
 ```rust
+#![allow(unused_imports)]
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // &PyCell is part of the deprecate GIL Refs API
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;

@@ -1,15 +1,17 @@
 use crate::class::basic::CompareOp;
 use crate::conversion::{AsPyPointer, FromPyObjectBound, IntoPy, ToPyObject};
-use crate::err::{DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyResult};
+use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
-use crate::type_object::{HasPyGilRef, PyTypeCheck, PyTypeInfo};
+use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, PyNativeType, Python};
+use crate::{err, ffi, Py, Python};
+#[cfg(feature = "gil-refs")]
+use crate::{err::PyDowncastError, type_object::HasPyGilRef, PyNativeType};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -66,6 +68,7 @@ pyobject_native_type_extract!(PyAny);
 
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 
+#[cfg(feature = "gil-refs")]
 impl PyAny {
     /// Returns whether `self` and `other` point to the same object. To compare
     /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
@@ -942,7 +945,7 @@ impl PyAny {
 #[doc(alias = "PyAny")]
 pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Returns whether `self` and `other` point to the same object. To compare
-    /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
+    /// the equality of two objects (the `==` operator), use [`eq`](PyAnyMethods::eq).
     ///
     /// This is equivalent to the Python expression `self is other`.
     fn is<T: AsPyPointer>(&self, other: &T) -> bool;
@@ -1589,10 +1592,10 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 
     /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
     ///
-    /// It is almost always better to use [`PyAny::downcast`] because it accounts for Python
+    /// It is almost always better to use [`PyAnyMethods::downcast`] because it accounts for Python
     /// subtyping. Use this method only when you do not want to allow subtypes.
     ///
-    /// The advantage of this method over [`PyAny::downcast`] is that it is faster. The implementation
+    /// The advantage of this method over [`PyAnyMethods::downcast`] is that it is faster. The implementation
     /// of `downcast_exact` uses the equivalent of the Python expression `type(self) is T`, whereas
     /// `downcast` uses `isinstance(self, T)`.
     ///

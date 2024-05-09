@@ -310,15 +310,6 @@ impl ClassWithFromPyWithMethods {
         argument
     }
 
-    #[classmethod]
-    #[cfg(feature = "gil-refs")]
-    fn classmethod_gil_ref(
-        _cls: &PyType,
-        #[pyo3(from_py_with = "PyAny::len")] argument: usize,
-    ) -> usize {
-        argument
-    }
-
     #[staticmethod]
     fn staticmethod(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
         argument
@@ -333,19 +324,15 @@ impl ClassWithFromPyWithMethods {
 fn test_pymethods_from_py_with() {
     Python::with_gil(|py| {
         let instance = Py::new(py, ClassWithFromPyWithMethods {}).unwrap();
-        let has_gil_refs = cfg!(feature = "gil-refs");
 
         py_run!(
             py,
-            instance
-            has_gil_refs,
+            instance,
             r#"
         arg = {1: 1, 2: 3}
 
         assert instance.instance_method(arg) == 2
         assert instance.classmethod(arg) == 2
-        if has_gil_refs:
-            assert instance.classmethod_gil_ref(arg) == 2
         assert instance.staticmethod(arg) == 2
 
         assert 42 in instance

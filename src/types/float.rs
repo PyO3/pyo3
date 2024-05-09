@@ -11,7 +11,7 @@ use super::any::PyAnyMethods;
 /// Represents a Python `float` object.
 ///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`] and [`extract`](PyAny::extract)
+/// by using [`ToPyObject`] and [`extract`](PyAnyMethods::extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
 pub struct PyFloat(PyAny);

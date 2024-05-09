@@ -3,7 +3,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, AsPyPointer, PyAny, PyNativeType, Python};
+#[cfg(feature = "gil-refs")]
+use crate::AsPyPointer;
+use crate::{ffi, PyAny, PyNativeType, Python};
 use std::os::raw::c_char;
 use std::slice;
 
