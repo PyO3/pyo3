@@ -164,6 +164,19 @@ mod tests {
     }
 
     #[test]
+    fn test_fraction_as_tuples() {
+        Python::with_gil(|py| {
+            let locals = PyDict::new_bound(py);
+            let py_bound = py.run_bound(
+                "import fractions\npy_frac = fractions.Fraction(fractions.Fraction((10,)))",
+                None,
+                Some(&locals),
+            );
+            assert!(py_bound.is_err());
+        })
+    }
+
+    #[test]
     fn test_fraction_with_fraction_type() {
         Python::with_gil(|py| {
             let locals = PyDict::new_bound(py);
