@@ -1649,7 +1649,7 @@ However, for `#[pyproto]` and some functions, you need to manually fix the code.
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
 To upgrade code, please use
-[`PyCell::new`]({{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html#method.new) instead.
+`PyCell::new` instead.
 If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
 on the newly-created `PyCell`.
 

@@ -201,11 +201,12 @@ use crate::pyclass::{
     boolean_struct::{False, True},
     PyClass,
 };
-use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::any::PyAnyMethods;
 use crate::types::PyAny;
-use crate::{ffi, Bound, IntoPy, PyErr, PyNativeType, PyObject, PyResult, PyTypeCheck, Python};
+use crate::{ffi, Bound, IntoPy, PyErr, PyNativeType, PyObject, PyTypeCheck, Python};
+#[cfg(feature = "gil-refs")]
+use crate::{pyclass_init::PyClassInitializer, PyResult};
 use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
@@ -222,7 +223,7 @@ use self::impl_::{PyClassObject, PyClassObjectLayout};
 /// # Examples
 ///
 /// This example demonstrates getting a mutable reference of the contained `PyClass`.
-/// ```rust
+/// ```rust,ignore
 /// use pyo3::prelude::*;
 ///
 /// #[pyclass]
@@ -272,12 +273,10 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// In cases where the value in the cell does not need to be accessed immediately after
     /// creation, consider [`Py::new`](crate::Py::new) as a more efficient alternative.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Bound::new(py, value)` or `Py::new(py, value)` instead of `PyCell::new(py, value)`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Bound::new(py, value)` or `Py::new(py, value)` instead of `PyCell::new(py, value)`"
     )]
     pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {
         Bound::new(py, value).map(Bound::into_gil_ref)
@@ -317,7 +316,7 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// # use pyo3::prelude::*;
     /// #[pyclass]
     /// struct Class {}
@@ -347,7 +346,7 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// # use pyo3::prelude::*;
     /// #[pyclass]
     /// struct Class {}
@@ -380,7 +379,7 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// # use pyo3::prelude::*;
     /// #[pyclass]
     /// struct Class {}
@@ -417,7 +416,7 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use std::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
@@ -561,14 +560,14 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
     }
 }
 
-/// A wrapper type for an immutably borrowed value from a [`PyCell`]`<T>`.
+/// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///
-/// See the [`PyCell`] documentation for more information.
+/// See the [`Bound`] documentation for more information.
 ///
 /// # Examples
 ///
-/// You can use `PyRef` as an alternative to a `&self` receiver when
-/// - you need to access the pointer of the `PyCell`, or
+/// You can use [`PyRef`] as an alternative to a `&self` receiver when
+/// - you need to access the pointer of the [`Bound`], or
 /// - you want to get a super class.
 /// ```
 /// # use pyo3::prelude::*;
@@ -599,7 +598,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// }
 /// # Python::with_gil(|py| {
 /// #     let sub = Py::new(py, Child::new()).unwrap();
-/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 5)', sub.format()");
+/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)', sub.format()");
 /// # });
 /// ```
 ///
@@ -1004,101 +1003,106 @@ mod tests {
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     struct SomeClass(i32);
 
-    #[test]
-    fn pycell_replace() {
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
-            assert_eq!(*cell.borrow(), SomeClass(0));
+    #[cfg(feature = "gil-refs")]
+    mod deprecated {
+        use super::*;
 
-            let previous = cell.replace(SomeClass(123));
-            assert_eq!(previous, SomeClass(0));
-            assert_eq!(*cell.borrow(), SomeClass(123));
-        })
-    }
+        #[test]
+        fn pycell_replace() {
+            Python::with_gil(|py| {
+                #[allow(deprecated)]
+                let cell = PyCell::new(py, SomeClass(0)).unwrap();
+                assert_eq!(*cell.borrow(), SomeClass(0));
 
-    #[test]
-    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
-    fn pycell_replace_panic() {
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
-            let _guard = cell.borrow();
+                let previous = cell.replace(SomeClass(123));
+                assert_eq!(previous, SomeClass(0));
+                assert_eq!(*cell.borrow(), SomeClass(123));
+            })
+        }
 
-            cell.replace(SomeClass(123));
-        })
-    }
+        #[test]
+        #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+        fn pycell_replace_panic() {
+            Python::with_gil(|py| {
+                #[allow(deprecated)]
+                let cell = PyCell::new(py, SomeClass(0)).unwrap();
+                let _guard = cell.borrow();
 
-    #[test]
-    fn pycell_replace_with() {
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
-            assert_eq!(*cell.borrow(), SomeClass(0));
+                cell.replace(SomeClass(123));
+            })
+        }
 
-            let previous = cell.replace_with(|value| {
-                *value = SomeClass(2);
-                SomeClass(123)
-            });
-            assert_eq!(previous, SomeClass(2));
-            assert_eq!(*cell.borrow(), SomeClass(123));
-        })
-    }
+        #[test]
+        fn pycell_replace_with() {
+            Python::with_gil(|py| {
+                #[allow(deprecated)]
+                let cell = PyCell::new(py, SomeClass(0)).unwrap();
+                assert_eq!(*cell.borrow(), SomeClass(0));
 
-    #[test]
-    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
-    fn pycell_replace_with_panic() {
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
-            let _guard = cell.borrow();
+                let previous = cell.replace_with(|value| {
+                    *value = SomeClass(2);
+                    SomeClass(123)
+                });
+                assert_eq!(previous, SomeClass(2));
+                assert_eq!(*cell.borrow(), SomeClass(123));
+            })
+        }
 
-            cell.replace_with(|_| SomeClass(123));
-        })
-    }
+        #[test]
+        #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+        fn pycell_replace_with_panic() {
+            Python::with_gil(|py| {
+                #[allow(deprecated)]
+                let cell = PyCell::new(py, SomeClass(0)).unwrap();
+                let _guard = cell.borrow();
 
-    #[test]
-    fn pycell_swap() {
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
-            #[allow(deprecated)]
-            let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
-            assert_eq!(*cell.borrow(), SomeClass(0));
-            assert_eq!(*cell2.borrow(), SomeClass(123));
+                cell.replace_with(|_| SomeClass(123));
+            })
+        }
 
-            cell.swap(cell2);
-            assert_eq!(*cell.borrow(), SomeClass(123));
-            assert_eq!(*cell2.borrow(), SomeClass(0));
-        })
-    }
+        #[test]
+        fn pycell_swap() {
+            Python::with_gil(|py| {
+                #[allow(deprecated)]
+                let cell = PyCell::new(py, SomeClass(0)).unwrap();
+                #[allow(deprecated)]
+                let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
+                assert_eq!(*cell.borrow(), SomeClass(0));
+                assert_eq!(*cell2.borrow(), SomeClass(123));
 
-    #[test]
-    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
-    fn pycell_swap_panic() {
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
-            #[allow(deprecated)]
-            let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
+                cell.swap(cell2);
+                assert_eq!(*cell.borrow(), SomeClass(123));
+                assert_eq!(*cell2.borrow(), SomeClass(0));
+            })
+        }
 
-            let _guard = cell.borrow();
-            cell.swap(cell2);
-        })
-    }
+        #[test]
+        #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+        fn pycell_swap_panic() {
+            Python::with_gil(|py| {
+                #[allow(deprecated)]
+                let cell = PyCell::new(py, SomeClass(0)).unwrap();
+                #[allow(deprecated)]
+                let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
 
-    #[test]
-    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
-    fn pycell_swap_panic_other_borrowed() {
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let cell = PyCell::new(py, SomeClass(0)).unwrap();
-            #[allow(deprecated)]
-            let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
+                let _guard = cell.borrow();
+                cell.swap(cell2);
+            })
+        }
 
-            let _guard = cell2.borrow();
-            cell.swap(cell2);
-        })
+        #[test]
+        #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+        fn pycell_swap_panic_other_borrowed() {
+            Python::with_gil(|py| {
+                #[allow(deprecated)]
+                let cell = PyCell::new(py, SomeClass(0)).unwrap();
+                #[allow(deprecated)]
+                let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
+
+                let _guard = cell2.borrow();
+                cell.swap(cell2);
+            })
+        }
     }
 
     #[test]

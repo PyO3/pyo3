@@ -6,7 +6,9 @@ use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-use crate::{ffi, Bound, IntoPy, Py, PyAny, PyNativeType, PyResult, Python};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
@@ -135,16 +137,6 @@ pub struct PyString(PyAny);
 pyobject_native_type_core!(PyString, pyobject_native_static_type_object!(ffi::PyUnicode_Type), #checkfunction=ffi::PyUnicode_Check);
 
 impl PyString {
-    /// Deprecated form of [`PyString::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyString::new` will be replaced by `PyString::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'py>(py: Python<'py>, s: &str) -> &'py Self {
-        Self::new_bound(py, s).into_gil_ref()
-    }
-
     /// Creates a new Python string object.
     ///
     /// Panics if out of memory.
@@ -156,16 +148,6 @@ impl PyString {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyString::intern_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyString::intern` will be replaced by `PyString::intern_bound` in a future PyO3 version"
-    )]
-    pub fn intern<'py>(py: Python<'py>, s: &str) -> &'py Self {
-        Self::intern_bound(py, s).into_gil_ref()
     }
 
     /// Intern the given string
@@ -188,16 +170,6 @@ impl PyString {
         }
     }
 
-    /// Deprecated form of [`PyString::from_object_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyString::from_object` will be replaced by `PyString::from_object_bound` in a future PyO3 version"
-    )]
-    pub fn from_object<'py>(src: &'py PyAny, encoding: &str, errors: &str) -> PyResult<&'py Self> {
-        Self::from_object_bound(&src.as_borrowed(), encoding, errors).map(Bound::into_gil_ref)
-    }
-
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
@@ -215,6 +187,36 @@ impl PyString {
             .assume_owned_or_err(src.py())
             .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyString {
+    /// Deprecated form of [`PyString::new_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyString::new` will be replaced by `PyString::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'py>(py: Python<'py>, s: &str) -> &'py Self {
+        Self::new_bound(py, s).into_gil_ref()
+    }
+
+    /// Deprecated form of [`PyString::intern_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyString::intern` will be replaced by `PyString::intern_bound` in a future PyO3 version"
+    )]
+    pub fn intern<'py>(py: Python<'py>, s: &str) -> &'py Self {
+        Self::intern_bound(py, s).into_gil_ref()
+    }
+
+    /// Deprecated form of [`PyString::from_object_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyString::from_object` will be replaced by `PyString::from_object_bound` in a future PyO3 version"
+    )]
+    pub fn from_object<'py>(src: &'py PyAny, encoding: &str, errors: &str) -> PyResult<&'py Self> {
+        Self::from_object_bound(&src.as_borrowed(), encoding, errors).map(Bound::into_gil_ref)
     }
 
     /// Gets the Python string as a Rust UTF-8 string slice.

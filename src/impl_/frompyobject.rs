@@ -4,6 +4,7 @@ use crate::{exceptions::PyTypeError, FromPyObject, PyAny, PyErr, PyResult, Pytho
 
 pub enum Extractor<'a, 'py, T> {
     Bound(fn(&'a Bound<'py, PyAny>) -> PyResult<T>),
+    #[cfg(feature = "gil-refs")]
     GilRef(fn(&'a PyAny) -> PyResult<T>),
 }
 
@@ -13,6 +14,7 @@ impl<'a, 'py, T> From<fn(&'a Bound<'py, PyAny>) -> PyResult<T>> for Extractor<'a
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'a, T> From<fn(&'a PyAny) -> PyResult<T>> for Extractor<'a, '_, T> {
     fn from(value: fn(&'a PyAny) -> PyResult<T>) -> Self {
         Self::GilRef(value)
@@ -23,6 +25,7 @@ impl<'a, 'py, T> Extractor<'a, 'py, T> {
     pub(crate) fn call(self, obj: &'a Bound<'py, PyAny>) -> PyResult<T> {
         match self {
             Extractor::Bound(f) => f(obj),
+            #[cfg(feature = "gil-refs")]
             Extractor::GilRef(f) => f(obj.as_gil_ref()),
         }
     }

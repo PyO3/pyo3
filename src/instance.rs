@@ -492,6 +492,7 @@ impl<'py, T> Bound<'py, T> {
     ///
     /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
     #[inline]
+    #[cfg(feature = "gil-refs")]
     pub fn as_gil_ref(&'py self) -> &'py T::AsRefTarget
     where
         T: HasPyGilRef,
@@ -507,6 +508,7 @@ impl<'py, T> Bound<'py, T> {
     ///
     /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
     #[inline]
+    #[cfg(feature = "gil-refs")]
     pub fn into_gil_ref(self) -> &'py T::AsRefTarget
     where
         T: HasPyGilRef,

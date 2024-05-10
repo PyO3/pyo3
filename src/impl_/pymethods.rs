@@ -5,7 +5,9 @@ use crate::impl_::panic::PanicTrap;
 use crate::internal_tricks::extract_c_string;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
-use crate::types::{any::PyAnyMethods, PyModule, PyType};
+use crate::types::any::PyAnyMethods;
+#[cfg(feature = "gil-refs")]
+use crate::types::{PyModule, PyType};
 use crate::{
     ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject,
     PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
@@ -492,6 +494,7 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
 
 // GIL Ref implementations for &'a T ran into trouble with orphan rules,
 // so explicit implementations are used instead for the two relevant types.
+#[cfg(feature = "gil-refs")]
 impl<'a> From<BoundRef<'a, 'a, PyType>> for &'a PyType {
     #[inline]
     fn from(bound: BoundRef<'a, 'a, PyType>) -> Self {
@@ -499,6 +502,7 @@ impl<'a> From<BoundRef<'a, 'a, PyType>> for &'a PyType {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'a> From<BoundRef<'a, 'a, PyModule>> for &'a PyModule {
     #[inline]
     fn from(bound: BoundRef<'a, 'a, PyModule>) -> Self {
@@ -507,6 +511,7 @@ impl<'a> From<BoundRef<'a, 'a, PyModule>> for &'a PyModule {
 }
 
 #[allow(deprecated)]
+#[cfg(feature = "gil-refs")]
 impl<'a, 'py, T: PyClass> From<BoundRef<'a, 'py, T>> for &'a crate::PyCell<T> {
     #[inline]
     fn from(bound: BoundRef<'a, 'py, T>) -> Self {
@@ -518,7 +523,7 @@ impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
     type Error = PyBorrowError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.clone().into_gil_ref().try_into()
+        value.0.try_borrow()
     }
 }
 
@@ -526,7 +531,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRe
     type Error = PyBorrowMutError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.clone().into_gil_ref().try_into()
+        value.0.try_borrow_mut()
     }
 }
 
