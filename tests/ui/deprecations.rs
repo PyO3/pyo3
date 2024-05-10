@@ -39,6 +39,9 @@ impl MyClass {
     #[setter]
     fn set_bar_bound(&self, _value: &Bound<'_, PyAny>) {}
 
+    #[setter]
+    fn set_option(&self, _value: Option<i32>) {}
+
     fn __eq__(&self, #[pyo3(from_py_with = "extract_gil_ref")] _other: i32) -> bool {
         true
     }
@@ -103,6 +106,10 @@ fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     obj.extract()
 }
 
+fn extract_options(obj: &Bound<'_, PyAny>) -> PyResult<Option<i32>> {
+    obj.extract()
+}
+
 #[pyfunction]
 fn pyfunction_from_py_with(
     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
@@ -114,7 +121,26 @@ fn pyfunction_from_py_with(
 fn pyfunction_gil_ref(_any: &PyAny) {}
 
 #[pyfunction]
+#[pyo3(signature = (_any))]
 fn pyfunction_option_gil_ref(_any: Option<&PyAny>) {}
+
+#[pyfunction]
+#[pyo3(signature = (_i, _any=None))]
+fn pyfunction_option_1(_i: u32, _any: Option<i32>) {}
+
+#[pyfunction]
+fn pyfunction_option_2(_i: u32, _any: Option<i32>) {}
+
+#[pyfunction]
+fn pyfunction_option_3(_i: u32, _any: Option<i32>, _foo: Option<String>) {}
+
+#[pyfunction]
+fn pyfunction_option_4(
+    _i: u32,
+    #[pyo3(from_py_with = "extract_options")] _any: Option<i32>,
+    _foo: Option<String>,
+) {
+}
 
 #[derive(Debug, FromPyObject)]
 pub struct Zap {

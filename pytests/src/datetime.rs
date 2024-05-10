@@ -25,6 +25,7 @@ fn date_from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyD
 }
 
 #[pyfunction]
+#[pyo3(signature=(hour, minute, second, microsecond, tzinfo=None))]
 fn make_time<'py>(
     py: Python<'py>,
     hour: u8,
@@ -101,6 +102,7 @@ fn get_delta_tuple<'py>(delta: &Bound<'py, PyDelta>) -> Bound<'py, PyTuple> {
 
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
+#[pyo3(signature=(year, month, day, hour, minute, second, microsecond, tzinfo=None))]
 fn make_datetime<'py>(
     py: Python<'py>,
     year: i32,
@@ -159,6 +161,7 @@ fn get_datetime_tuple_fold<'py>(dt: &Bound<'py, PyDateTime>) -> Bound<'py, PyTup
 }
 
 #[pyfunction]
+#[pyo3(signature=(ts, tz=None))]
 fn datetime_from_timestamp<'py>(
     py: Python<'py>,
     ts: f64,

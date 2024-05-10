@@ -182,6 +182,7 @@ fn test_from_py_with_defaults() {
 
     // issue 2280 combination of from_py_with and Option<T> did not compile
     #[pyfunction]
+    #[pyo3(signature = (int=None))]
     fn from_py_with_option(#[pyo3(from_py_with = "optional_int")] int: Option<i32>) -> i32 {
         int.unwrap_or(0)
     }
@@ -216,6 +217,7 @@ struct ValueClass {
 }
 
 #[pyfunction]
+#[pyo3(signature=(str_arg, int_arg, tuple_arg, option_arg = None, struct_arg = None))]
 fn conversion_error(
     str_arg: &str,
     int_arg: i64,
@@ -542,6 +544,7 @@ fn test_some_wrap_arguments() {
 #[test]
 fn test_reference_to_bound_arguments() {
     #[pyfunction]
+    #[pyo3(signature = (x, y = None))]
     fn reference_args<'py>(
         x: &Bound<'py, PyAny>,
         y: Option<&Bound<'py, PyAny>>,

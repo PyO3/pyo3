@@ -187,6 +187,7 @@ impl MethSignature {
     fn get_optional2(&self, test: Option<i32>) -> Option<i32> {
         test
     }
+    #[pyo3(signature=(_t1 = None, t2 = None, _t3 = None))]
     fn get_optional_positional(
         &self,
         _t1: Option<i32>,
@@ -745,11 +746,13 @@ impl MethodWithPyClassArg {
     fn inplace_add_pyref(&self, mut other: PyRefMut<'_, MethodWithPyClassArg>) {
         other.value += self.value;
     }
+    #[pyo3(signature=(other = None))]
     fn optional_add(&self, other: Option<&MethodWithPyClassArg>) -> MethodWithPyClassArg {
         MethodWithPyClassArg {
             value: self.value + other.map(|o| o.value).unwrap_or(10),
         }
     }
+    #[pyo3(signature=(other = None))]
     fn optional_inplace_add(&self, other: Option<&mut MethodWithPyClassArg>) {
         if let Some(other) = other {
             other.value += self.value;
@@ -851,6 +854,7 @@ struct FromSequence {
 #[pymethods]
 impl FromSequence {
     #[new]
+    #[pyo3(signature=(seq = None))]
     fn new(seq: Option<&Bound<'_, PySequence>>) -> PyResult<Self> {
         if let Some(seq) = seq {
             Ok(FromSequence {
@@ -1026,6 +1030,7 @@ macro_rules! issue_1506 {
 issue_1506!(
     #[pymethods]
     impl Issue1506 {
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506(
             &self,
             _py: Python<'_>,
@@ -1035,6 +1040,7 @@ issue_1506!(
         ) {
         }
 
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_mut(
             &mut self,
             _py: Python<'_>,
@@ -1044,6 +1050,7 @@ issue_1506!(
         ) {
         }
 
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_custom_receiver(
             _slf: Py<Self>,
             _py: Python<'_>,
@@ -1053,6 +1060,7 @@ issue_1506!(
         ) {
         }
 
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_custom_receiver_explicit(
             _slf: Py<Issue1506>,
             _py: Python<'_>,
@@ -1063,6 +1071,7 @@ issue_1506!(
         }
 
         #[new]
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_new(
             _py: Python<'_>,
             _arg: &Bound<'_, PyAny>,
@@ -1081,6 +1090,7 @@ issue_1506!(
         fn issue_1506_setter(&self, _py: Python<'_>, _value: i32) {}
 
         #[staticmethod]
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_static(
             _py: Python<'_>,
             _arg: &Bound<'_, PyAny>,
@@ -1090,6 +1100,7 @@ issue_1506!(
         }
 
         #[classmethod]
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_class(
             _cls: &Bound<'_, PyType>,
             _py: Python<'_>,
