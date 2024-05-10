@@ -9,6 +9,7 @@
 //! ```
 
 pub use crate::conversion::{FromPyObject, IntoPy, ToPyObject};
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 pub use crate::conversion::{PyTryFrom, PyTryInto};
 pub use crate::err::{PyErr, PyResult};

@@ -366,12 +366,12 @@ pub struct GILPool {
 impl GILPool {
     /// Creates a new [`GILPool`]. This function should only ever be called with the GIL held.
     ///
-    /// It is recommended not to use this API directly, but instead to use [`Python::new_pool`], as
+    /// It is recommended not to use this API directly, but instead to use `Python::new_pool`, as
     /// that guarantees the GIL is held.
     ///
     /// # Safety
     ///
-    /// As well as requiring the GIL, see the safety notes on [`Python::new_pool`].
+    /// As well as requiring the GIL, see the safety notes on `Python::new_pool`.
     #[inline]
     pub unsafe fn new() -> GILPool {
         increment_gil_count();
@@ -462,6 +462,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
+#[cfg(feature = "gil-refs")]
 pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
     // Ignores the error in case this function called from `atexit`.
@@ -507,9 +508,12 @@ fn decrement_gil_count() {
 mod tests {
     #[allow(deprecated)]
     use super::GILPool;
-    use super::{gil_is_acquired, GIL_COUNT, OWNED_OBJECTS, POOL};
+    use super::{gil_is_acquired, GIL_COUNT, POOL};
     use crate::types::any::PyAnyMethods;
-    use crate::{ffi, gil, PyObject, Python};
+    use crate::{ffi, PyObject, Python};
+    #[cfg(feature = "gil-refs")]
+    use {super::OWNED_OBJECTS, crate::gil};
+
     use std::ptr::NonNull;
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync;
@@ -518,6 +522,7 @@ mod tests {
         py.eval_bound("object()", None, None).unwrap().unbind()
     }
 
+    #[cfg(feature = "gil-refs")]
     fn owned_object_count() -> usize {
         #[cfg(debug_assertions)]
         let len = OWNED_OBJECTS.with(|owned_objects| owned_objects.borrow().len());
@@ -554,6 +559,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_owned() {
         Python::with_gil(|py| {
@@ -580,6 +586,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_owned_nested() {
         Python::with_gil(|py| {

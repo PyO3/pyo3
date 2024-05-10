@@ -154,8 +154,7 @@ at the end of each loop iteration, before the `with_gil()` closure ends.
 
 When doing this, you must be very careful to ensure that once the `GILPool` is
 dropped you do not retain access to any owned references created after the
-`GILPool` was created.  Read the
-[documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.new_pool)
+`GILPool` was created.  Read the documentation for `Python::new_pool()`
 for more information on safety.
 
 This memory management can also be applicable when writing extension modules.
