@@ -61,7 +61,7 @@ enum HttpResponse {
 #[pyclass]
 enum Shape {
     Circle { radius: f64 },
-    Rectangle { height: f64, width: f64 },
+    Rectangle { width: f64, height: f64 },
     RegularPolygon(u32, f64),
     Nothing(),
 }
