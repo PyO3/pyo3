@@ -739,36 +739,6 @@ fn impl_call_getter(
     Ok(fncall)
 }
 
-pub fn impl_py_slot_def(
-    cls: &syn::Type,
-    ctx: &Ctx,
-    signature: &mut syn::Signature,
-) -> Result<MethodAndSlotDef> {
-    let spec = FnSpec::parse(
-        signature,
-        &mut Vec::new(),
-        PyFunctionOptions::default(),
-        ctx,
-    )?;
-
-    let method_name = spec.python_name.to_string();
-
-    let slot = match PyMethodKind::from_name(&method_name) {
-        PyMethodKind::Proto(proto_kind) => {
-            ensure_no_forbidden_protocol_attributes(&proto_kind, &spec, &method_name)?;
-            match proto_kind {
-                PyMethodProtoKind::Slot(slot_def) => slot_def,
-                _ => {
-                    bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]")
-                }
-            }
-        }
-        _ => bail_spanned!(signature.span() => "Only slot methods are supported in #[pyslot]"),
-    };
-
-    Ok(slot.generate_type_slot(&cls, &spec, &method_name, ctx)?)
-}
-
 // Used here for PropertyType::Function, used in pyclass for descriptors.
 pub fn impl_py_getter_def(
     cls: &syn::Type,
@@ -964,7 +934,7 @@ const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_speci
     ),
     TokenGenerator(|_| quote! { async_iter_tag }),
 );
-const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
+pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .arguments(&[Ty::Object])
     .ret_ty(Ty::Int);
@@ -974,7 +944,8 @@ const __INPLACE_CONCAT__: SlotDef =
     SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
 const __INPLACE_REPEAT__: SlotDef =
     SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
-const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
+pub const __GETITEM__: SlotDef =
+    SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
 const __NEG__: SlotDef = SlotDef::new("Py_nb_negative", "unaryfunc");

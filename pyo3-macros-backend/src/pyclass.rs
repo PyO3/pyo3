@@ -12,7 +12,7 @@ use crate::pyfunction::ConstructorAttribute;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __INT__, __REPR__, __RICHCMP__,
+    SlotDef, __GETITEM__, __INT__, __LEN__, __REPR__, __RICHCMP__,
 };
 use crate::utils::Ctx;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
@@ -1078,7 +1078,7 @@ fn impl_complex_enum_tuple_variant_field_getters(
         let field_type = field.ty;
 
         let field_getter =
-            complex_enum_variant_field_getter(&variant_cls_type, &field_name, field.span, ctx)?;
+            complex_enum_variant_field_getter(variant_cls_type, &field_name, field.span, ctx)?;
 
         // Generate the match arms needed to destructure the tuple and access the specific field
         let field_access_tokens: Vec<_> = (0..variant.fields.len())
@@ -1124,7 +1124,7 @@ fn impl_complex_enum_tuple_variant_len(
     };
 
     let variant_len =
-        crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut len_method_impl.sig)?;
+        generate_default_protocol_slot(variant_cls_type, &mut len_method_impl, &__LEN__, ctx)?;
 
     Ok((variant_len, len_method_impl))
 }
@@ -1161,8 +1161,12 @@ fn impl_complex_enum_tuple_variant_getitem(
         }
     };
 
-    let variant_getitem =
-        crate::pymethod::impl_py_slot_def(&variant_cls_type, ctx, &mut get_item_method_impl.sig)?;
+    let variant_getitem = generate_default_protocol_slot(
+        variant_cls_type,
+        &mut get_item_method_impl,
+        &__GETITEM__,
+        ctx,
+    )?;
 
     Ok((variant_getitem, get_item_method_impl))
 }
@@ -1171,7 +1175,7 @@ fn impl_complex_enum_tuple_variant_match_args(
     ctx: &Ctx,
     variant_cls_type: &syn::Type,
     field_names: &mut Vec<Ident>,
-) -> Result<(MethodAndMethodDef, syn::ImplItemConst)> {
+) -> (MethodAndMethodDef, syn::ImplItemConst) {
     let match_args_const_impl: syn::ImplItemConst = match field_names.len() {
         // This covers the case where the tuple variant has no fields (valid Rust)
         0 => parse_quote! {
@@ -1210,7 +1214,7 @@ fn impl_complex_enum_tuple_variant_match_args(
 
     let variant_match_args = gen_py_const(variant_cls_type, &spec, ctx);
 
-    Ok((variant_match_args, match_args_const_impl))
+    (variant_match_args, match_args_const_impl)
 }
 
 fn impl_complex_enum_tuple_variant_cls(
@@ -1231,10 +1235,10 @@ fn impl_complex_enum_tuple_variant_cls(
 
     let (mut field_getters, field_getter_impls) = impl_complex_enum_tuple_variant_field_getters(
         ctx,
-        &variant,
+        variant,
         enum_name,
         &variant_cls_type,
-        &variant_ident,
+        variant_ident,
         &mut field_names,
         &mut field_types,
     )?;
@@ -1252,7 +1256,7 @@ fn impl_complex_enum_tuple_variant_cls(
     slots.push(variant_getitem);
 
     let (variant_match_args, match_args_method_impl) =
-        impl_complex_enum_tuple_variant_match_args(ctx, &variant_cls_type, &mut field_names)?;
+        impl_complex_enum_tuple_variant_match_args(ctx, &variant_cls_type, &mut field_names);
 
     field_getters.push(variant_match_args);
 
