@@ -560,7 +560,6 @@ impl<'a> PyClassComplexEnum<'a> {
     }
 }
 
-#[derive(Debug)]
 enum PyClassEnumVariant<'a> {
     // TODO(mkovaxx): Unit(PyClassEnumUnitVariant<'a>),
     Struct(PyClassEnumStructVariant<'a>),
@@ -621,35 +620,31 @@ impl<'a> EnumVariant for PyClassEnumUnitVariant<'a> {
 }
 
 /// A struct variant has named fields
-#[derive(Debug)]
 struct PyClassEnumStructVariant<'a> {
     ident: &'a syn::Ident,
     fields: Vec<PyClassEnumVariantNamedField<'a>>,
     options: EnumVariantPyO3Options,
 }
 
-#[derive(Debug)]
 struct PyClassEnumTupleVariant<'a> {
     ident: &'a syn::Ident,
     fields: Vec<PyClassEnumVariantUnnamedField<'a>>,
     options: EnumVariantPyO3Options,
 }
 
-#[derive(Debug)]
 struct PyClassEnumVariantNamedField<'a> {
     ident: &'a syn::Ident,
     ty: &'a syn::Type,
     span: Span,
 }
 
-#[derive(Debug)]
 struct PyClassEnumVariantUnnamedField<'a> {
     ty: &'a syn::Type,
     span: Span,
 }
 
 /// `#[pyo3()]` options for pyclass enum variants
-#[derive(Default, Debug)]
+#[derive(Default)]
 struct EnumVariantPyO3Options {
     name: Option<NameAttribute>,
     constructor: Option<ConstructorAttribute>,
@@ -958,13 +953,11 @@ fn impl_complex_enum(
         let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, None, ctx);
         variant_cls_pytypeinfos.push(variant_cls_pytypeinfo);
 
-
-        let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
-
         let (variant_cls_impl, field_getters, mut slots) =
-            impl_complex_enum_variant_cls(cls, variant, ctx)?;
+            impl_complex_enum_variant_cls(cls, &variant, ctx)?;
         variant_cls_impls.push(variant_cls_impl);
 
+        let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
         slots.push(variant_new);
 
         let pyclass_impl = PyClassImplsBuilder::new(
@@ -1000,7 +993,7 @@ fn impl_complex_enum(
 
 fn impl_complex_enum_variant_cls(
     enum_name: &syn::Ident,
-    variant: PyClassEnumVariant<'_>,
+    variant: &PyClassEnumVariant<'_>,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
     match variant {
@@ -1015,7 +1008,7 @@ fn impl_complex_enum_variant_cls(
 
 fn impl_complex_enum_struct_variant_cls(
     enum_name: &syn::Ident,
-    variant: PyClassEnumStructVariant<'_>,
+    variant: &PyClassEnumStructVariant<'_>,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
     let Ctx { pyo3_path } = ctx;
@@ -1224,7 +1217,7 @@ fn impl_complex_enum_tuple_variant_cls(
 
     let (mut field_getters, field_getter_impls) = impl_complex_enum_tuple_variant_field_getters(
         ctx,
-        variant,
+        &variant,
         enum_name,
         &variant_cls_type,
         &variant_ident,
@@ -1453,7 +1446,7 @@ fn complex_enum_struct_variant_new<'a>(
 }
 
 fn complex_enum_tuple_variant_new<'a>(
-    cls : &'a syn::Ident,
+    cls: &'a syn::Ident,
     variant: PyClassEnumTupleVariant<'a>,
     ctx: &Ctx,
 ) -> Result<MethodAndSlotDef> {
@@ -1476,13 +1469,8 @@ fn complex_enum_tuple_variant_new<'a>(
         })];
 
         for (i, field) in variant.fields.iter().enumerate() {
-            // TODO : Tracking issue for Cow in FnArg : #4156
-            // ! Warning : This leaks memory. This is a temporary solution until we can modify FnArg to take a Cow
-            let field_ident = format_ident!("_{}", i);
-            let boxed_ident = Box::from(field_ident);
-            let leaky_ident = Box::leak(boxed_ident);
             args.push(FnArg::Regular(RegularArg {
-                name: leaky_ident,
+                name: std::borrow::Cow::Owned(format_ident!("_{}", i)),
                 ty: field.ty,
                 from_py_with: None,
                 default_value: None,
