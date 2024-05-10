@@ -8,6 +8,7 @@ use pyo3::{
 pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SimpleEnum>()?;
     m.add_class::<ComplexEnum>()?;
+    m.add_class::<SimpleTupleEnum>()?;
     m.add_class::<TupleEnum>()?;
     m.add_class::<MixedComplexEnum>()?;
     m.add_wrapped(wrap_pyfunction_bound!(do_simple_stuff))?;
@@ -82,6 +83,12 @@ pub fn do_complex_stuff(thing: &ComplexEnum) -> ComplexEnum {
             b: b.as_ref().map(|s| s.to_uppercase()),
         },
     }
+}
+
+#[pyclass]
+enum SimpleTupleEnum {
+    Int(i32),
+    Str(String),
 }
 
 #[pyclass]

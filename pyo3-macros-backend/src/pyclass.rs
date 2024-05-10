@@ -1172,14 +1172,28 @@ fn impl_complex_enum_tuple_variant_match_args(
     variant_cls_type: &syn::Type,
     field_names: &mut Vec<Ident>,
 ) -> Result<(MethodAndMethodDef, syn::ImplItemConst)> {
-    let args_tp = field_names.iter().map(|_| {
-        quote! { &'static str }
-    });
-
-    let match_args_const_impl: syn::ImplItemConst = parse_quote! {
-        const __match_args__: ( #(#args_tp),* ) = (
-            #(stringify!(#field_names),)*
-        );
+    let match_args_const_impl: syn::ImplItemConst = match field_names.len() {
+        // This covers the case where the tuple variant has no fields (valid Rust)
+        0 => parse_quote! {
+            const __match_args__: () = ();
+        },
+        1 => {
+            let ident = &field_names[0];
+            // We need the trailing comma to make it a tuple
+            parse_quote! {
+                const __match_args__: (&'static str ,) = (stringify!(#ident) , );
+            }
+        }
+        _ => {
+            let args_tp = field_names.iter().map(|_| {
+                quote! { &'static str }
+            });
+            parse_quote! {
+                const __match_args__: ( #(#args_tp),* ) = (
+                    #(stringify!(#field_names),)*
+                );
+            }
+        }
     };
 
     let spec = ConstSpec {

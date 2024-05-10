@@ -99,6 +99,23 @@ def test_tuple_enum_match_statement(variant: enums.TupleEnum):
 @pytest.mark.parametrize(
     "variant",
     [
+        enums.SimpleTupleEnum.Int(42),
+        enums.SimpleTupleEnum.Str("hello"),
+    ],
+)
+def test_simple_tuple_enum_match_statement(variant: enums.SimpleTupleEnum):
+    match variant:
+        case enums.SimpleTupleEnum.Int(x):
+            assert x == 42
+        case enums.SimpleTupleEnum.Str(x):
+            assert x == "hello"
+        case _:
+            assert False
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
         enums.TupleEnum.Full(42, 3.14, True),
     ],
 )
