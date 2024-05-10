@@ -446,8 +446,10 @@ Like PyO3's Python native types, the GIL Ref `&PyCell<T>` implements `Deref<Targ
 `PyCell<T>` was used to access `&T` and `&mut T` via `PyRef<T>` and `PyRefMut<T>` respectively.
 
 ```rust
+#![allow(unused_imports)]
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // &PyCell is part of the deprecated GIL Refs API
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;

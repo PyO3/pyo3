@@ -222,9 +222,7 @@ pub trait FromPyObject<'py>: Sized {
     ///
     /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
     /// this will be most compatible with PyO3's future API.
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Self::extract(ob.clone().into_gil_ref())
-    }
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self>;
 
     /// Extracts the type hint information for this type when it appears as an argument.
     ///
@@ -350,8 +348,8 @@ impl<'py, T> FromPyObject<'py> for &'py crate::PyCell<T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        obj.downcast().map_err(Into::into)
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        obj.clone().into_gil_ref().downcast().map_err(Into::into)
     }
 }
 
