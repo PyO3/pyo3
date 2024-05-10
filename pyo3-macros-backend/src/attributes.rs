@@ -9,6 +9,7 @@ use syn::{
 };
 
 pub mod kw {
+    syn::custom_keyword!(allow_threads);
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
     syn::custom_keyword!(cancel_handle);

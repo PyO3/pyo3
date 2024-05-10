@@ -6,6 +6,7 @@ use std::{
 use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
     instance::Bound,
+    marker::Ungil,
     pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
     types::{PyAnyMethods, PyString},
@@ -16,17 +17,19 @@ pub fn new_coroutine<F, T, E>(
     name: &Bound<'_, PyString>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
+    allow_threads: bool,
     future: F,
 ) -> Coroutine
 where
-    F: Future<Output = Result<T, E>> + Send + 'static,
-    T: IntoPy<PyObject>,
-    E: Into<PyErr>,
+    F: Future<Output = Result<T, E>> + Send + Ungil + 'static,
+    T: IntoPy<PyObject> + Send + Ungil,
+    E: Into<PyErr> + Send + Ungil,
 {
     Coroutine::new(
         Some(name.clone().into()),
         qualname_prefix,
         throw_callback,
+        allow_threads,
         future,
     )
 }
