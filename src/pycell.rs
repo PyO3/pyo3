@@ -518,6 +518,7 @@ impl<T: PyClass> ToPyObject for &PyCell<T> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
     fn as_ref(&self) -> &PyAny {
@@ -528,6 +529,7 @@ impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl<T: PyClass> Deref for PyCell<T> {
     type Target = PyAny;

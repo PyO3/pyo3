@@ -317,6 +317,7 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
 pub use crate::err::{
