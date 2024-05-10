@@ -724,7 +724,7 @@ impl PyErr {
     ///
     /// The `category` should be one of the `Warning` classes available in
     /// [`pyo3::exceptions`](crate::exceptions), or a subclass.  The Python
-    /// object can be retrieved using [`Python::get_type()`].
+    /// object can be retrieved using [`Python::get_type_bound()`].
     ///
     /// Example:
     /// ```rust

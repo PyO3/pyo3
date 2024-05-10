@@ -2,10 +2,10 @@
 ///
 /// # Panics
 ///
-/// This macro internally calls [`Python::run`](crate::Python::run) and panics
+/// This macro internally calls [`Python::run_bound`](crate::Python::run_bound) and panics
 /// if it returns `Err`, after printing the error to stdout.
 ///
-/// If you need to handle failures, please use [`Python::run`](crate::marker::Python::run) instead.
+/// If you need to handle failures, please use [`Python::run_bound`](crate::marker::Python::run_bound) instead.
 ///
 /// # Examples
 /// ```

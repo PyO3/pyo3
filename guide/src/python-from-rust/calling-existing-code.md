@@ -24,9 +24,9 @@ fn main() -> PyResult<()> {
 }
 ```
 
-## Want to run just an expression? Then use `eval`.
+## Want to run just an expression? Then use `eval_bound`.
 
-[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval) is
+[`Python::eval_bound`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.eval_bound) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
 and return the evaluated value as a `Bound<'py, PyAny>` object.
 
@@ -47,14 +47,14 @@ Python::with_gil(|py| {
 # }
 ```
 
-## Want to run statements? Then use `run`.
+## Want to run statements? Then use `run_bound`.
 
-[`Python::run`] is a method to execute one or more
+[`Python::run_bound`] is a method to execute one or more
 [Python statements](https://docs.python.org/3.7/reference/simple_stmts.html).
 This method returns nothing (like any Python statement), but you can get
 access to manipulated objects via the `locals` dict.
 
-You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
+You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run_bound`].
 Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
 quickly testing your Python extensions.
 
