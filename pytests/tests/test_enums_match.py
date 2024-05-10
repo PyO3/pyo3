@@ -102,7 +102,6 @@ def test_tuple_enum_match_statement(variant: enums.TupleEnum):
         enums.TupleEnum.Full(42, 3.14, True),
     ],
 )
-@pytest.mark.skip(reason="__match_args__ is not supported for tuple enums yet.")
 def test_tuple_enum_match_match_args(variant: enums.TupleEnum):
     match variant:
         case enums.TupleEnum.Full(x, y, z):
@@ -120,7 +119,6 @@ def test_tuple_enum_match_match_args(variant: enums.TupleEnum):
         enums.TupleEnum.Full(42, 3.14, True),
     ],
 )
-@pytest.mark.skip(reason="__match_args__ is not supported for tuple enums yet.")
 def test_tuple_enum_partial_match(variant: enums.TupleEnum):
     match variant:
         case enums.TupleEnum.Full(a):
