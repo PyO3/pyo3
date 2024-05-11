@@ -22,6 +22,7 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
 };
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "gil-refs")]
 use crate::instance::PyNativeType;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
@@ -249,6 +250,7 @@ impl PyDate {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyDateAccess for PyDate {
     fn get_year(&self) -> i32 {
         self.as_borrowed().get_year()
@@ -461,6 +463,7 @@ impl PyDateTime {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyDateAccess for PyDateTime {
     fn get_year(&self) -> i32 {
         self.as_borrowed().get_year()
@@ -489,6 +492,7 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyTimeAccess for PyDateTime {
     fn get_hour(&self) -> u8 {
         self.as_borrowed().get_hour()
@@ -533,6 +537,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> PyTzInfoAccess<'py> for &'py PyDateTime {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         self.as_borrowed().get_tzinfo_bound()
@@ -688,6 +693,7 @@ impl PyTime {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyTimeAccess for PyTime {
     fn get_hour(&self) -> u8 {
         self.as_borrowed().get_hour()
@@ -732,6 +738,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> PyTzInfoAccess<'py> for &'py PyTime {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         self.as_borrowed().get_tzinfo_bound()
@@ -878,6 +885,7 @@ impl PyDelta {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
         self.as_borrowed().get_days()

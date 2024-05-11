@@ -1,12 +1,13 @@
+use super::any::PyAnyMethods;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType,
-    PyObject, PyResult, Python, ToPyObject,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject,
+    PyResult, Python, ToPyObject,
 };
 use std::os::raw::c_double;
-
-use super::any::PyAnyMethods;
 
 /// Represents a Python `float` object.
 ///
@@ -24,17 +25,6 @@ pyobject_native_type!(
 );
 
 impl PyFloat {
-    /// Deprecated form of [`PyFloat::new_bound`].
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyFloat::new` will be replaced by `PyFloat::new_bound` in a future PyO3 version"
-    )]
-    pub fn new(py: Python<'_>, val: f64) -> &'_ Self {
-        Self::new_bound(py, val).into_gil_ref()
-    }
-
     /// Creates a new Python `float` object.
     pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
         unsafe {
@@ -42,6 +32,19 @@ impl PyFloat {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyFloat {
+    /// Deprecated form of [`PyFloat::new_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFloat::new` will be replaced by `PyFloat::new_bound` in a future PyO3 version"
+    )]
+    pub fn new(py: Python<'_>, val: f64) -> &'_ Self {
+        Self::new_bound(py, val).into_gil_ref()
     }
 
     /// Gets the value of this float.
