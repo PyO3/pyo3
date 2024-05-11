@@ -12,8 +12,9 @@ use std::{
 #[allow(deprecated)]
 use crate::gil::GILPool;
 use crate::{
-    callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
-    methods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
+    callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, gil::update_deferred_reference_counts,
+    impl_::panic::PanicTrap, methods::IPowModulo, panic::PanicException, types::PyModule, Py,
+    PyResult, Python,
 };
 
 #[inline]
@@ -182,6 +183,7 @@ where
     #[allow(deprecated)]
     let pool = unsafe { GILPool::new() };
     let py = pool.python();
+    update_deferred_reference_counts(py);
     let out = panic_result_into_callback_output(
         py,
         panic::catch_unwind(move || -> PyResult<_> { body(py) }),
@@ -229,6 +231,7 @@ where
     #[allow(deprecated)]
     let pool = GILPool::new();
     let py = pool.python();
+    update_deferred_reference_counts(py);
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {

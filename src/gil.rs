@@ -7,6 +7,7 @@ use std::cell::Cell;
 use std::cell::RefCell;
 #[cfg(not(debug_assertions))]
 use std::cell::UnsafeCell;
+use std::sync::atomic::AtomicBool;
 use std::{mem, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
@@ -213,6 +214,7 @@ impl GILGuard {
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
         #[allow(deprecated)]
         let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
+        update_deferred_reference_counts(pool.python());
 
         Some(GILGuard { gstate, pool })
     }
@@ -235,6 +237,7 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
 /// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
 struct ReferencePool {
+    ever_used: AtomicBool,
     // .0 is INCREFs, .1 is DECREFs
     pointer_ops: sync::Mutex<(PyObjVec, PyObjVec)>,
 }
@@ -242,15 +245,18 @@ struct ReferencePool {
 impl ReferencePool {
     const fn new() -> Self {
         Self {
+            ever_used: AtomicBool::new(false),
             pointer_ops: sync::Mutex::new((Vec::new(), Vec::new())),
         }
     }
 
     fn register_incref(&self, obj: NonNull<ffi::PyObject>) {
+        self.ever_used.store(true, sync::atomic::Ordering::Relaxed);
         self.pointer_ops.lock().unwrap().0.push(obj);
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
+        self.ever_used.store(true, sync::atomic::Ordering::Relaxed);
         self.pointer_ops.lock().unwrap().1.push(obj);
     }
 
@@ -273,6 +279,17 @@ impl ReferencePool {
         for ptr in decrefs {
             unsafe { ffi::Py_DECREF(ptr.as_ptr()) };
         }
+    }
+}
+
+#[inline]
+pub(crate) fn update_deferred_reference_counts(py: Python<'_>) {
+    // Justification for relaxed: worst case this causes already deferred drops to be
+    // delayed slightly later, and this is also a one-time flag, so if the program is
+    // using deferred drops it is highly likely that branch prediction will always
+    // assume this is true and we don't need the atomic overhead.
+    if POOL.ever_used.load(sync::atomic::Ordering::Relaxed) {
+        POOL.update_counts(py)
     }
 }
 
@@ -375,8 +392,6 @@ impl GILPool {
     #[inline]
     pub unsafe fn new() -> GILPool {
         increment_gil_count();
-        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
-        POOL.update_counts(Python::assume_gil_acquired());
         GILPool {
             start: OWNED_OBJECTS
                 .try_with(|owned_objects| {
