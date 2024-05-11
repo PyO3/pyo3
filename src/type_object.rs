@@ -3,7 +3,9 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, Bound, PyNativeType, Python};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Bound, Python};
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
 /// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
@@ -31,15 +33,20 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 /// - `Self::AsRefTarget` must have the same layout as `UnsafeCell<ffi::PyAny>`.
 pub unsafe trait HasPyGilRef {
     /// Utility type to make Py::as_ref work.
+    #[cfg(feature = "gil-refs")]
     type AsRefTarget: PyNativeType;
 }
 
+#[cfg(feature = "gil-refs")]
 unsafe impl<T> HasPyGilRef for T
 where
     T: PyNativeType,
 {
     type AsRefTarget = Self;
 }
+
+#[cfg(not(feature = "gil-refs"))]
+unsafe impl<T> HasPyGilRef for T {}
 
 /// Python type information.
 /// All Python native types (e.g., `PyDict`) and `#[pyclass]` structs implement this trait.

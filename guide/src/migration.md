@@ -1609,7 +1609,7 @@ For more, see [the constructor section](class.md#constructor) of this guide.
 <details>
 <summary><small>Click to expand</small></summary>
 
-PyO3 0.9 introduces [`PyCell`], which is a [`RefCell`]-like object wrapper
+PyO3 0.9 introduces `PyCell`, which is a [`RefCell`]-like object wrapper
 for ensuring Rust's rules regarding aliasing of references are upheld.
 For more detail, see the
 [Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
@@ -1788,7 +1788,6 @@ impl PySequenceProtocol for ByteSequence {
 
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`PyAny`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
-[`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
 [`PyBorrowMutError`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyBorrowMutError.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html

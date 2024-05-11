@@ -24,6 +24,7 @@ use std::ptr::NonNull;
 /// # Safety
 ///
 /// This trait must only be implemented for types which cannot be accessed without the GIL.
+#[cfg(feature = "gil-refs")]
 pub unsafe trait PyNativeType: Sized {
     /// The form of this which is stored inside a `Py<T>` smart pointer.
     type AsRefSource: HasPyGilRef<AsRefTarget = Self>;
@@ -1118,8 +1119,7 @@ where
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
     ///
-    /// Equivalent to `self.as_ref(py).borrow()` -
-    /// see [`PyCell::borrow`](crate::pycell::PyCell::borrow).
+    /// Equivalent to `self.bind(py).borrow()` - see [`Bound::borrow`].
     ///
     /// # Examples
     ///
@@ -1157,8 +1157,7 @@ where
     ///
     /// This borrow lasts while the returned [`PyRefMut`] exists.
     ///
-    /// Equivalent to `self.as_ref(py).borrow_mut()` -
-    /// see [`PyCell::borrow_mut`](crate::pycell::PyCell::borrow_mut).
+    /// Equivalent to `self.bind(py).borrow_mut()` - see [`Bound::borrow_mut`].
     ///
     /// # Examples
     ///
@@ -1202,8 +1201,7 @@ where
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
     ///
-    /// Equivalent to `self.as_ref(py).borrow_mut()` -
-    /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
+    /// Equivalent to `self.bind(py).try_borrow()` - see [`Bound::try_borrow`].
     #[inline]
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
         self.bind(py).try_borrow()
@@ -1215,8 +1213,7 @@ where
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
     ///
-    /// Equivalent to `self.as_ref(py).try_borrow_mut()` -
-    /// see [`PyCell::try_borrow_mut`](crate::pycell::PyCell::try_borrow_mut).
+    /// Equivalent to `self.bind(py).try_borrow_mut()` - see [`Bound::try_borrow_mut`].
     #[inline]
     pub fn try_borrow_mut<'py>(
         &'py self,
@@ -1742,6 +1739,7 @@ unsafe impl<T> crate::AsPyPointer for Py<T> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<T> std::convert::From<&'_ T> for PyObject
 where
     T: PyNativeType,
@@ -1866,6 +1864,7 @@ where
 ///
 /// However for GIL lifetime reasons, cause() cannot be implemented for `Py<T>`.
 /// Use .as_ref() to get the GIL-scoped error if you need to inspect the cause.
+#[cfg(feature = "gil-refs")]
 impl<T> std::error::Error for Py<T>
 where
     T: std::error::Error + PyTypeInfo,
@@ -1876,7 +1875,6 @@ where
 impl<T> std::fmt::Display for Py<T>
 where
     T: PyTypeInfo,
-    T::AsRefTarget: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Python::with_gil(|py| std::fmt::Display::fmt(self.bind(py), f))

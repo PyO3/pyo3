@@ -320,15 +320,18 @@ pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
-pub use crate::err::{
-    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
-};
+#[cfg(feature = "gil-refs")]
+pub use crate::err::PyDowncastError;
+pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[allow(deprecated)]
 pub use crate::gil::GILPool;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::instance::{Borrowed, Bound, Py, PyNativeType, PyObject};
+#[cfg(feature = "gil-refs")]
+pub use crate::instance::PyNativeType;
+pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 pub use crate::pycell::PyCell;
 pub use crate::pycell::{PyRef, PyRefMut};
@@ -443,6 +446,7 @@ mod conversions;
 pub mod coroutine;
 #[macro_use]
 #[doc(hidden)]
+#[cfg(feature = "gil-refs")]
 pub mod derive_utils;
 mod err;
 pub mod exceptions;

@@ -1,3 +1,5 @@
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
@@ -7,8 +9,7 @@ use crate::{
     pyclass_init::PyObjectInit,
     types::any::PyAnyMethods,
     types::PyBool,
-    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo,
-    Python,
+    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
@@ -168,7 +169,12 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
+    #[cfg(feature = "gil-refs")]
     type BaseNativeType: PyTypeInfo + PyNativeType;
+    /// The closest native ancestor. This is `PyAny` by default, and when you declare
+    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
+    #[cfg(not(feature = "gil-refs"))]
+    type BaseNativeType: PyTypeInfo;
 
     /// This handles following two situations:
     /// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.

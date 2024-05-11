@@ -16,7 +16,20 @@ pub use self::gc::{PyTraverseError, PyVisit};
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
 #[allow(deprecated)]
+#[cfg(feature = "gil-refs")]
 pub trait PyClass: PyTypeInfo<AsRefTarget = crate::PyCell<Self>> + PyClassImpl {
+    /// Whether the pyclass is frozen.
+    ///
+    /// This can be enabled via `#[pyclass(frozen)]`.
+    type Frozen: Frozen;
+}
+
+/// Types that can be used as Python classes.
+///
+/// The `#[pyclass]` attribute implements this trait for your Rust struct -
+/// you shouldn't implement this trait directly.
+#[cfg(not(feature = "gil-refs"))]
+pub trait PyClass: PyTypeInfo + PyClassImpl {
     /// Whether the pyclass is frozen.
     ///
     /// This can be enabled via `#[pyclass(frozen)]`.
