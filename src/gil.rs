@@ -455,7 +455,10 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     } else {
         #[cfg(not(pyo3_disable_reference_pool))]
         POOL.register_decref(obj);
-        #[cfg(pyo3_disable_reference_pool)]
+        #[cfg(all(
+            pyo3_disable_reference_pool,
+            not(pyo3_leak_on_drop_without_reference_pool)
+        ))]
         {
             let _trap = PanicTrap::new("Aborting the process to avoid panic-from-drop.");
             panic!("Cannot drop pointer into Python heap without the GIL being held.");
