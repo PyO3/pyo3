@@ -249,7 +249,7 @@ fn return_myclass() -> Py<MyClass> {
 
 let obj = return_myclass();
 
-Python::with_gil(|py| {
+Python::with_gil(move |py| {
     let bound = obj.bind(py); // Py<MyClass>::bind returns &Bound<'py, MyClass>
     let obj_ref = bound.borrow(); // Get PyRef<T>
     assert_eq!(obj_ref.num, 1);
@@ -280,6 +280,8 @@ let py_counter: Py<FrozenCounter> = Python::with_gil(|py| {
 });
 
 py_counter.get().value.fetch_add(1, Ordering::Relaxed);
+
+Python::with_gil(move |_py| drop(py_counter));
 ```
 
 Frozen classes are likely to become the default thereby guiding the PyO3 ecosystem towards a more deliberate application of interior mutability. Eventually, this should enable further optimizations of PyO3's internals and avoid downstream code paying the cost of interior mutability when it is not actually required.

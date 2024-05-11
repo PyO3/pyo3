@@ -81,10 +81,11 @@ where
     /// struct Foo {/* fields omitted */}
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<Py<Foo>> {
+    /// let foo: Py<Foo> = Python::with_gil(|py| -> PyResult<_> {
     ///     let foo: Bound<'_, Foo> = Bound::new(py, Foo {})?;
     ///     Ok(foo.into())
     /// })?;
+    /// # Python::with_gil(move |_py| drop(foo));
     /// # Ok(())
     /// # }
     /// ```
@@ -865,7 +866,9 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///     // All of these are valid syntax
 ///     let second = Py::clone_ref(&first, py);
 ///     let third = first.clone_ref(py);
+///     #[cfg(feature = "py-clone")]
 ///     let fourth = Py::clone(&first);
+///     #[cfg(feature = "py-clone")]
 ///     let fifth = first.clone();
 ///
 ///     // Disposing of our original `Py<PyDict>` just decrements the reference count.
@@ -873,7 +876,9 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 ///     // They all point to the same object
 ///     assert!(second.is(&third));
+///     #[cfg(feature = "py-clone")]
 ///     assert!(fourth.is(&fifth));
+///     #[cfg(feature = "py-clone")]
 ///     assert!(second.is(&fourth));
 /// });
 /// # }
@@ -935,10 +940,11 @@ where
     /// struct Foo {/* fields omitted */}
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<Py<Foo>> {
+    /// let foo = Python::with_gil(|py| -> PyResult<_> {
     ///     let foo: Py<Foo> = Py::new(py, Foo {})?;
     ///     Ok(foo)
     /// })?;
+    /// # Python::with_gil(move |_py| drop(foo));
     /// # Ok(())
     /// # }
     /// ```
@@ -1244,6 +1250,7 @@ where
     /// });
     ///
     /// cell.get().value.fetch_add(1, Ordering::Relaxed);
+    /// # Python::with_gil(move |_py| drop(cell));
     /// ```
     #[inline]
     pub fn get(&self) -> &T
@@ -1804,9 +1811,12 @@ where
 }
 
 /// If the GIL is held this increments `self`'s reference count.
-/// Otherwise this registers the [`Py`]`<T>` instance to have its reference count
-/// incremented the next time PyO3 acquires the GIL.
+/// Otherwise, it will panic.
+///
+/// Only available if the `py-clone` feature is enabled.
+#[cfg(feature = "py-clone")]
 impl<T> Clone for Py<T> {
+    #[track_caller]
     fn clone(&self) -> Self {
         unsafe {
             gil::register_incref(self.0);
@@ -1815,8 +1825,16 @@ impl<T> Clone for Py<T> {
     }
 }
 
-/// Dropping a `Py` instance decrements the reference count on the object by 1.
+/// Dropping a `Py` instance decrements the reference count
+/// on the object by one if the GIL is held.
+///
+/// Otherwise and by default, this registers the underlying pointer to have its reference count
+/// decremented the next time PyO3 acquires the GIL.
+///
+/// However, if the `pyo3_disable_reference_pool` conditional compilation flag
+/// is enabled, it will abort the process.
 impl<T> Drop for Py<T> {
+    #[track_caller]
     fn drop(&mut self) {
         unsafe {
             gil::register_decref(self.0);
@@ -2039,7 +2057,9 @@ mod tests {
             Py::from(native)
         });
 
-        assert_eq!(Python::with_gil(|py| dict.get_refcnt(py)), 1);
+        Python::with_gil(move |py| {
+            assert_eq!(dict.get_refcnt(py), 1);
+        });
     }
 
     #[test]

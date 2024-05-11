@@ -48,4 +48,6 @@ fn test_py_as_bytes() {
     let data = Python::with_gil(|py| pyobj.as_bytes(py));
 
     assert_eq!(data, b"abc");
+
+    Python::with_gil(move |_py| drop(pyobj));
 }

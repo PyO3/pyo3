@@ -172,6 +172,7 @@ fn empty_class_in_module() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[pyclass]
 struct ClassWithObjectField {
     // It used to be that PyObject was not supported with (get, set)
@@ -180,6 +181,7 @@ struct ClassWithObjectField {
     value: PyObject,
 }
 
+#[cfg(feature = "py-clone")]
 #[pymethods]
 impl ClassWithObjectField {
     #[new]
@@ -188,6 +190,7 @@ impl ClassWithObjectField {
     }
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn class_with_object_field() {
     Python::with_gil(|py| {
@@ -229,7 +232,7 @@ impl UnsendableChild {
 }
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
-    let obj = Python::with_gil(|py| -> PyResult<_> {
+    let (keep_obj_here, obj) = Python::with_gil(|py| -> PyResult<_> {
         let obj: Py<T> = PyType::new_bound::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
@@ -241,14 +244,13 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
             .is_err();
 
         assert!(!caught_panic);
-        Ok(obj)
-    })?;
 
-    let keep_obj_here = obj.clone();
+        Ok((obj.clone_ref(py), obj))
+    })?;
 
     let caught_panic = std::thread::spawn(move || {
         // This access must panic
-        Python::with_gil(|py| {
+        Python::with_gil(move |py| {
             obj.borrow(py);
         });
     })
@@ -549,6 +551,8 @@ fn access_frozen_class_without_gil() {
     });
 
     assert_eq!(py_counter.get().value.load(Ordering::Relaxed), 1);
+
+    Python::with_gil(move |_py| drop(py_counter));
 }
 
 #[test]
