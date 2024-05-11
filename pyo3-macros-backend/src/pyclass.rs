@@ -975,19 +975,19 @@ fn impl_complex_enum(
     Ok(quote! {
     #pytypeinfo
 
-    #pyclass_impls
+        #pyclass_impls
 
-    #[doc(hidden)]
-    #[allow(non_snake_case)]
-    impl #cls {}
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #cls {}
 
-    #(#variant_cls_zsts)*
+        #(#variant_cls_zsts)*
 
-    #(#variant_cls_pytypeinfos)*
+        #(#variant_cls_pytypeinfos)*
 
-    #(#variant_cls_pyclass_impls)*
+        #(#variant_cls_pyclass_impls)*
 
-    #(#variant_cls_impls)*
+        #(#variant_cls_impls)*
     })
 }
 
@@ -1004,6 +1004,36 @@ fn impl_complex_enum_variant_cls(
             impl_complex_enum_tuple_variant_cls(enum_name, tuple_variant, ctx)
         }
     }
+}
+
+fn impl_complex_enum_variant_match_args(
+    ctx: &Ctx,
+    variant_cls_type: &syn::Type,
+    field_names: &mut Vec<Ident>,
+) -> (MethodAndMethodDef, syn::ImplItemConst) {
+    let match_args_const_impl: syn::ImplItemConst = {
+        let args_tp = field_names.iter().map(|_| {
+            quote! { &'static str }
+        });
+        parse_quote! {
+            const __match_args__: ( #(#args_tp,)* ) = (
+                #(stringify!(#field_names),)*
+            );
+        }
+    };
+
+    let spec = ConstSpec {
+        rust_ident: format_ident!("__match_args__"),
+        attributes: ConstAttributes {
+            is_class_attr: true,
+            name: None,
+            deprecations: Deprecations::new(ctx),
+        },
+    };
+
+    let variant_match_args = gen_py_const(variant_cls_type, &spec, ctx);
+
+    (variant_match_args, match_args_const_impl)
 }
 
 fn impl_complex_enum_struct_variant_cls(
@@ -1043,6 +1073,11 @@ fn impl_complex_enum_struct_variant_cls(
         field_getter_impls.push(field_getter_impl);
     }
 
+    let (variant_match_args, match_args_const_impl) =
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names);
+
+    field_getters.push(variant_match_args);
+
     let cls_impl = quote! {
         #[doc(hidden)]
         #[allow(non_snake_case)]
@@ -1051,6 +1086,8 @@ fn impl_complex_enum_struct_variant_cls(
                 let base_value = #enum_name::#variant_ident { #(#field_names,)* };
                 #pyo3_path::PyClassInitializer::from(base_value).add_subclass(#variant_cls)
             }
+
+            #match_args_const_impl
 
             #(#field_getter_impls)*
         }
@@ -1171,52 +1208,6 @@ fn impl_complex_enum_tuple_variant_getitem(
     Ok((variant_getitem, get_item_method_impl))
 }
 
-fn impl_complex_enum_tuple_variant_match_args(
-    ctx: &Ctx,
-    variant_cls_type: &syn::Type,
-    field_names: &mut Vec<Ident>,
-) -> (MethodAndMethodDef, syn::ImplItemConst) {
-    let match_args_const_impl: syn::ImplItemConst = match field_names.len() {
-        // This covers the case where the tuple variant has no fields (valid Rust)
-        0 => parse_quote! {
-            const __match_args__: () = ();
-        },
-        1 => {
-            let ident = &field_names[0];
-            // We need the trailing comma to make it a tuple
-            parse_quote! {
-                const __match_args__: (&'static str ,) = (stringify!(#ident) , );
-            }
-        }
-        _ => {
-            let args_tp = field_names.iter().map(|_| {
-                quote! { &'static str }
-            });
-            parse_quote! {
-                const __match_args__: ( #(#args_tp),* ) = (
-                    #(stringify!(#field_names),)*
-                );
-            }
-        }
-    };
-
-    let spec = ConstSpec {
-        rust_ident: format_ident!("__match_args__"),
-        attributes: ConstAttributes {
-            is_class_attr: true,
-            name: Some(NameAttribute {
-                kw: syn::parse_quote! { name },
-                value: NameLitStr(format_ident!("__match_args__")),
-            }),
-            deprecations: Deprecations::new(ctx),
-        },
-    };
-
-    let variant_match_args = gen_py_const(variant_cls_type, &spec, ctx);
-
-    (variant_match_args, match_args_const_impl)
-}
-
 fn impl_complex_enum_tuple_variant_cls(
     enum_name: &syn::Ident,
     variant: &PyClassEnumTupleVariant<'_>,
@@ -1256,7 +1247,7 @@ fn impl_complex_enum_tuple_variant_cls(
     slots.push(variant_getitem);
 
     let (variant_match_args, match_args_method_impl) =
-        impl_complex_enum_tuple_variant_match_args(ctx, &variant_cls_type, &mut field_names);
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names);
 
     field_getters.push(variant_match_args);
 
@@ -1477,10 +1468,6 @@ fn complex_enum_tuple_variant_new<'a>(
     let arg_py_type: syn::Type = parse_quote!(#pyo3_path::Python<'_>);
 
     let args = {
-        let mut no_pyo3_attrs = vec![];
-        let _attrs =
-            crate::pyfunction::PyFunctionArgPyO3Attributes::from_attrs(&mut no_pyo3_attrs)?;
-
         let mut args = vec![FnArg::Py(PyArg {
             name: &arg_py_ident,
             ty: &arg_py_type,
@@ -1497,7 +1484,16 @@ fn complex_enum_tuple_variant_new<'a>(
         }
         args
     };
-    let signature = crate::pyfunction::FunctionSignature::from_arguments(args)?;
+
+    let signature = if let Some(constructor) = variant.options.constructor {
+        crate::pyfunction::FunctionSignature::from_arguments_and_attribute(
+            args,
+            constructor.into_signature(),
+        )?
+    } else {
+        crate::pyfunction::FunctionSignature::from_arguments(args)?
+    };
+
     let spec = FnSpec {
         tp: crate::method::FnType::FnNew,
         name: &format_ident!("__pymethod_constructor__"),

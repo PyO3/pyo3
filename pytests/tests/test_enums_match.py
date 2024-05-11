@@ -65,9 +65,6 @@ def test_complex_enum_pyfunction_in_out(variant: enums.ComplexEnum):
         enums.ComplexEnum.MultiFieldStruct(42, 3.14, True),
     ],
 )
-@pytest.mark.skip(
-    reason="__match_args__ is not supported for struct enums yet. TODO : Open an issue"
-)
 def test_complex_enum_partial_match(variant: enums.ComplexEnum):
     match variant:
         case enums.ComplexEnum.MultiFieldStruct(a):

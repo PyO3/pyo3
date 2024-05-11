@@ -1209,8 +1209,8 @@ Python::with_gil(|py| {
 
         assert isinstance(square, cls)
         assert isinstance(square, cls.RegularPolygon)
-        assert square._0 == 4
-        assert square._1 == 10.0
+        assert square[0] == 4 # Gets _0 field
+        assert square[1] == 10.0 # Gets _1 field
 
         def count_vertices(cls, shape):
             match shape:
@@ -1218,7 +1218,7 @@ Python::with_gil(|py| {
                     return 0
                 case cls.Rectangle():
                     return 4
-                case cls.RegularPolygon(_0=n):
+                case cls.RegularPolygon(n):
                     return n
                 case cls.Nothing():
                     return 0

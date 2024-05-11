@@ -93,6 +93,8 @@ enum SimpleTupleEnum {
 
 #[pyclass]
 pub enum TupleEnum {
+    #[pyo3(constructor = (_0 = 1, _1 = 1.0, _2 = true))]
+    FullWithDefault(i32, f64, bool),
     Full(i32, f64, bool),
     EmptyTuple(),
 }
@@ -100,6 +102,7 @@ pub enum TupleEnum {
 #[pyfunction]
 pub fn do_tuple_stuff(thing: &TupleEnum) -> TupleEnum {
     match thing {
+        TupleEnum::FullWithDefault(a, b, c) => TupleEnum::FullWithDefault(*a, *b, *c),
         TupleEnum::Full(a, b, c) => TupleEnum::Full(*a, *b, *c),
         TupleEnum::EmptyTuple() => TupleEnum::EmptyTuple(),
     }

@@ -150,12 +150,20 @@ def test_tuple_enum_variant_constructors():
 @pytest.mark.parametrize(
     "variant",
     [
+        enums.TupleEnum.FullWithDefault(),
         enums.TupleEnum.Full(42, 3.14, False),
         enums.TupleEnum.EmptyTuple(),
     ],
 )
 def test_tuple_enum_variant_subclasses(variant: enums.TupleEnum):
     assert isinstance(variant, enums.TupleEnum)
+
+
+def test_tuple_enum_defaults():
+    variant = enums.TupleEnum.FullWithDefault()
+    assert variant._0 == 1
+    assert variant._1 == 1.0
+    assert variant._2 is True
 
 
 def test_tuple_enum_field_getters():
