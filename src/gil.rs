@@ -236,7 +236,7 @@ impl Drop for GILGuard {
 type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
 #[cfg(not(pyo3_disable_reference_pool))]
-/// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
+/// Thread-safe storage for objects which were dec_ref while the GIL was not held.
 struct ReferencePool {
     pending_decrefs: sync::Mutex<PyObjVec>,
 }
@@ -422,11 +422,8 @@ impl Drop for GILPool {
     }
 }
 
-/// Registers a Python object pointer inside the release pool, to have its reference count increased
-/// the next time the GIL is acquired in pyo3.
-///
-/// If the GIL is held, the reference count will be increased immediately instead of being queued
-/// for later.
+/// Increments the reference count of a Python object if the GIL is held. If
+/// the GIL is not held, this function will panic.
 ///
 /// # Safety
 /// The object must be an owned Python reference.
