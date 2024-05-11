@@ -2,6 +2,7 @@ use crate::err::{self, PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
+#[cfg(feature = "gil-refs")]
 use crate::type_object::HasPyGilRef;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
@@ -667,11 +668,11 @@ impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py, T> Borrowed<'py, 'py, T>
 where
     T: HasPyGilRef,
 {
-    #[cfg(feature = "gil-refs")]
     pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
         // Safety: self is a borrow over `'py`.
         #[allow(deprecated)]
@@ -954,6 +955,7 @@ where
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<T> Py<T>
 where
     T: HasPyGilRef,
@@ -1001,7 +1003,6 @@ where
     ///     assert!(my_class_cell.try_borrow().is_ok());
     /// });
     /// ```
-    #[cfg(feature = "gil-refs")]
     #[deprecated(
         since = "0.21.0",
         note = "use `obj.bind(py)` instead of `obj.as_ref(py)`"
@@ -1054,7 +1055,6 @@ where
     ///     obj.into_ref(py)
     /// }
     /// ```
-    #[cfg(feature = "gil-refs")]
     #[deprecated(
         since = "0.21.0",
         note = "use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
