@@ -1,4 +1,6 @@
-use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, PyNativeType, Python};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
 use std::os::raw::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
@@ -19,15 +21,6 @@ pyobject_native_type!(
 );
 
 impl PyComplex {
-    /// Deprecated form of [`PyComplex::from_doubles_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyComplex::from_doubles` will be replaced by `PyComplex::from_doubles_bound` in a future PyO3 version"
-    )]
-    pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> &PyComplex {
-        Self::from_doubles_bound(py, real, imag).into_gil_ref()
-    }
     /// Creates a new `PyComplex` from the given real and imaginary values.
     pub fn from_doubles_bound(
         py: Python<'_>,
@@ -41,6 +34,19 @@ impl PyComplex {
                 .downcast_into_unchecked()
         }
     }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyComplex {
+    /// Deprecated form of [`PyComplex::from_doubles_bound`]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyComplex::from_doubles` will be replaced by `PyComplex::from_doubles_bound` in a future PyO3 version"
+    )]
+    pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> &PyComplex {
+        Self::from_doubles_bound(py, real, imag).into_gil_ref()
+    }
+
     /// Returns the real part of the complex number.
     pub fn real(&self) -> c_double {
         self.as_borrowed().real()

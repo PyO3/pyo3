@@ -3,9 +3,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
+use crate::{ffi, PyAny, Python};
 #[cfg(feature = "gil-refs")]
-use crate::AsPyPointer;
-use crate::{ffi, PyAny, PyNativeType, Python};
+use crate::{AsPyPointer, PyNativeType};
 use std::os::raw::c_char;
 use std::slice;
 
@@ -16,16 +16,6 @@ pub struct PyByteArray(PyAny);
 pyobject_native_type_core!(PyByteArray, pyobject_native_static_type_object!(ffi::PyByteArray_Type), #checkfunction=ffi::PyByteArray_Check);
 
 impl PyByteArray {
-    /// Deprecated form of [`PyByteArray::new_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyByteArray::new` will be replaced by `PyByteArray::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'py>(py: Python<'py>, src: &[u8]) -> &'py PyByteArray {
-        Self::new_bound(py, src).into_gil_ref()
-    }
-
     /// Creates a new Python bytearray object.
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
@@ -37,19 +27,6 @@ impl PyByteArray {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyByteArray::new_bound_with`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyByteArray::new_with` will be replaced by `PyByteArray::new_bound_with` in a future PyO3 version"
-    )]
-    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyByteArray>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
     }
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
@@ -101,16 +78,6 @@ impl PyByteArray {
         }
     }
 
-    /// Deprecated form of [`PyByteArray::from_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyByteArray::from` will be replaced by `PyByteArray::from_bound` in a future PyO3 version"
-    )]
-    pub fn from(src: &PyAny) -> PyResult<&PyByteArray> {
-        PyByteArray::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
     pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
@@ -119,6 +86,39 @@ impl PyByteArray {
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyByteArray {
+    /// Deprecated form of [`PyByteArray::new_bound`]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyByteArray::new` will be replaced by `PyByteArray::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'py>(py: Python<'py>, src: &[u8]) -> &'py PyByteArray {
+        Self::new_bound(py, src).into_gil_ref()
+    }
+
+    /// Deprecated form of [`PyByteArray::new_bound_with`]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyByteArray::new_with` will be replaced by `PyByteArray::new_bound_with` in a future PyO3 version"
+    )]
+    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyByteArray>
+    where
+        F: FnOnce(&mut [u8]) -> PyResult<()>,
+    {
+        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyByteArray::from_bound`]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyByteArray::from` will be replaced by `PyByteArray::from_bound` in a future PyO3 version"
+    )]
+    pub fn from(src: &PyAny) -> PyResult<&PyByteArray> {
+        PyByteArray::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
     }
 
     /// Gets the length of the bytearray.
@@ -300,7 +300,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Safety
     ///
-    /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
+    /// See the safety requirements of [`PyByteArrayMethods::as_bytes`] and [`PyByteArrayMethods::as_bytes_mut`].
     fn data(&self) -> *mut u8;
 
     /// Extracts a slice of the `ByteArray`'s entire buffer.
@@ -311,7 +311,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// undefined.
     ///
     /// These mutations may occur in Python code as well as from Rust:
-    /// - Calling methods like [`PyByteArray::as_bytes_mut`] and [`PyByteArray::resize`] will
+    /// - Calling methods like [`PyByteArrayMethods::as_bytes_mut`] and [`PyByteArrayMethods::resize`] will
     /// invalidate the slice.
     /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
     /// handlers, which may execute arbitrary Python code. This means that if Python code has a
@@ -405,7 +405,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// Any other accesses of the `bytearray`'s buffer invalidate the slice. If it is used
-    /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArray::as_bytes`]
+    /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArrayMethods::as_bytes`]
     /// apply to this function as well.
     #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8];
@@ -432,8 +432,8 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
 
     /// Resizes the bytearray object to the new length `len`.
     ///
-    /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
-    /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
+    /// Note that this will invalidate any pointers obtained by [PyByteArrayMethods::data], as well as
+    /// any (unsafe) slices obtained from [PyByteArrayMethods::as_bytes] and [PyByteArrayMethods::as_bytes_mut].
     fn resize(&self, len: usize) -> PyResult<()>;
 }
 

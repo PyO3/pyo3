@@ -2,7 +2,9 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::types::any::PyAnyMethods;
-use crate::{Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
 
 /// Represents a Python `slice`.
 ///
@@ -17,7 +19,7 @@ pyobject_native_type!(
     #checkfunction=ffi::PySlice_Check
 );
 
-/// Return value from [`PySlice::indices`].
+/// Return value from [`PySliceMethods::indices`].
 #[derive(Debug, Eq, PartialEq)]
 pub struct PySliceIndices {
     /// Start of the slice
@@ -47,16 +49,6 @@ impl PySliceIndices {
 }
 
 impl PySlice {
-    /// Deprecated form of `PySlice::new_bound`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PySlice::new` will be replaced by `PySlice::new_bound` in a future PyO3 version"
-    )]
-    pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
-        Self::new_bound(py, start, stop, step).into_gil_ref()
-    }
-
     /// Constructs a new slice with the given elements.
     pub fn new_bound(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
         unsafe {
@@ -70,16 +62,6 @@ impl PySlice {
         }
     }
 
-    /// Deprecated form of `PySlice::full_bound`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PySlice::full` will be replaced by `PySlice::full_bound` in a future PyO3 version"
-    )]
-    pub fn full(py: Python<'_>) -> &PySlice {
-        PySlice::full_bound(py).into_gil_ref()
-    }
-
     /// Constructs a new full slice that is equivalent to `::`.
     pub fn full_bound(py: Python<'_>) -> Bound<'_, PySlice> {
         unsafe {
@@ -87,6 +69,27 @@ impl PySlice {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PySlice {
+    /// Deprecated form of `PySlice::new_bound`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PySlice::new` will be replaced by `PySlice::new_bound` in a future PyO3 version"
+    )]
+    pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
+        Self::new_bound(py, start, stop, step).into_gil_ref()
+    }
+
+    /// Deprecated form of `PySlice::full_bound`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PySlice::full` will be replaced by `PySlice::full_bound` in a future PyO3 version"
+    )]
+    pub fn full(py: Python<'_>) -> &PySlice {
+        PySlice::full_bound(py).into_gil_ref()
     }
 
     /// Retrieves the start, stop, and step indices from the slice object,
