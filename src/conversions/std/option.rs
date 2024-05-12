@@ -61,7 +61,7 @@ mod tests {
             assert_eq!(option.as_ptr(), std::ptr::null_mut());
 
             let none = py.None();
-            option = Some(none.clone());
+            option = Some(none.clone_ref(py));
 
             let ref_cnt = none.get_refcnt(py);
             assert_eq!(option.as_ptr(), none.as_ptr());

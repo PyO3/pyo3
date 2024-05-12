@@ -127,12 +127,10 @@ If you don't want that cloning to happen, a workaround is to allocate the field 
 ```rust
 # use pyo3::prelude::*;
 #[pyclass]
-#[derive(Clone)]
 struct Inner {/* fields omitted */}
 
 #[pyclass]
 struct Outer {
-    #[pyo3(get)]
     inner: Py<Inner>,
 }
 
@@ -143,6 +141,11 @@ impl Outer {
         Ok(Self {
             inner: Py::new(py, Inner {})?,
         })
+    }
+
+    #[getter]
+    fn inner(&self, py: Python<'_>) -> Py<Inner> {
+        self.inner.clone_ref(py)
     }
 }
 ```

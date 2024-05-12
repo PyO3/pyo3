@@ -823,7 +823,7 @@ mod tests {
             assert!(seq.get_item(1).unwrap().as_ptr() == obj.as_ptr());
         });
 
-        Python::with_gil(|py| {
+        Python::with_gil(move |py| {
             assert_eq!(1, obj.get_refcnt(py));
         });
     }

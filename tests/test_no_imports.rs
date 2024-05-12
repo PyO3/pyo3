@@ -143,12 +143,14 @@ fn test_basic() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[pyo3::pyclass]
 struct NewClassMethod {
     #[pyo3(get)]
     cls: pyo3::PyObject,
 }
 
+#[cfg(feature = "py-clone")]
 #[pyo3::pymethods]
 impl NewClassMethod {
     #[new]
@@ -160,6 +162,7 @@ impl NewClassMethod {
     }
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_new_class_method() {
     pyo3::Python::with_gil(|py| {

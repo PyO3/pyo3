@@ -108,6 +108,9 @@ auto-initialize = []
 # Allows use of the deprecated "GIL Refs" APIs.
 gil-refs = []
 
+# Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
+py-clone = []
+
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
@@ -129,6 +132,7 @@ full = [
     "num-bigint",
     "num-complex",
     "num-rational",
+    "py-clone",
     "rust_decimal",
     "serde",
     "smallvec",

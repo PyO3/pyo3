@@ -1,7 +1,9 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, Py, PyAny, PyNativeType, PyResult, Python};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Py, PyAny, PyResult, Python};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
@@ -16,16 +18,6 @@ pub struct PyBytes(PyAny);
 pyobject_native_type_core!(PyBytes, pyobject_native_static_type_object!(ffi::PyBytes_Type), #checkfunction=ffi::PyBytes_Check);
 
 impl PyBytes {
-    /// Deprecated form of [`PyBytes::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::new` will be replaced by `PyBytes::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
-        Self::new_bound(py, s).into_gil_ref()
-    }
-
     /// Creates a new Python bytestring object.
     /// The bytestring is initialized by copying the data from the `&[u8]`.
     ///
@@ -38,19 +30,6 @@ impl PyBytes {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyBytes::new_bound_with`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::new_with` will be replaced by `PyBytes::new_bound_with` in a future PyO3 version"
-    )]
-    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyBytes>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
@@ -95,19 +74,6 @@ impl PyBytes {
         }
     }
 
-    /// Deprecated form of [`PyBytes::bound_from_ptr`].
-    ///
-    /// # Safety
-    /// See [`PyBytes::bound_from_ptr`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::from_ptr` will be replaced by `PyBytes::bound_from_ptr` in a future PyO3 version"
-    )]
-    pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
-        Self::bound_from_ptr(py, ptr, len).into_gil_ref()
-    }
-
     /// Creates a new Python byte string object from a raw pointer and length.
     ///
     /// Panics if out of memory.
@@ -122,6 +88,42 @@ impl PyBytes {
         ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize)
             .assume_owned(py)
             .downcast_into_unchecked()
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyBytes {
+    /// Deprecated form of [`PyBytes::new_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBytes::new` will be replaced by `PyBytes::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
+        Self::new_bound(py, s).into_gil_ref()
+    }
+
+    /// Deprecated form of [`PyBytes::new_bound_with`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBytes::new_with` will be replaced by `PyBytes::new_bound_with` in a future PyO3 version"
+    )]
+    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyBytes>
+    where
+        F: FnOnce(&mut [u8]) -> PyResult<()>,
+    {
+        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyBytes::bound_from_ptr`].
+    ///
+    /// # Safety
+    /// See [`PyBytes::bound_from_ptr`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBytes::from_ptr` will be replaced by `PyBytes::bound_from_ptr` in a future PyO3 version"
+    )]
+    pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
+        Self::bound_from_ptr(py, ptr, len).into_gil_ref()
     }
 
     /// Gets the Python string as a byte slice.
@@ -172,6 +174,7 @@ impl Py<PyBytes> {
 }
 
 /// This is the same way [Vec] is indexed.
+#[cfg(feature = "gil-refs")]
 impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     type Output = I::Output;
 

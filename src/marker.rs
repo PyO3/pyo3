@@ -1178,7 +1178,6 @@ impl<'unbound> Python<'unbound> {
 mod tests {
     use super::*;
     use crate::types::{IntoPyDict, PyList};
-    use std::sync::Arc;
 
     #[test]
     fn test_eval() {
@@ -1264,11 +1263,12 @@ mod tests {
         });
     }
 
+    #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
     fn test_allow_threads_pass_stuff_in() {
         let list = Python::with_gil(|py| PyList::new_bound(py, vec!["foo", "bar"]).unbind());
         let mut v = vec![1, 2, 3];
-        let a = Arc::new(String::from("foo"));
+        let a = std::sync::Arc::new(String::from("foo"));
 
         Python::with_gil(|py| {
             py.allow_threads(|| {

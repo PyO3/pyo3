@@ -837,7 +837,7 @@ impl PyErr {
     /// ```
     #[inline]
     pub fn clone_ref(&self, py: Python<'_>) -> PyErr {
-        PyErr::from_state(PyErrState::Normalized(self.normalized(py).clone()))
+        PyErr::from_state(PyErrState::Normalized(self.normalized(py).clone_ref(py)))
     }
 
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)

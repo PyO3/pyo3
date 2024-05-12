@@ -35,7 +35,16 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
     x + amount.unwrap_or(1)
 }
 ```
+</details>
 
+### `Py::clone` is now gated behind the `py-clone` feature
+<details open>
+<summary><small>Click to expand</small></summary>
+If you rely on `impl<T> Clone for Py<T>` to fulfil trait requirements imposed by existing Rust code written without PyO3-based code in mind, the newly introduced feature `py-clone` must be enabled.
+
+However, take care to note that the behaviour is different from previous versions. If `Clone` was called without the GIL being held, we tried to delay the application of these reference count increments until PyO3-based code would re-acquire it. This turned out to be impossible to implement in a sound manner and hence was removed. Now, if `Clone` is called without the GIL being held, we panic instead for which calling code might not be prepared.
+
+Related to this, we also added a `pyo3_disable_reference_pool` conditional compilation flag which removes the infrastructure necessary to apply delayed reference count decrements implied by `impl<T> Drop for Py<T>`. They do not appear to be a soundness hazard as they should lead to memory leaks in the worst case. However, the global synchronization adds significant overhead to cross the Python-Rust boundary. Enabling this feature will remove these costs and make the `Drop` implementation abort the process if called without the GIL being held instead.
 </details>
 
 ## from 0.20.* to 0.21
@@ -676,7 +685,7 @@ drop(second);
 
 The replacement is [`Python::with_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.with_gil) which is more cumbersome but enforces the proper nesting by design, e.g.
 
-```rust
+```rust,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -701,7 +710,7 @@ let second = Python::with_gil(|py| Object::new(py));
 drop(first);
 drop(second);
 
-// Or it ensure releasing the inner lock before the outer one.
+// Or it ensures releasing the inner lock before the outer one.
 Python::with_gil(|py| {
     let first = Object::new(py);
     let second = Python::with_gil(|py| Object::new(py));

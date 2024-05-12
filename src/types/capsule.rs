@@ -1,11 +1,12 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, PyAny, PyNativeType};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, PyAny};
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
-
 /// Represents a Python Capsule
 /// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
 /// > This subtype of PyObject represents an opaque value, useful for C extension
@@ -46,20 +47,6 @@ pub struct PyCapsule(PyAny);
 pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), #checkfunction=ffi::PyCapsule_CheckExact);
 
 impl PyCapsule {
-    /// Deprecated form of [`PyCapsule::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyCapsule::new` will be replaced by `PyCapsule::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T: 'static + Send + AssertNotZeroSized>(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-    ) -> PyResult<&Self> {
-        Self::new_bound(py, value, name).map(Bound::into_gil_ref)
-    }
-
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
     /// `name` is the identifier for the capsule; if it is stored as an attribute of a module,
     /// the name should be in the format `"modulename.attribute"`.
@@ -97,24 +84,6 @@ impl PyCapsule {
         name: Option<CString>,
     ) -> PyResult<Bound<'_, Self>> {
         Self::new_bound_with_destructor(py, value, name, |_, _| {})
-    }
-
-    /// Deprecated form of [`PyCapsule::new_bound_with_destructor`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyCapsule::new_with_destructor` will be replaced by `PyCapsule::new_bound_with_destructor` in a future PyO3 version"
-    )]
-    pub fn new_with_destructor<
-        T: 'static + Send + AssertNotZeroSized,
-        F: FnOnce(T, *mut c_void) + Send,
-    >(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-        destructor: F,
-    ) -> PyResult<&'_ Self> {
-        Self::new_bound_with_destructor(py, value, name, destructor).map(Bound::into_gil_ref)
     }
 
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
@@ -171,6 +140,39 @@ impl PyCapsule {
         } else {
             Ok(&*ptr.cast::<T>())
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyCapsule {
+    /// Deprecated form of [`PyCapsule::new_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCapsule::new` will be replaced by `PyCapsule::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<T: 'static + Send + AssertNotZeroSized>(
+        py: Python<'_>,
+        value: T,
+        name: Option<CString>,
+    ) -> PyResult<&Self> {
+        Self::new_bound(py, value, name).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyCapsule::new_bound_with_destructor`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCapsule::new_with_destructor` will be replaced by `PyCapsule::new_bound_with_destructor` in a future PyO3 version"
+    )]
+    pub fn new_with_destructor<
+        T: 'static + Send + AssertNotZeroSized,
+        F: FnOnce(T, *mut c_void) + Send,
+    >(
+        py: Python<'_>,
+        value: T,
+        name: Option<CString>,
+        destructor: F,
+    ) -> PyResult<&'_ Self> {
+        Self::new_bound_with_destructor(py, value, name, destructor).map(Bound::into_gil_ref)
     }
 
     /// Sets the context pointer in the capsule.
@@ -487,7 +489,7 @@ mod tests {
             cap.into()
         });
 
-        Python::with_gil(|py| {
+        Python::with_gil(move |py| {
             let f = unsafe { cap.bind(py).reference::<fn(u32) -> u32>() };
             assert_eq!(f(123), 123);
         });
@@ -551,7 +553,7 @@ mod tests {
             cap.into()
         });
 
-        Python::with_gil(|py| {
+        Python::with_gil(move |py| {
             let ctx: &Vec<u8> = unsafe { cap.bind(py).reference() };
             assert_eq!(ctx, &[1, 2, 3, 4]);
         })
@@ -570,7 +572,7 @@ mod tests {
             cap.into()
         });
 
-        Python::with_gil(|py| {
+        Python::with_gil(move |py| {
             let ctx_ptr: *mut c_void = cap.bind(py).context().unwrap();
             let ctx = unsafe { *Box::from_raw(ctx_ptr.cast::<&Vec<u8>>()) };
             assert_eq!(ctx, &vec![1_u8, 2, 3, 4]);
@@ -587,7 +589,7 @@ mod tests {
             context.send(true).unwrap();
         }
 
-        Python::with_gil(|py| {
+        Python::with_gil(move |py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new_bound_with_destructor(py, 0, Some(name), destructor).unwrap();
             cap.set_context(Box::into_raw(Box::new(tx)).cast()).unwrap();

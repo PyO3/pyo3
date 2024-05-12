@@ -1,11 +1,12 @@
 use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, Bound, PyAny, PyNativeType, PyTypeInfo, Python};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
 use std::borrow::Cow;
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use std::ffi::CStr;
-
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
 pub struct PyType(PyAny);
@@ -13,42 +14,10 @@ pub struct PyType(PyAny);
 pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), #checkfunction=ffi::PyType_Check);
 
 impl PyType {
-    /// Deprecated form of [`PyType::new_bound`].
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyType::new` will be replaced by `PyType::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
-        T::type_object_bound(py).into_gil_ref()
-    }
-
     /// Creates a new type object.
     #[inline]
     pub fn new_bound<T: PyTypeInfo>(py: Python<'_>) -> Bound<'_, PyType> {
         T::type_object_bound(py)
-    }
-
-    /// Retrieves the underlying FFI pointer associated with this Python object.
-    #[inline]
-    pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        self.as_borrowed().as_type_ptr()
-    }
-
-    /// Deprecated form of [`PyType::from_borrowed_type_ptr`].
-    ///
-    /// # Safety
-    ///
-    /// - The pointer must a valid non-null reference to a `PyTypeObject`.
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `PyType::from_borrowed_type_ptr` instead"
-    )]
-    pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
-        Self::from_borrowed_type_ptr(py, p).into_gil_ref()
     }
 
     /// Converts the given FFI pointer into `Bound<PyType>`, to use in safe code.
@@ -66,6 +35,39 @@ impl PyType {
         Borrowed::from_ptr_unchecked(py, p.cast())
             .downcast_unchecked()
             .to_owned()
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyType {
+    /// Deprecated form of [`PyType::new_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyType::new` will be replaced by `PyType::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
+        T::type_object_bound(py).into_gil_ref()
+    }
+
+    /// Retrieves the underlying FFI pointer associated with this Python object.
+    #[inline]
+    pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
+        self.as_borrowed().as_type_ptr()
+    }
+
+    /// Deprecated form of [`PyType::from_borrowed_type_ptr`].
+    ///
+    /// # Safety
+    ///
+    /// - The pointer must a valid non-null reference to a `PyTypeObject`.
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `PyType::from_borrowed_type_ptr` instead"
+    )]
+    pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
+        Self::from_borrowed_type_ptr(py, p).into_gil_ref()
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
