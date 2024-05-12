@@ -122,10 +122,12 @@ pub trait DerefToPyAny {
 #[macro_export]
 macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
+        #[cfg(feature = "gil-refs")]
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
             type AsRefSource = Self;
         }
 
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
@@ -136,6 +138,7 @@ macro_rules! pyobject_native_type_base(
             }
         }
 
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::fmt::Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>

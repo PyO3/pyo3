@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.21.2"
+version = "0.22.0-dev"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -20,10 +20,10 @@ libc = "0.2.62"
 memoffset = "0.9"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.21.2" }
+pyo3-ffi = { path = "pyo3-ffi", version = "=0.22.0-dev" }
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.21.2", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.22.0-dev", optional = true }
 indoc = { version = "2.0.1", optional = true }
 unindent = { version = "0.2.1", optional = true }
 
@@ -62,7 +62,7 @@ rayon = "1.6.1"
 futures = "0.3.28"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "=0.21.2", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "=0.22.0-dev", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
@@ -106,7 +106,7 @@ generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 auto-initialize = []
 
 # Allows use of the deprecated "GIL Refs" APIs.
-gil-refs = []
+gil-refs = ["pyo3-macros/gil-refs"]
 
 # Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
 py-clone = []

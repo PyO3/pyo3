@@ -13,5 +13,5 @@ error: lifetime may not live long enough
 5 |     Python::with_gil(|py| py.import_bound(pyo3::intern!(py, _foo)).unwrap());
   |                       --- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ returning this value requires that `'1` must outlive `'2`
   |                       | |
-  |                       | return type of closure is pyo3::Bound<'2, pyo3::prelude::PyModule>
-  |                       has type `pyo3::Python<'1>`
+  |                       | return type of closure is pyo3::Bound<'2, PyModule>
+  |                       has type `Python<'1>`

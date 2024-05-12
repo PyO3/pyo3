@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-macros"
-version = "0.21.2"
+version = "0.22.0-dev"
 description = "Proc macros for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -17,12 +17,13 @@ proc-macro = true
 multiple-pymethods = []
 experimental-async = ["pyo3-macros-backend/experimental-async"]
 experimental-declarative-modules = []
+gil-refs = ["pyo3-macros-backend/gil-refs"]
 
 [dependencies]
 proc-macro2 = { version = "1", default-features = false }
 quote = "1"
 syn = { version = "2", features = ["full", "extra-traits"] }
-pyo3-macros-backend = { path = "../pyo3-macros-backend", version = "=0.21.2" }
+pyo3-macros-backend = { path = "../pyo3-macros-backend", version = "=0.22.0-dev" }
 
 [lints]
 workspace = true

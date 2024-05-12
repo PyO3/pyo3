@@ -5,14 +5,12 @@ use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{
-    ffi, Borrowed, Bound, Py, PyAny, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
-};
+use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
 #[cfg(feature = "gil-refs")]
 use {
     crate::{
         err::{self, PyDowncastError},
-        gil,
+        gil, PyNativeType,
     },
     std::ptr::NonNull,
 };
@@ -221,6 +219,7 @@ pub trait FromPyObject<'py>: Sized {
     ///
     /// Implementors are encouraged to implement `extract_bound` and leave this method as the
     /// default implementation, which will forward calls to `extract_bound`.
+    #[cfg(feature = "gil-refs")]
     fn extract(ob: &'py PyAny) -> PyResult<Self> {
         Self::extract_bound(&ob.as_borrowed())
     }

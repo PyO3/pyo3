@@ -19,6 +19,7 @@ pub struct NotAGilRef<T>(std::marker::PhantomData<T>);
 
 pub trait IsGilRef {}
 
+#[cfg(feature = "gil-refs")]
 impl<T: crate::PyNativeType> IsGilRef for &'_ T {}
 
 impl<T> GilRefs<T> {

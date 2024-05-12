@@ -105,6 +105,7 @@ macro_rules! py_run_impl {
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
         #[allow(unused_imports)]
+        #[cfg(feature = "gil-refs")]
         use $crate::PyNativeType;
         if let ::std::result::Result::Err(e) = $py.run_bound($code, None, Some(&$dict.as_borrowed())) {
             e.print($py);

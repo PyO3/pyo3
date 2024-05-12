@@ -26,23 +26,6 @@ error[E0277]: the trait bound `TwoNew: PyTypeInfo` is not satisfied
             PyDate
           and $N others
 
-error[E0277]: the trait bound `TwoNew: HasPyGilRef` is not satisfied
- --> tests/ui/invalid_pymethods_duplicates.rs:9:6
-  |
-9 | impl TwoNew {
-  |      ^^^^^^ the trait `PyNativeType` is not implemented for `TwoNew`, which is required by `TwoNew: HasPyGilRef`
-  |
-  = help: the trait `HasPyGilRef` is implemented for `pyo3::coroutine::Coroutine`
-  = note: required for `TwoNew` to implement `HasPyGilRef`
-note: required by a bound in `pyo3::PyTypeInfo::NAME`
- --> src/type_object.rs
-  |
-  | pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
-  |                                      ^^^^^^^^^^^ required by this bound in `PyTypeInfo::NAME`
-  |     /// Class name.
-  |     const NAME: &'static str;
-  |           ---- required by a bound in this associated constant
-
 error[E0592]: duplicate definitions with name `__pymethod___new____`
  --> tests/ui/invalid_pymethods_duplicates.rs:8:1
   |
