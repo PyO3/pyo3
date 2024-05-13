@@ -2542,7 +2542,7 @@ class SimpleClass:
     #[test]
     fn test_any_is_instance() {
         Python::with_gil(|py| {
-            let l = vec![1u8, 2].to_object(py).into_bound(py);
+            let l = vec![1u16, 2].to_object(py).into_bound(py);
             assert!(l.is_instance(&py.get_type_bound::<PyList>()).unwrap());
         });
     }

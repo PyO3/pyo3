@@ -77,13 +77,19 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
     }
 }
 
-impl ToPyObject for Cow<'_, [u8]> {
+impl<T> ToPyObject for Cow<'_, [T]>
+where
+    T: ToPyObject + Clone,
+{
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new_bound(py, self.as_ref()).into()
+        T::slice_to_object(self, py)
     }
 }
 
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
+impl<T> IntoPy<Py<PyAny>> for Cow<'_, [T]>
+where
+    T: ToPyObject + Clone,
+{
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         self.to_object(py)
     }
