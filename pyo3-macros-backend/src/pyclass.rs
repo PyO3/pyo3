@@ -973,7 +973,7 @@ fn impl_complex_enum(
     }
 
     Ok(quote! {
-    #pytypeinfo
+        #pytypeinfo
 
         #pyclass_impls
 
