@@ -734,7 +734,9 @@ def update_ui_tests(session: nox.Session):
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
     # pyo3-ffi-check needs to scrape docs of pyo3-ffi
-    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
+    env = os.environ.copy()
+    env["PYO3_PYTHON"] = sys.executable
+    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps", env=env)
 
 
 @lru_cache()

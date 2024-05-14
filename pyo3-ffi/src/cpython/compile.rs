@@ -30,7 +30,7 @@ pub struct PyCompilerFlags {
 
 // skipped non-limited _PyCompilerFlags_INIT
 
-#[cfg(all(Py_3_12, not(any(PyPy, GraalPy))))]
+#[cfg(all(Py_3_12, not(any(Py_3_13, PyPy, GraalPy))))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _PyCompilerSrcLocation {
@@ -42,7 +42,7 @@ pub struct _PyCompilerSrcLocation {
 
 // skipped SRC_LOCATION_FROM_AST
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_13)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyFutureFeatures {

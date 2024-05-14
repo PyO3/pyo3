@@ -20,7 +20,11 @@ pub const _PY_MONITORING_EVENTS: usize = 17;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _Py_LocalMonitors {
-    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
+    pub tools: [u8; if cfg!(Py_3_13) {
+        _PY_MONITORING_LOCAL_EVENTS
+    } else {
+        _PY_MONITORING_UNGROUPED_EVENTS
+    }],
 }
 
 #[cfg(Py_3_12)]
@@ -102,6 +106,9 @@ pub struct PyCodeObject {
     pub co_extra: *mut c_void,
 }
 
+#[cfg(Py_3_13)]
+opaque_struct!(_PyExecutorArray);
+
 #[cfg(all(not(any(PyPy, GraalPy)), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -176,6 +183,8 @@ pub struct PyCodeObject {
     pub _co_code: *mut PyObject,
     #[cfg(not(Py_3_12))]
     pub _co_linearray: *mut c_char,
+    #[cfg(Py_3_13)]
+    pub co_executors: *mut _PyExecutorArray,
     #[cfg(Py_3_12)]
     pub _co_cached: *mut _PyCoCached,
     #[cfg(Py_3_12)]
