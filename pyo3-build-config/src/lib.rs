@@ -18,7 +18,6 @@ use std::{
 
 use std::{env, process::Command, str::FromStr};
 
-#[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
 
 pub use impl_::{
@@ -135,17 +134,6 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    fn rustc_minor_version() -> Option<u32> {
-        let rustc = env::var_os("RUSTC")?;
-        let output = Command::new(rustc).arg("--version").output().ok()?;
-        let version = core::str::from_utf8(&output.stdout).ok()?;
-        let mut pieces = version.split('.');
-        if pieces.next() != Some("rustc 1") {
-            return None;
-        }
-        pieces.next()?.parse().ok()
-    }
-
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
 
     // invalid_from_utf8 lint was added in Rust 1.74
@@ -160,6 +148,11 @@ pub fn print_feature_cfgs() {
 /// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
 #[doc(hidden)]
 pub fn print_expected_cfgs() {
+    if rustc_minor_version().map_or(false, |version| version < 80) {
+        // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
+        return;
+    }
+
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
@@ -231,6 +224,20 @@ pub mod pyo3_build_script_impl {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }
     }
+}
+
+fn rustc_minor_version() -> Option<u32> {
+    static RUSTC_MINOR_VERSION: OnceCell<Option<u32>> = OnceCell::new();
+    *RUSTC_MINOR_VERSION.get_or_init(|| {
+        let rustc = env::var_os("RUSTC")?;
+        let output = Command::new(rustc).arg("--version").output().ok()?;
+        let version = core::str::from_utf8(&output.stdout).ok()?;
+        let mut pieces = version.split('.');
+        if pieces.next() != Some("rustc 1") {
+            return None;
+        }
+        pieces.next()?.parse().ok()
+    })
 }
 
 #[cfg(test)]
