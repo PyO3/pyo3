@@ -25,7 +25,7 @@ pub use crate::types::{PyAny, PyModule};
 pub use crate::PyNativeType;
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
+pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject, PyException};
 
 #[cfg(feature = "macros")]
 pub use crate::{wrap_pyfunction, wrap_pyfunction_bound};
