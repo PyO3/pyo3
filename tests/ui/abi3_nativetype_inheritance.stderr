@@ -4,6 +4,7 @@ error[E0277]: the trait bound `PyDict: PyClassBaseType` is not satisfied
 5 | #[pyclass(extends=PyDict)]
   |                   ^^^^^^ the trait `PyClass` is not implemented for `PyDict`, which is required by `PyDict: PyClassBaseType`
   |
+  = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
   = help: the trait `PyClassBaseType` is implemented for `PyAny`
   = note: required for `PyDict` to implement `PyClassBaseType`
 note: required by a bound in `PyClassImpl::BaseType`
