@@ -147,6 +147,3 @@ jobs:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTDOCFLAGS: "-D warnings"
-      # FIXME this is a temporary hack for testing 3.13 prereleases, probably we should have a flag
-      # PYO3_ALLOW_3_13_PRERELEASES or similar so that users don't need to run this flag in their CI
-      UNSAFE_PYO3_SKIP_VERSION_CHECK: "1"

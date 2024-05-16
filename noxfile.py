@@ -30,7 +30,7 @@ PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).abso
 PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
 PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
-PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12")
+PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
 PYPY_VERSIONS = ("3.7", "3.8", "3.9", "3.10")
 
 
@@ -631,11 +631,11 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.13" not in PY_VERSIONS
-        config_file.set("CPython", "3.13")
+        assert "3.14" not in PY_VERSIONS
+        config_file.set("CPython", "3.14")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.13 CPython should build with forward compatibility
+        # 3.14 CPython should build with forward compatibility
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
