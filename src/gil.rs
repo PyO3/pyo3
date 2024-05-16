@@ -148,20 +148,26 @@ where
 }
 
 /// RAII type that represents the Global Interpreter Lock acquisition.
-pub(crate) struct GILGuard {
-    gstate: ffi::PyGILState_STATE,
-    #[allow(deprecated)] // TODO: remove this with the gil-refs feature in 0.22
-    pool: mem::ManuallyDrop<GILPool>,
+pub(crate) enum GILGuard {
+    /// Indicates the GIL was already held with this GILGuard was acquired.
+    Assumed,
+    /// Indicates that we actually acquired the GIL when this GILGuard was acquired
+    Ensured {
+        gstate: ffi::PyGILState_STATE,
+        #[allow(deprecated)] // TODO: remove this with the gil-refs feature in 0.22
+        pool: mem::ManuallyDrop<GILPool>,
+    },
 }
 
 impl GILGuard {
     /// PyO3 internal API for acquiring the GIL. The public API is Python::with_gil.
     ///
-    /// If the GIL was already acquired via PyO3, this returns `None`. Otherwise,
-    /// the GIL will be acquired and a new `GILPool` created.
-    pub(crate) fn acquire() -> Option<Self> {
+    /// If the GIL was already acquired via PyO3, this returns
+    /// `GILGuard::Assumed`. Otherwise, the GIL will be acquired and
+    /// `GILGuard::Ensured` will be returned.
+    pub(crate) fn acquire() -> Self {
         if gil_is_acquired() {
-            return None;
+            return GILGuard::Assumed;
         }
 
         // Maybe auto-initialize the GIL:
@@ -207,27 +213,30 @@ impl GILGuard {
     /// This can be called in "unsafe" contexts where the normal interpreter state
     /// checking performed by `GILGuard::acquire` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
-    pub(crate) fn acquire_unchecked() -> Option<Self> {
+    pub(crate) fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
-            return None;
+            return GILGuard::Assumed;
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
         #[allow(deprecated)]
         let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
 
-        Some(GILGuard { gstate, pool })
+        GILGuard::Ensured { gstate, pool }
     }
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
-        unsafe {
-            // Drop the objects in the pool before attempting to release the thread state
-            mem::ManuallyDrop::drop(&mut self.pool);
+        match self {
+            GILGuard::Assumed => {}
+            GILGuard::Ensured { gstate, pool } => unsafe {
+                // Drop the objects in the pool before attempting to release the thread state
+                mem::ManuallyDrop::drop(pool);
 
-            ffi::PyGILState_Release(self.gstate);
+                ffi::PyGILState_Release(*gstate);
+            },
         }
     }
 }
