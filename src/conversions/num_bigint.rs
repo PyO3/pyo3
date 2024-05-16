@@ -266,7 +266,11 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyLong>) -> PyResult<Vec<
     if n_bytes == 0 {
         return Ok(buffer);
     }
-    let n_digits = n_bytes_unsigned.div_ceil(4);
+    // TODO: use div_ceil when MSRV >= 1.73
+    let n_digits = {
+        let adjust = if n_bytes % 4 == 0 { 0 } else { 1 };
+        (n_bytes_unsigned / 4) + adjust
+    };
     buffer.reserve_exact(n_digits);
     unsafe {
         ffi::PyLong_AsNativeBytes(
