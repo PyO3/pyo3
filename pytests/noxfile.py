@@ -14,6 +14,11 @@ def test(session: nox.Session):
     except CommandFailed:
         # No binary wheel for numpy available on this platform
         pass
+    try:
+        session.install("--only-binary=gevent", "gevent>=22.10.2")
+    except CommandFailed:
+        # No binary wheel for numpy available on this platform
+        pass
     ignored_paths = []
     if sys.version_info < (3, 10):
         # Match syntax is only available in Python >= 3.10
