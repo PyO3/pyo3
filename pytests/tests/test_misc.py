@@ -5,6 +5,11 @@ import sys
 import pyo3_pytests.misc
 import pytest
 
+if sys.version_info >= (3, 13):
+    subinterpreters = pytest.importorskip("subinterpreters")
+else:
+    subinterpreters = pytest.importorskip("_xxsubinterpreters")
+
 
 def test_issue_219():
     # Should not deadlock
@@ -31,23 +36,19 @@ def test_multiple_imports_same_interpreter_ok():
     reason="PyPy and GraalPy do not support subinterpreters",
 )
 def test_import_in_subinterpreter_forbidden():
-    import _xxsubinterpreters
-
     if sys.version_info < (3, 12):
         expected_error = "PyO3 modules do not yet support subinterpreters, see https://github.com/PyO3/pyo3/issues/576"
     else:
         expected_error = "module pyo3_pytests.pyo3_pytests does not support loading in subinterpreters"
 
-    sub_interpreter = _xxsubinterpreters.create()
+    sub_interpreter = subinterpreters.create()
     with pytest.raises(
-        _xxsubinterpreters.RunFailedError,
+        subinterpreters.RunFailedError,
         match=expected_error,
     ):
-        _xxsubinterpreters.run_string(
-            sub_interpreter, "import pyo3_pytests.pyo3_pytests"
-        )
+        subinterpreters.run_string(sub_interpreter, "import pyo3_pytests.pyo3_pytests")
 
-    _xxsubinterpreters.destroy(sub_interpreter)
+    subinterpreters.destroy(sub_interpreter)
 
 
 def test_type_full_name_includes_module():
