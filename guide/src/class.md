@@ -1183,7 +1183,7 @@ enum BadSubclass {
 
 An enum is complex if it has any non-unit (struct or tuple) variants.
 
-Currently PyO3 supports only struct and tuple variants in a complex enum. Support for unit variants is planned.
+PyO3 supports only struct and tuple variants in a complex enum. Unit variants aren't supported at present (the recommendation is to use an empty tuple enum instead).
 
 PyO3 adds a class attribute for each variant, which may be used to construct values and in match patterns. PyO3 also provides getter methods for all fields of each variant.
 

@@ -505,7 +505,7 @@ impl<'a> PyClassComplexEnum<'a> {
                     Fields::Unit => {
                         bail_spanned!(variant.span() => format!(
                             "Unit variant `{ident}` is not yet supported in a complex enum\n\
-                            = help: change to a struct variant with no fields: `{ident} {{ }}`\n\
+                            = help: change to an empty tuple variant instead: `{ident}()`\n\
                             = note: the enum is complex because of non-unit variant `{witness}`",
                             ident=ident, witness=witness))
                     }
@@ -530,8 +530,7 @@ impl<'a> PyClassComplexEnum<'a> {
                         let fields = types
                             .unnamed
                             .iter()
-                            .enumerate()
-                            .map(|(_i, field)| PyClassEnumVariantUnnamedField {
+                            .map(|field| PyClassEnumVariantUnnamedField {
                                 ty: &field.ty,
                                 span: field.span(),
                             })
