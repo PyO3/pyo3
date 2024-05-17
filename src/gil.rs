@@ -167,6 +167,7 @@ impl GILGuard {
     /// `GILGuard::Ensured` will be returned.
     pub(crate) fn acquire() -> Self {
         if gil_is_acquired() {
+            increment_gil_count();
             return GILGuard::Assumed;
         }
 
@@ -215,6 +216,7 @@ impl GILGuard {
     /// as part of multi-phase interpreter initialization.
     pub(crate) fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
+            increment_gil_count();
             return GILGuard::Assumed;
         }
 
@@ -222,7 +224,20 @@ impl GILGuard {
         #[allow(deprecated)]
         let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
 
+        increment_gil_count();
+
         GILGuard::Ensured { gstate, pool }
+    }
+    /// Acquires the `GILGuard` while assuming that the GIL is already held.
+    pub(crate) unsafe fn assume() -> Self {
+        increment_gil_count();
+        GILGuard::Assumed
+    }
+
+    /// Gets the Python token associated with this [`GILGuard`].
+    #[inline]
+    pub fn python(&self) -> Python<'_> {
+        unsafe { Python::assume_gil_acquired() }
     }
 }
 
@@ -238,6 +253,7 @@ impl Drop for GILGuard {
                 ffi::PyGILState_Release(*gstate);
             },
         }
+        decrement_gil_count();
     }
 }
 
@@ -378,7 +394,6 @@ impl GILPool {
     /// As well as requiring the GIL, see the safety notes on `Python::new_pool`.
     #[inline]
     pub unsafe fn new() -> GILPool {
-        increment_gil_count();
         // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
         #[cfg(not(pyo3_disable_reference_pool))]
         POOL.update_counts(Python::assume_gil_acquired());
@@ -427,7 +442,6 @@ impl Drop for GILPool {
                 }
             }
         }
-        decrement_gil_count();
     }
 }
 
@@ -687,19 +701,19 @@ mod tests {
             assert_eq!(get_gil_count(), 1);
 
             let pool = unsafe { GILPool::new() };
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_gil_count(), 1);
 
             let pool2 = unsafe { GILPool::new() };
-            assert_eq!(get_gil_count(), 3);
+            assert_eq!(get_gil_count(), 1);
 
             drop(pool);
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_gil_count(), 1);
 
             Python::with_gil(|_| {
                 // nested with_gil doesn't update gil count
                 assert_eq!(get_gil_count(), 2);
             });
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_gil_count(), 1);
 
             drop(pool2);
             assert_eq!(get_gil_count(), 1);

@@ -9,8 +9,7 @@ use std::{
     panic::{self, UnwindSafe},
 };
 
-#[allow(deprecated)]
-use crate::gil::GILPool;
+use crate::gil::GILGuard;
 use crate::{
     callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
     methods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
@@ -171,17 +170,19 @@ trampoline!(
 ///
 /// Panics during execution are trapped so that they don't propagate through any
 /// outer FFI boundary.
+///
+/// The GIL must already be held when this is called.
 #[inline]
-pub(crate) fn trampoline<F, R>(body: F) -> R
+pub(crate) unsafe fn trampoline<F, R>(body: F) -> R
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
     R: PyCallbackOutput,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    // Necessary to construct a pool until PyO3 0.22 when the GIL Refs API is fully disabled
-    #[allow(deprecated)]
-    let pool = unsafe { GILPool::new() };
-    let py = pool.python();
+
+    // SAFETY: This function requires the GIL to already be held.
+    let guard = GILGuard::assume();
+    let py = guard.python();
     let out = panic_result_into_callback_output(
         py,
         panic::catch_unwind(move || -> PyResult<_> { body(py) }),
@@ -218,17 +219,19 @@ where
 ///
 /// # Safety
 ///
-/// ctx must be either a valid ffi::PyObject or NULL
+/// - ctx must be either a valid ffi::PyObject or NULL
+/// - The GIL must already be held when this is called.
 #[inline]
 unsafe fn trampoline_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<()> + UnwindSafe,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    // Necessary to construct a pool until PyO3 0.22 when the GIL Refs API is fully disabled
-    #[allow(deprecated)]
-    let pool = GILPool::new();
-    let py = pool.python();
+
+    // SAFETY: The GIL is already held.
+    let guard = GILGuard::assume();
+    let py = guard.python();
+
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
