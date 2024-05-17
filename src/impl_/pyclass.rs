@@ -1102,6 +1102,13 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
+
+#[cfg_attr(
+    all(diagnostic_namespace, feature = "abi3"),
+    diagnostic::on_unimplemented(
+        note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types"
+    )
+)]
 pub trait PyClassBaseType: Sized {
     type LayoutAsBase: PyClassObjectLayout<Self>;
     type BaseNativeType;
