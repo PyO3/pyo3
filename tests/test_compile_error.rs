@@ -64,7 +64,7 @@ fn test_compile_errors() {
     #[cfg(any(not(Py_LIMITED_API), Py_3_10))] // to avoid PyFunctionArgument for &str
     t.compile_fail("tests/ui/invalid_cancel_handle.rs");
     t.pass("tests/ui/pymodule_missing_docs.rs");
-    #[cfg(all(feature = "abi3", not(feature = "experimental-async")))]
+    #[cfg(all(Py_LIMITED_API, not(feature = "experimental-async")))]
     // output changes with async feature
     t.compile_fail("tests/ui/abi3_inheritance.rs");
 }
