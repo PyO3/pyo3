@@ -22,12 +22,6 @@ enum NoUnitVariants {
 }
 
 #[pyclass]
-enum NoTupleVariants {
-    StructVariant { field: i32 },
-    TupleVariant(i32),
-}
-
-#[pyclass]
 enum SimpleNoSignature {
     #[pyo3(constructor = (a, b))]
     A,

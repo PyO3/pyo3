@@ -52,15 +52,18 @@ enum HttpResponse {
     // ...
 }
 
-// PyO3 also supports enums with non-unit variants
+// PyO3 also supports enums with Struct and Tuple variants
 // These complex enums have sligtly different behavior from the simple enums above
 // They are meant to work with instance checks and match statement patterns
+// The variants can be mixed and matched
+// Struct variants have named fields while tuple enums generate generic names for fields in order _0, _1, _2, ...
+// Apart from this both types are functionally identical
 #[pyclass]
 enum Shape {
     Circle { radius: f64 },
     Rectangle { width: f64, height: f64 },
-    RegularPolygon { side_count: u32, radius: f64 },
-    Nothing {},
+    RegularPolygon(u32, f64),
+    Nothing(),
 }
 ```
 
@@ -1180,7 +1183,7 @@ enum BadSubclass {
 
 An enum is complex if it has any non-unit (struct or tuple) variants.
 
-Currently PyO3 supports only struct variants in a complex enum. Support for unit and tuple variants is planned.
+PyO3 supports only struct and tuple variants in a complex enum. Unit variants aren't supported at present (the recommendation is to use an empty tuple enum instead).
 
 PyO3 adds a class attribute for each variant, which may be used to construct values and in match patterns. PyO3 also provides getter methods for all fields of each variant.
 
@@ -1190,14 +1193,14 @@ PyO3 adds a class attribute for each variant, which may be used to construct val
 enum Shape {
     Circle { radius: f64 },
     Rectangle { width: f64, height: f64 },
-    RegularPolygon { side_count: u32, radius: f64 },
+    RegularPolygon(u32, f64),
     Nothing { },
 }
 
 # #[cfg(Py_3_10)]
 Python::with_gil(|py| {
     let circle = Shape::Circle { radius: 10.0 }.into_py(py);
-    let square = Shape::RegularPolygon { side_count: 4, radius: 10.0 }.into_py(py);
+    let square = Shape::RegularPolygon(4, 10.0).into_py(py);
     let cls = py.get_type_bound::<Shape>();
     pyo3::py_run!(py, circle square cls, r#"
         assert isinstance(circle, cls)
@@ -1206,8 +1209,8 @@ Python::with_gil(|py| {
 
         assert isinstance(square, cls)
         assert isinstance(square, cls.RegularPolygon)
-        assert square.side_count == 4
-        assert square.radius == 10.0
+        assert square[0] == 4 # Gets _0 field
+        assert square[1] == 10.0 # Gets _1 field
 
         def count_vertices(cls, shape):
             match shape:
@@ -1215,7 +1218,7 @@ Python::with_gil(|py| {
                     return 0
                 case cls.Rectangle():
                     return 4
-                case cls.RegularPolygon(side_count=n):
+                case cls.RegularPolygon(n):
                     return n
                 case cls.Nothing():
                     return 0

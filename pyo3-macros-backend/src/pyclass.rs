@@ -12,7 +12,7 @@ use crate::pyfunction::ConstructorAttribute;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __INT__, __REPR__, __RICHCMP__,
+    SlotDef, __GETITEM__, __INT__, __LEN__, __REPR__, __RICHCMP__,
 };
 use crate::utils::Ctx;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
@@ -504,10 +504,10 @@ impl<'a> PyClassComplexEnum<'a> {
                 let variant = match &variant.fields {
                     Fields::Unit => {
                         bail_spanned!(variant.span() => format!(
-                        "Unit variant `{ident}` is not yet supported in a complex enum\n\
-                        = help: change to a struct variant with no fields: `{ident} {{ }}`\n\
-                        = note: the enum is complex because of non-unit variant `{witness}`",
-                        ident=ident, witness=witness))
+                            "Unit variant `{ident}` is not yet supported in a complex enum\n\
+                            = help: change to an empty tuple variant instead: `{ident}()`\n\
+                            = note: the enum is complex because of non-unit variant `{witness}`",
+                            ident=ident, witness=witness))
                     }
                     Fields::Named(fields) => {
                         let fields = fields
@@ -526,12 +526,21 @@ impl<'a> PyClassComplexEnum<'a> {
                             options,
                         })
                     }
-                    Fields::Unnamed(_) => {
-                        bail_spanned!(variant.span() => format!(
-                        "Tuple variant `{ident}` is not yet supported in a complex enum\n\
-                        = help: change to a struct variant with named fields: `{ident} {{ /* fields */ }}`\n\
-                        = note: the enum is complex because of non-unit variant `{witness}`",
-                        ident=ident, witness=witness))
+                    Fields::Unnamed(types) => {
+                        let fields = types
+                            .unnamed
+                            .iter()
+                            .map(|field| PyClassEnumVariantUnnamedField {
+                                ty: &field.ty,
+                                span: field.span(),
+                            })
+                            .collect();
+
+                        PyClassEnumVariant::Tuple(PyClassEnumTupleVariant {
+                            ident,
+                            fields,
+                            options,
+                        })
                     }
                 };
 
@@ -553,7 +562,7 @@ impl<'a> PyClassComplexEnum<'a> {
 enum PyClassEnumVariant<'a> {
     // TODO(mkovaxx): Unit(PyClassEnumUnitVariant<'a>),
     Struct(PyClassEnumStructVariant<'a>),
-    // TODO(mkovaxx): Tuple(PyClassEnumTupleVariant<'a>),
+    Tuple(PyClassEnumTupleVariant<'a>),
 }
 
 trait EnumVariant {
@@ -581,12 +590,14 @@ impl<'a> EnumVariant for PyClassEnumVariant<'a> {
     fn get_ident(&self) -> &syn::Ident {
         match self {
             PyClassEnumVariant::Struct(struct_variant) => struct_variant.ident,
+            PyClassEnumVariant::Tuple(tuple_variant) => tuple_variant.ident,
         }
     }
 
     fn get_options(&self) -> &EnumVariantPyO3Options {
         match self {
             PyClassEnumVariant::Struct(struct_variant) => &struct_variant.options,
+            PyClassEnumVariant::Tuple(tuple_variant) => &tuple_variant.options,
         }
     }
 }
@@ -614,8 +625,19 @@ struct PyClassEnumStructVariant<'a> {
     options: EnumVariantPyO3Options,
 }
 
+struct PyClassEnumTupleVariant<'a> {
+    ident: &'a syn::Ident,
+    fields: Vec<PyClassEnumVariantUnnamedField<'a>>,
+    options: EnumVariantPyO3Options,
+}
+
 struct PyClassEnumVariantNamedField<'a> {
     ident: &'a syn::Ident,
+    ty: &'a syn::Type,
+    span: Span,
+}
+
+struct PyClassEnumVariantUnnamedField<'a> {
     ty: &'a syn::Type,
     span: Span,
 }
@@ -930,17 +952,19 @@ fn impl_complex_enum(
         let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, None, ctx);
         variant_cls_pytypeinfos.push(variant_cls_pytypeinfo);
 
-        let (variant_cls_impl, field_getters) = impl_complex_enum_variant_cls(cls, &variant, ctx)?;
+        let (variant_cls_impl, field_getters, mut slots) =
+            impl_complex_enum_variant_cls(cls, &variant, ctx)?;
         variant_cls_impls.push(variant_cls_impl);
 
         let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
+        slots.push(variant_new);
 
         let pyclass_impl = PyClassImplsBuilder::new(
             &variant_cls,
             &variant_args,
             methods_type,
             field_getters,
-            vec![variant_new],
+            slots,
         )
         .impl_all(ctx)?;
 
@@ -970,19 +994,52 @@ fn impl_complex_enum_variant_cls(
     enum_name: &syn::Ident,
     variant: &PyClassEnumVariant<'_>,
     ctx: &Ctx,
-) -> Result<(TokenStream, Vec<MethodAndMethodDef>)> {
+) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
     match variant {
         PyClassEnumVariant::Struct(struct_variant) => {
             impl_complex_enum_struct_variant_cls(enum_name, struct_variant, ctx)
         }
+        PyClassEnumVariant::Tuple(tuple_variant) => {
+            impl_complex_enum_tuple_variant_cls(enum_name, tuple_variant, ctx)
+        }
     }
+}
+
+fn impl_complex_enum_variant_match_args(
+    ctx: &Ctx,
+    variant_cls_type: &syn::Type,
+    field_names: &mut Vec<Ident>,
+) -> (MethodAndMethodDef, syn::ImplItemConst) {
+    let match_args_const_impl: syn::ImplItemConst = {
+        let args_tp = field_names.iter().map(|_| {
+            quote! { &'static str }
+        });
+        parse_quote! {
+            const __match_args__: ( #(#args_tp,)* ) = (
+                #(stringify!(#field_names),)*
+            );
+        }
+    };
+
+    let spec = ConstSpec {
+        rust_ident: format_ident!("__match_args__"),
+        attributes: ConstAttributes {
+            is_class_attr: true,
+            name: None,
+            deprecations: Deprecations::new(ctx),
+        },
+    };
+
+    let variant_match_args = gen_py_const(variant_cls_type, &spec, ctx);
+
+    (variant_match_args, match_args_const_impl)
 }
 
 fn impl_complex_enum_struct_variant_cls(
     enum_name: &syn::Ident,
     variant: &PyClassEnumStructVariant<'_>,
     ctx: &Ctx,
-) -> Result<(TokenStream, Vec<MethodAndMethodDef>)> {
+) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
     let Ctx { pyo3_path } = ctx;
     let variant_ident = &variant.ident;
     let variant_cls = gen_complex_enum_variant_class_ident(enum_name, variant.ident);
@@ -1015,6 +1072,11 @@ fn impl_complex_enum_struct_variant_cls(
         field_getter_impls.push(field_getter_impl);
     }
 
+    let (variant_match_args, match_args_const_impl) =
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names);
+
+    field_getters.push(variant_match_args);
+
     let cls_impl = quote! {
         #[doc(hidden)]
         #[allow(non_snake_case)]
@@ -1024,11 +1086,190 @@ fn impl_complex_enum_struct_variant_cls(
                 #pyo3_path::PyClassInitializer::from(base_value).add_subclass(#variant_cls)
             }
 
+            #match_args_const_impl
+
             #(#field_getter_impls)*
         }
     };
 
-    Ok((cls_impl, field_getters))
+    Ok((cls_impl, field_getters, Vec::new()))
+}
+
+fn impl_complex_enum_tuple_variant_field_getters(
+    ctx: &Ctx,
+    variant: &PyClassEnumTupleVariant<'_>,
+    enum_name: &syn::Ident,
+    variant_cls_type: &syn::Type,
+    variant_ident: &&Ident,
+    field_names: &mut Vec<Ident>,
+    fields_types: &mut Vec<syn::Type>,
+) -> Result<(Vec<MethodAndMethodDef>, Vec<syn::ImplItemFn>)> {
+    let Ctx { pyo3_path } = ctx;
+
+    let mut field_getters = vec![];
+    let mut field_getter_impls = vec![];
+
+    for (index, field) in variant.fields.iter().enumerate() {
+        let field_name = format_ident!("_{}", index);
+        let field_type = field.ty;
+
+        let field_getter =
+            complex_enum_variant_field_getter(variant_cls_type, &field_name, field.span, ctx)?;
+
+        // Generate the match arms needed to destructure the tuple and access the specific field
+        let field_access_tokens: Vec<_> = (0..variant.fields.len())
+            .map(|i| {
+                if i == index {
+                    quote! { val }
+                } else {
+                    quote! { _ }
+                }
+            })
+            .collect();
+
+        let field_getter_impl: syn::ImplItemFn = parse_quote! {
+            fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#field_type> {
+                match &*slf.into_super() {
+                    #enum_name::#variant_ident ( #(#field_access_tokens), *) => Ok(val.clone()),
+                    _ => unreachable!("Wrong complex enum variant found in variant wrapper PyClass"),
+                }
+            }
+        };
+
+        field_names.push(field_name);
+        fields_types.push(field_type.clone());
+        field_getters.push(field_getter);
+        field_getter_impls.push(field_getter_impl);
+    }
+
+    Ok((field_getters, field_getter_impls))
+}
+
+fn impl_complex_enum_tuple_variant_len(
+    ctx: &Ctx,
+
+    variant_cls_type: &syn::Type,
+    num_fields: usize,
+) -> Result<(MethodAndSlotDef, syn::ImplItemFn)> {
+    let Ctx { pyo3_path } = ctx;
+
+    let mut len_method_impl: syn::ImplItemFn = parse_quote! {
+        fn __len__(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<usize> {
+            Ok(#num_fields)
+        }
+    };
+
+    let variant_len =
+        generate_default_protocol_slot(variant_cls_type, &mut len_method_impl, &__LEN__, ctx)?;
+
+    Ok((variant_len, len_method_impl))
+}
+
+fn impl_complex_enum_tuple_variant_getitem(
+    ctx: &Ctx,
+    variant_cls: &syn::Ident,
+    variant_cls_type: &syn::Type,
+    num_fields: usize,
+) -> Result<(MethodAndSlotDef, syn::ImplItemFn)> {
+    let Ctx { pyo3_path } = ctx;
+
+    let match_arms: Vec<_> = (0..num_fields)
+        .map(|i| {
+            let field_access = format_ident!("_{}", i);
+            quote! {
+            #i => Ok(
+                #pyo3_path::IntoPy::into_py(
+                    #variant_cls::#field_access(slf)?
+                    , py)
+                )
+
+            }
+        })
+        .collect();
+
+    let mut get_item_method_impl: syn::ImplItemFn = parse_quote! {
+        fn __getitem__(slf: #pyo3_path::PyRef<Self>, idx: usize) -> #pyo3_path::PyResult< #pyo3_path::PyObject> {
+            let py = slf.py();
+            match idx {
+                #( #match_arms, )*
+                _ => Err(pyo3::exceptions::PyIndexError::new_err("tuple index out of range")),
+            }
+        }
+    };
+
+    let variant_getitem = generate_default_protocol_slot(
+        variant_cls_type,
+        &mut get_item_method_impl,
+        &__GETITEM__,
+        ctx,
+    )?;
+
+    Ok((variant_getitem, get_item_method_impl))
+}
+
+fn impl_complex_enum_tuple_variant_cls(
+    enum_name: &syn::Ident,
+    variant: &PyClassEnumTupleVariant<'_>,
+    ctx: &Ctx,
+) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
+    let Ctx { pyo3_path } = ctx;
+    let variant_ident = &variant.ident;
+    let variant_cls = gen_complex_enum_variant_class_ident(enum_name, variant.ident);
+    let variant_cls_type = parse_quote!(#variant_cls);
+
+    let mut slots = vec![];
+
+    // represents the index of the field
+    let mut field_names: Vec<Ident> = vec![];
+    let mut field_types: Vec<syn::Type> = vec![];
+
+    let (mut field_getters, field_getter_impls) = impl_complex_enum_tuple_variant_field_getters(
+        ctx,
+        variant,
+        enum_name,
+        &variant_cls_type,
+        variant_ident,
+        &mut field_names,
+        &mut field_types,
+    )?;
+
+    let num_fields = variant.fields.len();
+
+    let (variant_len, len_method_impl) =
+        impl_complex_enum_tuple_variant_len(ctx, &variant_cls_type, num_fields)?;
+
+    slots.push(variant_len);
+
+    let (variant_getitem, getitem_method_impl) =
+        impl_complex_enum_tuple_variant_getitem(ctx, &variant_cls, &variant_cls_type, num_fields)?;
+
+    slots.push(variant_getitem);
+
+    let (variant_match_args, match_args_method_impl) =
+        impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &mut field_names);
+
+    field_getters.push(variant_match_args);
+
+    let cls_impl = quote! {
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #variant_cls {
+            fn __pymethod_constructor__(py: #pyo3_path::Python<'_>, #(#field_names : #field_types,)*) -> #pyo3_path::PyClassInitializer<#variant_cls> {
+                let base_value = #enum_name::#variant_ident ( #(#field_names,)* );
+                #pyo3_path::PyClassInitializer::from(base_value).add_subclass(#variant_cls)
+            }
+
+            #len_method_impl
+
+            #getitem_method_impl
+
+            #match_args_method_impl
+
+            #(#field_getter_impls)*
+        }
+    };
+
+    Ok((cls_impl, field_getters, slots))
 }
 
 fn gen_complex_enum_variant_class_ident(enum_: &syn::Ident, variant: &syn::Ident) -> syn::Ident {
@@ -1149,6 +1390,9 @@ fn complex_enum_variant_new<'a>(
         PyClassEnumVariant::Struct(struct_variant) => {
             complex_enum_struct_variant_new(cls, struct_variant, ctx)
         }
+        PyClassEnumVariant::Tuple(tuple_variant) => {
+            complex_enum_tuple_variant_new(cls, tuple_variant, ctx)
+        }
     }
 }
 
@@ -1176,6 +1420,61 @@ fn complex_enum_struct_variant_new<'a>(
         for field in &variant.fields {
             args.push(FnArg::Regular(RegularArg {
                 name: Cow::Borrowed(field.ident),
+                ty: field.ty,
+                from_py_with: None,
+                default_value: None,
+                option_wrapped_type: None,
+            }));
+        }
+        args
+    };
+
+    let signature = if let Some(constructor) = variant.options.constructor {
+        crate::pyfunction::FunctionSignature::from_arguments_and_attribute(
+            args,
+            constructor.into_signature(),
+        )?
+    } else {
+        crate::pyfunction::FunctionSignature::from_arguments(args)?
+    };
+
+    let spec = FnSpec {
+        tp: crate::method::FnType::FnNew,
+        name: &format_ident!("__pymethod_constructor__"),
+        python_name: format_ident!("__new__"),
+        signature,
+        convention: crate::method::CallingConvention::TpNew,
+        text_signature: None,
+        asyncness: None,
+        unsafety: None,
+        deprecations: Deprecations::new(ctx),
+    };
+
+    crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
+}
+
+fn complex_enum_tuple_variant_new<'a>(
+    cls: &'a syn::Ident,
+    variant: PyClassEnumTupleVariant<'a>,
+    ctx: &Ctx,
+) -> Result<MethodAndSlotDef> {
+    let Ctx { pyo3_path } = ctx;
+
+    let variant_cls: Ident = format_ident!("{}_{}", cls, variant.ident);
+    let variant_cls_type: syn::Type = parse_quote!(#variant_cls);
+
+    let arg_py_ident: syn::Ident = parse_quote!(py);
+    let arg_py_type: syn::Type = parse_quote!(#pyo3_path::Python<'_>);
+
+    let args = {
+        let mut args = vec![FnArg::Py(PyArg {
+            name: &arg_py_ident,
+            ty: &arg_py_type,
+        })];
+
+        for (i, field) in variant.fields.iter().enumerate() {
+            args.push(FnArg::Regular(RegularArg {
+                name: std::borrow::Cow::Owned(format_ident!("_{}", i)),
                 ty: field.ty,
                 from_py_with: None,
                 default_value: None,

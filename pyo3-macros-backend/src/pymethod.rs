@@ -934,7 +934,7 @@ const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_speci
     ),
     TokenGenerator(|_| quote! { async_iter_tag }),
 );
-const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
+pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .arguments(&[Ty::Object])
     .ret_ty(Ty::Int);
@@ -944,7 +944,8 @@ const __INPLACE_CONCAT__: SlotDef =
     SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
 const __INPLACE_REPEAT__: SlotDef =
     SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
-const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
+pub const __GETITEM__: SlotDef =
+    SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
 const __NEG__: SlotDef = SlotDef::new("Py_nb_negative", "unaryfunc");
