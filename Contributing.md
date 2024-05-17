@@ -23,10 +23,6 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 * [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
 * [`nox`][nox] is used to automate many of our CI tasks.
 
-### Caveats
-
-* When using pyenv on macOS, installing a Python version using `--enable-shared` is required to make it work. i.e `env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.12`
-
 ### Help users identify bugs
 
 The [PyO3 Discord server](https://discord.gg/33kcChzH7f) is very active with users who are new to PyO3, and often completely new to Rust. Helping them debug is a great way to get experience with the PyO3 codebase.

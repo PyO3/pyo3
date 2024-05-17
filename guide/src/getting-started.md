@@ -18,18 +18,13 @@ To use PyO3, you need at least Python 3.7. While you can simply use the default 
 
 While you can use any virtualenv manager you like, we recommend the use of `pyenv` in particular if you want to develop or test for multiple different Python versions, so that is what the examples in this book will use. The installation instructions for `pyenv` can be found [here](https://github.com/pyenv/pyenv#getting-pyenv). (Note: To get the `pyenv activate` and `pyenv virtualenv` commands, you will also need to install the [`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv) plugin. The [pyenv installer](https://github.com/pyenv/pyenv-installer#installation--update--uninstallation) will install both together.)
 
-If you intend to run Python from Rust (for example in unit tests) you should set the following environment variable when installing a new Python version using `pyenv`:
-```bash
-PYTHON_CONFIGURE_OPTS="--enable-shared"
-```
+It can be useful to keep the sources used when installing using `pyenv` so that future debugging can see the original source files. This can be done by passing the `--keep` flag as part of the `pyenv install` command.
 
 For example:
 
 ```bash
-env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.12
+pyenv install 3.12 --keep
 ```
-
-You can read more about `pyenv`'s configuration options [here](https://github.com/pyenv/pyenv/blob/master/plugins/python-build/README.md#building-with---enable-shared).
 
 ### Building
 
