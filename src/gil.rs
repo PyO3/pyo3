@@ -6,9 +6,9 @@ use crate::impl_::not_send::{NotSend, NOT_SEND};
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
 use std::cell::Cell;
-#[cfg(debug_assertions)]
+#[cfg(all(feature = "gil-refs", debug_assertions))]
 use std::cell::RefCell;
-#[cfg(not(debug_assertions))]
+#[cfg(all(feature = "gil-refs", not(debug_assertions)))]
 use std::cell::UnsafeCell;
 use std::{mem, ptr::NonNull, sync};
 
@@ -27,9 +27,9 @@ std::thread_local! {
     static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
 
     /// Temporarily hold objects that will be released when the GILPool drops.
-    #[cfg(debug_assertions)]
+    #[cfg(all(feature = "gil-refs", debug_assertions))]
     static OWNED_OBJECTS: RefCell<PyObjVec> = const { RefCell::new(Vec::new()) };
-    #[cfg(not(debug_assertions))]
+    #[cfg(all(feature = "gil-refs", not(debug_assertions)))]
     static OWNED_OBJECTS: UnsafeCell<PyObjVec> = const { UnsafeCell::new(Vec::new()) };
 }
 
