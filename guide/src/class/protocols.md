@@ -21,7 +21,7 @@ When PyO3 handles a magic method, a couple of changes apply compared to other `#
  - The Rust function signature is restricted to match the magic method.
  - The `#[pyo3(signature = (...)]` and `#[pyo3(text_signature = "...")]` attributes are not allowed.
 
-The following sections list of all magic methods PyO3 needs to handle.  The
+The following sections list all magic methods for which PyO3 implements the necessary special handling.  The
 given signatures should be interpreted as follows:
  - All methods take a receiver as first argument, shown as `<self>`. It can be
    `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and
