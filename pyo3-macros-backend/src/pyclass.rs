@@ -188,7 +188,7 @@ impl PyClassPyO3Options {
                 if is_abi3() && python_version >= PY_3_9 {
                     set_option!(weakref);
                 } else {
-                    return Err(syn::Error::new((weakref.span()), "`weakref` not supported until python 3.9 or graeter",));
+                    return Err(syn::Error::new((weakref.span()), "`weakref` requires >= python 3.9",));
                 }
             },
         }
