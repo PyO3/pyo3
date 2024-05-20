@@ -1,27 +1,28 @@
 use std::borrow::Cow;
 
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{format_ident, quote};
+use syn::{parse_quote, Result, spanned::Spanned, Token};
+use syn::ext::IdentExt;
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+
+use pyo3_build_config::PythonVersion;
+
+use crate::attributes::{self, CrateAttribute, ExtendsAttribute, FreelistAttribute, kw, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, take_pyo3_options};
 use crate::attributes::kw::frozen;
-use crate::attributes::{self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, get_pyo3_options};
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyfunction::ConstructorAttribute;
+use crate::PyFunctionOptions;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
-    impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __GETITEM__, __INT__, __LEN__, __REPR__, __RICHCMP__,
+    __GETITEM__, __INT__, __LEN__, __REPR__, __RICHCMP__,
+    impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType, SlotDef,
 };
 use crate::utils::{Ctx, is_abi3};
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
-use crate::PyFunctionOptions;
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
-use syn::ext::IdentExt;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{parse_quote, spanned::Spanned, Result, Token};
-use pyo3_build_config::PythonVersion;
-
 
 const PY_3_9: PythonVersion = PythonVersion {
     major: 3,
@@ -185,7 +186,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => {
-                if is_abi3() && python_version >= PY_3_9 {
+                if python_version >= PY_3_9 || !is_abi3() {
                     set_option!(weakref);
                 } else {
                     return Err(syn::Error::new((weakref.span()), "`weakref` requires >= python 3.9",));
