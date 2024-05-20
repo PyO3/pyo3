@@ -189,7 +189,7 @@ impl PyClassPyO3Options {
                 if python_version >= PY_3_9 || !is_abi3() {
                     set_option!(weakref);
                 } else {
-                    return Err(syn::Error::new((weakref.span()), "`weakref` requires >= python 3.9",));
+                    return Err(syn::Error::new(weakref.span(), "`weakref` requires >= python 3.9",));
                 }
             },
         }
