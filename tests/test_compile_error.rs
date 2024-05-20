@@ -67,6 +67,6 @@ fn test_compile_errors() {
     #[cfg(all(Py_LIMITED_API, not(feature = "experimental-async")))]
     // output changes with async feature
     t.compile_fail("tests/ui/abi3_inheritance.rs");
-    #[cfg(all(Py_LIMITED_API, Py_3_8))]
-    t.compile_faile("tests/ui/abi3_weakref.rs");
+    #[cfg(all(Py_LIMITED_API, not(Py_3_9)))]
+    t.compile_fail("tests/ui/abi3_weakref.rs");
 }
