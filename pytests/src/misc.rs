@@ -1,5 +1,4 @@
 use pyo3::{prelude::*, types::PyDict};
-use std::borrow::Cow;
 
 #[pyfunction]
 fn issue_219() {
@@ -8,8 +7,8 @@ fn issue_219() {
 }
 
 #[pyfunction]
-fn get_type_full_name(obj: &Bound<'_, PyAny>) -> PyResult<String> {
-    obj.get_type().name().map(Cow::into_owned)
+fn get_type_full_qualified_name(obj: &Bound<'_, PyAny>) -> PyResult<String> {
+    obj.get_type().fully_qualified_name()
 }
 
 #[pyfunction]
@@ -33,7 +32,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 #[pymodule]
 pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(issue_219, m)?)?;
-    m.add_function(wrap_pyfunction!(get_type_full_name, m)?)?;
+    m.add_function(wrap_pyfunction!(get_type_full_qualified_name, m)?)?;
     m.add_function(wrap_pyfunction!(accepts_bool, m)?)?;
     m.add_function(wrap_pyfunction!(get_item_and_run_callback, m)?)?;
     Ok(())

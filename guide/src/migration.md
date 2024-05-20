@@ -81,6 +81,61 @@ enum SimpleEnum {
 ```
 </details>
 
+### `PyType::name` now returns `PyResult<String>` instead of `PyResult<Cow<'_, str>>`
+<details open>
+<summary><small>Click to expand</small></summary>
+
+This function previously would try to reuse a raw C API field (`tp_name`) in which case it would return a `Cow::Borrowed`,
+but this caused inconsistency with Python.
+It now always returned a fully owned String.
+
+To migrate, remove any `.into_owned()` and `.into_mut()` calls on the output of `PyType::name`.
+
+Before:
+
+```rust,ignore
+# #![allow(deprecated, dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::types::{PyBool};
+# fn main() -> PyResult<()> {
+Python::with_gil(|py| {
+    let bool_type = py.get_type_bound::<PyBool>();
+    let name = bool_type.name()?.into_owned();
+    println!("Hello, {}", name);
+
+    let mut name_upper = bool_type.name()?;
+    name_upper.to_mut().make_ascii_uppercase();
+    println!("Hello, {}", name_upper);
+
+    Ok(())
+})
+# }
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::types::{PyBool};
+# fn main() -> PyResult<()> {
+Python::with_gil(|py| {
+    let bool_type = py.get_type_bound::<PyBool>();
+    let name = bool_type.name()?;
+    println!("Hello, {}", name);
+
+    let mut name_upper = bool_type.name()?;
+    name_upper.make_ascii_uppercase();
+    println!("Hello, {}", name_upper);
+
+    Ok(())
+})
+# }
+```
+</details>
+
+
+
 ## from 0.20.* to 0.21
 <details>
 <summary><small>Click to expand</small></summary>
