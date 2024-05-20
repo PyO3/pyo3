@@ -952,6 +952,22 @@ impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     }
 }
 
+// SAFETY: Moving the `PyRef` does not move the `T` it `deref`s to, and
+// `&mut T` cannot be obtained  while the `PyRef` guard is held.
+unsafe impl<'a, T> stable_deref_trait::StableDeref for PyRef<'a, T>
+where
+    T: PyClass,
+{}
+
+// SAFETY: Moving the `PyRefMut` does not move the `T` it `deref`s or
+// `deref_mut`s to. Even though we could obtain `&mut T` to `mem::swap`
+// out the `T`, there will still be a new `T` at the same address
+// pointed to by the underlying `Py<T>`.
+unsafe impl<'a, T> stable_deref_trait::StableDeref for PyRefMut<'a, T>
+where
+    T: PyClass<Frozen = False>,
+{}
+
 /// An error type returned by [`Bound::try_borrow`].
 ///
 /// If this error is allowed to bubble up into Python code it will raise a `RuntimeError`.
