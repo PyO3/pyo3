@@ -1,4 +1,5 @@
 use crate::err::{self, PyResult};
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::types::any::PyAnyMethods;
@@ -201,9 +202,9 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
                 .assume_borrowed_or_err(self.py())
         }?
         .to_owned()
-        .downcast_into()?;
+        .downcast_into();
 
-        Ok(mro)
+        Ok(mro?)
     }
 
     fn bases(&self) -> PyResult<Bound<'py, PyTuple>> {
@@ -217,9 +218,9 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
                 .assume_borrowed_or_err(self.py())
         }?
         .to_owned()
-        .downcast_into()?;
+        .downcast_into();
 
-        Ok(bases)
+        Ok(bases?)
     }
 }
 
