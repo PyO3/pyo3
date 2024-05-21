@@ -176,3 +176,7 @@ $ python
 ```
 
 For more instructions on how to use Python code from Rust, see the [Python from Rust](python-from-rust.md) page.
+
+## Maturin Import Hook
+
+In development, any changes in the code would require running `maturin develop` before testing. To streamline the development process, you may want to install [Maturin Import Hook](https://github.com/PyO3/maturin-import-hook) which will run `maturin develop` automatically when the library with code changes is being imported.
