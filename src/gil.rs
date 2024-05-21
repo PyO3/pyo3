@@ -166,7 +166,9 @@ impl GILGuard {
     /// `GILGuard::Ensured` will be returned.
     pub(crate) fn acquire() -> Self {
         if gil_is_acquired() {
-            increment_gil_count();
+            // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+            #[cfg(not(pyo3_disable_reference_pool))]
+            POOL.update_counts(unsafe { Python::assume_gil_acquired() });
             return GILGuard::Assumed;
         }
 
@@ -215,32 +217,33 @@ impl GILGuard {
     /// as part of multi-phase interpreter initialization.
     pub(crate) fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
-            increment_gil_count();
+            // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+            #[cfg(not(pyo3_disable_reference_pool))]
+            POOL.update_counts(unsafe { Python::assume_gil_acquired() });
             return GILGuard::Assumed;
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        increment_gil_count();
+
         #[cfg(feature = "gil-refs")]
         #[allow(deprecated)]
-        {
-            let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
-            increment_gil_count();
-            GILGuard::Ensured { gstate, pool }
-        }
+        let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
 
-        #[cfg(not(feature = "gil-refs"))]
-        {
-            increment_gil_count();
-            // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
-            #[cfg(not(pyo3_disable_reference_pool))]
-            POOL.update_counts(unsafe { Python::assume_gil_acquired() });
-
-            GILGuard::Ensured { gstate }
+        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+        #[cfg(not(pyo3_disable_reference_pool))]
+        POOL.update_counts(unsafe { Python::assume_gil_acquired() });
+        GILGuard::Ensured {
+            gstate,
+            #[cfg(feature = "gil-refs")]
+            pool,
         }
     }
     /// Acquires the `GILGuard` while assuming that the GIL is already held.
     pub(crate) unsafe fn assume() -> Self {
-        increment_gil_count();
+        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+        #[cfg(not(pyo3_disable_reference_pool))]
+        POOL.update_counts(unsafe { Python::assume_gil_acquired() });
         GILGuard::Assumed
     }
 
@@ -256,19 +259,19 @@ impl Drop for GILGuard {
     fn drop(&mut self) {
         match self {
             GILGuard::Assumed => {}
-            #[cfg(feature = "gil-refs")]
-            GILGuard::Ensured { gstate, pool } => unsafe {
+            GILGuard::Ensured {
+                gstate,
+                #[cfg(feature = "gil-refs")]
+                pool,
+            } => unsafe {
                 // Drop the objects in the pool before attempting to release the thread state
+                #[cfg(feature = "gil-refs")]
                 mem::ManuallyDrop::drop(pool);
 
                 ffi::PyGILState_Release(*gstate);
-            },
-            #[cfg(not(feature = "gil-refs"))]
-            GILGuard::Ensured { gstate } => unsafe {
-                ffi::PyGILState_Release(*gstate);
+                decrement_gil_count();
             },
         }
-        decrement_gil_count();
     }
 }
 
@@ -549,14 +552,15 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod tests {
+    use super::GIL_COUNT;
     #[cfg(not(pyo3_disable_reference_pool))]
     use super::{gil_is_acquired, POOL};
     #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
-    use super::{GILPool, GIL_COUNT, OWNED_OBJECTS};
-    use crate::types::any::PyAnyMethods;
+    use super::{GILPool, OWNED_OBJECTS};
     #[cfg(feature = "gil-refs")]
     use crate::{ffi, gil};
+    use crate::{gil::GILGuard, types::any::PyAnyMethods};
     use crate::{PyObject, Python};
     use std::ptr::NonNull;
 
@@ -702,7 +706,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_gil_counts() {
         // Check with_gil and GILPool both increase counts correctly
@@ -712,10 +715,10 @@ mod tests {
         Python::with_gil(|_| {
             assert_eq!(get_gil_count(), 1);
 
-            let pool = unsafe { GILPool::new() };
+            let pool = unsafe { GILGuard::assume() };
             assert_eq!(get_gil_count(), 1);
 
-            let pool2 = unsafe { GILPool::new() };
+            let pool2 = unsafe { GILGuard::assume() };
             assert_eq!(get_gil_count(), 1);
 
             drop(pool);
@@ -723,7 +726,7 @@ mod tests {
 
             Python::with_gil(|_| {
                 // nested with_gil doesn't update gil count
-                assert_eq!(get_gil_count(), 2);
+                assert_eq!(get_gil_count(), 1);
             });
             assert_eq!(get_gil_count(), 1);
 
@@ -794,10 +797,12 @@ mod tests {
 
     #[test]
     #[cfg(not(pyo3_disable_reference_pool))]
-    #[cfg(feature = "gil-refs")]
     fn test_update_counts_does_not_deadlock() {
         // update_counts can run arbitrary Python code during Py_DECREF.
         // if the locking is implemented incorrectly, it will deadlock.
+
+        use crate::ffi;
+        use crate::gil::GILGuard;
 
         Python::with_gil(|py| {
             let obj = get_object(py);
@@ -805,8 +810,7 @@ mod tests {
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
                 // This line will implicitly call update_counts
                 // -> and so cause deadlock if update_counts is not handling recursion correctly.
-                #[allow(deprecated)]
-                let pool = GILPool::new();
+                let pool = GILGuard::assume();
 
                 // Rebuild obj so that it can be dropped
                 PyObject::from_owned_ptr(
@@ -824,6 +828,30 @@ mod tests {
 
             // Updating the counts will call decref on the capsule, which calls capsule_drop
             POOL.update_counts(py);
+        })
+    }
+
+    #[test]
+    #[cfg(not(pyo3_disable_reference_pool))]
+    fn test_gil_guard_update_counts() {
+        use crate::gil::GILGuard;
+
+        Python::with_gil(|py| {
+            let obj = get_object(py);
+
+            // For GILGuard::acquire
+
+            POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            assert!(pool_dec_refs_contains(&obj));
+            let _guard = GILGuard::acquire();
+            assert!(pool_dec_refs_does_not_contain(&obj));
+
+            // For GILGuard::assume
+
+            POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap());
+            assert!(pool_dec_refs_contains(&obj));
+            let _guard2 = unsafe { GILGuard::assume() };
+            assert!(pool_dec_refs_does_not_contain(&obj));
         })
     }
 }
