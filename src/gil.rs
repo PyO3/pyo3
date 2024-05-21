@@ -166,8 +166,8 @@ impl GILGuard {
     /// `GILGuard::Ensured` will be returned.
     pub(crate) fn acquire() -> Self {
         if gil_is_acquired() {
+            increment_gil_count();
             let guard = GILGuard::Assumed;
-            // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
             #[cfg(not(pyo3_disable_reference_pool))]
             POOL.update_counts(guard.python());
             return guard;
@@ -219,8 +219,8 @@ impl GILGuard {
     /// as part of multi-phase interpreter initialization.
     pub(crate) unsafe fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
+            increment_gil_count();
             let guard = GILGuard::Assumed;
-            // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
             #[cfg(not(pyo3_disable_reference_pool))]
             POOL.update_counts(guard.python());
             return guard;
@@ -233,7 +233,6 @@ impl GILGuard {
         #[allow(deprecated)]
         let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
 
-        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
         #[cfg(not(pyo3_disable_reference_pool))]
         POOL.update_counts(unsafe { Python::assume_gil_acquired() });
         GILGuard::Ensured {
@@ -244,7 +243,7 @@ impl GILGuard {
     }
     /// Acquires the `GILGuard` while assuming that the GIL is already held.
     pub(crate) unsafe fn assume() -> Self {
-        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+        increment_gil_count();
         #[cfg(not(pyo3_disable_reference_pool))]
         POOL.update_counts(Python::assume_gil_acquired());
         GILGuard::Assumed
@@ -270,11 +269,10 @@ impl Drop for GILGuard {
                 // Drop the objects in the pool before attempting to release the thread state
                 #[cfg(feature = "gil-refs")]
                 mem::ManuallyDrop::drop(pool);
-
                 ffi::PyGILState_Release(*gstate);
-                decrement_gil_count();
             },
         }
+        decrement_gil_count();
     }
 }
 
