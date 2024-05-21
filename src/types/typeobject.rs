@@ -193,7 +193,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
     fn mro(&self) -> PyResult<Bound<'py, PyTuple>> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
-        let mro = self.getattr(intern!(self.py(), "__mro__"))?.extract();
+        let mro = self.getattr(intern!(self.py(), "__mro__"))?.extract()?;
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let mro = unsafe {
@@ -202,14 +202,14 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
                 .assume_borrowed_or_err(self.py())
         }?
         .to_owned()
-        .downcast_into();
+        .downcast_into()?;
 
-        Ok(mro?)
+        Ok(mro)
     }
 
     fn bases(&self) -> PyResult<Bound<'py, PyTuple>> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
-        let bases = self.getattr(intern!(self.py(), "__bases__"))?.extract();
+        let bases = self.getattr(intern!(self.py(), "__bases__"))?.extract()?;
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let bases = unsafe {
@@ -218,9 +218,9 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
                 .assume_borrowed_or_err(self.py())
         }?
         .to_owned()
-        .downcast_into();
+        .downcast_into()?;
 
-        Ok(bases?)
+        Ok(bases)
     }
 }
 
