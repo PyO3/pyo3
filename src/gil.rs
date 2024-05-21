@@ -166,10 +166,11 @@ impl GILGuard {
     /// `GILGuard::Ensured` will be returned.
     pub(crate) fn acquire() -> Self {
         if gil_is_acquired() {
+            let guard = GILGuard::Assumed;
             // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
             #[cfg(not(pyo3_disable_reference_pool))]
-            POOL.update_counts(unsafe { Python::assume_gil_acquired() });
-            return GILGuard::Assumed;
+            POOL.update_counts(guard.python());
+            return guard;
         }
 
         // Maybe auto-initialize the GIL:
@@ -207,7 +208,8 @@ impl GILGuard {
             }
         }
 
-        Self::acquire_unchecked()
+        // SAFETY: We have ensured the Python interpreter is initialized.
+        unsafe { Self::acquire_unchecked() }
     }
 
     /// Acquires the `GILGuard` without performing any state checking.
@@ -215,12 +217,13 @@ impl GILGuard {
     /// This can be called in "unsafe" contexts where the normal interpreter state
     /// checking performed by `GILGuard::acquire` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
-    pub(crate) fn acquire_unchecked() -> Self {
+    pub(crate) unsafe fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
+            let guard = GILGuard::Assumed;
             // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
             #[cfg(not(pyo3_disable_reference_pool))]
-            POOL.update_counts(unsafe { Python::assume_gil_acquired() });
-            return GILGuard::Assumed;
+            POOL.update_counts(guard.python());
+            return guard;
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
@@ -243,7 +246,7 @@ impl GILGuard {
     pub(crate) unsafe fn assume() -> Self {
         // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
         #[cfg(not(pyo3_disable_reference_pool))]
-        POOL.update_counts(unsafe { Python::assume_gil_acquired() });
+        POOL.update_counts(Python::assume_gil_acquired());
         GILGuard::Assumed
     }
 
@@ -553,11 +556,11 @@ fn decrement_gil_count() {
 #[cfg(test)]
 mod tests {
     use super::GIL_COUNT;
-    #[cfg(not(pyo3_disable_reference_pool))]
-    use super::{gil_is_acquired, POOL};
     #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
-    use super::{GILPool, OWNED_OBJECTS};
+    use super::OWNED_OBJECTS;
+    #[cfg(not(pyo3_disable_reference_pool))]
+    use super::{gil_is_acquired, POOL};
     #[cfg(feature = "gil-refs")]
     use crate::{ffi, gil};
     use crate::{gil::GILGuard, types::any::PyAnyMethods};
@@ -708,7 +711,7 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn test_gil_counts() {
-        // Check with_gil and GILPool both increase counts correctly
+        // Check with_gil and GILGuard both increase counts correctly
         let get_gil_count = || GIL_COUNT.with(|c| c.get());
 
         assert_eq!(get_gil_count(), 0);

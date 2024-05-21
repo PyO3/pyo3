@@ -1282,6 +1282,7 @@ mod tests {
 
         // Before starting the interpreter the state of calling `PyGILState_Check`
         // seems to be undefined, so let's ensure that Python is up.
+        #[cfg(not(any(PyPy, GraalPy)))]
         crate::prepare_freethreaded_python();
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
