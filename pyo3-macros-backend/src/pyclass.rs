@@ -173,14 +173,11 @@ impl PyClassPyO3Options {
         match option {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
             PyClassPyO3Option::Dict(dict) => {
-                if python_version >= PY_3_9 || !is_abi3() {
-                    set_option!(dict);
-                } else {
-                    return Err(syn::Error::new(
-                        dict.span(),
-                        "`dict` requires >= python 3.9 with the `abi3` feature",
-                    ));
-                }
+                ensure_spanned!(
+                    python_version >= PY_3_9 || !is_abi3(),
+                    dict.span() => "`dict` requires >= python 3.9 with the `abi3` feature"
+                );
+                set_option!(dict);
             }
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
