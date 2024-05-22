@@ -784,59 +784,54 @@ fn impl_simple_enum(
     let richcmp_ord = match args.options.ord {
         Some(_) => {
             quote! {
-                match op {
-                    #pyo3_path::basic::CompareOp::Gt => {
-                        let self_val = self.__pyo3__int__();
-                        if let Ok(i) = other.extract::<#repr_type>() {
-                            return Ok((self_val > i).to_object(py));
-                        }
-                        if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
-                            return Ok((self_val > other.__pyo3__int__()).to_object(py));
-                        }
-
-                        return Ok(py.NotImplemented());
+                #pyo3_path::basic::CompareOp::Gt => {
+                    let self_val = self.__pyo3__int__();
+                    if let Ok(i) = other.extract::<#repr_type>() {
+                        return Ok((self_val > i).to_object(py));
                     }
-                    #pyo3_path::basic::CompareOp::Lt => {
-                        let self_val = self.__pyo3__int__();
-                        if let Ok(i) = other.extract::<#repr_type>() {
-                            return Ok((self_val < i).to_object(py));
-                        }
-                        if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
-                            return Ok((self_val < other.__pyo3__int__()).to_object(py));
-                        }
-
-                        return Ok(py.NotImplemented());
+                    if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
+                        return Ok((self_val > other.__pyo3__int__()).to_object(py));
                     }
-                    #pyo3_path::basic::CompareOp::Le => {
-                        let self_val = self.__pyo3__int__();
-                        if let Ok(i) = other.extract::<#repr_type>() {
-                            return Ok((self_val <= i).to_object(py));
-                        }
-                        if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
-                            return Ok((self_val <= other.__pyo3__int__()).to_object(py));
-                        }
 
-                        return Ok(py.NotImplemented());
+                    return Ok(py.NotImplemented());
+                }
+                #pyo3_path::basic::CompareOp::Lt => {
+                    let self_val = self.__pyo3__int__();
+                    if let Ok(i) = other.extract::<#repr_type>() {
+                        return Ok((self_val < i).to_object(py));
                     }
-                    #pyo3_path::basic::CompareOp::Ge => {
-                        let self_val = self.__pyo3__int__();
-                        if let Ok(i) = other.extract::<#repr_type>() {
-                            return Ok((self_val >= i).to_object(py));
-                        }
-                        if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
-                            return Ok((self_val >= other.__pyo3__int__()).to_object(py));
-                        }
+                    if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
+                        return Ok((self_val < other.__pyo3__int__()).to_object(py));
+                    }
 
-                        return Ok(py.NotImplemented());
+                    return Ok(py.NotImplemented());
+                }
+                #pyo3_path::basic::CompareOp::Le => {
+                    let self_val = self.__pyo3__int__();
+                    if let Ok(i) = other.extract::<#repr_type>() {
+                        return Ok((self_val <= i).to_object(py));
                     }
-                    _ => Ok(py.NotImplemented()),
+                    if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
+                        return Ok((self_val <= other.__pyo3__int__()).to_object(py));
+                    }
+
+                    return Ok(py.NotImplemented());
+                }
+                #pyo3_path::basic::CompareOp::Ge => {
+                    let self_val = self.__pyo3__int__();
+                    if let Ok(i) = other.extract::<#repr_type>() {
+                        return Ok((self_val >= i).to_object(py));
+                    }
+                    if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
+                        return Ok((self_val >= other.__pyo3__int__()).to_object(py));
+                    }
+
+                    return Ok(py.NotImplemented());
                 }
             }
         }
         _ => {
-            quote! {
-                Ok(py.NotImplemented())
-            }
+            quote! {}
         }
     };
 
@@ -874,8 +869,9 @@ fn impl_simple_enum(
 
                         return Ok(py.NotImplemented());
                     }
+                    #richcmp_ord
                     _ => {
-                        #richcmp_ord
+                        Ok(py.NotImplemented())
                     },
                 }
             }
