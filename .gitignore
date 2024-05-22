@@ -27,4 +27,3 @@ lcov.info
 coverage.json
 netlify_build/
 .nox/
-/.idea
