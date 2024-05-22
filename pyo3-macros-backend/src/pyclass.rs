@@ -192,14 +192,11 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => {
-                if python_version >= PY_3_9 || !is_abi3() {
-                    set_option!(weakref);
-                } else {
-                    return Err(syn::Error::new(
-                        weakref.span(),
-                        "`weakref` requires >= python 3.9 with the `abi3` feature",
-                    ));
-                }
+                ensure_spanned!(
+                    python_version >= PY_3_9 || !is_abi3(),
+                    weakref.span() => "`weakref` requires >= python 3.9 with the `abi3` feature"
+                );
+                set_option!(weakref);
             }
         }
         Ok(())
