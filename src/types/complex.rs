@@ -1,6 +1,7 @@
 #[cfg(feature = "gil-refs")]
 use crate::PyNativeType;
 use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
+use crate::py_result_ext::PyResultExt;
 use std::os::raw::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
@@ -89,15 +90,16 @@ mod not_limited_impls {
     }
 
     macro_rules! bin_ops {
-        ($trait:ident, $fn:ident, $op:tt, $ffi:path) => {
+        ($trait:ident, $fn:ident, $op:tt) => {
             impl<'py> $trait for Borrowed<'_, 'py, PyComplex> {
                 type Output = Bound<'py, PyComplex>;
                 fn $fn(self, other: Self) -> Self::Output {
-                    unsafe {
-                        complex_operation(self, other, $ffi)
-                            .assume_owned(self.py())
-                            .downcast_into_unchecked()
-                    }
+                    PyAnyMethods::$fn(self.as_any(), other)
+                    .downcast_into().expect(
+                        concat!("Complex method ",
+                            stringify!($fn),
+                            " failed.")
+                        )
                 }
             }
 
@@ -139,10 +141,10 @@ mod not_limited_impls {
         };
     }
 
-    bin_ops!(Add, add, +, ffi::_Py_c_sum);
-    bin_ops!(Sub, sub, -, ffi::_Py_c_diff);
-    bin_ops!(Mul, mul, *, ffi::_Py_c_prod);
-    bin_ops!(Div, div, /, ffi::_Py_c_quot);
+    bin_ops!(Add, add, +);
+    bin_ops!(Sub, sub, -);
+    bin_ops!(Mul, mul, *);
+    bin_ops!(Div, div, /);
 
     #[cfg(feature = "gil-refs")]
     impl<'py> Neg for &'py PyComplex {
