@@ -1,7 +1,7 @@
+use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "gil-refs")]
 use crate::PyNativeType;
 use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
-use crate::py_result_ext::PyResultExt;
 use std::os::raw::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
