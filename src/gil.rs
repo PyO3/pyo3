@@ -717,19 +717,19 @@ mod tests {
             assert_eq!(get_gil_count(), 1);
 
             let pool = unsafe { GILGuard::assume() };
-            assert_eq!(get_gil_count(), 1);
+            assert_eq!(get_gil_count(), 2);
 
             let pool2 = unsafe { GILGuard::assume() };
-            assert_eq!(get_gil_count(), 1);
+            assert_eq!(get_gil_count(), 3);
 
             drop(pool);
-            assert_eq!(get_gil_count(), 1);
+            assert_eq!(get_gil_count(), 2);
 
             Python::with_gil(|_| {
-                // nested with_gil doesn't update gil count
-                assert_eq!(get_gil_count(), 1);
+                // nested with_gil updates gil count
+                assert_eq!(get_gil_count(), 3);
             });
-            assert_eq!(get_gil_count(), 1);
+            assert_eq!(get_gil_count(), 2);
 
             drop(pool2);
             assert_eq!(get_gil_count(), 1);
