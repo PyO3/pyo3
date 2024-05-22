@@ -587,7 +587,7 @@ mod tests {
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
-    #[cfg(all(not(pyo3_disable_reference_pool)))]
+    #[cfg(not(pyo3_disable_reference_pool))]
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
         POOL.pending_decrefs
             .lock()
