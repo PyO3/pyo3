@@ -139,7 +139,7 @@ pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     /// Return Python bases
     ///
     /// Equivalent to the Python expression `__bases__`.
-    fn bases(&self) -> PyResult<Bound<'_, PyTuple>>;
+    fn bases(&self) -> PyResult<Bound<'py, PyTuple>>;
 }
 
 impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
