@@ -291,9 +291,9 @@ mod test {
     #[test]
     fn py_backed_bytes_empty() {
         Python::with_gil(|py| {
-            let b = PyBytes::new_bound(py, &[]);
+            let b = PyBytes::new_bound(py, b"");
             let py_backed_bytes = b.extract::<PyBackedBytes>().unwrap();
-            assert_eq!(&*py_backed_bytes, &[]);
+            assert_eq!(&*py_backed_bytes, b"");
         });
     }
 
