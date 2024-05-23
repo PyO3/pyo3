@@ -66,13 +66,13 @@ pub struct PyClassPyO3Options {
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
+    pub ord: Option<kw::ord>,
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
-    pub ord: Option<kw::ord>,
 }
 
 enum PyClassPyO3Option {
@@ -85,13 +85,13 @@ enum PyClassPyO3Option {
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
+    Ord(kw::ord),
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
     Subclass(kw::subclass),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
-    Ord(kw::ord),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -115,6 +115,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
             input.parse().map(PyClassPyO3Option::Name)
+        } else if lookahead.peek(attributes::kw::ord) {
+            input.parse().map(PyClassPyO3Option::Ord)
         } else if lookahead.peek(kw::rename_all) {
             input.parse().map(PyClassPyO3Option::RenameAll)
         } else if lookahead.peek(attributes::kw::sequence) {
@@ -127,8 +129,6 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Unsendable)
         } else if lookahead.peek(attributes::kw::weakref) {
             input.parse().map(PyClassPyO3Option::Weakref)
-        } else if lookahead.peek(attributes::kw::ord) {
-            input.parse().map(PyClassPyO3Option::Ord)
         } else {
             Err(lookahead.error())
         }
@@ -177,13 +177,13 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
+            PyClassPyO3Option::Ord(ord) => set_option!(ord),
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
-            PyClassPyO3Option::Ord(ord) => set_option!(ord),
         }
         Ok(())
     }
