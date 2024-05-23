@@ -134,7 +134,7 @@ pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     /// Return the method resolution order for this type.
     ///
     /// Equivalent to the Python expression `self.__mro__`.
-    fn mro(&self) -> PyResult<Bound<'_, PyTuple>>;
+    fn mro(&self) -> PyResult<Bound<'py, PyTuple>>;
 
     /// Return Python bases
     ///
