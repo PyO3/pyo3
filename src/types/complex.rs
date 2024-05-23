@@ -1,3 +1,4 @@
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "gil-refs")]
 use crate::PyNativeType;
