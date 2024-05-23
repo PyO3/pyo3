@@ -1,4 +1,4 @@
-# Python classes
+t# Python classes
 
 PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
@@ -1151,6 +1151,30 @@ Python::with_gil(|py| {
     pyo3::py_run!(py, x cls, r#"
         assert repr(x) == 'RenamedEnum.UPPERCASE'
         assert x == cls.UPPERCASE
+    "#)
+})
+```
+
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass(ord)]
+enum MyEnum{
+    A,
+    B,
+    C,
+}
+
+Python::with_gil(|py| {
+    let cls = py.get_type_bound::<MyEnum>();
+    let a = Py::new(py, MyEnum::A).unwrap();
+    let b = Py::new(py, MyEnum::B).unwrap();
+    let c = Py::new(py, MyEnum::C).unwrap();
+    pyo3::py_run!(py, cls a b c, r#"
+        assert (a < b) == True
+        assert (c <= b) == False
+        assert (c > a) == True
     "#)
 })
 ```
