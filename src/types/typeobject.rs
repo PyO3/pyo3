@@ -134,12 +134,12 @@ pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     /// Return the method resolution order for this type.
     ///
     /// Equivalent to the Python expression `self.__mro__`.
-    fn mro(&self) -> PyResult<Bound<'py, PyTuple>>;
+    fn mro(&self) -> Bound<'py, PyTuple>;
 
     /// Return Python bases
     ///
     /// Equivalent to the Python expression `self.__bases__`.
-    fn bases(&self) -> PyResult<Bound<'py, PyTuple>>;
+    fn bases(&self) -> Bound<'py, PyTuple>;
 }
 
 impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
@@ -191,36 +191,40 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
         self.is_subclass(&T::type_object_bound(self.py()))
     }
 
-    fn mro(&self) -> PyResult<Bound<'py, PyTuple>> {
+    fn mro(&self) -> Bound<'py, PyTuple> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
-        let mro = self.getattr(intern!(self.py(), "__mro__"))?.extract()?;
+        let mro = self.getattr(intern!(self.py(), "__mro__"))
+        .expect("Cannot get `__mro__` from object.")
+        .extract()
+        .expect("Cannot convert to Rust object.");
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let mro = unsafe {
             (*self.as_type_ptr())
                 .tp_mro
-                .assume_borrowed_or_err(self.py())
-        }?
+                .assume_borrowed(self.py())
         .to_owned()
-        .downcast_into()?;
+        .downcast_into_unchecked()};
 
-        Ok(mro)
+        mro
     }
 
-    fn bases(&self) -> PyResult<Bound<'py, PyTuple>> {
+    fn bases(&self) -> Bound<'py, PyTuple> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
-        let bases = self.getattr(intern!(self.py(), "__bases__"))?.extract()?;
+        let bases = self.getattr(intern!(self.py(), "__bases__"))
+        .expect("Cannot get `__bases__` from object.")
+        .extract()
+        .expect("Cannot convert to Rust object.");
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let bases = unsafe {
             (*self.as_type_ptr())
                 .tp_bases
-                .assume_borrowed_or_err(self.py())
-        }?
+                .assume_borrowed(self.py())
         .to_owned()
-        .downcast_into()?;
+        .downcast_into_unchecked()};
 
-        Ok(bases)
+        bases
     }
 }
 
@@ -289,7 +293,6 @@ mod tests {
             assert!(py
                 .get_type_bound::<PyBool>()
                 .mro()
-                .unwrap()
                 .eq(PyTuple::new_bound(
                     py,
                     [
@@ -308,7 +311,6 @@ mod tests {
             assert!(py
                 .get_type_bound::<PyBool>()
                 .bases()
-                .unwrap()
                 .eq(PyTuple::new_bound(py, [py.get_type_bound::<PyInt>()]))
                 .unwrap());
         });
@@ -320,7 +322,6 @@ mod tests {
             assert!(py
                 .get_type_bound::<PyAny>()
                 .bases()
-                .unwrap()
                 .eq(PyTuple::empty_bound(py))
                 .unwrap());
         });
