@@ -19,6 +19,7 @@ pub use crate::marker::Python;
 #[allow(deprecated)]
 pub use crate::pycell::PyCell;
 pub use crate::pycell::{PyRef, PyRefMut};
+pub use crate::pyref_map::{PyRefMap};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
 #[cfg(feature = "gil-refs")]
