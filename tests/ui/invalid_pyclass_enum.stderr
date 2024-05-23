@@ -29,3 +29,9 @@ error: `constructor` can't be used on a simple enum variant
    |
 26 |     #[pyo3(constructor = (a, b))]
    |            ^^^^^^^^^^^
+
+error: The `ord` option of #[pyclass] is not supported for complex enums.
+  --> tests/ui/invalid_pyclass_enum.rs:31:11
+   |
+31 | #[pyclass(ord)]
+   |           ^^^

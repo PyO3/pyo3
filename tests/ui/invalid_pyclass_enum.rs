@@ -28,4 +28,10 @@ enum SimpleNoSignature {
     B,
 }
 
+#[pyclass(ord)]
+enum InvalidOrderedComplexEnum {
+    VariantA (i32),
+    VariantB { msg: String }
+}
+
 fn main() {}

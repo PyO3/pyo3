@@ -214,6 +214,13 @@ pub fn build_py_class(
             For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
     );
 
+    // flag invalid ord option
+    ensure_spanned!(
+        args.options.ord.is_none(),
+        args.options.ord.span() =>
+            "The `ord` option of #[pyclass] is not supported for structs."
+    );
+
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
         syn::Fields::Named(fields) => fields
             .named
@@ -892,6 +899,13 @@ fn impl_complex_enum(
     ctx: &Ctx,
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path } = ctx;
+
+    // flag invalid ord option
+    ensure_spanned!(
+        args.options.ord.is_none(),
+        args.options.ord.span() =>
+            "The `ord` option of #[pyclass] is not supported for complex enums."
+    );
 
     // Need to rig the enum PyClass options
     let args = {

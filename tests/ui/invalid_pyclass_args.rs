@@ -30,4 +30,9 @@ struct InvalidArg {}
 #[pyclass(mapping, sequence)]
 struct CannotBeMappingAndSequence {}
 
+#[pyclass(ord)]
+struct InvalidOrderedStruct {
+    inner: i32
+}
+
 fn main() {}
