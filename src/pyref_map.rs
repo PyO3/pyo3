@@ -1,12 +1,13 @@
 #![allow(unused_imports, dead_code)]
 
+use std::ptr::NonNull;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::convert::{AsRef, AsMut};
 
 use crate::prelude::*;
 use crate::pyclass::PyClass;
-use crate::pyclass::boolean_struct::False;
+use crate::pyclass::boolean_struct::{True, False, private::Boolean};
 
 
 trait OpaquePyRef<'py, T: PyClass>: 'py {}
@@ -15,37 +16,30 @@ impl<'py, T: PyClass> OpaquePyRef<'py, T> for PyRef<'py, T> {}
 impl<'py, T: PyClass<Frozen=False>> OpaquePyRef<'py, T> for PyRefMut<'py, T> {}
 
 
-pub struct PyRefMap<'py, T: PyClass, U: 'py> {
+pub struct PyRefMapBase<'py, T: PyClass, U: 'py, Mut: Boolean> {
     owner: Box<dyn OpaquePyRef<'py, T>>,
-    target: *const U,
+    target: NonNull<U>,
+    _mut: PhantomData<Mut>
 }
+
+pub type PyRefMap<'py, T, U> = PyRefMapBase<'py, T, U, False>;
+pub type PyRefMapMut<'py, T, U> = PyRefMapBase<'py, T, U, True>;
+
 
 impl<'py, T: PyClass> PyRef<'py, T> {
     pub fn into_map<F, U: 'py>(self, f: F) -> PyRefMap<'py, T, U>
         where F: FnOnce(&T) -> &U
     {
-        PyRefMap {target: f(&*self), owner: Box::new(self)}
+        let target = NonNull::from(f(&*self));
+        PyRefMap {target, owner: Box::new(self), _mut: PhantomData}
     }
     
     pub fn try_into_map<F, U: 'py, E>(self, f: F) -> Result<PyRefMap<'py, T, U>, E>
         where F: FnOnce(&T) -> Result<&U, E>
     {
-        Ok(PyRefMap {target: f(&*self)?, owner: Box::new(self)})
+        let target = NonNull::from(f(&*self)?);
+        Ok(PyRefMap {target, owner: Box::new(self), _mut: PhantomData})
     }
-}
-
-impl<'py, T: PyClass, U: 'py> Deref for PyRefMap<'py, T, U> {
-    type Target = U;
-    fn deref(&self) -> &U {
-        // we own the `PyRef` that is guarding our shared access to `T`
-        unsafe { &*self.target }
-    }
-}
-
-
-pub struct PyRefMapMut<'py, T: PyClass<Frozen = False>, U: 'py> {
-    owner: PyRefMut<'py, T>,
-    target: *mut U,
 }
 
 impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
@@ -53,28 +47,35 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     pub fn into_map<F, U: 'py>(self, f: F) -> PyRefMap<'py, T, U>
         where F: FnOnce(&T) -> &U
     {
-        PyRefMap {target: f(&*self), owner: Box::new(self)}
+        let target = NonNull::from(f(&*self));
+        PyRefMap {target, owner: Box::new(self), _mut: PhantomData}
     }
     
     pub fn into_map_mut<F, U: 'py>(mut self, f: F) -> PyRefMapMut<'py, T, U>
         where F: FnOnce(&mut T) -> &mut U
     {
-        PyRefMapMut {target: f(&mut *self), owner: self}
+        let target = NonNull::from(f(&mut *self));
+        PyRefMapMut {target, owner: Box::new(self), _mut: PhantomData}
     }
 }
 
-impl<'py, U: 'py, T: PyClass<Frozen = False>> Deref for PyRefMapMut<'py, T, U> {
+impl<'py, T, U, Mut> Deref for PyRefMapBase<'py, T, U, Mut> 
+where   
+    U: 'py, 
+    T: PyClass, 
+    Mut: Boolean
+{
     type Target = U;
     fn deref(&self) -> &U {
-        // we own the `PyRef` that is guarding our access to `T`
-        unsafe { &*self.target }
+        // we own the `PyRef` or `PyRefMut` that is guarding our access to `T`
+        unsafe { self.target.as_ref() }
     }
 }
 
-impl<'py, U: 'py, T: PyClass<Frozen = False>> DerefMut for PyRefMapMut<'py, T, U> {
+impl<'py, U: 'py, T: PyClass> DerefMut for PyRefMapMut<'py, T, U> {
     fn deref_mut(&mut self) -> &mut U {
-        // we own the `PyRef` that is guarding our exclusive access to `T`
-        unsafe { &mut *self.target }
+        // we own the `PyRefMut` that is guarding our exclusive access to `T`
+        unsafe { self.target.as_mut() }
     }
 }
 
