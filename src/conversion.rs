@@ -6,6 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
+use std::convert::Infallible;
 #[cfg(feature = "gil-refs")]
 use {
     crate::{
@@ -167,6 +168,65 @@ pub trait IntoPy<T>: Sized {
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::Any
+    }
+}
+
+/// Defines a conversion from a Rust type to a Python object, which may fail.
+///
+/// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
+/// as an argument.
+pub trait IntoPyObject<'py>: Sized {
+    /// The Python output type
+    type Target;
+    /// The type returned in the event of a conversion error.
+    type Error;
+
+    /// Performs the conversion.
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error>;
+}
+
+impl<'py, T> IntoPyObject<'py> for Bound<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for &Bound<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.clone())
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Borrowed<'_, 'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.to_owned())
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Py<T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.into_bound(py))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for &Py<T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.bind(py).clone())
     }
 }
 
@@ -506,6 +566,15 @@ mod implementations {
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty_bound(py).unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for () {
+    type Target = PyTuple;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(PyTuple::empty_bound(py))
     }
 }
 

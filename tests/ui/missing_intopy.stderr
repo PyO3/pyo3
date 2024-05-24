@@ -1,9 +1,38 @@
-error[E0277]: the trait bound `Blah: OkWrap<Blah>` is not satisfied
+error[E0599]: the method `conversion_kind` exists for reference `&&&Blah`, but its trait bounds were not satisfied
  --> tests/ui/missing_intopy.rs:3:1
   |
+1 | struct Blah;
+  | ----------- doesn't satisfy `Blah: IntoPy<Py<PyAny>>`, `Blah: IntoPyKind` or `Blah: IntoPyObject<'_>`
+2 |
 3 | #[pyo3::pyfunction]
-  | ^^^^^^^^^^^^^^^^^^^ the trait `IntoPy<Py<PyAny>>` is not implemented for `Blah`, which is required by `Blah: OkWrap<_>`
+  | ^^^^^^^^^^^^^^^^^^^ method cannot be called on `&&&Blah` due to unsatisfied trait bounds
   |
-  = help: the trait `OkWrap<T>` is implemented for `Result<T, E>`
-  = note: required for `Blah` to implement `OkWrap<Blah>`
+  = note: the following trait bounds were not satisfied:
+          `&&Blah: IntoPy<Py<PyAny>>`
+          which is required by `&&Blah: IntoPyKind`
+          `&Blah: IntoPyObject<'_>`
+          which is required by `&&Blah: IntoPyObjectKind`
+          `&&&Blah: IntoPy<Py<PyAny>>`
+          which is required by `&&&Blah: IntoPyKind`
+          `&&Blah: IntoPyObject<'_>`
+          which is required by `&&&Blah: IntoPyObjectKind`
+          `&Blah: IntoPy<Py<PyAny>>`
+          which is required by `&Blah: IntoPyKind`
+          `Blah: IntoPyObject<'_>`
+          which is required by `&Blah: IntoPyObjectKind`
+          `Blah: IntoPy<Py<PyAny>>`
+          which is required by `Blah: IntoPyKind`
+note: the traits `IntoPy` and `IntoPyObject` must be implemented
+ --> src/conversion.rs
+  |
+  | pub trait IntoPy<T>: Sized {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+  | pub trait IntoPyObject<'py>: Sized {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `conversion_kind`, perhaps you need to implement one of them:
+          candidate #1: `IntoPyKind`
+          candidate #2: `IntoPyObjectKind`
+          candidate #3: `IntoPyNoneKind`
   = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

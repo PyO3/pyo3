@@ -3,9 +3,9 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
+    conversion::IntoPyObject,
     instance::Bound,
-    types::dict::PyDictMethods,
-    types::{any::PyAnyMethods, IntoPyDict, PyDict},
+    types::{any::PyAnyMethods, dict::PyDictMethods, IntoPyDict, PyDict},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
@@ -49,6 +49,25 @@ where
     }
 }
 
+impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
+    H: hash::BuildHasher,
+    PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        let dict = PyDict::new_bound(py);
+        for (k, v) in self {
+            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+        }
+        Ok(dict)
+    }
+}
+
 impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
 where
     K: cmp::Eq + IntoPy<PyObject>,
@@ -64,6 +83,24 @@ where
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::dict_of(K::type_output(), V::type_output())
+    }
+}
+
+impl<'py, K, V> IntoPyObject<'py> for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + IntoPyObject<'py>,
+    V: IntoPyObject<'py>,
+    PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, PyDict>, Self::Error> {
+        let dict = PyDict::new_bound(py);
+        for (k, v) in self {
+            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+        }
+        Ok(dict)
     }
 }
 

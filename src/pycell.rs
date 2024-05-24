@@ -193,7 +193,7 @@
 //! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
-use crate::conversion::AsPyPointer;
+use crate::conversion::{AsPyPointer, IntoPyObject};
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pyclass::{boolean_struct::False, PyClass};
@@ -209,6 +209,7 @@ use crate::{
     PyNativeType, PyResult, PyTypeCheck,
 };
 use crate::{ffi, Bound, IntoPy, PyErr, PyObject, Python};
+use std::convert::Infallible;
 use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
@@ -774,6 +775,24 @@ impl<T: PyClass> IntoPy<PyObject> for &'_ PyRef<'_, T> {
     }
 }
 
+impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.inner.clone())
+    }
+}
+
+impl<'py, T: PyClass> IntoPyObject<'py> for &PyRef<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.inner.clone())
+    }
+}
+
 #[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRef<'a, T> {
@@ -926,6 +945,24 @@ impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for PyRefMut<'_, T> {
 impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for &'_ PyRefMut<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.inner.clone().into_py(py)
+    }
+}
+
+impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.inner.clone())
+    }
+}
+
+impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyRefMut<'py, T> {
+    type Target = T;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+        Ok(self.inner.clone())
     }
 }
 
