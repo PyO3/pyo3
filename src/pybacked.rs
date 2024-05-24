@@ -7,7 +7,8 @@ use crate::{
         any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
         string::PyStringMethods, PyByteArray, PyBytes, PyString,
     },
-    Bound, DowncastError, FromPyObject, Py, PyAny, PyErr, PyResult,
+    Bound, DowncastError, Py, PyAny, PyErr, PyResult,
+    FromPyObject, ToPyObject, IntoPy, Python
 };
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
@@ -82,6 +83,18 @@ impl FromPyObject<'_> for PyBackedStr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let py_string = obj.downcast::<PyString>()?.to_owned();
         Self::try_from(py_string)
+    }
+}
+
+impl ToPyObject for PyBackedStr {
+    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+        self.storage.clone_ref(py)
+    }
+}
+
+impl IntoPy<Py<PyAny>> for PyBackedStr {
+    fn into_py(self, _py: Python<'_>) -> Py<PyAny> {
+        self.storage
     }
 }
 
