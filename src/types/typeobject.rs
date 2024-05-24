@@ -195,7 +195,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             .getattr(intern!(self.py(), "__mro__"))
             .expect("Cannot get `__mro__` from object.")
             .extract()
-            .expect("Cannot convert to Rust object.");
+            .expect("Unexpected type in `__mro__` attribute.");
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let mro = unsafe {
