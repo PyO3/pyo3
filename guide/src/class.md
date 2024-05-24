@@ -1,4 +1,4 @@
-t# Python classes
+# Python classes
 
 PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
