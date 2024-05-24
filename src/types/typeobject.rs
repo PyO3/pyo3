@@ -193,36 +193,40 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
     fn mro(&self) -> Bound<'py, PyTuple> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
-        let mro = self.getattr(intern!(self.py(), "__mro__"))
-        .expect("Cannot get `__mro__` from object.")
-        .extract()
-        .expect("Cannot convert to Rust object.");
+        let mro = self
+            .getattr(intern!(self.py(), "__mro__"))
+            .expect("Cannot get `__mro__` from object.")
+            .extract()
+            .expect("Cannot convert to Rust object.");
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let mro = unsafe {
             (*self.as_type_ptr())
                 .tp_mro
                 .assume_borrowed(self.py())
-        .to_owned()
-        .downcast_into_unchecked()};
+                .to_owned()
+                .downcast_into_unchecked()
+        };
 
         mro
     }
 
     fn bases(&self) -> Bound<'py, PyTuple> {
         #[cfg(any(Py_LIMITED_API, PyPy))]
-        let bases = self.getattr(intern!(self.py(), "__bases__"))
-        .expect("Cannot get `__bases__` from object.")
-        .extract()
-        .expect("Cannot convert to Rust object.");
+        let bases = self
+            .getattr(intern!(self.py(), "__bases__"))
+            .expect("Cannot get `__bases__` from object.")
+            .extract()
+            .expect("Cannot convert to Rust object.");
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let bases = unsafe {
             (*self.as_type_ptr())
                 .tp_bases
                 .assume_borrowed(self.py())
-        .to_owned()
-        .downcast_into_unchecked()};
+                .to_owned()
+                .downcast_into_unchecked()
+        };
 
         bases
     }
