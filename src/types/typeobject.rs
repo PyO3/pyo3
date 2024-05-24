@@ -1,6 +1,4 @@
 use crate::err::{self, PyResult};
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
@@ -201,6 +199,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let mro = unsafe {
+            use crate::ffi_ptr_ext::FfiPtrExt;
             (*self.as_type_ptr())
                 .tp_mro
                 .assume_borrowed(self.py())
@@ -221,6 +220,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         let bases = unsafe {
+            use crate::ffi_ptr_ext::FfiPtrExt;
             (*self.as_type_ptr())
                 .tp_bases
                 .assume_borrowed(self.py())
