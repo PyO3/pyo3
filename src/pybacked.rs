@@ -7,8 +7,7 @@ use crate::{
         any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
         string::PyStringMethods, PyByteArray, PyBytes, PyString,
     },
-    Bound, DowncastError, Py, PyAny, PyErr, PyResult,
-    FromPyObject, ToPyObject, IntoPy, Python
+    Bound, DowncastError, FromPyObject, IntoPy, Py, PyAny, PyErr, PyResult, Python, ToPyObject,
 };
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
