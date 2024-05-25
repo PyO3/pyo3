@@ -103,3 +103,27 @@ help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(Partial
 38 + #[derive(PartialEq)]
 39 | enum ComplexEqOptRequiresPartialEq {
    |
+
+error[E0277]: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:49:23
+   |
+49 | #[pyclass(eq, eq_int, hash)]
+   |                       ^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
+   |
+help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+51 + #[derive(Hash)]
+52 | enum SimpleHashOptRequiresHash {
+   |
+
+error[E0277]: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:56:11
+   |
+56 | #[pyclass(hash)]
+   |           ^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
+   |
+help: consider annotating `ComplexHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+57 + #[derive(Hash)]
+58 | enum ComplexHashOptRequiresHash {
+   |

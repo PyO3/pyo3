@@ -200,6 +200,34 @@ fn class_with_object_field() {
     });
 }
 
+#[pyclass(hash)]
+#[derive(Hash)]
+struct ClassWithHash {
+    value: usize,
+}
+
+#[test]
+fn class_with_hash() {
+    Python::with_gil(|py| {
+        use pyo3::types::IntoPyDict;
+        let class = ClassWithHash { value: 42 };
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            class.hash(&mut hasher);
+            hasher.finish() as isize
+        };
+
+        let env = [
+            ("obj", Py::new(py, class).unwrap().into_any()),
+            ("hsh", hash.into_py(py)),
+        ]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *env, "hash(obj) == hsh");
+    });
+}
+
 #[pyclass(unsendable, subclass)]
 struct UnsendableBase {
     value: std::rc::Rc<usize>,

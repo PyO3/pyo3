@@ -220,3 +220,63 @@ fn test_renaming_all_enum_variants() {
         );
     });
 }
+
+#[pyclass(eq, eq_int, hash)]
+#[derive(PartialEq, Hash)]
+enum SimpleEnumWithHash {
+    A,
+    B,
+}
+
+#[test]
+fn test_simple_enum_with_hash() {
+    Python::with_gil(|py| {
+        use pyo3::types::IntoPyDict;
+        let class = SimpleEnumWithHash::A;
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            class.hash(&mut hasher);
+            hasher.finish() as isize
+        };
+
+        let env = [
+            ("obj", Py::new(py, class).unwrap().into_any()),
+            ("hsh", hash.into_py(py)),
+        ]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *env, "hash(obj) == hsh");
+    });
+}
+
+#[pyclass(hash)]
+#[derive(Hash)]
+enum ComplexEnumWithHash {
+    A(u32),
+    B { msg: String },
+}
+
+#[test]
+fn test_complex_enum_with_hash() {
+    Python::with_gil(|py| {
+        use pyo3::types::IntoPyDict;
+        let class = ComplexEnumWithHash::B {
+            msg: String::from("Hello"),
+        };
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            class.hash(&mut hasher);
+            hasher.finish() as isize
+        };
+
+        let env = [
+            ("obj", Py::new(py, class).unwrap().into_any()),
+            ("hsh", hash.into_py(py)),
+        ]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *env, "hash(obj) == hsh");
+    });
+}

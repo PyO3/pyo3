@@ -121,6 +121,15 @@ impl Number {
     }
 }
 ```
+To implement `__hash__` using the Rust [`Hash`] trait implementation, the `hash` option can be used.
+```rust
+# use pyo3::prelude::*;
+#
+#[pyclass(eq, hash)]
+#[derive(PartialEq, Hash)]
+struct Number(i32);
+```
+
 
 > **Note**: When implementing `__hash__` and comparisons, it is important that the following property holds:
 >

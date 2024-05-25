@@ -46,4 +46,17 @@ enum NoEqInt {
     B { msg: String },
 }
 
+#[pyclass(eq, eq_int, hash)]
+#[derive(PartialEq)]
+enum SimpleHashOptRequiresHash {
+    A,
+    B,
+}
+
+#[pyclass(hash)]
+enum ComplexHashOptRequiresHash {
+    A(i32),
+    B { msg: String },
+}
+
 fn main() {}
