@@ -203,6 +203,28 @@ impl FromPyObject<'_> for PyBackedBytes {
     }
 }
 
+impl ToPyObject for PyBackedBytes {
+    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+        match &self.storage {
+            PyBackedBytesStorage::Python(bytes) => bytes.to_object(py),
+            PyBackedBytesStorage::Rust(bytes) => {
+                PyByteArray::new_bound(py, bytes).into_any().unbind()
+            }
+        }
+    }
+}
+
+impl IntoPy<Py<PyAny>> for PyBackedBytes {
+    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
+        match self.storage {
+            PyBackedBytesStorage::Python(bytes) => bytes.into_any(),
+            PyBackedBytesStorage::Rust(bytes) => {
+                PyByteArray::new_bound(py, &bytes).into_any().unbind()
+            }
+        }
+    }
+}
+
 macro_rules! impl_traits {
     ($slf:ty, $equiv:ty) => {
         impl std::fmt::Debug for $slf {
