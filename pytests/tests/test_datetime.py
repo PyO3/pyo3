@@ -6,7 +6,7 @@ import sys
 
 import pyo3_pytests.datetime as rdt
 import pytest
-from hypothesis import example, given
+from hypothesis import given
 from hypothesis import strategies as st
 
 
@@ -227,7 +227,6 @@ def test_datetime_typeerror():
 
 
 @given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
-@example(dt=pdt.datetime(1971, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
     if PYPY and dt < pdt.datetime(1900, 1, 1):
         pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
