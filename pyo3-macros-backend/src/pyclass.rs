@@ -23,7 +23,7 @@ use crate::pymethod::{
 };
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
 use crate::utils::{is_abi3, Ctx};
-use crate::PyFunctionOptions;
+use crate::{pyversions, PyFunctionOptions};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -170,7 +170,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
             PyClassPyO3Option::Dict(dict) => {
                 ensure_spanned!(
-                    python_version >= PY_3_9 || !is_abi3(),
+                    python_version >= pyversions::PY_3_9 || !is_abi3(),
                     dict.span() => "`dict` requires Python >= 3.9 with the `abi3` feature"
                 );
                 set_option!(dict);
@@ -189,7 +189,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => {
                 ensure_spanned!(
-                    python_version >= PY_3_9 || !is_abi3(),
+                    python_version >= pyversions::PY_3_9 || !is_abi3(),
                     weakref.span() => "`weakref` requires Python >= 3.9 with the `abi3` feature"
                 );
                 set_option!(weakref);
