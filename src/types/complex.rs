@@ -147,9 +147,12 @@ mod not_limited_impls {
         type Output = Bound<'py, PyComplex>;
         fn neg(self) -> Self::Output {
             self.as_borrowed()
-            .getattr("__neg__").expect("Cannot find `__neg__` method.")
-            .call0().expect("Failed to call `__neg__` method.")
-            .downcast_into().expect("Failed to downcast to complex number.")
+                .getattr("__neg__")
+                .expect("Cannot find `__neg__` method.")
+                .call0()
+                .expect("Failed to call `__neg__` method.")
+                .downcast_into()
+                .expect("Failed to downcast to complex number.")
         }
     }
 
@@ -279,17 +282,22 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn abs(&self) -> c_double {
         self.as_borrowed()
-        .getattr("__abs__").expect("Cannot find `__abs__` method.")
-        .call0().expect("Failed to call `__abs__` method.")
-        .downcast_into().expect("Failed to downcast to complex number.")
-        .extract().expect("Failed to extract to c double.")
+            .getattr("__abs__")
+            .expect("Cannot find `__abs__` method.")
+            .call0()
+            .expect("Failed to call `__abs__` method.")
+            .downcast_into()
+            .expect("Failed to downcast to complex number.")
+            .extract()
+            .expect("Failed to extract to c double.")
     }
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
         Python::with_gil(|py| {
             PyAnyMethods::pow(self.as_any(), other, py.None())
-            .downcast_into().expect("Complex method __pow__ failed.")
+                .downcast_into()
+                .expect("Complex method __pow__ failed.")
         })
     }
 }
