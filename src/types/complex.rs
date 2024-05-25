@@ -61,7 +61,6 @@ impl PyComplex {
 
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 mod not_limited_impls {
-    use crate::ffi_ptr_ext::FfiPtrExt;
     use crate::Borrowed;
 
     use super::*;
@@ -77,17 +76,6 @@ mod not_limited_impls {
         pub fn pow<'py>(&'py self, other: &'py PyComplex) -> &'py PyComplex {
             self.as_borrowed().pow(&other.as_borrowed()).into_gil_ref()
         }
-    }
-
-    #[inline(always)]
-    pub(super) unsafe fn complex_operation<'py>(
-        l: Borrowed<'_, 'py, PyComplex>,
-        r: Borrowed<'_, 'py, PyComplex>,
-        operation: unsafe extern "C" fn(ffi::Py_complex, ffi::Py_complex) -> ffi::Py_complex,
-    ) -> *mut ffi::PyObject {
-        let l_val = (*l.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-        let r_val = (*r.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-        ffi::PyComplex_FromCComplex(operation(l_val, r_val))
     }
 
     macro_rules! bin_ops {
@@ -158,12 +146,10 @@ mod not_limited_impls {
     impl<'py> Neg for Borrowed<'_, 'py, PyComplex> {
         type Output = Bound<'py, PyComplex>;
         fn neg(self) -> Self::Output {
-            unsafe {
-                let val = (*self.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-                ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val))
-                    .assume_owned(self.py())
-                    .downcast_into_unchecked()
-            }
+            self.as_borrowed()
+            .getattr("__neg__").expect("Cannot find `__neg__` method.")
+            .call0().expect("Failed to call `__neg__` method.")
+            .downcast_into().expect("Failed to downcast to complex number.")
         }
     }
 
@@ -292,24 +278,19 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn abs(&self) -> c_double {
-        unsafe {
-            let val = (*self.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-            ffi::_Py_c_abs(val)
-        }
+        self.as_borrowed()
+        .getattr("__abs__").expect("Cannot find `__abs__` method.")
+        .call0().expect("Failed to call `__abs__` method.")
+        .downcast_into().expect("Failed to downcast to complex number.")
+        .extract().expect("Failed to extract to c double.")
     }
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
-        use crate::ffi_ptr_ext::FfiPtrExt;
-        unsafe {
-            not_limited_impls::complex_operation(
-                self.as_borrowed(),
-                other.as_borrowed(),
-                ffi::_Py_c_pow,
-            )
-            .assume_owned(self.py())
-            .downcast_into_unchecked()
-        }
+        Python::with_gil(|py| {
+            PyAnyMethods::pow(self.as_any(), other, py.None())
+            .downcast_into().expect("Complex method __pow__ failed.")
+        })
     }
 }
 
