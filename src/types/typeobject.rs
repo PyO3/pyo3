@@ -1,6 +1,7 @@
 use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
 use crate::types::any::PyAnyMethods;
+use crate::types::PyTuple;
 #[cfg(feature = "gil-refs")]
 use crate::PyNativeType;
 use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
@@ -127,6 +128,16 @@ pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     fn is_subclass_of<T>(&self) -> PyResult<bool>
     where
         T: PyTypeInfo;
+
+    /// Return the method resolution order for this type.
+    ///
+    /// Equivalent to the Python expression `self.__mro__`.
+    fn mro(&self) -> Bound<'py, PyTuple>;
+
+    /// Return Python bases
+    ///
+    /// Equivalent to the Python expression `self.__bases__`.
+    fn bases(&self) -> Bound<'py, PyTuple>;
 }
 
 impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
@@ -177,6 +188,48 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     {
         self.is_subclass(&T::type_object_bound(self.py()))
     }
+
+    fn mro(&self) -> Bound<'py, PyTuple> {
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        let mro = self
+            .getattr(intern!(self.py(), "__mro__"))
+            .expect("Cannot get `__mro__` from object.")
+            .extract()
+            .expect("Unexpected type in `__mro__` attribute.");
+
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        let mro = unsafe {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+            (*self.as_type_ptr())
+                .tp_mro
+                .assume_borrowed(self.py())
+                .to_owned()
+                .downcast_into_unchecked()
+        };
+
+        mro
+    }
+
+    fn bases(&self) -> Bound<'py, PyTuple> {
+        #[cfg(any(Py_LIMITED_API, PyPy))]
+        let bases = self
+            .getattr(intern!(self.py(), "__bases__"))
+            .expect("Cannot get `__bases__` from object.")
+            .extract()
+            .expect("Unexpected type in `__bases__` attribute.");
+
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        let bases = unsafe {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+            (*self.as_type_ptr())
+                .tp_bases
+                .assume_borrowed(self.py())
+                .to_owned()
+                .downcast_into_unchecked()
+        };
+
+        bases
+    }
 }
 
 impl<'a> Borrowed<'a, '_, PyType> {
@@ -215,8 +268,8 @@ impl<'a> Borrowed<'a, '_, PyType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::typeobject::PyTypeMethods;
-    use crate::types::{PyBool, PyLong};
+    use crate::types::{PyAnyMethods, PyBool, PyInt, PyLong, PyTuple, PyTypeMethods};
+    use crate::PyAny;
     use crate::Python;
 
     #[test]
@@ -234,6 +287,46 @@ mod tests {
             assert!(py
                 .get_type_bound::<PyBool>()
                 .is_subclass_of::<PyLong>()
+                .unwrap());
+        });
+    }
+
+    #[test]
+    fn test_mro() {
+        Python::with_gil(|py| {
+            assert!(py
+                .get_type_bound::<PyBool>()
+                .mro()
+                .eq(PyTuple::new_bound(
+                    py,
+                    [
+                        py.get_type_bound::<PyBool>(),
+                        py.get_type_bound::<PyInt>(),
+                        py.get_type_bound::<PyAny>()
+                    ]
+                ))
+                .unwrap());
+        });
+    }
+
+    #[test]
+    fn test_bases_bool() {
+        Python::with_gil(|py| {
+            assert!(py
+                .get_type_bound::<PyBool>()
+                .bases()
+                .eq(PyTuple::new_bound(py, [py.get_type_bound::<PyInt>()]))
+                .unwrap());
+        });
+    }
+
+    #[test]
+    fn test_bases_object() {
+        Python::with_gil(|py| {
+            assert!(py
+                .get_type_bound::<PyAny>()
+                .bases()
+                .eq(PyTuple::empty_bound(py))
                 .unwrap());
         });
     }
