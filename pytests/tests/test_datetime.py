@@ -56,11 +56,11 @@ else:
 IS_WINDOWS = sys.platform == "win32"
 
 if IS_WINDOWS:
-    MIN_DATETIME = pdt.datetime(1971, 1, 2, 0, 0)
+    MIN_DATETIME = pdt.datetime(1970, 1, 1, 0, 0, 0)
     if IS_32_BIT:
-        MAX_DATETIME = pdt.datetime(3001, 1, 19, 4, 59, 59)
+        MAX_DATETIME = pdt.datetime(2038, 1, 18, 23, 59, 59)
     else:
-        MAX_DATETIME = pdt.datetime(3001, 1, 19, 7, 59, 59)
+        MAX_DATETIME = pdt.datetime(3000, 12, 31, 23, 59, 59)
 else:
     if IS_32_BIT:
         # TS ±2147483648 (2**31)
