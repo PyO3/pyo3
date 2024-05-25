@@ -175,7 +175,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Dict(dict) => {
                 ensure_spanned!(
                     python_version >= PY_3_9 || !is_abi3(),
-                    dict.span() => "`dict` requires >= python 3.9 with the `abi3` feature"
+                    dict.span() => "`dict` requires Python >= 3.9 with the `abi3` feature"
                 );
                 set_option!(dict);
             }
