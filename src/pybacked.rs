@@ -86,12 +86,14 @@ impl FromPyObject<'_> for PyBackedStr {
     }
 }
 
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 impl ToPyObject for PyBackedStr {
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
         self.storage.clone_ref(py)
     }
 }
 
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 impl IntoPy<Py<PyAny>> for PyBackedStr {
     fn into_py(self, _py: Python<'_>) -> Py<PyAny> {
         self.storage
