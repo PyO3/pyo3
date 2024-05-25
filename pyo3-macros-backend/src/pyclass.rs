@@ -7,8 +7,6 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, spanned::Spanned, Result, Token};
 
-use pyo3_build_config::PythonVersion;
-
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
@@ -26,8 +24,6 @@ use crate::pymethod::{
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
 use crate::utils::{is_abi3, Ctx};
 use crate::PyFunctionOptions;
-
-const PY_3_9: PythonVersion = PythonVersion { major: 3, minor: 9 };
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
