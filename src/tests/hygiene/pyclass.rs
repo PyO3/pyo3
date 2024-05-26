@@ -10,10 +10,10 @@ pub struct Foo;
 #[pyo3(crate = "crate")]
 pub struct Foo2;
 
+#[cfg_attr(any(Py_3_9, not(Py_LIMITED_API)), pyo3(weakref))]
 #[crate::pyclass(
     name = "ActuallyBar",
     freelist = 8,
-    weakref,
     unsendable,
     subclass,
     extends = crate::types::PyAny,
