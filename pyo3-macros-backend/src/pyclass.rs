@@ -190,7 +190,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Weakref(weakref) => {
                 ensure_spanned!(
                     python_version >= pyversions::PY_3_9 || !is_abi3(),
-                    weakref.span() => "`weakref` requires Python >= 3.9 with the `abi3` feature"
+                    weakref.span() => "`weakref` requires Python >= 3.9 when using the `abi3` feature"
                 );
                 set_option!(weakref);
             }
