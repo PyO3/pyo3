@@ -586,7 +586,7 @@ mod tests {
         let repr = reference.repr()?.to_string();
 
         #[cfg(Py_3_13)]
-        let (first_part, second_part) = repr.split_once(";").unwrap();
+        let (first_part, second_part) = repr.split_once(';').unwrap();
         #[cfg(not(Py_3_13))]
         let (first_part, second_part) = repr.split_once(" to ").unwrap();
 
