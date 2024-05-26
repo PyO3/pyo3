@@ -64,6 +64,12 @@ error: `eq_int` can only be used on simple enums.
 52 | #[pyclass(eq_int)]
    |           ^^^^^^
 
+error: The `hash` option can only be using in conjunction with `frozen`.
+  --> tests/ui/invalid_pyclass_args.rs:58:11
+   |
+58 | #[pyclass(hash)]
+   |           ^^^^
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:36:1
    |
@@ -146,10 +152,10 @@ note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `HashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_args.rs:55:11
+  --> tests/ui/invalid_pyclass_args.rs:55:19
    |
-55 | #[pyclass(hash)]
-   |           ^^^^ the trait `Hash` is not implemented for `HashOptRequiresHash`
+55 | #[pyclass(frozen, hash)]
+   |                   ^^^^ the trait `Hash` is not implemented for `HashOptRequiresHash`
    |
 help: consider annotating `HashOptRequiresHash` with `#[derive(Hash)]`
    |

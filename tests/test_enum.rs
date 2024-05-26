@@ -221,7 +221,7 @@ fn test_renaming_all_enum_variants() {
     });
 }
 
-#[pyclass(eq, eq_int, hash)]
+#[pyclass(frozen, eq, eq_int, hash)]
 #[derive(PartialEq, Hash)]
 enum SimpleEnumWithHash {
     A,

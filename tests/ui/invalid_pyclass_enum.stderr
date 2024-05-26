@@ -36,6 +36,12 @@ error: `eq_int` can only be used on simple enums.
 43 | #[pyclass(eq_int)]
    |           ^^^^^^
 
+error: The `hash` option can only be using in conjunction with `frozen`.
+  --> tests/ui/invalid_pyclass_enum.rs:62:11
+   |
+62 | #[pyclass(hash)]
+   |           ^^^^
+
 error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
   --> tests/ui/invalid_pyclass_enum.rs:31:11
    |
@@ -105,10 +111,10 @@ help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(Partial
    |
 
 error[E0277]: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_enum.rs:49:23
+  --> tests/ui/invalid_pyclass_enum.rs:49:31
    |
-49 | #[pyclass(eq, eq_int, hash)]
-   |                       ^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
+49 | #[pyclass(frozen, eq, eq_int, hash)]
+   |                               ^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
    |
 help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
    |
@@ -117,10 +123,10 @@ help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
    |
 
 error[E0277]: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_enum.rs:56:11
+  --> tests/ui/invalid_pyclass_enum.rs:56:19
    |
-56 | #[pyclass(hash)]
-   |           ^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
+56 | #[pyclass(frozen, hash)]
+   |                   ^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
    |
 help: consider annotating `ComplexHashOptRequiresHash` with `#[derive(Hash)]`
    |

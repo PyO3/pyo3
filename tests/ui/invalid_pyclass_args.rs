@@ -52,7 +52,11 @@ impl EqOptAndManualRichCmp {
 #[pyclass(eq_int)]
 struct NoEqInt {}
 
-#[pyclass(hash)]
+#[pyclass(frozen, hash)]
 struct HashOptRequiresHash;
+
+#[pyclass(hash)]
+#[derive(Hash)]
+struct HashWithoutFrozen;
 
 fn main() {}

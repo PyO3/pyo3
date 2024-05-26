@@ -200,7 +200,7 @@ fn class_with_object_field() {
     });
 }
 
-#[pyclass(hash)]
+#[pyclass(frozen, hash)]
 #[derive(Hash)]
 struct ClassWithHash {
     value: usize,

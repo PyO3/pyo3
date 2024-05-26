@@ -122,10 +122,12 @@ impl Number {
 }
 ```
 To implement `__hash__` using the Rust [`Hash`] trait implementation, the `hash` option can be used.
+This option is only available for `frozen` classes to prevent accidental hash changes from mutating the object. If you need
+an `__hash__` implementation for a mutable class, use the manual method from above.
 ```rust
 # use pyo3::prelude::*;
 #
-#[pyclass(eq, hash)]
+#[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]
 struct Number(i32);
 ```

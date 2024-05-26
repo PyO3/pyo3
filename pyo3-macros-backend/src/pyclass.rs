@@ -370,7 +370,7 @@ fn impl_class(
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
     let (default_hash, default_hash_slot) =
-        pyclass_hash(args.options.hash, &syn::parse_quote!(#cls), ctx);
+        pyclass_hash(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
     let mut slots = Vec::new();
     slots.extend(default_richcmp_slot);
@@ -809,7 +809,7 @@ fn impl_simple_enum(
 
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp_simple_enum(&args.options, &ty, repr_type, ctx);
-    let (default_hash, default_hash_slot) = pyclass_hash(args.options.hash, &ty, ctx);
+    let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
     let mut default_slots = vec![default_repr_slot, default_int_slot];
     default_slots.extend(default_richcmp_slot);
@@ -872,7 +872,7 @@ fn impl_complex_enum(
     let pytypeinfo = impl_pytypeinfo(cls, &args, None, ctx);
 
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
-    let (default_hash, default_hash_slot) = pyclass_hash(args.options.hash, &ty, ctx);
+    let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
     let mut default_slots = vec![];
     default_slots.extend(default_richcmp_slot);
@@ -1801,12 +1801,15 @@ fn pyclass_richcmp(
 }
 
 fn pyclass_hash(
-    hash: Option<kw::hash>,
+    options: &PyClassPyO3Options,
     cls: &syn::Type,
     ctx: &Ctx,
-) -> (Option<syn::ImplItemFn>, Option<MethodAndSlotDef>) {
+) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
+    if options.hash.is_some() && options.frozen.is_none() {
+        bail_spanned!(options.hash.span() => "The `hash` option can only be using in conjunction with `frozen`.");
+    }
     // FIXME: Use hash.map(...).unzip() on MSRV >= 1.66
-    match hash {
+    match options.hash {
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
                 fn __pyo3__hash__(&self) -> u64 {
@@ -1817,9 +1820,9 @@ fn pyclass_hash(
             };
             let hash_slot =
                 generate_default_protocol_slot(cls, &mut hash_impl, &__HASH__, ctx).unwrap();
-            (Some(hash_impl), Some(hash_slot))
+            Ok((Some(hash_impl), Some(hash_slot)))
         }
-        None => (None, None),
+        None => Ok((None, None)),
     }
 }
 
