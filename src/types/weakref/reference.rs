@@ -501,7 +501,7 @@ impl PyWeakrefReference {
 
     /// Retrieve to a object pointed to by the weakref.
     ///
-    /// This function returns `&'py PyAny`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    /// This function returns `&'py PyAny`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
     /// It produces similair results to calling the `weakref.ReferenceType` or using [`PyWeakref_GetObject`] in the C api.

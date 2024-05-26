@@ -497,7 +497,7 @@ impl PyWeakrefProxy {
 
     /// Retrieve to a object pointed to by the weakref.
     ///
-    /// This function returns `&'py PyAny`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    /// This function returns `&'py PyAny`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ProxyType`] (or [`weakref.CallableProxyType`], result of calling [`weakref.proxy`]).
     /// It produces similair results using [`PyWeakref_GetObject`] in the C api.

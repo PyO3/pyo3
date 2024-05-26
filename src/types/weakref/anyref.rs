@@ -325,7 +325,7 @@ impl PyWeakref {
 
     /// Retrieve to a object pointed to by the weakref.
     ///
-    /// This function returns `&'py PyAny`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    /// This function returns `&'py PyAny`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`PyWeakref`] (Any Python `weakref` weakreference).
     /// It produces similair results as using [`PyWeakref_GetObject`] in the C api or retrieving the Object from Python.
@@ -1001,7 +1001,7 @@ pub trait PyWeakrefMethods<'py> {
 
     /// Retrieve to a Bound object pointed to by the weakref.
     ///
-    /// This function returns `Bound<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    /// This function returns `Bound<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
     /// It produces similair results to using [`PyWeakref_GetObject`] in the C api.
@@ -1063,7 +1063,7 @@ pub trait PyWeakrefMethods<'py> {
 
     /// Retrieve to a Borrowed object pointed to by the weakref.
     ///
-    /// This function returns `Borrowed<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::none::PyNone).
+    /// This function returns `Borrowed<'py, PyAny>`, which is either the object if it still exists, otherwise it will refer to [`PyNone`](crate::types::PyNone).
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
     /// It produces similair results to  using [`PyWeakref_GetObject`] in the C api.
