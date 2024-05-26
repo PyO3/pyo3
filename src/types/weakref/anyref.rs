@@ -2,7 +2,10 @@ use crate::err::{DowncastError, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::{PyAny, PyAnyMethods};
-use crate::{ffi, Borrowed, Bound, PyNativeType};
+use crate::{ffi, Borrowed, Bound};
+
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 
 /// Represents any Python `weakref` reference.
 ///
@@ -25,6 +28,7 @@ impl PyTypeCheck for PyWeakref {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyWeakref {
     // TODO: MAYBE ADD CREATION METHODS OR EASY CASTING?;
 

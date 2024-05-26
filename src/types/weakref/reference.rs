@@ -1,9 +1,13 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
-use crate::{ffi, AsPyPointer, Borrowed, Bound, PyNativeType, ToPyObject};
+use crate::{ffi, AsPyPointer, Borrowed, Bound, ToPyObject};
+
+#[cfg(any(any(PyPy, GraalPy, Py_LIMITED_API), feature = "gil-refs"))]
+use crate::type_object::PyTypeCheck;
+#[cfg(feature = "gil-refs")]
+use crate::{type_object::PyTypeInfo, PyNativeType};
 
 use super::PyWeakrefMethods;
 
@@ -38,22 +42,6 @@ impl PyTypeCheck for PyWeakrefReference {
 }
 
 impl PyWeakrefReference {
-    /// Deprecated form of [`PyWeakrefReference::new_bound`].
-    #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyWeakrefReference::new` will be replaced by `PyWeakrefReference::new_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn new<T>(object: &T) -> PyResult<&PyWeakrefReference>
-    where
-        T: PyNativeType,
-    {
-        Self::new_bound(object.as_borrowed().as_any()).map(Bound::into_gil_ref)
-    }
-
     /// Constructs a new Weak Reference (`weakref.ref`/`weakref.ReferenceType`) for the given object.
     ///
     /// Returns a `TypeError` if `object` is not weak referenceable (Most native types and PyClasses without `weakref` flag).
@@ -106,23 +94,6 @@ impl PyWeakrefReference {
         }
 
         inner(object)
-    }
-
-    /// Deprecated form of [`PyWeakrefReference::new_bound_with`].
-    #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyWeakrefReference::new_with` will be replaced by `PyWeakrefReference::new_bound_with` in a future PyO3 version"
-        )
-    )]
-    pub fn new_with<T, C>(object: &T, callback: C) -> PyResult<&PyWeakrefReference>
-    where
-        T: PyNativeType,
-        C: ToPyObject,
-    {
-        Self::new_bound_with(object.as_borrowed().as_any(), callback).map(Bound::into_gil_ref)
     }
 
     /// Constructs a new Weak Reference (`weakref.ref`/`weakref.ReferenceType`) for the given object with a callback.
@@ -201,6 +172,36 @@ impl PyWeakrefReference {
 
         let py = object.py();
         inner(object, callback.to_object(py).into_bound(py))
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyWeakrefReference {
+    /// Deprecated form of [`PyWeakrefReference::new_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyWeakrefReference::new` will be replaced by `PyWeakrefReference::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<T>(object: &T) -> PyResult<&PyWeakrefReference>
+    where
+        T: PyNativeType,
+    {
+        Self::new_bound(object.as_borrowed().as_any()).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyWeakrefReference::new_bound_with`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyWeakrefReference::new_with` will be replaced by `PyWeakrefReference::new_bound_with` in a future PyO3 version"
+    )]
+    pub fn new_with<T, C>(object: &T, callback: C) -> PyResult<&PyWeakrefReference>
+    where
+        T: PyNativeType,
+        C: ToPyObject,
+    {
+        Self::new_bound_with(object.as_borrowed().as_any(), callback).map(Bound::into_gil_ref)
     }
 
     /// Upgrade the weakref to a direct object reference.
