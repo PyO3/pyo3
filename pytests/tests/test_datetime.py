@@ -96,7 +96,11 @@ def test_date_from_timestamp(d):
     if PYPY and d < pdt.date(1900, 1, 1):
         pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
 
-    ts = pdt.datetime.timestamp(pdt.datetime.combine(d, pdt.time(0)))
+    ts = pdt.datetime.timestamp(
+        pdt.datetime.combine(d, pdt.time(0)).replace(
+            tzinfo=pdt.timezone(pdt.timedelta(0))
+        )
+    )
     assert rdt.date_from_timestamp(int(ts)) == pdt.date.fromtimestamp(ts)
 
 
@@ -231,7 +235,7 @@ def test_datetime_from_timestamp(dt):
     if PYPY and dt < pdt.datetime(1900, 1, 1):
         pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
 
-    ts = pdt.datetime.timestamp(dt)
+    ts = pdt.datetime.timestamp(dt.replace(tzinfo=pdt.timezone(pdt.timedelta(0))))
     assert rdt.datetime_from_timestamp(ts) == pdt.datetime.fromtimestamp(ts)
 
 
