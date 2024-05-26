@@ -25,7 +25,7 @@ pub struct Bar {
     a: u8,
     #[pyo3(get, set)]
     b: Foo,
-    #[pyo3(get, set)]
+    #[pyo3(set)]
     c: ::std::option::Option<crate::Py<Foo2>>,
 }
 
@@ -39,11 +39,11 @@ pub enum Enum {
 #[pyo3(crate = "crate")]
 pub struct Foo3 {
     #[pyo3(get, set)]
-    #[cfg(FALSE)]
+    #[cfg(any())]
     field: i32,
 
     #[pyo3(get, set)]
-    #[cfg(not(FALSE))]
+    #[cfg(not(any()))]
     field: u32,
 }
 
@@ -51,11 +51,11 @@ pub struct Foo3 {
 #[pyo3(crate = "crate")]
 pub struct Foo4 {
     #[pyo3(get, set)]
-    #[cfg(FALSE)]
-    #[cfg(not(FALSE))]
+    #[cfg(any())]
+    #[cfg(not(any()))]
     field: i32,
 
     #[pyo3(get, set)]
-    #[cfg(not(FALSE))]
+    #[cfg(not(any()))]
     field: u32,
 }

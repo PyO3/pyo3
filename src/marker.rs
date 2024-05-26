@@ -96,7 +96,7 @@
 //! enabled, `Ungil` is defined as the following:
 //!
 //! ```rust
-//! # #[cfg(FALSE)]
+//! # #[cfg(any())]
 //! # {
 //! #![feature(auto_traits, negative_impls)]
 //!
@@ -116,20 +116,20 @@
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: std::rc::Rc
 //! [`Py`]: crate::Py
-use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::gil::{GILGuard, SuspendGIL};
 use crate::impl_::not_send::NotSend;
 use crate::py_result_ext::PyResultExt;
-use crate::type_object::HasPyGilRef;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyNativeType, PyObject, PyTypeCheck, PyTypeInfo};
+use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 #[allow(deprecated)]
-use crate::{gil::GILPool, FromPyPointer};
+#[cfg(feature = "gil-refs")]
+use crate::{gil::GILPool, FromPyPointer, PyNativeType};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -306,7 +306,7 @@ pub use nightly::Ungil;
 /// A marker token that represents holding the GIL.
 ///
 /// It serves three main purposes:
-/// - It provides a global API for the Python interpreter, such as [`Python::eval`].
+/// - It provides a global API for the Python interpreter, such as [`Python::eval_bound`].
 /// - It can be passed to functions that require a proof of holding the GIL, such as
 /// [`Py::clone_ref`].
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
@@ -322,7 +322,7 @@ pub use nightly::Ungil;
 /// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
 /// as a parameter, and PyO3 will pass in the token when Python code calls it.
 /// - If you already have something with a lifetime bound to the GIL, such as `&`[`PyAny`], you can
-/// use its [`.py()`][PyAny::py] method to get a token.
+/// use its `.py()` method to get a token.
 /// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
 /// should call [`Python::with_gil`] to do that and pass your code as a closure to it.
 ///
@@ -353,36 +353,9 @@ pub use nightly::Ungil;
 /// # Releasing and freeing memory
 ///
 /// The [`Python`] type can be used to create references to variables owned by the Python
-/// interpreter, using functions such as [`Python::eval`] and [`PyModule::import`]. These
-/// references are tied to a [`GILPool`] whose references are not cleared until it is dropped.
-/// This can cause apparent "memory leaks" if it is kept around for a long time.
+/// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import_bound`].
 ///
-/// ```rust
-/// use pyo3::prelude::*;
-/// use pyo3::types::PyString;
-///
-/// # fn main () -> PyResult<()> {
-/// Python::with_gil(|py| -> PyResult<()> {
-///     for _ in 0..10 {
-///         let hello = py.eval_bound("\"Hello World!\"", None, None)?.downcast_into::<PyString>()?;
-///         println!("Python says: {}", hello.to_cow()?);
-///         // Normally variables in a loop scope are dropped here, but `hello` is a reference to
-///         // something owned by the Python interpreter. Dropping this reference does nothing.
-///     }
-///     Ok(())
-/// })
-/// // This is where the `hello`'s reference counts start getting decremented.
-/// # }
-/// ```
-///
-/// The variable `hello` is dropped at the end of each loop iteration, but the lifetime of the
-/// pointed-to memory is bound to [`Python::with_gil`]'s [`GILPool`] which will not be dropped until
-/// the end of [`Python::with_gil`]'s scope. Only then is each `hello`'s Python reference count
-/// decreased. This means that at the last line of the example there are 10 copies of `hello` in
-/// Python's memory, not just one at a time as we might expect from Rust's [scoping rules].
-///
-/// See the [Memory Management] chapter of the guide for more information about how PyO3 uses
-/// [`GILPool`] to manage memory.
+/// See the [Memory Management] chapter of the guide for more information about how PyO3 manages memory.
 ///
 /// [scoping rules]: https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html#ownership-rules
 /// [`Py::clone_ref`]: crate::Py::clone_ref
@@ -436,10 +409,10 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let _guard = GILGuard::acquire();
+        let guard = GILGuard::acquire();
 
         // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
-        f(unsafe { Python::assume_gil_acquired() })
+        f(guard.python())
     }
 
     /// Like [`Python::with_gil`] except Python interpreter state checking is skipped.
@@ -470,10 +443,9 @@ impl Python<'_> {
     where
         F: for<'py> FnOnce(Python<'py>) -> R,
     {
-        let _guard = GILGuard::acquire_unchecked();
+        let guard = GILGuard::acquire_unchecked();
 
-        // SAFETY: Either the GIL was already acquired or we just created a new `GILGuard`.
-        f(Python::assume_gil_acquired())
+        f(guard.python())
     }
 }
 
@@ -553,12 +525,10 @@ impl<'py> Python<'py> {
     }
 
     /// Deprecated version of [`Python::eval_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::eval` will be replaced by `Python::eval_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::eval` will be replaced by `Python::eval_bound` in a future PyO3 version"
     )]
     pub fn eval(
         self,
@@ -602,12 +572,10 @@ impl<'py> Python<'py> {
     }
 
     /// Deprecated version of [`Python::run_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::run` will be replaced by `Python::run_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::run` will be replaced by `Python::run_bound` in a future PyO3 version"
     )]
     pub fn run(
         self,
@@ -729,12 +697,10 @@ impl<'py> Python<'py> {
     }
 
     /// Gets the Python type object for type `T`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::get_type` will be replaced by `Python::get_type_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::get_type` will be replaced by `Python::get_type_bound` in a future PyO3 version"
     )]
     #[inline]
     pub fn get_type<T>(self) -> &'py PyType
@@ -754,12 +720,10 @@ impl<'py> Python<'py> {
     }
 
     /// Deprecated form of [`Python::import_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`Python::import` will be replaced by `Python::import_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`Python::import` will be replaced by `Python::import_bound` in a future PyO3 version"
     )]
     pub fn import<N>(self, name: N) -> PyResult<&'py PyModule>
     where
@@ -839,16 +803,17 @@ impl<'py> Python<'py> {
     }
 
     /// Registers the object in the release pool, and tries to downcast to specific type.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
     )]
-    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
+    pub fn checked_cast_as<T>(
+        self,
+        obj: PyObject,
+    ) -> Result<&'py T, crate::err::PyDowncastError<'py>>
     where
-        T: PyTypeCheck<AsRefTarget = T>,
+        T: crate::PyTypeCheck<AsRefTarget = T>,
     {
         #[allow(deprecated)]
         obj.into_ref(self).downcast()
@@ -860,16 +825,14 @@ impl<'py> Python<'py> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
     )]
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
     where
-        T: HasPyGilRef<AsRefTarget = T>,
+        T: crate::type_object::HasPyGilRef<AsRefTarget = T>,
     {
         #[allow(deprecated)]
         obj.into_ref(self).downcast_unchecked()
@@ -882,12 +845,10 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
     )]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
     where
@@ -905,12 +866,10 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
     )]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
     where
@@ -928,12 +887,10 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
     )]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
     where
@@ -950,12 +907,10 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
     )]
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
     where
@@ -972,12 +927,10 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Py::from_borrowed_ptr_or_err(py, ptr)` or `Bound::from_borrowed_ptr_or_err(py, ptr)` instead"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Py::from_borrowed_ptr_or_err(py, ptr)` or `Bound::from_borrowed_ptr_or_err(py, ptr)` instead"
     )]
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
     where
@@ -994,12 +947,10 @@ impl<'py> Python<'py> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention, deprecated)]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "use `Py::from_borrowed_ptr_or_opt(py, ptr)` or `Bound::from_borrowed_ptr_or_opt(py, ptr)` instead"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "use `Py::from_borrowed_ptr_or_opt(py, ptr)` or `Bound::from_borrowed_ptr_or_opt(py, ptr)` instead"
     )]
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
     where
@@ -1111,12 +1062,10 @@ impl<'py> Python<'py> {
     ///
     /// [`.python()`]: crate::GILPool::python
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "code not using the GIL Refs API can safely remove use of `Python::new_pool`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "code not using the GIL Refs API can safely remove use of `Python::new_pool`"
     )]
     #[allow(deprecated)]
     pub unsafe fn new_pool(self) -> GILPool {
@@ -1180,12 +1129,10 @@ impl Python<'_> {
     /// });
     /// ```
     #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "code not using the GIL Refs API can safely remove use of `Python::with_pool`"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "code not using the GIL Refs API can safely remove use of `Python::with_pool`"
     )]
     #[allow(deprecated)]
     pub fn with_pool<F, R>(&self, f: F) -> R
@@ -1228,7 +1175,6 @@ impl<'unbound> Python<'unbound> {
 mod tests {
     use super::*;
     use crate::types::{IntoPyDict, PyList};
-    use std::sync::Arc;
 
     #[test]
     fn test_eval() {
@@ -1314,11 +1260,12 @@ mod tests {
         });
     }
 
+    #[cfg(not(pyo3_disable_reference_pool))]
     #[test]
     fn test_allow_threads_pass_stuff_in() {
         let list = Python::with_gil(|py| PyList::new_bound(py, vec!["foo", "bar"]).unbind());
         let mut v = vec![1, 2, 3];
-        let a = Arc::new(String::from("foo"));
+        let a = std::sync::Arc::new(String::from("foo"));
 
         Python::with_gil(|py| {
             py.allow_threads(|| {

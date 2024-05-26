@@ -330,8 +330,10 @@ For a `&PyAny` object reference `any` where the underlying object is a Python-na
 a list:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
 let obj: &PyAny = PyList::empty(py);
@@ -351,8 +353,10 @@ let _: Py<PyList> = obj.extract()?;
 For a `&PyAny` object reference `any` where the underlying object is a `#[pyclass]`:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # #[pyclass] #[derive(Clone)] struct MyClass { }
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // into_ref is part of the deprecated GIL Refs API
 let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
@@ -390,8 +394,10 @@ To see all Python types exposed by `PyO3` consult the [`pyo3::types`][pyo3::type
 **Conversions:**
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
 let list = PyList::empty(py);
@@ -440,8 +446,10 @@ Like PyO3's Python native types, the GIL Ref `&PyCell<T>` implements `Deref<Targ
 `PyCell<T>` was used to access `&T` and `&mut T` via `PyRef<T>` and `PyRefMut<T>` respectively.
 
 ```rust
+#![allow(unused_imports)]
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // &PyCell is part of the deprecated GIL Refs API
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
@@ -461,8 +469,10 @@ let _: &mut MyClass = &mut *py_ref_mut;
 `PyCell<T>` was also accessed like a Python-native type.
 
 ```rust
+#![allow(unused_imports)]
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
+# #[cfg(feature = "gil-refs")]
 # Python::with_gil(|py| -> PyResult<()> {
 #[allow(deprecated)] // &PyCell is part of the deprecate GIL Refs API
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;

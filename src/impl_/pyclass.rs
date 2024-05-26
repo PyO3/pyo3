@@ -1,3 +1,5 @@
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
@@ -7,8 +9,7 @@ use crate::{
     pyclass_init::PyObjectInit,
     types::any::PyAnyMethods,
     types::PyBool,
-    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo,
-    Python,
+    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
@@ -168,7 +169,12 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
+    #[cfg(feature = "gil-refs")]
     type BaseNativeType: PyTypeInfo + PyNativeType;
+    /// The closest native ancestor. This is `PyAny` by default, and when you declare
+    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
+    #[cfg(not(feature = "gil-refs"))]
+    type BaseNativeType: PyTypeInfo;
 
     /// This handles following two situations:
     /// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.
@@ -1096,6 +1102,13 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
+
+#[cfg_attr(
+    all(diagnostic_namespace, feature = "abi3"),
+    diagnostic::on_unimplemented(
+        note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types"
+    )
+)]
 pub trait PyClassBaseType: Sized {
     type LayoutAsBase: PyClassObjectLayout<Self>;
     type BaseNativeType;

@@ -1,29 +1,29 @@
 error: expected `cancel_handle` or `from_py_with`
  --> tests/ui/invalid_argument_attributes.rs:4:29
   |
-4 | fn invalid_attribute(#[pyo3(get)] param: String) {}
+4 | fn invalid_attribute(#[pyo3(get)] _param: String) {}
   |                             ^^^
 
 error: expected `=`
  --> tests/ui/invalid_argument_attributes.rs:7:45
   |
-7 | fn from_py_with_no_value(#[pyo3(from_py_with)] param: String) {}
+7 | fn from_py_with_no_value(#[pyo3(from_py_with)] _param: String) {}
   |                                             ^
 
 error: expected `cancel_handle` or `from_py_with`
   --> tests/ui/invalid_argument_attributes.rs:10:31
    |
-10 | fn from_py_with_string(#[pyo3("from_py_with")] param: String) {}
+10 | fn from_py_with_string(#[pyo3("from_py_with")] _param: String) {}
    |                               ^^^^^^^^^^^^^^
 
 error: expected string literal
   --> tests/ui/invalid_argument_attributes.rs:13:58
    |
-13 | fn from_py_with_value_not_a_string(#[pyo3(from_py_with = func)] param: String) {}
+13 | fn from_py_with_value_not_a_string(#[pyo3(from_py_with = func)] _param: String) {}
    |                                                          ^^^^
 
 error: `from_py_with` may only be specified once per argument
   --> tests/ui/invalid_argument_attributes.rs:16:56
    |
-16 | fn from_py_with_repeated(#[pyo3(from_py_with = "func", from_py_with = "func")] param: String) {}
+16 | fn from_py_with_repeated(#[pyo3(from_py_with = "func", from_py_with = "func")] _param: String) {}
    |                                                        ^^^^^^^^^^^^

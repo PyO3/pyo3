@@ -13,7 +13,7 @@ use crate::{
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
 ///
 /// This type gives access to the underlying data via a `Deref` implementation.
-#[derive(Clone)]
+#[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedStr {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: Py<PyAny>,
@@ -88,7 +88,7 @@ impl FromPyObject<'_> for PyBackedStr {
 /// A wrapper around `[u8]` where the storage is either owned by a Python `bytes` object, or a Rust `Box<[u8]>`.
 ///
 /// This type gives access to the underlying data via a `Deref` implementation.
-#[derive(Clone)]
+#[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedBytes {
     #[allow(dead_code)] // only held so that the storage is not dropped
     storage: PyBackedBytesStorage,
@@ -96,7 +96,7 @@ pub struct PyBackedBytes {
 }
 
 #[allow(dead_code)]
-#[derive(Clone)]
+#[cfg_attr(feature = "py-clone", derive(Clone))]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
     Rust(Arc<[u8]>),
@@ -291,9 +291,9 @@ mod test {
     #[test]
     fn py_backed_bytes_empty() {
         Python::with_gil(|py| {
-            let b = PyBytes::new_bound(py, &[]);
+            let b = PyBytes::new_bound(py, b"");
             let py_backed_bytes = b.extract::<PyBackedBytes>().unwrap();
-            assert_eq!(&*py_backed_bytes, &[]);
+            assert_eq!(&*py_backed_bytes, b"");
         });
     }
 
@@ -336,6 +336,7 @@ mod test {
         is_sync::<PyBackedBytes>();
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_str_clone() {
         Python::with_gil(|py| {
@@ -398,6 +399,7 @@ mod test {
         })
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_bytes_from_bytes_clone() {
         Python::with_gil(|py| {
@@ -410,6 +412,7 @@ mod test {
         });
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_bytes_from_bytearray_clone() {
         Python::with_gil(|py| {

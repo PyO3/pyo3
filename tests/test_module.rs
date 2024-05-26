@@ -373,13 +373,6 @@ fn pyfunction_with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<
 
 #[pyfunction]
 #[pyo3(pass_module)]
-#[cfg(feature = "gil-refs")]
-fn pyfunction_with_module_gil_ref(module: &PyModule) -> PyResult<&str> {
-    module.name()
-}
-
-#[pyfunction]
-#[pyo3(pass_module)]
 fn pyfunction_with_module_owned(
     module: Py<PyModule>,
     py: Python<'_>,
@@ -426,28 +419,14 @@ fn pyfunction_with_module_and_args_kwargs<'py>(
         .map(|s| (s, args.len(), kwargs.map(|d| d.len())))
 }
 
-#[pyfunction]
-#[pyo3(pass_module)]
-#[cfg(feature = "gil-refs")]
-fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str> {
-    module.name()
-}
-
 #[pymodule]
 fn module_with_functions_with_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
-    #[cfg(feature = "gil-refs")]
-    m.add_function(wrap_pyfunction!(pyfunction_with_module_gil_ref, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_owned, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_py, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_arg, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_default_arg, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_args_kwargs, m)?)?;
-    #[cfg(feature = "gil-refs")]
-    m.add_function(wrap_pyfunction!(
-        pyfunction_with_pass_module_in_attribute,
-        m
-    )?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
     Ok(())
 }
@@ -460,12 +439,6 @@ fn test_module_functions_with_module() {
             py,
             m,
             "m.pyfunction_with_module() == 'module_with_functions_with_module'"
-        );
-        #[cfg(feature = "gil-refs")]
-        py_assert!(
-            py,
-            m,
-            "m.pyfunction_with_module_gil_ref() == 'module_with_functions_with_module'"
         );
         py_assert!(
             py,
@@ -488,12 +461,6 @@ fn test_module_functions_with_module() {
             m,
             "m.pyfunction_with_module_and_args_kwargs(1, x=1, y=2) \
                         == ('module_with_functions_with_module', 1, 2)"
-        );
-        #[cfg(feature = "gil-refs")]
-        py_assert!(
-            py,
-            m,
-            "m.pyfunction_with_pass_module_in_attribute() == 'module_with_functions_with_module'"
         );
     });
 }

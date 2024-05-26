@@ -4,7 +4,7 @@
 [![benchmark](https://img.shields.io/badge/benchmark-✓-Green?logo=github)](https://pyo3.rs/dev/bench/)
 [![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.56](https://img.shields.io/badge/rustc-1.56+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.63](https://img.shields.io/badge/rustc-1.63+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/33kcChzH7f)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
@@ -18,7 +18,7 @@
 
 PyO3 supports the following software versions:
   - Python 3.7 and up (CPython, PyPy, and GraalPy)
-  - Rust 1.56 and up
+  - Rust 1.63 and up
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -210,6 +210,7 @@ about this topic.
 - [pyheck](https://github.com/kevinheavey/pyheck) _Fast case conversion library, built by wrapping [heck](https://github.com/withoutboats/heck)._
     - Quite easy to follow as there's not much code.
 - [pyre](https://github.com/Project-Dream-Weaver/pyre-http) _Fast Python HTTP server written in Rust._
+- [pyreqwest_impersonate](https://github.com/deedy5/pyreqwest_impersonate) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
 - [ril-py](https://github.com/Cryptex-github/ril-py) _A performant and high-level image processing library for Python written in Rust._
 - [river](https://github.com/online-ml/river) _Online machine learning in python, the computationally heavy statistics algorithms are implemented in Rust._
 - [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python._

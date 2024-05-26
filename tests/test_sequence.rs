@@ -17,6 +17,7 @@ struct ByteSequence {
 #[pymethods]
 impl ByteSequence {
     #[new]
+    #[pyo3(signature=(elements = None))]
     fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
@@ -247,12 +248,14 @@ fn test_inplace_repeat() {
 
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
 
+#[cfg(feature = "py-clone")]
 #[pyclass]
 struct GenericList {
     #[pyo3(get, set)]
     items: Vec<PyObject>,
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_generic_list_get() {
     Python::with_gil(|py| {
@@ -265,6 +268,7 @@ fn test_generic_list_get() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_generic_list_set() {
     Python::with_gil(|py| {

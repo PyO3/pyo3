@@ -1,7 +1,7 @@
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{ffi, PyNativeType, PyTypeInfo};
+use crate::{ffi, PyTypeInfo};
 use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
@@ -17,14 +17,13 @@ pyobject_native_type_core!(
 
 impl PySuper {
     /// Deprecated form of `PySuper::new_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PySuper::new` will be replaced by `PySuper::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PySuper::new` will be replaced by `PySuper::new_bound` in a future PyO3 version"
     )]
     pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
+        use crate::PyNativeType;
         Self::new_bound(&ty.as_borrowed(), &obj.as_borrowed()).map(Bound::into_gil_ref)
     }
 

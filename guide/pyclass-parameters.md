@@ -2,6 +2,7 @@
 
 |  Parameter  |  Description |
 | :-  | :- |
+| `constructor` | This is currently only allowed on [variants of complex enums][params-constructor]. It allows customization of the generated class constructor for each variant. It uses the same syntax and supports the same options as the `signature` attribute of functions and methods. |
 | <span style="white-space: pre">`crate = "some::path"`</span>  | Path to import the `pyo3` crate, if it's not accessible at `::pyo3`. |
 | `dict` | Gives instances of this class an empty `__dict__` to store custom attributes. |
 | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][params-1] |
@@ -39,5 +40,6 @@ struct MyClass {}
 [params-4]: https://doc.rust-lang.org/std/rc/struct.Rc.html
 [params-5]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 [params-6]: https://docs.python.org/3/library/weakref.html
+[params-constructor]: https://pyo3.rs/latest/class.html#complex-enums
 [params-mapping]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types
 [params-sequence]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types

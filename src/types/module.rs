@@ -6,11 +6,12 @@ use crate::pyclass::PyClass;
 use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
-use crate::{exceptions, ffi, Bound, IntoPy, Py, PyNativeType, PyObject, Python};
+use crate::{exceptions, ffi, Bound, IntoPy, Py, PyObject, Python};
 use std::ffi::CString;
 use std::str;
 
-use super::PyStringMethods;
+#[cfg(feature = "gil-refs")]
+use {super::PyStringMethods, crate::PyNativeType};
 
 /// Represents a Python [`module`][1] object.
 ///
@@ -25,19 +26,6 @@ pub struct PyModule(PyAny);
 pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), #checkfunction=ffi::PyModule_Check);
 
 impl PyModule {
-    /// Deprecated form of [`PyModule::new_bound`].
-    #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyModule::new` will be replaced by `PyModule::new_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<&'py PyModule> {
-        Self::new_bound(py, name).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new module object with the `__name__` attribute set to `name`.
     ///
     /// # Examples
@@ -62,22 +50,6 @@ impl PyModule {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyModule::import_bound`].
-    #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyModule::import` will be replaced by `PyModule::import_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn import<N>(py: Python<'_>, name: N) -> PyResult<&PyModule>
-    where
-        N: IntoPy<Py<PyString>>,
-    {
-        Self::import_bound(py, name).map(Bound::into_gil_ref)
     }
 
     /// Imports the Python module with the specified name.
@@ -108,24 +80,6 @@ impl PyModule {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyModule::from_code_bound`].
-    #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyModule::from_code` will be replaced by `PyModule::from_code_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn from_code<'py>(
-        py: Python<'py>,
-        code: &str,
-        file_name: &str,
-        module_name: &str,
-    ) -> PyResult<&'py PyModule> {
-        Self::from_code_bound(py, code, file_name, module_name).map(Bound::into_gil_ref)
     }
 
     /// Creates and loads a module named `module_name`,
@@ -200,6 +154,47 @@ impl PyModule {
                 .assume_owned_or_err(py)
                 .downcast_into()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyModule {
+    /// Deprecated form of [`PyModule::new_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyModule::new` will be replaced by `PyModule::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<&'py PyModule> {
+        Self::new_bound(py, name).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyModule::import_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyModule::import` will be replaced by `PyModule::import_bound` in a future PyO3 version"
+    )]
+    pub fn import<N>(py: Python<'_>, name: N) -> PyResult<&PyModule>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        Self::import_bound(py, name).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyModule::from_code_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyModule::from_code` will be replaced by `PyModule::from_code_bound` in a future PyO3 version"
+    )]
+    pub fn from_code<'py>(
+        py: Python<'py>,
+        code: &str,
+        file_name: &str,
+        module_name: &str,
+    ) -> PyResult<&'py PyModule> {
+        Self::from_code_bound(py, code, file_name, module_name).map(Bound::into_gil_ref)
     }
 
     /// Returns the module's `__dict__` attribute, which contains the module's symbol table.
@@ -439,8 +434,9 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
 
     /// Adds an attribute to the module.
     ///
-    /// For adding classes, functions or modules, prefer to use [`PyModule::add_class`],
-    /// [`PyModule::add_function`] or [`PyModule::add_submodule`] instead, respectively.
+    /// For adding classes, functions or modules, prefer to use [`PyModuleMethods::add_class`],
+    /// [`PyModuleMethods::add_function`] or [`PyModuleMethods::add_submodule`] instead,
+    /// respectively.
     ///
     /// # Examples
     ///
@@ -516,7 +512,8 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
 
     /// Adds a function or a (sub)module to a module, using the functions name as name.
     ///
-    /// Prefer to use [`PyModule::add_function`] and/or [`PyModule::add_submodule`] instead.
+    /// Prefer to use [`PyModuleMethods::add_function`] and/or [`PyModuleMethods::add_submodule`]
+    /// instead.
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
     where
         T: IntoPyCallbackOutput<PyObject>;
@@ -722,7 +719,6 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use crate::{
         types::{module::PyModuleMethods, string::PyStringMethods, PyModule},

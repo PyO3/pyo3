@@ -65,17 +65,6 @@ def test_new_classmethod():
         _ = AssertingSubClass(expected_type=str)
 
 
-def test_new_classmethod_gil_ref():
-    class AssertingSubClass(pyclasses.AssertingBaseClassGilRef):
-        pass
-
-    # The `AssertingBaseClass` constructor errors if it is not passed the
-    # relevant subclass.
-    _ = AssertingSubClass(expected_type=AssertingSubClass)
-    with pytest.raises(ValueError):
-        _ = AssertingSubClass(expected_type=str)
-
-
 class ClassWithoutConstructorPy:
     def __new__(cls):
         raise TypeError("No constructor defined")

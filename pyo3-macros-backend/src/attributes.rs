@@ -12,6 +12,7 @@ pub mod kw {
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
     syn::custom_keyword!(cancel_handle);
+    syn::custom_keyword!(constructor);
     syn::custom_keyword!(dict);
     syn::custom_keyword!(extends);
     syn::custom_keyword!(freelist);

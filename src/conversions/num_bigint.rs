@@ -47,6 +47,8 @@
 //! assert n + 1 == value
 //! ```
 
+#[cfg(not(Py_LIMITED_API))]
+use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
@@ -63,20 +65,47 @@ use num_bigint::Sign;
 
 // for identical functionality between BigInt and BigUint
 macro_rules! bigint_conversion {
-    ($rust_ty: ty, $is_signed: expr, $to_bytes: path) => {
+    ($rust_ty: ty, $is_signed: literal, $to_bytes: path) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl ToPyObject for $rust_ty {
             #[cfg(not(Py_LIMITED_API))]
             fn to_object(&self, py: Python<'_>) -> PyObject {
                 let bytes = $to_bytes(self);
-                unsafe {
-                    let obj = ffi::_PyLong_FromByteArray(
-                        bytes.as_ptr().cast(),
-                        bytes.len(),
-                        1,
-                        $is_signed,
-                    );
-                    PyObject::from_owned_ptr(py, obj)
+                #[cfg(not(Py_3_13))]
+                {
+                    unsafe {
+                        ffi::_PyLong_FromByteArray(
+                            bytes.as_ptr().cast(),
+                            bytes.len(),
+                            1,
+                            $is_signed.into(),
+                        )
+                        .assume_owned(py)
+                        .unbind()
+                    }
+                }
+                #[cfg(Py_3_13)]
+                {
+                    if $is_signed {
+                        unsafe {
+                            ffi::PyLong_FromNativeBytes(
+                                bytes.as_ptr().cast(),
+                                bytes.len(),
+                                ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN,
+                            )
+                            .assume_owned(py)
+                        }
+                    } else {
+                        unsafe {
+                            ffi::PyLong_FromUnsignedNativeBytes(
+                                bytes.as_ptr().cast(),
+                                bytes.len(),
+                                ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN,
+                            )
+                            .assume_owned(py)
+                        }
+                    }
+                    .unbind()
                 }
             }
 
@@ -84,7 +113,7 @@ macro_rules! bigint_conversion {
             fn to_object(&self, py: Python<'_>) -> PyObject {
                 let bytes = $to_bytes(self);
                 let bytes_obj = PyBytes::new_bound(py, &bytes);
-                let kwargs = if $is_signed > 0 {
+                let kwargs = if $is_signed {
                     let kwargs = crate::types::PyDict::new_bound(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
                     Some(kwargs)
@@ -107,8 +136,8 @@ macro_rules! bigint_conversion {
     };
 }
 
-bigint_conversion!(BigUint, 0, BigUint::to_bytes_le);
-bigint_conversion!(BigInt, 1, BigInt::to_signed_bytes_le);
+bigint_conversion!(BigUint, false, BigUint::to_bytes_le);
+bigint_conversion!(BigInt, true, BigInt::to_signed_bytes_le);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'py> FromPyObject<'py> for BigInt {
@@ -122,13 +151,9 @@ impl<'py> FromPyObject<'py> for BigInt {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
             num_owned.bind(py)
         };
-        let n_bits = int_n_bits(num)?;
-        if n_bits == 0 {
-            return Ok(BigInt::from(0isize));
-        }
         #[cfg(not(Py_LIMITED_API))]
         {
-            let mut buffer = int_to_u32_vec(num, (n_bits + 32) / 32, true)?;
+            let mut buffer = int_to_u32_vec::<true>(num)?;
             let sign = if buffer.last().copied().map_or(false, |last| last >> 31 != 0) {
                 // BigInt::new takes an unsigned array, so need to convert from two's complement
                 // flip all bits, 'subtract' 1 (by adding one to the unsigned array)
@@ -152,6 +177,10 @@ impl<'py> FromPyObject<'py> for BigInt {
         }
         #[cfg(Py_LIMITED_API)]
         {
+            let n_bits = int_n_bits(num)?;
+            if n_bits == 0 {
+                return Ok(BigInt::from(0isize));
+            }
             let bytes = int_to_py_bytes(num, (n_bits + 8) / 8, true)?;
             Ok(BigInt::from_signed_bytes_le(bytes.as_bytes()))
         }
@@ -170,31 +199,37 @@ impl<'py> FromPyObject<'py> for BigUint {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
             num_owned.bind(py)
         };
-        let n_bits = int_n_bits(num)?;
-        if n_bits == 0 {
-            return Ok(BigUint::from(0usize));
-        }
         #[cfg(not(Py_LIMITED_API))]
         {
-            let buffer = int_to_u32_vec(num, (n_bits + 31) / 32, false)?;
+            let buffer = int_to_u32_vec::<false>(num)?;
             Ok(BigUint::new(buffer))
         }
         #[cfg(Py_LIMITED_API)]
         {
+            let n_bits = int_n_bits(num)?;
+            if n_bits == 0 {
+                return Ok(BigUint::from(0usize));
+            }
             let bytes = int_to_py_bytes(num, (n_bits + 7) / 8, false)?;
             Ok(BigUint::from_bytes_le(bytes.as_bytes()))
         }
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, Py_3_13)))]
 #[inline]
-fn int_to_u32_vec(
-    long: &Bound<'_, PyLong>,
-    n_digits: usize,
-    is_signed: bool,
-) -> PyResult<Vec<u32>> {
-    let mut buffer = Vec::with_capacity(n_digits);
+fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyLong>) -> PyResult<Vec<u32>> {
+    let mut buffer = Vec::new();
+    let n_bits = int_n_bits(long)?;
+    if n_bits == 0 {
+        return Ok(buffer);
+    }
+    let n_digits = if SIGNED {
+        (n_bits + 32) / 32
+    } else {
+        (n_bits + 31) / 32
+    };
+    buffer.reserve_exact(n_digits);
     unsafe {
         crate::err::error_on_minusone(
             long.py(),
@@ -203,10 +238,48 @@ fn int_to_u32_vec(
                 buffer.as_mut_ptr() as *mut u8,
                 n_digits * 4,
                 1,
-                is_signed.into(),
+                SIGNED.into(),
             ),
         )?;
         buffer.set_len(n_digits)
+    };
+    buffer
+        .iter_mut()
+        .for_each(|chunk| *chunk = u32::from_le(*chunk));
+
+    Ok(buffer)
+}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[inline]
+fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyLong>) -> PyResult<Vec<u32>> {
+    let mut buffer = Vec::new();
+    let mut flags = ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN;
+    if !SIGNED {
+        flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
+    }
+    let n_bytes =
+        unsafe { ffi::PyLong_AsNativeBytes(long.as_ptr().cast(), std::ptr::null_mut(), 0, flags) };
+    let n_bytes_unsigned: usize = n_bytes
+        .try_into()
+        .map_err(|_| crate::PyErr::fetch(long.py()))?;
+    if n_bytes == 0 {
+        return Ok(buffer);
+    }
+    // TODO: use div_ceil when MSRV >= 1.73
+    let n_digits = {
+        let adjust = if n_bytes % 4 == 0 { 0 } else { 1 };
+        (n_bytes_unsigned / 4) + adjust
+    };
+    buffer.reserve_exact(n_digits);
+    unsafe {
+        ffi::PyLong_AsNativeBytes(
+            long.as_ptr().cast(),
+            buffer.as_mut_ptr().cast(),
+            (n_digits * 4).try_into().unwrap(),
+            flags,
+        );
+        buffer.set_len(n_digits);
     };
     buffer
         .iter_mut()
@@ -239,6 +312,7 @@ fn int_to_py_bytes<'py>(
 }
 
 #[inline]
+#[cfg(any(not(Py_3_13), Py_LIMITED_API))]
 fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
     let py = long.py();
     #[cfg(not(Py_LIMITED_API))]

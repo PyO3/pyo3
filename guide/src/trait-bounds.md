@@ -1,6 +1,6 @@
 # Using in Python a Rust function with trait bounds
 
-PyO3 allows for easy conversion from Rust to Python for certain functions and classes (see the [conversion table](conversions/tables.md).
+PyO3 allows for easy conversion from Rust to Python for certain functions and classes (see the [conversion table](conversions/tables.md)).
 However, it is not always straightforward to convert Rust code that requires a given trait implementation as an argument.
 
 This tutorial explains how to convert a Rust function that takes a trait as argument for use in Python with classes implementing the same methods as the trait.

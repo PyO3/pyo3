@@ -1,9 +1,11 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyNativeType,
-    PyObject, PyResult, Python, ToPyObject,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
+    Python, ToPyObject,
 };
 
 use super::any::PyAnyMethods;
@@ -15,22 +17,6 @@ pub struct PyBool(PyAny);
 pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), #checkfunction=ffi::PyBool_Check);
 
 impl PyBool {
-    /// Deprecated form of [`PyBool::new_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyBool::new` will be replaced by `PyBool::new_bound` in a future PyO3 version"
-        )
-    )]
-    #[inline]
-    pub fn new(py: Python<'_>, val: bool) -> &PyBool {
-        #[allow(deprecated)]
-        unsafe {
-            py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
-        }
-    }
-
     /// Depending on `val`, returns `true` or `false`.
     ///
     /// # Note
@@ -42,6 +28,22 @@ impl PyBool {
             if val { ffi::Py_True() } else { ffi::Py_False() }
                 .assume_borrowed(py)
                 .downcast_unchecked()
+        }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyBool {
+    /// Deprecated form of [`PyBool::new_bound`]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBool::new` will be replaced by `PyBool::new_bound` in a future PyO3 version"
+    )]
+    #[inline]
+    pub fn new(py: Python<'_>, val: bool) -> &PyBool {
+        #[allow(deprecated)]
+        unsafe {
+            py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
         }
     }
 

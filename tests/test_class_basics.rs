@@ -172,6 +172,7 @@ fn empty_class_in_module() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[pyclass]
 struct ClassWithObjectField {
     // It used to be that PyObject was not supported with (get, set)
@@ -180,6 +181,7 @@ struct ClassWithObjectField {
     value: PyObject,
 }
 
+#[cfg(feature = "py-clone")]
 #[pymethods]
 impl ClassWithObjectField {
     #[new]
@@ -188,6 +190,7 @@ impl ClassWithObjectField {
     }
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn class_with_object_field() {
     Python::with_gil(|py| {
@@ -229,7 +232,7 @@ impl UnsendableChild {
 }
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
-    let obj = Python::with_gil(|py| -> PyResult<_> {
+    let (keep_obj_here, obj) = Python::with_gil(|py| -> PyResult<_> {
         let obj: Py<T> = PyType::new_bound::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
@@ -241,14 +244,13 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
             .is_err();
 
         assert!(!caught_panic);
-        Ok(obj)
-    })?;
 
-    let keep_obj_here = obj.clone();
+        Ok((obj.clone_ref(py), obj))
+    })?;
 
     let caught_panic = std::thread::spawn(move || {
         // This access must panic
-        Python::with_gil(|py| {
+        Python::with_gil(move |py| {
             obj.borrow(py);
         });
     })
@@ -290,6 +292,10 @@ fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
     Ok(length)
 }
 
+fn is_even(obj: &Bound<'_, PyAny>) -> PyResult<bool> {
+    obj.extract::<i32>().map(|i| i % 2 == 0)
+}
+
 #[pyclass]
 struct ClassWithFromPyWithMethods {}
 
@@ -306,18 +312,13 @@ impl ClassWithFromPyWithMethods {
         argument
     }
 
-    #[classmethod]
-    #[cfg(feature = "gil-refs")]
-    fn classmethod_gil_ref(
-        _cls: &PyType,
-        #[pyo3(from_py_with = "PyAny::len")] argument: usize,
-    ) -> usize {
-        argument
-    }
-
     #[staticmethod]
     fn staticmethod(#[pyo3(from_py_with = "get_length")] argument: usize) -> usize {
         argument
+    }
+
+    fn __contains__(&self, #[pyo3(from_py_with = "is_even")] obj: bool) -> bool {
+        obj
     }
 }
 
@@ -325,20 +326,19 @@ impl ClassWithFromPyWithMethods {
 fn test_pymethods_from_py_with() {
     Python::with_gil(|py| {
         let instance = Py::new(py, ClassWithFromPyWithMethods {}).unwrap();
-        let has_gil_refs = cfg!(feature = "gil-refs");
 
         py_run!(
             py,
-            instance
-            has_gil_refs,
+            instance,
             r#"
         arg = {1: 1, 2: 3}
 
         assert instance.instance_method(arg) == 2
         assert instance.classmethod(arg) == 2
-        if has_gil_refs:
-            assert instance.classmethod_gil_ref(arg) == 2
         assert instance.staticmethod(arg) == 2
+
+        assert 42 in instance
+        assert 73 not in instance
         "#
         );
     })
@@ -551,6 +551,8 @@ fn access_frozen_class_without_gil() {
     });
 
     assert_eq!(py_counter.get().value.load(Ordering::Relaxed), 1);
+
+    Python::with_gil(move |_py| drop(py_counter));
 }
 
 #[test]

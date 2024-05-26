@@ -13,12 +13,10 @@ use std::os::raw::c_int;
 pub const VERSION: i32 = 4;
 
 /// Deprecated form of [`dumps_bound`]
-#[cfg_attr(
-    not(feature = "gil-refs"),
-    deprecated(
-        since = "0.21.0",
-        note = "`dumps` will be replaced by `dumps_bound` in a future PyO3 version"
-    )
+#[cfg(feature = "gil-refs")]
+#[deprecated(
+    since = "0.21.0",
+    note = "`dumps` will be replaced by `dumps_bound` in a future PyO3 version"
 )]
 pub fn dumps<'py>(
     py: Python<'py>,
@@ -61,12 +59,10 @@ pub fn dumps_bound<'py>(
 }
 
 /// Deprecated form of [`loads_bound`]
-#[cfg_attr(
-    not(feature = "gil-refs"),
-    deprecated(
-        since = "0.21.0",
-        note = "`loads` will be replaced by `loads_bound` in a future PyO3 version"
-    )
+#[cfg(feature = "gil-refs")]
+#[deprecated(
+    since = "0.21.0",
+    note = "`loads` will be replaced by `loads_bound` in a future PyO3 version"
 )]
 pub fn loads<'py, B>(py: Python<'py>, data: &B) -> PyResult<&'py PyAny>
 where

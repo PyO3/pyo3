@@ -141,6 +141,8 @@ pub struct PyConfig {
     pub safe_path: c_int,
     #[cfg(Py_3_12)]
     pub int_max_str_digits: c_int,
+    #[cfg(Py_3_13)]
+    pub cpu_count: c_int,
     pub pathconfig_warnings: c_int,
     #[cfg(Py_3_10)]
     pub program_name: *mut wchar_t,
@@ -165,6 +167,8 @@ pub struct PyConfig {
     pub run_command: *mut wchar_t,
     pub run_module: *mut wchar_t,
     pub run_filename: *mut wchar_t,
+    #[cfg(Py_3_13)]
+    pub sys_path_0: *mut wchar_t,
     pub _install_importlib: c_int,
     pub _init_main: c_int,
     #[cfg(all(Py_3_9, not(Py_3_12)))]

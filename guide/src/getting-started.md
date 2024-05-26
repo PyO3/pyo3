@@ -6,7 +6,7 @@ To get started using PyO3 you will need three things: a Rust toolchain, a Python
 
 ## Rust
 
-First, make sure you have Rust installed on your system. If you haven't already done so, try following the instructions [here](https://www.rust-lang.org/tools/install). PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best. The minimum required Rust version is 1.56.
+First, make sure you have Rust installed on your system. If you haven't already done so, try following the instructions [here](https://www.rust-lang.org/tools/install). PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best. The minimum required Rust version is 1.63.
 
 If you can run `rustc --version` and the version is new enough you're good to go!
 
@@ -18,18 +18,13 @@ To use PyO3, you need at least Python 3.7. While you can simply use the default 
 
 While you can use any virtualenv manager you like, we recommend the use of `pyenv` in particular if you want to develop or test for multiple different Python versions, so that is what the examples in this book will use. The installation instructions for `pyenv` can be found [here](https://github.com/pyenv/pyenv#getting-pyenv). (Note: To get the `pyenv activate` and `pyenv virtualenv` commands, you will also need to install the [`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv) plugin. The [pyenv installer](https://github.com/pyenv/pyenv-installer#installation--update--uninstallation) will install both together.)
 
-If you intend to run Python from Rust (for example in unit tests) you should set the following environment variable when installing a new Python version using `pyenv`:
-```bash
-PYTHON_CONFIGURE_OPTS="--enable-shared"
-```
+It can be useful to keep the sources used when installing using `pyenv` so that future debugging can see the original source files. This can be done by passing the `--keep` flag as part of the `pyenv install` command.
 
 For example:
 
 ```bash
-env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.12
+pyenv install 3.12 --keep
 ```
-
-You can read more about `pyenv`'s configuration options [here](https://github.com/pyenv/pyenv/blob/master/plugins/python-build/README.md#building-with---enable-shared).
 
 ### Building
 
@@ -181,3 +176,7 @@ $ python
 ```
 
 For more instructions on how to use Python code from Rust, see the [Python from Rust](python-from-rust.md) page.
+
+## Maturin Import Hook
+
+In development, any changes in the code would require running `maturin develop` before testing. To streamline the development process, you may want to install [Maturin Import Hook](https://github.com/PyO3/maturin-import-hook) which will run `maturin develop` automatically when the library with code changes is being imported.

@@ -108,6 +108,7 @@
 //! [`BigUint`] types.
 //! - [`num-complex`]: Enables conversions between Python objects and [num-complex]'s [`Complex`]
 //!  type.
+//! - [`num-rational`]: Enables conversions between Python's fractions.Fraction and [num-rational]'s types
 //! - [`rust_decimal`]: Enables conversions between Python's decimal.Decimal and [rust_decimal]'s
 //! [`Decimal`] type.
 //! - [`serde`]: Allows implementing [serde]'s [`Serialize`] and [`Deserialize`] traits for
@@ -132,7 +133,7 @@
 //!
 //! PyO3 supports the following software versions:
 //!   - Python 3.7 and up (CPython and PyPy)
-//!   - Rust 1.56 and up
+//!   - Rust 1.63 and up
 //!
 //! # Example: Building a native Python module
 //!
@@ -288,6 +289,7 @@
 //! [`maturin`]: https://github.com/PyO3/maturin "Build and publish crates with pyo3, rust-cpython and cffi bindings as well as rust binaries as python packages"
 //! [`num-bigint`]: ./num_bigint/index.html "Documentation about the `num-bigint` feature."
 //! [`num-complex`]: ./num_complex/index.html "Documentation about the `num-complex` feature."
+//! [`num-rational`]: ./num_rational/index.html "Documentation about the `num-rational` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [rust_decimal]: https://docs.rs/rust_decimal
 //! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
@@ -303,6 +305,7 @@
 //! [manual_builds]: https://pyo3.rs/latest/building-and-distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
 //! [num-bigint]: https://docs.rs/num-bigint
 //! [num-complex]: https://docs.rs/num-complex
+//! [num-rational]: https://docs.rs/num-rational
 //! [serde]: https://docs.rs/serde
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [the guide]: https://pyo3.rs "PyO3 user guide"
@@ -314,17 +317,22 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
-pub use crate::err::{
-    DowncastError, DowncastIntoError, PyDowncastError, PyErr, PyErrArguments, PyResult, ToPyErr,
-};
+#[cfg(feature = "gil-refs")]
+pub use crate::err::PyDowncastError;
+pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 pub use crate::gil::GILPool;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::instance::{Borrowed, Bound, Py, PyNativeType, PyObject};
+#[cfg(feature = "gil-refs")]
+pub use crate::instance::PyNativeType;
+pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 pub use crate::pycell::PyCell;
 pub use crate::pycell::{PyRef, PyRefMut};
@@ -439,6 +447,7 @@ mod conversions;
 pub mod coroutine;
 #[macro_use]
 #[doc(hidden)]
+#[cfg(feature = "gil-refs")]
 pub mod derive_utils;
 mod err;
 pub mod exceptions;

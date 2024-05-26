@@ -10,7 +10,7 @@ fn main() {
     let obj = Python::with_gil(|py| {
         Bound::new(py, NotThreadSafe { data: Rc::new(5) })
             .unwrap()
-            .unbind(py)
+            .unbind()
     });
 
     std::thread::spawn(move || {

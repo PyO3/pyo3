@@ -22,6 +22,7 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
 };
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "gil-refs")]
 use crate::instance::PyNativeType;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
@@ -173,12 +174,10 @@ pub trait PyTimeAccess {
 /// Trait for accessing the components of a struct containing a tzinfo.
 pub trait PyTzInfoAccess<'py> {
     /// Deprecated form of `get_tzinfo_bound`.
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`get_tzinfo` will be replaced by `get_tzinfo_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`get_tzinfo` will be replaced by `get_tzinfo_bound` in a future PyO3 version"
     )]
     fn get_tzinfo(&self) -> Option<&'py PyTzInfo> {
         self.get_tzinfo_bound().map(Bound::into_gil_ref)
@@ -205,12 +204,10 @@ pyobject_native_type!(
 
 impl PyDate {
     /// Deprecated form of [`PyDate::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyDate::new` will be replaced by `PyDate::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDate::new` will be replaced by `PyDate::new_bound` in a future PyO3 version"
     )]
     pub fn new(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
         Self::new_bound(py, year, month, day).map(Bound::into_gil_ref)
@@ -227,12 +224,10 @@ impl PyDate {
     }
 
     /// Deprecated form of [`PyDate::from_timestamp_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyDate::from_timestamp` will be replaced by `PyDate::from_timestamp_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDate::from_timestamp` will be replaced by `PyDate::from_timestamp_bound` in a future PyO3 version"
     )]
     pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
         Self::from_timestamp_bound(py, timestamp).map(Bound::into_gil_ref)
@@ -255,6 +250,7 @@ impl PyDate {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyDateAccess for PyDate {
     fn get_year(&self) -> i32 {
         self.as_borrowed().get_year()
@@ -296,12 +292,10 @@ pyobject_native_type!(
 
 impl PyDateTime {
     /// Deprecated form of [`PyDateTime::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyDateTime::new` will be replaced by `PyDateTime::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDateTime::new` will be replaced by `PyDateTime::new_bound` in a future PyO3 version"
     )]
     #[allow(clippy::too_many_arguments)]
     pub fn new<'py>(
@@ -361,12 +355,10 @@ impl PyDateTime {
     }
 
     /// Deprecated form of [`PyDateTime::new_bound_with_fold`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyDateTime::new_with_fold` will be replaced by `PyDateTime::new_bound_with_fold` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDateTime::new_with_fold` will be replaced by `PyDateTime::new_bound_with_fold` in a future PyO3 version"
     )]
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_fold<'py>(
@@ -436,12 +428,10 @@ impl PyDateTime {
     }
 
     /// Deprecated form of [`PyDateTime::from_timestamp_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyDateTime::from_timestamp` will be replaced by `PyDateTime::from_timestamp_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDateTime::from_timestamp` will be replaced by `PyDateTime::from_timestamp_bound` in a future PyO3 version"
     )]
     pub fn from_timestamp<'py>(
         py: Python<'py>,
@@ -473,6 +463,7 @@ impl PyDateTime {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyDateAccess for PyDateTime {
     fn get_year(&self) -> i32 {
         self.as_borrowed().get_year()
@@ -501,6 +492,7 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyTimeAccess for PyDateTime {
     fn get_hour(&self) -> u8 {
         self.as_borrowed().get_hour()
@@ -545,6 +537,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> PyTzInfoAccess<'py> for &'py PyDateTime {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         self.as_borrowed().get_tzinfo_bound()
@@ -598,12 +591,10 @@ pyobject_native_type!(
 
 impl PyTime {
     /// Deprecated form of [`PyTime::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTime::new` will be replaced by `PyTime::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTime::new` will be replaced by `PyTime::new_bound` in a future PyO3 version"
     )]
     pub fn new<'py>(
         py: Python<'py>,
@@ -649,12 +640,10 @@ impl PyTime {
     }
 
     /// Deprecated form of [`PyTime::new_bound_with_fold`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyTime::new_with_fold` will be replaced by `PyTime::new_bound_with_fold` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyTime::new_with_fold` will be replaced by `PyTime::new_bound_with_fold` in a future PyO3 version"
     )]
     pub fn new_with_fold<'py>(
         py: Python<'py>,
@@ -677,7 +666,7 @@ impl PyTime {
         .map(Bound::into_gil_ref)
     }
 
-    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
+    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_bound_with_fold`].
     pub fn new_bound_with_fold<'py>(
         py: Python<'py>,
         hour: u8,
@@ -704,6 +693,7 @@ impl PyTime {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyTimeAccess for PyTime {
     fn get_hour(&self) -> u8 {
         self.as_borrowed().get_hour()
@@ -748,6 +738,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> PyTzInfoAccess<'py> for &'py PyTime {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
         self.as_borrowed().get_tzinfo_bound()
@@ -791,7 +782,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
 /// Bindings for `datetime.tzinfo`.
 ///
 /// This is an abstract base class and cannot be constructed directly.
-/// For concrete time zone implementations, see [`timezone_utc`] and
+/// For concrete time zone implementations, see [`timezone_utc_bound`] and
 /// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
 #[repr(transparent)]
 pub struct PyTzInfo(PyAny);
@@ -804,12 +795,10 @@ pyobject_native_type!(
 );
 
 /// Deprecated form of [`timezone_utc_bound`].
-#[cfg_attr(
-    not(feature = "gil-refs"),
-    deprecated(
-        since = "0.21.0",
-        note = "`timezone_utc` will be replaced by `timezone_utc_bound` in a future PyO3 version"
-    )
+#[cfg(feature = "gil-refs")]
+#[deprecated(
+    since = "0.21.0",
+    note = "`timezone_utc` will be replaced by `timezone_utc_bound` in a future PyO3 version"
 )]
 pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
     timezone_utc_bound(py).into_gil_ref()
@@ -858,12 +847,10 @@ pyobject_native_type!(
 
 impl PyDelta {
     /// Deprecated form of [`PyDelta::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyDelta::new` will be replaced by `PyDelta::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyDelta::new` will be replaced by `PyDelta::new_bound` in a future PyO3 version"
     )]
     pub fn new(
         py: Python<'_>,
@@ -898,6 +885,7 @@ impl PyDelta {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
         self.as_borrowed().get_days()
@@ -936,7 +924,6 @@ fn opt_to_pyobj(opt: Option<&Bound<'_, PyTzInfo>>) -> *mut ffi::PyObject {
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
     #[cfg(feature = "macros")]
@@ -947,14 +934,15 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_datetime_fromtimestamp() {
         Python::with_gil(|py| {
-            let dt = PyDateTime::from_timestamp(py, 100.0, None).unwrap();
+            let dt = PyDateTime::from_timestamp_bound(py, 100.0, None).unwrap();
             py_run!(
                 py,
                 dt,
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
             );
 
-            let dt = PyDateTime::from_timestamp(py, 100.0, Some(timezone_utc(py))).unwrap();
+            let dt =
+                PyDateTime::from_timestamp_bound(py, 100.0, Some(&timezone_utc_bound(py))).unwrap();
             py_run!(
                 py,
                 dt,
@@ -968,7 +956,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_date_fromtimestamp() {
         Python::with_gil(|py| {
-            let dt = PyDate::from_timestamp(py, 100).unwrap();
+            let dt = PyDate::from_timestamp_bound(py, 100).unwrap();
             py_run!(
                 py,
                 dt,
@@ -981,8 +969,10 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_new_with_fold() {
         Python::with_gil(|py| {
-            let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
-            let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
+            let a =
+                PyDateTime::new_bound_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
+            let b =
+                PyDateTime::new_bound_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
             assert!(!a.unwrap().get_fold());
             assert!(b.unwrap().get_fold());
@@ -991,26 +981,25 @@ mod tests {
 
     #[test]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
-    #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
-            let utc = timezone_utc(py);
+            let utc = timezone_utc_bound(py);
 
-            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
+            let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-            assert!(dt.get_tzinfo().unwrap().eq(utc).unwrap());
+            assert!(dt.get_tzinfo_bound().unwrap().eq(&utc).unwrap());
 
-            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
+            let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
-            assert!(dt.get_tzinfo().is_none());
+            assert!(dt.get_tzinfo_bound().is_none());
 
-            let t = PyTime::new(py, 0, 0, 0, 0, Some(utc)).unwrap();
+            let t = PyTime::new_bound(py, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-            assert!(t.get_tzinfo().unwrap().eq(utc).unwrap());
+            assert!(t.get_tzinfo_bound().unwrap().eq(utc).unwrap());
 
-            let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
+            let t = PyTime::new_bound(py, 0, 0, 0, 0, None).unwrap();
 
-            assert!(t.get_tzinfo().is_none());
+            assert!(t.get_tzinfo_bound().is_none());
         });
     }
 
@@ -1024,9 +1013,9 @@ mod tests {
                     .unwrap()
                     .call_method1("utcoffset", ((),))
                     .unwrap()
-                    .extract::<&PyDelta>()
+                    .downcast_into::<PyDelta>()
                     .unwrap()
-                    .eq(PyDelta::new(py, 0, -3600, 0, true).unwrap())
+                    .eq(PyDelta::new_bound(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
             );
 
@@ -1035,9 +1024,9 @@ mod tests {
                     .unwrap()
                     .call_method1("utcoffset", ((),))
                     .unwrap()
-                    .extract::<&PyDelta>()
+                    .downcast_into::<PyDelta>()
                     .unwrap()
-                    .eq(PyDelta::new(py, 0, 3600, 0, true).unwrap())
+                    .eq(PyDelta::new_bound(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
             );
 

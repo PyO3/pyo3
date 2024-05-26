@@ -382,10 +382,12 @@ fn module_initialization(options: PyModuleOptions, ident: &syn::Ident) -> TokenS
 fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn) -> Result<()> {
     let ctx = &Ctx::new(&options.krate);
     let Ctx { pyo3_path } = ctx;
-    let mut stmts: Vec<syn::Stmt> = vec![syn::parse_quote!(
-        #[allow(unknown_lints, unused_imports, redundant_imports)]
-        use #pyo3_path::{PyNativeType, types::PyModuleMethods};
-    )];
+    let mut stmts: Vec<syn::Stmt> = Vec::new();
+
+    #[cfg(feature = "gil-refs")]
+    let imports = quote!(use #pyo3_path::{PyNativeType, types::PyModuleMethods};);
+    #[cfg(not(feature = "gil-refs"))]
+    let imports = quote!(use #pyo3_path::types::PyModuleMethods;);
 
     for mut stmt in func.block.stmts.drain(..) {
         if let syn::Stmt::Item(Item::Fn(func)) = &mut stmt {
@@ -395,7 +397,11 @@ fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn
                 let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.as_borrowed().add_function(#pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
+                    {
+                        #[allow(unknown_lints, unused_imports, redundant_imports)]
+                        #imports
+                        #module_name.as_borrowed().add_function(#pyo3_path::wrap_pyfunction!(#name, #module_name.as_borrowed())?)?;
+                    }
                 };
                 stmts.extend(statements);
             }

@@ -10,5 +10,5 @@ pyo3 = { path = "..", features = ["auto-initialize", "extension-module"] }
 [[example]]
 name = "decorator"
 path = "decorator/src/lib.rs"
-crate_type = ["cdylib"]
+crate-type = ["cdylib"]
 doc-scrape-examples = true

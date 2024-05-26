@@ -21,6 +21,7 @@ macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
@@ -31,6 +32,7 @@ macro_rules! impl_exception_boilerplate {
 
         $crate::impl_exception_boilerplate_bound!($name);
 
+        #[cfg(feature = "gil-refs")]
         impl ::std::error::Error for $name {
             fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
                 unsafe {
@@ -57,6 +59,7 @@ macro_rules! impl_exception_boilerplate_bound {
             ///
             /// [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html "PyErr in pyo3"
             #[inline]
+            #[allow(dead_code)]
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
                 A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
@@ -143,6 +146,7 @@ macro_rules! import_exception_bound {
 
         // FIXME remove this: was necessary while `PyTypeInfo` requires `HasPyGilRef`,
         // should change in 0.22.
+        #[cfg(feature = "gil-refs")]
         unsafe impl $crate::type_object::HasPyGilRef for $name {
             type AsRefTarget = $crate::PyAny;
         }
@@ -650,12 +654,10 @@ impl_windows_native_exception!(
 
 impl PyUnicodeDecodeError {
     /// Deprecated form of [`PyUnicodeDecodeError::new_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyUnicodeDecodeError::new` will be replaced by `PyUnicodeDecodeError::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyUnicodeDecodeError::new` will be replaced by `PyUnicodeDecodeError::new_bound` in a future PyO3 version"
     )]
     pub fn new<'p>(
         py: Python<'p>,
@@ -692,12 +694,10 @@ impl PyUnicodeDecodeError {
     }
 
     /// Deprecated form of [`PyUnicodeDecodeError::new_utf8_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyUnicodeDecodeError::new_utf8` will be replaced by `PyUnicodeDecodeError::new_utf8_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyUnicodeDecodeError::new_utf8` will be replaced by `PyUnicodeDecodeError::new_utf8_bound` in a future PyO3 version"
     )]
     pub fn new_utf8<'p>(
         py: Python<'p>,
@@ -808,7 +808,7 @@ macro_rules! test_exception {
             use super::$exc_ty;
 
             $crate::Python::with_gil(|py| {
-                use std::error::Error;
+                use $crate::types::PyAnyMethods;
                 let err: $crate::PyErr = {
                     None
                     $(
@@ -819,13 +819,19 @@ macro_rules! test_exception {
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value: &$exc_ty = err.value_bound(py).clone().into_gil_ref().downcast().unwrap();
-                assert!(value.source().is_none());
+                let value = err.value_bound(py).as_any().downcast::<$exc_ty>().unwrap();
 
-                err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
-                assert!(value.source().is_some());
+                #[cfg(feature = "gil-refs")]
+                {
+                    use std::error::Error;
+                    let value = value.as_gil_ref();
+                    assert!(value.source().is_none());
 
-                assert!($crate::PyErr::from(value).is_instance_of::<$exc_ty>(py));
+                    err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
+                    assert!(value.source().is_some());
+                }
+
+                assert!($crate::PyErr::from(value.clone()).is_instance_of::<$exc_ty>(py));
             })
         }
     };
@@ -878,7 +884,9 @@ mod tests {
     use super::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{PyErr, PyNativeType};
+    use crate::PyErr;
+    #[cfg(feature = "gil-refs")]
+    use crate::PyNativeType;
 
     import_exception_bound!(socket, gaierror);
     import_exception_bound!(email.errors, MessageError);
@@ -1068,6 +1076,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     fn native_exception_chain() {
         use std::error::Error;
 

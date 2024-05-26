@@ -1,9 +1,11 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
+use crate::deprecations::deprecate_trailing_option_default;
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -18,7 +20,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct RegularArg<'a> {
-    pub name: &'a syn::Ident,
+    pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     pub from_py_with: Option<FromPyWithAttribute>,
     pub default_value: Option<syn::Expr>,
@@ -28,14 +30,14 @@ pub struct RegularArg<'a> {
 /// Pythons *args argument
 #[derive(Clone, Debug)]
 pub struct VarargsArg<'a> {
-    pub name: &'a syn::Ident,
+    pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
 }
 
 /// Pythons **kwarg argument
 #[derive(Clone, Debug)]
 pub struct KwargsArg<'a> {
-    pub name: &'a syn::Ident,
+    pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
 }
 
@@ -61,7 +63,7 @@ pub enum FnArg<'a> {
 }
 
 impl<'a> FnArg<'a> {
-    pub fn name(&self) -> &'a syn::Ident {
+    pub fn name(&self) -> &syn::Ident {
         match self {
             FnArg::Regular(RegularArg { name, .. }) => name,
             FnArg::VarArgs(VarargsArg { name, .. }) => name,
@@ -98,7 +100,10 @@ impl<'a> FnArg<'a> {
             ..
         }) = self
         {
-            *self = Self::VarArgs(VarargsArg { name, ty });
+            *self = Self::VarArgs(VarargsArg {
+                name: name.clone(),
+                ty,
+            });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "args cannot be optional")
@@ -113,7 +118,10 @@ impl<'a> FnArg<'a> {
             ..
         }) = self
         {
-            *self = Self::KwArgs(KwargsArg { name, ty });
+            *self = Self::KwArgs(KwargsArg {
+                name: name.clone(),
+                ty,
+            });
             Ok(self)
         } else {
             bail_spanned!(self.name().span() => "kwargs must be Option<_>")
@@ -159,7 +167,7 @@ impl<'a> FnArg<'a> {
                 }
 
                 Ok(Self::Regular(RegularArg {
-                    name: ident,
+                    name: Cow::Borrowed(ident),
                     ty: &cap.ty,
                     from_py_with,
                     default_value: None,
@@ -701,6 +709,8 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
+        let deprecation = deprecate_trailing_option_default(self);
+
         Ok(match self.convention {
             CallingConvention::Noargs => {
                 let mut holders = Holders::new();
@@ -723,6 +733,7 @@ impl<'a> FnSpec<'a> {
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
@@ -747,6 +758,7 @@ impl<'a> FnSpec<'a> {
                         _nargs: #pyo3_path::ffi::Py_ssize_t,
                         _kwnames: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
@@ -771,6 +783,7 @@ impl<'a> FnSpec<'a> {
                         _args: *mut #pyo3_path::ffi::PyObject,
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
@@ -798,6 +811,7 @@ impl<'a> FnSpec<'a> {
                         _kwargs: *mut #pyo3_path::ffi::PyObject
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         use #pyo3_path::callback::IntoPyCallbackOutput;
+                        #deprecation
                         let _slf_ref = &_slf;
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
@@ -821,7 +835,7 @@ impl<'a> FnSpec<'a> {
             CallingConvention::Noargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::noargs(
                     #python_name,
-                    #pyo3_path::impl_::pymethods::PyCFunction({
+                    {
                         unsafe extern "C" fn trampoline(
                             _slf: *mut #pyo3_path::ffi::PyObject,
                             _args: *mut #pyo3_path::ffi::PyObject,
@@ -834,14 +848,14 @@ impl<'a> FnSpec<'a> {
                             )
                         }
                         trampoline
-                    }),
+                    },
                     #doc,
                 )
             },
             CallingConvention::Fastcall => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
                     #python_name,
-                    #pyo3_path::impl_::pymethods::PyCFunctionFastWithKeywords({
+                    {
                         unsafe extern "C" fn trampoline(
                             _slf: *mut #pyo3_path::ffi::PyObject,
                             _args: *const *mut #pyo3_path::ffi::PyObject,
@@ -858,14 +872,14 @@ impl<'a> FnSpec<'a> {
                             )
                         }
                         trampoline
-                    }),
+                    },
                     #doc,
                 )
             },
             CallingConvention::Varargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::cfunction_with_keywords(
                     #python_name,
-                    #pyo3_path::impl_::pymethods::PyCFunctionWithKeywords({
+                    {
                         unsafe extern "C" fn trampoline(
                             _slf: *mut #pyo3_path::ffi::PyObject,
                             _args: *mut #pyo3_path::ffi::PyObject,
@@ -880,7 +894,7 @@ impl<'a> FnSpec<'a> {
                             )
                         }
                         trampoline
-                    }),
+                    },
                     #doc,
                 )
             },

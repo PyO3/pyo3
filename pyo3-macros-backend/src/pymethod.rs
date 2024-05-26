@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
+use crate::deprecations::deprecate_trailing_option_default;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
 use crate::utils::Ctx;
@@ -512,7 +513,7 @@ fn impl_py_class_attribute(
         #pyo3_path::class::PyMethodDefType::ClassAttribute({
             #pyo3_path::class::PyClassAttributeDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
+                #cls::#wrapper_ident
             )
         })
     };
@@ -637,7 +638,10 @@ pub fn impl_py_setter_def(
             );
             let extract =
                 check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx);
+
+            let deprecation = deprecate_trailing_option_default(spec);
             quote! {
+                #deprecation
                 #from_py_with
                 let _val = #extract;
             }
@@ -699,7 +703,7 @@ pub fn impl_py_setter_def(
         #pyo3_path::class::PyMethodDefType::Setter(
             #pyo3_path::class::PySetterDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PySetter(#cls::#wrapper_ident),
+                #cls::#wrapper_ident,
                 #doc
             )
         )
@@ -831,7 +835,7 @@ pub fn impl_py_getter_def(
         #pyo3_path::class::PyMethodDefType::Getter(
             #pyo3_path::class::PyGetterDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
+                #cls::#wrapper_ident,
                 #doc
             )
         )
@@ -930,7 +934,7 @@ const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_speci
     ),
     TokenGenerator(|_| quote! { async_iter_tag }),
 );
-const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
+pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .arguments(&[Ty::Object])
     .ret_ty(Ty::Int);
@@ -940,7 +944,8 @@ const __INPLACE_CONCAT__: SlotDef =
     SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
 const __INPLACE_REPEAT__: SlotDef =
     SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
-const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
+pub const __GETITEM__: SlotDef =
+    SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
 const __NEG__: SlotDef = SlotDef::new("Py_nb_negative", "unaryfunc");
@@ -1053,20 +1058,18 @@ impl Ty {
         ctx: &Ctx,
     ) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
-        let name_str = arg.name().unraw().to_string();
         match self {
             Ty::Object => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident },
-                arg.ty().span(),
                 ctx
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! {
                     if #ident.is_null() {
                         #pyo3_path::ffi::Py_None()
@@ -1074,23 +1077,20 @@ impl Ty {
                         #ident
                     }
                 },
-                arg.ty().span(),
                 ctx
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident.as_ptr() },
-                arg.ty().span(),
                 ctx
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident.as_ptr() },
-                arg.ty().span(),
                 ctx
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
@@ -1118,24 +1118,37 @@ impl Ty {
 fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
-    name: &str,
+    arg: &FnArg<'_>,
     source_ptr: TokenStream,
-    span: Span,
     ctx: &Ctx,
 ) -> TokenStream {
     let Ctx { pyo3_path } = ctx;
-    let holder = holders.push_holder(Span::call_site());
-    let gil_refs_checker = holders.push_gil_refs_checker(span);
-    let extracted = extract_error_mode.handle_error(
+    let gil_refs_checker = holders.push_gil_refs_checker(arg.ty().span());
+    let name = arg.name().unraw().to_string();
+
+    let extract = if let Some(from_py_with) =
+        arg.from_py_with().map(|from_py_with| &from_py_with.value)
+    {
+        let from_py_with_checker = holders.push_from_py_with_checker(from_py_with.span());
+        quote! {
+            #pyo3_path::impl_::extract_argument::from_py_with(
+                #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
+                #name,
+                #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &#from_py_with_checker) as fn(_) -> _,
+            )
+        }
+    } else {
+        let holder = holders.push_holder(Span::call_site());
         quote! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
                 &mut #holder,
                 #name
             )
-        },
-        ctx,
-    );
+        }
+    };
+
+    let extracted = extract_error_mode.handle_error(extract, ctx);
     quote! {
         #pyo3_path::impl_::deprecations::inspect_type(#extracted, &#gil_refs_checker)
     }

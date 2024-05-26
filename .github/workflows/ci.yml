@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.56.0
+          toolchain: 1.63.0
           targets: x86_64-unknown-linux-gnu
           components: rust-src
       - uses: actions/setup-python@v5
@@ -224,6 +224,7 @@ jobs:
           "3.10",
           "3.11",
           "3.12",
+          "3.13-dev",
           "pypy3.7",
           "pypy3.8",
           "pypy3.9",
@@ -255,7 +256,7 @@ jobs:
           ]
         include:
           # Test minimal supported Rust version
-          - rust: 1.56.0
+          - rust: 1.63.0
             python-version: "3.12"
             platform:
               {

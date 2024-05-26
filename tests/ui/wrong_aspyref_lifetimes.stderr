@@ -5,4 +5,4 @@ error: lifetime may not live long enough
   |                                                      --- ^^^^^^^^^^^^^ returning this value requires that `'1` must outlive `'2`
   |                                                      | |
   |                                                      | return type of closure is &'2 pyo3::Bound<'_, PyDict>
-  |                                                      has type `pyo3::Python<'1>`
+  |                                                      has type `Python<'1>`

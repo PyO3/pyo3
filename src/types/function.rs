@@ -1,14 +1,17 @@
+#[cfg(feature = "gil-refs")]
 use crate::derive_utils::PyFunctionArguments;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
 use crate::types::module::PyModuleMethods;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef, PyMethodDefDestructor},
     types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
-use crate::{Bound, IntoPy, Py, PyAny, PyNativeType, PyResult, Python};
+use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
@@ -20,12 +23,10 @@ pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi:
 
 impl PyCFunction {
     /// Deprecated form of [`PyCFunction::new_with_keywords_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCFunction::new_with_keywords` will be replaced by `PyCFunction::new_with_keywords_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCFunction::new_with_keywords` will be replaced by `PyCFunction::new_with_keywords_bound` in a future PyO3 version"
     )]
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
@@ -36,11 +37,7 @@ impl PyCFunction {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         Self::internal_new(
             py,
-            &PyMethodDef::cfunction_with_keywords(
-                name,
-                pymethods::PyCFunctionWithKeywords(fun),
-                doc,
-            ),
+            &PyMethodDef::cfunction_with_keywords(name, fun, doc),
             module.map(PyNativeType::as_borrowed).as_deref(),
         )
         .map(Bound::into_gil_ref)
@@ -56,22 +53,16 @@ impl PyCFunction {
     ) -> PyResult<Bound<'py, Self>> {
         Self::internal_new(
             py,
-            &PyMethodDef::cfunction_with_keywords(
-                name,
-                pymethods::PyCFunctionWithKeywords(fun),
-                doc,
-            ),
+            &PyMethodDef::cfunction_with_keywords(name, fun, doc),
             module,
         )
     }
 
     /// Deprecated form of [`PyCFunction::new`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCFunction::new` will be replaced by `PyCFunction::new_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCFunction::new` will be replaced by `PyCFunction::new_bound` in a future PyO3 version"
     )]
     pub fn new<'a>(
         fun: ffi::PyCFunction,
@@ -82,7 +73,7 @@ impl PyCFunction {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         Self::internal_new(
             py,
-            &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
+            &PyMethodDef::noargs(name, fun, doc),
             module.map(PyNativeType::as_borrowed).as_deref(),
         )
         .map(Bound::into_gil_ref)
@@ -96,20 +87,14 @@ impl PyCFunction {
         doc: &'static str,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
-        Self::internal_new(
-            py,
-            &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
-            module,
-        )
+        Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
     }
 
     /// Deprecated form of [`PyCFunction::new_closure`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyCFunction::new_closure` will be replaced by `PyCFunction::new_closure_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyCFunction::new_closure` will be replaced by `PyCFunction::new_closure_bound` in a future PyO3 version"
     )]
     pub fn new_closure<'a, F, R>(
         py: Python<'a>,
@@ -156,7 +141,7 @@ impl PyCFunction {
     {
         let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
             name.unwrap_or("pyo3-closure\0"),
-            pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
+            run_closure::<F, R>,
             doc.unwrap_or("\0"),
         );
         let (def, def_destructor) = method_def.as_method_def()?;

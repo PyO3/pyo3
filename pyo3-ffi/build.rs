@@ -17,7 +17,7 @@ const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
     min: PythonVersion { major: 3, minor: 7 },
     max: PythonVersion {
         major: 3,
-        minor: 12,
+        minor: 13,
     },
 };
 
@@ -189,7 +189,7 @@ fn configure_pyo3() -> Result<()> {
         println!("{}", line);
     }
 
-    // Emit cfgs like `thread_local_const_init`
+    // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
 
     Ok(())
@@ -205,6 +205,7 @@ fn print_config_and_exit(config: &InterpreterConfig) {
 }
 
 fn main() {
+    pyo3_build_config::print_expected_cfgs();
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)

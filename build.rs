@@ -39,13 +39,14 @@ fn configure_pyo3() -> Result<()> {
         println!("{}", cfg)
     }
 
-    // Emit cfgs like `thread_local_const_init`
+    // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
 
     Ok(())
 }
 
 fn main() {
+    pyo3_build_config::print_expected_cfgs();
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)

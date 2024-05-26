@@ -142,6 +142,7 @@ fn test_auto_test_signature_function() {
     }
 
     #[pyfunction]
+    #[pyo3(signature=(a, b=None, c=None))]
     fn my_function_6(a: i32, b: Option<i32>, c: Option<i32>) {
         let _ = (a, b, c);
     }

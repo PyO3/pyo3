@@ -30,7 +30,7 @@ PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).abso
 PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
 PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
-PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12")
+PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
 PYPY_VERSIONS = ("3.7", "3.8", "3.9", "3.10")
 
 
@@ -415,10 +415,11 @@ def check_guide(session: nox.Session):
     _run(
         session,
         "lychee",
-        PYO3_DOCS_TARGET,
+        str(PYO3_DOCS_TARGET),
         f"--remap=https://pyo3.rs/main/ file://{PYO3_GUIDE_TARGET}/",
         f"--remap=https://pyo3.rs/latest/ file://{PYO3_GUIDE_TARGET}/",
         f"--exclude=file://{PYO3_DOCS_TARGET}",
+        "--exclude=http://www.adobe.com/",
         *session.posargs,
     )
 
@@ -557,22 +558,11 @@ def set_minimal_package_versions(session: nox.Session):
         "examples/word-count",
     )
     min_pkg_versions = {
-        "rust_decimal": "1.26.1",
-        "csv": "1.1.6",
-        "indexmap": "1.6.2",
-        "hashbrown": "0.9.1",
-        "log": "0.4.17",
-        "once_cell": "1.17.2",
-        "rayon": "1.6.1",
-        "rayon-core": "1.10.2",
-        "regex": "1.7.3",
-        "proptest": "1.0.0",
-        "chrono": "0.4.25",
-        "byteorder": "1.4.3",
-        "crossbeam-channel": "0.5.8",
-        "crossbeam-deque": "0.8.3",
-        "crossbeam-epoch": "0.9.15",
-        "crossbeam-utils": "0.8.16",
+        "regex": "1.9.6",
+        "proptest": "1.2.0",
+        "trybuild": "1.0.89",
+        "eyre": "0.6.8",
+        "allocator-api2": "0.2.10",
     }
 
     # run cargo update first to ensure that everything is at highest
@@ -641,11 +631,11 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.13" not in PY_VERSIONS
-        config_file.set("CPython", "3.13")
+        assert "3.14" not in PY_VERSIONS
+        config_file.set("CPython", "3.14")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.13 CPython should build with forward compatibility
+        # 3.14 CPython should build with forward compatibility
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
@@ -744,7 +734,9 @@ def update_ui_tests(session: nox.Session):
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
     # pyo3-ffi-check needs to scrape docs of pyo3-ffi
-    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps")
+    env = os.environ.copy()
+    env["PYO3_PYTHON"] = sys.executable
+    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps", env=env)
 
 
 @lru_cache()

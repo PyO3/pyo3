@@ -247,9 +247,9 @@ fn mapping() {
 }
 
 #[derive(FromPyObject)]
-enum SequenceIndex<'a> {
+enum SequenceIndex<'py> {
     Integer(isize),
-    Slice(&'a PySlice),
+    Slice(Bound<'py, PySlice>),
 }
 
 #[pyclass]

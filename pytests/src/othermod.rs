@@ -34,8 +34,8 @@ pub fn othermod(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<ModClass>()?;
 
-    m.add("USIZE_MIN", usize::min_value())?;
-    m.add("USIZE_MAX", usize::max_value())?;
+    m.add("USIZE_MIN", usize::MIN)?;
+    m.add("USIZE_MAX", usize::MAX)?;
 
     Ok(())
 }

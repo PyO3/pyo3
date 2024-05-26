@@ -12,7 +12,7 @@ fn array_to_array_i32(arr: [i32; 3]) -> [i32; 3] {
 }
 
 #[pyfunction]
-fn vec_to_vec_pystring(vec: Vec<&PyString>) -> Vec<&PyString> {
+fn vec_to_vec_pystring(vec: Vec<Bound<'_, PyString>>) -> Vec<Bound<'_, PyString>> {
     vec
 }
 
