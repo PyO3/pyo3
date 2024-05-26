@@ -525,9 +525,8 @@ impl PyWeakrefReference {
     ///     reference
     ///         .get_object()
     ///         .getattr("__class__")?
-    ///         .repr()?
-    ///         .to_str()
-    ///         .map(ToOwned::to_owned)
+    ///         .repr()
+    ///         .map(|repr| repr.to_string())
     /// }
     ///
     /// # fn main() -> PyResult<()> {

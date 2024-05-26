@@ -521,9 +521,8 @@ impl PyWeakrefProxy {
     ///     reference
     ///         .get_object()
     ///         .getattr("__class__")?
-    ///         .repr()?
-    ///         .to_str()
-    ///         .map(ToOwned::to_owned)
+    ///         .repr()
+    ///         .map(|repr| repr.to_string())
     /// }
     ///
     /// # fn main() -> PyResult<()> {
@@ -600,7 +599,10 @@ mod tests {
 
             let (msg, addr) = second_part.split_once("0x").unwrap();
 
-            assert_eq!(msg, format!("{} at ", class));
+            // Avoids not succeeding at unreliable quotation (Python 3.13-dev adds ' around classname without documenting)
+            assert!(msg.ends_with(" at "));
+            assert!(msg.contains(class));
+
             assert!(addr
                 .to_lowercase()
                 .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
@@ -1165,7 +1167,10 @@ mod tests {
 
             let (msg, addr) = second_part.split_once("0x").unwrap();
 
-            assert_eq!(msg, format!("{} at ", class));
+            // Avoids not succeeding at unreliable quotation (Python 3.13-dev adds ' around classname without documenting)
+            assert!(msg.ends_with(" at "));
+            assert!(msg.contains(class));
+
             assert!(addr
                 .to_lowercase()
                 .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));

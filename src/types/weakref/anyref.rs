@@ -349,9 +349,8 @@ impl PyWeakref {
     ///     reference
     ///         .get_object()
     ///         .getattr("__class__")?
-    ///         .repr()?
-    ///         .to_str()
-    ///         .map(ToOwned::to_owned)
+    ///         .repr()
+    ///         .map(|repr| repr.to_string())
     /// }
     ///
     /// # fn main() -> PyResult<()> {
@@ -1025,9 +1024,8 @@ pub trait PyWeakrefMethods<'py> {
     ///     reference
     ///         .get_object()
     ///         .getattr("__class__")?
-    ///         .repr()?
-    ///         .to_str()
-    ///         .map(ToOwned::to_owned)
+    ///         .repr()
+    ///         .map(|repr| repr.to_string())
     /// }
     ///
     /// # fn main() -> PyResult<()> {
@@ -1087,9 +1085,8 @@ pub trait PyWeakrefMethods<'py> {
     ///     reference
     ///         .get_object_borrowed()
     ///         .getattr("__class__")?
-    ///         .repr()?
-    ///         .to_str()
-    ///         .map(ToOwned::to_owned)
+    ///         .repr()
+    ///         .map(|repr| repr.to_string())
     /// }
     ///
     /// # fn main() -> PyResult<()> {
