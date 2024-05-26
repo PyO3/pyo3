@@ -24,11 +24,11 @@ struct TestBufferClass {
 #[pymethods]
 impl TestBufferClass {
     unsafe fn __getbuffer__(
-        slf: &PyCell<Self>,
+        slf: Bound<'_, Self>,
         view: *mut ffi::Py_buffer,
         flags: c_int,
     ) -> PyResult<()> {
-        fill_view_from_readonly_data(view, flags, &slf.borrow().vec, slf)
+        fill_view_from_readonly_data(view, flags, &slf.borrow().vec, slf.into_any())
     }
 
     unsafe fn __releasebuffer__(&self, view: *mut ffi::Py_buffer) {
@@ -57,7 +57,7 @@ fn test_buffer() {
             },
         )
         .unwrap();
-        let env = [("ob", instance)].into_py_dict(py);
+        let env = [("ob", instance)].into_py_dict_bound(py);
         py_assert!(py, *env, "bytes(ob) == b' 23'");
     });
 
@@ -77,7 +77,7 @@ fn test_buffer_referenced() {
             }
             .into_py(py);
 
-            let buf = PyBuffer::<u8>::get(instance.as_ref(py)).unwrap();
+            let buf = PyBuffer::<u8>::get_bound(instance.bind(py)).unwrap();
             assert_eq!(buf.to_vec(py).unwrap(), input);
             drop(instance);
             buf
@@ -105,12 +105,12 @@ fn test_releasebuffer_unraisable_error() {
     #[pymethods]
     impl ReleaseBufferError {
         unsafe fn __getbuffer__(
-            slf: &PyCell<Self>,
+            slf: Bound<'_, Self>,
             view: *mut ffi::Py_buffer,
             flags: c_int,
         ) -> PyResult<()> {
             static BUF_BYTES: &[u8] = b"hello world";
-            fill_view_from_readonly_data(view, flags, BUF_BYTES, slf)
+            fill_view_from_readonly_data(view, flags, BUF_BYTES, slf.into_any())
         }
 
         unsafe fn __releasebuffer__(&self, _view: *mut ffi::Py_buffer) -> PyResult<()> {
@@ -122,7 +122,7 @@ fn test_releasebuffer_unraisable_error() {
         let capture = UnraisableCapture::install(py);
 
         let instance = Py::new(py, ReleaseBufferError {}).unwrap();
-        let env = [("ob", instance.clone())].into_py_dict(py);
+        let env = [("ob", instance.clone_ref(py))].into_py_dict_bound(py);
 
         assert!(capture.borrow(py).capture.is_none());
 
@@ -145,7 +145,7 @@ unsafe fn fill_view_from_readonly_data(
     view: *mut ffi::Py_buffer,
     flags: c_int,
     data: &[u8],
-    owner: &PyAny,
+    owner: Bound<'_, PyAny>,
 ) -> PyResult<()> {
     if view.is_null() {
         return Err(PyBufferError::new_err("View is null"));
@@ -155,7 +155,7 @@ unsafe fn fill_view_from_readonly_data(
         return Err(PyBufferError::new_err("Object is not writable"));
     }
 
-    (*view).obj = ffi::_Py_NewRef(owner.as_ptr());
+    (*view).obj = owner.into_ptr();
 
     (*view).buf = data.as_ptr() as *mut c_void;
     (*view).len = data.len() as isize;

@@ -1,14 +1,18 @@
-#![cfg(feature = "macros")]
+#![cfg(feature = "experimental-async")]
 #![cfg(not(target_arch = "wasm32"))]
-use std::{ops::Deref, task::Poll, thread, time::Duration};
+use std::{task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};
+#[cfg(not(target_has_atomic = "64"))]
+use portable_atomic::{AtomicBool, Ordering};
 use pyo3::{
     coroutine::CancelHandle,
     prelude::*,
     py_run,
     types::{IntoPyDict, PyType},
 };
+#[cfg(target_has_atomic = "64")]
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -29,7 +33,7 @@ fn noop_coroutine() {
         42
     }
     Python::with_gil(|gil| {
-        let noop = wrap_pyfunction!(noop, gil).unwrap();
+        let noop = wrap_pyfunction_bound!(noop, gil).unwrap();
         let test = "import asyncio; assert asyncio.run(noop()) == 42";
         py_run!(gil, noop, &handle_windows(test));
     })
@@ -65,10 +69,16 @@ fn test_coroutine_qualname() {
             assert coro.__name__ == name and coro.__qualname__ == qualname
         "#;
         let locals = [
-            ("my_fn", wrap_pyfunction!(my_fn, gil).unwrap().deref()),
-            ("MyClass", gil.get_type::<MyClass>()),
+            (
+                "my_fn",
+                wrap_pyfunction_bound!(my_fn, gil)
+                    .unwrap()
+                    .as_borrowed()
+                    .as_any(),
+            ),
+            ("MyClass", gil.get_type_bound::<MyClass>().as_any()),
         ]
-        .into_py_dict(gil);
+        .into_py_dict_bound(gil);
         py_run!(gil, *locals, &handle_windows(test));
     })
 }
@@ -89,7 +99,7 @@ fn sleep_0_like_coroutine() {
         .await
     }
     Python::with_gil(|gil| {
-        let sleep_0 = wrap_pyfunction!(sleep_0, gil).unwrap();
+        let sleep_0 = wrap_pyfunction_bound!(sleep_0, gil).unwrap();
         let test = "import asyncio; assert asyncio.run(sleep_0()) == 42";
         py_run!(gil, sleep_0, &handle_windows(test));
     })
@@ -108,7 +118,7 @@ async fn sleep(seconds: f64) -> usize {
 #[test]
 fn sleep_coroutine() {
     Python::with_gil(|gil| {
-        let sleep = wrap_pyfunction!(sleep, gil).unwrap();
+        let sleep = wrap_pyfunction_bound!(sleep, gil).unwrap();
         let test = r#"import asyncio; assert asyncio.run(sleep(0.1)) == 42"#;
         py_run!(gil, sleep, &handle_windows(test));
     })
@@ -117,7 +127,7 @@ fn sleep_coroutine() {
 #[test]
 fn cancelled_coroutine() {
     Python::with_gil(|gil| {
-        let sleep = wrap_pyfunction!(sleep, gil).unwrap();
+        let sleep = wrap_pyfunction_bound!(sleep, gil).unwrap();
         let test = r#"
         import asyncio
         async def main():
@@ -127,17 +137,17 @@ fn cancelled_coroutine() {
             await task
         asyncio.run(main())
         "#;
-        let globals = gil.import("__main__").unwrap().dict();
+        let globals = gil.import_bound("__main__").unwrap().dict();
         globals.set_item("sleep", sleep).unwrap();
         let err = gil
-            .run(
+            .run_bound(
                 &pyo3::unindent::unindent(&handle_windows(test)),
-                Some(globals),
+                Some(&globals),
                 None,
             )
             .unwrap_err();
         assert_eq!(
-            err.value(gil).get_type().qualname().unwrap(),
+            err.value_bound(gil).get_type().qualname().unwrap(),
             "CancelledError"
         );
     })
@@ -156,7 +166,7 @@ fn coroutine_cancel_handle() {
         }
     }
     Python::with_gil(|gil| {
-        let cancellable_sleep = wrap_pyfunction!(cancellable_sleep, gil).unwrap();
+        let cancellable_sleep = wrap_pyfunction_bound!(cancellable_sleep, gil).unwrap();
         let test = r#"
         import asyncio;
         async def main():
@@ -166,13 +176,13 @@ fn coroutine_cancel_handle() {
             return await task
         assert asyncio.run(main()) == 0
         "#;
-        let globals = gil.import("__main__").unwrap().dict();
+        let globals = gil.import_bound("__main__").unwrap().dict();
         globals
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
-        gil.run(
+        gil.run_bound(
             &pyo3::unindent::unindent(&handle_windows(test)),
-            Some(globals),
+            Some(&globals),
             None,
         )
         .unwrap();
@@ -188,7 +198,7 @@ fn coroutine_is_cancelled() {
         }
     }
     Python::with_gil(|gil| {
-        let sleep_loop = wrap_pyfunction!(sleep_loop, gil).unwrap();
+        let sleep_loop = wrap_pyfunction_bound!(sleep_loop, gil).unwrap();
         let test = r#"
         import asyncio;
         async def main():
@@ -198,11 +208,11 @@ fn coroutine_is_cancelled() {
             await task
         asyncio.run(main())
         "#;
-        let globals = gil.import("__main__").unwrap().dict();
+        let globals = gil.import_bound("__main__").unwrap().dict();
         globals.set_item("sleep_loop", sleep_loop).unwrap();
-        gil.run(
+        gil.run_bound(
             &pyo3::unindent::unindent(&handle_windows(test)),
-            Some(globals),
+            Some(&globals),
             None,
         )
         .unwrap();
@@ -216,7 +226,7 @@ fn coroutine_panic() {
         panic!("test panic");
     }
     Python::with_gil(|gil| {
-        let panic = wrap_pyfunction!(panic, gil).unwrap();
+        let panic = wrap_pyfunction_bound!(panic, gil).unwrap();
         let test = r#"
         import asyncio
         coro = panic()
@@ -256,10 +266,19 @@ fn test_async_method_receiver() {
             self.0
         }
     }
+
+    static IS_DROPPED: AtomicBool = AtomicBool::new(false);
+
+    impl Drop for Counter {
+        fn drop(&mut self) {
+            IS_DROPPED.store(true, Ordering::SeqCst);
+        }
+    }
+
     Python::with_gil(|gil| {
         let test = r#"
         import asyncio
-        
+
         obj = Counter()
         coro1 = obj.get()
         coro2 = obj.get()
@@ -286,7 +305,42 @@ fn test_async_method_receiver() {
             assert False
         assert asyncio.run(coro3) == 1
         "#;
-        let locals = [("Counter", gil.get_type::<Counter>())].into_py_dict(gil);
+        let locals = [("Counter", gil.get_type_bound::<Counter>())].into_py_dict_bound(gil);
         py_run!(gil, *locals, test);
-    })
+    });
+
+    assert!(IS_DROPPED.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_async_method_receiver_with_other_args() {
+    #[pyclass]
+    struct Value(i32);
+    #[pymethods]
+    impl Value {
+        #[new]
+        fn new() -> Self {
+            Self(0)
+        }
+        async fn get_value_plus_with(&self, v1: i32, v2: i32) -> i32 {
+            self.0 + v1 + v2
+        }
+        async fn set_value(&mut self, new_value: i32) -> i32 {
+            self.0 = new_value;
+            self.0
+        }
+    }
+
+    Python::with_gil(|gil| {
+        let test = r#"
+        import asyncio
+
+        v = Value()
+        assert asyncio.run(v.get_value_plus_with(3, 0)) == 3
+        assert asyncio.run(v.set_value(10)) == 10
+        assert asyncio.run(v.get_value_plus_with(1, 1)) == 12
+        "#;
+        let locals = [("Value", gil.get_type_bound::<Value>())].into_py_dict_bound(gil);
+        py_run!(gil, *locals, test);
+    });
 }

@@ -1,11 +1,15 @@
 use crate::ffi::*;
+use crate::types::any::PyAnyMethods;
 use crate::Python;
 
+#[cfg(all(PyPy, feature = "macros"))]
+use crate::types::PyString;
+
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+use crate::types::PyString;
+
 #[cfg(not(Py_LIMITED_API))]
-use crate::{
-    types::{PyDict, PyString},
-    IntoPy, Py, PyAny,
-};
+use crate::{types::PyDict, Bound, IntoPy, Py, PyAny};
 #[cfg(not(any(Py_3_12, Py_LIMITED_API)))]
 use libc::wchar_t;
 
@@ -15,16 +19,16 @@ use libc::wchar_t;
 fn test_datetime_fromtimestamp() {
     Python::with_gil(|py| {
         let args: Py<PyAny> = (100,).into_py(py);
-        let dt: &PyAny = unsafe {
+        let dt = unsafe {
             PyDateTime_IMPORT();
-            py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr()))
+            Bound::from_owned_ptr(py, PyDateTime_FromTimestamp(args.as_ptr()))
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -36,16 +40,16 @@ fn test_datetime_fromtimestamp() {
 fn test_date_fromtimestamp() {
     Python::with_gil(|py| {
         let args: Py<PyAny> = (100,).into_py(py);
-        let dt: &PyAny = unsafe {
+        let dt = unsafe {
             PyDateTime_IMPORT();
-            py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr()))
+            Bound::from_owned_ptr(py, PyDate_FromTimestamp(args.as_ptr()))
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("dt", dt).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert dt == datetime.date.fromtimestamp(100)",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -56,16 +60,16 @@ fn test_date_fromtimestamp() {
 #[test]
 fn test_utc_timezone() {
     Python::with_gil(|py| {
-        let utc_timezone: &PyAny = unsafe {
+        let utc_timezone: Bound<'_, PyAny> = unsafe {
             PyDateTime_IMPORT();
-            py.from_borrowed_ptr(PyDateTime_TimeZone_UTC())
+            Bound::from_borrowed_ptr(py, PyDateTime_TimeZone_UTC())
         };
-        let locals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
-        py.run(
+        py.run_bound(
             "import datetime; assert utc_timezone is datetime.timezone.utc",
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap();
     })
@@ -76,11 +80,11 @@ fn test_utc_timezone() {
 #[cfg(feature = "macros")]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 fn test_timezone_from_offset() {
-    use crate::types::PyDelta;
+    use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
     Python::with_gil(|py| {
-        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
-        let tz: &PyAny = unsafe { py.from_borrowed_ptr(PyTimeZone_FromOffset(delta.as_ptr())) };
+        let delta = PyDelta::new_bound(py, 0, 100, 0, false).unwrap();
+        let tz = unsafe { PyTimeZone_FromOffset(delta.as_ptr()).assume_owned(py) };
         crate::py_run!(
             py,
             tz,
@@ -94,16 +98,13 @@ fn test_timezone_from_offset() {
 #[cfg(feature = "macros")]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 fn test_timezone_from_offset_and_name() {
-    use crate::types::PyDelta;
+    use crate::{ffi_ptr_ext::FfiPtrExt, types::PyDelta};
 
     Python::with_gil(|py| {
-        let delta = PyDelta::new(py, 0, 100, 0, false).unwrap();
-        let tzname = PyString::new(py, "testtz");
-        let tz: &PyAny = unsafe {
-            py.from_borrowed_ptr(PyTimeZone_FromOffsetAndName(
-                delta.as_ptr(),
-                tzname.as_ptr(),
-            ))
+        let delta = PyDelta::new_bound(py, 0, 100, 0, false).unwrap();
+        let tzname = PyString::new_bound(py, "testtz");
+        let tz = unsafe {
+            PyTimeZone_FromOffsetAndName(delta.as_ptr(), tzname.as_ptr()).assume_owned(py)
         };
         crate::py_run!(
             py,
@@ -162,12 +163,12 @@ fn ascii_object_bitfield() {
 }
 
 #[test]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ascii() {
     Python::with_gil(|py| {
         // This test relies on implementation details of PyString.
-        let s = PyString::new(py, "hello, world");
+        let s = PyString::new_bound(py, "hello, world");
         let ptr = s.as_ptr();
 
         unsafe {
@@ -204,12 +205,12 @@ fn ascii() {
 }
 
 #[test]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[cfg_attr(Py_3_10, allow(deprecated))]
 fn ucs4() {
     Python::with_gil(|py| {
         let s = "哈哈🐈";
-        let py_string = PyString::new(py, s);
+        let py_string = PyString::new_bound(py, s);
         let ptr = py_string.as_ptr();
 
         unsafe {
@@ -252,39 +253,37 @@ fn ucs4() {
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
 #[cfg(not(PyPy))]
 fn test_get_tzinfo() {
-    use crate::types::timezone_utc;
+    use crate::types::timezone_utc_bound;
 
     crate::Python::with_gil(|py| {
         use crate::types::{PyDateTime, PyTime};
-        use crate::PyAny;
 
-        let utc = timezone_utc(py);
+        let utc = &timezone_utc_bound(py);
 
-        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
+        let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is(utc)
         );
 
-        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
+        let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
                 .is_none()
         );
 
-        let t = PyTime::new(py, 0, 0, 0, 0, Some(utc)).unwrap();
+        let t = PyTime::new_bound(py, 0, 0, 0, 0, Some(utc)).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
-                .is(utc)
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }.is(utc)
         );
 
-        let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
+        let t = PyTime::new_bound(py, 0, 0, 0, 0, None).unwrap();
 
         assert!(
-            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
+            unsafe { Bound::from_borrowed_ptr(py, PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
                 .is_none()
         );
     })
@@ -293,7 +292,7 @@ fn test_get_tzinfo() {
 #[test]
 fn test_inc_dec_ref() {
     Python::with_gil(|py| {
-        let obj = py.eval("object()", None, None).unwrap();
+        let obj = py.eval_bound("object()", None, None).unwrap();
 
         let ref_count = obj.get_refcnt();
         let ptr = obj.as_ptr();
@@ -314,15 +313,15 @@ fn test_inc_dec_ref_immortal() {
     Python::with_gil(|py| {
         let obj = py.None();
 
-        let ref_count = obj.get_refcnt();
+        let ref_count = obj.get_refcnt(py);
         let ptr = obj.as_ptr();
 
         unsafe { Py_INCREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(), ref_count);
+        assert_eq!(obj.get_refcnt(py), ref_count);
 
         unsafe { Py_DECREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(), ref_count);
+        assert_eq!(obj.get_refcnt(py), ref_count);
     })
 }

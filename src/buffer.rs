@@ -18,6 +18,9 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! `PyBuffer` implementation
+use crate::Bound;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
 use std::marker::PhantomData;
 use std::os::raw;
@@ -181,15 +184,25 @@ pub unsafe trait Element: Copy {
     fn is_compatible_format(format: &CStr) -> bool;
 }
 
-impl<'source, T: Element> FromPyObject<'source> for PyBuffer<T> {
-    fn extract(obj: &PyAny) -> PyResult<PyBuffer<T>> {
-        Self::get(obj)
+impl<'py, T: Element> FromPyObject<'py> for PyBuffer<T> {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
+        Self::get_bound(obj)
     }
 }
 
 impl<T: Element> PyBuffer<T> {
-    /// Gets the underlying buffer from the specified python object.
+    /// Deprecated form of [`PyBuffer::get_bound`]
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBuffer::get` will be replaced by `PyBuffer::get_bound` in a future PyO3 version"
+    )]
     pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
+        Self::get_bound(&obj.as_borrowed())
+    }
+
+    /// Gets the underlying buffer from the specified python object.
+    pub fn get_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
         // TODO: use nightly API Box::new_uninit() once stable
         let mut buf = Box::new(mem::MaybeUninit::uninit());
         let buf: Box<ffi::Py_buffer> = {
@@ -688,13 +701,14 @@ impl_element!(f64, Float);
 mod tests {
     use super::PyBuffer;
     use crate::ffi;
+    use crate::types::any::PyAnyMethods;
     use crate::Python;
 
     #[test]
     fn test_debug() {
         Python::with_gil(|py| {
-            let bytes = py.eval("b'abcde'", None, None).unwrap();
-            let buffer: PyBuffer<u8> = PyBuffer::get(bytes).unwrap();
+            let bytes = py.eval_bound("b'abcde'", None, None).unwrap();
+            let buffer: PyBuffer<u8> = PyBuffer::get_bound(&bytes).unwrap();
             let expected = format!(
                 concat!(
                     "PyBuffer {{ buf: {:?}, obj: {:?}, ",
@@ -856,8 +870,8 @@ mod tests {
     #[test]
     fn test_bytes_buffer() {
         Python::with_gil(|py| {
-            let bytes = py.eval("b'abcde'", None, None).unwrap();
-            let buffer = PyBuffer::get(bytes).unwrap();
+            let bytes = py.eval_bound("b'abcde'", None, None).unwrap();
+            let buffer = PyBuffer::get_bound(&bytes).unwrap();
             assert_eq!(buffer.dimensions(), 1);
             assert_eq!(buffer.item_count(), 5);
             assert_eq!(buffer.format().to_str().unwrap(), "B");
@@ -889,11 +903,11 @@ mod tests {
     fn test_array_buffer() {
         Python::with_gil(|py| {
             let array = py
-                .import("array")
+                .import_bound("array")
                 .unwrap()
                 .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
                 .unwrap();
-            let buffer = PyBuffer::get(array).unwrap();
+            let buffer = PyBuffer::get_bound(&array).unwrap();
             assert_eq!(buffer.dimensions(), 1);
             assert_eq!(buffer.item_count(), 4);
             assert_eq!(buffer.format().to_str().unwrap(), "f");
@@ -923,7 +937,7 @@ mod tests {
             assert_eq!(buffer.to_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
 
             // F-contiguous fns
-            let buffer = PyBuffer::get(array).unwrap();
+            let buffer = PyBuffer::get_bound(&array).unwrap();
             let slice = buffer.as_fortran_slice(py).unwrap();
             assert_eq!(slice.len(), 4);
             assert_eq!(slice[1].get(), 11.0);

@@ -1,4 +1,4 @@
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub struct _PyWeakReference {
     pub ob_base: crate::PyObject,
     pub wr_object: *mut crate::PyObject,

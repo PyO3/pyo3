@@ -1,6 +1,7 @@
-use crate::{
-    ffi, FromPyObject, FromPyPointer, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
-};
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::instance::Bound;
+use crate::types::any::PyAnyMethods;
+use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -14,10 +15,10 @@ impl ToPyObject for Path {
 // See osstr.rs for why there's no FromPyObject impl for &Path
 
 impl FromPyObject<'_> for PathBuf {
-    fn extract(ob: &PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
         // We use os.fspath to get the underlying path as bytes or str
-        let path = unsafe { PyAny::from_owned_ptr_or_err(ob.py(), ffi::PyOS_FSPath(ob.as_ptr())) }?;
-        Ok(OsString::extract(path)?.into())
+        let path = unsafe { ffi::PyOS_FSPath(ob.as_ptr()).assume_owned_or_err(ob.py())? };
+        Ok(path.extract::<OsString>()?.into())
     }
 }
 
@@ -63,6 +64,7 @@ impl<'a> IntoPy<PyObject> for &'a PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::{PyAnyMethods, PyStringMethods};
     use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
     use std::borrow::Cow;
     use std::fmt::Debug;
@@ -94,7 +96,7 @@ mod tests {
         Python::with_gil(|py| {
             fn test_roundtrip<T: ToPyObject + AsRef<Path> + Debug>(py: Python<'_>, obj: T) {
                 let pyobject = obj.to_object(py);
-                let pystring: &PyString = pyobject.extract(py).unwrap();
+                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: PathBuf = pystring.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
@@ -115,7 +117,7 @@ mod tests {
                 obj: T,
             ) {
                 let pyobject = obj.clone().into_py(py);
-                let pystring: &PyString = pyobject.extract(py).unwrap();
+                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: PathBuf = pystring.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_path());

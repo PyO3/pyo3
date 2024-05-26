@@ -16,7 +16,7 @@ fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<(
             \n\
             For more information, see \
             https://pyo3.rs/v{pyo3_version}/\
-                building_and_distribution.html#embedding-python-in-rust",
+                building-and-distribution.html#embedding-python-in-rust",
             pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
         );
     }
@@ -39,13 +39,14 @@ fn configure_pyo3() -> Result<()> {
         println!("{}", cfg)
     }
 
-    // Emit cfgs like `thread_local_const_init`
+    // Emit cfgs like `invalid_from_utf8_lint`
     print_feature_cfgs();
 
     Ok(())
 }
 
 fn main() {
+    pyo3_build_config::print_expected_cfgs();
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)

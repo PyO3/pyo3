@@ -1,18 +1,9 @@
-error[E0277]: the trait bound `Blah: IntoPy<Py<PyAny>>` is not satisfied
+error[E0277]: the trait bound `Blah: OkWrap<Blah>` is not satisfied
  --> tests/ui/missing_intopy.rs:3:1
   |
 3 | #[pyo3::pyfunction]
-  | ^^^^^^^^^^^^^^^^^^^ the trait `IntoPy<Py<PyAny>>` is not implemented for `Blah`
+  | ^^^^^^^^^^^^^^^^^^^ the trait `IntoPy<Py<PyAny>>` is not implemented for `Blah`, which is required by `Blah: OkWrap<_>`
   |
-  = help: the following other types implement trait `IntoPy<T>`:
-            <bool as IntoPy<Py<PyAny>>>
-            <char as IntoPy<Py<PyAny>>>
-            <isize as IntoPy<Py<PyAny>>>
-            <i8 as IntoPy<Py<PyAny>>>
-            <i16 as IntoPy<Py<PyAny>>>
-            <i32 as IntoPy<Py<PyAny>>>
-            <i64 as IntoPy<Py<PyAny>>>
-            <i128 as IntoPy<Py<PyAny>>>
-          and $N others
+  = help: the trait `OkWrap<T>` is implemented for `Result<T, E>`
   = note: required for `Blah` to implement `OkWrap<Blah>`
   = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

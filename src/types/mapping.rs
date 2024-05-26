@@ -1,4 +1,4 @@
-use crate::err::{PyDowncastError, PyResult};
+use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
@@ -6,7 +6,9 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
-use crate::{ffi, Py, PyNativeType, PyTypeCheck, Python, ToPyObject};
+#[cfg(feature = "gil-refs")]
+use crate::{err::PyDowncastError, PyNativeType};
+use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -15,18 +17,30 @@ pyobject_native_type_named!(PyMapping);
 pyobject_native_type_extract!(PyMapping);
 
 impl PyMapping {
+    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
+    /// library). This is equivalent to `collections.abc.Mapping.register(T)` in Python.
+    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
+    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+        let ty = T::type_object_bound(py);
+        get_mapping_abc(py)?.call_method1("register", (ty,))?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyMapping {
     /// Returns the number of objects in the mapping.
     ///
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> PyResult<usize> {
-        Bound::borrowed_from_gil_ref(&self).len()
+        self.as_borrowed().len()
     }
 
     /// Returns whether the mapping is empty.
     #[inline]
     pub fn is_empty(&self) -> PyResult<bool> {
-        Bound::borrowed_from_gil_ref(&self).is_empty()
+        self.as_borrowed().is_empty()
     }
 
     /// Determines if the mapping contains the specified key.
@@ -36,7 +50,7 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).contains(key)
+        self.as_borrowed().contains(key)
     }
 
     /// Gets the item in self with key `key`.
@@ -49,9 +63,7 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self)
-            .get_item(key)
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().get_item(key).map(Bound::into_gil_ref)
     }
 
     /// Sets the item in self with key `key`.
@@ -63,7 +75,7 @@ impl PyMapping {
         K: ToPyObject,
         V: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).set_item(key, value)
+        self.as_borrowed().set_item(key, value)
     }
 
     /// Deletes the item with key `key`.
@@ -74,40 +86,25 @@ impl PyMapping {
     where
         K: ToPyObject,
     {
-        Bound::borrowed_from_gil_ref(&self).del_item(key)
+        self.as_borrowed().del_item(key)
     }
 
     /// Returns a sequence containing all keys in the mapping.
     #[inline]
     pub fn keys(&self) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .keys()
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().keys().map(Bound::into_gil_ref)
     }
 
     /// Returns a sequence containing all values in the mapping.
     #[inline]
     pub fn values(&self) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .values()
-            .map(Bound::into_gil_ref)
+        self.as_borrowed().values().map(Bound::into_gil_ref)
     }
 
     /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
     #[inline]
     pub fn items(&self) -> PyResult<&PySequence> {
-        Bound::borrowed_from_gil_ref(&self)
-            .items()
-            .map(Bound::into_gil_ref)
-    }
-
-    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
-    /// library). This is equvalent to `collections.abc.Mapping.register(T)` in Python.
-    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
-    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
-        let ty = T::type_object(py);
-        get_mapping_abc(py)?.call_method1("register", (ty,))?;
-        Ok(())
+        self.as_borrowed().items().map(Bound::into_gil_ref)
     }
 }
 
@@ -117,7 +114,7 @@ impl PyMapping {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyMapping")]
-pub trait PyMappingMethods<'py> {
+pub trait PyMappingMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of objects in the mapping.
     ///
     /// This is equivalent to the Python expression `len(self)`.
@@ -240,7 +237,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     }
 }
 
-fn get_mapping_abc(py: Python<'_>) -> PyResult<&PyType> {
+fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
     MAPPING_ABC.get_or_try_init_type_ref(py, "collections.abc", "Mapping")
@@ -250,19 +247,20 @@ impl PyTypeCheck for PyMapping {
     const NAME: &'static str = "Mapping";
 
     #[inline]
-    fn type_check(object: &PyAny) -> bool {
+    fn type_check(object: &Bound<'_, PyAny>) -> bool {
         // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
         // optimized case dict as a well-known mapping
-        PyDict::is_type_of(object)
+        PyDict::is_type_of_bound(object)
             || get_mapping_abc(object.py())
                 .and_then(|abc| object.is_instance(abc))
                 .unwrap_or_else(|err| {
-                    err.write_unraisable(object.py(), Some(object));
+                    err.write_unraisable_bound(object.py(), Some(&object.as_borrowed()));
                     false
                 })
     }
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl<'v> crate::PyTryFrom<'v> for PyMapping {
     /// Downcasting to `PyMapping` requires the concrete class to be a subclass (or registered
@@ -271,7 +269,7 @@ impl<'v> crate::PyTryFrom<'v> for PyMapping {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
 
-        if PyMapping::type_check(value) {
+        if PyMapping::type_check(&value.as_borrowed()) {
             unsafe { return Ok(value.downcast_unchecked()) }
         }
 
@@ -294,11 +292,7 @@ impl<'v> crate::PyTryFrom<'v> for PyMapping {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{
-        exceptions::PyKeyError,
-        types::{PyDict, PyTuple},
-        Python,
-    };
+    use crate::{exceptions::PyKeyError, types::PyTuple};
 
     use super::*;
 
@@ -307,13 +301,13 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             assert_eq!(0, mapping.len().unwrap());
             assert!(mapping.is_empty().unwrap());
 
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping2: &PyMapping = ob.downcast(py).unwrap();
+            let mapping2 = ob.downcast_bound::<PyMapping>(py).unwrap();
             assert_eq!(1, mapping2.len().unwrap());
             assert!(!mapping2.is_empty().unwrap());
         });
@@ -325,7 +319,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert("key0", 1234);
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             mapping.set_item("key1", "foo").unwrap();
 
             assert!(mapping.contains("key0").unwrap());
@@ -340,7 +334,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             assert_eq!(
                 32,
                 mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
@@ -358,7 +352,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             assert!(mapping.set_item(7i32, 42i32).is_ok()); // change
             assert!(mapping.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
@@ -378,7 +372,7 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             assert!(mapping.del_item(7i32).is_ok());
             assert_eq!(0, mapping.len().unwrap());
             assert!(mapping
@@ -396,12 +390,12 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
             for el in mapping.items().unwrap().iter().unwrap() {
-                let tuple = el.unwrap().downcast::<PyTuple>().unwrap();
+                let tuple = el.unwrap().downcast_into::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }
@@ -418,7 +412,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             for el in mapping.keys().unwrap().iter().unwrap() {
@@ -436,7 +430,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
             let ob = v.to_object(py);
-            let mapping: &PyMapping = ob.downcast(py).unwrap();
+            let mapping = ob.downcast_bound::<PyMapping>(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
             for el in mapping.values().unwrap().iter().unwrap() {
@@ -447,6 +441,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_mapping_try_from() {
         use crate::PyTryFrom;

@@ -4,7 +4,28 @@ error[E0277]: `Rc<i32>` cannot be sent between threads safely
 4 | #[pyclass]
   | ^^^^^^^^^^ `Rc<i32>` cannot be sent between threads safely
   |
-  = help: within `NotThreadSafe`, the trait `Send` is not implemented for `Rc<i32>`
+  = help: within `NotThreadSafe`, the trait `Send` is not implemented for `Rc<i32>`, which is required by `SendablePyClass<NotThreadSafe>: pyo3::impl_::pyclass::PyClassThreadChecker<NotThreadSafe>`
+  = help: the trait `pyo3::impl_::pyclass::PyClassThreadChecker<T>` is implemented for `SendablePyClass<T>`
+note: required because it appears within the type `NotThreadSafe`
+ --> tests/ui/pyclass_send.rs:5:8
+  |
+5 | struct NotThreadSafe {
+  |        ^^^^^^^^^^^^^
+  = note: required for `SendablePyClass<NotThreadSafe>` to implement `pyo3::impl_::pyclass::PyClassThreadChecker<NotThreadSafe>`
+note: required by a bound in `PyClassImpl::ThreadChecker`
+ --> src/impl_/pyclass.rs
+  |
+  |     type ThreadChecker: PyClassThreadChecker<Self>;
+  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::ThreadChecker`
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `Rc<i32>` cannot be sent between threads safely
+ --> tests/ui/pyclass_send.rs:4:1
+  |
+4 | #[pyclass]
+  | ^^^^^^^^^^ `Rc<i32>` cannot be sent between threads safely
+  |
+  = help: within `NotThreadSafe`, the trait `Send` is not implemented for `Rc<i32>`, which is required by `NotThreadSafe: Send`
 note: required because it appears within the type `NotThreadSafe`
  --> tests/ui/pyclass_send.rs:5:8
   |

@@ -1,12 +1,13 @@
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
-use crate::{ffi, FromPyObject, IntoPy, Py, PyAny, PyResult, Python, ToPyObject};
-use std::borrow::Cow;
+use crate::types::any::PyAnyMethods;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Py, PyAny, PyResult, Python};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
 use std::str;
-
-use super::bytearray::PyByteArray;
 
 /// Represents a Python `bytes` object.
 ///
@@ -21,10 +22,14 @@ impl PyBytes {
     /// The bytestring is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
+    pub fn new_bound<'p>(py: Python<'p>, s: &[u8]) -> Bound<'p, PyBytes> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(ptr, len)) }
+        unsafe {
+            ffi::PyBytes_FromStringAndSize(ptr, len)
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        }
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
@@ -41,31 +46,31 @@ impl PyBytes {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let py_bytes = PyBytes::new_with(py, 10, |bytes: &mut [u8]| {
+    ///     let py_bytes = PyBytes::new_bound_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
     ///     })?;
-    ///     let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+    ///     let bytes: &[u8] = py_bytes.extract()?;
     ///     assert_eq!(bytes, b"Hello Rust");
     ///     Ok(())
     /// })
     /// # }
     /// ```
-    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyBytes>
+    pub fn new_bound_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<Bound<'_, PyBytes>>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let pypybytes: Py<PyBytes> = Py::from_owned_ptr_or_err(py, pyptr)?;
+            let pybytes = pyptr.assume_owned_or_err(py)?.downcast_into_unchecked();
             let buffer: *mut u8 = ffi::PyBytes_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytestring in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
-            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytes.into_ref(py))
+            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
         }
     }
 
@@ -79,17 +84,52 @@ impl PyBytes {
     /// leading pointer of a slice of length `len`. [As with
     /// `std::slice::from_raw_parts`, this is
     /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
+    pub unsafe fn bound_from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
+        ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize)
+            .assume_owned(py)
+            .downcast_into_unchecked()
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyBytes {
+    /// Deprecated form of [`PyBytes::new_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBytes::new` will be replaced by `PyBytes::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
+        Self::new_bound(py, s).into_gil_ref()
+    }
+
+    /// Deprecated form of [`PyBytes::new_bound_with`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBytes::new_with` will be replaced by `PyBytes::new_bound_with` in a future PyO3 version"
+    )]
+    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyBytes>
+    where
+        F: FnOnce(&mut [u8]) -> PyResult<()>,
+    {
+        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyBytes::bound_from_ptr`].
+    ///
+    /// # Safety
+    /// See [`PyBytes::bound_from_ptr`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBytes::from_ptr` will be replaced by `PyBytes::bound_from_ptr` in a future PyO3 version"
+    )]
     pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
-        py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(
-            ptr as *const _,
-            len as isize,
-        ))
+        Self::bound_from_ptr(py, ptr, len).into_gil_ref()
     }
 
     /// Gets the Python string as a byte slice.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
-        Borrowed::from_gil_ref(self).as_bytes()
+        self.as_borrowed().as_bytes()
     }
 }
 
@@ -99,7 +139,7 @@ impl PyBytes {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyBytes")]
-pub trait PyBytesMethods<'py> {
+pub trait PyBytesMethods<'py>: crate::sealed::Sealed {
     /// Gets the Python string as a byte slice.
     fn as_bytes(&self) -> &[u8];
 }
@@ -107,14 +147,14 @@ pub trait PyBytesMethods<'py> {
 impl<'py> PyBytesMethods<'py> for Bound<'py, PyBytes> {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
-        Borrowed::from(self).as_bytes()
+        self.as_borrowed().as_bytes()
     }
 }
 
 impl<'a> Borrowed<'a, '_, PyBytes> {
     /// Gets the Python string as a byte slice.
     #[allow(clippy::wrong_self_convention)]
-    fn as_bytes(self) -> &'a [u8] {
+    pub(crate) fn as_bytes(self) -> &'a [u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
@@ -134,6 +174,7 @@ impl Py<PyBytes> {
 }
 
 /// This is the same way [Vec] is indexed.
+#[cfg(feature = "gil-refs")]
 impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     type Output = I::Output;
 
@@ -142,31 +183,12 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     }
 }
 
-/// Special-purpose trait impl to efficiently handle both `bytes` and `bytearray`
-///
-/// If the source object is a `bytes` object, the `Cow` will be borrowed and
-/// pointing into the source object, and no copying or heap allocations will happen.
-/// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
-impl<'source> FromPyObject<'source> for Cow<'source, [u8]> {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(bytes) = ob.downcast::<PyBytes>() {
-            return Ok(Cow::Borrowed(bytes.as_bytes()));
-        }
+/// This is the same way [Vec] is indexed.
+impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
+    type Output = I::Output;
 
-        let byte_array = ob.downcast::<PyByteArray>()?;
-        Ok(Cow::Owned(byte_array.to_vec()))
-    }
-}
-
-impl ToPyObject for Cow<'_, [u8]> {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new(py, self.as_ref()).into()
-    }
-}
-
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.to_object(py)
+    fn index(&self, index: I) -> &Self::Output {
+        &self.as_bytes()[index]
     }
 }
 
@@ -177,7 +199,18 @@ mod tests {
     #[test]
     fn test_bytes_index() {
         Python::with_gil(|py| {
-            let bytes = PyBytes::new(py, b"Hello World");
+            let bytes = PyBytes::new_bound(py, b"Hello World");
+            assert_eq!(bytes[1], b'e');
+        });
+    }
+
+    #[test]
+    fn test_bound_bytes_index() {
+        Python::with_gil(|py| {
+            let bytes = PyBytes::new_bound(py, b"Hello World");
+            assert_eq!(bytes[1], b'e');
+
+            let bytes = &bytes;
             assert_eq!(bytes[1], b'e');
         });
     }
@@ -185,11 +218,11 @@ mod tests {
     #[test]
     fn test_bytes_new_with() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
-            let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
+            let py_bytes = PyBytes::new_bound_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
             })?;
-            let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+            let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, b"Hello Rust");
             Ok(())
         })
@@ -198,8 +231,8 @@ mod tests {
     #[test]
     fn test_bytes_new_with_zero_initialised() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
-            let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
-            let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+            let py_bytes = PyBytes::new_bound_with(py, 10, |_b: &mut [u8]| Ok(()))?;
+            let bytes: &[u8] = py_bytes.extract()?;
             assert_eq!(bytes, &[0; 10]);
             Ok(())
         })
@@ -209,7 +242,7 @@ mod tests {
     fn test_bytes_new_with_error() {
         use crate::exceptions::PyValueError;
         Python::with_gil(|py| {
-            let py_bytes_result = PyBytes::new_with(py, 10, |_b: &mut [u8]| {
+            let py_bytes_result = PyBytes::new_bound_with(py, 10, |_b: &mut [u8]| {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
             assert!(py_bytes_result.is_err());
@@ -217,30 +250,6 @@ mod tests {
                 .err()
                 .unwrap()
                 .is_instance_of::<PyValueError>(py));
-        });
-    }
-
-    #[test]
-    fn test_cow_impl() {
-        Python::with_gil(|py| {
-            let bytes = py.eval(r#"b"foobar""#, None, None).unwrap();
-            let cow = bytes.extract::<Cow<'_, [u8]>>().unwrap();
-            assert_eq!(cow, Cow::<[u8]>::Borrowed(b"foobar"));
-
-            let byte_array = py.eval(r#"bytearray(b"foobar")"#, None, None).unwrap();
-            let cow = byte_array.extract::<Cow<'_, [u8]>>().unwrap();
-            assert_eq!(cow, Cow::<[u8]>::Owned(b"foobar".to_vec()));
-
-            let something_else_entirely = py.eval("42", None, None).unwrap();
-            something_else_entirely
-                .extract::<Cow<'_, [u8]>>()
-                .unwrap_err();
-
-            let cow = Cow::<[u8]>::Borrowed(b"foobar").to_object(py);
-            assert!(cow.as_ref(py).is_instance_of::<PyBytes>());
-
-            let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
-            assert!(cow.as_ref(py).is_instance_of::<PyBytes>());
         });
     }
 }

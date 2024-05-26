@@ -1,3 +1,5 @@
+use std::hint::black_box;
+
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
@@ -6,10 +8,10 @@ use pyo3::types::{PyList, PySequence};
 fn iter_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 100_000;
-        let list = PyList::new(py, 0..LEN);
+        let list = PyList::new_bound(py, 0..LEN);
         let mut sum = 0;
         b.iter(|| {
-            for x in list {
+            for x in &list {
                 let i: u64 = x.extract().unwrap();
                 sum += i;
             }
@@ -20,14 +22,14 @@ fn iter_list(b: &mut Bencher<'_>) {
 fn list_new(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        b.iter(|| PyList::new(py, 0..LEN));
+        b.iter_with_large_drop(|| PyList::new_bound(py, 0..LEN));
     });
 }
 
 fn list_get_item(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let list = PyList::new(py, 0..LEN);
+        let list = PyList::new_bound(py, 0..LEN);
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -41,7 +43,7 @@ fn list_get_item(b: &mut Bencher<'_>) {
 fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let list = PyList::new(py, 0..LEN);
+        let list = PyList::new_bound(py, 0..LEN);
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -56,10 +58,8 @@ fn list_get_item_unchecked(b: &mut Bencher<'_>) {
 fn sequence_from_list(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         const LEN: usize = 50_000;
-        let list = PyList::new(py, 0..LEN).to_object(py);
-        b.iter(|| {
-            let _: &PySequence = list.extract(py).unwrap();
-        });
+        let list = &PyList::new_bound(py, 0..LEN);
+        b.iter(|| black_box(list).downcast::<PySequence>().unwrap());
     });
 }
 

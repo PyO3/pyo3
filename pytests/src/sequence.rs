@@ -12,12 +12,12 @@ fn array_to_array_i32(arr: [i32; 3]) -> [i32; 3] {
 }
 
 #[pyfunction]
-fn vec_to_vec_pystring(vec: Vec<&PyString>) -> Vec<&PyString> {
+fn vec_to_vec_pystring(vec: Vec<Bound<'_, PyString>>) -> Vec<Bound<'_, PyString>> {
     vec
 }
 
 #[pymodule]
-pub fn sequence(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn sequence(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(vec_to_vec_i32, m)?)?;
     m.add_function(wrap_pyfunction!(array_to_array_i32, m)?)?;
     m.add_function(wrap_pyfunction!(vec_to_vec_pystring, m)?)?;

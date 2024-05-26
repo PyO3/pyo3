@@ -8,12 +8,36 @@ def test_empty_class_init(benchmark):
     benchmark(pyclasses.EmptyClass)
 
 
+def test_method_call(benchmark):
+    obj = pyclasses.EmptyClass()
+    assert benchmark(obj.method) is None
+
+
+def test_proto_call(benchmark):
+    obj = pyclasses.EmptyClass()
+    assert benchmark(len, obj) == 0
+
+
 class EmptyClassPy:
-    pass
+    def method(self):
+        pass
+
+    def __len__(self) -> int:
+        return 0
 
 
 def test_empty_class_init_py(benchmark):
     benchmark(EmptyClassPy)
+
+
+def test_method_call_py(benchmark):
+    obj = EmptyClassPy()
+    assert benchmark(obj.method) == pyclasses.EmptyClass().method()
+
+
+def test_proto_call_py(benchmark):
+    obj = EmptyClassPy()
+    assert benchmark(len, obj) == len(pyclasses.EmptyClass())
 
 
 def test_iter():

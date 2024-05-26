@@ -2,12 +2,11 @@
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::PySlice;
-use std::os::raw::c_long;
 
 #[derive(FromPyObject)]
 enum IntOrSlice<'py> {
     Int(i32),
-    Slice(&'py PySlice),
+    Slice(Bound<'py, PySlice>),
 }
 
 #[pyclass]
@@ -23,13 +22,13 @@ impl ExampleContainer {
         ExampleContainer { max_length: 100 }
     }
 
-    fn __getitem__(&self, key: &PyAny) -> PyResult<i32> {
+    fn __getitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<i32> {
         if let Ok(position) = key.extract::<i32>() {
             return Ok(position);
         } else if let Ok(slice) = key.downcast::<PySlice>() {
             // METHOD 1 - the use PySliceIndices to help with bounds checking and for cases when only start or end are provided
             // in this case the start/stop/step all filled in to give valid values based on the max_length given
-            let index = slice.indices(self.max_length as c_long).unwrap();
+            let index = slice.indices(self.max_length as isize).unwrap();
             let _delta = index.stop - index.start;
 
             // METHOD 2 - Do the getattr manually really only needed if you have some special cases for stop/_step not being present
@@ -62,8 +61,11 @@ impl ExampleContainer {
     fn __setitem__(&self, idx: IntOrSlice, value: u32) -> PyResult<()> {
         match idx {
             IntOrSlice::Slice(slice) => {
-                let index = slice.indices(self.max_length as c_long).unwrap();
-                println!("Got a slice! {}-{}, step: {}, value: {}", index.start, index.stop, index.step, value);
+                let index = slice.indices(self.max_length as isize).unwrap();
+                println!(
+                    "Got a slice! {}-{}, step: {}, value: {}",
+                    index.start, index.stop, index.step, value
+                );
             }
             IntOrSlice::Int(index) => {
                 println!("Got an index! {} : value: {}", index, value);
@@ -75,7 +77,7 @@ impl ExampleContainer {
 
 #[pymodule]
 #[pyo3(name = "getitem")]
-fn example(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn example(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ? -https://github.com/PyO3/maturin/issues/475
     m.add_class::<ExampleContainer>()?;
     Ok(())

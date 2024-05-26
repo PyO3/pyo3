@@ -13,7 +13,7 @@ impl<'a> PyFunctionArguments<'a> {
         match self {
             PyFunctionArguments::Python(py) => (py, None),
             PyFunctionArguments::PyModule(module) => {
-                let py = module.py();
+                let py = crate::PyNativeType::py(module);
                 (py, Some(module))
             }
         }

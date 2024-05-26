@@ -1,34 +1,34 @@
 #![cfg(not(Py_LIMITED_API))]
 
 use pyo3::prelude::*;
-use pyo3::types::{timezone_utc, IntoPyDict, PyDate, PyDateTime, PyTime};
+use pyo3::types::{timezone_utc_bound, IntoPyDict, PyDate, PyDateTime, PyTime};
 use pyo3_ffi::PyDateTime_IMPORT;
 
-fn _get_subclasses<'p>(
-    py: Python<'p>,
+fn _get_subclasses<'py>(
+    py: Python<'py>,
     py_type: &str,
     args: &str,
-) -> PyResult<(&'p PyAny, &'p PyAny, &'p PyAny)> {
+) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>, Bound<'py, PyAny>)> {
     // Import the class from Python and create some subclasses
-    let datetime = py.import("datetime")?;
+    let datetime = py.import_bound("datetime")?;
 
-    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(py);
+    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict_bound(py);
 
     let make_subclass_py = format!("class Subklass({}):\n    pass", py_type);
 
     let make_sub_subclass_py = "class SubSubklass(Subklass):\n    pass";
 
-    py.run(&make_subclass_py, None, Some(locals))?;
-    py.run(make_sub_subclass_py, None, Some(locals))?;
+    py.run_bound(&make_subclass_py, None, Some(&locals))?;
+    py.run_bound(make_sub_subclass_py, None, Some(&locals))?;
 
     // Construct an instance of the base class
-    let obj = py.eval(&format!("{}({})", py_type, args), None, Some(locals))?;
+    let obj = py.eval_bound(&format!("{}({})", py_type, args), None, Some(&locals))?;
 
     // Construct an instance of the subclass
-    let sub_obj = py.eval(&format!("Subklass({})", args), None, Some(locals))?;
+    let sub_obj = py.eval_bound(&format!("Subklass({})", args), None, Some(&locals))?;
 
     // Construct an instance of the sub-subclass
-    let sub_sub_obj = py.eval(&format!("SubSubklass({})", args), None, Some(locals))?;
+    let sub_sub_obj = py.eval_bound(&format!("SubSubklass({})", args), None, Some(&locals))?;
 
     Ok((obj, sub_obj, sub_sub_obj))
 }
@@ -118,14 +118,14 @@ fn test_datetime_utc() {
     use pyo3::types::PyDateTime;
 
     Python::with_gil(|py| {
-        let utc = timezone_utc(py);
+        let utc = timezone_utc_bound(py);
 
-        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
+        let dt = PyDateTime::new_bound(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-        let locals = [("dt", dt)].into_py_dict(py);
+        let locals = [("dt", dt)].into_py_dict_bound(py);
 
         let offset: f32 = py
-            .eval("dt.utcoffset().total_seconds()", None, Some(locals))
+            .eval_bound("dt.utcoffset().total_seconds()", None, Some(&locals))
             .unwrap()
             .extract()
             .unwrap();
@@ -155,7 +155,7 @@ fn test_pydate_out_of_bounds() {
     Python::with_gil(|py| {
         for val in INVALID_DATES {
             let (year, month, day) = val;
-            let dt = PyDate::new(py, *year, *month, *day);
+            let dt = PyDate::new_bound(py, *year, *month, *day);
             dt.unwrap_err();
         }
     });
@@ -168,7 +168,7 @@ fn test_pytime_out_of_bounds() {
     Python::with_gil(|py| {
         for val in INVALID_TIMES {
             let (hour, minute, second, microsecond) = val;
-            let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
+            let dt = PyTime::new_bound(py, *hour, *minute, *second, *microsecond, None);
             dt.unwrap_err();
         }
     });
@@ -192,7 +192,7 @@ fn test_pydatetime_out_of_bounds() {
             let (date, time) = val;
             let (year, month, day) = date;
             let (hour, minute, second, microsecond) = time;
-            let dt = PyDateTime::new(
+            let dt = PyDateTime::new_bound(
                 py,
                 *year,
                 *month,

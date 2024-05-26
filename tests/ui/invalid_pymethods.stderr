@@ -1,8 +1,8 @@
 error: #[classattr] can only have one argument (of type pyo3::Python)
- --> tests/ui/invalid_pymethods.rs:9:34
+ --> tests/ui/invalid_pymethods.rs:9:35
   |
-9 |     fn class_attr_with_args(foo: i32) {}
-  |                                  ^^^
+9 |     fn class_attr_with_args(_foo: i32) {}
+  |                                   ^^^
 
 error: `#[classattr]` does not take any arguments
   --> tests/ui/invalid_pymethods.rs:14:5
@@ -22,13 +22,13 @@ error: unexpected receiver
 26 |     fn staticmethod_with_receiver(&self) {}
    |                                   ^
 
-error: Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`
+error: Expected `&Bound<PyType>` or `Py<PyType>` as the first argument to `#[classmethod]`
   --> tests/ui/invalid_pymethods.rs:32:33
    |
 32 |     fn classmethod_with_receiver(&self) {}
    |                                 ^^^^^^^
 
-error: Expected `&PyType` or `Py<PyType>` as the first argument to `#[classmethod]`
+error: Expected `&Bound<PyType>` or `Py<PyType>` as the first argument to `#[classmethod]`
   --> tests/ui/invalid_pymethods.rs:38:36
    |
 38 |     fn classmethod_missing_argument() -> Self {
@@ -144,20 +144,20 @@ error: `#[classattr]` does not take any arguments
 error: Python functions cannot have generic type parameters
    --> tests/ui/invalid_pymethods.rs:167:23
     |
-167 |     fn generic_method<T>(value: T) {}
+167 |     fn generic_method<T>(_value: T) {}
     |                       ^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:172:48
+   --> tests/ui/invalid_pymethods.rs:172:49
     |
-172 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
-    |                                                ^^^^
+172 |     fn impl_trait_method_first_arg(_impl_trait: impl AsRef<PyAny>) {}
+    |                                                 ^^^^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:177:56
+   --> tests/ui/invalid_pymethods.rs:177:57
     |
-177 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
-    |                                                        ^^^^
+177 |     fn impl_trait_method_second_arg(&self, _impl_trait: impl AsRef<PyAny>) {}
+    |                                                         ^^^^
 
 error: `pass_module` cannot be used on Python methods
    --> tests/ui/invalid_pymethods.rs:182:12
@@ -179,11 +179,11 @@ error: macros cannot be used as items in `#[pymethods]` impl blocks
 197 |     macro_invocation!();
     |     ^^^^^^^^^^^^^^^^
 
-error[E0277]: the trait bound `i32: From<&PyType>` is not satisfied
+error[E0277]: the trait bound `i32: From<BoundRef<'_, '_, PyType>>` is not satisfied
   --> tests/ui/invalid_pymethods.rs:46:45
    |
 46 |     fn classmethod_wrong_first_argument(_x: i32) -> Self {
-   |                                             ^^^ the trait `From<&PyType>` is not implemented for `i32`
+   |                                             ^^^ the trait `From<BoundRef<'_, '_, PyType>>` is not implemented for `i32`, which is required by `BoundRef<'_, '_, PyType>: Into<_>`
    |
    = help: the following other types implement trait `From<T>`:
              <i32 as From<bool>>
@@ -191,5 +191,4 @@ error[E0277]: the trait bound `i32: From<&PyType>` is not satisfied
              <i32 as From<i16>>
              <i32 as From<u8>>
              <i32 as From<u16>>
-             <i32 as From<NonZeroI32>>
-   = note: required for `&PyType` to implement `Into<i32>`
+   = note: required for `BoundRef<'_, '_, PyType>` to implement `Into<i32>`

@@ -26,9 +26,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
+        uses: taiki-e/install-action@v2
         with:
-          mdbook-version: "0.4.19"
+          tool: mdbook,lychee
 
       - name: Prepare tag
         id: prepare_tag
@@ -36,17 +36,17 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "::set-output name=tag_name::${TAG_NAME}"
 
-      # This builds the book in target/guide.
+      # This builds the book in target/guide/.
       - name: Build the guide
         run: |
           python -m pip install --upgrade pip && pip install nox
-          nox -s build-guide
+          nox -s check-guide
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
 
       - name: Deploy docs and the guide
         if: ${{ github.event_name == 'release' }}
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/guide/
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/setup-python@v5
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -82,7 +82,7 @@ jobs:
 
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
@@ -110,7 +110,7 @@ jobs:
       - uses: actions/setup-python@v5
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -120,7 +120,7 @@ jobs:
         continue-on-error: true
 
       - name: Download previous benchmark data
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./cache
           key: ${{ runner.os }}-pytest-benchmark

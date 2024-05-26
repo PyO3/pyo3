@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.21.0-dev"
+version = "0.22.0-dev"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -12,20 +12,18 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
 exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py", "/.github", "/tests/test_compile_error.rs", "/tests/ui"]
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.63"
 
 [dependencies]
 cfg-if = "1.0"
 libc = "0.2.62"
-parking_lot = ">= 0.11, < 0.13"
 memoffset = "0.9"
-portable-atomic = "1.0"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.21.0-dev" }
+pyo3-ffi = { path = "pyo3-ffi", version = "=0.22.0-dev" }
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.21.0-dev", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.22.0-dev", optional = true }
 indoc = { version = "2.0.1", optional = true }
 unindent = { version = "0.2.1", optional = true }
 
@@ -35,39 +33,50 @@ inventory = { version = "0.3.0", optional = true }
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
 chrono = { version = "0.4.25", default-features = false, optional = true }
+chrono-tz = { version = ">= 0.6, < 0.10", default-features = false, optional = true }
 either = { version = "1.9", optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.15", optional = true }
 indexmap = { version = ">= 1.6, < 3", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-complex = { version = ">= 0.2, < 0.5", optional = true }
+num-rational = {version = "0.4.1", optional = true }
 rust_decimal = { version = "1.0.0", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 smallvec = { version = "1.0", optional = true }
 
+[target.'cfg(not(target_has_atomic = "64"))'.dependencies]
+portable-atomic = "1.0"
+
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-chrono = { version = "0.4.25" }
+chrono = "0.4.25"
+chrono-tz = ">= 0.6, < 0.10"
 # Required for "and $N others" normalization
 trybuild = ">=1.0.70"
 proptest = { version = "1.0", default-features = false, features = ["std"] }
 send_wrapper = "0.6"
-scoped-tls = "1.0"
+scoped-tls-hkt = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 rayon = "1.6.1"
-widestring = "0.5.1"
 futures = "0.3.28"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.21.0-dev", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "=0.22.0-dev", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
 
+# Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
+experimental-async = ["macros", "pyo3-macros/experimental-async"]
+
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
 experimental-inspect = []
+
+# Enables annotating Rust inline modules with #[pymodule] to build Python modules declaratively
+experimental-declarative-modules = ["pyo3-macros/experimental-declarative-modules", "macros"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
@@ -81,7 +90,7 @@ multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 extension-module = ["pyo3-ffi/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
-abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3", "pyo3-macros/abi3"]
+abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
 abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37", "pyo3-ffi/abi3-py37"]
@@ -97,23 +106,37 @@ generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 # Changes `Python::with_gil` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
 
+# Allows use of the deprecated "GIL Refs" APIs.
+gil-refs = ["pyo3-macros/gil-refs"]
+
+# Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
+py-clone = []
+
+# Optimizes PyObject to Vec conversion and so on.
+nightly = []
+
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
     "macros",
     # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
+    "anyhow",
     "chrono",
+    "chrono-tz",
+    "either",
+    "experimental-async",
+    "experimental-declarative-modules",
+    "experimental-inspect",
+    "eyre",
+    "hashbrown",
+    "indexmap",
     "num-bigint",
     "num-complex",
-    "hashbrown",
-    "smallvec",
-    "serde",
-    "indexmap",
-    "either",
-    "eyre",
-    "anyhow",
-    "experimental-inspect",
+    "num-rational",
+    "py-clone",
     "rust_decimal",
+    "serde",
+    "smallvec",
 ]
 
 [workspace]
@@ -128,7 +151,7 @@ members = [
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre", "either", "chrono", "rust_decimal"]
+features = ["full", "gil-refs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.lints.clippy]

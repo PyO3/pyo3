@@ -11,6 +11,12 @@ impl EmptyClass {
     fn new() -> Self {
         EmptyClass {}
     }
+
+    fn method(&self) {}
+
+    fn __len__(&self) -> usize {
+        0
+    }
 }
 
 /// This is for demonstrating how to return a value from __next__
@@ -46,8 +52,8 @@ struct AssertingBaseClass;
 impl AssertingBaseClass {
     #[new]
     #[classmethod]
-    fn new(cls: &PyType, expected_type: &PyType) -> PyResult<Self> {
-        if !cls.is(expected_type) {
+    fn new(cls: &Bound<'_, PyType>, expected_type: Bound<'_, PyType>) -> PyResult<Self> {
+        if !cls.is(&expected_type) {
             return Err(PyValueError::new_err(format!(
                 "{:?} != {:?}",
                 cls, expected_type
@@ -61,10 +67,11 @@ impl AssertingBaseClass {
 struct ClassWithoutConstructor;
 
 #[pymodule]
-pub fn pyclasses(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<EmptyClass>()?;
     m.add_class::<PyClassIter>()?;
     m.add_class::<AssertingBaseClass>()?;
     m.add_class::<ClassWithoutConstructor>()?;
+
     Ok(())
 }

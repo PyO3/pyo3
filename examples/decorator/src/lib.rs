@@ -40,8 +40,8 @@ impl PyCounter {
     fn __call__(
         &self,
         py: Python<'_>,
-        args: &PyTuple,
-        kwargs: Option<&PyDict>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Py<PyAny>> {
         let old_count = self.count.get();
         let new_count = old_count + 1;
@@ -51,7 +51,7 @@ impl PyCounter {
         println!("{} has been called {} time(s).", name, new_count);
 
         // After doing something, we finally forward the call to the wrapped function
-        let ret = self.wraps.call(py, args, kwargs)?;
+        let ret = self.wraps.call_bound(py, args, kwargs)?;
 
         // We could do something with the return value of
         // the function before returning it
@@ -60,7 +60,7 @@ impl PyCounter {
 }
 
 #[pymodule]
-pub fn decorator(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
+pub fn decorator(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyCounter>()?;
     Ok(())
 }

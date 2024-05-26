@@ -18,7 +18,6 @@ use std::{
 
 use std::{env, process::Command, str::FromStr};
 
-#[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
 
 pub use impl_::{
@@ -38,10 +37,12 @@ use target_lexicon::OperatingSystem;
 /// | `#[cfg(Py_3_7)]`, `#[cfg(Py_3_8)]`, `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]` | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_7)]` marks code which can run on Python 3.7 **and newer**. |
 /// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` feature enabled. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
+/// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
 ///
-/// For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building_and_distribution/multiple_python_versions.html).
+/// For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building-and-distribution/multiple_python_versions.html).
 #[cfg(feature = "resolve-config")]
 pub fn use_pyo3_cfgs() {
+    print_expected_cfgs();
     for cargo_command in get().build_script_outputs() {
         println!("{}", cargo_command)
     }
@@ -85,6 +86,8 @@ pub fn get() -> &'static InterpreterConfig {
             .map(|path| path.exists())
             .unwrap_or(false);
 
+        // CONFIG_FILE is generated in build.rs, so it's content can vary
+        #[allow(unknown_lints, clippy::const_is_empty)]
         if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
             interpreter_config
         } else if !CONFIG_FILE.is_empty() {
@@ -131,27 +134,42 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
-    fn rustc_minor_version() -> Option<u32> {
-        let rustc = env::var_os("RUSTC")?;
-        let output = Command::new(rustc).arg("--version").output().ok()?;
-        let version = core::str::from_utf8(&output.stdout).ok()?;
-        let mut pieces = version.split('.');
-        if pieces.next() != Some("rustc 1") {
-            return None;
-        }
-        pieces.next()?.parse().ok()
-    }
-
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
-
-    // Enable use of const initializer for thread_local! on Rust 1.59 and greater
-    if rustc_minor_version >= 59 {
-        println!("cargo:rustc-cfg=thread_local_const_init");
-    }
 
     // invalid_from_utf8 lint was added in Rust 1.74
     if rustc_minor_version >= 74 {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
+    }
+
+    if rustc_minor_version >= 78 {
+        println!("cargo:rustc-cfg=diagnostic_namespace");
+    }
+}
+
+/// Registers `pyo3`s config names as reachable cfg expressions
+///
+/// - <https://github.com/rust-lang/cargo/pull/13571>
+/// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
+#[doc(hidden)]
+pub fn print_expected_cfgs() {
+    if rustc_minor_version().map_or(false, |version| version < 80) {
+        // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
+        return;
+    }
+
+    println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
+    println!("cargo:rustc-check-cfg=cfg(PyPy)");
+    println!("cargo:rustc-check-cfg=cfg(GraalPy)");
+    println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
+    println!("cargo:rustc-check-cfg=cfg(invalid_from_utf8_lint)");
+    println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
+    println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
+    println!("cargo:rustc-check-cfg=cfg(diagnostic_namespace)");
+
+    // allow `Py_3_*` cfgs from the minimum supported version up to the
+    // maximum minor version (+1 for development for the next)
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+        println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 }
 
@@ -181,6 +199,8 @@ pub mod pyo3_build_script_impl {
     /// correct value for CARGO_CFG_TARGET_OS).
     #[cfg(feature = "resolve-config")]
     pub fn resolve_interpreter_config() -> Result<InterpreterConfig> {
+        // CONFIG_FILE is generated in build.rs, so it's content can vary
+        #[allow(unknown_lints, clippy::const_is_empty)]
         if !CONFIG_FILE.is_empty() {
             let mut interperter_config = InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))?;
             interperter_config.generate_import_libs()?;
@@ -209,6 +229,20 @@ pub mod pyo3_build_script_impl {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }
     }
+}
+
+fn rustc_minor_version() -> Option<u32> {
+    static RUSTC_MINOR_VERSION: OnceCell<Option<u32>> = OnceCell::new();
+    *RUSTC_MINOR_VERSION.get_or_init(|| {
+        let rustc = env::var_os("RUSTC")?;
+        let output = Command::new(rustc).arg("--version").output().ok()?;
+        let version = core::str::from_utf8(&output.stdout).ok()?;
+        let mut pieces = version.split('.');
+        if pieces.next() != Some("rustc 1") {
+            return None;
+        }
+        pieces.next()?.parse().ok()
+    })
 }
 
 #[cfg(test)]

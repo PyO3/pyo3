@@ -1,8 +1,8 @@
 error: lifetime may not live long enough
- --> tests/ui/wrong_aspyref_lifetimes.rs:7:47
+ --> tests/ui/wrong_aspyref_lifetimes.rs:7:58
   |
-7 |     let dict: &PyDict = Python::with_gil(|py| dict.as_ref(py));
-  |                                           --- ^^^^^^^^^^^^^^^ returning this value requires that `'1` must outlive `'2`
-  |                                           | |
-  |                                           | return type of closure is &'2 PyDict
-  |                                           has type `pyo3::Python<'1>`
+7 |     let dict: &Bound<'_, PyDict> = Python::with_gil(|py| dict.bind(py));
+  |                                                      --- ^^^^^^^^^^^^^ returning this value requires that `'1` must outlive `'2`
+  |                                                      | |
+  |                                                      | return type of closure is &'2 pyo3::Bound<'_, PyDict>
+  |                                                      has type `Python<'1>`

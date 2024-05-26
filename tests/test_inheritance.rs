@@ -20,12 +20,12 @@ struct SubclassAble {}
 #[test]
 fn subclass() {
     Python::with_gil(|py| {
-        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
+        let d = [("SubclassAble", py.get_type_bound::<SubclassAble>())].into_py_dict_bound(py);
 
-        py.run(
+        py.run_bound(
             "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
             None,
-            Some(d),
+            Some(&d),
         )
         .map_err(|e| e.display(py))
         .unwrap();
@@ -41,7 +41,7 @@ impl BaseClass {
     fn base_method(&self, x: usize) -> usize {
         x * self.val1
     }
-    fn base_set(&mut self, fn_: &pyo3::PyAny) -> PyResult<()> {
+    fn base_set(&mut self, fn_: &Bound<'_, PyAny>) -> PyResult<()> {
         let value: usize = fn_.call0()?.extract()?;
         self.val1 = value;
         Ok(())
@@ -72,7 +72,7 @@ impl SubClass {
 #[test]
 fn inheritance_with_new_methods() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<SubClass>();
+        let typeobj = py.get_type_bound::<SubClass>();
         let inst = typeobj.call((), None).unwrap();
         py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
     });
@@ -81,7 +81,7 @@ fn inheritance_with_new_methods() {
 #[test]
 fn call_base_and_sub_methods() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, SubClass::new()).unwrap();
+        let obj = Py::new(py, SubClass::new()).unwrap();
         py_run!(
             py,
             obj,
@@ -96,10 +96,14 @@ fn call_base_and_sub_methods() {
 #[test]
 fn mutation_fails() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, SubClass::new()).unwrap();
-        let global = Some([("obj", obj)].into_py_dict(py));
+        let obj = Py::new(py, SubClass::new()).unwrap();
+        let global = [("obj", obj)].into_py_dict_bound(py);
         let e = py
-            .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
+            .run_bound(
+                "obj.base_set(lambda: obj.sub_set_and_ret(1))",
+                Some(&global),
+                None,
+            )
             .unwrap_err();
         assert_eq!(&e.to_string(), "RuntimeError: Already borrowed");
     });
@@ -108,16 +112,16 @@ fn mutation_fails() {
 #[test]
 fn is_subclass_and_is_instance() {
     Python::with_gil(|py| {
-        let sub_ty = py.get_type::<SubClass>();
-        let base_ty = py.get_type::<BaseClass>();
+        let sub_ty = py.get_type_bound::<SubClass>();
+        let base_ty = py.get_type_bound::<BaseClass>();
         assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
-        assert!(sub_ty.is_subclass(base_ty).unwrap());
+        assert!(sub_ty.is_subclass(&base_ty).unwrap());
 
-        let obj = PyCell::new(py, SubClass::new()).unwrap();
+        let obj = Bound::new(py, SubClass::new()).unwrap().into_any();
         assert!(obj.is_instance_of::<SubClass>());
         assert!(obj.is_instance_of::<BaseClass>());
-        assert!(obj.is_instance(sub_ty).unwrap());
-        assert!(obj.is_instance(base_ty).unwrap());
+        assert!(obj.is_instance(&sub_ty).unwrap());
+        assert!(obj.is_instance(&base_ty).unwrap());
     });
 }
 
@@ -151,7 +155,7 @@ impl SubClass2 {
 #[test]
 fn handle_result_in_new() {
     Python::with_gil(|py| {
-        let subclass = py.get_type::<SubClass2>();
+        let subclass = py.get_type_bound::<SubClass2>();
         py_run!(
             py,
             subclass,
@@ -173,7 +177,7 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
-    use pyo3::types::{IntoPyDict, PyDict};
+    use pyo3::types::PyDict;
 
     #[cfg(not(PyPy))]
     #[test]
@@ -198,7 +202,7 @@ mod inheriting_native_type {
         }
 
         Python::with_gil(|py| {
-            let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();
+            let set_sub = pyo3::Py::new(py, SetWithName::new()).unwrap();
             py_run!(
                 py,
                 set_sub,
@@ -225,7 +229,7 @@ mod inheriting_native_type {
     #[test]
     fn inherit_dict() {
         Python::with_gil(|py| {
-            let dict_sub = pyo3::PyCell::new(py, DictWithName::new()).unwrap();
+            let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             py_run!(
                 py,
                 dict_sub,
@@ -240,10 +244,10 @@ mod inheriting_native_type {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
-            let item = py.eval("object()", None, None).unwrap();
+            let item = &py.eval_bound("object()", None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
-            dict_sub.as_ref(py).set_item("foo", item).unwrap();
+            dict_sub.bind(py).set_item("foo", item).unwrap();
             assert_eq!(item.get_refcnt(), 2);
 
             drop(dict_sub);
@@ -260,7 +264,7 @@ mod inheriting_native_type {
     #[pymethods]
     impl CustomException {
         #[new]
-        fn new(_exc_arg: &PyAny) -> Self {
+        fn new(_exc_arg: &Bound<'_, PyAny>) -> Self {
             CustomException {
                 context: "Hello :)",
             }
@@ -270,15 +274,15 @@ mod inheriting_native_type {
     #[test]
     fn custom_exception() {
         Python::with_gil(|py| {
-            let cls = py.get_type::<CustomException>();
-            let dict = [("cls", cls)].into_py_dict(py);
-            let res = py.run(
+            let cls = py.get_type_bound::<CustomException>();
+            let dict = [("cls", &cls)].into_py_dict_bound(py);
+            let res = py.run_bound(
             "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
             None,
-            Some(dict)
+            Some(&dict)
             );
             let err = res.unwrap_err();
-            assert!(err.matches(py, cls), "{}", err);
+            assert!(err.matches(py, &cls), "{}", err);
 
             // catching the exception in Python also works:
             py_run!(
@@ -311,7 +315,7 @@ fn test_subclass_ref_counts() {
     // regression test for issue #1363
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
-        let SimpleClass = py.get_type::<SimpleClass>();
+        let SimpleClass = py.get_type_bound::<SimpleClass>();
         py_run!(
             py,
             SimpleClass,
@@ -350,7 +354,7 @@ fn module_add_class_inherit_bool_fails() {
     struct ExtendsBool;
 
     Python::with_gil(|py| {
-        let m = PyModule::new(py, "test_module").unwrap();
+        let m = PyModule::new_bound(py, "test_module").unwrap();
 
         let err = m.add_class::<ExtendsBool>().unwrap_err();
         assert_eq!(

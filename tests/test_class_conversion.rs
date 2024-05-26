@@ -1,7 +1,6 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::ToPyObject;
 
 #[macro_use]
 #[path = "../src/tests/common.rs"]
@@ -55,16 +54,18 @@ impl SubClass {
     }
 }
 
+#[cfg(feature = "py-clone")]
 #[pyclass]
 struct PolymorphicContainer {
     #[pyo3(get, set)]
     inner: Py<BaseClass>,
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_polymorphic_container_stores_base_class() {
     Python::with_gil(|py| {
-        let p = PyCell::new(
+        let p = Py::new(
             py,
             PolymorphicContainer {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
@@ -77,10 +78,11 @@ fn test_polymorphic_container_stores_base_class() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_polymorphic_container_stores_sub_class() {
     Python::with_gil(|py| {
-        let p = PyCell::new(
+        let p = Py::new(
             py,
             PolymorphicContainer {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
@@ -89,10 +91,10 @@ fn test_polymorphic_container_stores_sub_class() {
         .unwrap()
         .to_object(py);
 
-        p.as_ref(py)
+        p.bind(py)
             .setattr(
                 "inner",
-                PyCell::new(
+                Py::new(
                     py,
                     PyClassInitializer::from(BaseClass::default()).add_subclass(SubClass {}),
                 )
@@ -104,10 +106,11 @@ fn test_polymorphic_container_stores_sub_class() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_polymorphic_container_does_not_accept_other_types() {
     Python::with_gil(|py| {
-        let p = PyCell::new(
+        let p = Py::new(
             py,
             PolymorphicContainer {
                 inner: Py::new(py, BaseClass::default()).unwrap(),
@@ -116,10 +119,10 @@ fn test_polymorphic_container_does_not_accept_other_types() {
         .unwrap()
         .to_object(py);
 
-        let setattr = |value: PyObject| p.as_ref(py).setattr("inner", value);
+        let setattr = |value: PyObject| p.bind(py).setattr("inner", value);
 
         assert!(setattr(1i32.into_py(py)).is_err());
-        assert!(setattr(py.None().into()).is_err());
+        assert!(setattr(py.None()).is_err());
         assert!(setattr((1i32, 2i32).into_py(py)).is_err());
     });
 }
@@ -127,7 +130,7 @@ fn test_polymorphic_container_does_not_accept_other_types() {
 #[test]
 fn test_pyref_as_base() {
     Python::with_gil(|py| {
-        let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+        let cell = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // First try PyRefMut
         let sub: PyRefMut<'_, SubClass> = cell.borrow_mut();
@@ -147,12 +150,12 @@ fn test_pyref_as_base() {
 #[test]
 fn test_pycell_deref() {
     Python::with_gil(|py| {
-        let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+        let obj = Bound::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
         // Should be able to deref as PyAny
         assert_eq!(
-            cell.call_method0("foo")
-                .and_then(PyAny::extract::<&str>)
+            obj.call_method0("foo")
+                .and_then(|e| e.extract::<String>())
                 .unwrap(),
             "SubClass"
         );

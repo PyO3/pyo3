@@ -1,9 +1,14 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
-    exceptions::PyTypeError, ffi, instance::Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
+    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
     Python, ToPyObject,
 };
+
+use super::any::PyAnyMethods;
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
@@ -13,15 +18,39 @@ pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!
 
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.
+    ///
+    /// # Note
+    /// This returns a [`Borrowed`] reference to one of Pythons `True` or
+    /// `False` singletons
+    #[inline]
+    pub fn new_bound(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
+        unsafe {
+            if val { ffi::Py_True() } else { ffi::Py_False() }
+                .assume_borrowed(py)
+                .downcast_unchecked()
+        }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyBool {
+    /// Deprecated form of [`PyBool::new_bound`]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyBool::new` will be replaced by `PyBool::new_bound` in a future PyO3 version"
+    )]
     #[inline]
     pub fn new(py: Python<'_>, val: bool) -> &PyBool {
-        unsafe { py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() }) }
+        #[allow(deprecated)]
+        unsafe {
+            py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
+        }
     }
 
     /// Gets whether this boolean is `true`.
     #[inline]
     pub fn is_true(&self) -> bool {
-        Bound::borrowed_from_gil_ref(&self).is_true()
+        self.as_borrowed().is_true()
     }
 }
 
@@ -31,7 +60,7 @@ impl PyBool {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyBool")]
-pub trait PyBoolMethods<'py> {
+pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
     /// Gets whether this boolean is `true`.
     fn is_true(&self) -> bool;
 }
@@ -63,7 +92,7 @@ impl ToPyObject for bool {
 impl IntoPy<PyObject> for bool {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBool::new(py, self).into()
+        PyBool::new_bound(py, self).into_py(py)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -75,8 +104,8 @@ impl IntoPy<PyObject> for bool {
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl<'source> FromPyObject<'source> for bool {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_> for bool {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let err = match obj.downcast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
             Err(err) => err,
@@ -87,7 +116,7 @@ impl<'source> FromPyObject<'source> for bool {
             .name()
             .map_or(false, |name| name == "numpy.bool_")
         {
-            let missing_conversion = |obj: &PyAny| {
+            let missing_conversion = |obj: &Bound<'_, PyAny>| {
                 PyTypeError::new_err(format!(
                     "object of type '{}' does not define a '__bool__' conversion",
                     obj.get_type()
@@ -117,7 +146,7 @@ impl<'source> FromPyObject<'source> for bool {
                     .lookup_special(crate::intern!(obj.py(), "__bool__"))?
                     .ok_or_else(|| missing_conversion(obj))?;
 
-                let obj = meth.call0()?.downcast::<PyBool>()?;
+                let obj = meth.call0()?.downcast_into::<PyBool>()?;
                 return Ok(obj.is_true());
             }
         }
@@ -133,27 +162,29 @@ impl<'source> FromPyObject<'source> for bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAny, PyBool};
+    use crate::types::any::PyAnyMethods;
+    use crate::types::boolobject::PyBoolMethods;
+    use crate::types::PyBool;
     use crate::Python;
     use crate::ToPyObject;
 
     #[test]
     fn test_true() {
         Python::with_gil(|py| {
-            assert!(PyBool::new(py, true).is_true());
-            let t: &PyAny = PyBool::new(py, true).into();
+            assert!(PyBool::new_bound(py, true).is_true());
+            let t = PyBool::new_bound(py, true);
             assert!(t.extract::<bool>().unwrap());
-            assert!(true.to_object(py).is(PyBool::new(py, true)));
+            assert!(true.to_object(py).is(&*PyBool::new_bound(py, true)));
         });
     }
 
     #[test]
     fn test_false() {
         Python::with_gil(|py| {
-            assert!(!PyBool::new(py, false).is_true());
-            let t: &PyAny = PyBool::new(py, false).into();
+            assert!(!PyBool::new_bound(py, false).is_true());
+            let t = PyBool::new_bound(py, false);
             assert!(!t.extract::<bool>().unwrap());
-            assert!(false.to_object(py).is(PyBool::new(py, false)));
+            assert!(false.to_object(py).is(&*PyBool::new_bound(py, false)));
         });
     }
 }

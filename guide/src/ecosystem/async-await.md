@@ -120,7 +120,7 @@ Export an async function that makes use of `async-std`:
 use pyo3::{prelude::*, wrap_pyfunction};
 
 #[pyfunction]
-fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
     pyo3_asyncio::async_std::future_into_py(py, async {
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         Ok(Python::with_gil(|py| py.None()))
@@ -128,7 +128,7 @@ fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
 }
 
 #[pymodule]
-fn my_async_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_async_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
 
     Ok(())
@@ -143,7 +143,7 @@ If you want to use `tokio` instead, here's what your module should look like:
 use pyo3::{prelude::*, wrap_pyfunction};
 
 #[pyfunction]
-fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
     pyo3_asyncio::tokio::future_into_py(py, async {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         Ok(Python::with_gil(|py| py.None()))
@@ -151,7 +151,7 @@ fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
 }
 
 #[pymodule]
-fn my_async_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_async_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
     Ok(())
 }
@@ -197,7 +197,7 @@ to do something special with the object that it returns.
 Normally in Python, that something special is the `await` keyword, but in order to await this
 coroutine in Rust, we first need to convert it into Rust's version of a `coroutine`: a `Future`.
 That's where `pyo3-asyncio` comes in.
-[`pyo3_asyncio::into_future`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.into_future.html)
+[`pyo3_asyncio::async_std::into_future`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.into_future.html)
 performs this conversion for us.
 
 The following example uses `into_future` to call the `py_sleep` function shown above and then await the
@@ -233,7 +233,7 @@ a coroutine argument:
 
 ```rust
 #[pyfunction]
-fn await_coro(coro: &PyAny) -> PyResult<()> {
+fn await_coro(coro: &Bound<'_, PyAny>>) -> PyResult<()> {
     // convert the coroutine into a Rust future using the
     // async_std runtime
     let f = pyo3_asyncio::async_std::into_future(coro)?;
@@ -261,7 +261,7 @@ If for you wanted to pass a callable function to the `#[pyfunction]` instead, (i
 
 ```rust
 #[pyfunction]
-fn await_coro(callable: &PyAny) -> PyResult<()> {
+fn await_coro(callable: &Bound<'_, PyAny>>) -> PyResult<()> {
     // get the coroutine by calling the callable
     let coro = callable.call0()?;
 
@@ -317,7 +317,7 @@ async fn rust_sleep() {
 }
 
 #[pyfunction]
-fn call_rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn call_rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
     pyo3_asyncio::async_std::future_into_py(py, async move {
         rust_sleep().await;
         Ok(Python::with_gil(|py| py.None()))
@@ -349,7 +349,7 @@ implementations _prefer_ control over the main thread, this can still make some 
 
 Because Python needs to control the main thread, we can't use the convenient proc macros from Rust
 runtimes to handle the `main` function or `#[test]` functions. Instead, the initialization for PyO3 has to be done from the `main` function and the main
-thread must block on [`pyo3_asyncio::run_forever`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.run_forever.html) or [`pyo3_asyncio::async_std::run_until_complete`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.run_until_complete.html).
+thread must block on [`pyo3_asyncio::async_std::run_until_complete`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.run_until_complete.html).
 
 Because we have to block on one of those functions, we can't use [`#[async_std::main]`](https://docs.rs/async-std/latest/async_std/attr.main.html) or [`#[tokio::main]`](https://docs.rs/tokio/1.1.0/tokio/attr.main.html)
 since it's not a good idea to make long blocking calls during an async function.
@@ -467,7 +467,7 @@ tokio = "1.4"
 use pyo3::{prelude::*, wrap_pyfunction};
 
 #[pyfunction]
-fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
+fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
     pyo3_asyncio::tokio::future_into_py(py, async {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         Ok(Python::with_gil(|py| py.None()))
@@ -475,7 +475,7 @@ fn rust_sleep(py: Python<'_>) -> PyResult<&PyAny> {
 }
 
 #[pymodule]
-fn my_async_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn my_async_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
 
     Ok(())

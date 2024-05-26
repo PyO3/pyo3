@@ -2,7 +2,7 @@
 
 #[derive(crate::FromPyObject)]
 #[pyo3(crate = "crate")]
-struct Derive1(i32); // newtype case
+struct Derive1(#[allow(dead_code)] i32); // newtype case
 
 #[derive(crate::FromPyObject)]
 #[pyo3(crate = "crate")]
@@ -14,6 +14,7 @@ struct Derive2(i32, i32); // tuple case
 #[allow(dead_code)]
 struct Derive3 {
     f: i32,
+    #[pyo3(item(42))]
     g: i32,
 } // struct case
 
@@ -40,7 +41,10 @@ fn append_to_inittab() {
     #[crate::pymodule]
     #[pyo3(crate = "crate")]
     #[allow(clippy::unnecessary_wraps)]
-    fn module_for_inittab(_: crate::Python<'_>, _: &crate::types::PyModule) -> crate::PyResult<()> {
+    fn module_for_inittab(
+        _: crate::Python<'_>,
+        _: &crate::Bound<'_, crate::types::PyModule>,
+    ) -> crate::PyResult<()> {
         ::std::result::Result::Ok(())
     }
     crate::append_to_inittab!(module_for_inittab);

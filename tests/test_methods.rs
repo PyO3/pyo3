@@ -2,8 +2,8 @@
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PySequence;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
-use pyo3::PyCell;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -29,7 +29,7 @@ impl InstanceMethod {
 #[test]
 fn instance_method() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, InstanceMethod { member: 42 }).unwrap();
+        let obj = Bound::new(py, InstanceMethod { member: 42 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(), 42);
         py_assert!(py, obj, "obj.method() == 42");
@@ -53,7 +53,7 @@ impl InstanceMethodWithArgs {
 #[test]
 fn instance_method_with_args() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
+        let obj = Bound::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.method(6), 42);
         py_assert!(py, obj, "obj.method(3) == 21");
@@ -73,23 +73,21 @@ impl ClassMethod {
 
     #[classmethod]
     /// Test class method.
-    fn method(cls: &PyType) -> PyResult<String> {
+    fn method(cls: &Bound<'_, PyType>) -> PyResult<String> {
         Ok(format!("{}.method()!", cls.qualname()?))
     }
 
     #[classmethod]
     fn method_owned(cls: Py<PyType>) -> PyResult<String> {
-        Ok(format!(
-            "{}.method_owned()!",
-            Python::with_gil(|gil| cls.as_ref(gil).qualname())?
-        ))
+        let qualname = Python::with_gil(|gil| cls.bind(gil).qualname())?;
+        Ok(format!("{}.method_owned()!", qualname))
     }
 }
 
 #[test]
 fn class_method() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type_bound::<ClassMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
         py_assert!(
@@ -108,7 +106,7 @@ struct ClassMethodWithArgs {}
 #[pymethods]
 impl ClassMethodWithArgs {
     #[classmethod]
-    fn method(cls: &PyType, input: &PyString) -> PyResult<String> {
+    fn method(cls: &Bound<'_, PyType>, input: &Bound<'_, PyString>) -> PyResult<String> {
         Ok(format!("{}.method({})", cls.qualname()?, input))
     }
 }
@@ -116,7 +114,7 @@ impl ClassMethodWithArgs {
 #[test]
 fn class_method_with_args() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type_bound::<ClassMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(
             py,
             *d,
@@ -147,7 +145,7 @@ fn static_method() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
-        let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
+        let d = [("C", py.get_type_bound::<StaticMethod>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
         py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
@@ -171,7 +169,7 @@ fn static_method_with_args() {
     Python::with_gil(|py| {
         assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
-        let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
+        let d = [("C", py.get_type_bound::<StaticMethodWithArgs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.method(1337) == '0x539'");
     });
 }
@@ -189,6 +187,7 @@ impl MethSignature {
     fn get_optional2(&self, test: Option<i32>) -> Option<i32> {
         test
     }
+    #[pyo3(signature=(_t1 = None, t2 = None, _t3 = None))]
     fn get_optional_positional(
         &self,
         _t1: Option<i32>,
@@ -207,8 +206,13 @@ impl MethSignature {
         test
     }
     #[pyo3(signature = (*args, **kwargs))]
-    fn get_kwargs(&self, py: Python<'_>, args: &PyTuple, kwargs: Option<&PyDict>) -> PyObject {
-        [args.into(), kwargs.to_object(py)].to_object(py)
+    fn get_kwargs(
+        &self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyObject {
+        [args.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
     #[pyo3(signature = (a, *args, **kwargs))]
@@ -216,10 +220,10 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        args: &PyTuple,
-        kwargs: Option<&PyDict>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyObject {
-        [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
+        [a.to_object(py), args.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
     #[pyo3(signature = (a, b, /))]
@@ -262,7 +266,7 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
@@ -272,7 +276,7 @@ impl MethSignature {
         &self,
         py: Python<'_>,
         a: i32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
@@ -293,7 +297,12 @@ impl MethSignature {
     }
 
     #[pyo3(signature = (*args, a))]
-    fn get_args_and_required_keyword(&self, py: Python<'_>, args: &PyTuple, a: i32) -> PyObject {
+    fn get_args_and_required_keyword(
+        &self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        a: i32,
+    ) -> PyObject {
         (args, a).to_object(py)
     }
 
@@ -308,7 +317,7 @@ impl MethSignature {
     }
 
     #[pyo3(signature = (a, **kwargs))]
-    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&Bound<'_, PyDict>>) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
@@ -669,7 +678,7 @@ impl MethDocs {
 #[test]
 fn meth_doc() {
     Python::with_gil(|py| {
-        let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
+        let d = [("C", py.get_type_bound::<MethDocs>())].into_py_dict_bound(py);
         py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
         py_assert!(
             py,
@@ -689,12 +698,13 @@ struct MethodWithLifeTime {}
 
 #[pymethods]
 impl MethodWithLifeTime {
-    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<&'py PyList> {
+    fn set_to_list<'py>(&self, set: &Bound<'py, PySet>) -> PyResult<Bound<'py, PyList>> {
+        let py = set.py();
         let mut items = vec![];
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());
         }
-        let list = PyList::new(py, items);
+        let list = PyList::new_bound(py, items);
         list.sort()?;
         Ok(list)
     }
@@ -703,7 +713,7 @@ impl MethodWithLifeTime {
 #[test]
 fn method_with_lifetime() {
     Python::with_gil(|py| {
-        let obj = PyCell::new(py, MethodWithLifeTime {}).unwrap();
+        let obj = Py::new(py, MethodWithLifeTime {}).unwrap();
         py_run!(
             py,
             obj,
@@ -736,11 +746,13 @@ impl MethodWithPyClassArg {
     fn inplace_add_pyref(&self, mut other: PyRefMut<'_, MethodWithPyClassArg>) {
         other.value += self.value;
     }
+    #[pyo3(signature=(other = None))]
     fn optional_add(&self, other: Option<&MethodWithPyClassArg>) -> MethodWithPyClassArg {
         MethodWithPyClassArg {
             value: self.value + other.map(|o| o.value).unwrap_or(10),
         }
     }
+    #[pyo3(signature=(other = None))]
     fn optional_inplace_add(&self, other: Option<&mut MethodWithPyClassArg>) {
         if let Some(other) = other {
             other.value += self.value;
@@ -751,9 +763,9 @@ impl MethodWithPyClassArg {
 #[test]
 fn method_with_pyclassarg() {
     Python::with_gil(|py| {
-        let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
+        let obj1 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+        let obj2 = Py::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+        let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict_bound(py);
         py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
         py_run!(py, *d, "obj = obj1.optional_add(); assert obj.value == 20");
@@ -842,7 +854,8 @@ struct FromSequence {
 #[pymethods]
 impl FromSequence {
     #[new]
-    fn new(seq: Option<&pyo3::types::PySequence>) -> PyResult<Self> {
+    #[pyo3(signature=(seq = None))]
+    fn new(seq: Option<&Bound<'_, PySequence>>) -> PyResult<Self> {
         if let Some(seq) = seq {
             Ok(FromSequence {
                 numbers: seq.as_ref().extract::<Vec<_>>()?,
@@ -856,11 +869,12 @@ impl FromSequence {
 #[test]
 fn test_from_sequence() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type::<FromSequence>();
+        let typeobj = py.get_type_bound::<FromSequence>();
         py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]");
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[pyclass]
 struct r#RawIdents {
     #[pyo3(get, set)]
@@ -869,6 +883,7 @@ struct r#RawIdents {
     r#subsubtype: PyObject,
 }
 
+#[cfg(feature = "py-clone")]
 #[pymethods]
 impl r#RawIdents {
     #[new]
@@ -915,7 +930,7 @@ impl r#RawIdents {
     }
 
     #[classmethod]
-    pub fn r#class_method(_: &PyType, r#type: PyObject) -> PyObject {
+    pub fn r#class_method(_: &Bound<'_, PyType>, r#type: PyObject) -> PyObject {
         r#type
     }
 
@@ -933,10 +948,11 @@ impl r#RawIdents {
     }
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_raw_idents() {
     Python::with_gil(|py| {
-        let raw_idents_type = py.get_type::<r#RawIdents>();
+        let raw_idents_type = py.get_type_bound::<r#RawIdents>();
         assert_eq!(raw_idents_type.qualname().unwrap(), "RawIdents");
         py_run!(
             py,
@@ -1017,48 +1033,53 @@ macro_rules! issue_1506 {
 issue_1506!(
     #[pymethods]
     impl Issue1506 {
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506(
             &self,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_mut(
             &mut self,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_custom_receiver(
             _slf: Py<Self>,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_custom_receiver_explicit(
             _slf: Py<Issue1506>,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
         #[new]
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_new(
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) -> Self {
             Issue1506 {}
         }
@@ -1072,21 +1093,23 @@ issue_1506!(
         fn issue_1506_setter(&self, _py: Python<'_>, _value: i32) {}
 
         #[staticmethod]
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_static(
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
 
         #[classmethod]
+        #[pyo3(signature = (_arg, _args, _kwargs=None))]
         fn issue_1506_class(
-            _cls: &PyType,
+            _cls: &Bound<'_, PyType>,
             _py: Python<'_>,
-            _arg: &PyAny,
-            _args: &PyTuple,
-            _kwargs: Option<&PyDict>,
+            _arg: &Bound<'_, PyAny>,
+            _args: &Bound<'_, PyTuple>,
+            _kwargs: Option<&Bound<'_, PyDict>>,
         ) {
         }
     }
@@ -1116,7 +1139,7 @@ fn test_option_pyclass_arg() {
     }
 
     Python::with_gil(|py| {
-        let f = wrap_pyfunction!(option_class_arg, py).unwrap();
+        let f = wrap_pyfunction_bound!(option_class_arg, py).unwrap();
         assert!(f.call0().unwrap().is_none());
         let obj = Py::new(py, SomePyClass {}).unwrap();
         assert!(f
@@ -1138,7 +1161,7 @@ fn test_issue_2988() {
         _data: Vec<i32>,
         // The from_py_with here looks a little odd, we just need some way
         // to encourage the macro to expand the from_py_with default path too
-        #[pyo3(from_py_with = "PyAny::extract")] _data2: Vec<i32>,
+        #[pyo3(from_py_with = "<Bound<'_, _> as PyAnyMethods>::extract")] _data2: Vec<i32>,
     ) {
     }
 }

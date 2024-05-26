@@ -1,8 +1,8 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
+use pyo3::py_run;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{py_run, PyCell};
 
 use std::fmt;
 
@@ -31,7 +31,7 @@ fn mut_ref_arg() {
         let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
         py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
-        let inst2 = inst2.as_ref(py).borrow();
+        let inst2 = inst2.bind(py).borrow();
         assert_eq!(inst2.n, 100);
     });
 }
@@ -56,7 +56,7 @@ fn return_custom_class() {
         assert_eq!(get_zero().value, 0);
 
         // Using from python
-        let get_zero = wrap_pyfunction!(get_zero)(py).unwrap();
+        let get_zero = wrap_pyfunction_bound!(get_zero)(py).unwrap();
         py_assert!(py, get_zero, "get_zero().value == 0");
     });
 }
@@ -79,8 +79,8 @@ struct SimplePyClass {}
 fn intopytuple_pyclass() {
     Python::with_gil(|py| {
         let tup = (
-            PyCell::new(py, SimplePyClass {}).unwrap(),
-            PyCell::new(py, SimplePyClass {}).unwrap(),
+            Py::new(py, SimplePyClass {}).unwrap(),
+            Py::new(py, SimplePyClass {}).unwrap(),
         );
         py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
         py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
@@ -91,7 +91,7 @@ fn intopytuple_pyclass() {
 #[test]
 fn pytuple_primitive_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, [1u32, 2, 3].iter());
+        let tup = PyTuple::new_bound(py, [1u32, 2, 3].iter());
         py_assert!(py, tup, "tup == (1, 2, 3)");
     });
 }
@@ -99,11 +99,11 @@ fn pytuple_primitive_iter() {
 #[test]
 fn pytuple_pyclass_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(
+        let tup = PyTuple::new_bound(
             py,
             [
-                PyCell::new(py, SimplePyClass {}).unwrap(),
-                PyCell::new(py, SimplePyClass {}).unwrap(),
+                Py::new(py, SimplePyClass {}).unwrap(),
+                Py::new(py, SimplePyClass {}).unwrap(),
             ]
             .iter(),
         );
@@ -124,17 +124,17 @@ impl PickleSupport {
     }
 
     pub fn __reduce__<'py>(
-        slf: &'py PyCell<Self>,
+        slf: &Bound<'py, Self>,
         py: Python<'py>,
-    ) -> PyResult<(PyObject, &'py PyTuple, PyObject)> {
+    ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
         let cls = slf.to_object(py).getattr(py, "__class__")?;
         let dict = slf.to_object(py).getattr(py, "__dict__")?;
-        Ok((cls, PyTuple::empty(py), dict))
+        Ok((cls, PyTuple::empty_bound(py), dict))
     }
 }
 
-fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
-    py.import("sys")?
+fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
+    PyModule::import_bound(module.py(), "sys")?
         .dict()
         .get_item("modules")
         .unwrap()
@@ -147,10 +147,10 @@ fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_pickle() {
     Python::with_gil(|py| {
-        let module = PyModule::new(py, "test_module").unwrap();
+        let module = PyModule::new_bound(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
-        add_module(py, module).unwrap();
-        let inst = PyCell::new(py, PickleSupport {}).unwrap();
+        add_module(module).unwrap();
+        let inst = Py::new(py, PickleSupport {}).unwrap();
         py_run!(
             py,
             inst,
@@ -201,6 +201,6 @@ fn result_conversion_function() -> Result<(), MyError> {
 #[test]
 fn test_result_conversion() {
     Python::with_gil(|py| {
-        wrap_pyfunction!(result_conversion_function)(py).unwrap();
+        wrap_pyfunction_bound!(result_conversion_function)(py).unwrap();
     });
 }

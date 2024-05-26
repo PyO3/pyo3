@@ -9,9 +9,10 @@ use std::{
     panic::{self, UnwindSafe},
 };
 
+use crate::gil::GILGuard;
 use crate::{
-    callback::PyCallbackOutput, ffi, impl_::panic::PanicTrap, methods::IPowModulo,
-    panic::PanicException, types::PyModule, GILPool, Py, PyResult, Python,
+    callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
+    methods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
 };
 
 #[inline]
@@ -22,12 +23,14 @@ pub unsafe fn module_init(
 }
 
 #[inline]
+#[allow(clippy::used_underscore_binding)]
 pub unsafe fn noargs(
     slf: *mut ffi::PyObject,
-    args: *mut ffi::PyObject,
+    _args: *mut ffi::PyObject,
     f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
 ) -> *mut ffi::PyObject {
-    debug_assert!(args.is_null());
+    #[cfg(not(GraalPy))] // this is not specified and GraalPy does not pass null here
+    debug_assert!(_args.is_null());
     trampoline(|py| f(py, slf))
 }
 
@@ -167,15 +170,19 @@ trampoline!(
 ///
 /// Panics during execution are trapped so that they don't propagate through any
 /// outer FFI boundary.
+///
+/// The GIL must already be held when this is called.
 #[inline]
-pub(crate) fn trampoline<F, R>(body: F) -> R
+pub(crate) unsafe fn trampoline<F, R>(body: F) -> R
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
     R: PyCallbackOutput,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    let pool = unsafe { GILPool::new() };
-    let py = pool.python();
+
+    // SAFETY: This function requires the GIL to already be held.
+    let guard = GILGuard::assume();
+    let py = guard.python();
     let out = panic_result_into_callback_output(
         py,
         panic::catch_unwind(move || -> PyResult<_> { body(py) }),
@@ -212,19 +219,23 @@ where
 ///
 /// # Safety
 ///
-/// ctx must be either a valid ffi::PyObject or NULL
+/// - ctx must be either a valid ffi::PyObject or NULL
+/// - The GIL must already be held when this is called.
 #[inline]
 unsafe fn trampoline_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<()> + UnwindSafe,
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    let pool = GILPool::new();
-    let py = pool.python();
+
+    // SAFETY: The GIL is already held.
+    let guard = GILGuard::assume();
+    let py = guard.python();
+
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
-        py_err.write_unraisable(py, py.from_borrowed_ptr_or_opt(ctx));
+        py_err.write_unraisable_bound(py, ctx.assume_borrowed_or_opt(py).as_deref());
     }
     trap.disarm();
 }

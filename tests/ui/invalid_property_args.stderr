@@ -1,20 +1,20 @@
 error: getter function can only have one argument (of type pyo3::Python)
- --> tests/ui/invalid_property_args.rs:9:54
+ --> tests/ui/invalid_property_args.rs:9:56
   |
-9 |     fn getter_with_arg(&self, py: Python<'_>, index: u32) {}
-  |                                                      ^^^
+9 |     fn getter_with_arg(&self, _py: Python<'_>, _index: u32) {}
+  |                                                        ^^^
 
 error: setter function expected to have one argument
   --> tests/ui/invalid_property_args.rs:18:8
    |
-18 |     fn setter_with_no_arg(&mut self, py: Python<'_>) {}
+18 |     fn setter_with_no_arg(&mut self, _py: Python<'_>) {}
    |        ^^^^^^^^^^^^^^^^^^
 
 error: setter function can have at most two arguments ([pyo3::Python,] and value)
-  --> tests/ui/invalid_property_args.rs:24:76
+  --> tests/ui/invalid_property_args.rs:24:79
    |
-24 |     fn setter_with_too_many_args(&mut self, py: Python<'_>, foo: u32, bar: u32) {}
-   |                                                                            ^^^
+24 |     fn setter_with_too_many_args(&mut self, _py: Python<'_>, _foo: u32, _bar: u32) {}
+   |                                                                               ^^^
 
 error: `get` and `set` with tuple struct fields require `name`
   --> tests/ui/invalid_property_args.rs:28:50

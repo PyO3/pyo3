@@ -2,10 +2,9 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     types::{PyTraceback, PyType},
-    IntoPy, Py, PyAny, PyObject, PyTypeInfo, Python,
+    Bound, IntoPy, Py, PyAny, PyObject, PyTypeInfo, Python,
 };
 
-#[derive(Clone)]
 pub(crate) struct PyErrStateNormalized {
     #[cfg(not(Py_3_12))]
     ptype: Py<PyType>,
@@ -16,25 +15,32 @@ pub(crate) struct PyErrStateNormalized {
 
 impl PyErrStateNormalized {
     #[cfg(not(Py_3_12))]
-    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> &'py PyType {
-        self.ptype.as_ref(py)
+    pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
+        self.ptype.bind(py).clone()
     }
 
     #[cfg(Py_3_12)]
-    pub(crate) fn ptype<'py>(&'py self, py: Python<'py>) -> &'py PyType {
-        self.pvalue.as_ref(py).get_type()
+    pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
+        use crate::types::any::PyAnyMethods;
+        self.pvalue.bind(py).get_type()
     }
 
     #[cfg(not(Py_3_12))]
-    pub(crate) fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
+    pub(crate) fn ptraceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
         self.ptraceback
             .as_ref()
-            .map(|traceback| traceback.as_ref(py))
+            .map(|traceback| traceback.bind(py).clone())
     }
 
     #[cfg(Py_3_12)]
-    pub(crate) fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
-        unsafe { py.from_owned_ptr_or_opt(ffi::PyException_GetTraceback(self.pvalue.as_ptr())) }
+    pub(crate) fn ptraceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
+        use crate::ffi_ptr_ext::FfiPtrExt;
+        use crate::types::any::PyAnyMethods;
+        unsafe {
+            ffi::PyException_GetTraceback(self.pvalue.as_ptr())
+                .assume_owned_or_opt(py)
+                .map(|b| b.downcast_into_unchecked())
+        }
     }
 
     #[cfg(Py_3_12)]
@@ -54,6 +60,19 @@ impl PyErrStateNormalized {
             ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
             pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
             ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
+        }
+    }
+
+    pub fn clone_ref(&self, py: Python<'_>) -> Self {
+        Self {
+            #[cfg(not(Py_3_12))]
+            ptype: self.ptype.clone_ref(py),
+            pvalue: self.pvalue.clone_ref(py),
+            #[cfg(not(Py_3_12))]
+            ptraceback: self
+                .ptraceback
+                .as_ref()
+                .map(|ptraceback| ptraceback.clone_ref(py)),
         }
     }
 }
@@ -93,19 +112,20 @@ where
 }
 
 impl PyErrState {
-    pub(crate) fn lazy(ptype: &PyAny, args: impl PyErrArguments + 'static) -> Self {
-        let ptype = ptype.into();
+    pub(crate) fn lazy(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
         PyErrState::Lazy(Box::new(move |py| PyErrStateLazyFnOutput {
             ptype,
             pvalue: args.arguments(py),
         }))
     }
 
-    pub(crate) fn normalized(pvalue: &PyBaseException) -> Self {
+    pub(crate) fn normalized(pvalue: Bound<'_, PyBaseException>) -> Self {
+        #[cfg(not(Py_3_12))]
+        use crate::types::any::PyAnyMethods;
+
         Self::Normalized(PyErrStateNormalized {
             #[cfg(not(Py_3_12))]
             ptype: pvalue.get_type().into(),
-            pvalue: pvalue.into(),
             #[cfg(not(Py_3_12))]
             ptraceback: unsafe {
                 Py::from_owned_ptr_or_opt(
@@ -113,6 +133,7 @@ impl PyErrState {
                     ffi::PyException_GetTraceback(pvalue.as_ptr()),
                 )
             },
+            pvalue: pvalue.into(),
         })
     }
 

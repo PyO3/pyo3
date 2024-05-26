@@ -8,7 +8,6 @@ mod import_lib;
 
 use std::{
     collections::{HashMap, HashSet},
-    convert::AsRef,
     env,
     ffi::{OsStr, OsString},
     fmt::Display,
@@ -31,10 +30,16 @@ use crate::{
 };
 
 /// Minimum Python version PyO3 supports.
-const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
+pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
+
+/// GraalPy may implement the same CPython version over multiple releases.
+const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
+    major: 24,
+    minor: 0,
+};
 
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-const ABI3_MAX_MINOR: u8 = 12;
+pub(crate) const ABI3_MAX_MINOR: u8 = 12;
 
 /// Gets an environment variable owned by cargo.
 ///
@@ -174,6 +179,11 @@ impl InterpreterConfig {
                     See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
                 ));
             }
+        } else if self.implementation.is_graalpy() {
+            println!("cargo:rustc-cfg=GraalPy");
+            if self.abi3 {
+                warn!("GraalPy does not support abi3 so the build artifacts will be version-specific.");
+            }
         } else if self.abi3 {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
@@ -198,6 +208,12 @@ import sys
 from sysconfig import get_config_var, get_platform
 
 PYPY = platform.python_implementation() == "PyPy"
+GRAALPY = platform.python_implementation() == "GraalVM"
+
+if GRAALPY:
+    graalpy_ver = map(int, __graalpython__.get_graalvm_version().split('.'));
+    print("graalpy_major", next(graalpy_ver))
+    print("graalpy_minor", next(graalpy_ver))
 
 # sys.base_prefix is missing on Python versions older than 3.3; this allows the script to continue
 # so that the version mismatch can be reported in a nicer way later.
@@ -227,7 +243,7 @@ SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
-print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
+print("shared", PYPY or GRAALPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
 print_if_set("ld_version", get_config_var("LDVERSION"))
 print_if_set("libdir", get_config_var("LIBDIR"))
 print_if_set("base_prefix", base_prefix)
@@ -244,6 +260,23 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             "broken Python interpreter: {}",
             interpreter.as_ref().display()
         );
+
+        if let Some(value) = map.get("graalpy_major") {
+            let graalpy_version = PythonVersion {
+                major: value
+                    .parse()
+                    .context("failed to parse GraalPy major version")?,
+                minor: map["graalpy_minor"]
+                    .parse()
+                    .context("failed to parse GraalPy minor version")?,
+            };
+            ensure!(
+                graalpy_version >= MINIMUM_SUPPORTED_VERSION_GRAALPY,
+                "At least GraalPy version {} needed, got {}",
+                MINIMUM_SUPPORTED_VERSION_GRAALPY,
+                graalpy_version
+            );
+        };
 
         let shared = map["shared"].as_str() == "True";
 
@@ -589,7 +622,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
     /// Lowers the configured version to the abi3 version, if set.
     fn fixup_for_abi3_version(&mut self, abi3_version: Option<PythonVersion>) -> Result<()> {
         // PyPy doesn't support abi3; don't adjust the version
-        if self.implementation.is_pypy() {
+        if self.implementation.is_pypy() || self.implementation.is_graalpy() {
             return Ok(());
         }
 
@@ -648,6 +681,7 @@ impl FromStr for PythonVersion {
 pub enum PythonImplementation {
     CPython,
     PyPy,
+    GraalPy,
 }
 
 impl PythonImplementation {
@@ -657,11 +691,18 @@ impl PythonImplementation {
     }
 
     #[doc(hidden)]
+    pub fn is_graalpy(self) -> bool {
+        self == PythonImplementation::GraalPy
+    }
+
+    #[doc(hidden)]
     pub fn from_soabi(soabi: &str) -> Result<Self> {
         if soabi.starts_with("pypy") {
             Ok(PythonImplementation::PyPy)
         } else if soabi.starts_with("cpython") {
             Ok(PythonImplementation::CPython)
+        } else if soabi.starts_with("graalpy") {
+            Ok(PythonImplementation::GraalPy)
         } else {
             bail!("unsupported Python interpreter");
         }
@@ -673,6 +714,7 @@ impl Display for PythonImplementation {
         match self {
             PythonImplementation::CPython => write!(f, "CPython"),
             PythonImplementation::PyPy => write!(f, "PyPy"),
+            PythonImplementation::GraalPy => write!(f, "GraalVM"),
         }
     }
 }
@@ -683,6 +725,7 @@ impl FromStr for PythonImplementation {
         match s {
             "CPython" => Ok(PythonImplementation::CPython),
             "PyPy" => Ok(PythonImplementation::PyPy),
+            "GraalVM" => Ok(PythonImplementation::GraalPy),
             _ => bail!("unknown interpreter: {}", s),
         }
     }
@@ -701,6 +744,7 @@ fn have_python_interpreter() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
+        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").map_or(false, |os_str| os_str == "1")
 }
 
 /// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
@@ -731,6 +775,8 @@ pub fn is_linking_libpython() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
+        // See https://github.com/PyO3/pyo3/issues/4068#issuecomment-2051159852
+        || target.operating_system == OperatingSystem::Aix
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
         || !is_extension_module()
@@ -760,7 +806,7 @@ pub struct CrossCompileConfig {
     /// The version of the Python library to link against.
     version: Option<PythonVersion>,
 
-    /// The target Python implementation hint (CPython or PyPy)
+    /// The target Python implementation hint (CPython, PyPy, GraalPy, ...)
     implementation: Option<PythonImplementation>,
 
     /// The compile target triple (e.g. aarch64-unknown-linux-gnu)
@@ -1264,6 +1310,15 @@ fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     path == "lib_pypy" || path.starts_with(&pypy_version_pat)
 }
 
+fn is_graalpy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
+    let graalpy_version_pat = if let Some(v) = v {
+        format!("graalpy{}", v)
+    } else {
+        "graalpy2".into()
+    };
+    path == "lib_graalpython" || path.starts_with(&graalpy_version_pat)
+}
+
 fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
     let cpython_version_pat = if let Some(v) = v {
         format!("python{}", v)
@@ -1297,6 +1352,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                     search_lib_dir(f.path(), cross)
                 } else if is_cpython_lib_dir(&file_name, &cross.version)
                     || is_pypy_lib_dir(&file_name, &cross.version)
+                    || is_graalpy_lib_dir(&file_name, &cross.version)
                 {
                     search_lib_dir(f.path(), cross)
                 } else {
@@ -1365,7 +1421,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
             format!(
                 "PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified \
                 when cross-compiling and PYO3_CROSS_LIB_DIR is not set.\n\
-                = help: see the PyO3 user guide for more information: https://pyo3.rs/v{}/building_and_distribution.html#cross-compiling",
+                = help: see the PyO3 user guide for more information: https://pyo3.rs/v{}/building-and-distribution.html#cross-compiling",
                 env!("CARGO_PKG_VERSION")
             )
         )?;
@@ -1418,7 +1474,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 ///
 /// Must be called from a PyO3 crate build script.
 fn default_abi3_config(host: &Triple, version: PythonVersion) -> InterpreterConfig {
-    // FIXME: PyPy does not support the Stable ABI yet.
+    // FIXME: PyPy & GraalPy do not support the Stable ABI.
     let implementation = PythonImplementation::CPython;
     let abi3 = true;
 
@@ -1524,7 +1580,7 @@ fn default_lib_name_windows(
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
         format!("python{}{}_d", version.major, version.minor)
-    } else if abi3 && !implementation.is_pypy() {
+    } else if abi3 && !(implementation.is_pypy() || implementation.is_graalpy()) {
         WINDOWS_ABI3_LIB_NAME.to_owned()
     } else if mingw {
         // https://packages.msys2.org/base/mingw-w64-python
@@ -1562,6 +1618,7 @@ fn default_lib_name_unix(
                 format!("pypy{}-c", version.major)
             }
         }
+        PythonImplementation::GraalPy => "python-native".to_string(),
     }
 }
 
@@ -1662,7 +1719,9 @@ pub fn find_interpreter() -> Result<PathBuf> {
             .find(|bin| {
                 if let Ok(out) = Command::new(bin).arg("--version").output() {
                     // begin with `Python 3.X.X :: additional info`
-                    out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
+                    out.stdout.starts_with(b"Python 3")
+                        || out.stderr.starts_with(b"Python 3")
+                        || out.stdout.starts_with(b"GraalPy 3")
                 } else {
                     false
                 }
@@ -1784,7 +1843,6 @@ fn unescape(escaped: &str) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::FromIterator;
     use target_lexicon::triple;
 
     use super::*;

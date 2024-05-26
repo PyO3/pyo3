@@ -6,7 +6,7 @@ fn drop_many_objects(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         b.iter(|| {
             for _ in 0..1000 {
-                std::mem::drop(PyObject::from(py.None()));
+                std::mem::drop(py.None());
             }
         });
     });

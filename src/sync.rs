@@ -1,20 +1,23 @@
 //! Synchronization mechanisms based on the Python GIL.
+//!
+//! With the acceptance of [PEP 703] (aka a "freethreaded Python") for Python 3.13, these
+//! are likely to undergo significant developments in the future.
+//!
+//! [PEP 703]: https://peps.python.org/pep-703/
 use std::{
     cell::UnsafeCell,
     mem::{replace, transmute},
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
-    sync::Arc,
+    sync::{Arc, Condvar, Mutex},
     thread::Builder,
     time::Duration,
 };
 
-use parking_lot::{Condvar, Mutex};
-
 use crate::{
     gil::SuspendGIL,
     impl_::panic::PanicTrap,
-    types::{PyString, PyType},
-    Py, PyResult, PyVisit, Python,
+    types::{PyAnyMethods, PyString, PyType},
+    Bound, Py, PyResult, PyVisit, Python,
 };
 
 /// Value with concurrent access protected by the GIL.
@@ -90,13 +93,14 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///
 /// static LIST_CELL: GILOnceCell<Py<PyList>> = GILOnceCell::new();
 ///
-/// pub fn get_shared_list(py: Python<'_>) -> &PyList {
+/// pub fn get_shared_list(py: Python<'_>) -> &Bound<'_, PyList> {
 ///     LIST_CELL
-///         .get_or_init(py, || PyList::empty(py).into())
-///         .as_ref(py)
+///         .get_or_init(py, || PyList::empty_bound(py).unbind())
+///         .bind(py)
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
+#[derive(Default)]
 pub struct GILOnceCell<T>(UnsafeCell<Option<T>>);
 
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different
@@ -207,13 +211,19 @@ impl GILOnceCell<Py<PyType>> {
     ///
     /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
     pub(crate) fn get_or_try_init_type_ref<'py>(
-        &'py self,
+        &self,
         py: Python<'py>,
         module_name: &str,
         attr_name: &str,
-    ) -> PyResult<&'py PyType> {
-        self.get_or_try_init(py, || py.import(module_name)?.getattr(attr_name)?.extract())
-            .map(|ty| ty.as_ref(py))
+    ) -> PyResult<&Bound<'py, PyType>> {
+        self.get_or_try_init(py, || {
+            let type_object = py
+                .import_bound(module_name)?
+                .getattr(attr_name)?
+                .downcast_into()?;
+            Ok(type_object.unbind())
+        })
+        .map(|ty| ty.bind(py))
     }
 }
 
@@ -225,11 +235,11 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// ```
 /// use pyo3::intern;
-/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python};
+/// # use pyo3::{prelude::*, types::PyDict};
 ///
 /// #[pyfunction]
-/// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {
-///     let dict = PyDict::new(py);
+/// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+///     let dict = PyDict::new_bound(py);
 ///     //             👇 A new `PyString` is created
 ///     //                for every call of this function.
 ///     dict.set_item("foo", 42)?;
@@ -237,8 +247,8 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 ///
 /// #[pyfunction]
-/// fn create_dict_faster(py: Python<'_>) -> PyResult<&PyDict> {
-///     let dict = PyDict::new(py);
+/// fn create_dict_faster(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+///     let dict = PyDict::new_bound(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
 ///     dict.set_item(intern!(py, "foo"), 42)?;
@@ -246,10 +256,10 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 /// #
 /// # Python::with_gil(|py| {
-/// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
+/// #     let fun_slow = wrap_pyfunction_bound!(create_dict, py).unwrap();
 /// #     let dict = fun_slow.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
-/// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
+/// #     let fun = wrap_pyfunction_bound!(create_dict_faster, py).unwrap();
 /// #     let dict = fun.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
 /// # });
@@ -274,10 +284,10 @@ impl Interned {
 
     /// Gets or creates the interned `str` value.
     #[inline]
-    pub fn get<'py>(&'py self, py: Python<'py>) -> &'py PyString {
+    pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         self.1
-            .get_or_init(py, || PyString::intern(py, self.0).into())
-            .as_ref(py)
+            .get_or_init(py, || PyString::intern_bound(py, self.0).into())
+            .bind(py)
     }
 }
 
@@ -439,7 +449,7 @@ impl Mailbox {
 
     fn init(&self, task: Task) {
         use MailboxInner::*;
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.lock().unwrap();
         match &*inner {
             Abandoned => *inner = MailboxInner::Task(task),
             Empty | Task(_) | Working | Done => {
@@ -450,7 +460,7 @@ impl Mailbox {
 
     fn send_task(&self, task: Task) -> Option<Task> {
         use MailboxInner::*;
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.lock().unwrap();
         match &*inner {
             Empty => {
                 *inner = Task(task);
@@ -465,15 +475,16 @@ impl Mailbox {
 
     fn recv_task(&self) -> Option<Task> {
         use MailboxInner::*;
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.lock().unwrap();
         loop {
             match &*inner {
                 Empty | Done => {
-                    if self
+                    let (guard, result) = self
                         .flag
-                        .wait_for(&mut inner, Duration::from_secs(60))
-                        .timed_out()
-                    {
+                        .wait_timeout(inner, Duration::from_secs(60))
+                        .unwrap();
+                    inner = guard;
+                    if result.timed_out() {
                         *inner = Abandoned;
                         return None;
                     }
@@ -491,7 +502,7 @@ impl Mailbox {
 
     fn signal_done(&self) {
         use MailboxInner::*;
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.lock().unwrap();
         match &*inner {
             Working => {
                 *inner = Done;
@@ -506,14 +517,14 @@ impl Mailbox {
 
     fn await_done(&self) {
         use MailboxInner::*;
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.lock().unwrap();
         loop {
             match &*inner {
                 Done => {
                     *inner = Empty;
                     return;
                 }
-                Task(_) | Working => self.flag.wait(&mut inner),
+                Task(_) | Working => inner = self.flag.wait(inner).unwrap(),
                 Empty | Abandoned => {
                     unreachable!("awaited completion from inactive worker")
                 }
@@ -526,7 +537,7 @@ impl Mailbox {
 mod tests {
     use super::*;
 
-    use crate::types::PyDict;
+    use crate::types::{dict::PyDictMethods, PyDict};
 
     #[test]
     fn test_intern() {
@@ -535,7 +546,7 @@ mod tests {
             let foo2 = intern!(py, "foo");
             let foo3 = intern!(py, stringify!(foo));
 
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             dict.set_item(foo1, 42_usize).unwrap();
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(

@@ -57,7 +57,7 @@ pub struct _frozen {
     pub size: c_int,
     #[cfg(Py_3_11)]
     pub is_package: c_int,
-    #[cfg(Py_3_11)]
+    #[cfg(all(Py_3_11, not(Py_3_13)))]
     pub get_code: Option<unsafe extern "C" fn() -> *mut PyObject>,
 }
 

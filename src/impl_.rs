@@ -6,9 +6,10 @@
 //! APIs may may change at any time without documentation in the CHANGELOG and without
 //! breaking semver guarantees.
 
-#[cfg(feature = "macros")]
+#[cfg(feature = "experimental-async")]
 pub mod coroutine;
 pub mod deprecations;
+pub mod exceptions;
 pub mod extract_argument;
 pub mod freelist;
 pub mod frompyobject;

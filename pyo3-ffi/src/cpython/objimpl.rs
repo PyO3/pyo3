@@ -1,7 +1,7 @@
 use libc::size_t;
 use std::os::raw::c_int;
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use std::os::raw::c_void;
 
 use crate::object::*;
@@ -14,7 +14,7 @@ extern "C" {
     pub fn _Py_GetAllocatedBlocks() -> crate::Py_ssize_t;
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyObjectArenaAllocator {
@@ -23,7 +23,7 @@ pub struct PyObjectArenaAllocator {
     pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t)>,
 }
 
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 impl Default for PyObjectArenaAllocator {
     #[inline]
     fn default() -> Self {
@@ -32,9 +32,9 @@ impl Default for PyObjectArenaAllocator {
 }
 
 extern "C" {
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
 
     #[cfg(Py_3_9)]

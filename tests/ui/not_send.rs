@@ -3,13 +3,15 @@ use pyo3::types::PyString;
 
 fn allow_thread_prevents_token() {
     Python::with_gil(|py| {
-        py.allow_threads().with(|| { drop(py); });
+        py.allow_threads().with(|| {
+            drop(py);
+        });
     })
 }
 
-fn allow_thread_prevents_gil_ref() {
+fn allow_thread_prevents_gil_bound_data() {
     Python::with_gil(|py| {
-        let string = PyString::new(py, "foo");
+        let string = PyString::new_bound(py, "foo");
 
         py.allow_threads().with(|| {
             println!("{:?}", string);
@@ -19,5 +21,5 @@ fn allow_thread_prevents_gil_ref() {
 
 fn main() {
     allow_thread_prevents_token();
-    allow_thread_prevents_gil_ref();
+    allow_thread_prevents_gil_bound_data();
 }

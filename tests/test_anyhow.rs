@@ -1,8 +1,10 @@
 #![cfg(feature = "anyhow")]
 
+use pyo3::wrap_pyfunction_bound;
+
 #[test]
 fn test_anyhow_py_function_ok_result() {
-    use pyo3::{py_run, pyfunction, wrap_pyfunction, Python};
+    use pyo3::{py_run, pyfunction, Python};
 
     #[pyfunction]
     #[allow(clippy::unnecessary_wraps)]
@@ -11,7 +13,7 @@ fn test_anyhow_py_function_ok_result() {
     }
 
     Python::with_gil(|py| {
-        let func = wrap_pyfunction!(produce_ok_result)(py).unwrap();
+        let func = wrap_pyfunction_bound!(produce_ok_result)(py).unwrap();
 
         py_run!(
             py,
@@ -25,7 +27,8 @@ fn test_anyhow_py_function_ok_result() {
 
 #[test]
 fn test_anyhow_py_function_err_result() {
-    use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, Python};
+    use pyo3::prelude::PyDictMethods;
+    use pyo3::{pyfunction, types::PyDict, Python};
 
     #[pyfunction]
     fn produce_err_result() -> anyhow::Result<String> {
@@ -33,16 +36,16 @@ fn test_anyhow_py_function_err_result() {
     }
 
     Python::with_gil(|py| {
-        let func = wrap_pyfunction!(produce_err_result)(py).unwrap();
-        let locals = PyDict::new(py);
+        let func = wrap_pyfunction_bound!(produce_err_result)(py).unwrap();
+        let locals = PyDict::new_bound(py);
         locals.set_item("func", func).unwrap();
 
-        py.run(
+        py.run_bound(
             r#"
             func()
             "#,
             None,
-            Some(locals),
+            Some(&locals),
         )
         .unwrap_err();
     });

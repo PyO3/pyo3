@@ -1,15 +1,18 @@
+use super::any::PyAnyMethods;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
-    ffi, instance::Bound, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
-    Python, ToPyObject,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject,
+    PyResult, Python, ToPyObject,
 };
 use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
 ///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`] and [`extract`](PyAny::extract)
+/// by using [`ToPyObject`] and [`extract`](PyAnyMethods::extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
@@ -23,13 +26,30 @@ pyobject_native_type!(
 
 impl PyFloat {
     /// Creates a new Python `float` object.
-    pub fn new(py: Python<'_>, val: c_double) -> &PyFloat {
-        unsafe { py.from_owned_ptr(ffi::PyFloat_FromDouble(val)) }
+    pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
+        unsafe {
+            ffi::PyFloat_FromDouble(val)
+                .assume_owned(py)
+                .downcast_into_unchecked()
+        }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyFloat {
+    /// Deprecated form of [`PyFloat::new_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFloat::new` will be replaced by `PyFloat::new_bound` in a future PyO3 version"
+    )]
+    pub fn new(py: Python<'_>, val: f64) -> &'_ Self {
+        Self::new_bound(py, val).into_gil_ref()
     }
 
     /// Gets the value of this float.
     pub fn value(&self) -> c_double {
-        Bound::borrowed_from_gil_ref(&self).value()
+        self.as_borrowed().value()
     }
 }
 
@@ -39,7 +59,7 @@ impl PyFloat {
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
 #[doc(alias = "PyFloat")]
-pub trait PyFloatMethods<'py> {
+pub trait PyFloatMethods<'py>: crate::sealed::Sealed {
     /// Gets the value of this float.
     fn value(&self) -> c_double;
 }
@@ -61,13 +81,13 @@ impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
 
 impl ToPyObject for f64 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, *self).into()
+        PyFloat::new_bound(py, *self).into()
     }
 }
 
 impl IntoPy<PyObject> for f64 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, self).into()
+        PyFloat::new_bound(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -76,10 +96,10 @@ impl IntoPy<PyObject> for f64 {
     }
 }
 
-impl<'source> FromPyObject<'source> for f64 {
+impl<'py> FromPyObject<'py> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #![allow(clippy::float_cmp)]
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
@@ -108,13 +128,13 @@ impl<'source> FromPyObject<'source> for f64 {
 
 impl ToPyObject for f32 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, f64::from(*self)).into()
+        PyFloat::new_bound(py, f64::from(*self)).into()
     }
 }
 
 impl IntoPy<PyObject> for f32 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, f64::from(self)).into()
+        PyFloat::new_bound(py, f64::from(self)).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -123,8 +143,8 @@ impl IntoPy<PyObject> for f32 {
     }
 }
 
-impl<'source> FromPyObject<'source> for f32 {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for f32 {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
 
@@ -136,7 +156,10 @@ impl<'source> FromPyObject<'source> for f32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::PyFloat, Python, ToPyObject};
+    use crate::{
+        types::{PyFloat, PyFloatMethods},
+        Python, ToPyObject,
+    };
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (
@@ -164,7 +187,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let v = 1.23f64;
-            let obj = PyFloat::new(py, 1.23);
+            let obj = PyFloat::new_bound(py, 1.23);
             assert_approx_eq!(v, obj.value());
         });
     }

@@ -1,13 +1,15 @@
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::freelist::FreeList,
-    impl_::pycell::{GetBorrowChecker, PyClassMutability},
+    impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
     internal_tricks::extract_c_string,
-    pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
+    types::any::PyAnyMethods,
     types::PyBool,
-    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
 };
 use std::{
     borrow::Cow,
@@ -24,13 +26,13 @@ pub use lazy_type_object::LazyTypeObject;
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
 pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyCell::<T>::dict_offset()
+    PyClassObject::<T>::dict_offset()
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
 pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyCell::<T>::weaklist_offset()
+    PyClassObject::<T>::weaklist_offset()
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
@@ -167,7 +169,12 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
+    #[cfg(feature = "gil-refs")]
     type BaseNativeType: PyTypeInfo + PyNativeType;
+    /// The closest native ancestor. This is `PyAny` by default, and when you declare
+    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
+    #[cfg(not(feature = "gil-refs"))]
+    type BaseNativeType: PyTypeInfo;
 
     /// This handles following two situations:
     /// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.
@@ -510,11 +517,11 @@ macro_rules! define_pyclass_binary_operator_slot {
             #[inline]
             unsafe fn $lhs(
                 self,
-                _py: Python<'_>,
+                py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
-                Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+                Ok(py.NotImplemented().into_ptr())
             }
         }
 
@@ -525,11 +532,11 @@ macro_rules! define_pyclass_binary_operator_slot {
             #[inline]
             unsafe fn $rhs(
                 self,
-                _py: Python<'_>,
+                py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
-                Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+                Ok(py.NotImplemented().into_ptr())
             }
         }
 
@@ -700,12 +707,12 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __pow__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -716,12 +723,12 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __rpow__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -761,11 +768,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __lt__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -776,11 +783,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __le__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -791,11 +798,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __eq__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -811,9 +818,9 @@ slot_fragment_trait! {
         other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
         // By default `__ne__` will try `__eq__` and invert the result
-        let slf: &PyAny = py.from_borrowed_ptr(slf);
-        let other: &PyAny = py.from_borrowed_ptr(other);
-        slf.eq(other).map(|is_eq| PyBool::new(py, !is_eq).into_ptr())
+        let slf = Borrowed::from_ptr(py, slf);
+        let other = Borrowed::from_ptr(py, other);
+        slf.eq(other).map(|is_eq| PyBool::new_bound(py, !is_eq).to_owned().into_ptr())
     }
 }
 
@@ -824,11 +831,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __gt__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -839,11 +846,11 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __ge__(
         self,
-        _py: Python<'_>,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
+        Ok(py.NotImplemented().into_ptr())
     }
 }
 
@@ -851,6 +858,7 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_richcompare_slot {
     ($cls:ty) => {{
+        #[allow(unknown_lints, non_local_definitions)]
         impl $cls {
             #[allow(non_snake_case)]
             unsafe extern "C" fn __pymethod___richcmp____(
@@ -880,6 +888,8 @@ macro_rules! generate_pyclass_richcompare_slot {
     }};
 }
 pub use generate_pyclass_richcompare_slot;
+
+use super::pycell::PyClassObject;
 
 /// Implements a freelist.
 ///
@@ -1067,7 +1077,7 @@ impl ThreadCheckerImpl {
                 "{} is unsendable, but is being dropped on another thread",
                 type_name
             ))
-            .write_unraisable(py, None);
+            .write_unraisable_bound(py, None);
             return false;
         }
 
@@ -1092,8 +1102,15 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
+
+#[cfg_attr(
+    all(diagnostic_namespace, feature = "abi3"),
+    diagnostic::on_unimplemented(
+        note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types"
+    )
+)]
 pub trait PyClassBaseType: Sized {
-    type LayoutAsBase: PyCellLayout<Self>;
+    type LayoutAsBase: PyClassObjectLayout<Self>;
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
@@ -1103,7 +1120,7 @@ pub trait PyClassBaseType: Sized {
 ///
 /// In the future this will be extended to immutable PyClasses too.
 impl<T: PyClass> PyClassBaseType for T {
-    type LayoutAsBase = crate::pycell::PyCell<T>;
+    type LayoutAsBase = crate::impl_::pycell::PyClassObject<T>;
     type BaseNativeType = T::BaseNativeType;
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
     type PyClassMutability = T::PyClassMutability;
@@ -1111,7 +1128,7 @@ impl<T: PyClass> PyClassBaseType for T {
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::impl_::trampoline::dealloc(obj, PyCell::<T>::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc)
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
@@ -1120,7 +1137,7 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     {
         ffi::PyObject_GC_UnTrack(obj.cast());
     }
-    crate::impl_::trampoline::dealloc(obj, PyCell::<T>::tp_dealloc)
+    crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc)
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(

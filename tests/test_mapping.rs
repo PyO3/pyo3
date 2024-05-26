@@ -21,11 +21,12 @@ struct Mapping {
 #[pymethods]
 impl Mapping {
     #[new]
-    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    #[pyo3(signature=(elements=None))]
+    fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = HashMap::with_capacity(pylist.len());
             for (i, pyelem) in pylist.into_iter().enumerate() {
-                let elem = String::extract(pyelem)?;
+                let elem = pyelem.extract()?;
                 elems.insert(elem, i);
             }
             Ok(Self { index: elems })
@@ -59,6 +60,7 @@ impl Mapping {
         }
     }
 
+    #[pyo3(signature=(key, default=None))]
     fn get(&self, py: Python<'_>, key: &str, default: Option<PyObject>) -> Option<PyObject> {
         self.index
             .get(key)
@@ -68,8 +70,8 @@ impl Mapping {
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
-fn map_dict(py: Python<'_>) -> &pyo3::types::PyDict {
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
+fn map_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
+    let d = [("Mapping", py.get_type_bound::<Mapping>())].into_py_dict_bound(py);
     py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
     d
 }
@@ -123,7 +125,7 @@ fn mapping_is_not_sequence() {
 
         PyMapping::register::<Mapping>(py).unwrap();
 
-        assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
-        assert!(m.as_ref(py).downcast::<PySequence>().is_err());
+        assert!(m.bind(py).downcast::<PyMapping>().is_ok());
+        assert!(m.bind(py).downcast::<PySequence>().is_err());
     });
 }

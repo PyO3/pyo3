@@ -124,6 +124,8 @@ mod tests {
 
     #[test]
     fn io_errors() {
+        use crate::types::any::PyAnyMethods;
+
         let check_err = |kind, expected_ty| {
             Python::with_gil(|py| {
                 let rust_err = io::Error::new(kind, "some error msg");
@@ -139,8 +141,8 @@ mod tests {
 
                 let py_err_recovered_from_rust_err: PyErr = rust_err_from_py_err.into();
                 assert!(py_err_recovered_from_rust_err
-                    .value(py)
-                    .is(py_error_clone.value(py))); // It should be the same exception
+                    .value_bound(py)
+                    .is(py_error_clone.value_bound(py))); // It should be the same exception
             })
         };
 

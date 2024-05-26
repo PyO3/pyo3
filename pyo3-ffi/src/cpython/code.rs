@@ -3,10 +3,10 @@ use crate::pyport::Py_ssize_t;
 
 #[allow(unused_imports)]
 use std::os::raw::{c_char, c_int, c_short, c_uchar, c_void};
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use std::ptr::addr_of_mut;
 
-#[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
+#[cfg(all(Py_3_8, not(any(PyPy, GraalPy)), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
 #[cfg(Py_3_12)]
@@ -20,7 +20,11 @@ pub const _PY_MONITORING_EVENTS: usize = 17;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _Py_LocalMonitors {
-    pub tools: [u8; _PY_MONITORING_UNGROUPED_EVENTS],
+    pub tools: [u8; if cfg!(Py_3_13) {
+        _PY_MONITORING_LOCAL_EVENTS
+    } else {
+        _PY_MONITORING_UNGROUPED_EVENTS
+    }],
 }
 
 #[cfg(Py_3_12)]
@@ -73,10 +77,10 @@ pub struct _PyCoMonitoringData {
     pub per_instruction_tools: *mut u8,
 }
 
-#[cfg(all(not(PyPy), not(Py_3_7)))]
+#[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_7)))]
 opaque_struct!(PyCodeObject);
 
-#[cfg(all(not(PyPy), Py_3_7, not(Py_3_8)))]
+#[cfg(all(not(any(PyPy, GraalPy)), Py_3_7, not(Py_3_8)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
@@ -102,7 +106,10 @@ pub struct PyCodeObject {
     pub co_extra: *mut c_void,
 }
 
-#[cfg(all(not(PyPy), Py_3_8, not(Py_3_11)))]
+#[cfg(Py_3_13)]
+opaque_struct!(_PyExecutorArray);
+
+#[cfg(all(not(any(PyPy, GraalPy)), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
@@ -136,7 +143,7 @@ pub struct PyCodeObject {
     pub co_opcache_size: c_uchar,
 }
 
-#[cfg(all(not(PyPy), Py_3_11))]
+#[cfg(all(not(any(PyPy, GraalPy)), Py_3_11))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
@@ -176,6 +183,8 @@ pub struct PyCodeObject {
     pub _co_code: *mut PyObject,
     #[cfg(not(Py_3_12))]
     pub _co_linearray: *mut c_char,
+    #[cfg(Py_3_13)]
+    pub co_executors: *mut _PyExecutorArray,
     #[cfg(Py_3_12)]
     pub _co_cached: *mut _PyCoCached,
     #[cfg(Py_3_12)]
@@ -230,25 +239,26 @@ pub const CO_FUTURE_GENERATOR_STOP: c_int = 0x8_0000;
 
 pub const CO_MAXBLOCKS: usize = 20;
 
+#[cfg(not(any(PyPy, GraalPy)))]
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
 }
 
 #[inline]
-#[cfg(all(not(PyPy), Py_3_10, not(Py_3_11)))]
+#[cfg(all(not(any(PyPy, GraalPy)), Py_3_10, not(Py_3_11)))]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
     crate::PyTuple_GET_SIZE((*op).co_freevars)
 }
 
 #[inline]
-#[cfg(all(not(Py_3_10), Py_3_11, not(PyPy)))]
+#[cfg(all(not(Py_3_10), Py_3_11, not(any(PyPy, GraalPy))))]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> c_int {
     (*op).co_nfreevars
 }
@@ -264,6 +274,7 @@ extern "C" {
 }
 
 extern "C" {
+    #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyCode_New")]
     pub fn PyCode_New(
         argcount: c_int,
@@ -282,6 +293,7 @@ extern "C" {
         firstlineno: c_int,
         lnotab: *mut PyObject,
     ) -> *mut PyCodeObject;
+    #[cfg(not(GraalPy))]
     #[cfg(Py_3_8)]
     pub fn PyCode_NewWithPosOnlyArgs(
         argcount: c_int,
@@ -301,12 +313,14 @@ extern "C" {
         firstlineno: c_int,
         lnotab: *mut PyObject,
     ) -> *mut PyCodeObject;
+    #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyCode_NewEmpty")]
     pub fn PyCode_NewEmpty(
         filename: *const c_char,
         funcname: *const c_char,
         firstlineno: c_int,
     ) -> *mut PyCodeObject;
+    #[cfg(not(GraalPy))]
     pub fn PyCode_Addr2Line(arg1: *mut PyCodeObject, arg2: c_int) -> c_int;
     // skipped PyCodeAddressRange "for internal use only"
     // skipped _PyCode_CheckLineNumber

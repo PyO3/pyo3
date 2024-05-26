@@ -1,5 +1,5 @@
 use crate::object::*;
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::pyport::Py_hash_t;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::c_int;
@@ -7,7 +7,7 @@ use std::ptr::addr_of_mut;
 
 pub const PySet_MINSIZE: usize = 8;
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct setentry {
@@ -15,7 +15,7 @@ pub struct setentry {
     pub hash: Py_hash_t,
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySetObject {
@@ -32,7 +32,7 @@ pub struct PySetObject {
 
 // skipped
 #[inline]
-#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
+#[cfg(all(not(any(PyPy, GraalPy)), not(Py_LIMITED_API)))]
 pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
     debug_assert_eq!(PyAnySet_Check(so), 1);
     let so = so.cast::<PySetObject>();
@@ -92,7 +92,7 @@ extern "C" {
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type)) as c_int
 }

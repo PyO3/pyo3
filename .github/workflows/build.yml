@@ -24,6 +24,7 @@ jobs:
   build:
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.7", "pypy3.7"]'), inputs.python-version) || inputs.rust == 'beta' || inputs.rust == 'nightly' }}
     runs-on: ${{ inputs.os }}
+    if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +33,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
+          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}  # PyPy can have FFI changes within Python versions, which creates pain in CI
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox
@@ -46,14 +48,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cargo-${{ inputs.python-architecture }}
-        continue-on-error: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
       - if: inputs.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-      - if: inputs.rust == '1.56.0'
+      - if: inputs.rust == '1.63.0'
         name: Prepare minimal package versions (MSRV only)
         run: nox -s set-minimal-package-versions
 
@@ -65,6 +66,7 @@ jobs:
         run: nox -s docs
 
       - name: Build (no features)
+        if: ${{ !startsWith(inputs.python-version, 'graalpy') }}
         run: cargo build --lib --tests --no-default-features
 
       # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
@@ -74,7 +76,7 @@ jobs:
           cargo build --no-default-features
 
       # Run tests (except on PyPy, because no embedding API).
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test (no features)
         run: cargo test --no-default-features --lib --tests
 
@@ -85,6 +87,7 @@ jobs:
           cargo test --no-default-features
 
       - name: Build (all additive features)
+        if: ${{ !startsWith(inputs.python-version, 'graalpy') }}
         run: cargo build --lib --tests --no-default-features --features "full ${{ inputs.extra-features }}"
 
       - if: ${{ startsWith(inputs.python-version, 'pypy') }}
@@ -92,17 +95,17 @@ jobs:
         run: cargo build --lib --tests --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
 
       # Run tests (except on PyPy, because no embedding API).
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test
         run: cargo test --no-default-features --features "full ${{ inputs.extra-features }}"
 
       # Run tests again, but in abi3 mode
-      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test (abi3)
         run: cargo test --no-default-features --features "abi3 full ${{ inputs.extra-features }}"
 
       # Run tests again, for abi3-py37 (the minimal Python version)
-      - if: ${{ (!startsWith(inputs.python-version, 'pypy')) && (inputs.python-version != '3.7') }}
+      - if: ${{ (!startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy')) && (inputs.python-version != '3.7') }}
         name: Test (abi3-py37)
         run: cargo test --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
 
@@ -118,9 +121,9 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - uses: dorny/paths-filter@v2
+      - uses: dorny/paths-filter@v3
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
-        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
+        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
           base: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
@@ -135,62 +138,8 @@ jobs:
       - name: Run pyo3-ffi-check
         # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here, nor
         # is pypy 3.9 on windows
-        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
+        if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' && !startsWith(inputs.python-version, 'graalpy') && !(inputs.python-version == 'pypy3.9' && contains(inputs.os, 'windows'))) }}
         run: nox -s ffi-check
-
-
-      - name: Test cross compilation
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
-        with:
-          target: aarch64-unknown-linux-gnu
-          manylinux: auto
-          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
-
-      - run: sudo rm -rf examples/maturin-starter/target
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
-      - name: Test cross compile to same architecture
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
-        with:
-          target: x86_64-unknown-linux-gnu
-          manylinux: auto
-          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
-
-      - name: Test cross compilation
-        if: ${{ inputs.os == 'macos-latest' && inputs.python-version == '3.9' }}
-        uses: PyO3/maturin-action@v1
-        with:
-          target: aarch64-apple-darwin
-          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
-
-      - name: Test cross compile to Windows
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
-        env:
-          XWIN_ARCH: x86_64
-        run: |
-          set -ex
-          sudo apt-get install -y mingw-w64 llvm
-          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
-          pip install cargo-xwin
-          # abi3
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
-          # non-abi3
-          export PYO3_CROSS_PYTHON_VERSION=3.9
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
-
-      - name: Test cross compile to Windows with maturin
-        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
-        uses: PyO3/maturin-action@v1
-        with:
-          target: x86_64-pc-windows-gnu
-          args: -i python3.8 -m examples/maturin-starter/Cargo.toml --features abi3
 
     env:
       CARGO_TERM_VERBOSE: true

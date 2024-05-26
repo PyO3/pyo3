@@ -1,23 +1,30 @@
-# Magic methods and slots
+# Class customizations
 
-Python's object model defines several protocols for different object behavior, such as the sequence, mapping, and number protocols. You may be familiar with implementing these protocols in Python classes by "magic" methods, such as `__str__` or `__repr__`. Because of the double-underscores surrounding their name, these are also known as "dunder" methods.
+Python's object model defines several protocols for different object behavior, such as the sequence, mapping, and number protocols. Python classes support these protocols by implementing "magic" methods, such as `__str__` or `__repr__`. Because of the double-underscores surrounding their name, these are also known as "dunder" methods.
 
-In the Python C-API which PyO3 is implemented upon, many of these magic methods have to be placed into special "slots" on the class type object, as covered in the previous section.
+PyO3 makes it possible for every magic method to be implemented in `#[pymethods]` just as they would be done in a regular Python class, with a few notable differences:
+- `__new__` and `__init__` are replaced by the [`#[new]` attribute](../class.md#constructor).
+- `__del__` is not yet supported, but may be in the future.
+- `__buffer__` and `__release_buffer__` are currently not supported and instead PyO3 supports [`__getbuffer__` and `__releasebuffer__`](#buffer-objects) methods (these predate [PEP 688](https://peps.python.org/pep-0688/#python-level-buffer-protocol)), again this may change in the future.
+- PyO3 adds [`__traverse__` and `__clear__`](#garbage-collector-integration) methods for controlling garbage collection.
+- The Python C-API which PyO3 is implemented upon requires many magic methods to have a specific function signature in C and be placed into special "slots" on the class type object. This limits the allowed argument and return types for these methods. They are listed in detail in the section below.
 
-If a function name in `#[pymethods]` is a recognised magic method, it will be automatically placed into the correct slot in the Python type object. The function name is taken from the usual rules for naming `#[pymethods]`: the `#[pyo3(name = "...")]` attribute is used if present, otherwise the Rust function name is used.
+If a magic method is not on the list above (for example `__init_subclass__`), then it should just work in PyO3. If this is not the case, please file a bug report.
 
-The magic methods handled by PyO3 are very similar to the standard Python ones on [this page](https://docs.python.org/3/reference/datamodel.html#special-method-names) - in particular they are the the subset which have slots as [defined here](https://docs.python.org/3/c-api/typeobj.html). Some of the slots do not have a magic method in Python, which leads to a few additional magic methods defined only in PyO3:
- - Magic methods for garbage collection
- - Magic methods for the buffer protocol
+## Magic Methods handled by PyO3
+
+If a function name in `#[pymethods]` is a magic method which is known to need special handling, it will be automatically placed into the correct slot in the Python type object. The function name is taken from the usual rules for naming `#[pymethods]`: the `#[pyo3(name = "...")]` attribute is used if present, otherwise the Rust function name is used.
+
+The magic methods handled by PyO3 are very similar to the standard Python ones on [this page](https://docs.python.org/3/reference/datamodel.html#special-method-names) - in particular they are the subset which have slots as [defined here](https://docs.python.org/3/c-api/typeobj.html).
 
 When PyO3 handles a magic method, a couple of changes apply compared to other `#[pymethods]`:
  - The Rust function signature is restricted to match the magic method.
  - The `#[pyo3(signature = (...)]` and `#[pyo3(text_signature = "...")]` attributes are not allowed.
 
-The following sections list of all magic methods PyO3 currently handles.  The
+The following sections list all magic methods for which PyO3 implements the necessary special handling.  The
 given signatures should be interpreted as follows:
  - All methods take a receiver as first argument, shown as `<self>`. It can be
-   `&self`, `&mut self` or a `PyCell` reference like `self_: PyRef<'_, Self>` and
+   `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and
    `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
  - An optional `Python<'py>` argument is always allowed as the first argument.
  - Return values can be optionally wrapped in `PyResult`.
@@ -30,7 +37,6 @@ given signatures should be interpreted as follows:
  - For some magic methods, the return values are not restricted by PyO3, but
    checked by the Python interpreter. For example, `__str__` needs to return a
    string object.  This is indicated by `object (Python type)`.
-
 
 ### Basic object customization
 
@@ -103,7 +109,7 @@ given signatures should be interpreted as follows:
             match op {
                 CompareOp::Eq => (self.0 == other.0).into_py(py),
                 CompareOp::Ne => (self.0 != other.0).into_py(py),
-                _ => py.NotImplemented().into(),
+                _ => py.NotImplemented(),
             }
         }
     }
@@ -207,7 +213,7 @@ impl Container {
 
 # Python::with_gil(|py| {
 #     let container = Container { iter: vec![1, 2, 3, 4] };
-#     let inst = pyo3::PyCell::new(py, container).unwrap();
+#     let inst = pyo3::Py::new(py, container).unwrap();
 #     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
 #     pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
 # });
@@ -450,7 +456,7 @@ Usually, an implementation of `__traverse__` should do nothing but calls to `vis
 Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`,
 i.e. `Python::with_gil` will panic.
 
-> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3899).
+> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 
 [`IterNextOutput`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/enum.IterNextOutput.html
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html

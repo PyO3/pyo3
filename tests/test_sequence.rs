@@ -17,11 +17,12 @@ struct ByteSequence {
 #[pymethods]
 impl ByteSequence {
     #[new]
-    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    #[pyo3(signature=(elements = None))]
+    fn new(elements: Option<&Bound<'_, PyList>>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
             for pyelem in pylist {
-                let elem = u8::extract(pyelem)?;
+                let elem = pyelem.extract()?;
                 elems.push(elem);
             }
             Ok(Self { elements: elems })
@@ -60,8 +61,8 @@ impl ByteSequence {
         }
     }
 
-    fn __contains__(&self, other: &PyAny) -> bool {
-        match u8::extract(other) {
+    fn __contains__(&self, other: &Bound<'_, PyAny>) -> bool {
+        match other.extract::<u8>() {
             Ok(x) => self.elements.contains(&x),
             Err(_) => false,
         }
@@ -105,8 +106,8 @@ impl ByteSequence {
 }
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
-fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+fn seq_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
+    let d = [("ByteSequence", py.get_type_bound::<ByteSequence>())].into_py_dict_bound(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");
     d
@@ -138,7 +139,7 @@ fn test_setitem() {
 #[test]
 fn test_delitem() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type_bound::<ByteSequence>())].into_py_dict_bound(py);
 
         py_run!(
             py,
@@ -234,7 +235,7 @@ fn test_repeat() {
 #[test]
 fn test_inplace_repeat() {
     Python::with_gil(|py| {
-        let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+        let d = [("ByteSequence", py.get_type_bound::<ByteSequence>())].into_py_dict_bound(py);
 
         py_run!(
             py,
@@ -247,12 +248,14 @@ fn test_inplace_repeat() {
 
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
 
+#[cfg(feature = "py-clone")]
 #[pyclass]
 struct GenericList {
     #[pyo3(get, set)]
     items: Vec<PyObject>,
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_generic_list_get() {
     Python::with_gil(|py| {
@@ -265,10 +268,11 @@ fn test_generic_list_get() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_generic_list_set() {
     Python::with_gil(|py| {
-        let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
+        let list = Bound::new(py, GenericList { items: vec![] }).unwrap();
 
         py_run!(py, list, "list.items = [1, 2, 3]");
         assert!(list
@@ -276,7 +280,7 @@ fn test_generic_list_set() {
             .items
             .iter()
             .zip(&[1u32, 2, 3])
-            .all(|(a, b)| a.as_ref(py).eq(&b.into_py(py)).unwrap()));
+            .all(|(a, b)| a.bind(py).eq(&b.into_py(py)).unwrap()));
     });
 }
 
@@ -304,7 +308,7 @@ impl OptionList {
 fn test_option_list_get() {
     // Regression test for #798
     Python::with_gil(|py| {
-        let list = PyCell::new(
+        let list = Py::new(
             py,
             OptionList {
                 items: vec![Some(1), None],
@@ -321,31 +325,33 @@ fn test_option_list_get() {
 #[test]
 fn sequence_is_not_mapping() {
     Python::with_gil(|py| {
-        let list = PyCell::new(
+        let list = Bound::new(
             py,
             OptionList {
                 items: vec![Some(1), None],
             },
         )
-        .unwrap();
+        .unwrap()
+        .into_any();
 
         PySequence::register::<OptionList>(py).unwrap();
 
-        assert!(list.as_ref().downcast::<PyMapping>().is_err());
-        assert!(list.as_ref().downcast::<PySequence>().is_ok());
+        assert!(list.downcast::<PyMapping>().is_err());
+        assert!(list.downcast::<PySequence>().is_ok());
     })
 }
 
 #[test]
 fn sequence_length() {
     Python::with_gil(|py| {
-        let list = PyCell::new(
+        let list = Bound::new(
             py,
             OptionList {
                 items: vec![Some(1), None],
             },
         )
-        .unwrap();
+        .unwrap()
+        .into_any();
 
         assert_eq!(list.len().unwrap(), 2);
         assert_eq!(unsafe { ffi::PySequence_Length(list.as_ptr()) }, 2);

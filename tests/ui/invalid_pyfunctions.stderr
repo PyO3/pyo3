@@ -1,45 +1,57 @@
 error: Python functions cannot have generic type parameters
- --> tests/ui/invalid_pyfunctions.rs:4:21
+ --> tests/ui/invalid_pyfunctions.rs:5:21
   |
-4 | fn generic_function<T>(value: T) {}
+5 | fn generic_function<T>(_value: T) {}
   |                     ^
 
 error: Python functions cannot have `impl Trait` arguments
- --> tests/ui/invalid_pyfunctions.rs:7:36
+ --> tests/ui/invalid_pyfunctions.rs:8:37
   |
-7 | fn impl_trait_function(impl_trait: impl AsRef<PyAny>) {}
-  |                                    ^^^^
+8 | fn impl_trait_function(_impl_trait: impl AsRef<PyAny>) {}
+  |                                     ^^^^
 
 error: wildcard argument names are not supported
-  --> tests/ui/invalid_pyfunctions.rs:10:22
+  --> tests/ui/invalid_pyfunctions.rs:11:22
    |
-10 | fn wildcard_argument(_: i32) {}
+11 | fn wildcard_argument(_: i32) {}
    |                      ^
 
 error: destructuring in arguments is not supported
-  --> tests/ui/invalid_pyfunctions.rs:13:26
+  --> tests/ui/invalid_pyfunctions.rs:14:26
    |
-13 | fn destructured_argument((a, b): (i32, i32)) {}
-   |                          ^^^^^^
+14 | fn destructured_argument((_a, _b): (i32, i32)) {}
+   |                          ^^^^^^^^
 
 error: required arguments after an `Option<_>` argument are ambiguous
        = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters
-  --> tests/ui/invalid_pyfunctions.rs:16:63
+  --> tests/ui/invalid_pyfunctions.rs:17:63
    |
-16 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
+17 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
    |                                                               ^^^
 
-error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`
-  --> tests/ui/invalid_pyfunctions.rs:19:37
+error: args cannot be optional
+  --> tests/ui/invalid_pyfunctions.rs:21:32
    |
-19 | fn pass_module_but_no_arguments<'py>() {}
+21 | fn function_with_optional_args(args: Option<Bound<'_, PyTuple>>) {
+   |                                ^^^^
+
+error: kwargs must be Option<_>
+  --> tests/ui/invalid_pyfunctions.rs:27:34
+   |
+27 | fn function_with_required_kwargs(kwargs: Bound<'_, PyDict>) {
+   |                                  ^^^^^^
+
+error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_module`
+  --> tests/ui/invalid_pyfunctions.rs:32:37
+   |
+32 | fn pass_module_but_no_arguments<'py>() {}
    |                                     ^^
 
-error[E0277]: the trait bound `&str: From<&pyo3::prelude::PyModule>` is not satisfied
-  --> tests/ui/invalid_pyfunctions.rs:22:43
+error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not satisfied
+  --> tests/ui/invalid_pyfunctions.rs:36:14
    |
-22 | fn first_argument_not_module<'py>(string: &str, module: &'py PyModule) -> PyResult<&'py str> {
-   |                                           ^ the trait `From<&pyo3::prelude::PyModule>` is not implemented for `&str`
+36 |     _string: &str,
+   |              ^ the trait `From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::prelude::PyModule>: Into<_>`
    |
    = help: the following other types implement trait `From<T>`:
              <String as From<char>>
@@ -48,4 +60,4 @@ error[E0277]: the trait bound `&str: From<&pyo3::prelude::PyModule>` is not sati
              <String as From<&str>>
              <String as From<&mut str>>
              <String as From<&String>>
-   = note: required for `&pyo3::prelude::PyModule` to implement `Into<&str>`
+   = note: required for `BoundRef<'_, '_, pyo3::prelude::PyModule>` to implement `Into<&str>`

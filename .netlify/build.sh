@@ -2,6 +2,7 @@
 
 set -uex
 
+rustup update nightly
 rustup default nightly
 
 PYO3_VERSION=$(cargo search pyo3 --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
@@ -48,6 +49,15 @@ done
 # Add latest redirect
 echo "/latest/* /v${PYO3_VERSION}/:splat 302" >> netlify_build/_redirects
 
+# some backwards compatbiility redirects
+echo "/latest/building_and_distribution/* /latest/building-and-distribution/:splat 302" >> netlify_build/_redirects
+echo "/latest/building-and-distribution/multiple_python_versions/* /latest/building-and-distribution/multiple-python-versions:splat 302" >> netlify_build/_redirects
+echo "/latest/function/error_handling/* /latest/function/error-handling/:splat 302" >> netlify_build/_redirects
+echo "/latest/getting_started/* /latest/getting-started/:splat 302" >> netlify_build/_redirects
+echo "/latest/python_from_rust/* /latest/python-from-rust/:splat 302" >> netlify_build/_redirects
+echo "/latest/python_typing_hints/* /latest/python-typing-hints/:splat 302" >> netlify_build/_redirects
+echo "/latest/trait_bounds/* /latest/trait-bounds/:splat 302" >> netlify_build/_redirects
+
 ## Add landing page redirect
 if [ "${CONTEXT}" == "deploy-preview" ]; then
     echo "/ /main/" >> netlify_build/_redirects
@@ -71,9 +81,17 @@ if [ "${INSTALLED_MDBOOK_VERSION}" != "mdbook v${MDBOOK_VERSION}" ]; then
     cargo install mdbook@${MDBOOK_VERSION} --force
 fi
 
+# Install latest mdbook-linkcheck. Netlify will cache the cargo bin dir, so this will
+# only build mdbook-linkcheck if needed.
+MDBOOK_LINKCHECK_VERSION=$(cargo search mdbook-linkcheck --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
+INSTALLED_MDBOOK_LINKCHECK_VERSION=$(mdbook-linkcheck --version || echo "none")
+if [ "${INSTALLED_MDBOOK_LINKCHECK_VERSION}" != "mdbook v${MDBOOK_LINKCHECK_VERSION}" ]; then
+    cargo install mdbook-linkcheck@${MDBOOK_LINKCHECK_VERSION} --force
+fi
+
 pip install nox
 nox -s build-guide
-mv target/guide netlify_build/main/
+mv target/guide/ netlify_build/main/
 
 ## Build public docs
 

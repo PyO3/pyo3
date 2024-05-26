@@ -13,7 +13,7 @@ fails, so usually you will use something like
 # use pyo3::types::PyList;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let list = PyList::new(py, b"foo");
+#         let list = PyList::new_bound(py, b"foo");
 let v: Vec<i32> = list.extract()?;
 #         assert_eq!(&v, &[102, 111, 111]);
 #         Ok(())
@@ -54,7 +54,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code(
+#         let module = PyModule::from_code_bound(
 #             py,
 #             "class Foo:
 #             def __init__(self):
@@ -86,7 +86,7 @@ struct RustyStruct {
 # use pyo3::types::PyDict;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let dict = PyDict::new(py);
+#         let dict = PyDict::new_bound(py);
 #         dict.set_item("my_string", "test")?;
 #
 #         let rustystruct: RustyStruct = dict.extract()?;
@@ -111,7 +111,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code(
+#         let module = PyModule::from_code_bound(
 #             py,
 #             "class Foo(dict):
 #             def __init__(self):
@@ -155,7 +155,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let py_dict = py.eval("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
+#         let py_dict = py.eval_bound("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
 #         let rustystruct: RustyStruct = py_dict.extract()?;
 # 		  assert_eq!(rustystruct.foo, "foo");
 #         assert_eq!(rustystruct.bar, "bar");
@@ -181,7 +181,7 @@ struct RustyTuple(String, String);
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new(py, vec!["test", "test2"]);
+#         let tuple = PyTuple::new_bound(py, vec!["test", "test2"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!(rustytuple.0, "test");
@@ -204,7 +204,7 @@ struct RustyTuple((String,));
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new(py, vec!["test"]);
+#         let tuple = PyTuple::new_bound(py, vec!["test"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!((rustytuple.0).0, "test");
@@ -236,7 +236,7 @@ struct RustyTransparentStruct {
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let s = PyString::new(py, "test");
+#         let s = PyString::new_bound(py, "test");
 #
 #         let tup: RustyTransparentTupleStruct = s.extract()?;
 #         assert_eq!(tup.0, "test");
@@ -265,7 +265,7 @@ use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
 # #[derive(Debug)]
-enum RustyEnum<'a> {
+enum RustyEnum<'py> {
     Int(usize),                    // input is a positive int
     String(String),                // input is a string
     IntTuple(usize, usize),        // input is a 2-tuple with positive ints
@@ -284,7 +284,7 @@ enum RustyEnum<'a> {
         b: usize,
     },
     #[pyo3(transparent)]
-    CatchAll(&'a PyAny), // This extraction never fails
+    CatchAll(Bound<'py, PyAny>), // This extraction never fails
 }
 #
 # use pyo3::types::{PyBytes, PyString};
@@ -303,7 +303,7 @@ enum RustyEnum<'a> {
 #             );
 #         }
 #         {
-#             let thing = PyString::new(py, "text");
+#             let thing = PyString::new_bound(py, "text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
@@ -339,7 +339,7 @@ enum RustyEnum<'a> {
 #             );
 #         }
 #         {
-#             let module = PyModule::from_code(
+#             let module = PyModule::from_code_bound(
 #                 py,
 #                 "class Foo(dict):
 #             def __init__(self):
@@ -364,7 +364,7 @@ enum RustyEnum<'a> {
 #         }
 #
 #         {
-#             let module = PyModule::from_code(
+#             let module = PyModule::from_code_bound(
 #                 py,
 #                 "class Foo(dict):
 #             def __init__(self):
@@ -388,13 +388,13 @@ enum RustyEnum<'a> {
 #         }
 #
 #         {
-#             let thing = PyBytes::new(py, b"text");
+#             let thing = PyBytes::new_bound(py, b"text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
 #                 b"text",
 #                 match rust_thing {
-#                     RustyEnum::CatchAll(i) => i.downcast::<PyBytes>()?.as_bytes(),
+#                     RustyEnum::CatchAll(ref i) => i.downcast::<PyBytes>()?.as_bytes(),
 #                     other => unreachable!("Error extracting: {:?}", other),
 #                 }
 #             );
@@ -482,9 +482,9 @@ If the input is neither a string nor an integer, the error message will be:
     - retrieve the field from a mapping, possibly with the custom key specified as an argument.
     - can be any literal that implements `ToBorrowedObject`
 - `pyo3(from_py_with = "...")`
-    - apply a custom function to convert the field from Python the desired Rust type. 
+    - apply a custom function to convert the field from Python the desired Rust type.
     - the argument must be the name of the function as a string.
-    - the function signature must be `fn(&PyAny) -> PyResult<T>` where `T` is the Rust type of the argument.
+    - the function signature must be `fn(&Bound<PyAny>) -> PyResult<T>` where `T` is the Rust type of the argument.
 
 ### `IntoPy<T>`
 
@@ -499,7 +499,7 @@ _without_ having a unique python type.
 
 ```rust
 use pyo3::prelude::*;
-
+# #[allow(dead_code)]
 struct MyPyObjectWrapper(PyObject);
 
 impl IntoPy<PyObject> for MyPyObjectWrapper {
