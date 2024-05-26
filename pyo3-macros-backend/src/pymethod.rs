@@ -1,8 +1,11 @@
 use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
+use crate::deprecations::deprecate_trailing_option_default;
+use crate::method::PyArg;
 use crate::method::{AssumeCorrectReceiverType, CallingConvention, ExtractErrorMode};
 use crate::params::Holders;
+use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param};
 use crate::utils::Ctx;
 use crate::utils::PythonDoc;
 use crate::{
@@ -366,6 +369,7 @@ pub fn impl_py_method_def_new(
                     #deprecations
 
                     use #pyo3_path::impl_::pyclass::*;
+                    #[allow(unknown_lints, non_local_definitions)]
                     impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {
                         #[inline]
                         fn new_text_signature(self) -> ::std::option::Option<&'static str> {
@@ -434,9 +438,24 @@ fn impl_traverse_slot(
     let Ctx { pyo3_path } = ctx;
     if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
         return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
-            Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`. \
-            Most importantly, safe access to the GIL is prohibited inside implementations of `__traverse__`, \
-            i.e. `Python::with_gil` will panic."));
+            Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
+            should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited \
+            inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic."));
+    }
+
+    // check that the receiver does not try to smuggle an (implicit) `Python` token into here
+    if let FnType::Fn(SelfType::TryFromBoundRef(span))
+    | FnType::Fn(SelfType::Receiver {
+        mutable: true,
+        span,
+    }) = spec.tp
+    {
+        bail_spanned! { span =>
+            "__traverse__ may not take a receiver other than `&self`. Usually, an implementation of \
+            `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
+            should do nothing but calls to `visit.call`. Most importantly, safe access to the GIL is prohibited \
+            inside implementations of `__traverse__`, i.e. `Python::with_gil` will panic."
+        }
     }
 
     let rust_fn_ident = spec.name;
@@ -471,7 +490,7 @@ fn impl_py_class_attribute(
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     ensure_spanned!(
         args.is_empty(),
-        args[0].ty.span() => "#[classattr] can only have one argument (of type pyo3::Python)"
+        args[0].ty().span() => "#[classattr] can only have one argument (of type pyo3::Python)"
     );
 
     let name = &spec.name;
@@ -496,7 +515,7 @@ fn impl_py_class_attribute(
         #pyo3_path::class::PyMethodDefType::ClassAttribute({
             #pyo3_path::class::PyClassAttributeDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
+                #cls::#wrapper_ident
             )
         })
     };
@@ -527,7 +546,7 @@ fn impl_call_setter(
         bail_spanned!(spec.name.span() => "setter function expected to have one argument");
     } else if args.len() > 1 {
         bail_spanned!(
-            args[1].ty.span() =>
+            args[1].ty().span() =>
             "setter function can have at most two arguments ([pyo3::Python,] and value)"
         );
     }
@@ -598,48 +617,67 @@ pub fn impl_py_setter_def(
         }
     };
 
-    // TODO: rework this to make use of `impl_::params::impl_arg_param` which
-    // handles all these cases already.
-    let extract = if let PropertyType::Function { spec, .. } = &property_type {
-        Some(spec)
-    } else {
-        None
-    }
-    .and_then(|spec| {
-        let (_, args) = split_off_python_arg(&spec.signature.arguments);
-        let value_arg = &args[0];
-        let from_py_with = &value_arg.attrs.from_py_with.as_ref()?.value;
-        let name = value_arg.name.to_string();
+    let extract = match &property_type {
+        PropertyType::Function { spec, .. } => {
+            let (_, args) = split_off_python_arg(&spec.signature.arguments);
+            let value_arg = &args[0];
+            let (from_py_with, ident) = if let Some(from_py_with) =
+                &value_arg.from_py_with().as_ref().map(|f| &f.value)
+            {
+                let ident = syn::Ident::new("from_py_with", from_py_with.span());
+                (
+                    quote_spanned! { from_py_with.span() =>
+                        let e = #pyo3_path::impl_::deprecations::GilRefs::new();
+                        let #ident = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
+                        e.from_py_with_arg();
+                    },
+                    ident,
+                )
+            } else {
+                (quote!(), syn::Ident::new("dummy", Span::call_site()))
+            };
 
-        Some(quote_spanned! { from_py_with.span() =>
-            let e = #pyo3_path::impl_::deprecations::GilRefs::new();
-            let from_py_with = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
-            e.from_py_with_arg();
-            let _val = #pyo3_path::impl_::extract_argument::from_py_with(
-                &_value.into(),
-                #name,
-                from_py_with as fn(_) -> _,
-            )?;
-        })
-    })
-    .unwrap_or_else(|| {
-        let (span, name) = match &property_type {
-            PropertyType::Descriptor { field, .. } => (field.ty.span(), field.ident.as_ref().map(|i|i.to_string()).unwrap_or_default()),
-            PropertyType::Function { spec, .. } => {
-                let (_, args) = split_off_python_arg(&spec.signature.arguments);
-                (args[0].ty.span(), args[0].name.to_string())
-            }
-        };
+            let arg = if let FnArg::Regular(arg) = &value_arg {
+                arg
+            } else {
+                bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
+            };
 
-        let holder = holders.push_holder(span);
-        let gil_refs_checker = holders.push_gil_refs_checker(span);
-        quote! {
-            let _val = #pyo3_path::impl_::deprecations::inspect_type(
-                #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?,
-                &#gil_refs_checker
+            let tokens = impl_regular_arg_param(
+                arg,
+                ident,
+                quote!(::std::option::Option::Some(_value.into())),
+                &mut holders,
+                ctx,
             );
+            let extract =
+                check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx);
+
+            let deprecation = deprecate_trailing_option_default(spec);
+            quote! {
+                #deprecation
+                #from_py_with
+                let _val = #extract;
+            }
         }
-    });
+        PropertyType::Descriptor { field, .. } => {
+            let span = field.ty.span();
+            let name = field
+                .ident
+                .as_ref()
+                .map(|i| i.to_string())
+                .unwrap_or_default();
+
+            let holder = holders.push_holder(span);
+            let gil_refs_checker = holders.push_gil_refs_checker(span);
+            quote! {
+                let _val = #pyo3_path::impl_::deprecations::inspect_type(
+                    #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?,
+                    &#gil_refs_checker
+                );
+            }
+        }
+    };
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
@@ -679,7 +717,7 @@ pub fn impl_py_setter_def(
         #pyo3_path::class::PyMethodDefType::Setter(
             #pyo3_path::class::PySetterDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PySetter(#cls::#wrapper_ident),
+                #cls::#wrapper_ident,
                 #doc
             )
         )
@@ -708,7 +746,7 @@ fn impl_call_getter(
     );
     ensure_spanned!(
         args.is_empty(),
-        args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
+        args[0].ty().span() => "getter function can only have one argument (of type pyo3::Python)"
     );
 
     let name = &spec.name;
@@ -823,7 +861,7 @@ pub fn impl_py_getter_def(
         #pyo3_path::class::PyMethodDefType::Getter(
             #pyo3_path::class::PyGetterDef::new(
                 #python_name,
-                #pyo3_path::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
+                #cls::#wrapper_ident,
                 #doc
             )
         )
@@ -836,9 +874,9 @@ pub fn impl_py_getter_def(
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
-fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg<'_>>, &[FnArg<'_>]) {
+fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&PyArg<'_>>, &[FnArg<'_>]) {
     match args {
-        [py, args @ ..] if utils::is_python(py.ty) => (Some(py), args),
+        [FnArg::Py(py), args @ ..] => (Some(py), args),
         args => (None, args),
     }
 }
@@ -922,7 +960,7 @@ const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_speci
     ),
     TokenGenerator(|_| quote! { async_iter_tag }),
 );
-const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
+pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .arguments(&[Ty::Object])
     .ret_ty(Ty::Int);
@@ -932,7 +970,8 @@ const __INPLACE_CONCAT__: SlotDef =
     SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
 const __INPLACE_REPEAT__: SlotDef =
     SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
-const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
+pub const __GETITEM__: SlotDef =
+    SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
 const __NEG__: SlotDef = SlotDef::new("Py_nb_negative", "unaryfunc");
@@ -1045,20 +1084,18 @@ impl Ty {
         ctx: &Ctx,
     ) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
-        let name_str = arg.name.unraw().to_string();
         match self {
             Ty::Object => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident },
-                arg.ty.span(),
                 ctx
             ),
             Ty::MaybeNullObject => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! {
                     if #ident.is_null() {
                         #pyo3_path::ffi::Py_None()
@@ -1066,23 +1103,20 @@ impl Ty {
                         #ident
                     }
                 },
-                arg.ty.span(),
                 ctx
             ),
             Ty::NonNullObject => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident.as_ptr() },
-                arg.ty.span(),
                 ctx
             ),
             Ty::IPowModulo => extract_object(
                 extract_error_mode,
                 holders,
-                &name_str,
+                arg,
                 quote! { #ident.as_ptr() },
-                arg.ty.span(),
                 ctx
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
@@ -1093,7 +1127,7 @@ impl Ty {
                 ctx
             ),
             Ty::PySsizeT => {
-                let ty = arg.ty;
+                let ty = arg.ty();
                 extract_error_mode.handle_error(
                     quote! {
                             ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
@@ -1110,24 +1144,37 @@ impl Ty {
 fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
-    name: &str,
+    arg: &FnArg<'_>,
     source_ptr: TokenStream,
-    span: Span,
     ctx: &Ctx,
 ) -> TokenStream {
     let Ctx { pyo3_path } = ctx;
-    let holder = holders.push_holder(Span::call_site());
-    let gil_refs_checker = holders.push_gil_refs_checker(span);
-    let extracted = extract_error_mode.handle_error(
+    let gil_refs_checker = holders.push_gil_refs_checker(arg.ty().span());
+    let name = arg.name().unraw().to_string();
+
+    let extract = if let Some(from_py_with) =
+        arg.from_py_with().map(|from_py_with| &from_py_with.value)
+    {
+        let from_py_with_checker = holders.push_from_py_with_checker(from_py_with.span());
+        quote! {
+            #pyo3_path::impl_::extract_argument::from_py_with(
+                #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
+                #name,
+                #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &#from_py_with_checker) as fn(_) -> _,
+            )
+        }
+    } else {
+        let holder = holders.push_holder(Span::call_site());
         quote! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
                 &mut #holder,
                 #name
             )
-        },
-        ctx,
-    );
+        }
+    };
+
+    let extracted = extract_error_mode.handle_error(extract, ctx);
     quote! {
         #pyo3_path::impl_::deprecations::inspect_type(#extracted, &#gil_refs_checker)
     }
@@ -1540,12 +1587,12 @@ fn extract_proto_arguments(
     let mut non_python_args = 0;
 
     for arg in &spec.signature.arguments {
-        if arg.py {
+        if let FnArg::Py(..) = arg {
             args.push(quote! { py });
         } else {
             let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
             let conversions = proto_args.get(non_python_args)
-                .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
+                .ok_or_else(|| err_spanned!(arg.ty().span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
                 .extract(&ident, arg, extract_error_mode, holders, ctx);
             non_python_args += 1;
             args.push(conversions);

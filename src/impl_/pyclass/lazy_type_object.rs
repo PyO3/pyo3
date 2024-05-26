@@ -153,7 +153,7 @@ impl LazyTypeObjectInner {
                 if let PyMethodDefType::ClassAttribute(attr) = def {
                     let key = attr.attribute_c_string().unwrap();
 
-                    match (attr.meth.0)(py) {
+                    match (attr.meth)(py) {
                         Ok(val) => items.push((key, val)),
                         Err(err) => {
                             return Err(wrap_in_runtime_error(

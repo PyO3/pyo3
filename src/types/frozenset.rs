@@ -1,11 +1,13 @@
 use crate::types::PyIterator;
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
     types::any::PyAnyMethods,
-    Bound, PyAny, PyNativeType, PyObject, Python, ToPyObject,
+    Bound, PyAny, PyObject, Python, ToPyObject,
 };
 use std::ptr;
 
@@ -39,12 +41,10 @@ impl<'py> PyFrozenSetBuilder<'py> {
     }
 
     /// Deprecated form of [`PyFrozenSetBuilder::finalize_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSetBuilder::finalize` will be replaced by `PyFrozenSetBuilder::finalize_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSetBuilder::finalize` will be replaced by `PyFrozenSetBuilder::finalize_bound` in a future PyO3 version"
     )]
     pub fn finalize(self) -> &'py PyFrozenSet {
         self.finalize_bound().into_gil_ref()
@@ -76,22 +76,6 @@ pyobject_native_type_core!(
 );
 
 impl PyFrozenSet {
-    /// Deprecated form of [`PyFrozenSet::new_bound`].
-    #[inline]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn new<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<&'p PyFrozenSet> {
-        Self::new_bound(py, elements).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
@@ -103,18 +87,6 @@ impl PyFrozenSet {
         new_from_iter(py, elements)
     }
 
-    /// Deprecated form of [`PyFrozenSet::empty_bound`].
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
-        Self::empty_bound(py).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new empty frozen set
     pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
         unsafe {
@@ -122,6 +94,31 @@ impl PyFrozenSet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyFrozenSet {
+    /// Deprecated form of [`PyFrozenSet::new_bound`].
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
+    )]
+    pub fn new<'a, 'p, T: ToPyObject + 'a>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = &'a T>,
+    ) -> PyResult<&'p PyFrozenSet> {
+        Self::new_bound(py, elements).map(Bound::into_gil_ref)
+    }
+
+    /// Deprecated form of [`PyFrozenSet::empty_bound`].
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
+    )]
+    pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
+        Self::empty_bound(py).map(Bound::into_gil_ref)
     }
 
     /// Return the number of items in the set.
@@ -207,8 +204,10 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
 }
 
 /// PyO3 implementation of an iterator for a Python `frozenset` object.
+#[cfg(feature = "gil-refs")]
 pub struct PyFrozenSetIterator<'py>(BoundFrozenSetIterator<'py>);
 
+#[cfg(feature = "gil-refs")]
 impl<'py> Iterator for PyFrozenSetIterator<'py> {
     type Item = &'py super::PyAny;
 
@@ -223,6 +222,7 @@ impl<'py> Iterator for PyFrozenSetIterator<'py> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl ExactSizeIterator for PyFrozenSetIterator<'_> {
     #[inline]
     fn len(&self) -> usize {
@@ -230,6 +230,7 @@ impl ExactSizeIterator for PyFrozenSetIterator<'_> {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> IntoIterator for &'py PyFrozenSet {
     type Item = &'py PyAny;
     type IntoIter = PyFrozenSetIterator<'py>;
@@ -324,25 +325,24 @@ pub(crate) fn new_from_iter<T: ToPyObject>(
 }
 
 #[cfg(test)]
-#[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
 mod tests {
     use super::*;
 
     #[test]
     fn test_frozenset_new_and_len() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
             assert_eq!(1, set.len());
 
             let v = vec![1];
-            assert!(PyFrozenSet::new(py, &[v]).is_err());
+            assert!(PyFrozenSet::new_bound(py, &[v]).is_err());
         });
     }
 
     #[test]
     fn test_frozenset_empty() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::empty(py).unwrap();
+            let set = PyFrozenSet::empty_bound(py).unwrap();
             assert_eq!(0, set.len());
             assert!(set.is_empty());
         });
@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn test_frozenset_contains() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
             assert!(set.contains(1).unwrap());
         });
     }
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_frozenset_iter() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
 
             for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn test_frozenset_iter_size_hint() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
             let mut iter = set.iter();
 
             // Exact size

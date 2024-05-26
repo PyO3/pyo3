@@ -5,9 +5,17 @@ use std::{cell::UnsafeCell, marker::PhantomData};
 #[cfg(all(
     not(any(PyPy, GraalPy)),
     Py_3_9,
-    not(all(windows, Py_LIMITED_API, not(Py_3_10)))
+    not(all(windows, Py_LIMITED_API, not(Py_3_10))),
+    not(target_has_atomic = "64"),
 ))]
 use portable_atomic::{AtomicI64, Ordering};
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    Py_3_9,
+    not(all(windows, Py_LIMITED_API, not(Py_3_10))),
+    target_has_atomic = "64",
+))]
+use std::sync::atomic::{AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;

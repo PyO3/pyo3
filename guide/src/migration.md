@@ -3,6 +3,50 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.21.* to 0.22
+
+### Deprecation of implicit default for trailing optional arguments
+<details open>
+<summary><small>Click to expand</small></summary>
+
+With `pyo3` 0.22 the implicit `None` default for trailing `Option<T>` type argument is deprecated. To migrate, place a `#[pyo3(signature = (...))]` attribute on affected functions or methods and specify the desired behavior.
+The migration warning specifies the corresponding signature to keep the current behavior. With 0.23 the signature will be required for any function containing `Option<T>` type parameters to prevent accidental
+and unnoticed changes in behavior. With 0.24 this restriction will be lifted again and `Option<T>` type arguments will be treated as any other argument _without_ special handling.
+
+Before:
+
+```rust
+# #![allow(deprecated, dead_code)]
+# use pyo3::prelude::*;
+#[pyfunction]
+fn increment(x: u64, amount: Option<u64>) -> u64 {
+    x + amount.unwrap_or(1)
+}
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyfunction]
+#[pyo3(signature = (x, amount=None))]
+fn increment(x: u64, amount: Option<u64>) -> u64 {
+    x + amount.unwrap_or(1)
+}
+```
+</details>
+
+### `Py::clone` is now gated behind the `py-clone` feature
+<details open>
+<summary><small>Click to expand</small></summary>
+If you rely on `impl<T> Clone for Py<T>` to fulfil trait requirements imposed by existing Rust code written without PyO3-based code in mind, the newly introduced feature `py-clone` must be enabled.
+
+However, take care to note that the behaviour is different from previous versions. If `Clone` was called without the GIL being held, we tried to delay the application of these reference count increments until PyO3-based code would re-acquire it. This turned out to be impossible to implement in a sound manner and hence was removed. Now, if `Clone` is called without the GIL being held, we panic instead for which calling code might not be prepared.
+
+Related to this, we also added a `pyo3_disable_reference_pool` conditional compilation flag which removes the infrastructure necessary to apply delayed reference count decrements implied by `impl<T> Drop for Py<T>`. They do not appear to be a soundness hazard as they should lead to memory leaks in the worst case. However, the global synchronization adds significant overhead to cross the Python-Rust boundary. Enabling this feature will remove these costs and make the `Drop` implementation abort the process if called without the GIL being held instead.
+</details>
+
 ## from 0.20.* to 0.21
 <details open>
 <summary><small>Click to expand</small></summary>
@@ -54,13 +98,13 @@ pyo3 = { version = "0.21", features = ["gil-refs"] }
 
 The `PyTryFrom` trait has aged poorly, its `try_from` method now conflicts with `TryFrom::try_from` in the 2021 edition prelude. A lot of its functionality was also duplicated with `PyTypeInfo`.
 
-To tighten up the PyO3 traits as part of the deprecation of the GIL Refs API the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods [`PyAny::downcast`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast) and [`PyAny::downcast_exact`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html#method.downcast_exact) no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
+To tighten up the PyO3 traits as part of the deprecation of the GIL Refs API the `PyTypeInfo` trait has had a simpler companion `PyTypeCheck`. The methods `PyAny::downcast` and `PyAny::downcast_exact` no longer use `PyTryFrom` as a bound, instead using `PyTypeCheck` and `PyTypeInfo` respectively.
 
 To migrate, switch all type casts to use `obj.downcast()` instead of `try_from(obj)` (and similar for `downcast_exact`).
 
 Before:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::{PyInt, PyList};
@@ -75,7 +119,7 @@ Python::with_gil(|py| {
 
 After:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::{PyInt, PyList};
 # fn main() -> PyResult<()> {
@@ -246,12 +290,24 @@ Because the new `Bound<T>` API brings ownership out of the PyO3 framework and in
 - `Bound<PyTuple>::iter_borrowed` is slightly more efficient than `Bound<PyTuple>::iter`. The default iteration of `Bound<PyTuple>` cannot return borrowed references because Rust does not (yet) have "lending iterators". Similarly `Bound<PyTuple>::get_borrowed_item` is more efficient than `Bound<PyTuple>::get_item` for the same reason.
 - `&Bound<T>` does not implement `FromPyObject` (although it might be possible to do this in the future once the GIL Refs API is completely removed). Use `bound_any.downcast::<T>()` instead of `bound_any.extract::<&Bound<T>>()`.
 - `Bound<PyString>::to_str` now borrows from the `Bound<PyString>` rather than from the `'py` lifetime, so code will need to store the smart pointer as a value in some cases where previously `&PyString` was just used as a temporary. (There are some more details relating to this in [the section below](#deactivating-the-gil-refs-feature).)
+- `.extract::<&str>()` now borrows from the source Python object. The simplest way to update is to change to `.extract::<PyBackedStr>()`, which retains ownership of the Python reference. See more information [in the section on deactivating the `gil-refs` feature](#deactivating-the-gil-refs-feature).
 
-To convert between `&PyAny` and `&Bound<PyAny>` you can use the `as_borrowed()` method:
+To convert between `&PyAny` and `&Bound<PyAny>` use the `as_borrowed()` method:
 
 ```rust,ignore
 let gil_ref: &PyAny = ...;
 let bound: &Bound<PyAny> = &gil_ref.as_borrowed();
+```
+
+To convert between `Py<T>` and `Bound<T>` use the `bind()` / `into_bound()` methods, and `as_unbound()` / `unbind()` to go back from `Bound<T>` to `Py<T>`.
+
+```rust,ignore
+let obj: Py<PyList> = ...;
+let bound: &Bound<'py, PyList> = obj.bind(py);
+let bound: Bound<'py, PyList> = obj.into_bound(py);
+
+let obj: &Py<PyList> = bound.as_unbound();
+let obj: Py<PyList> = bound.unbind();
 ```
 
 <div class="warning">
@@ -325,12 +381,14 @@ There is just one case of code that changes upon disabling these features: `From
 
 To make PyO3's core functionality continue to work while the GIL Refs API is in the process of being removed, disabling the `gil-refs` feature moves the implementations of `FromPyObject` for `&str`, `Cow<'_, str>`, `&[u8]`, `Cow<'_, u8>` to a new temporary trait `FromPyObjectBound`. This trait is the expected future form of `FromPyObject` and has an additional lifetime `'a` to enable these types to borrow data from Python objects.
 
-A key thing to note here is because extracting to these types now ties them to the input lifetime, some extremely common patterns may need to be split into multiple Rust lines. For example, the following snippet of calling `.extract::<&str>()` directly on the result of `.getattr()` needs to be adjusted when deactivating the `gil-refs-migration` feature.
+PyO3 0.21 has introduced the [`PyBackedStr`]({{#PYO3_DOCS_URL}}/pyo3/pybacked/struct.PyBackedStr.html) and [`PyBackedBytes`]({{#PYO3_DOCS_URL}}/pyo3/pybacked/struct.PyBackedBytes.html) types to help with this case. The easiest way to avoid lifetime challenges from extracting `&str` is to use these. For more complex types like `Vec<&str>`, is now impossible to extract directly from a Python object and `Vec<PyBackedStr>` is the recommended upgrade path.
+
+A key thing to note here is because extracting to these types now ties them to the input lifetime, some extremely common patterns may need to be split into multiple Rust lines. For example, the following snippet of calling `.extract::<&str>()` directly on the result of `.getattr()` needs to be adjusted when deactivating the `gil-refs` feature.
 
 Before:
 
 ```rust
-# #[cfg(feature = "gil-refs-migration")] {
+# #[cfg(feature = "gil-refs")] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {
@@ -627,7 +685,7 @@ drop(second);
 
 The replacement is [`Python::with_gil`](https://docs.rs/pyo3/0.18.3/pyo3/marker/struct.Python.html#method.with_gil) which is more cumbersome but enforces the proper nesting by design, e.g.
 
-```rust
+```rust,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -652,7 +710,7 @@ let second = Python::with_gil(|py| Object::new(py));
 drop(first);
 drop(second);
 
-// Or it ensure releasing the inner lock before the outer one.
+// Or it ensures releasing the inner lock before the outer one.
 Python::with_gil(|py| {
     let first = Object::new(py);
     let second = Python::with_gil(|py| Object::new(py));
@@ -1075,7 +1133,7 @@ An additional advantage of using Rust's indexing conventions for these types is
 that these types can now also support Rust's indexing operators as part of a
 consistent API:
 
-```rust
+```rust,ignore
 #![allow(deprecated)]
 use pyo3::{Python, types::PyList};
 
@@ -1551,7 +1609,7 @@ For more, see [the constructor section](class.md#constructor) of this guide.
 <details>
 <summary><small>Click to expand</small></summary>
 
-PyO3 0.9 introduces [`PyCell`], which is a [`RefCell`]-like object wrapper
+PyO3 0.9 introduces `PyCell`, which is a [`RefCell`]-like object wrapper
 for ensuring Rust's rules regarding aliasing of references are upheld.
 For more detail, see the
 [Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
@@ -1600,7 +1658,7 @@ However, for `#[pyproto]` and some functions, you need to manually fix the code.
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
 To upgrade code, please use
-[`PyCell::new`]({{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html#method.new) instead.
+`PyCell::new` instead.
 If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
 on the newly-created `PyCell`.
 
@@ -1730,7 +1788,6 @@ impl PySequenceProtocol for ByteSequence {
 
 [`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
 [`PyAny`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
-[`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
 [`PyBorrowMutError`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyBorrowMutError.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html

@@ -145,12 +145,14 @@ impl PyTypeBuilder {
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             ffi::Py_bf_getbuffer => {
                 // Safety: slot.pfunc is a valid function pointer
-                self.buffer_procs.bf_getbuffer = Some(std::mem::transmute(pfunc));
+                self.buffer_procs.bf_getbuffer =
+                    Some(std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc));
             }
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             ffi::Py_bf_releasebuffer => {
                 // Safety: slot.pfunc is a valid function pointer
-                self.buffer_procs.bf_releasebuffer = Some(std::mem::transmute(pfunc));
+                self.buffer_procs.bf_releasebuffer =
+                    Some(std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc));
             }
             _ => {}
         }
@@ -506,7 +508,7 @@ impl GetSetDefBuilder {
             self.doc = Some(getter.doc);
         }
         // TODO: return an error if getter already defined?
-        self.getter = Some(getter.meth.0)
+        self.getter = Some(getter.meth)
     }
 
     fn add_setter(&mut self, setter: &PySetterDef) {
@@ -515,7 +517,7 @@ impl GetSetDefBuilder {
             self.doc = Some(setter.doc);
         }
         // TODO: return an error if setter already defined?
-        self.setter = Some(setter.meth.0)
+        self.setter = Some(setter.meth)
     }
 
     fn as_get_set_def(

@@ -17,17 +17,15 @@ error: #[pyclass] can't be used on enums without any variants
    |                  ^^
 
 error: Unit variant `UnitVariant` is not yet supported in a complex enum
-       = help: change to a struct variant with no fields: `UnitVariant { }`
+       = help: change to an empty tuple variant instead: `UnitVariant()`
        = note: the enum is complex because of non-unit variant `StructVariant`
   --> tests/ui/invalid_pyclass_enum.rs:21:5
    |
 21 |     UnitVariant,
    |     ^^^^^^^^^^^
 
-error: Tuple variant `TupleVariant` is not yet supported in a complex enum
-       = help: change to a struct variant with named fields: `TupleVariant { /* fields */ }`
-       = note: the enum is complex because of non-unit variant `StructVariant`
-  --> tests/ui/invalid_pyclass_enum.rs:27:5
+error: `constructor` can't be used on a simple enum variant
+  --> tests/ui/invalid_pyclass_enum.rs:26:12
    |
-27 |     TupleVariant(i32),
-   |     ^^^^^^^^^^^^
+26 |     #[pyo3(constructor = (a, b))]
+   |            ^^^^^^^^^^^

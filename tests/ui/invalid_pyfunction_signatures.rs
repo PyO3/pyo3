@@ -35,6 +35,7 @@ fn function_with_args_sep_after_args_sep() {}
 #[pyo3(signature = (**kwargs, *args))]
 fn function_with_args_after_kwargs(kwargs: Option<&PyDict>, args: &PyTuple) {
     let _ = args;
+    let _ = kwargs;
 }
 
 #[pyfunction]

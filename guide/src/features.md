@@ -75,6 +75,14 @@ This feature is a backwards-compatibility feature to allow continued use of the 
 
 This feature and the APIs it enables is expected to be removed in a future PyO3 version.
 
+### `py-clone`
+
+This feature was introduced to ease migration. It was found that delayed reference counts cannot be made sound and hence `Clon`ing an instance of `Py<T>` must panic without the GIL being held. To avoid migrations introducing new panics without warning, the `Clone` implementation itself is now gated behind this feature.
+
+### `pyo3_disable_reference_pool`
+
+This is a performance-oriented conditional compilation flag, e.g. [set via `$RUSTFLAGS`][set-configuration-options], which disabled the global reference pool and the assocaited overhead for the crossing the Python-Rust boundary. However, if enabled, `Drop`ping an instance of `Py<T>` without the GIL being held will abort the process.
+
 ### `macros`
 
 This feature enables a dependency on the `pyo3-macros` crate, which provides the procedural macros portion of PyO3's API:
@@ -157,6 +165,10 @@ Adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conver
 
 Adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conversions into its [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
 
+### `num-rational`
+
+Adds a dependency on [num-rational](https://docs.rs/num-rational) and enables conversions into its [`Ratio`](https://docs.rs/num-rational/latest/num_rational/struct.Ratio.html) type.
+
 ### `rust_decimal`
 
 Adds a dependency on [rust_decimal](https://docs.rs/rust_decimal) and enables conversions into its [`Decimal`](https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html) type.
@@ -191,3 +203,5 @@ struct User {
 ### `smallvec`
 
 Adds a dependency on [smallvec](https://docs.rs/smallvec) and enables conversions into its [`SmallVec`](https://docs.rs/smallvec/latest/smallvec/struct.SmallVec.html) type.
+
+[set-configuration-options]: https://doc.rust-lang.org/reference/conditional-compilation.html#set-configuration-options

@@ -223,7 +223,9 @@ pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -
 /// `argument` must not be `None`
 #[doc(hidden)]
 #[inline]
-pub unsafe fn unwrap_required_argument(argument: Option<PyArg<'_>>) -> PyArg<'_> {
+pub unsafe fn unwrap_required_argument<'a, 'py>(
+    argument: Option<&'a Bound<'py, PyAny>>,
+) -> &'a Bound<'py, PyAny> {
     match argument {
         Some(value) => value,
         #[cfg(debug_assertions)]
@@ -788,10 +790,8 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        types::{IntoPyDict, PyTuple},
-        PyAny, Python,
-    };
+    use crate::types::{IntoPyDict, PyTuple};
+    use crate::Python;
 
     use super::{push_parameter_list, FunctionDescription, NoVarargs, NoVarkeywords};
 
@@ -807,7 +807,7 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
+            let args = PyTuple::empty_bound(py);
             let kwargs = [("foo", 0u8)].into_py_dict_bound(py);
             let err = unsafe {
                 function_description
@@ -838,7 +838,7 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
+            let args = PyTuple::empty_bound(py);
             let kwargs = [(1u8, 1u8)].into_py_dict_bound(py);
             let err = unsafe {
                 function_description
@@ -869,7 +869,7 @@ mod tests {
         };
 
         Python::with_gil(|py| {
-            let args = PyTuple::new_bound(py, Vec::<&PyAny>::new());
+            let args = PyTuple::empty_bound(py);
             let mut output = [None, None];
             let err = unsafe {
                 function_description.extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

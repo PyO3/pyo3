@@ -1,4 +1,6 @@
-use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, PyNativeType, Python};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
 use std::os::raw::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
@@ -19,17 +21,6 @@ pyobject_native_type!(
 );
 
 impl PyComplex {
-    /// Deprecated form of [`PyComplex::from_doubles_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyComplex::from_doubles` will be replaced by `PyComplex::from_doubles_bound` in a future PyO3 version"
-        )
-    )]
-    pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> &PyComplex {
-        Self::from_doubles_bound(py, real, imag).into_gil_ref()
-    }
     /// Creates a new `PyComplex` from the given real and imaginary values.
     pub fn from_doubles_bound(
         py: Python<'_>,
@@ -43,6 +34,19 @@ impl PyComplex {
                 .downcast_into_unchecked()
         }
     }
+}
+
+#[cfg(feature = "gil-refs")]
+impl PyComplex {
+    /// Deprecated form of [`PyComplex::from_doubles_bound`]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyComplex::from_doubles` will be replaced by `PyComplex::from_doubles_bound` in a future PyO3 version"
+    )]
+    pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> &PyComplex {
+        Self::from_doubles_bound(py, real, imag).into_gil_ref()
+    }
+
     /// Returns the real part of the complex number.
     pub fn real(&self) -> c_double {
         self.as_borrowed().real()
@@ -61,6 +65,7 @@ mod not_limited_impls {
     use super::*;
     use std::ops::{Add, Div, Mul, Neg, Sub};
 
+    #[cfg(feature = "gil-refs")]
     impl PyComplex {
         /// Returns `|self|`.
         pub fn abs(&self) -> c_double {
@@ -96,6 +101,7 @@ mod not_limited_impls {
                 }
             }
 
+            #[cfg(feature = "gil-refs")]
             impl<'py> $trait for &'py PyComplex {
                 type Output = &'py PyComplex;
                 fn $fn(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -138,6 +144,7 @@ mod not_limited_impls {
     bin_ops!(Mul, mul, *, ffi::_Py_c_prod);
     bin_ops!(Div, div, /, ffi::_Py_c_quot);
 
+    #[cfg(feature = "gil-refs")]
     impl<'py> Neg for &'py PyComplex {
         type Output = &'py PyComplex;
         fn neg(self) -> &'py PyComplex {

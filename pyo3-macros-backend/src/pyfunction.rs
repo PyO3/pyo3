@@ -18,7 +18,7 @@ use syn::{
 
 mod signature;
 
-pub use self::signature::{FunctionSignature, SignatureAttribute};
+pub use self::signature::{ConstructorAttribute, FunctionSignature, SignatureAttribute};
 
 #[derive(Clone, Debug)]
 pub struct PyFunctionArgPyO3Attributes {
@@ -273,6 +273,7 @@ pub fn impl_wrap_pyfunction(
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
+        #[allow(unknown_lints, non_local_definitions)]
         impl #name::MakeDef {
             const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
         }

@@ -116,8 +116,8 @@ impl<'a> IntoPy<PyObject> for &'a String {
 /// Accepts Python `str` objects.
 #[cfg(feature = "gil-refs")]
 impl<'py> FromPyObject<'py> for &'py str {
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
-        ob.downcast::<PyString>()?.to_str()
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ob.clone().into_gil_ref().downcast::<PyString>()?.to_str()
     }
 
     #[cfg(feature = "experimental-inspect")]

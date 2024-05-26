@@ -19,6 +19,7 @@ The table below contains the Python type and the corresponding function argument
 | `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyLong` |
 | `float`       | `f32`, `f64`                    | `PyFloat`           |
 | `complex`     | `num_complex::Complex`[^2]      | `PyComplex`         |
+| `fractions.Fraction`| `num_rational::Ratio`[^8] | -         |
 | `list[T]`     | `Vec<T>`                        | `PyList`            |
 | `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `PyDict` |
 | `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `PyTuple`           |
@@ -113,3 +114,5 @@ Finally, the following Rust types are also able to convert to Python as return v
 [^6]: Requires the `chrono-tz` optional feature.
 
 [^7]: Requires the `rust_decimal` optional feature.
+
+[^8]: Requires the `num-rational` optional feature.

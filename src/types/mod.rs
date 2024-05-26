@@ -9,7 +9,7 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[allow(deprecated)]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), feature = "gil-refs"))]
 pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
@@ -79,11 +79,17 @@ pub use self::typeobject::{PyType, PyTypeMethods};
 /// the Limited API and PyPy, the underlying structures are opaque and that may not be possible.
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
-    pub use super::dict::{BoundDictIterator, PyDictIterator};
-    pub use super::frozenset::{BoundFrozenSetIterator, PyFrozenSetIterator};
-    pub use super::list::{BoundListIterator, PyListIterator};
-    pub use super::set::{BoundSetIterator, PySetIterator};
-    pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator, PyTupleIterator};
+    pub use super::dict::BoundDictIterator;
+    pub use super::frozenset::BoundFrozenSetIterator;
+    pub use super::list::BoundListIterator;
+    pub use super::set::BoundSetIterator;
+    pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator};
+
+    #[cfg(feature = "gil-refs")]
+    pub use super::{
+        dict::PyDictIterator, frozenset::PyFrozenSetIterator, list::PyListIterator,
+        set::PySetIterator, tuple::PyTupleIterator,
+    };
 }
 
 /// Python objects that have a base type.
@@ -116,36 +122,41 @@ pub trait DerefToPyAny {
 #[macro_export]
 macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
+        #[cfg(feature = "gil-refs")]
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
             type AsRefSource = Self;
         }
 
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.repr().or(::std::result::Result::Err(::std::fmt::Error))?;
+                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods}};
+                let s = self.as_borrowed().repr().or(::std::result::Result::Err(::std::fmt::Error))?;
                 f.write_str(&s.to_string_lossy())
             }
         }
 
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::fmt::Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                use $crate::PyNativeType;
-                match self.str() {
+                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods, PyTypeMethods}};
+                match self.as_borrowed().str() {
                     ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
                     ::std::result::Result::Err(err) => err.write_unraisable_bound(self.py(), ::std::option::Option::Some(&self.as_borrowed())),
                 }
 
-                match self.get_type().name() {
+                match self.as_borrowed().get_type().name() {
                     ::std::result::Result::Ok(name) => ::std::write!(f, "<unprintable {} object>", name),
                     ::std::result::Result::Err(_err) => f.write_str("<unprintable object>"),
                 }
             }
         }
 
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> $crate::ToPyObject for $name
         {
             #[inline]
@@ -190,6 +201,7 @@ macro_rules! pyobject_native_type_named (
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
             fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
@@ -199,6 +211,7 @@ macro_rules! pyobject_native_type_named (
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
@@ -209,6 +222,7 @@ macro_rules! pyobject_native_type_named (
 
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
@@ -252,7 +266,7 @@ macro_rules! pyobject_native_type_info(
 
         impl $name {
             #[doc(hidden)]
-            const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
+            pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
         }
     };
 );
@@ -265,6 +279,7 @@ macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         // FIXME https://github.com/PyO3/pyo3/issues/3903
         #[allow(unknown_lints, non_local_definitions)]
+        #[cfg(feature = "gil-refs")]
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             #[inline]
             fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {

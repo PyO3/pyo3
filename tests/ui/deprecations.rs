@@ -38,6 +38,17 @@ impl MyClass {
 
     #[setter]
     fn set_bar_bound(&self, _value: &Bound<'_, PyAny>) {}
+
+    #[setter]
+    fn set_option(&self, _value: Option<i32>) {}
+
+    fn __eq__(&self, #[pyo3(from_py_with = "extract_gil_ref")] _other: i32) -> bool {
+        true
+    }
+
+    fn __contains__(&self, #[pyo3(from_py_with = "extract_bound")] _value: i32) -> bool {
+        true
+    }
 }
 
 fn main() {}
@@ -50,8 +61,8 @@ fn pyfunction_with_module<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<
 
 #[pyfunction]
 #[pyo3(pass_module)]
-fn pyfunction_with_module_gil_ref(module: &PyModule) -> PyResult<&str> {
-    module.name()
+fn pyfunction_with_module_gil_ref(_module: &PyModule) -> PyResult<&str> {
+    todo!()
 }
 
 #[pyfunction]
@@ -60,14 +71,12 @@ fn double(x: usize) -> usize {
 }
 
 #[pymodule]
-fn module_gil_ref(m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
+fn module_gil_ref(_m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
 #[pymodule]
-fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
+fn module_gil_ref_with_explicit_py_arg(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
@@ -97,6 +106,10 @@ fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     obj.extract()
 }
 
+fn extract_options(obj: &Bound<'_, PyAny>) -> PyResult<Option<i32>> {
+    obj.extract()
+}
+
 #[pyfunction]
 fn pyfunction_from_py_with(
     #[pyo3(from_py_with = "extract_gil_ref")] _gil_ref: i32,
@@ -108,7 +121,26 @@ fn pyfunction_from_py_with(
 fn pyfunction_gil_ref(_any: &PyAny) {}
 
 #[pyfunction]
+#[pyo3(signature = (_any))]
 fn pyfunction_option_gil_ref(_any: Option<&PyAny>) {}
+
+#[pyfunction]
+#[pyo3(signature = (_i, _any=None))]
+fn pyfunction_option_1(_i: u32, _any: Option<i32>) {}
+
+#[pyfunction]
+fn pyfunction_option_2(_i: u32, _any: Option<i32>) {}
+
+#[pyfunction]
+fn pyfunction_option_3(_i: u32, _any: Option<i32>, _foo: Option<String>) {}
+
+#[pyfunction]
+fn pyfunction_option_4(
+    _i: u32,
+    #[pyo3(from_py_with = "extract_options")] _any: Option<i32>,
+    _foo: Option<String>,
+) {
+}
 
 #[derive(Debug, FromPyObject)]
 pub struct Zap {

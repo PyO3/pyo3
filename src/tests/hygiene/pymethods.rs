@@ -309,6 +309,7 @@ impl Dummy {
         0
     }
 
+    #[pyo3(signature=(ndigits=::std::option::Option::None))]
     fn __round__(&self, ndigits: ::std::option::Option<u32>) -> u32 {
         0
     }

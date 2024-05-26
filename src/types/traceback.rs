@@ -1,7 +1,8 @@
 use crate::err::{error_on_minusone, PyResult};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
-use crate::{ffi, Bound};
-use crate::{PyAny, PyNativeType};
+#[cfg(feature = "gil-refs")]
+use crate::PyNativeType;
+use crate::{ffi, Bound, PyAny};
 
 /// Represents a Python traceback.
 #[repr(transparent)]
@@ -13,6 +14,7 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyTraceBack_Check
 );
 
+#[cfg(feature = "gil-refs")]
 impl PyTraceback {
     /// Formats the traceback as a string.
     ///

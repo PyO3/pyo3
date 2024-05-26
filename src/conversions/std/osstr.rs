@@ -147,6 +147,7 @@ impl<'a> IntoPy<PyObject> for &'a OsString {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::{PyAnyMethods, PyStringMethods};
     use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
     use std::fmt::Debug;
     use std::{
@@ -179,7 +180,7 @@ mod tests {
         Python::with_gil(|py| {
             fn test_roundtrip<T: ToPyObject + AsRef<OsStr> + Debug>(py: Python<'_>, obj: T) {
                 let pyobject = obj.to_object(py);
-                let pystring: &PyString = pyobject.extract(py).unwrap();
+                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: OsString = pystring.extract().unwrap();
                 assert_eq!(obj.as_ref(), roundtripped_obj.as_os_str());
@@ -200,7 +201,7 @@ mod tests {
                 obj: T,
             ) {
                 let pyobject = obj.clone().into_py(py);
-                let pystring: &PyString = pyobject.extract(py).unwrap();
+                let pystring = pyobject.downcast_bound::<PyString>(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: OsString = pystring.extract().unwrap();
                 assert!(obj.as_ref() == roundtripped_obj.as_os_str());

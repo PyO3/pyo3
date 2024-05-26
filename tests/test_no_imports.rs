@@ -10,6 +10,7 @@ fn basic_function(py: pyo3::Python<'_>, x: Option<pyo3::PyObject>) -> pyo3::PyOb
     x.unwrap_or_else(|| py.None())
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 #[pyo3::pymodule]
 fn basic_module(_py: pyo3::Python<'_>, m: &pyo3::types::PyModule) -> pyo3::PyResult<()> {
@@ -30,7 +31,10 @@ fn basic_module_bound(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyRes
         42
     }
 
-    m.add_function(pyo3::wrap_pyfunction_bound!(basic_function, m)?)?;
+    pyo3::types::PyModuleMethods::add_function(
+        m,
+        pyo3::wrap_pyfunction_bound!(basic_function, m)?,
+    )?;
 
     Ok(())
 }
@@ -105,7 +109,7 @@ impl BasicClass {
 #[test]
 fn test_basic() {
     pyo3::Python::with_gil(|py| {
-        let module = pyo3::wrap_pymodule!(basic_module)(py);
+        let module = pyo3::wrap_pymodule!(basic_module_bound)(py);
         let cls = py.get_type_bound::<BasicClass>();
         let d = pyo3::types::IntoPyDict::into_py_dict_bound(
             [
@@ -139,12 +143,14 @@ fn test_basic() {
     });
 }
 
+#[cfg(feature = "py-clone")]
 #[pyo3::pyclass]
 struct NewClassMethod {
     #[pyo3(get)]
     cls: pyo3::PyObject,
 }
 
+#[cfg(feature = "py-clone")]
 #[pyo3::pymethods]
 impl NewClassMethod {
     #[new]
@@ -156,6 +162,7 @@ impl NewClassMethod {
     }
 }
 
+#[cfg(feature = "py-clone")]
 #[test]
 fn test_new_class_method() {
     pyo3::Python::with_gil(|py| {

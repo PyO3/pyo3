@@ -11,7 +11,7 @@ mod test_serde {
     }
 
     #[pyclass]
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Serialize, Deserialize)]
     struct User {
         username: String,
         group: Option<Py<Group>>,
@@ -27,7 +27,8 @@ mod test_serde {
         };
         let friend2 = User {
             username: "friend 2".into(),
-            ..friend1.clone()
+            group: None,
+            friends: vec![],
         };
 
         let user = Python::with_gil(|py| {

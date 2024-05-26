@@ -20,8 +20,8 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
 
 #[cfg(feature = "gil-refs")]
 impl<'py> crate::FromPyObject<'py> for &'py [u8] {
-    fn extract(obj: &'py PyAny) -> PyResult<Self> {
-        Ok(obj.downcast::<PyBytes>()?.as_bytes())
+    fn extract_bound(obj: &crate::Bound<'py, PyAny>) -> PyResult<Self> {
+        Ok(obj.clone().into_gil_ref().downcast::<PyBytes>()?.as_bytes())
     }
 
     #[cfg(feature = "experimental-inspect")]

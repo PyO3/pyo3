@@ -35,6 +35,7 @@ impl UnaryArithmetic {
         Self::new(self.inner.abs())
     }
 
+    #[pyo3(signature=(_ndigits=None))]
     fn __round__(&self, _ndigits: Option<u32>) -> Self {
         Self::new(self.inner.round())
     }

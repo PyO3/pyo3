@@ -1,30 +1,20 @@
 //! Interaction with Python's global interpreter lock
 
+#[cfg(feature = "gil-refs")]
 use crate::impl_::not_send::{NotSend, NOT_SEND};
+#[cfg(pyo3_disable_reference_pool)]
+use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
-use parking_lot::{const_mutex, Mutex, Once};
 use std::cell::Cell;
-#[cfg(debug_assertions)]
+#[cfg(all(feature = "gil-refs", debug_assertions))]
 use std::cell::RefCell;
-#[cfg(not(debug_assertions))]
+#[cfg(all(feature = "gil-refs", not(debug_assertions)))]
 use std::cell::UnsafeCell;
-use std::{mem, ptr::NonNull};
+use std::{mem, ptr::NonNull, sync};
 
-static START: Once = Once::new();
+static START: sync::Once = sync::Once::new();
 
-cfg_if::cfg_if! {
-    if #[cfg(thread_local_const_init)] {
-        use std::thread_local as thread_local_const_init;
-    } else {
-        macro_rules! thread_local_const_init {
-            ($($(#[$attr:meta])* static $name:ident: $ty:ty = const { $init:expr };)*) => (
-                thread_local! { $($(#[$attr])* static $name: $ty = $init;)* }
-            )
-        }
-    }
-}
-
-thread_local_const_init! {
+std::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread has the GIL.
     ///
     /// It will be incremented whenever a GILGuard or GILPool is created, and decremented whenever
@@ -37,9 +27,9 @@ thread_local_const_init! {
     static GIL_COUNT: Cell<isize> = const { Cell::new(0) };
 
     /// Temporarily hold objects that will be released when the GILPool drops.
-    #[cfg(debug_assertions)]
+    #[cfg(all(feature = "gil-refs", debug_assertions))]
     static OWNED_OBJECTS: RefCell<PyObjVec> = const { RefCell::new(Vec::new()) };
-    #[cfg(not(debug_assertions))]
+    #[cfg(all(feature = "gil-refs", not(debug_assertions)))]
     static OWNED_OBJECTS: UnsafeCell<PyObjVec> = const { UnsafeCell::new(Vec::new()) };
 }
 
@@ -138,19 +128,16 @@ where
 
     ffi::Py_InitializeEx(0);
 
-    // Safety: the GIL is already held because of the Py_IntializeEx call.
-    #[allow(deprecated)] // TODO: remove this with the GIL Refs feature in 0.22
-    let pool = GILPool::new();
+    let result = {
+        let guard = GILGuard::assume();
+        let py = guard.python();
+        // Import the threading module - this ensures that it will associate this thread as the "main"
+        // thread, which is important to avoid an `AssertionError` at finalization.
+        py.import_bound("threading").unwrap();
 
-    // Import the threading module - this ensures that it will associate this thread as the "main"
-    // thread, which is important to avoid an `AssertionError` at finalization.
-    pool.python().import_bound("threading").unwrap();
-
-    // Execute the closure.
-    let result = f(pool.python());
-
-    // Drop the pool before finalizing.
-    drop(pool);
+        // Execute the closure.
+        f(py)
+    };
 
     // Finalize the Python interpreter.
     ffi::Py_Finalize();
@@ -159,20 +146,28 @@ where
 }
 
 /// RAII type that represents the Global Interpreter Lock acquisition.
-pub(crate) struct GILGuard {
-    gstate: ffi::PyGILState_STATE,
-    #[allow(deprecated)] // TODO: remove this with the gil-refs feature in 0.22
-    pool: mem::ManuallyDrop<GILPool>,
+pub(crate) enum GILGuard {
+    /// Indicates the GIL was already held with this GILGuard was acquired.
+    Assumed,
+    /// Indicates that we actually acquired the GIL when this GILGuard was acquired
+    Ensured {
+        gstate: ffi::PyGILState_STATE,
+        #[cfg(feature = "gil-refs")]
+        #[allow(deprecated)]
+        pool: mem::ManuallyDrop<GILPool>,
+    },
 }
 
 impl GILGuard {
     /// PyO3 internal API for acquiring the GIL. The public API is Python::with_gil.
     ///
-    /// If the GIL was already acquired via PyO3, this returns `None`. Otherwise,
-    /// the GIL will be acquired and a new `GILPool` created.
-    pub(crate) fn acquire() -> Option<Self> {
+    /// If the GIL was already acquired via PyO3, this returns
+    /// `GILGuard::Assumed`. Otherwise, the GIL will be acquired and
+    /// `GILGuard::Ensured` will be returned.
+    pub(crate) fn acquire() -> Self {
         if gil_is_acquired() {
-            return None;
+            increment_gil_count();
+            return GILGuard::Assumed;
         }
 
         // Maybe auto-initialize the GIL:
@@ -218,70 +213,94 @@ impl GILGuard {
     /// This can be called in "unsafe" contexts where the normal interpreter state
     /// checking performed by `GILGuard::acquire` may fail. This includes calling
     /// as part of multi-phase interpreter initialization.
-    pub(crate) fn acquire_unchecked() -> Option<Self> {
+    pub(crate) fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
-            return None;
+            increment_gil_count();
+            return GILGuard::Assumed;
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        #[cfg(feature = "gil-refs")]
         #[allow(deprecated)]
-        let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
+        {
+            let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
+            increment_gil_count();
+            GILGuard::Ensured { gstate, pool }
+        }
 
-        Some(GILGuard { gstate, pool })
+        #[cfg(not(feature = "gil-refs"))]
+        {
+            increment_gil_count();
+            // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+            #[cfg(not(pyo3_disable_reference_pool))]
+            POOL.update_counts(unsafe { Python::assume_gil_acquired() });
+
+            GILGuard::Ensured { gstate }
+        }
+    }
+    /// Acquires the `GILGuard` while assuming that the GIL is already held.
+    pub(crate) unsafe fn assume() -> Self {
+        increment_gil_count();
+        GILGuard::Assumed
+    }
+
+    /// Gets the Python token associated with this [`GILGuard`].
+    #[inline]
+    pub fn python(&self) -> Python<'_> {
+        unsafe { Python::assume_gil_acquired() }
     }
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
-        unsafe {
-            // Drop the objects in the pool before attempting to release the thread state
-            mem::ManuallyDrop::drop(&mut self.pool);
+        match self {
+            GILGuard::Assumed => {}
+            #[cfg(feature = "gil-refs")]
+            GILGuard::Ensured { gstate, pool } => unsafe {
+                // Drop the objects in the pool before attempting to release the thread state
+                mem::ManuallyDrop::drop(pool);
 
-            ffi::PyGILState_Release(self.gstate);
+                ffi::PyGILState_Release(*gstate);
+            },
+            #[cfg(not(feature = "gil-refs"))]
+            GILGuard::Ensured { gstate } => unsafe {
+                ffi::PyGILState_Release(*gstate);
+            },
         }
+        decrement_gil_count();
     }
 }
 
 // Vector of PyObject
 type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 
-/// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
+#[cfg(not(pyo3_disable_reference_pool))]
+/// Thread-safe storage for objects which were dec_ref while the GIL was not held.
 struct ReferencePool {
-    // .0 is INCREFs, .1 is DECREFs
-    pointer_ops: Mutex<(PyObjVec, PyObjVec)>,
+    pending_decrefs: sync::Mutex<PyObjVec>,
 }
 
+#[cfg(not(pyo3_disable_reference_pool))]
 impl ReferencePool {
     const fn new() -> Self {
         Self {
-            pointer_ops: const_mutex((Vec::new(), Vec::new())),
+            pending_decrefs: sync::Mutex::new(Vec::new()),
         }
-    }
-
-    fn register_incref(&self, obj: NonNull<ffi::PyObject>) {
-        self.pointer_ops.lock().0.push(obj);
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
-        self.pointer_ops.lock().1.push(obj);
+        self.pending_decrefs.lock().unwrap().push(obj);
     }
 
     fn update_counts(&self, _py: Python<'_>) {
-        let mut ops = self.pointer_ops.lock();
-        if ops.0.is_empty() && ops.1.is_empty() {
+        let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
+        if pending_decrefs.is_empty() {
             return;
         }
 
-        let (increfs, decrefs) = mem::take(&mut *ops);
-        drop(ops);
-
-        // Always increase reference counts first - as otherwise objects which have a
-        // nonzero total reference count might be incorrectly dropped by Python during
-        // this update.
-        for ptr in increfs {
-            unsafe { ffi::Py_INCREF(ptr.as_ptr()) };
-        }
+        let decrefs = mem::take(&mut *pending_decrefs);
+        drop(pending_decrefs);
 
         for ptr in decrefs {
             unsafe { ffi::Py_DECREF(ptr.as_ptr()) };
@@ -289,8 +308,10 @@ impl ReferencePool {
     }
 }
 
+#[cfg(not(pyo3_disable_reference_pool))]
 unsafe impl Sync for ReferencePool {}
 
+#[cfg(not(pyo3_disable_reference_pool))]
 static POOL: ReferencePool = ReferencePool::new();
 
 /// A guard which can be used to temporarily release the GIL and restore on `Drop`.
@@ -315,6 +336,7 @@ impl Drop for SuspendGIL {
             ffi::PyEval_RestoreThread(self.tstate);
 
             // Update counts of PyObjects / Py that were cloned or dropped while the GIL was released.
+            #[cfg(not(pyo3_disable_reference_pool))]
             POOL.update_counts(Python::assume_gil_acquired());
         }
     }
@@ -361,12 +383,10 @@ impl Drop for LockGIL {
 
 ///
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
-#[cfg_attr(
-    not(feature = "gil-refs"),
-    deprecated(
-        since = "0.21.0",
-        note = "`GILPool` has no function if PyO3's deprecated GIL Refs API is not used"
-    )
+#[cfg(feature = "gil-refs")]
+#[deprecated(
+    since = "0.21.0",
+    note = "`GILPool` has no function if PyO3's deprecated GIL Refs API is not used"
 )]
 pub struct GILPool {
     /// Initial length of owned objects and anys.
@@ -375,20 +395,21 @@ pub struct GILPool {
     _not_send: NotSend,
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl GILPool {
     /// Creates a new [`GILPool`]. This function should only ever be called with the GIL held.
     ///
-    /// It is recommended not to use this API directly, but instead to use [`Python::new_pool`], as
+    /// It is recommended not to use this API directly, but instead to use `Python::new_pool`, as
     /// that guarantees the GIL is held.
     ///
     /// # Safety
     ///
-    /// As well as requiring the GIL, see the safety notes on [`Python::new_pool`].
+    /// As well as requiring the GIL, see the safety notes on `Python::new_pool`.
     #[inline]
     pub unsafe fn new() -> GILPool {
-        increment_gil_count();
         // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+        #[cfg(not(pyo3_disable_reference_pool))]
         POOL.update_counts(Python::assume_gil_acquired());
         GILPool {
             start: OWNED_OBJECTS
@@ -412,6 +433,7 @@ impl GILPool {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 #[allow(deprecated)]
 impl Drop for GILPool {
     fn drop(&mut self) {
@@ -435,23 +457,21 @@ impl Drop for GILPool {
                 }
             }
         }
-        decrement_gil_count();
     }
 }
 
-/// Registers a Python object pointer inside the release pool, to have its reference count increased
-/// the next time the GIL is acquired in pyo3.
-///
-/// If the GIL is held, the reference count will be increased immediately instead of being queued
-/// for later.
+/// Increments the reference count of a Python object if the GIL is held. If
+/// the GIL is not held, this function will panic.
 ///
 /// # Safety
 /// The object must be an owned Python reference.
+#[cfg(feature = "py-clone")]
+#[track_caller]
 pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
         ffi::Py_INCREF(obj.as_ptr())
     } else {
-        POOL.register_incref(obj);
+        panic!("Cannot clone pointer into Python heap without the GIL being held.");
     }
 }
 
@@ -463,11 +483,21 @@ pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
+#[track_caller]
 pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
         ffi::Py_DECREF(obj.as_ptr())
     } else {
+        #[cfg(not(pyo3_disable_reference_pool))]
         POOL.register_decref(obj);
+        #[cfg(all(
+            pyo3_disable_reference_pool,
+            not(pyo3_leak_on_drop_without_reference_pool)
+        ))]
+        {
+            let _trap = PanicTrap::new("Aborting the process to avoid panic-from-drop.");
+            panic!("Cannot drop pointer into Python heap without the GIL being held.");
+        }
     }
 }
 
@@ -475,6 +505,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
+#[cfg(feature = "gil-refs")]
 pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
     // Ignores the error in case this function called from `atexit`.
@@ -518,19 +549,22 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(pyo3_disable_reference_pool))]
+    use super::{gil_is_acquired, POOL};
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
-    use super::GILPool;
-    use super::{gil_is_acquired, GIL_COUNT, OWNED_OBJECTS, POOL};
+    use super::{GILPool, GIL_COUNT, OWNED_OBJECTS};
     use crate::types::any::PyAnyMethods;
-    use crate::{ffi, gil, PyObject, Python};
-    #[cfg(not(target_arch = "wasm32"))]
-    use parking_lot::{const_mutex, Condvar, Mutex};
+    #[cfg(feature = "gil-refs")]
+    use crate::{ffi, gil};
+    use crate::{PyObject, Python};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
         py.eval_bound("object()", None, None).unwrap().unbind()
     }
 
+    #[cfg(feature = "gil-refs")]
     fn owned_object_count() -> usize {
         #[cfg(debug_assertions)]
         let len = OWNED_OBJECTS.with(|owned_objects| owned_objects.borrow().len());
@@ -539,31 +573,25 @@ mod tests {
         len
     }
 
-    fn pool_inc_refs_does_not_contain(obj: &PyObject) -> bool {
-        !POOL
-            .pointer_ops
-            .lock()
-            .0
-            .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
-    }
-
+    #[cfg(not(pyo3_disable_reference_pool))]
     fn pool_dec_refs_does_not_contain(obj: &PyObject) -> bool {
         !POOL
-            .pointer_ops
+            .pending_decrefs
             .lock()
-            .1
+            .unwrap()
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(pyo3_disable_reference_pool), not(target_arch = "wasm32")))]
     fn pool_dec_refs_contains(obj: &PyObject) -> bool {
-        POOL.pointer_ops
+        POOL.pending_decrefs
             .lock()
-            .1
+            .unwrap()
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_owned() {
         Python::with_gil(|py| {
@@ -590,6 +618,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_owned_nested() {
         Python::with_gil(|py| {
@@ -632,20 +661,20 @@ mod tests {
             let reference = obj.clone_ref(py);
 
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_inc_refs_does_not_contain(&obj));
+            #[cfg(not(pyo3_disable_reference_pool))]
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // With the GIL held, reference count will be decreased immediately.
             drop(reference);
 
             assert_eq!(obj.get_refcnt(py), 1);
-            assert!(pool_inc_refs_does_not_contain(&obj));
+            #[cfg(not(pyo3_disable_reference_pool))]
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
 
     #[test]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(all(not(pyo3_disable_reference_pool), not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
     fn test_pyobject_drop_without_gil_doesnt_decrease_refcnt() {
         let obj = Python::with_gil(|py| {
             let obj = get_object(py);
@@ -653,7 +682,6 @@ mod tests {
             let reference = obj.clone_ref(py);
 
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_inc_refs_does_not_contain(&obj));
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // Drop reference in a separate thread which doesn't have the GIL.
@@ -662,7 +690,6 @@ mod tests {
             // The reference count should not have changed (the GIL has always
             // been held by this thread), it is remembered to release later.
             assert_eq!(obj.get_refcnt(py), 2);
-            assert!(pool_inc_refs_does_not_contain(&obj));
             assert!(pool_dec_refs_contains(&obj));
             obj
         });
@@ -670,13 +697,12 @@ mod tests {
         // Next time the GIL is acquired, the reference is released
         Python::with_gil(|py| {
             assert_eq!(obj.get_refcnt(py), 1);
-            let non_null = unsafe { NonNull::new_unchecked(obj.as_ptr()) };
-            assert!(!POOL.pointer_ops.lock().0.contains(&non_null));
-            assert!(!POOL.pointer_ops.lock().1.contains(&non_null));
+            assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
 
     #[test]
+    #[cfg(feature = "gil-refs")]
     #[allow(deprecated)]
     fn test_gil_counts() {
         // Check with_gil and GILPool both increase counts correctly
@@ -687,19 +713,19 @@ mod tests {
             assert_eq!(get_gil_count(), 1);
 
             let pool = unsafe { GILPool::new() };
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_gil_count(), 1);
 
             let pool2 = unsafe { GILPool::new() };
-            assert_eq!(get_gil_count(), 3);
+            assert_eq!(get_gil_count(), 1);
 
             drop(pool);
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_gil_count(), 1);
 
             Python::with_gil(|_| {
                 // nested with_gil doesn't update gil count
                 assert_eq!(get_gil_count(), 2);
             });
-            assert_eq!(get_gil_count(), 2);
+            assert_eq!(get_gil_count(), 1);
 
             drop(pool2);
             assert_eq!(get_gil_count(), 1);
@@ -728,19 +754,16 @@ mod tests {
         assert!(!gil_is_acquired());
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
+    #[should_panic]
     fn test_allow_threads_updates_refcounts() {
         Python::with_gil(|py| {
             // Make a simple object with 1 reference
             let obj = get_object(py);
             assert!(obj.get_refcnt(py) == 1);
-            // Clone the object without the GIL to use internal tracking
-            let escaped_ref = py.allow_threads(|| obj.clone());
-            // But after the block the refcounts are updated
-            assert!(obj.get_refcnt(py) == 2);
-            drop(escaped_ref);
-            assert!(obj.get_refcnt(py) == 1);
-            drop(obj);
+            // Clone the object without the GIL which should panic
+            py.allow_threads(|| obj.clone());
         });
     }
 
@@ -755,6 +778,7 @@ mod tests {
         })
     }
 
+    #[cfg(feature = "py-clone")]
     #[test]
     fn test_clone_with_gil() {
         Python::with_gil(|py| {
@@ -768,146 +792,9 @@ mod tests {
         })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    struct Event {
-        set: Mutex<bool>,
-        wait: Condvar,
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    impl Event {
-        const fn new() -> Self {
-            Self {
-                set: const_mutex(false),
-                wait: Condvar::new(),
-            }
-        }
-
-        fn set(&self) {
-            *self.set.lock() = true;
-            self.wait.notify_all();
-        }
-
-        fn wait(&self) {
-            let mut set = self.set.lock();
-            while !*set {
-                self.wait.wait(&mut set);
-            }
-        }
-    }
-
     #[test]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    fn test_clone_without_gil() {
-        use crate::{Py, PyAny};
-        use std::{sync::Arc, thread};
-
-        // Some events for synchronizing
-        static GIL_ACQUIRED: Event = Event::new();
-        static OBJECT_CLONED: Event = Event::new();
-        static REFCNT_CHECKED: Event = Event::new();
-
-        Python::with_gil(|py| {
-            let obj: Arc<Py<PyAny>> = Arc::new(get_object(py));
-            let thread_obj = Arc::clone(&obj);
-
-            let count = obj.get_refcnt(py);
-            println!(
-                "1: The object has been created and its reference count is {}",
-                count
-            );
-
-            let handle = thread::spawn(move || {
-                Python::with_gil(move |py| {
-                    println!("3. The GIL has been acquired on another thread.");
-                    GIL_ACQUIRED.set();
-
-                    // Wait while the main thread registers obj in POOL
-                    OBJECT_CLONED.wait();
-                    println!("5. Checking refcnt");
-                    assert_eq!(thread_obj.get_refcnt(py), count);
-
-                    REFCNT_CHECKED.set();
-                })
-            });
-
-            let cloned = py.allow_threads(|| {
-                println!("2. The GIL has been released.");
-
-                // Wait until the GIL has been acquired on the thread.
-                GIL_ACQUIRED.wait();
-
-                println!("4. The other thread is now hogging the GIL, we clone without it held");
-                // Cloning without GIL should not update reference count
-                let cloned = Py::clone(&*obj);
-                OBJECT_CLONED.set();
-                cloned
-            });
-
-            REFCNT_CHECKED.wait();
-
-            println!("6. The main thread has acquired the GIL again and processed the pool.");
-
-            // Total reference count should be one higher
-            assert_eq!(obj.get_refcnt(py), count + 1);
-
-            // Clone dropped
-            drop(cloned);
-            // Ensure refcount of the arc is 1
-            handle.join().unwrap();
-
-            // Overall count is now back to the original, and should be no pending change
-            assert_eq!(Arc::try_unwrap(obj).unwrap().get_refcnt(py), count);
-        });
-    }
-
-    #[test]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    fn test_clone_in_other_thread() {
-        use crate::Py;
-        use std::{sync::Arc, thread};
-
-        // Some events for synchronizing
-        static OBJECT_CLONED: Event = Event::new();
-
-        let (obj, count, ptr) = Python::with_gil(|py| {
-            let obj = Arc::new(get_object(py));
-            let count = obj.get_refcnt(py);
-            let thread_obj = Arc::clone(&obj);
-
-            // Start a thread which does not have the GIL, and clone it
-            let t = thread::spawn(move || {
-                // Cloning without GIL should not update reference count
-                #[allow(clippy::redundant_clone)]
-                let _ = Py::clone(&*thread_obj);
-                OBJECT_CLONED.set();
-            });
-
-            OBJECT_CLONED.wait();
-            assert_eq!(count, obj.get_refcnt(py));
-
-            t.join().unwrap();
-            let ptr = NonNull::new(obj.as_ptr()).unwrap();
-
-            // The pointer should appear once in the incref pool, and once in the
-            // decref pool (for the clone being created and also dropped)
-            assert!(POOL.pointer_ops.lock().0.contains(&ptr));
-            assert!(POOL.pointer_ops.lock().1.contains(&ptr));
-
-            (obj, count, ptr)
-        });
-
-        Python::with_gil(|py| {
-            // Acquiring the gil clears the pool
-            assert!(!POOL.pointer_ops.lock().0.contains(&ptr));
-            assert!(!POOL.pointer_ops.lock().1.contains(&ptr));
-
-            // Overall count is still unchanged
-            assert_eq!(count, obj.get_refcnt(py));
-        });
-    }
-
-    #[test]
+    #[cfg(not(pyo3_disable_reference_pool))]
+    #[cfg(feature = "gil-refs")]
     fn test_update_counts_does_not_deadlock() {
         // update_counts can run arbitrary Python code during Py_DECREF.
         // if the locking is implemented incorrectly, it will deadlock.

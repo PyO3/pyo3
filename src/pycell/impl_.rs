@@ -55,7 +55,7 @@ struct BorrowFlag(usize);
 
 impl BorrowFlag {
     pub(crate) const UNUSED: BorrowFlag = BorrowFlag(0);
-    const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::max_value());
+    const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::MAX);
     const fn increment(self) -> Self {
         Self(self.0 + 1)
     }
@@ -74,6 +74,7 @@ pub trait PyClassBorrowChecker {
     /// Increments immutable borrow count, if possible
     fn try_borrow(&self) -> Result<(), PyBorrowError>;
 
+    #[cfg(feature = "gil-refs")]
     fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError>;
 
     /// Decrements immutable borrow count
@@ -96,6 +97,7 @@ impl PyClassBorrowChecker for EmptySlot {
     }
 
     #[inline]
+    #[cfg(feature = "gil-refs")]
     fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
         Ok(())
     }
@@ -130,6 +132,7 @@ impl PyClassBorrowChecker for BorrowChecker {
         }
     }
 
+    #[cfg(feature = "gil-refs")]
     fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
         let flag = self.0.get();
         if flag != BorrowFlag::HAS_MUTABLE_BORROW {

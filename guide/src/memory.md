@@ -34,9 +34,11 @@ held. (If PyO3 could not assume this, every PyO3 API would need to take a
 very simple and easy-to-understand programs like this:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     #[allow(deprecated)] // py.eval() is part of the GIL Refs API
     let hello = py
@@ -57,9 +59,11 @@ it owns are decreased, releasing them to the Python garbage collector.  Most
 of the time we don't have to think about this, but consider the following:
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         #[allow(deprecated)] // py.eval() is part of the GIL Refs API
@@ -96,9 +100,11 @@ In general we don't want unbounded memory growth during loops!  One workaround
 is to acquire and release the GIL with each iteration of the loop.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 for _ in 0..10 {
     Python::with_gil(|py| -> PyResult<()> {
         #[allow(deprecated)] // py.eval() is part of the GIL Refs API
@@ -118,9 +124,11 @@ times.  Another workaround is to work with the `GILPool` object directly, but
 this is unsafe.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         #[allow(deprecated)] // `new_pool` is not needed in code not using the GIL Refs API
@@ -146,8 +154,7 @@ at the end of each loop iteration, before the `with_gil()` closure ends.
 
 When doing this, you must be very careful to ensure that once the `GILPool` is
 dropped you do not retain access to any owned references created after the
-`GILPool` was created.  Read the
-[documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.new_pool)
+`GILPool` was created.  Read the documentation for `Python::new_pool()`
 for more information on safety.
 
 This memory management can also be applicable when writing extension modules.
@@ -177,9 +184,11 @@ What happens to the memory when the last `Py<PyAny>` is dropped and its
 reference count reaches zero?  It depends whether or not we are holding the GIL.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
 Python::with_gil(|py| -> PyResult<()> {
     #[allow(deprecated)] // py.eval() is part of the GIL Refs API
     let hello: Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract()?;
@@ -203,9 +212,13 @@ This example wasn't very interesting.  We could have just used a GIL-bound
 we are *not* holding the GIL?
 
 ```rust
+# #![allow(unused_imports, dead_code)]
+# #[cfg(not(pyo3_disable_reference_pool))] {
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
+# {
 let hello: Py<PyString> = Python::with_gil(|py| {
     #[allow(deprecated)] // py.eval() is part of the GIL Refs API
     py.eval("\"Hello World!\"", None, None)?.extract()
@@ -224,22 +237,28 @@ Python::with_gil(|py|
     // Memory for `hello` is released here.
 # ()
 );
+# }
 # Ok(())
+# }
 # }
 ```
 
 When `hello` is dropped *nothing* happens to the pointed-to memory on Python's
 heap because nothing _can_ happen if we're not holding the GIL.  Fortunately,
-the memory isn't leaked.  PyO3 keeps track of the memory internally and will
-release it the next time we acquire the GIL.
+the memory isn't leaked. If the `pyo3_disable_reference_pool` conditional compilation flag
+is not enabled, PyO3 keeps track of the memory internally and will release it
+the next time we acquire the GIL.
 
 We can avoid the delay in releasing memory if we are careful to drop the
 `Py<Any>` while the GIL is held.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
+# {
 #[allow(deprecated)] // py.eval() is part of the GIL Refs API
 let hello: Py<PyString> =
     Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
@@ -252,6 +271,7 @@ Python::with_gil(|py| {
     }
     drop(hello); // Memory released here.
 });
+# }
 # Ok(())
 # }
 ```
@@ -263,9 +283,12 @@ that rather than being released immediately, the memory will not be released
 until the GIL is dropped.
 
 ```rust
+# #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 # fn main() -> PyResult<()> {
+# #[cfg(feature = "gil-refs")]
+# {
 #[allow(deprecated)] // py.eval() is part of the GIL Refs API
 let hello: Py<PyString> =
     Python::with_gil(|py| py.eval("\"Hello World!\"", None, None)?.extract())?;
@@ -280,6 +303,7 @@ Python::with_gil(|py| {
     // Do more stuff...
     // Memory released here at end of `with_gil()` closure.
 });
+# }
 # Ok(())
 # }
 ```

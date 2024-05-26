@@ -3,7 +3,7 @@
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{prelude::*, py_run};
-use std::{isize, iter};
+use std::iter;
 
 #[path = "../src/tests/common.rs"]
 mod common;
@@ -247,9 +247,9 @@ fn mapping() {
 }
 
 #[derive(FromPyObject)]
-enum SequenceIndex<'a> {
+enum SequenceIndex<'py> {
     Integer(isize),
-    Slice(&'a PySlice),
+    Slice(Bound<'py, PySlice>),
 }
 
 #[pyclass]

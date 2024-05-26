@@ -41,7 +41,10 @@ fn append_to_inittab() {
     #[crate::pymodule]
     #[pyo3(crate = "crate")]
     #[allow(clippy::unnecessary_wraps)]
-    fn module_for_inittab(_: crate::Python<'_>, _: &crate::types::PyModule) -> crate::PyResult<()> {
+    fn module_for_inittab(
+        _: crate::Python<'_>,
+        _: &crate::Bound<'_, crate::types::PyModule>,
+    ) -> crate::PyResult<()> {
         ::std::result::Result::Ok(())
     }
     crate::append_to_inittab!(module_for_inittab);

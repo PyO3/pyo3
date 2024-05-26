@@ -120,7 +120,7 @@ Export an async function that makes use of `async-std`:
 use pyo3::{prelude::*, wrap_pyfunction};
 
 #[pyfunction]
-fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
+fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
     pyo3_asyncio::async_std::future_into_py(py, async {
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         Ok(Python::with_gil(|py| py.None()))

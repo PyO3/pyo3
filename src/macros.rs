@@ -2,10 +2,10 @@
 ///
 /// # Panics
 ///
-/// This macro internally calls [`Python::run`](crate::Python::run) and panics
+/// This macro internally calls [`Python::run_bound`](crate::Python::run_bound) and panics
 /// if it returns `Err`, after printing the error to stdout.
 ///
-/// If you need to handle failures, please use [`Python::run`](crate::marker::Python::run) instead.
+/// If you need to handle failures, please use [`Python::run_bound`](crate::marker::Python::run_bound) instead.
 ///
 /// # Examples
 /// ```
@@ -105,6 +105,7 @@ macro_rules! py_run_impl {
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
         #[allow(unused_imports)]
+        #[cfg(feature = "gil-refs")]
         use $crate::PyNativeType;
         if let ::std::result::Result::Err(e) = $py.run_bound($code, None, Some(&$dict.as_borrowed())) {
             e.print($py);
@@ -120,8 +121,8 @@ macro_rules! py_run_impl {
 
 /// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
 ///
-/// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add free
-/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
+/// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
+/// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
 /// information.
 ///
 /// During the migration from the GIL Ref API to the Bound API, the return type of this macro will
@@ -157,8 +158,9 @@ macro_rules! wrap_pyfunction {
 
 /// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
 ///
-/// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add free
-/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more information.
+/// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
+/// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
+/// information.
 #[macro_export]
 macro_rules! wrap_pyfunction_bound {
     ($function:path) => {
@@ -183,7 +185,7 @@ macro_rules! wrap_pyfunction_bound {
 /// Python module.
 ///
 /// Use this together with [`#[pymodule]`](crate::pymodule) and
-/// [`PyModule::add_wrapped`](crate::types::PyModule::add_wrapped).
+/// [`PyModule::add_wrapped`](crate::types::PyModuleMethods::add_wrapped).
 #[macro_export]
 macro_rules! wrap_pymodule {
     ($module:path) => {

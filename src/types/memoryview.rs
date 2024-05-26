@@ -1,7 +1,9 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, AsPyPointer, Bound, PyAny, PyNativeType};
+use crate::{ffi, Bound, PyAny};
+#[cfg(feature = "gil-refs")]
+use crate::{AsPyPointer, PyNativeType};
 
 /// Represents a Python `memoryview`.
 #[repr(transparent)]
@@ -11,12 +13,10 @@ pyobject_native_type_core!(PyMemoryView, pyobject_native_static_type_object!(ffi
 
 impl PyMemoryView {
     /// Deprecated form of [`PyMemoryView::from_bound`]
-    #[cfg_attr(
-        not(feature = "gil-refs"),
-        deprecated(
-            since = "0.21.0",
-            note = "`PyMemoryView::from` will be replaced by `PyMemoryView::from_bound` in a future PyO3 version"
-        )
+    #[cfg(feature = "gil-refs")]
+    #[deprecated(
+        since = "0.21.0",
+        note = "`PyMemoryView::from` will be replaced by `PyMemoryView::from_bound` in a future PyO3 version"
     )]
     pub fn from(src: &PyAny) -> PyResult<&PyMemoryView> {
         PyMemoryView::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
@@ -33,6 +33,7 @@ impl PyMemoryView {
     }
 }
 
+#[cfg(feature = "gil-refs")]
 impl<'py> TryFrom<&'py PyAny> for &'py PyMemoryView {
     type Error = crate::PyErr;
 

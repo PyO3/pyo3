@@ -30,7 +30,7 @@ use crate::{
 };
 
 /// Minimum Python version PyO3 supports.
-const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
+pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
 
 /// GraalPy may implement the same CPython version over multiple releases.
 const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
@@ -39,7 +39,7 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
 };
 
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-const ABI3_MAX_MINOR: u8 = 12;
+pub(crate) const ABI3_MAX_MINOR: u8 = 12;
 
 /// Gets an environment variable owned by cargo.
 ///
@@ -775,6 +775,8 @@ pub fn is_linking_libpython() -> bool {
 /// Must be called from a PyO3 crate build script.
 fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
+        // See https://github.com/PyO3/pyo3/issues/4068#issuecomment-2051159852
+        || target.operating_system == OperatingSystem::Aix
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
         || !is_extension_module()

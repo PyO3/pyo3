@@ -347,7 +347,7 @@ impl FromPyObject<'_> for FixedOffset {
     /// does not supports microseconds.
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<FixedOffset> {
         #[cfg(not(Py_LIMITED_API))]
-        let ob: &PyTzInfo = ob.extract()?;
+        let ob = ob.downcast::<PyTzInfo>()?;
         #[cfg(Py_LIMITED_API)]
         check_type(ob, &DatetimeTypes::get(ob.py()).tzinfo, "PyTzInfo")?;
 
