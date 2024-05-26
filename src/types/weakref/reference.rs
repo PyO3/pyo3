@@ -599,7 +599,11 @@ mod tests {
             Some((object, class)) => {
                 let (msg, addr) = second_part.split_once("0x").unwrap();
 
-                assert_eq!(msg, format!("to '{}' at ", class));
+                // Avoid testing on reprs directly since they the quoting and full path vs class name tends to be changedi undocumented.
+                assert!(msg.starts_with("to '"));
+                assert!(msg.contains(class));
+                assert!(msg.ends_with("' at "));
+
                 assert!(addr
                     .to_lowercase()
                     .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
@@ -622,7 +626,7 @@ mod tests {
         }
 
         #[test]
-        fn test_weakref_refence_behavior() -> PyResult<()> {
+        fn test_weakref_reference_behavior() -> PyResult<()> {
             Python::with_gil(|py| {
                 let class = get_type(py)?;
                 let object = class.call0()?;
@@ -637,6 +641,7 @@ mod tests {
                 #[cfg(not(Py_LIMITED_API))]
                 assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
 
+                #[cfg(not(Py_LIMITED_API))]
                 check_repr(&reference, Some((object.as_any(), "A")))?;
 
                 assert!(reference
@@ -882,7 +887,7 @@ mod tests {
         struct WeakrefablePyClass {}
 
         #[test]
-        fn test_weakref_refence_behavior() -> PyResult<()> {
+        fn test_weakref_reference_behavior() -> PyResult<()> {
             Python::with_gil(|py| {
                 let object: Bound<'_, WeakrefablePyClass> = Bound::new(py, WeakrefablePyClass {})?;
                 let reference = PyWeakrefReference::new_bound(&object)?;
@@ -894,10 +899,8 @@ mod tests {
 
                 #[cfg(not(Py_LIMITED_API))]
                 assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
-                check_repr(
-                    &reference,
-                    Some((object.as_any(), "builtins.WeakrefablePyClass")),
-                )?;
+                #[cfg(not(Py_LIMITED_API))]
+                check_repr(&reference, Some((object.as_any(), "WeakrefablePyClass")))?;
 
                 assert!(reference
                     .getattr("__callback__")

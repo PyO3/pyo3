@@ -572,6 +572,52 @@ mod tests {
     use crate::types::weakref::{PyWeakrefMethods, PyWeakrefProxy};
     use crate::{Bound, PyResult, Python};
 
+    #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+    const DEADREF_FIX: Option<&str> = None;
+    #[cfg(all(not(Py_3_13), not(Py_LIMITED_API)))]
+    const DEADREF_FIX: Option<&str> = Some("NoneType");
+
+    #[cfg(not(Py_LIMITED_API))]
+    fn check_repr(
+        reference: &Bound<'_, PyWeakrefProxy>,
+        object: &Bound<'_, PyAny>,
+        class: Option<&str>,
+    ) -> PyResult<()> {
+        let repr = reference.repr()?.to_string();
+
+        #[cfg(Py_3_13)]
+        let (first_part, second_part) = repr.split_once(";").unwrap();
+        #[cfg(not(Py_3_13))]
+        let (first_part, second_part) = repr.split_once(" to ").unwrap();
+
+        {
+            let (msg, addr) = first_part.split_once("0x").unwrap();
+
+            assert_eq!(msg, "<weakproxy at ");
+            assert!(addr
+                .to_lowercase()
+                .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1));
+        }
+
+        if let Some(class) = class.or(DEADREF_FIX) {
+            let (msg, addr) = second_part.split_once("0x").unwrap();
+
+            // Avoids not succeeding at unreliable quotation (Python 3.13-dev adds ' around classname without documenting)
+            #[cfg(Py_3_13)]
+            assert!(msg.starts_with(" to '"));
+            assert!(msg.contains(class));
+            assert!(msg.ends_with(" at "));
+
+            assert!(addr
+                .to_lowercase()
+                .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
+        } else {
+            assert!(second_part.contains("dead"));
+        }
+
+        Ok(())
+    }
+
     mod proxy {
         use super::*;
 
@@ -579,36 +625,6 @@ mod tests {
         const CLASS_NAME: &str = "'weakref.ProxyType'";
         #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
         const CLASS_NAME: &str = "'weakproxy'";
-
-        fn check_repr(
-            reference: &Bound<'_, PyWeakrefProxy>,
-            object: &Bound<'_, PyAny>,
-            class: &str,
-        ) -> PyResult<()> {
-            let repr = reference.repr()?.to_string();
-            let (first_part, second_part) = repr.split_once(" to ").unwrap();
-
-            {
-                let (msg, addr) = first_part.split_once("0x").unwrap();
-
-                assert_eq!(msg, "<weakproxy at ");
-                assert!(addr
-                    .to_lowercase()
-                    .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1));
-            }
-
-            let (msg, addr) = second_part.split_once("0x").unwrap();
-
-            // Avoids not succeeding at unreliable quotation (Python 3.13-dev adds ' around classname without documenting)
-            assert!(msg.ends_with(" at "));
-            assert!(msg.contains(class));
-
-            assert!(addr
-                .to_lowercase()
-                .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
-
-            Ok(())
-        }
 
         mod python_class {
             use super::*;
@@ -639,7 +655,8 @@ mod tests {
                         reference.getattr("__class__")?.to_string(),
                         "<class '__main__.A'>"
                     );
-                    check_repr(&reference, &object, "A")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, &object, Some("A"))?;
 
                     assert!(reference
                         .getattr("__callback__")
@@ -662,7 +679,8 @@ mod tests {
                         .getattr("__class__")
                         .err()
                         .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-                    check_repr(&reference, py.None().bind(py), "NoneType")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
@@ -911,7 +929,8 @@ mod tests {
                         reference.getattr("__class__")?.to_string(),
                         "<class 'builtins.WeakrefablePyClass'>"
                     );
-                    check_repr(&reference, object.as_any(), "builtins.WeakrefablePyClass")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, object.as_any(), Some("WeakrefablePyClass"))?;
 
                     assert!(reference
                         .getattr("__callback__")
@@ -934,7 +953,8 @@ mod tests {
                         .getattr("__class__")
                         .err()
                         .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-                    check_repr(&reference, py.None().bind(py), "NoneType")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
@@ -1148,36 +1168,6 @@ mod tests {
         #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
         const CLASS_NAME: &str = "<class 'weakcallableproxy'>";
 
-        fn check_repr(
-            reference: &Bound<'_, PyWeakrefProxy>,
-            object: &Bound<'_, PyAny>,
-            class: &str,
-        ) -> PyResult<()> {
-            let repr = reference.repr()?.to_string();
-            let (first_part, second_part) = repr.split_once(" to ").unwrap();
-
-            {
-                let (msg, addr) = first_part.split_once("0x").unwrap();
-
-                assert_eq!(msg, "<weakproxy at ");
-                assert!(addr
-                    .to_lowercase()
-                    .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1));
-            }
-
-            let (msg, addr) = second_part.split_once("0x").unwrap();
-
-            // Avoids not succeeding at unreliable quotation (Python 3.13-dev adds ' around classname without documenting)
-            assert!(msg.ends_with(" at "));
-            assert!(msg.contains(class));
-
-            assert!(addr
-                .to_lowercase()
-                .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
-
-            Ok(())
-        }
-
         mod python_class {
             use super::*;
             use crate::{py_result_ext::PyResultExt, types::PyType};
@@ -1207,7 +1197,8 @@ mod tests {
                         reference.getattr("__class__")?.to_string(),
                         "<class '__main__.A'>"
                     );
-                    check_repr(&reference, &object, "A")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, &object, Some("A"))?;
 
                     assert!(reference
                         .getattr("__callback__")
@@ -1223,7 +1214,8 @@ mod tests {
                         .getattr("__class__")
                         .err()
                         .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-                    check_repr(&reference, py.None().bind(py), "NoneType")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
@@ -1474,7 +1466,8 @@ mod tests {
                         reference.getattr("__class__")?.to_string(),
                         "<class 'builtins.WeakrefablePyClass'>"
                     );
-                    check_repr(&reference, object.as_any(), "builtins.WeakrefablePyClass")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, object.as_any(), Some("WeakrefablePyClass"))?;
 
                     assert!(reference
                         .getattr("__callback__")
@@ -1490,7 +1483,8 @@ mod tests {
                         .getattr("__class__")
                         .err()
                         .map_or(false, |err| err.is_instance_of::<PyReferenceError>(py)));
-                    check_repr(&reference, py.None().bind(py), "NoneType")?;
+                    #[cfg(not(Py_LIMITED_API))]
+                    check_repr(&reference, py.None().bind(py), None)?;
 
                     assert!(reference
                         .getattr("__callback__")
