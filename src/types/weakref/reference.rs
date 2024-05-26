@@ -269,7 +269,6 @@ impl PyWeakrefReference {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    #[track_caller]
     pub fn upgrade_as<T>(&self) -> PyResult<Option<&T::AsRefTarget>>
     where
         T: PyTypeCheck,
@@ -350,7 +349,6 @@ impl PyWeakrefReference {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    #[track_caller]
     pub unsafe fn upgrade_as_unchecked<T>(&self) -> Option<&T::AsRefTarget>
     where
         T: PyTypeCheck,
@@ -426,7 +424,6 @@ impl PyWeakrefReference {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    #[track_caller]
     pub fn upgrade_as_exact<T>(&self) -> PyResult<Option<&T::AsRefTarget>>
     where
         T: PyTypeInfo,
@@ -497,7 +494,6 @@ impl PyWeakrefReference {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    #[track_caller]
     pub fn upgrade(&self) -> Option<&'_ PyAny> {
         self.as_borrowed().upgrade().map(Bound::into_gil_ref)
     }
@@ -559,14 +555,12 @@ impl PyWeakrefReference {
     /// [`PyWeakref_GetObject`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetObject
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
     /// [`weakref.ref`]: https://docs.python.org/3/library/weakref.html#weakref.ref
-    #[track_caller]
     pub fn get_object(&self) -> &'_ PyAny {
         self.as_borrowed().get_object().into_gil_ref()
     }
 }
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefReference> {
-    #[track_caller]
     fn get_object_borrowed(&self) -> Borrowed<'_, 'py, PyAny> {
         // PyWeakref_GetObject does some error checking, however we ensure the passed object is Non-Null and a Weakref type.
         unsafe { ffi::PyWeakref_GetObject(self.as_ptr()).assume_borrowed_or_err(self.py()) }
