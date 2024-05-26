@@ -64,7 +64,7 @@ error: `eq_int` can only be used on simple enums.
 52 | #[pyclass(eq_int)]
    |           ^^^^^^
 
-error: The `hash` option can only be using in conjunction with `frozen`.
+error: The `hash` option requires the `frozen` option.
   --> tests/ui/invalid_pyclass_args.rs:58:11
    |
 58 | #[pyclass(hash)]
