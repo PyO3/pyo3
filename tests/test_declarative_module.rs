@@ -89,7 +89,8 @@ mod declarative_module {
             }
         }
 
-        #[pyclass]
+        #[pyclass(eq)]
+        #[derive(PartialEq)]
         enum Enum {
             A,
             B,

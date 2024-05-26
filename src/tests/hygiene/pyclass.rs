@@ -29,8 +29,9 @@ pub struct Bar {
     c: ::std::option::Option<crate::Py<Foo2>>,
 }
 
-#[crate::pyclass]
+#[crate::pyclass(eq)]
 #[pyo3(crate = "crate")]
+#[derive(PartialEq)]
 pub enum Enum {
     Var0,
 }

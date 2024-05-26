@@ -5,6 +5,7 @@
 | `constructor` | This is currently only allowed on [variants of complex enums][params-constructor]. It allows customization of the generated class constructor for each variant. It uses the same syntax and supports the same options as the `signature` attribute of functions and methods. |
 | <span style="white-space: pre">`crate = "some::path"`</span>  | Path to import the `pyo3` crate, if it's not accessible at `::pyo3`. |
 | `dict` | Gives instances of this class an empty `__dict__` to store custom attributes. |
+| `eq` | Implements `__eq__` using the `PartialEq` implementation of the underlying Rust datatype. |
 | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][params-1] |
 | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
 | <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrow checker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |

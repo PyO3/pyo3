@@ -226,6 +226,16 @@ impl Number {
 # }
 ```
 
+To implement `__eq__` in terms of the `PartialEq` implementation of the underlying datatype, the `eq` option can be used.
+
+```rust
+# use pyo3::prelude::*;
+#
+#[pyclass(eq)]
+#[derive(PartialEq)]
+struct Number(i32);
+```
+
 ### Truthyness
 
 We'll consider `Number` to be `True` if it is nonzero:

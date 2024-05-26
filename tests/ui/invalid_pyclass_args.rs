@@ -30,4 +30,7 @@ struct InvalidArg {}
 #[pyclass(mapping, sequence)]
 struct CannotBeMappingAndSequence {}
 
+#[pyclass(eq)]
+struct EqOptRequiresEq {}
+
 fn main() {}
