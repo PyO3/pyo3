@@ -1,0 +1,665 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Class customizations - PyO3 user guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../rust-from-python.html"><strong aria-hidden="true">2.</strong> Using Rust from Python</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../module.html"><strong aria-hidden="true">2.1.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="../function.html"><strong aria-hidden="true">2.2.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../function/signature.html"><strong aria-hidden="true">2.2.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="../function/error-handling.html"><strong aria-hidden="true">2.2.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="../class.html"><strong aria-hidden="true">2.3.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/protocols.html" class="active"><strong aria-hidden="true">2.3.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/object.html"><strong aria-hidden="true">2.3.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="../class/numeric.html"><strong aria-hidden="true">2.3.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="../class/call.html"><strong aria-hidden="true">2.3.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../python-from-rust.html"><strong aria-hidden="true">3.</strong> Calling Python from Rust</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../types.html"><strong aria-hidden="true">3.1.</strong> Python object types</a></li><li class="chapter-item expanded "><a href="../exception.html"><strong aria-hidden="true">3.2.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="../python-from-rust/function-calls.html"><strong aria-hidden="true">3.3.</strong> Calling Python functions</a></li><li class="chapter-item expanded "><a href="../python-from-rust/calling-existing-code.html"><strong aria-hidden="true">3.4.</strong> Executing existing Python code</a></li></ol></li><li class="chapter-item expanded "><a href="../conversions.html"><strong aria-hidden="true">4.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="../conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="../async-await.html"><strong aria-hidden="true">5.</strong> Using async and await</a></li><li class="chapter-item expanded "><a href="../parallelism.html"><strong aria-hidden="true">6.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="../debugging.html"><strong aria-hidden="true">7.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">8.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="../memory.html"><strong aria-hidden="true">9.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="../performance.html"><strong aria-hidden="true">10.</strong> Performance</a></li><li class="chapter-item expanded "><a href="../advanced.html"><strong aria-hidden="true">11.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="../building-and-distribution.html"><strong aria-hidden="true">12.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../building-and-distribution/multiple-python-versions.html"><strong aria-hidden="true">12.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="../ecosystem.html"><strong aria-hidden="true">13.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../ecosystem/logging.html"><strong aria-hidden="true">13.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="../ecosystem/async-await.html"><strong aria-hidden="true">13.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html"><strong aria-hidden="true">14.</strong> FAQ and troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="../trait-bounds.html">Appendix B: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="../python-typing-hints.html">Appendix C: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="../changelog.html">CHANGELOG</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/class/protocols.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="magic-methods-and-slots"><a class="header" href="#magic-methods-and-slots">Magic methods and slots</a></h1>
+<p>Python's object model defines several protocols for different object behavior, such as the sequence, mapping, and number protocols. You may be familiar with implementing these protocols in Python classes by "magic" methods, such as <code>__str__</code> or <code>__repr__</code>. Because of the double-underscores surrounding their name, these are also known as "dunder" methods.</p>
+<p>In the Python C-API which PyO3 is implemented upon, many of these magic methods have to be placed into special "slots" on the class type object, as covered in the previous section.</p>
+<p>If a function name in <code>#[pymethods]</code> is a recognised magic method, it will be automatically placed into the correct slot in the Python type object. The function name is taken from the usual rules for naming <code>#[pymethods]</code>: the <code>#[pyo3(name = "...")]</code> attribute is used if present, otherwise the Rust function name is used.</p>
+<p>The magic methods handled by PyO3 are very similar to the standard Python ones on <a href="https://docs.python.org/3/reference/datamodel.html#special-method-names">this page</a> - in particular they are the subset which have slots as <a href="https://docs.python.org/3/c-api/typeobj.html">defined here</a>. Some of the slots do not have a magic method in Python, which leads to a few additional magic methods defined only in PyO3:</p>
+<ul>
+<li>Magic methods for garbage collection</li>
+<li>Magic methods for the buffer protocol</li>
+</ul>
+<p>When PyO3 handles a magic method, a couple of changes apply compared to other <code>#[pymethods]</code>:</p>
+<ul>
+<li>The Rust function signature is restricted to match the magic method.</li>
+<li>The <code>#[pyo3(signature = (...)]</code> and <code>#[pyo3(text_signature = "...")]</code> attributes are not allowed.</li>
+</ul>
+<p>The following sections list of all magic methods PyO3 currently handles.  The
+given signatures should be interpreted as follows:</p>
+<ul>
+<li>All methods take a receiver as first argument, shown as <code>&lt;self&gt;</code>. It can be
+<code>&amp;self</code>, <code>&amp;mut self</code> or a <code>Bound</code> reference like <code>self_: PyRef&lt;'_, Self&gt;</code> and
+<code>self_: PyRefMut&lt;'_, Self&gt;</code>, as described <a href="../class.html#inheritance">here</a>.</li>
+<li>An optional <code>Python&lt;'py&gt;</code> argument is always allowed as the first argument.</li>
+<li>Return values can be optionally wrapped in <code>PyResult</code>.</li>
+<li><code>object</code> means that any type is allowed that can be extracted from a Python
+object (if argument) or converted to a Python object (if return value).</li>
+<li>Other types must match what's given, e.g. <code>pyo3::basic::CompareOp</code> for
+<code>__richcmp__</code>'s second argument.</li>
+<li>For the comparison and arithmetic methods, extraction errors are not
+propagated as exceptions, but lead to a return of <code>NotImplemented</code>.</li>
+<li>For some magic methods, the return values are not restricted by PyO3, but
+checked by the Python interpreter. For example, <code>__str__</code> needs to return a
+string object.  This is indicated by <code>object (Python type)</code>.</li>
+</ul>
+<h3 id="basic-object-customization"><a class="header" href="#basic-object-customization">Basic object customization</a></h3>
+<ul>
+<li>
+<p><code>__str__(&lt;self&gt;) -&gt; object (str)</code></p>
+</li>
+<li>
+<p><code>__repr__(&lt;self&gt;) -&gt; object (str)</code></p>
+</li>
+<li>
+<p><code>__hash__(&lt;self&gt;) -&gt; isize</code></p>
+<p>Objects that compare equal must have the same hash value. Any type up to 64 bits may be returned instead of <code>isize</code>, PyO3 will convert to an isize automatically (wrapping unsigned types like <code>u64</code> and <code>usize</code>).</p>
+<details>
+<summary>Disabling Python's default hash</summary>
+By default, all `#[pyclass]` types have a default hash implementation from Python. Types which should not be hashable can override this by setting `__hash__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">
+</span>#[pyclass]
+struct NotHashable {}
+
+#[pymethods]
+impl NotHashable {
+    #[classattr]
+    const __hash__: Option&lt;PyObject&gt; = None;
+}</code></pre>
+</details>
+</li>
+<li>
+<p><code>__lt__(&lt;self&gt;, object) -&gt; object</code></p>
+</li>
+<li>
+<p><code>__le__(&lt;self&gt;, object) -&gt; object</code></p>
+</li>
+<li>
+<p><code>__eq__(&lt;self&gt;, object) -&gt; object</code></p>
+</li>
+<li>
+<p><code>__ne__(&lt;self&gt;, object) -&gt; object</code></p>
+</li>
+<li>
+<p><code>__gt__(&lt;self&gt;, object) -&gt; object</code></p>
+</li>
+<li>
+<p><code>__ge__(&lt;self&gt;, object) -&gt; object</code></p>
+<p>The implementations of Python's "rich comparison" operators <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>, <code>&gt;</code> and <code>&gt;=</code> respectively.</p>
+<p><em>Note that implementing any of these methods will cause Python not to generate a default <code>__hash__</code> implementation, so consider also implementing <code>__hash__</code>.</em></p>
+<details>
+<summary>Return type</summary>
+The return type will normally be `bool` or `PyResult<bool>`, however any Python object can be returned.
+</details>
+</li>
+<li>
+<p><code>__richcmp__(&lt;self&gt;, object, pyo3::basic::CompareOp) -&gt; object</code></p>
+<p>Implements Python comparison operations (<code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and <code>&gt;=</code>) in a single method.
+The <code>CompareOp</code> argument indicates the comparison operation being performed. You can use
+<a href="https://docs.rs/pyo3/0.21.1/pyo3/pyclass/enum.CompareOp.html#method.matches"><code>CompareOp::matches</code></a> to adapt a Rust <code>std::cmp::Ordering</code> result to the requested comparison.</p>
+<p><em>This method cannot be implemented in combination with any of <code>__lt__</code>, <code>__le__</code>, <code>__eq__</code>, <code>__ne__</code>, <code>__gt__</code>, or <code>__ge__</code>.</em></p>
+<p><em>Note that implementing <code>__richcmp__</code> will cause Python not to generate a default <code>__hash__</code> implementation, so consider implementing <code>__hash__</code> when implementing <code>__richcmp__</code>.</em></p>
+<details>
+<summary>Return type</summary>
+The return type will normally be `PyResult<bool>`, but any Python object can be returned.
+<p>If you want to leave some operations unimplemented, you can return <code>py.NotImplemented()</code>
+for some of the operations:</p>
+<pre><code class="language-rust">use pyo3::class::basic::CompareOp;
+
+<span class="boring">use pyo3::prelude::*;
+</span><span class="boring">
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct Number(i32);
+</span><span class="boring">
+</span>#[pymethods]
+impl Number {
+    fn __richcmp__(&amp;self, other: &amp;Self, op: CompareOp, py: Python&lt;'_&gt;) -&gt; PyObject {
+        match op {
+            CompareOp::Eq =&gt; (self.0 == other.0).into_py(py),
+            CompareOp::Ne =&gt; (self.0 != other.0).into_py(py),
+            _ =&gt; py.NotImplemented(),
+        }
+    }
+}</code></pre>
+<p>If the second argument <code>object</code> is not of the type specified in the
+signature, the generated code will automatically <code>return NotImplemented</code>.</p>
+</details>
+</li>
+<li>
+<p><code>__getattr__(&lt;self&gt;, object) -&gt; object</code></p>
+</li>
+<li>
+<p><code>__getattribute__(&lt;self&gt;, object) -&gt; object</code></p>
+<details>
+<summary>Differences between `__getattr__` and `__getattribute__`</summary>
+As in Python, `__getattr__` is only called if the attribute is not found
+by normal attribute lookup.  `__getattribute__`, on the other hand, is
+called for *every* attribute access.  If it wants to access existing
+attributes on `self`, it needs to be very careful not to introduce
+infinite recursion, and use `baseclass.__getattribute__()`.
+</details>
+</li>
+<li>
+<p><code>__setattr__(&lt;self&gt;, value: object) -&gt; ()</code></p>
+</li>
+<li>
+<p><code>__delattr__(&lt;self&gt;, object) -&gt; ()</code></p>
+<p>Overrides attribute access.</p>
+</li>
+<li>
+<p><code>__bool__(&lt;self&gt;) -&gt; bool</code></p>
+<p>Determines the "truthyness" of an object.</p>
+</li>
+<li>
+<p><code>__call__(&lt;self&gt;, ...) -&gt; object</code> - here, any argument list can be defined
+as for normal <code>pymethods</code></p>
+</li>
+</ul>
+<h3 id="iterable-objects"><a class="header" href="#iterable-objects">Iterable objects</a></h3>
+<p>Iterators can be defined using these methods:</p>
+<ul>
+<li><code>__iter__(&lt;self&gt;) -&gt; object</code></li>
+<li><code>__next__(&lt;self&gt;) -&gt; Option&lt;object&gt; or IterNextOutput</code> (<a href="#returning-a-value-from-iteration">see details</a>)</li>
+</ul>
+<p>Returning <code>None</code> from <code>__next__</code> indicates that that there are no further items.</p>
+<p>Example:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+#[pyclass]
+struct MyIterator {
+    iter: Box&lt;dyn Iterator&lt;Item = PyObject&gt; + Send&gt;,
+}
+
+#[pymethods]
+impl MyIterator {
+    fn __iter__(slf: PyRef&lt;'_, Self&gt;) -&gt; PyRef&lt;'_, Self&gt; {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut&lt;'_, Self&gt;) -&gt; Option&lt;PyObject&gt; {
+        slf.iter.next()
+    }
+}</code></pre>
+<p>In many cases you'll have a distinction between the type being iterated over
+(i.e. the <em>iterable</em>) and the iterator it provides. In this case, the iterable
+only needs to implement <code>__iter__()</code> while the iterator must implement both
+<code>__iter__()</code> and <code>__next__()</code>. For example:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span>
+#[pyclass]
+struct Iter {
+    inner: std::vec::IntoIter&lt;usize&gt;,
+}
+
+#[pymethods]
+impl Iter {
+    fn __iter__(slf: PyRef&lt;'_, Self&gt;) -&gt; PyRef&lt;'_, Self&gt; {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut&lt;'_, Self&gt;) -&gt; Option&lt;usize&gt; {
+        slf.inner.next()
+    }
+}
+
+#[pyclass]
+struct Container {
+    iter: Vec&lt;usize&gt;,
+}
+
+#[pymethods]
+impl Container {
+    fn __iter__(slf: PyRef&lt;'_, Self&gt;) -&gt; PyResult&lt;Py&lt;Iter&gt;&gt; {
+        let iter = Iter {
+            inner: slf.iter.clone().into_iter(),
+        };
+        Py::new(slf.py(), iter)
+    }
+}
+
+<span class="boring">Python::with_gil(|py| {
+</span><span class="boring">    let container = Container { iter: vec![1, 2, 3, 4] };
+</span><span class="boring">    let inst = pyo3::Py::new(py, container).unwrap();
+</span><span class="boring">    pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
+</span><span class="boring">    pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
+</span><span class="boring">});</span></code></pre>
+<p>For more details on Python's iteration protocols, check out <a href="https://docs.python.org/library/stdtypes.html#iterator-types">the "Iterator Types" section of the library
+documentation</a>.</p>
+<h4 id="returning-a-value-from-iteration"><a class="header" href="#returning-a-value-from-iteration">Returning a value from iteration</a></h4>
+<p>This guide has so far shown how to use <code>Option&lt;T&gt;</code> to implement yielding values
+during iteration.  In Python a generator can also return a value. To express
+this in Rust, PyO3 provides the <a href="https://docs.rs/pyo3/0.21.1/pyo3/pyclass/enum.IterNextOutput.html"><code>IterNextOutput</code></a> enum to both <code>Yield</code> values
+and <code>Return</code> a final value - see its docs for further details and an example.</p>
+<h3 id="awaitable-objects"><a class="header" href="#awaitable-objects">Awaitable objects</a></h3>
+<ul>
+<li><code>__await__(&lt;self&gt;) -&gt; object</code></li>
+<li><code>__aiter__(&lt;self&gt;) -&gt; object</code></li>
+<li><code>__anext__(&lt;self&gt;) -&gt; Option&lt;object&gt; or IterANextOutput</code></li>
+</ul>
+<h3 id="mapping--sequence-types"><a class="header" href="#mapping--sequence-types">Mapping &amp; Sequence types</a></h3>
+<p>The magic methods in this section can be used to implement Python container types. They are two main categories of container in Python: "mappings" such as <code>dict</code>, with arbitrary keys, and "sequences" such as <code>list</code> and <code>tuple</code>, with integer keys.</p>
+<p>The Python C-API which PyO3 is built upon has separate "slots" for sequences and mappings. When writing a <code>class</code> in pure Python, there is no such distinction in the implementation - a <code>__getitem__</code> implementation will fill the slots for both the mapping and sequence forms, for example.</p>
+<p>By default PyO3 reproduces the Python behaviour of filling both mapping and sequence slots. This makes sense for the "simple" case which matches Python, and also for sequences, where the mapping slot is used anyway to implement slice indexing.</p>
+<p>Mapping types usually will not want the sequence slots filled. Having them filled will lead to outcomes which may be unwanted, such as:</p>
+<ul>
+<li>The mapping type will successfully cast to <a href="https://docs.rs/pyo3/0.21.1/pyo3/types/struct.PySequence.html"><code>PySequence</code></a>. This may lead to consumers of the type handling it incorrectly.</li>
+<li>Python provides a default implementation of <code>__iter__</code> for sequences, which calls <code>__getitem__</code> with consecutive positive integers starting from 0 until an <code>IndexError</code> is returned. Unless the mapping only contains consecutive positive integer keys, this <code>__iter__</code> implementation will likely not be the intended behavior.</li>
+</ul>
+<p>Use the <code>#[pyclass(mapping)]</code> annotation to instruct PyO3 to only fill the mapping slots, leaving the sequence ones empty. This will apply to <code>__getitem__</code>, <code>__setitem__</code>, and <code>__delitem__</code>.</p>
+<p>Use the <code>#[pyclass(sequence)]</code> annotation to instruct PyO3 to fill the <code>sq_length</code> slot instead of the <code>mp_length</code> slot for <code>__len__</code>. This will help libraries such as <code>numpy</code> recognise the class as a sequence, however will also cause CPython to automatically add the sequence length to any negative indices before passing them to <code>__getitem__</code>. (<code>__getitem__</code>, <code>__setitem__</code> and <code>__delitem__</code> mapping slots are still used for sequences, for slice operations.)</p>
+<ul>
+<li>
+<p><code>__len__(&lt;self&gt;) -&gt; usize</code></p>
+<p>Implements the built-in function <code>len()</code>.</p>
+</li>
+<li>
+<p><code>__contains__(&lt;self&gt;, object) -&gt; bool</code></p>
+<p>Implements membership test operators.
+Should return true if <code>item</code> is in <code>self</code>, false otherwise.
+For objects that don’t define <code>__contains__()</code>, the membership test simply
+traverses the sequence until it finds a match.</p>
+<details>
+<summary>Disabling Python's default contains</summary>
+<p>By default, all <code>#[pyclass]</code> types with an <code>__iter__</code> method support a
+default implementation of the <code>in</code> operator. Types which do not want this
+can override this by setting <code>__contains__</code> to <code>None</code>. This is the same
+mechanism as for a pure-Python class. This is done like so:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">
+</span>#[pyclass]
+struct NoContains {}
+
+#[pymethods]
+impl NoContains {
+    #[classattr]
+    const __contains__: Option&lt;PyObject&gt; = None;
+}</code></pre>
+</details>
+</li>
+<li>
+<p><code>__getitem__(&lt;self&gt;, object) -&gt; object</code></p>
+<p>Implements retrieval of the <code>self[a]</code> element.</p>
+<p><em>Note:</em> Negative integer indexes are not handled specially by PyO3.
+However, for classes with <code>#[pyclass(sequence)]</code>, when a negative index is
+accessed via <code>PySequence::get_item</code>, the underlying C API already adjusts
+the index to be positive.</p>
+</li>
+<li>
+<p><code>__setitem__(&lt;self&gt;, object, object) -&gt; ()</code></p>
+<p>Implements assignment to the <code>self[a]</code> element.
+Should only be implemented if elements can be replaced.</p>
+<p>Same behavior regarding negative indices as for <code>__getitem__</code>.</p>
+</li>
+<li>
+<p><code>__delitem__(&lt;self&gt;, object) -&gt; ()</code></p>
+<p>Implements deletion of the <code>self[a]</code> element.
+Should only be implemented if elements can be deleted.</p>
+<p>Same behavior regarding negative indices as for <code>__getitem__</code>.</p>
+</li>
+</ul>
+<ul>
+<li>
+<p><code>fn __concat__(&amp;self, other: impl FromPyObject) -&gt; PyResult&lt;impl ToPyObject&gt;</code></p>
+<p>Concatenates two sequences.
+Used by the <code>+</code> operator, after trying the numeric addition via
+the <code>__add__</code> and <code>__radd__</code> methods.</p>
+</li>
+<li>
+<p><code>fn __repeat__(&amp;self, count: isize) -&gt; PyResult&lt;impl ToPyObject&gt;</code></p>
+<p>Repeats the sequence <code>count</code> times.
+Used by the <code>*</code> operator, after trying the numeric multiplication via
+the <code>__mul__</code> and <code>__rmul__</code> methods.</p>
+</li>
+<li>
+<p><code>fn __inplace_concat__(&amp;self, other: impl FromPyObject) -&gt; PyResult&lt;impl ToPyObject&gt;</code></p>
+<p>Concatenates two sequences.
+Used by the <code>+=</code> operator, after trying the numeric addition via
+the <code>__iadd__</code> method.</p>
+</li>
+<li>
+<p><code>fn __inplace_repeat__(&amp;self, count: isize) -&gt; PyResult&lt;impl ToPyObject&gt;</code></p>
+<p>Concatenates two sequences.
+Used by the <code>*=</code> operator, after trying the numeric multiplication via
+the <code>__imul__</code> method.</p>
+</li>
+</ul>
+<h3 id="descriptors"><a class="header" href="#descriptors">Descriptors</a></h3>
+<ul>
+<li><code>__get__(&lt;self&gt;, object, object) -&gt; object</code></li>
+<li><code>__set__(&lt;self&gt;, object, object) -&gt; ()</code></li>
+<li><code>__delete__(&lt;self&gt;, object) -&gt; ()</code></li>
+</ul>
+<h3 id="numeric-types"><a class="header" href="#numeric-types">Numeric types</a></h3>
+<p>Binary arithmetic operations (<code>+</code>, <code>-</code>, <code>*</code>, <code>@</code>, <code>/</code>, <code>//</code>, <code>%</code>, <code>divmod()</code>,
+<code>pow()</code> and <code>**</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>, <code>&amp;</code>, <code>^</code>, and <code>|</code>) and their reflected versions:</p>
+<p>(If the <code>object</code> is not of the type specified in the signature, the generated code
+will automatically <code>return NotImplemented</code>.)</p>
+<ul>
+<li><code>__add__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__radd__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__sub__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rsub__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__mul__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rmul__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__matmul__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rmatmul__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__floordiv__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rfloordiv__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__truediv__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rtruediv__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__divmod__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rdivmod__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__mod__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rmod__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__lshift__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rlshift__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rshift__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rrshift__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__and__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rand__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__xor__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__rxor__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__or__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__ror__(&lt;self&gt;, object) -&gt; object</code></li>
+<li><code>__pow__(&lt;self&gt;, object, object) -&gt; object</code></li>
+<li><code>__rpow__(&lt;self&gt;, object, object) -&gt; object</code></li>
+</ul>
+<p>In-place assignment operations (<code>+=</code>, <code>-=</code>, <code>*=</code>, <code>@=</code>, <code>/=</code>, <code>//=</code>, <code>%=</code>,
+<code>**=</code>, <code>&lt;&lt;=</code>, <code>&gt;&gt;=</code>, <code>&amp;=</code>, <code>^=</code>, <code>|=</code>):</p>
+<ul>
+<li><code>__iadd__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__isub__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__imul__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__imatmul__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__itruediv__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__ifloordiv__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__imod__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__ipow__(&lt;self&gt;, object, object) -&gt; ()</code></li>
+<li><code>__ilshift__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__irshift__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__iand__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__ixor__(&lt;self&gt;, object) -&gt; ()</code></li>
+<li><code>__ior__(&lt;self&gt;, object) -&gt; ()</code></li>
+</ul>
+<p>Unary operations (<code>-</code>, <code>+</code>, <code>abs()</code> and <code>~</code>):</p>
+<ul>
+<li><code>__pos__(&lt;self&gt;) -&gt; object</code></li>
+<li><code>__neg__(&lt;self&gt;) -&gt; object</code></li>
+<li><code>__abs__(&lt;self&gt;) -&gt; object</code></li>
+<li><code>__invert__(&lt;self&gt;) -&gt; object</code></li>
+</ul>
+<p>Coercions:</p>
+<ul>
+<li><code>__index__(&lt;self&gt;) -&gt; object (int)</code></li>
+<li><code>__int__(&lt;self&gt;) -&gt; object (int)</code></li>
+<li><code>__float__(&lt;self&gt;) -&gt; object (float)</code></li>
+</ul>
+<h3 id="buffer-objects"><a class="header" href="#buffer-objects">Buffer objects</a></h3>
+<ul>
+<li><code>__getbuffer__(&lt;self&gt;, *mut ffi::Py_buffer, flags) -&gt; ()</code></li>
+<li><code>__releasebuffer__(&lt;self&gt;, *mut ffi::Py_buffer) -&gt; ()</code>
+Errors returned from <code>__releasebuffer__</code> will be sent to <code>sys.unraiseablehook</code>. It is strongly advised to never return an error from <code>__releasebuffer__</code>, and if it really is necessary, to make best effort to perform any required freeing operations before returning. <code>__releasebuffer__</code> will not be called a second time; anything not freed will be leaked.</li>
+</ul>
+<h3 id="garbage-collector-integration"><a class="header" href="#garbage-collector-integration">Garbage Collector Integration</a></h3>
+<p>If your type owns references to other Python objects, you will need to integrate
+with Python's garbage collector so that the GC is aware of those references.  To
+do this, implement the two methods <code>__traverse__</code> and <code>__clear__</code>.  These
+correspond to the slots <code>tp_traverse</code> and <code>tp_clear</code> in the Python C API.
+<code>__traverse__</code> must call <code>visit.call()</code> for each reference to another Python
+object.  <code>__clear__</code> must clear out any mutable references to other Python
+objects (thus breaking reference cycles). Immutable references do not have to be
+cleared, as every cycle must contain at least one mutable reference.</p>
+<ul>
+<li><code>__traverse__(&lt;self&gt;, pyo3::class::gc::PyVisit&lt;'_&gt;) -&gt; Result&lt;(), pyo3::class::gc::PyTraverseError&gt;</code></li>
+<li><code>__clear__(&lt;self&gt;) -&gt; ()</code></li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+use pyo3::PyTraverseError;
+use pyo3::gc::PyVisit;
+
+#[pyclass]
+struct ClassWithGCSupport {
+    obj: Option&lt;PyObject&gt;,
+}
+
+#[pymethods]
+impl ClassWithGCSupport {
+    fn __traverse__(&amp;self, visit: PyVisit&lt;'_&gt;) -&gt; Result&lt;(), PyTraverseError&gt; {
+        if let Some(obj) = &amp;self.obj {
+            visit.call(obj)?
+        }
+        Ok(())
+    }
+
+    fn __clear__(&amp;mut self) {
+        // Clear reference, this decrements ref counter.
+        self.obj = None;
+    }
+}</code></pre>
+<p>Usually, an implementation of <code>__traverse__</code> should do nothing but calls to <code>visit.call</code>.
+Most importantly, safe access to the GIL is prohibited inside implementations of <code>__traverse__</code>,
+i.e. <code>Python::with_gil</code> will panic.</p>
+<blockquote>
+<p>Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See <a href="https://github.com/pypy/pypy/issues/3848">this issue on the PyPy bug tracker</a>.</p>
+</blockquote>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../class.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../class/object.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../class.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../class/object.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

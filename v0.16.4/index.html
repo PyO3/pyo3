@@ -1,0 +1,399 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Introduction - PyO3 user guide</title>
+                
+
+        <!-- Custom HTML head -->
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+                <link rel="icon" href="favicon.svg">
+                        <link rel="shortcut icon" href="favicon.png">
+                <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+                <link rel="stylesheet" href="css/print.css" media="print">
+        
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="fonts/fonts.css">
+        
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html" class="active">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">1.</strong> Python Modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">2.</strong> Python Functions</a></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">3.</strong> Python Classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">3.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/object.html"><strong aria-hidden="true">3.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="class/numeric.html"><strong aria-hidden="true">3.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="class/call.html"><strong aria-hidden="true">3.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">4.</strong> Type Conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">5.</strong> Python Exceptions</a></li><li class="chapter-item expanded "><a href="python_from_rust.html"><strong aria-hidden="true">6.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">7.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">8.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">9.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">10.</strong> Features Reference</a></li><li class="chapter-item expanded "><a href="memory.html"><strong aria-hidden="true">11.</strong> Memory Management</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">12.</strong> Advanced Topics</a></li><li class="chapter-item expanded "><a href="building_and_distribution.html"><strong aria-hidden="true">13.</strong> Building and Distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">13.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">14.</strong> Useful Crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">14.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">14.2.</strong> Async / Await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">15.</strong> FAQ &amp; Troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration Guide</a></li><li class="chapter-item expanded affix "><a href="rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="python_typing_hints.html">Appendix D: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                                            </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                                                <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                                                                        
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="the-pyo3-user-guide"><a class="header" href="#the-pyo3-user-guide">The PyO3 user guide</a></h1>
+<p>Welcome to the PyO3 user guide! This book is a companion to <a href="https://docs.rs/pyo3">PyO3's API docs</a>. It contains examples and documentation to explain all of PyO3's use cases in detail.</p>
+<p>Please choose from the chapters on the left to jump to individual topics, or continue below to start with PyO3's README.</p>
+<h1 id="pyo3"><a class="header" href="#pyo3">PyO3</a></h1>
+<p><a href="https://github.com/PyO3/pyo3/actions"><img src="https://github.com/PyO3/pyo3/workflows/CI/badge.svg" alt="actions status" /></a>
+<a href="https://pyo3.rs/dev/bench/"><img src="https://github.com/PyO3/pyo3/actions/workflows/bench.yml/badge.svg" alt="benchmark" /></a>
+<a href="https://codecov.io/gh/PyO3/pyo3"><img src="https://codecov.io/gh/PyO3/pyo3/branch/main/graph/badge.svg" alt="codecov" /></a>
+<a href="https://crates.io/crates/pyo3"><img src="https://img.shields.io/crates/v/pyo3" alt="crates.io" /></a>
+<a href="https://rust-lang.github.io/rfcs/2495-min-rust-version.html"><img src="https://img.shields.io/badge/rustc-1.48+-blue.svg" alt="minimum rustc 1.48" /></a>
+<a href="https://gitter.im/PyO3/Lobby"><img src="https://img.shields.io/gitter/room/nwjs/nw.js.svg" alt="dev chat" /></a>
+<a href="https://github.com/PyO3/pyo3/blob/main/Contributing.md"><img src="https://img.shields.io/badge/contribute-on%20github-Green" alt="contributing notes" /></a></p>
+<p><a href="https://www.rust-lang.org/">Rust</a> bindings for <a href="https://www.python.org/">Python</a>, including tools for creating native Python extension modules. Running and interacting with Python code from a Rust binary is also supported.</p>
+<ul>
+<li>
+<p>User Guide: <a href="https://pyo3.rs">stable</a> | <a href="https://pyo3.rs/main">main</a></p>
+</li>
+<li>
+<p>API Documentation: <a href="https://docs.rs/pyo3/">stable</a> | <a href="https://pyo3.rs/main/doc">main</a></p>
+</li>
+</ul>
+<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
+<p>PyO3 supports the following software versions:</p>
+<ul>
+<li>Python 3.7 and up (CPython and PyPy)</li>
+<li>Rust 1.48 and up</li>
+</ul>
+<p>You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.</p>
+<h3 id="using-rust-from-python"><a class="header" href="#using-rust-from-python">Using Rust from Python</a></h3>
+<p>PyO3 can be used to generate a native Python module. The easiest way to try this out for the first time is to use <a href="https://github.com/PyO3/maturin"><code>maturin</code></a>. <code>maturin</code> is a tool for building and publishing Rust-based Python packages with minimal configuration. The following steps install <code>maturin</code>, use it to generate and build a new Python package, and then launch Python to import and execute a function from the package.</p>
+<p>First, follow the commands below to create a new directory containing a new Python <code>virtualenv</code>, and install <code>maturin</code> into the virtualenv using Python's package manager, <code>pip</code>:</p>
+<pre><code class="language-bash"># (replace string_sum with the desired package name)
+$ mkdir string_sum
+$ cd string_sum
+$ python -m venv .env
+$ source .env/bin/activate
+$ pip install maturin
+</code></pre>
+<p>Still inside this <code>string_sum</code> directory, now run <code>maturin init</code>. This will generate the new package source. When given the choice of bindings to use, select pyo3 bindings:</p>
+<pre><code class="language-bash">$ maturin init
+✔ 🤷 What kind of bindings to use? · pyo3
+  ✨ Done! New project created string_sum
+</code></pre>
+<p>The most important files generated by this command are <code>Cargo.toml</code> and <code>lib.rs</code>, which will look roughly like the following:</p>
+<p><strong><code>Cargo.toml</code></strong></p>
+<pre><code class="language-toml">[package]
+name = &quot;string_sum&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2018&quot;
+
+[lib]
+# The name of the native library. This is the name which will be used in Python to import the
+# library (i.e. `import string_sum`). If you change this, you must also change the name of the
+# `#[pymodule]` in `src/lib.rs`.
+name = &quot;string_sum&quot;
+# &quot;cdylib&quot; is necessary to produce a shared library for Python to import from.
+#
+# Downstream Rust code (including code in `bin/`, `examples/`, and `tests/`) will not be able
+# to `use string_sum;` unless the &quot;rlib&quot; or &quot;lib&quot; crate type is also included, e.g.:
+# crate-type = [&quot;cdylib&quot;, &quot;rlib&quot;]
+crate-type = [&quot;cdylib&quot;]
+
+[dependencies]
+pyo3 = { version = &quot;0.16.4&quot;, features = [&quot;extension-module&quot;] }
+</code></pre>
+<p><strong><code>src/lib.rs</code></strong></p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+/// Formats the sum of two numbers as string.
+#[pyfunction]
+fn sum_as_string(a: usize, b: usize) -&gt; PyResult&lt;String&gt; {
+    Ok((a + b).to_string())
+}
+
+/// A Python module implemented in Rust. The name of this function must match
+/// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
+/// import the module.
+#[pymodule]
+fn string_sum(_py: Python&lt;'_&gt;, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+    Ok(())
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Finally, run <code>maturin develop</code>. This will build the package and install it into the Python virtualenv previously created and activated. The package is then ready to be used from <code>python</code>:</p>
+<pre><code class="language-bash">$ maturin develop
+# lots of progress output as maturin runs the compilation...
+$ python
+&gt;&gt;&gt; import string_sum
+&gt;&gt;&gt; string_sum.sum_as_string(5, 20)
+'25'
+</code></pre>
+<p>To make changes to the package, just edit the Rust source code and then re-run <code>maturin develop</code> to recompile.</p>
+<p>To run this all as a single copy-and-paste, use the bash script below (replace <code>string_sum</code> in the first command with the desired package name):</p>
+<pre><code class="language-bash">mkdir string_sum &amp;&amp; cd &quot;$_&quot;
+python -m venv .env
+source .env/bin/activate
+pip install maturin
+maturin init --bindings pyo3
+maturin develop
+</code></pre>
+<p>As well as with <code>maturin</code>, it is possible to build using <a href="https://github.com/PyO3/setuptools-rust"><code>setuptools-rust</code></a> or <a href="https://pyo3.rs/latest/building_and_distribution.html#manual-builds">manually</a>. Both offer more flexibility than <code>maturin</code> but require more configuration to get started.</p>
+<h3 id="using-python-from-rust"><a class="header" href="#using-python-from-rust">Using Python from Rust</a></h3>
+<p>To embed Python into a Rust binary, you need to ensure that your Python installation contains a shared library. The following steps demonstrate how to ensure this (for Ubuntu), and then give some example code which runs an embedded Python interpreter.</p>
+<p>To install the Python shared library on Ubuntu:</p>
+<pre><code class="language-bash">sudo apt install python3-dev
+</code></pre>
+<p>Start a new project with <code>cargo new</code> and add  <code>pyo3</code> to the <code>Cargo.toml</code> like this:</p>
+<pre><code class="language-toml">[dependencies.pyo3]
+version = &quot;0.16.4&quot;
+features = [&quot;auto-initialize&quot;]
+</code></pre>
+<p>Example program displaying the value of <code>sys.version</code> and the current user name:</p>
+<pre><pre class="playground"><code class="language-rust">use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    Python::with_gil(|py| {
+        let sys = py.import(&quot;sys&quot;)?;
+        let version: String = sys.getattr(&quot;version&quot;)?.extract()?;
+
+        let locals = [(&quot;os&quot;, py.import(&quot;os&quot;)?)].into_py_dict(py);
+        let code = &quot;os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'&quot;;
+        let user: String = py.eval(code, None, Some(&amp;locals))?.extract()?;
+
+        println!(&quot;Hello {}, I'm Python {}&quot;, user, version);
+        Ok(())
+    })
+}
+</code></pre></pre>
+<p>The guide has <a href="https://pyo3.rs/latest/python_from_rust.html">a section</a> with lots of examples
+about this topic.</p>
+<h2 id="tools-and-libraries"><a class="header" href="#tools-and-libraries">Tools and libraries</a></h2>
+<ul>
+<li><a href="https://github.com/PyO3/maturin">maturin</a> <em>Build and publish crates with pyo3, rust-cpython or cffi bindings as well as rust binaries as python packages</em></li>
+<li><a href="https://github.com/PyO3/setuptools-rust">setuptools-rust</a> <em>Setuptools plugin for Rust support</em>.</li>
+<li><a href="https://github.com/PyO3/pyo3-built">pyo3-built</a> <em>Simple macro to expose metadata obtained with the <a href="https://crates.io/crates/built"><code>built</code></a> crate as a <a href="https://docs.rs/pyo3/*/pyo3/types/struct.PyDict.html"><code>PyDict</code></a></em></li>
+<li><a href="https://github.com/PyO3/rust-numpy">rust-numpy</a> <em>Rust binding of NumPy C-API</em></li>
+<li><a href="https://github.com/gperinazzo/dict-derive">dict-derive</a> <em>Derive FromPyObject to automatically transform Python dicts into Rust structs</em></li>
+<li><a href="https://github.com/vorner/pyo3-log">pyo3-log</a> <em>Bridge from Rust to Python logging</em></li>
+<li><a href="https://github.com/davidhewitt/pythonize">pythonize</a> <em>Serde serializer for converting Rust objects to JSON-compatible Python objects</em></li>
+<li><a href="https://github.com/awestlake87/pyo3-asyncio">pyo3-asyncio</a> <em>Utilities for working with Python's Asyncio library and async functions</em></li>
+<li><a href="https://github.com/mityax/rustimport">rustimport</a> <em>Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically.</em></li>
+</ul>
+<h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
+<ul>
+<li><a href="https://github.com/mre/hyperjson">hyperjson</a> <em>A hyper-fast Python module for reading/writing JSON data using Rust's serde-json</em></li>
+<li><a href="https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever">html-py-ever</a> <em>Using <a href="https://github.com/servo/html5ever">html5ever</a> through <a href="https://github.com/kuchiki-rs/kuchiki">kuchiki</a> to speed up html parsing and css-selecting.</em></li>
+<li><a href="https://github.com/ManifoldFR/point-process-rust/tree/master/pylib">point-process</a> <em>High level API for pointprocesses as a Python library</em></li>
+<li><a href="https://github.com/autopilot-rs/autopy">autopy</a> <em>A simple, cross-platform GUI automation library for Python and Rust.</em>
+<ul>
+<li>Contains an example of building wheels on TravisCI and appveyor using <a href="https://github.com/pypa/cibuildwheel">cibuildwheel</a></li>
+</ul>
+</li>
+<li><a href="https://github.com/ijl/orjson">orjson</a> <em>Fast Python JSON library</em></li>
+<li><a href="https://github.com/fusion-engineering/inline-python">inline-python</a> <em>Inline Python code directly in your Rust code</em></li>
+<li><a href="https://github.com/kngwyu/rogue-gym">Rogue-Gym</a> <em>Customizable rogue-like game for AI experiments</em>
+<ul>
+<li>Contains an example of building wheels on Azure Pipelines</li>
+</ul>
+</li>
+<li><a href="https://github.com/thedrow/fastuuid/">fastuuid</a> <em>Python bindings to Rust's UUID library</em></li>
+<li><a href="https://github.com/wasmerio/wasmer-python">wasmer-python</a> <em>Python library to run WebAssembly binaries</em></li>
+<li><a href="https://github.com/cds-astro/mocpy">mocpy</a> <em>Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere</em></li>
+<li><a href="https://github.com/huggingface/tokenizers/tree/master/bindings/python">tokenizers</a> <em>Python bindings to the Hugging Face tokenizers (NLP) written in Rust</em></li>
+<li><a href="https://github.com/Project-Dream-Weaver/pyre-http">pyre</a> <em>Fast Python HTTP server written in Rust</em></li>
+<li><a href="https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python">jsonschema-rs</a> <em>Fast JSON Schema validation library</em></li>
+<li><a href="https://github.com/Stranger6667/css-inline/tree/master/bindings/python">css-inline</a> <em>CSS inlining for Python implemented in Rust</em></li>
+<li><a href="https://github.com/pyca/cryptography/tree/main/src/rust">cryptography</a> <em>Python cryptography library with some functionality in Rust</em></li>
+<li><a href="https://github.com/daggy1234/polaroid">polaroid</a> <em>Hyper Fast and safe image manipulation library for Python written in Rust</em></li>
+<li><a href="https://github.com/aviramha/ormsgpack">ormsgpack</a> <em>Fast Python msgpack library</em></li>
+<li><a href="https://github.com/fastlmm/bed-reader">bed-reader</a> <em>Read and write the PLINK BED format, simply and efficiently</em>
+<ul>
+<li>Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions</li>
+</ul>
+</li>
+<li><a href="https://github.com/kevinheavey/pyheck">pyheck</a> <em>Fast case conversion library, built by wrapping <a href="https://github.com/withoutboats/heck">heck</a></em>
+<ul>
+<li>Quite easy to follow as there's not much code.</li>
+</ul>
+</li>
+</ul>
+<h2 id="articles-and-other-media"><a class="header" href="#articles-and-other-media">Articles and other media</a></h2>
+<ul>
+<li><a href="https://towardsdatascience.com/nine-rules-for-writing-python-extensions-in-rust-d35ea3a4ec29?sk=f8d808d5f414154fdb811e4137011437">Nine Rules for Writing Python Extensions in Rust</a> - Dec 31, 2021</li>
+<li><a href="https://saidvandeklundert.net/learn/2021-11-18-calling-rust-from-python-using-pyo3/">Calling Rust from Python using PyO3</a> - Nov 18, 2021</li>
+<li><a href="https://www.youtube.com/watch?v=-XyWG_klSAw&amp;t=320s">davidhewitt's 2021 talk at Rust Manchester meetup</a> - Aug 19, 2021</li>
+<li><a href="https://blog.waleedkhan.name/port-python-to-rust/">Incrementally porting a small Python project to Rust</a> - Apr 29, 2021</li>
+<li><a href="https://www.vortexa.com/insight/integrating-rust-into-python">Vortexa - Integrating Rust into Python</a> - Apr 12, 2021</li>
+<li><a href="https://blog.yossarian.net/2020/08/02/Writing-and-publishing-a-python-module-in-rust">Writing and publishing a Python module in Rust</a> - Aug 2, 2020</li>
+</ul>
+<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
+<p>Everyone is welcomed to contribute to PyO3! There are many ways to support the project, such as:</p>
+<ul>
+<li>help PyO3 users with issues on GitHub and Gitter</li>
+<li>improve documentation</li>
+<li>write features and bugfixes</li>
+<li>publish blogs and examples of how to use PyO3</li>
+</ul>
+<p>Our <a href="https://github.com/PyO3/pyo3/blob/main/Contributing.md">contributing notes</a> and <a href="https://github.com/PyO3/pyo3/blob/main/Architecture.md">architecture guide</a> have more resources if you wish to volunteer time for PyO3 and are searching where to start.</p>
+<p>If you don't have time to contribute yourself but still wish to support the project's future success, some of our maintainers have GitHub sponsorship pages:</p>
+<ul>
+<li><a href="https://github.com/sponsors/davidhewitt">davidhewitt</a></li>
+</ul>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>PyO3 is licensed under the <a href="https://opensource.org/licenses/APACHE-2.0">Apache-2.0 license</a>.
+Python is licensed under the <a href="https://docs.python.org/3/license.html">Python License</a>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                                                    <a rel="next" href="module.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                                    <a rel="next" href="module.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+        
+                <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+        
+                <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+        
+    </body>
+</html>

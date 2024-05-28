@@ -1,0 +1,559 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Python object types - PyO3 user guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="rust-from-python.html"><strong aria-hidden="true">2.</strong> Using Rust from Python</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">2.1.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">2.2.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="function/signature.html"><strong aria-hidden="true">2.2.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="function/error-handling.html"><strong aria-hidden="true">2.2.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">2.3.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">2.3.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/object.html"><strong aria-hidden="true">2.3.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="class/numeric.html"><strong aria-hidden="true">2.3.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="class/call.html"><strong aria-hidden="true">2.3.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li></ol></li><li class="chapter-item expanded "><a href="python-from-rust.html"><strong aria-hidden="true">3.</strong> Calling Python from Rust</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="types.html" class="active"><strong aria-hidden="true">3.1.</strong> Python object types</a></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">3.2.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="python-from-rust/function-calls.html"><strong aria-hidden="true">3.3.</strong> Calling Python functions</a></li><li class="chapter-item expanded "><a href="python-from-rust/calling-existing-code.html"><strong aria-hidden="true">3.4.</strong> Executing existing Python code</a></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">4.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="async-await.html"><strong aria-hidden="true">5.</strong> Using async and await</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">6.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">7.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">8.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="memory.html"><strong aria-hidden="true">9.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">10.</strong> Performance</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">11.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="building-and-distribution.html"><strong aria-hidden="true">12.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building-and-distribution/multiple-python-versions.html"><strong aria-hidden="true">12.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">13.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">13.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">13.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">14.</strong> FAQ and troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="trait-bounds.html">Appendix B: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="python-typing-hints.html">Appendix C: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/types.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="python-object-types"><a class="header" href="#python-object-types">Python object types</a></h1>
+<p>PyO3 offers two main sets of types to interact with Python objects. This section of the guide expands into detail about these types and how to choose which to use.</p>
+<p>The first set of types is are the <a href="https://doc.rust-lang.org/book/ch15-00-smart-pointers.html">smart pointers</a> which all Python objects are wrapped in. These are <code>Py&lt;T&gt;</code>, <code>Bound&lt;'py, T&gt;</code>, and <code>Borrowed&lt;'a, 'py, T&gt;</code>. The <a href="#pyo3s-smart-pointers">first section below</a> expands on each of these in detail and why there are three of them.</p>
+<p>The second set of types are types which fill in the generic parameter <code>T</code> of the smart pointers. The most common is <code>PyAny</code>, which represents any Python object (similar to Python's <code>typing.Any</code>). There are also concrete types for many Python built-in types, such as <code>PyList</code>, <code>PyDict</code>, and <code>PyTuple</code>. User defined <code>#[pyclass]</code> types also fit this category. The <a href="#concrete-python-types">second section below</a> expands on how to use these types.</p>
+<p>Before PyO3 0.21, PyO3's main API to interact with Python objects was a deprecated API known as the "GIL Refs" API, containing reference types such as <code>&amp;PyAny</code>, <code>&amp;PyList</code>, and <code>&amp;PyCell&lt;T&gt;</code> for user-defined <code>#[pyclass]</code> types. The <a href="#the-gil-refs-api">third section below</a> details this deprecated API.</p>
+<h2 id="pyo3s-smart-pointers"><a class="header" href="#pyo3s-smart-pointers">PyO3's smart pointers</a></h2>
+<p>PyO3's API offers three generic smart pointers: <code>Py&lt;T&gt;</code>, <code>Bound&lt;'py, T&gt;</code> and <code>Borrowed&lt;'a, 'py, T&gt;</code>. For each of these the type parameter <code>T</code> will be filled by a <a href="#concrete-python-types">concrete Python type</a>. For example, a Python list object can be represented by <code>Py&lt;PyList&gt;</code>, <code>Bound&lt;'py, PyList&gt;</code>, and <code>Borrowed&lt;'a, 'py, PyList&gt;</code>.</p>
+<p>These smart pointers behave differently due to their lifetime parameters. <code>Py&lt;T&gt;</code> has no lifetime parameters, <code>Bound&lt;'py, T&gt;</code> has <a href="./python-from-rust.html#the-py-lifetime">the <code>'py</code> lifetime</a> as a parameter, and <code>Borrowed&lt;'a, 'py, T&gt;</code> has the <code>'py</code> lifetime plus an additional lifetime <code>'a</code> to denote the lifetime it is borrowing data for. (You can read more about these lifetimes in the subsections below).</p>
+<p>Python objects are reference counted, like <a href="https://doc.rust-lang.org/stable/std/sync/struct.Arc.html"><code>std::sync::Arc</code></a>. A major reason for these smart pointers is to bring Python's reference counting to a Rust API.</p>
+<p>The recommendation of when to use each of these smart pointers is as follows:</p>
+<ul>
+<li>Use <code>Bound&lt;'py, T&gt;</code> for as much as possible, as it offers the most efficient and complete API.</li>
+<li>Use <code>Py&lt;T&gt;</code> mostly just for storage inside Rust <code>struct</code>s which do not want to or can't add a lifetime parameter for <code>Bound&lt;'py, T&gt;</code>.</li>
+<li><code>Borrowed&lt;'a, 'py, T&gt;</code> is almost never used. It is occasionally present at the boundary between Rust and the Python interpreter, for example when borrowing data from Python tuples (which is safe because they are immutable).</li>
+</ul>
+<p>The sections below also explain these smart pointers in a little more detail.</p>
+<h3 id="pyt-and-pyobject"><a class="header" href="#pyt-and-pyobject"><code>Py&lt;T&gt;</code> (and <code>PyObject</code>)</a></h3>
+<p><a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/struct.Py.html"><code>Py&lt;T&gt;</code></a> is the foundational smart pointer in PyO3's API. The type parameter <code>T</code> denotes the type of the Python object. Very frequently this is <code>PyAny</code>, meaning any Python object. This is so common that <code>Py&lt;PyAny&gt;</code> has a type alias <code>PyObject</code>.</p>
+<p>Because <code>Py&lt;T&gt;</code> is not bound to <a href="./python-from-rust.html#the-py-lifetime">the <code>'py</code> lifetime</a>, it is the type to use when storing a Python object inside a Rust <code>struct</code> or <code>enum</code> which do not want to have a lifetime parameter. In particular, <a href="class.html"><code>#[pyclass]</code></a> types are not permitted to have a lifetime, so <code>Py&lt;T&gt;</code> is the correct type to store Python objects inside them.</p>
+<p>The lack of binding to the <code>'py</code> lifetime also carries drawbacks:</p>
+<ul>
+<li>Almost all methods on <code>Py&lt;T&gt;</code> require a <code>Python&lt;'py&gt;</code> token as the first argument</li>
+<li>Other functionality, such as <a href="https://doc.rust-lang.org/std/ops/trait.Drop.html"><code>Drop</code></a>, needs to check at runtime for attachment to the Python GIL, at a small performance cost</li>
+</ul>
+<p>Because of the drawbacks <code>Bound&lt;'py, T&gt;</code> is preferred for many of PyO3's APIs. In particular, <code>Bound&lt;'py, T&gt;</code> is the better for function arguments.</p>
+<p>To convert a <code>Py&lt;T&gt;</code> into a <code>Bound&lt;'py, T&gt;</code>, the <code>Py::bind</code> and <code>Py::into_bound</code> methods are available. <code>Bound&lt;'py, T&gt;</code> can be converted back into <code>Py&lt;T&gt;</code> using <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/struct.Bound.html#method.unbind"><code>Bound::unbind</code></a>.</p>
+<h3 id="boundpy-t"><a class="header" href="#boundpy-t"><code>Bound&lt;'py, T&gt;</code></a></h3>
+<p><a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/struct.Bound.html"><code>Bound&lt;'py, T&gt;</code></a> is the counterpart to <code>Py&lt;T&gt;</code> which is also bound to the <code>'py</code> lifetime. It can be thought of as equivalent to the Rust tuple <code>(Python&lt;'py&gt;, Py&lt;T&gt;)</code>.</p>
+<p>By having the binding to the <code>'py</code> lifetime, <code>Bound&lt;'py, T&gt;</code> can offer the complete PyO3 API at maximum efficiency. This means that in almost all cases where <code>Py&lt;T&gt;</code> is not necessary for lifetime reasons, <code>Bound&lt;'py, T&gt;</code> should be used.</p>
+<p><code>Bound&lt;'py, T&gt;</code> engages in Python reference counting. This means that <code>Bound&lt;'py, T&gt;</code> owns a Python object. Rust code which just wants to borrow a Python object should use a shared reference <code>&amp;Bound&lt;'py, T&gt;</code>. Just like <code>std::sync::Arc</code>, using <code>.clone()</code> and <code>drop()</code> will cheaply increment and decrement the reference count of the object (just in this case, the reference counting is implemented by the Python interpreter itself).</p>
+<p>To give an example of how <code>Bound&lt;'py, T&gt;</code> is PyO3's primary API type, consider the following Python code:</p>
+<pre><code class="language-python">def example():
+    x = list()   # create a Python list
+    x.append(1)  # append the integer 1 to it
+    y = x        # create a second reference to the list
+    del x        # delete the original reference
+</code></pre>
+<p>Using PyO3's API, and in particular <code>Bound&lt;'py, PyList&gt;</code>, this code translates into the following Rust code:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+use pyo3::types::PyList;
+
+fn example&lt;'py&gt;(py: Python&lt;'py&gt;) -&gt; PyResult&lt;()&gt; {
+    let x: Bound&lt;'py, PyList&gt; = PyList::empty_bound(py);
+    x.append(1)?;
+    let y: Bound&lt;'py, PyList&gt; = x.clone(); // y is a new reference to the same list
+    drop(x); // release the original reference x
+    Ok(())
+}
+<span class="boring">Python::with_gil(example).unwrap();</span></code></pre>
+<p>Or, without the type annotations:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+use pyo3::types::PyList;
+
+<span class="boring">fn example(py: Python&lt;'_&gt;) -&gt; PyResult&lt;()&gt; {
+</span>    let x = PyList::empty_bound(py);
+    x.append(1)?;
+    let y = x.clone();
+    drop(x);
+    Ok(())
+}
+<span class="boring">Python::with_gil(example).unwrap();</span></code></pre>
+<h4 id="function-argument-lifetimes"><a class="header" href="#function-argument-lifetimes">Function argument lifetimes</a></h4>
+<p>Because the <code>'py</code> lifetime often appears in many function arguments as part of the <code>Bound&lt;'py, T&gt;</code> smart pointer, the Rust compiler will often require annotations of input and output lifetimes. This occurs when the function output has at least one lifetime, and there is more than one lifetime present on the inputs.</p>
+<p>To demonstrate, consider this function which takes accepts Python objects and applies the <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyAnyMethods.html#tymethod.add">Python <code>+</code> operation</a> to them:</p>
+<pre><code class="language-rust compile_fail"><span class="boring">use pyo3::prelude::*;
+</span>fn add(left: &amp;'_ Bound&lt;'_, PyAny&gt;, right: &amp;'_ Bound&lt;'_, PyAny&gt;) -&gt; PyResult&lt;Bound&lt;'_, PyAny&gt;&gt; {
+    left.add(right)
+}</code></pre>
+<p>Because the Python <code>+</code> operation might raise an exception, this function returns <code>PyResult&lt;Bound&lt;'_, PyAny&gt;&gt;</code>. It doesn't need ownership of the inputs, so it takes <code>&amp;Bound&lt;'_, PyAny&gt;</code> shared references. To demonstrate the point, all lifetimes have used the wildcard <code>'_</code> to allow the Rust compiler to attempt to infer them. Because there are four input lifetimes (two lifetimes of the shared references, and two <code>'py</code> lifetimes unnamed inside the <code>Bound&lt;'_, PyAny&gt;</code> pointers), the compiler cannot reason about which must be connected to the output.</p>
+<p>The correct way to solve this is to add the <code>'py</code> lifetime as a parameter for the function, and name all the <code>'py</code> lifetimes inside the <code>Bound&lt;'py, PyAny&gt;</code> smart pointers. For the shared references, it's also fine to reduce <code>&amp;'_</code> to just <code>&amp;</code>. The working end result is below:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span>fn add&lt;'py&gt;(
+    left: &amp;Bound&lt;'py, PyAny&gt;,
+    right: &amp;Bound&lt;'py, PyAny&gt;,
+) -&gt; PyResult&lt;Bound&lt;'py, PyAny&gt;&gt; {
+    left.add(right)
+}
+<span class="boring">Python::with_gil(|py| {
+</span><span class="boring">    let s = pyo3::types::PyString::new_bound(py, "s");
+</span><span class="boring">    assert!(add(&amp;s, &amp;s).unwrap().eq("ss").unwrap());
+</span><span class="boring">})</span></code></pre>
+<p>If naming the <code>'py</code> lifetime adds unwanted complexity to the function signature, it is also acceptable to return <code>PyObject</code> (aka <code>Py&lt;PyAny&gt;</code>), which has no lifetime. The cost is instead paid by a slight increase in implementation complexity, as seen by the introduction of a call to <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/struct.Bound.html#method.unbind"><code>Bound::unbind</code></a>:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span>fn add(left: &amp;Bound&lt;'_, PyAny&gt;, right: &amp;Bound&lt;'_, PyAny&gt;) -&gt; PyResult&lt;PyObject&gt; {
+    let output: Bound&lt;'_, PyAny&gt; = left.add(right)?;
+    Ok(output.unbind())
+}
+<span class="boring">Python::with_gil(|py| {
+</span><span class="boring">    let s = pyo3::types::PyString::new_bound(py, "s");
+</span><span class="boring">    assert!(add(&amp;s, &amp;s).unwrap().bind(py).eq("ss").unwrap());
+</span><span class="boring">})</span></code></pre>
+<h3 id="borroweda-py-t"><a class="header" href="#borroweda-py-t"><code>Borrowed&lt;'a, 'py, T&gt;</code></a></h3>
+<p><a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/struct.Borrowed.html"><code>Borrowed&lt;'a, 'py, T&gt;</code></a> is an advanced type used just occasionally at the edge of interaction with the Python interpreter. It can be thought of as analogous to the shared reference <code>&amp;'a Bound&lt;'py, T&gt;</code>. The difference is that <code>Borrowed&lt;'a, 'py, T&gt;</code> is just a smart pointer rather than a reference-to-a-smart-pointer, which is a helpful reduction in indirection in specific interactions with the Python interpreter.</p>
+<p><code>Borrowed&lt;'a, 'py, T&gt;</code> dereferences to <code>Bound&lt;'py, T&gt;</code>, so all methods on <code>Bound&lt;'py, T&gt;</code> are available on <code>Borrowed&lt;'a, 'py, T&gt;</code>.</p>
+<p>An example where <code>Borrowed&lt;'a, 'py, T&gt;</code> is used is in <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyTupleMethods.html#tymethod.get_item"><code>PyTupleMethods::get_borrowed_item</code></a>:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+use pyo3::types::PyTuple;
+
+<span class="boring">fn example&lt;'py&gt;(py: Python&lt;'py&gt;) -&gt; PyResult&lt;()&gt; {
+</span>// Create a new tuple with the elements (0, 1, 2)
+let t = PyTuple::new_bound(py, [0, 1, 2]);
+for i in 0..=2 {
+    let entry: Borrowed&lt;'_, 'py, PyAny&gt; = t.get_borrowed_item(i)?;
+    // `PyAnyMethods::extract` is available on `Borrowed`
+    // via the dereference to `Bound`
+    let value: usize = entry.extract()?;
+    assert_eq!(i, value);
+}
+<span class="boring">Ok(())
+</span><span class="boring">}
+</span><span class="boring">Python::with_gil(example).unwrap();</span></code></pre>
+<h2 id="concrete-python-types"><a class="header" href="#concrete-python-types">Concrete Python types</a></h2>
+<p>In all of <code>Py&lt;T&gt;</code>, <code>Bound&lt;'py, T&gt;</code>, and <code>Borrowed&lt;'a, 'py, T&gt;</code>, the type parameter <code>T</code> denotes the type of the Python object referred to by the smart pointer.</p>
+<p>This parameter <code>T</code> can be filled by:</p>
+<ul>
+<li><a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/struct.PyAny.html"><code>PyAny</code></a>, which represents any Python object,</li>
+<li>Native Python types such as <code>PyList</code>, <code>PyTuple</code>, and <code>PyDict</code>, and</li>
+<li><a href="class.html"><code>#[pyclass]</code></a> types defined from Rust</li>
+</ul>
+<p>The following subsections covers some further detail about how to work with these types:</p>
+<ul>
+<li>the APIs that are available for these concrete types,</li>
+<li>how to cast <code>Bound&lt;'py, T&gt;</code> to a specific concrete type, and</li>
+<li>how to get Rust data out of a <code>Bound&lt;'py, T&gt;</code>.</li>
+</ul>
+<h3 id="using-apis-for-concrete-python-types"><a class="header" href="#using-apis-for-concrete-python-types">Using APIs for concrete Python types</a></h3>
+<p>Each concrete Python type such as <code>PyAny</code>, <code>PyTuple</code> and <code>PyDict</code> exposes its API on the corresponding bound smart pointer <code>Bound&lt;'py, PyAny&gt;</code>, <code>Bound&lt;'py, PyTuple&gt;</code> and <code>Bound&lt;'py, PyDict&gt;</code>.</p>
+<p>Each type's API is exposed as a trait: <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyAnyMethods.html"><code>PyAnyMethods</code></a>, <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyTupleMethods.html"><code>PyTupleMethods</code></a>, <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyDictMethods.html"><code>PyDictMethods</code></a>, and so on for all concrete types. Using traits rather than associated methods on the <code>Bound</code> smart pointer is done for a couple of reasons:</p>
+<ul>
+<li>Clarity of documentation: each trait gets its own documentation page in the PyO3 API docs. If all methods were on the <code>Bound</code> smart pointer directly, the vast majority of PyO3's API would be on a single, extremely long, documentation page.</li>
+<li>Consistency: downstream code implementing Rust APIs for existing Python types can also follow this pattern of using a trait. Downstream code would not be allowed to add new associated methods directly on the <code>Bound</code> type.</li>
+<li>Future design: it is hoped that a future Rust with <a href="https://github.com/rust-lang/rust/issues/44874">arbitrary self types</a> will remove the need for these traits in favour of placing the methods directly on <code>PyAny</code>, <code>PyTuple</code>, <code>PyDict</code>, and so on.</li>
+</ul>
+<p>These traits are all included in the <code>pyo3::prelude</code> module, so with the glob import <code>use pyo3::prelude::*</code> the full PyO3 API is made available to downstream code.</p>
+<p>The following function accesses the first item in the input Python list, using the <code>.get_item()</code> method from the <code>PyListMethods</code> trait:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+use pyo3::types::PyList;
+
+fn get_first_item&lt;'py&gt;(list: &amp;Bound&lt;'py, PyList&gt;) -&gt; PyResult&lt;Bound&lt;'py, PyAny&gt;&gt; {
+    list.get_item(0)
+}
+<span class="boring">Python::with_gil(|py| {
+</span><span class="boring">    let l = PyList::new_bound(py, ["hello world"]);
+</span><span class="boring">    assert!(get_first_item(&amp;l).unwrap().eq("hello world").unwrap());
+</span><span class="boring">})</span></code></pre>
+<h3 id="casting-between-python-object-types"><a class="header" href="#casting-between-python-object-types">Casting between Python object types</a></h3>
+<p>To cast <code>Bound&lt;'py, T&gt;</code> smart pointers to some other type, use the <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast"><code>.downcast()</code></a> family of functions. This converts <code>&amp;Bound&lt;'py, T&gt;</code> to a different <code>&amp;Bound&lt;'py, U&gt;</code>, without transferring ownership. There is also <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyAnyMethods.html#tymethod.downcast_into"><code>.downcast_into()</code></a> to convert <code>Bound&lt;'py, T&gt;</code> to <code>Bound&lt;'py, U&gt;</code> with transfer of ownership. These methods are available for all types <code>T</code> which implement the <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/type_object/trait.PyTypeCheck.html"><code>PyTypeCheck</code></a> trait.</p>
+<p>Casting to <code>Bound&lt;'py, PyAny&gt;</code> can be done with <code>.as_any()</code> or <code>.into_any()</code>.</p>
+<p>For example, the following snippet shows how to cast <code>Bound&lt;'py, PyAny&gt;</code> to <code>Bound&lt;'py, PyTuple&gt;</code>:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyTuple;
+</span><span class="boring">fn example&lt;'py&gt;(py: Python&lt;'py&gt;) -&gt; PyResult&lt;()&gt; {
+</span>// create a new Python `tuple`, and use `.into_any()` to erase the type
+let obj: Bound&lt;'py, PyAny&gt; = PyTuple::empty_bound(py).into_any();
+
+// use `.downcast()` to cast to `PyTuple` without transferring ownership
+let _: &amp;Bound&lt;'py, PyTuple&gt; = obj.downcast()?;
+
+// use `.downcast_into()` to cast to `PyTuple` with transfer of ownership
+let _: Bound&lt;'py, PyTuple&gt; = obj.downcast_into()?;
+<span class="boring">Ok(())
+</span><span class="boring">}
+</span><span class="boring">Python::with_gil(example).unwrap()</span></code></pre>
+<p>Custom <a href="class.html"><code>#[pyclass]</code></a> types implement <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/type_object/trait.PyTypeCheck.html"><code>PyTypeCheck</code></a>, so <code>.downcast()</code> also works for these types. The snippet below is the same as the snippet above casting instead to a custom type <code>MyClass</code>:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+#[pyclass]
+struct MyClass {}
+
+<span class="boring">fn example&lt;'py&gt;(py: Python&lt;'py&gt;) -&gt; PyResult&lt;()&gt; {
+</span>// create a new Python `tuple`, and use `.into_any()` to erase the type
+let obj: Bound&lt;'py, PyAny&gt; = Bound::new(py, MyClass {})?.into_any();
+
+// use `.downcast()` to cast to `MyClass` without transferring ownership
+let _: &amp;Bound&lt;'py, MyClass&gt; = obj.downcast()?;
+
+// use `.downcast_into()` to cast to `MyClass` with transfer of ownership
+let _: Bound&lt;'py, MyClass&gt; = obj.downcast_into()?;
+<span class="boring">Ok(())
+</span><span class="boring">}
+</span><span class="boring">Python::with_gil(example).unwrap()</span></code></pre>
+<h3 id="extracting-rust-data-from-python-objects"><a class="header" href="#extracting-rust-data-from-python-objects">Extracting Rust data from Python objects</a></h3>
+<p>To extract Rust data from Python objects, use <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/trait.PyAnyMethods.html#tymethod.extract"><code>.extract()</code></a> instead of <code>.downcast()</code>. This method is available for all types which implement the [<code>FromPyObject</code>] trait.</p>
+<p>For example, the following snippet extracts a Rust tuple of integers from a Python tuple:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyTuple;
+</span><span class="boring">fn example&lt;'py&gt;(py: Python&lt;'py&gt;) -&gt; PyResult&lt;()&gt; {
+</span>// create a new Python `tuple`, and use `.into_any()` to erase the type
+let obj: Bound&lt;'py, PyAny&gt; = PyTuple::new_bound(py, [1, 2, 3]).into_any();
+
+// extracting the Python `tuple` to a rust `(i32, i32, i32)` tuple
+let (x, y, z) = obj.extract::&lt;(i32, i32, i32)&gt;()?;
+assert_eq!((x, y, z), (1, 2, 3));
+<span class="boring">Ok(())
+</span><span class="boring">}
+</span><span class="boring">Python::with_gil(example).unwrap()</span></code></pre>
+<p>To avoid copying data, <a href="class.html"><code>#[pyclass]</code></a> types can directly reference Rust data stored within the Python objects without needing to <code>.extract()</code>. See the [corresponding documentation in the class section of the guide](./class.
+md#bound-and-interior-mutability) for more detail.</p>
+<h2 id="the-gil-refs-api"><a class="header" href="#the-gil-refs-api">The GIL Refs API</a></h2>
+<p>The GIL Refs API was PyO3's primary API prior to PyO3 0.21. The main difference was that instead of the <code>Bound&lt;'py, PyAny&gt;</code> smart pointer, the "GIL Reference" <code>&amp;'py PyAny</code> was used. (This was similar for other Python types.)</p>
+<p>As of PyO3 0.21, the GIL Refs API is deprecated. See the <a href="./migration.html#from-020-to-021">migration guide</a> for details on how to upgrade.</p>
+<p>The following sections note some historical detail about the GIL Refs API.</p>
+<h3 id="pyany"><a class="header" href="#pyany"><a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/struct.PyAny.html"><code>PyAny</code></a></a></h3>
+<p><strong>Represented:</strong> a Python object of unspecified type. In the GIL Refs API, this was only accessed as the GIL Ref <code>&amp;'py PyAny</code>.</p>
+<p><strong>Used:</strong> <code>&amp;'py PyAny</code> was used to refer to some Python object when the GIL lifetime was available for the whole duration access was needed. For example, intermediate values and arguments to <code>pyfunction</code>s or <code>pymethod</code>s implemented in Rust where any type is allowed.</p>
+<p><strong>Conversions:</strong></p>
+<p>For a <code>&amp;PyAny</code> object reference <code>any</code> where the underlying object is a Python-native type such as
+a list:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyList;
+</span><span class="boring">Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+</span>#[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
+let obj: &amp;PyAny = PyList::empty(py);
+
+// To &amp;PyList with PyAny::downcast
+let _: &amp;PyList = obj.downcast()?;
+
+// To Py&lt;PyAny&gt; (aka PyObject) with .into()
+let _: Py&lt;PyAny&gt; = obj.into();
+
+// To Py&lt;PyList&gt; with PyAny::extract
+let _: Py&lt;PyList&gt; = obj.extract()?;
+<span class="boring">Ok(())
+</span><span class="boring">}).unwrap();</span></code></pre>
+<p>For a <code>&amp;PyAny</code> object reference <code>any</code> where the underlying object is a <code>#[pyclass]</code>:</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">#[pyclass] #[derive(Clone)] struct MyClass { }
+</span><span class="boring">Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+</span>#[allow(deprecated)] // into_ref is part of the deprecated GIL Refs API
+let obj: &amp;PyAny = Py::new(py, MyClass {})?.into_ref(py);
+
+// To &amp;PyCell&lt;MyClass&gt; with PyAny::downcast
+#[allow(deprecated)] // &amp;PyCell is part of the deprecated GIL Refs API
+let _: &amp;PyCell&lt;MyClass&gt; = obj.downcast()?;
+
+// To Py&lt;PyAny&gt; (aka PyObject) with .into()
+let _: Py&lt;PyAny&gt; = obj.into();
+
+// To Py&lt;MyClass&gt; with PyAny::extract
+let _: Py&lt;MyClass&gt; = obj.extract()?;
+
+// To MyClass with PyAny::extract, if MyClass: Clone
+let _: MyClass = obj.extract()?;
+
+// To PyRef&lt;'_, MyClass&gt; or PyRefMut&lt;'_, MyClass&gt; with PyAny::extract
+let _: PyRef&lt;'_, MyClass&gt; = obj.extract()?;
+let _: PyRefMut&lt;'_, MyClass&gt; = obj.extract()?;
+<span class="boring">Ok(())
+</span><span class="boring">}).unwrap();</span></code></pre>
+<h3 id="pytuple-pydict-and-many-more"><a class="header" href="#pytuple-pydict-and-many-more"><code>PyTuple</code>, <code>PyDict</code>, and many more</a></h3>
+<p><strong>Represented:</strong> a native Python object of known type. In the GIL Refs API, they were only accessed as the GIL Refs <code>&amp;'py PyTuple</code>, <code>&amp;'py PyDict</code>.</p>
+<p><strong>Used:</strong> <code>&amp;'py PyTuple</code> and similar were used to operate with native Python types while holding the GIL. Like <code>PyAny</code>, this is the most convenient form to use for function arguments and intermediate values.</p>
+<p>These GIL Refs implement <code>Deref&lt;Target = PyAny&gt;</code>, so they all expose the same methods which can be found on <code>PyAny</code>.</p>
+<p>To see all Python types exposed by <code>PyO3</code> consult the <a href="https://docs.rs/pyo3/0.21.0-beta.0/pyo3/types/index.html"><code>pyo3::types</code></a> module.</p>
+<p><strong>Conversions:</strong></p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyList;
+</span><span class="boring">Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+</span>#[allow(deprecated)] // PyList::empty is part of the deprecated "GIL Refs" API.
+let list = PyList::empty(py);
+
+// Use methods from PyAny on all Python types with Deref implementation
+let _ = list.repr()?;
+
+// To &amp;PyAny automatically with Deref implementation
+let _: &amp;PyAny = list;
+
+// To &amp;PyAny explicitly with .as_ref()
+#[allow(deprecated)] // as_ref is part of the deprecated "GIL Refs" API.
+let _: &amp;PyAny = list.as_ref();
+
+// To Py&lt;T&gt; with .into() or Py::from()
+let _: Py&lt;PyList&gt; = list.into();
+
+// To PyObject with .into() or .to_object(py)
+let _: PyObject = list.into();
+<span class="boring">Ok(())
+</span><span class="boring">}).unwrap();</span></code></pre>
+<h3 id="pyt-and-pyobject-1"><a class="header" href="#pyt-and-pyobject-1"><code>Py&lt;T&gt;</code> and <code>PyObject</code></a></h3>
+<p><strong>Represented:</strong> a GIL-independent reference to a Python object. This can be a Python native type
+(like <code>PyTuple</code>), or a <code>pyclass</code> type implemented in Rust. The most commonly-used variant,
+<code>Py&lt;PyAny&gt;</code>, is also known as <code>PyObject</code>.</p>
+<p><strong>Used:</strong> Whenever you want to carry around references to a Python object without caring about a
+GIL lifetime.  For example, storing Python object references in a Rust struct that outlives the
+Python-Rust FFI boundary, or returning objects from functions implemented in Rust back to Python.</p>
+<p>Can be cloned using Python reference counts with <code>.clone()</code>.</p>
+<h3 id="pycellsometype"><a class="header" href="#pycellsometype"><code>PyCell&lt;SomeType&gt;</code></a></h3>
+<p><strong>Represented:</strong> a reference to a Rust object (instance of <code>PyClass</code>) wrapped in a Python object.  The cell part is an analog to stdlib's <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a> to allow access to <code>&amp;mut</code> references.</p>
+<p><strong>Used:</strong> for accessing pure-Rust API of the instance (members and functions taking <code>&amp;SomeType</code> or <code>&amp;mut SomeType</code>) while maintaining the aliasing rules of Rust references.</p>
+<p>Like PyO3's Python native types, the GIL Ref <code>&amp;PyCell&lt;T&gt;</code> implements <code>Deref&lt;Target = PyAny&gt;</code>, so it also exposed all of the methods on <code>PyAny</code>.</p>
+<p><strong>Conversions:</strong></p>
+<p><code>PyCell&lt;T&gt;</code> was used to access <code>&amp;T</code> and <code>&amp;mut T</code> via <code>PyRef&lt;T&gt;</code> and <code>PyRefMut&lt;T&gt;</code> respectively.</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">#[pyclass] struct MyClass { }
+</span><span class="boring">Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+</span>#[allow(deprecated)] // &amp;PyCell is part of the deprecated GIL Refs API
+let cell: &amp;PyCell&lt;MyClass&gt; = PyCell::new(py, MyClass {})?;
+
+// To PyRef&lt;T&gt; with .borrow() or .try_borrow()
+let py_ref: PyRef&lt;'_, MyClass&gt; = cell.try_borrow()?;
+let _: &amp;MyClass = &amp;*py_ref;
+<span class="boring">drop(py_ref);
+</span>
+// To PyRefMut&lt;T&gt; with .borrow_mut() or .try_borrow_mut()
+let mut py_ref_mut: PyRefMut&lt;'_, MyClass&gt; = cell.try_borrow_mut()?;
+let _: &amp;mut MyClass = &amp;mut *py_ref_mut;
+<span class="boring">Ok(())
+</span><span class="boring">}).unwrap();</span></code></pre>
+<p><code>PyCell&lt;T&gt;</code> was also accessed like a Python-native type.</p>
+<pre><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">#[pyclass] struct MyClass { }
+</span><span class="boring">Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+</span>#[allow(deprecated)] // &amp;PyCell is part of the deprecate GIL Refs API
+let cell: &amp;PyCell&lt;MyClass&gt; = PyCell::new(py, MyClass {})?;
+
+// Use methods from PyAny on PyCell&lt;T&gt; with Deref implementation
+let _ = cell.repr()?;
+
+// To &amp;PyAny automatically with Deref implementation
+let _: &amp;PyAny = cell;
+
+// To &amp;PyAny explicitly with .as_ref()
+#[allow(deprecated)] // as_ref is part of the deprecated "GIL Refs" API.
+let _: &amp;PyAny = cell.as_ref();
+<span class="boring">Ok(())
+</span><span class="boring">}).unwrap();</span></code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="python-from-rust.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="exception.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="python-from-rust.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="exception.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

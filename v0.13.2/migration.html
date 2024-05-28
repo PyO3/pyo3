@@ -1,0 +1,711 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Appendix A: Migration Guide - PyO3 user guide</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="favicon.png">
+        
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        
+        <link rel="stylesheet" href="css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">1.</strong> Python Modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">2.</strong> Python Functions</a></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">3.</strong> Python Classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">3.1.</strong> Class customizations</a></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">4.</strong> Type Conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">5.</strong> Python Exceptions</a></li><li class="chapter-item expanded "><a href="python_from_rust.html"><strong aria-hidden="true">6.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">7.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">8.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">9.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">10.</strong> Features Reference</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">11.</strong> Advanced Topics</a></li><li class="chapter-item expanded "><a href="building_and_distribution.html"><strong aria-hidden="true">12.</strong> Building and Distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building_and_distribution/pypy.html"><strong aria-hidden="true">12.1.</strong> PyPy support</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">13.</strong> Useful Crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">13.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">13.2.</strong> Async / Await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">14.</strong> FAQ &amp; Troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html" class="active">Appendix A: Migration Guide</a></li><li class="chapter-item expanded affix "><a href="rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#migrating-from-older-pyo3-versions" id="migrating-from-older-pyo3-versions">Migrating from older PyO3 versions</a></h1>
+<p>This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
+For a detailed list of all changes, see the <a href="changelog.html">CHANGELOG</a>.</p>
+<h2><a class="header" href="#from-012-to-013" id="from-012-to-013">from 0.12.* to 0.13</a></h2>
+<h3><a class="header" href="#minimum-rust-version-increased-to-rust-145" id="minimum-rust-version-increased-to-rust-145">Minimum Rust version increased to Rust 1.45</a></h3>
+<p>PyO3 <code>0.13</code> makes use of new Rust language features stabilised between Rust 1.40 and Rust 1.45. If you are using a Rust compiler older than Rust 1.45, you will need to update your toolchain to be able to continue using PyO3.</p>
+<h3><a class="header" href="#runtime-changes-to-support-the-cpython-limited-api" id="runtime-changes-to-support-the-cpython-limited-api">Runtime changes to support the CPython limited API</a></h3>
+<p>In PyO3 <code>0.13</code> support was added for compiling against the CPython limited API. This had a number of implications for <em>all</em> PyO3 users, described here.</p>
+<p>The largest of these is that all types created from PyO3 are what CPython calls &quot;heap&quot; types. The specific implications of this are:</p>
+<ul>
+<li>If you wish to subclass one of these types <em>from Rust</em> you must mark it <code>#[pyclass(subclass)]</code>, as you would if you wished to allow subclassing it from Python code.</li>
+<li>Type objects are now mutable - Python code can set attributes on them.</li>
+<li><code>__module__</code> on types without <code>#[pyclass(module=&quot;mymodule&quot;)]</code> no longer returns <code>builtins</code>, it now raises <code>AttributeError</code>.</li>
+</ul>
+<h2><a class="header" href="#from-011-to-012" id="from-011-to-012">from 0.11.* to 0.12</a></h2>
+<h3><a class="header" href="#pyerr-has-been-reworked" id="pyerr-has-been-reworked"><code>PyErr</code> has been reworked</a></h3>
+<p>In PyO3 <code>0.12</code> the <code>PyErr</code> type has been re-implemented to be significantly more compatible with
+the standard Rust error handling ecosystem. Specificially <code>PyErr</code> now implements
+<code>Error + Send + Sync</code>, which are the standard traits used for error types.</p>
+<p>While this has necessitated the removal of a number of APIs, the resulting <code>PyErr</code> type should now
+be much more easier to work with. The following sections list the changes in detail and how to
+migrate to the new APIs.</p>
+<h4><a class="header" href="#pyerrnew-and-pyerrfrom_type-now-require-send--sync-for-their-argument" id="pyerrnew-and-pyerrfrom_type-now-require-send--sync-for-their-argument"><code>PyErr::new</code> and <code>PyErr::from_type</code> now require <code>Send + Sync</code> for their argument</a></h4>
+<p>For most uses no change will be needed. If you are trying to construct <code>PyErr</code> from a value that is
+not <code>Send + Sync</code>, you will need to first create the Python object and then use
+<code>PyErr::from_instance</code>.</p>
+<p>Similarly, any types which implemented <code>PyErrArguments</code> will now need to be <code>Send + Sync</code>.</p>
+<h4><a class="header" href="#pyerrs-contents-are-now-private" id="pyerrs-contents-are-now-private"><code>PyErr</code>'s contents are now private</a></h4>
+<p>It is no longer possible to access the fields <code>.ptype</code>, <code>.pvalue</code> and <code>.ptraceback</code> of a <code>PyErr</code>.
+You should instead now use the new methods <code>PyErr::ptype()</code>, <code>PyErr::pvalue()</code> and <code>PyErr::ptraceback()</code>.</p>
+<h4><a class="header" href="#pyerrvalue-and-pyerrfrom_value-have-been-removed" id="pyerrvalue-and-pyerrfrom_value-have-been-removed"><code>PyErrValue</code> and <code>PyErr::from_value</code> have been removed</a></h4>
+<p>As these were part the internals of <code>PyErr</code> which have been reworked, these APIs no longer exist.</p>
+<p>If you used this API, it is recommended to use <code>PyException::new_err</code> (see <a href="#exception-types-have-been-reworked">the section on
+Exception types</a>).</p>
+<h4><a class="header" href="#intopyresultt-for-pyerr-has-been-removed" id="intopyresultt-for-pyerr-has-been-removed"><code>Into&lt;PyResult&lt;T&gt;&gt;</code> for <code>PyErr</code> has been removed</a></h4>
+<p>This implementation was redundant. Just construct the <code>Result::Err</code> variant directly.</p>
+<p>Before:</p>
+<pre><code class="language-rust ignore">let result: PyResult&lt;()&gt; = PyErr::new::&lt;TypeError, _&gt;(&quot;error message&quot;).into();
+</code></pre>
+<p>After (also using the new reworked exception types; see the following section):</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::{PyErr, PyResult, exceptions::PyTypeError};
+</span>let result: PyResult&lt;()&gt; = Err(PyTypeError::new_err(&quot;error message&quot;));
+<span class="boring">}
+</span></code></pre></pre>
+<h3><a class="header" href="#exception-types-have-been-reworked" id="exception-types-have-been-reworked">Exception types have been reworked</a></h3>
+<p>Previously exception types were zero-sized marker types purely used to construct <code>PyErr</code>. In PyO3
+0.12, these types have been replaced with full definitions and are usable in the same way as <code>PyAny</code>, <code>PyDict</code> etc. This
+makes it possible to interact with Python exception objects.</p>
+<p>The new types also have names starting with the &quot;Py&quot; prefix. For example, before:</p>
+<pre><code class="language-rust ignore">let err: PyErr = TypeError::py_err(&quot;error message&quot;);
+</code></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::{PyErr, PyResult, Python, type_object::PyTypeObject};
+</span><span class="boring">use pyo3::exceptions::{PyBaseException, PyTypeError};
+</span><span class="boring">Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+</span>let err: PyErr = PyTypeError::new_err(&quot;error message&quot;);
+
+// Uses Display for PyErr, new for PyO3 0.12
+assert_eq!(err.to_string(), &quot;TypeError: error message&quot;);
+
+// Now possible to interact with exception instances, new for PyO3 0.12
+let instance: &amp;PyBaseException = err.instance(py);
+assert_eq!(instance.getattr(&quot;__class__&quot;)?, PyTypeError::type_object(py).as_ref());
+<span class="boring">Ok(())
+</span><span class="boring">}).unwrap();
+</span><span class="boring">}
+</span></code></pre></pre>
+<h3><a class="header" href="#frompy-has-been-removed" id="frompy-has-been-removed"><code>FromPy</code> has been removed</a></h3>
+<p>To simplify the PyO3 conversion traits, the <code>FromPy</code> trait has been removed. Previously there were
+two ways to define the to-Python conversion for a type:
+<code>FromPy&lt;T&gt; for PyObject</code> and <code>IntoPy&lt;PyObject&gt; for T</code>.</p>
+<p>Now there is only one way to define the conversion, <code>IntoPy</code>, so downstream crates may need to
+adjust accordingly.</p>
+<p>Before:</p>
+<pre><code class="language-rust ignore"><span class="boring">use pyo3::prelude::*;
+</span>struct MyPyObjectWrapper(PyObject);
+
+impl FromPy&lt;MyPyObjectWrapper&gt; for PyObject {
+    fn from_py(other: MyPyObjectWrapper, _py: Python) -&gt; Self {
+        other.0
+    }
+}
+</code></pre>
+<p>After</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span>struct MyPyObjectWrapper(PyObject);
+
+impl IntoPy&lt;PyObject&gt; for MyPyObjectWrapper {
+    fn into_py(self, _py: Python) -&gt; PyObject {
+        self.0
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Similarly, code which was using the <code>FromPy</code> trait can be trivially rewritten to use <code>IntoPy</code>.</p>
+<p>Before:</p>
+<pre><code class="language-rust ignore"><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">Python::with_gil(|py| {
+</span>let obj = PyObject::from_py(1.234, py);
+<span class="boring">})
+</span></code></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">Python::with_gil(|py| {
+</span>let obj: PyObject = 1.234.into_py(py);
+<span class="boring">})
+</span><span class="boring">}
+</span></code></pre></pre>
+<h3><a class="header" href="#pyobject-is-now-a-type-alias-of-pypyany" id="pyobject-is-now-a-type-alias-of-pypyany"><code>PyObject</code> is now a type alias of <code>Py&lt;PyAny&gt;</code></a></h3>
+<p>This should change very little from a usage perspective. If you implemented traits for both
+<code>PyObject</code> and <code>Py&lt;T&gt;</code>, you may find you can just remove the <code>PyObject</code> implementation.</p>
+<h3><a class="header" href="#aspyref-has-been-removed" id="aspyref-has-been-removed"><code>AsPyRef</code> has been removed</a></h3>
+<p>As <code>PyObject</code> has been changed to be just a type alias, the only remaining implementor of <code>AsPyRef</code>
+was <code>Py&lt;T&gt;</code>. This removed the need for a trait, so the <code>AsPyRef::as_ref</code> method has been moved to
+<code>Py::as_ref</code>.</p>
+<p>This should require no code changes except removing <code>use pyo3::AsPyRef</code> for code which did not use
+<code>pyo3::prelude::*</code>.</p>
+<p>Before:</p>
+<pre><code class="language-rust ignore">use pyo3::{AsPyRef, Py, types::PyList};
+<span class="boring">pyo3::Python::with_gil(|py| {
+</span>let list_py: Py&lt;PyList&gt; = PyList::empty(py).into();
+let list_ref: &amp;PyList = list_py.as_ref(py);
+<span class="boring">})
+</span></code></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::{Py, types::PyList};
+<span class="boring">pyo3::Python::with_gil(|py| {
+</span>let list_py: Py&lt;PyList&gt; = PyList::empty(py).into();
+let list_ref: &amp;PyList = list_py.as_ref(py);
+<span class="boring">})
+</span><span class="boring">}
+</span></code></pre></pre>
+<h2><a class="header" href="#from-010-to-011" id="from-010-to-011">from 0.10.* to 0.11</a></h2>
+<h3><a class="header" href="#stable-rust" id="stable-rust">Stable Rust</a></h3>
+<p>PyO3 now supports the stable Rust toolchain. The minimum required version is 1.39.0.</p>
+<h3><a class="header" href="#pyclass-structs-must-now-be-send-or-unsendable" id="pyclass-structs-must-now-be-send-or-unsendable"><code>#[pyclass]</code> structs must now be <code>Send</code> or <code>unsendable</code></a></h3>
+<p>Because <code>#[pyclass]</code> structs can be sent between threads by the Python interpreter, they must implement
+<code>Send</code> or declared as <code>unsendable</code> (by <code>#[pyclass(unsendable)]</code>).
+Note that <code>unsendable</code> is added in PyO3 <code>0.11.1</code> and <code>Send</code> is always required in PyO3 <code>0.11.0</code>.</p>
+<p>This may &quot;break&quot; some code which previously was accepted, even though it could be unsound.
+There can be two fixes:</p>
+<ol>
+<li>
+<p>If you think that your <code>#[pyclass]</code> actually must be <code>Send</code>able, then let's implement <code>Send</code>.
+A common, safer way is using thread-safe types. E.g., <code>Arc</code> instead of <code>Rc</code>, <code>Mutex</code> instead of
+<code>RefCell</code>, and <code>Box&lt;dyn Send + T&gt;</code> instead of <code>Box&lt;dyn T&gt;</code>.</p>
+<p>Before:</p>
+<pre><pre class="playground"><code class="language-rust compile_fail">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+use std::rc::Rc;
+use std::cell::RefCell;
+
+#[pyclass]
+struct NotThreadSafe {
+    shared_bools: Rc&lt;RefCell&lt;Vec&lt;bool&gt;&gt;&gt;,
+    closure: Box&lt;dyn Fn()&gt;
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+use std::sync::{Arc, Mutex};
+
+#[pyclass]
+struct ThreadSafe {
+    shared_bools: Arc&lt;Mutex&lt;Vec&lt;bool&gt;&gt;&gt;,
+    closure: Box&lt;dyn Fn() + Send&gt;
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In situations where you cannot change your <code>#[pyclass]</code> to automatically implement <code>Send</code>
+(e.g., when it contains a raw pointer), you can use <code>unsafe impl Send</code>.
+In such cases, care should be taken to ensure the struct is actually thread safe.
+See <a href="https://doc.rust-lang.org/nomicon/send-and-sync.html">the Rustnomicon</a> for more.</p>
+</li>
+<li>
+<p>If you think that your <code>#[pyclass]</code> should not be accessed by another thread, you can use
+<code>unsendable</code> flag. A class marked with <code>unsendable</code> panics when accessed by another thread,
+making it thread-safe to expose an unsendable object to the Python interpreter.</p>
+<p>Before:</p>
+<pre><pre class="playground"><code class="language-rust compile_fail">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+#[pyclass]
+struct Unsendable {
+    pointers: Vec&lt;*mut std::os::raw::c_char&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+#[pyclass(unsendable)]
+struct Unsendable {
+    pointers: Vec&lt;*mut std::os::raw::c_char&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+</li>
+</ol>
+<h3><a class="header" href="#all-pyobject-and-pyt-methods-now-take-python-as-an-argument" id="all-pyobject-and-pyt-methods-now-take-python-as-an-argument">All <code>PyObject</code> and <code>Py&lt;T&gt;</code> methods now take <code>Python</code> as an argument</a></h3>
+<p>Previously, a few methods such as <code>Object::get_refcnt</code> did not take <code>Python</code> as an argument (to
+ensure that the Python GIL was held by the current thread). Technically, this was not sound.
+To migrate, just pass a <code>py</code> argument to any calls to these methods.</p>
+<p>Before:</p>
+<pre><pre class="playground"><code class="language-rust compile_fail">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+let gil = Python::acquire_gil();
+let py = gil.python();
+
+py.None().get_refcnt();
+<span class="boring">}
+</span></code></pre></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+let gil = Python::acquire_gil();
+let py = gil.python();
+
+py.None().get_refcnt(py);
+<span class="boring">}
+</span></code></pre></pre>
+<h2><a class="header" href="#from-09-to-010" id="from-09-to-010">from 0.9.* to 0.10</a></h2>
+<h3><a class="header" href="#objectprotocol-is-removed" id="objectprotocol-is-removed"><code>ObjectProtocol</code> is removed</a></h3>
+<p>All methods are moved to <a href="https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html"><code>PyAny</code></a>.
+And since now all native types (e.g., <code>PyList</code>) implements <code>Deref&lt;Target=PyAny&gt;</code>,
+all you need to do is remove <code>ObjectProtocol</code> from your code.
+Or if you use <code>ObjectProtocol</code> by <code>use pyo3::prelude::*</code>, you have to do nothing.</p>
+<p>Before:</p>
+<pre><pre class="playground"><code class="language-rust compile_fail">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::ObjectProtocol;
+
+let gil = pyo3::Python::acquire_gil();
+let obj = gil.python().eval(&quot;lambda: 'Hi :)'&quot;, None, None).unwrap();
+let hi: &amp;pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
+assert_eq!(hi.len().unwrap(), 5);
+<span class="boring">}
+</span></code></pre></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let gil = pyo3::Python::acquire_gil();
+let obj = gil.python().eval(&quot;lambda: 'Hi :)'&quot;, None, None).unwrap();
+let hi: &amp;pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
+assert_eq!(hi.len().unwrap(), 5);
+<span class="boring">}
+</span></code></pre></pre>
+<h3><a class="header" href="#no-featurespecialization-in-user-code" id="no-featurespecialization-in-user-code">No <code>#![feature(specialization)]</code> in user code</a></h3>
+<p>While PyO3 itself still requires specialization and nightly Rust,
+now you don't have to use <code>#![feature(specialization)]</code> in your crate.</p>
+<h2><a class="header" href="#from-08-to-09" id="from-08-to-09">from 0.8.* to 0.9</a></h2>
+<h3><a class="header" href="#new-interface" id="new-interface"><code>#[new]</code> interface</a></h3>
+<p><a href="https://docs.rs/pyo3/0.8.5/pyo3/type_object/struct.PyRawObject.html"><code>PyRawObject</code></a>
+is now removed and our syntax for constructors has changed.</p>
+<p>Before:</p>
+<pre><pre class="playground"><code class="language-rust compile_fail">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[pyclass]
+struct MyClass {}
+
+#[pymethods]
+impl MyClass {
+   #[new]
+   fn new(obj: &amp;PyRawObject) {
+       obj.init(MyClass { })
+   }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span>#[pyclass]
+struct MyClass {}
+
+#[pymethods]
+impl MyClass {
+   #[new]
+   fn new() -&gt; Self {
+       MyClass {}
+   }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Basically you can return <code>Self</code> or <code>Result&lt;Self&gt;</code> directly.
+For more, see <a href="class.html#constructor">the constructor section</a> of this guide.</p>
+<h3><a class="header" href="#pycell" id="pycell">PyCell</a></h3>
+<p>PyO3 0.9 introduces <a href="https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html"><code>PyCell</code></a>, which is a <a href="https://doc.rust-lang.org/std/cell/struct.RefCell.html"><code>RefCell</code></a>-like object wrapper
+for ensuring Rust's rules regarding aliasing of references are upheld.
+For more detail, see the
+<a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references">Rust Book's section on Rust's rules of references</a></p>
+<p>For <code>#[pymethods]</code> or <code>#[pyfunction]</code>s, your existing code should continue to work without any change.
+Python exceptions will automatically be raised when your functions are used in a way which breaks Rust's
+rules of references.</p>
+<p>Here is an example.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span>#[pyclass]
+struct Names {
+    names: Vec&lt;String&gt;
+}
+
+#[pymethods]
+impl Names {
+    #[new]
+    fn new() -&gt; Self {
+        Names { names: vec![] }
+    }
+    fn merge(&amp;mut self, other: &amp;mut Names) {
+        self.names.append(&amp;mut other.names)
+    }
+}
+<span class="boring">let gil = Python::acquire_gil();
+</span><span class="boring">let py = gil.python();
+</span><span class="boring">let names = PyCell::new(py, Names::new()).unwrap();
+</span><span class="boring">pyo3::py_run!(py, names, r&quot;
+</span><span class="boring">try:
+</span><span class="boring">   names.merge(names)
+</span><span class="boring">   assert False, 'Unreachable'
+</span><span class="boring">except RuntimeError as e:
+</span><span class="boring">   assert str(e) == 'Already borrowed'
+</span><span class="boring">&quot;);
+</span><span class="boring">}
+</span></code></pre></pre>
+<p><code>Names</code> has a <code>merge</code> method, which takes <code>&amp;mut self</code> and another argument of type <code>&amp;mut Self</code>.
+Given this <code>#[pyclass]</code>, calling <code>names.merge(names)</code> in Python raises
+a <a href="https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyBorrowMutError.html"><code>PyBorrowMutError</code></a> exception, since it requires two mutable borrows of <code>names</code>.</p>
+<p>However, for <code>#[pyproto]</code> and some functions, you need to manually fix the code.</p>
+<h4><a class="header" href="#object-creation" id="object-creation">Object creation</a></h4>
+<p>In 0.8 object creation was done with <code>PyRef::new</code> and <code>PyRefMut::new</code>.
+In 0.9 these have both been removed.
+To upgrade code, please use
+<a href="https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html#method.new"><code>PyCell::new</code></a> instead.
+If you need <a href="https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html"><code>PyRef</code></a> or <a href="https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html"><code>PyRefMut</code></a>, just call <code>.borrow()</code> or <code>.borrow_mut()</code>
+on the newly-created <code>PyCell</code>.</p>
+<p>Before:</p>
+<pre><pre class="playground"><code class="language-rust compile_fail">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct MyClass {}
+</span>let gil = Python::acquire_gil();
+let py = gil.python();
+let obj_ref = PyRef::new(py, MyClass {}).unwrap();
+<span class="boring">}
+</span></code></pre></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct MyClass {}
+</span>let gil = Python::acquire_gil();
+let py = gil.python();
+let obj = PyCell::new(py, MyClass {}).unwrap();
+let obj_ref = obj.borrow();
+<span class="boring">}
+</span></code></pre></pre>
+<h4><a class="header" href="#object-extraction" id="object-extraction">Object extraction</a></h4>
+<p>For <code>PyClass</code> types <code>T</code>, <code>&amp;T</code> and <code>&amp;mut T</code> no longer have <a href="https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html"><code>FromPyObject</code></a> implementations.
+Instead you should extract <code>PyRef&lt;T&gt;</code> or <code>PyRefMut&lt;T&gt;</code>, respectively.
+If <code>T</code> implements <code>Clone</code>, you can extract <code>T</code> itself.
+In addition, you can also extract <code>&amp;PyCell&lt;T&gt;</code>, though you rarely need it.</p>
+<p>Before:</p>
+<pre><code class="language-ignore">let obj: &amp;PyAny = create_obj();
+let obj_ref: &amp;MyClass = obj.extract().unwrap();
+let obj_ref_mut: &amp;mut MyClass = obj.extract().unwrap();
+</code></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::IntoPyDict;
+</span><span class="boring">#[pyclass] #[derive(Clone)] struct MyClass {}
+</span><span class="boring">#[pymethods] impl MyClass { #[new]fn new() -&gt; Self { MyClass {} }}
+</span><span class="boring">let gil = Python::acquire_gil();
+</span><span class="boring">let py = gil.python();
+</span><span class="boring">let typeobj = py.get_type::&lt;MyClass&gt;();
+</span><span class="boring">let d = [(&quot;c&quot;, typeobj)].into_py_dict(py);
+</span><span class="boring">let create_obj = || py.eval(&quot;c()&quot;, None, Some(d)).unwrap();
+</span>let obj: &amp;PyAny = create_obj();
+let obj_cell: &amp;PyCell&lt;MyClass&gt; = obj.extract().unwrap();
+let obj_cloned: MyClass = obj.extract().unwrap(); // extracted by cloning the object
+{
+    let obj_ref: PyRef&lt;MyClass&gt; = obj.extract().unwrap();
+    // we need to drop obj_ref before we can extract a PyRefMut due to Rust's rules of references
+}
+let obj_ref_mut: PyRefMut&lt;MyClass&gt; = obj.extract().unwrap();
+<span class="boring">}
+</span></code></pre></pre>
+<h4><a class="header" href="#pyproto" id="pyproto"><code>#[pyproto]</code></a></h4>
+<p>Most of the arguments to methods in <code>#[pyproto]</code> impls require a
+<a href="https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html"><code>FromPyObject</code></a> implementation.
+So if your protocol methods take <code>&amp;T</code> or <code>&amp;mut T</code> (where <code>T: PyClass</code>),
+please use <a href="https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html"><code>PyRef</code></a> or <a href="https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html"><code>PyRefMut</code></a> instead.</p>
+<p>Before:</p>
+<pre><pre class="playground"><code class="language-rust compile_fail">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::class::PySequenceProtocol;
+</span>#[pyclass]
+struct ByteSequence {
+    elements: Vec&lt;u8&gt;,
+}
+#[pyproto]
+impl PySequenceProtocol for ByteSequence {
+    fn __concat__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        let mut elements = self.elements.clone();
+        elements.extend_from_slice(&amp;other.elements);
+        Ok(Self { elements })
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>After:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::class::PySequenceProtocol;
+</span>#[pyclass]
+struct ByteSequence {
+    elements: Vec&lt;u8&gt;,
+}
+#[pyproto]
+impl PySequenceProtocol for ByteSequence {
+    fn __concat__(&amp;self, other: PyRef&lt;'p, Self&gt;) -&gt; PyResult&lt;Self&gt; {
+        let mut elements = self.elements.clone();
+        elements.extend_from_slice(&amp;other.elements);
+        Ok(Self { elements })
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="faq.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="rust_cpython.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="faq.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="rust_cpython.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

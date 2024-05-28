@@ -1,0 +1,323 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Contributing - PyO3 user guide</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">2.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">3.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="function/signature.html"><strong aria-hidden="true">3.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="function/error_handling.html"><strong aria-hidden="true">3.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">4.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">4.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/object.html"><strong aria-hidden="true">4.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="class/numeric.html"><strong aria-hidden="true">4.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="class/call.html"><strong aria-hidden="true">4.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">5.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">5.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">5.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">6.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="python_from_rust.html"><strong aria-hidden="true">7.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">8.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">9.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">10.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">11.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="memory.html"><strong aria-hidden="true">12.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">13.</strong> Performance</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">14.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="building_and_distribution.html"><strong aria-hidden="true">15.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">15.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">16.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">16.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">16.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">17.</strong> FAQ and troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="python_typing_hints.html">Appendix D: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="contributing.html" class="active">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/contributing.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="contributing"><a class="header" href="#contributing">Contributing</a></h1>
+<p>Thank you for your interest in contributing to PyO3! All are welcome - please consider reading our <a href="https://github.com/PyO3/pyo3/blob/main/Code-of-Conduct.md">Code of Conduct</a> to keep our community positive and inclusive.</p>
+<p>If you are searching for ideas how to contribute, proceed to the <a href="#getting-started-contributing">&quot;Getting started contributing&quot;</a> section. If you have found a specific issue to contribute to and need information about the development process, you may find the section <a href="#writing-pull-requests">&quot;Writing pull requests&quot;</a> helpful.</p>
+<p>If you want to become familiar with the codebase, see
+<a href="https://github.com/PyO3/pyo3/blob/main/Architecture.md">Architecture.md</a>.</p>
+<h2 id="getting-started-contributing"><a class="header" href="#getting-started-contributing">Getting started contributing</a></h2>
+<p>Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.</p>
+<p>You can browse the API of the non-public parts of PyO3 <a href="https://pyo3.netlify.app/internal/doc/pyo3/index.html">here</a>.</p>
+<p>The following sections also contain specific ideas on where to start contributing to PyO3.</p>
+<h2 id="setting-up-a-development-environment"><a class="header" href="#setting-up-a-development-environment">Setting up a development environment</a></h2>
+<p>To work and develop PyO3, you need Python &amp; Rust installed on your system.</p>
+<ul>
+<li>We encourage the use of <a href="https://rustup.rs/">rustup</a> to be able to select and choose specific toolchains based on the project.</li>
+<li><a href="https://github.com/pyenv/pyenv">Pyenv</a> is also highly recommended for being able to choose a specific Python version.</li>
+<li><a href="https://virtualenv.pypa.io/en/latest/">virtualenv</a> can also be used with or without Pyenv to use specific installed Python versions.</li>
+<li><a href="https://github.com/theacodes/nox"><code>nox</code></a> is used to automate many of our CI tasks.</li>
+</ul>
+<h3 id="caveats"><a class="header" href="#caveats">Caveats</a></h3>
+<ul>
+<li>When using pyenv on macOS, installing a Python version using <code>--enable-shared</code> is required to make it work. i.e <code>env PYTHON_CONFIGURE_OPTS=&quot;--enable-shared&quot; pyenv install 3.7.12</code></li>
+</ul>
+<h3 id="help-users-identify-bugs"><a class="header" href="#help-users-identify-bugs">Help users identify bugs</a></h3>
+<p>The <a href="https://gitter.im/PyO3/Lobby">PyO3 Gitter channel</a> is very active with users who are new to PyO3, and often completely new to Rust. Helping them debug is a great way to get experience with the PyO3 codebase.</p>
+<p>Helping others often reveals bugs, documentation weaknesses, and missing APIs. It's a good idea to open GitHub issues for these immediately so the resolution can be designed and implemented!</p>
+<h3 id="implement-issues-ready-for-development"><a class="header" href="#implement-issues-ready-for-development">Implement issues ready for development</a></h3>
+<p>Issues where the solution is clear and work is not in progress use the <a href="https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Aneeds-implemeter">needs-implementer</a> label.</p>
+<p>Don't be afraid if the solution is not clear to you! The core PyO3 contributors will be happy to mentor you through any questions you have to help you write the solution.</p>
+<h3 id="help-write-great-docs"><a class="header" href="#help-write-great-docs">Help write great docs</a></h3>
+<p>PyO3 has a user guide (using mdbook) as well as the usual Rust API docs. The aim is for both of these to be detailed, easy to understand, and up-to-date. Pull requests are always welcome to fix typos, change wording, add examples, etc.</p>
+<p>There are some specific areas of focus where help is currently needed for the documentation:</p>
+<ul>
+<li>Issues requesting documentation improvements are tracked with the <a href="https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation">documentation</a> label.</li>
+<li>Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs (<a href="https://github.com/PyO3/pyo3/issues/306">#306</a>). If you see an API lacking a doc, please write one and open a PR!</li>
+</ul>
+<p>You can build the docs (including all features) with</p>
+<pre><code class="language-shell">nox -s docs -- open
+</code></pre>
+<h4 id="doctests"><a class="header" href="#doctests">Doctests</a></h4>
+<p>We use lots of code blocks in our docs. Run <code>cargo test --doc</code> when making changes to check that
+the doctests still work, or <code>cargo test</code> to run all the tests including doctests. See
+https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.</p>
+<h4 id="building-the-guide"><a class="header" href="#building-the-guide">Building the guide</a></h4>
+<p>You can preview the user guide by building it locally with <code>mdbook</code>.</p>
+<p>First, install <a href="https://rust-lang.github.io/mdBook/cli/index.html"><code>mdbook</code></a> and <a href="https://github.com/theacodes/nox"><code>nox</code></a>. Then, run</p>
+<pre><code class="language-shell">nox -s build-guide -- --open
+</code></pre>
+<h3 id="help-design-the-next-pyo3"><a class="header" href="#help-design-the-next-pyo3">Help design the next PyO3</a></h3>
+<p>Issues which don't yet have a clear solution use the <a href="https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Aneeds-design">needs-design</a> label.</p>
+<p>If any of these issues interest you, please join in with the conversation on the issue! All opinions are valued, and if you're interested in going further with e.g. draft PRs to experiment with API designs, even better!</p>
+<h3 id="review-pull-requests"><a class="header" href="#review-pull-requests">Review pull requests</a></h3>
+<p>Everybody is welcome to submit comments on open PRs. Please help ensure new PyO3 APIs are safe, performant, tidy, and easy to use!</p>
+<h2 id="writing-pull-requests"><a class="header" href="#writing-pull-requests">Writing pull requests</a></h2>
+<p>Here are a few things to note when you are writing PRs.</p>
+<h3 id="continuous-integration"><a class="header" href="#continuous-integration">Continuous Integration</a></h3>
+<p>The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful.</p>
+<p>Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using <code>RUSTFLAGS=&quot;-D warnings&quot;</code>).</p>
+<p>Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.</p>
+<p>If you are adding a new feature, you should add it to the <code>full</code> feature in our <em>Cargo.toml</em>* so that it is tested in CI.</p>
+<p>You can run these tests yourself with
+<code>nox</code>
+and
+<code>nox -l</code>
+lists further commands you can run.</p>
+<h3 id="documenting-changes"><a class="header" href="#documenting-changes">Documenting changes</a></h3>
+<p>We use <a href="https://towncrier.readthedocs.io/en/stable/index.html">towncrier</a> to generate a CHANGELOG for each release.</p>
+<p>To include your changes in the release notes, you should create one (or more) news items in the <code>newsfragments</code> directory. Valid news items should be saved as <code>&lt;PR&gt;.&lt;CATEGORY&gt;.md</code> where <code>&lt;PR&gt;</code> is the pull request number and <code>&lt;CATEGORY&gt;</code> is one of the following:</p>
+<ul>
+<li><code>packaging</code> - for dependency changes and Python / Rust version compatibility changes</li>
+<li><code>added</code> - for new features</li>
+<li><code>changed</code> - for features which already existed but have been altered or deprecated</li>
+<li><code>removed</code> - for features which have been removed</li>
+<li><code>fixed</code> - for &quot;changed&quot; features which were classed as a bugfix</li>
+</ul>
+<h3 id="style-guide"><a class="header" href="#style-guide">Style guide</a></h3>
+<h4 id="generic-code"><a class="header" href="#generic-code">Generic code</a></h4>
+<p>PyO3 has a lot of generic APIs to increase usability. These can come at the cost of generic code bloat. Where reasonable, try to implement a concrete sub-portion of generic functions. There are two forms of this:</p>
+<ul>
+<li>If the concrete sub-portion doesn't benefit from re-use by other functions, name it <code>inner</code> and keep it as a local to the function.</li>
+<li>If the concrete sub-portion is re-used by other functions, preferably name it <code>_foo</code> and place it directly below <code>foo</code> in the source code (where <code>foo</code> is the original generic function).</li>
+</ul>
+<h4 id="ffi-calls"><a class="header" href="#ffi-calls">FFI calls</a></h4>
+<p>PyO3 makes a lot of FFI calls to Python's C API using raw pointers. Where possible try to avoid using pointers-to-temporaries in expressions:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// dangerous
+pyo3::ffi::Something(name.to_object(py).as_ptr());
+
+// because the following refactoring is a use-after-free error:
+let name = name.to_object(py).as_ptr();
+pyo3::ffi::Something(name)
+<span class="boring">}
+</span></code></pre></pre>
+<p>Instead, prefer to bind the safe owned <code>PyObject</code> wrapper before passing to ffi functions:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let name: PyObject = name.to_object(py);
+pyo3::ffi::Something(name.as_ptr())
+// name will automatically be freed when it falls out of scope
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="python-and-rust-version-support-policy"><a class="header" href="#python-and-rust-version-support-policy">Python and Rust version support policy</a></h2>
+<p>PyO3 aims to keep sufficient compatibility to make packaging Python extensions built with PyO3 feasible on most common package managers.</p>
+<p>To keep package maintainers' lives simpler, PyO3 will commit, wherever possible, to only adjust minimum supported Rust and Python versions at the same time. This bump will only come in an <code>0.x</code> release, roughly once per year, after the oldest supported Python version reaches its end-of-life. (Check https://endoflife.date/python for a clear timetable on these.)</p>
+<p>Below are guidelines on what compatibility all PRs are expected to deliver for each language.</p>
+<h3 id="python"><a class="header" href="#python">Python</a></h3>
+<p>PyO3 supports all officially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.</p>
+<h3 id="rust"><a class="header" href="#rust">Rust</a></h3>
+<p>PyO3 aims to make use of up-to-date Rust language features to keep the implementation as efficient as possible.</p>
+<p>The minimum Rust version supported will be decided when the release which bumps Python and Rust versions is made. At the time, the minimum Rust version will be set no higher than the lowest Rust version shipped in the current Debian, RHEL and Alpine Linux distributions.</p>
+<p>CI tests both the most recent stable Rust version and the minimum supported Rust version. Because of Rust's stability guarantees this is sufficient to confirm support for all Rust versions in between.</p>
+<h2 id="benchmarking"><a class="header" href="#benchmarking">Benchmarking</a></h2>
+<p>PyO3 has two sets of benchmarks for evaluating some aspects of its performance. The benchmark suite is currently very small - please open PRs with new benchmarks if you're interested in helping to expand it!</p>
+<p>First, there are Rust-based benchmarks located in the <code>pyo3-benches</code> subdirectory. You can run these benchmarks with:</p>
+<pre><code>nox -s bench
+</code></pre>
+<p>Second, there is a Python-based benchmark contained in the <code>pytests</code> subdirectory. You can read more about it <a href="pytests">here</a>.</p>
+<h2 id="code-coverage"><a class="header" href="#code-coverage">Code coverage</a></h2>
+<p>You can view what code is and isn't covered by PyO3's tests. We aim to have 100% coverage - please check coverage and add tests if you notice a lack of coverage!</p>
+<ul>
+<li>First, generate a <code>lcov.info</code> file with</li>
+</ul>
+<pre><code class="language-shell">nox -s coverage
+</code></pre>
+<p>You can install an IDE plugin to view the coverage. For example, if you use VSCode:</p>
+<ul>
+<li>Add the <a href="https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters">coverage-gutters</a> plugin.</li>
+<li>Add these settings to VSCode's <code>settings.json</code>:</li>
+</ul>
+<pre><code class="language-json">{
+    &quot;coverage-gutters.coverageFileNames&quot;: [
+        &quot;lcov.info&quot;,
+        &quot;cov.xml&quot;,
+        &quot;coverage.xml&quot;,
+    ],
+    &quot;coverage-gutters.showLineCoverage&quot;: true
+}
+</code></pre>
+<ul>
+<li>You should now be able to see green highlights for code that is tested, and red highlights for code that is not tested.</li>
+</ul>
+<h2 id="sponsor-this-project"><a class="header" href="#sponsor-this-project">Sponsor this project</a></h2>
+<p>At the moment there is no official organisation that accepts sponsorship on PyO3's behalf. If you're seeking to provide significant funding to the PyO3 ecosystem, please reach out to us on <a href="https://github.com/PyO3/pyo3/issues/new">GitHub</a> or <a href="https://gitter.im/PyO3/Lobby">Gitter</a> and we can discuss.</p>
+<p>In the meanwhile, some of our maintainers have personal GitHub sponsorship pages and would be grateful for your support:</p>
+<ul>
+<li><a href="https://github.com/sponsors/davidhewitt">davidhewitt</a></li>
+<li><a href="https://github.com/sponsors/messense">messense</a></li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="changelog.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="changelog.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

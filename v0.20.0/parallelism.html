@@ -1,0 +1,285 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Parallelism - PyO3 user guide</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">2.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">3.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="function/signature.html"><strong aria-hidden="true">3.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="function/error_handling.html"><strong aria-hidden="true">3.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">4.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">4.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/object.html"><strong aria-hidden="true">4.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="class/numeric.html"><strong aria-hidden="true">4.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="class/call.html"><strong aria-hidden="true">4.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">5.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">5.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">5.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">6.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="python_from_rust.html"><strong aria-hidden="true">7.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">8.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="parallelism.html" class="active"><strong aria-hidden="true">9.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">10.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">11.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="memory.html"><strong aria-hidden="true">12.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">13.</strong> Performance</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">14.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="building_and_distribution.html"><strong aria-hidden="true">15.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">15.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">16.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">16.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">16.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">17.</strong> FAQ and troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="python_typing_hints.html">Appendix D: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/parallelism.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="parallelism"><a class="header" href="#parallelism">Parallelism</a></h1>
+<p>CPython has the infamous <a href="https://docs.python.org/3/glossary.html#term-global-interpreter-lock">Global Interpreter Lock</a>, which prevents several threads from executing Python bytecode in parallel. This makes threading in Python a bad fit for <a href="https://stackoverflow.com/questions/868568/">CPU-bound</a> tasks and often forces developers to accept the overhead of multiprocessing.</p>
+<p>In PyO3 parallelism can be easily achieved in Rust-only code. Let's take a look at our <a href="https://github.com/PyO3/pyo3/blob/main/examples/word-count/src/lib.rs">word-count</a> example, where we have a <code>search</code> function that utilizes the <a href="https://github.com/rayon-rs/rayon">rayon</a> crate to count words in parallel.</p>
+<pre><code class="language-rust no_run"><span class="boring">#![allow(dead_code)]
+</span>use pyo3::prelude::*;
+
+// These traits let us use `par_lines` and `map`.
+use rayon::str::ParallelString;
+use rayon::iter::ParallelIterator;
+
+/// Count the occurrences of needle in line, case insensitive
+fn count_line(line: &amp;str, needle: &amp;str) -&gt; usize {
+    let mut total = 0;
+    for word in line.split(' ') {
+        if word == needle {
+            total += 1;
+        }
+    }
+    total
+}
+
+#[pyfunction]
+fn search(contents: &amp;str, needle: &amp;str) -&gt; usize {
+    contents
+        .par_lines()
+        .map(|line| count_line(line, needle))
+        .sum()
+}
+</code></pre>
+<p>But let's assume you have a long running Rust function which you would like to execute several times in parallel. For the sake of example let's take a sequential version of the word count:</p>
+<pre><code class="language-rust no_run"><span class="boring">#![allow(dead_code)]
+</span><span class="boring">fn count_line(line: &amp;str, needle: &amp;str) -&gt; usize {
+</span><span class="boring">    let mut total = 0;
+</span><span class="boring">    for word in line.split(' ') {
+</span><span class="boring">        if word == needle {
+</span><span class="boring">            total += 1;
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    total
+</span><span class="boring">}
+</span><span class="boring">
+</span>fn search_sequential(contents: &amp;str, needle: &amp;str) -&gt; usize {
+    contents.lines().map(|line| count_line(line, needle)).sum()
+}
+</code></pre>
+<p>To enable parallel execution of this function, the <a href="https://docs.rs/pyo3/0.20.0/pyo3/struct.Python.html#method.allow_threads"><code>Python::allow_threads</code></a> method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls <code>search_sequential</code> inside a closure passed to <a href="https://docs.rs/pyo3/0.20.0/pyo3/struct.Python.html#method.allow_threads"><code>Python::allow_threads</code></a> to enable true parallelism:</p>
+<pre><code class="language-rust no_run"><span class="boring">#![allow(dead_code)]
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">
+</span><span class="boring">fn count_line(line: &amp;str, needle: &amp;str) -&gt; usize {
+</span><span class="boring">    let mut total = 0;
+</span><span class="boring">    for word in line.split(' ') {
+</span><span class="boring">        if word == needle {
+</span><span class="boring">            total += 1;
+</span><span class="boring">        }
+</span><span class="boring">    }
+</span><span class="boring">    total
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">fn search_sequential(contents: &amp;str, needle: &amp;str) -&gt; usize {
+</span><span class="boring">   contents.lines().map(|line| count_line(line, needle)).sum()
+</span><span class="boring">}
+</span>#[pyfunction]
+fn search_sequential_allow_threads(py: Python&lt;'_&gt;, contents: &amp;str, needle: &amp;str) -&gt; usize {
+    py.allow_threads(|| search_sequential(contents, needle))
+}
+</code></pre>
+<p>Now Python threads can use more than one CPU core, resolving the limitation which usually makes multi-threading in Python only good for IO-bound tasks:</p>
+<pre><code class="language-Python">from concurrent.futures import ThreadPoolExecutor
+from word_count import search_sequential_allow_threads
+
+executor = ThreadPoolExecutor(max_workers=2)
+
+future_1 = executor.submit(
+    word_count.search_sequential_allow_threads, contents, needle
+)
+future_2 = executor.submit(
+    word_count.search_sequential_allow_threads, contents, needle
+)
+result_1 = future_1.result()
+result_2 = future_2.result()
+</code></pre>
+<h2 id="benchmark"><a class="header" href="#benchmark">Benchmark</a></h2>
+<p>Let's benchmark the <code>word-count</code> example to verify that we really did unlock parallelism with PyO3.</p>
+<p>We are using <code>pytest-benchmark</code> to benchmark four word count functions:</p>
+<ol>
+<li>Pure Python version</li>
+<li>Rust parallel version</li>
+<li>Rust sequential version</li>
+<li>Rust sequential version executed twice with two Python threads</li>
+</ol>
+<p>The benchmark script can be found <a href="https://github.com/PyO3/pyo3/blob/main/examples/word-count/tests/test_word_count.py">here</a>, and we can run <code>nox</code> in the <code>word-count</code> folder to benchmark these functions.</p>
+<p>While the results of the benchmark of course depend on your machine, the relative results should be similar to this (mid 2020):</p>
+<pre><code class="language-text">-------------------------------------------------------------------------------------------------- benchmark: 4 tests -------------------------------------------------------------------------------------------------
+Name (time in ms)                                          Min                Max               Mean            StdDev             Median               IQR            Outliers       OPS            Rounds  Iterations
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+test_word_count_rust_parallel                           1.7315 (1.0)       4.6495 (1.0)       1.9972 (1.0)      0.4299 (1.0)       1.8142 (1.0)      0.2049 (1.0)         40;46  500.6943 (1.0)         375           1
+test_word_count_rust_sequential                         7.3348 (4.24)     10.3556 (2.23)      8.0035 (4.01)     0.7785 (1.81)      7.5597 (4.17)     0.8641 (4.22)         26;5  124.9457 (0.25)        121           1
+test_word_count_rust_sequential_twice_with_threads      7.9839 (4.61)     10.3065 (2.22)      8.4511 (4.23)     0.4709 (1.10)      8.2457 (4.55)     0.3927 (1.92)        17;17  118.3274 (0.24)        114           1
+test_word_count_python_sequential                      27.3985 (15.82)    45.4527 (9.78)     28.9604 (14.50)    4.1449 (9.64)     27.5781 (15.20)    0.4638 (2.26)          3;5   34.5299 (0.07)         35           1
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+</code></pre>
+<p>You can see that the Python threaded version is not much slower than the Rust sequential version, which means compared to an execution on a single CPU core the speed has doubled.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="types.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="debugging.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="types.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="debugging.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

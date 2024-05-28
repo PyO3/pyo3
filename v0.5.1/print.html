@@ -1,0 +1,1355 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>PyO3 user guide</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <noscript>
+            <style type="text/css">
+                .javascript-only {
+                    display: none;
+                }
+            </style>
+        </noscript>
+
+    </head>
+    <body class="light">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme;
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="overview.html"><strong aria-hidden="true">1.</strong> Get Started</a></li><li><a href="conversions.html"><strong aria-hidden="true">2.</strong> Type Conversions</a></li><li><a href="exception.html"><strong aria-hidden="true">3.</strong> Python Exception</a></li><li><a href="module.html"><strong aria-hidden="true">4.</strong> Python Module</a></li><li><a href="function.html"><strong aria-hidden="true">5.</strong> Python Function</a></li><li><a href="class.html"><strong aria-hidden="true">6.</strong> Python Class</a></li><li><a href="parallelism.html"><strong aria-hidden="true">7.</strong> Parallelism</a></li><li><a href="debugging.html"><strong aria-hidden="true">8.</strong> Debugging</a></li><li><a href="distribution.html"><strong aria-hidden="true">9.</strong> Distribution</a></li><li><a href="rust-cpython.html"><strong aria-hidden="true">10.</strong> Appendix: Pyo3 and rust-cpython</a></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons javascript-only">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">PyO3 user guide</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="searchbar-outer" class="searchbar-outer">
+                    <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                </div>
+                <div id="searchresults-outer" class="searchresults-outer">
+                    <div class="searchresults-header" id="searchresults-header"></div>
+                    <ul id="searchresults">
+                    </ul>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="print.html#pyo3" id="pyo3"><h1>PyO3</h1></a>
+<p><a href="http://www.rust-lang.org/">Rust</a> bindings for <a href="https://www.python.org/">Python</a>. This includes running and interacting with python code from a rust binaries as well as writing native python modules.</p>
+<p><a href="./doc/index.html">API documentation</a></p>
+<a class="header" href="print.html#usage" id="usage"><h2>Usage</h2></a>
+<p>Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.29.0-nightly 2018-07-16.</p>
+<p>You can either write a native python module in rust or use python from a rust binary.</p>
+<a class="header" href="print.html#using-rust-from-python" id="using-rust-from-python"><h3>Using rust from python</h3></a>
+<p>Pyo3 can be used to generate a native python module.</p>
+<p><strong><code>Cargo.toml</code>:</strong></p>
+<pre><code class="language-toml">[package]
+name = &quot;rust-py&quot;
+version = &quot;0.1.0&quot;
+
+[lib]
+name = &quot;rust_py&quot;
+crate-type = [&quot;cdylib&quot;]
+
+[dependencies.pyo3]
+version = &quot;0.3&quot;
+features = [&quot;extension-module&quot;]
+</code></pre>
+<p><strong><code>src/lib.rs</code></strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#![feature(specialization)]
+
+#fn main() {
+#[macro_use]
+extern crate pyo3;
+
+use pyo3::prelude::*;
+
+#[pyfunction]
+/// Formats the sum of two numbers as string
+fn sum_as_string(a: usize, b: usize) -&gt; PyResult&lt;String&gt; {
+    Ok((a + b).to_string())
+}
+
+/// This module is a python moudle implemented in Rust.
+#[pymodinit]
+fn rust_py(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_function!(sum_as_string))?;
+
+    Ok(())
+}
+#}</code></pre></pre>
+<p>On windows and linux, you can build normally with <code>cargo build --release</code>. On Mac Os, you need to set additional linker arguments. One option is to compile with <code>cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup</code>, the other is to create a <code>.cargo/config</code> with the following content:</p>
+<pre><code class="language-toml">[target.x86_64-apple-darwin]
+rustflags = [
+  &quot;-C&quot;, &quot;link-arg=-undefined&quot;,
+  &quot;-C&quot;, &quot;link-arg=dynamic_lookup&quot;,
+]
+</code></pre>
+<p>Also on macOS, you will need to rename the output from *.dylib to *.so. On Windows, you will need to rename the output from *.dll to *.pyd.</p>
+<p><a href="https://github.com/PyO3/setuptools-rust"><code>setuptools-rust</code></a> can be used to generate a python package and includes the commands above by default. See <a href="examples/https://github.com/PyO3/pyo3/tree/master/examples/word-count">examples/word-count</a> and the associated setup.py.</p>
+<a class="header" href="print.html#using-python-from-rust" id="using-python-from-rust"><h3>Using python from rust</h3></a>
+<p>Add <code>pyo3</code> this to your <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+pyo3 = &quot;0.3&quot;
+</code></pre>
+<p>Example program displaying the value of <code>sys.version</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">#![feature(specialization)]
+
+extern crate pyo3;
+
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let sys = py.import(&quot;sys&quot;)?;
+    let version: String = sys.get(&quot;version&quot;)?.extract()?;
+
+    let locals = PyDict::new(py);
+    locals.set_item(&quot;os&quot;, py.import(&quot;os&quot;)?)?;
+    let user: String = py.eval(&quot;os.getenv('USER') or os.getenv('USERNAME')&quot;, None, Some(&amp;locals))?.extract()?;
+
+    println!(&quot;Hello {}, I'm Python {}&quot;, user, version);
+    Ok(())
+}
+</code></pre></pre>
+<a class="header" href="print.html#examples-and-tooling" id="examples-and-tooling"><h2>Examples and tooling</h2></a>
+<ul>
+<li><a href="https://github.com/PyO3/pyo3/tree/master/examples/word-count">examples/word-count</a> <em>Counting the occurences of a word in a text file</em></li>
+<li><a href="https://github.com/mre/hyperjson">hyperjson</a> <em>A hyper-fast Python module for reading/writing JSON data using Rust's serde-json</em></li>
+<li><a href="https://github.com/rust-numpy/rust-numpy">rust-numpy</a> <em>Rust binding of NumPy C-API</em></li>
+<li><a href="https://github.com/PyO3/pyo3-built">pyo3-built</a> <em>Simple macro to expose metadata obtained with the <a href="https://crates.io/crates/built"><code>built</code></a> crate as a <a href="https://pyo3.github.io/pyo3/pyo3/struct.PyDict.html"><code>PyDict</code></a></em></li>
+<li><a href="https://github.com/ManifoldFR/point-process-rust/tree/master/pylib">point-process</a> <em>High level API for pointprocesses as a Python library</em></li>
+</ul>
+<a class="header" href="print.html#type-conversions" id="type-conversions"><h1>Type Conversions</h1></a>
+<p><code>PyO3</code> provides some handy traits to convert between Python types and Rust types.</p>
+<a class="header" href="print.html#extract" id="extract"><h2><code>.extract()</code></h2></a>
+<p>The easiest way to convert a python object to a rust value is using <code>.extract()?</code>.</p>
+<a class="header" href="print.html#topyobject-and-intopyobject-trait" id="topyobject-and-intopyobject-trait"><h2><code>ToPyObject</code> and <code>IntoPyObject</code> trait</h2></a>
+<p><a href="https://docs.rs/pyo3/0.2.7/trait.ToPyObject.html"><code>ToPyObject</code></a> trait is a conversion trait that allows various objects to be converted into <a href="https://docs.rs/pyo3/0.2.7/struct.PyObject.html"><code>PyObject</code></a>. <a href="https://docs.rs/pyo3/0.2.7/trait.IntoPyObject.html"><code>IntoPyObject</code></a> serves the same purpose except it consumes <code>self</code>.</p>
+<a class="header" href="print.html#intopytuple-trait" id="intopytuple-trait"><h2><code>IntoPyTuple</code> trait</h2></a>
+<p><a href="https://docs.rs/pyo3/0.2.7/trait.IntoPyTuple.html"><code>IntoPyTuple</code></a> trait is a conversion trait that allows various objects to be converted into <a href="https://docs.rs/pyo3/0.2.7/struct.PyTuple.html"><code>PyTuple</code></a> object.</p>
+<p>For example, <a href="https://docs.rs/pyo3/0.2.7/trait.IntoPyTuple.html"><code>IntoPyTuple</code></a> trait is implemented for <code>()</code> so that you can convert it into a empty <a href="https://docs.rs/pyo3/0.2.7/struct.PyTuple.html"><code>PyTuple</code></a></p>
+<pre><pre class="playpen"><code class="language-rust">extern crate pyo3;
+use pyo3::{Python, IntoPyTuple};
+
+fn main() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let py_tuple = ().into_tuple(py);
+}
+</code></pre></pre>
+<a class="header" href="print.html#frompyobject-and-reffrompyobject-trait" id="frompyobject-and-reffrompyobject-trait"><h2><code>FromPyObject</code> and <code>RefFromPyObject</code> trait</h2></a>
+<a class="header" href="print.html#args-and-kwargs-for-python-object-call" id="args-and-kwargs-for-python-object-call"><h2><code>*args</code> and <code>**kwargs</code> for python object call</h2></a>
+<p>There are several way how to pass positional and keyword arguments to python object call.
+<a href="https://docs.rs/pyo3/0.2.7/trait.ObjectProtocol.html"><code>ObjectProtocol</code></a> trait
+provides two methods:</p>
+<ul>
+<li><code>call</code> - call callable python object.</li>
+<li><code>call_method</code> - call specific method on the object.</li>
+</ul>
+<p>Both methods accept <code>args</code> and <code>kwargs</code> arguments. <code>args</code> argument is generate over
+<a href="https://docs.rs/pyo3/0.2.7/trait.IntoPyTuple.html"><code>IntoPyTuple</code></a> trait. So args could be <code>PyTuple</code> instance or
+rust tuple with up to 10 elements. Or <code>NoArgs</code> object which represents empty tuple object.</p>
+<pre><pre class="playpen"><code class="language-rust">extern crate pyo3;
+use pyo3::prelude::*;
+
+# struct SomeObject;
+# impl SomeObject {
+#     fn new(py: Python) -&gt; PyObject {
+#           pyo3::PyDict::new(py).to_object(py)
+#     }
+# }
+#
+fn main() {
+    # let arg1 = &quot;arg1&quot;;
+    # let arg2 = &quot;arg2&quot;;
+    # let arg3 = &quot;arg3&quot;;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = SomeObject::new(py);
+
+    // call object without empty arguments
+    obj.call0(py);
+
+    // call object with PyTuple
+    let args = PyTuple::new(py, &amp;[arg1, arg2, arg3]);
+    obj.call1(py, args);
+
+    // pass arguments as rust tuple
+    let args = (arg1, arg2, arg3);
+    obj.call1(py, args);
+}
+</code></pre></pre>
+<p><code>kwargs</code> can by <code>None</code> or <code>Some(&amp;PyDict)</code>. You can use the
+<a href="https://docs.rs/pyo3/0.2.7/trait.IntoPyDict.html"><code>IntoPyDict</code></a> trait to convert other dict-like containers, e.g. <code>HashMap</code>, <code>BTreeMap</code> as well as tuples with up to 10 elements and <code>Vec</code>s where each element is a two element tuple.</p>
+<pre><pre class="playpen"><code class="language-rust">extern crate pyo3;
+
+use std::collections::HashMap;
+use pyo3::prelude::*;
+
+# struct SomeObject;
+# impl SomeObject {
+#     fn new(py: Python) -&gt; PyObject {
+#           pyo3::PyDict::new(py).to_object(py)
+#     }
+# }
+fn main() {
+    # let key1 = &quot;key1&quot;;
+    # let val1 = 1;
+    # let key2 = &quot;key2&quot;;
+    # let val2 = 2;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = SomeObject::new(py);
+
+    // call object with PyDict
+    let kwargs = PyDict::new(py);
+    kwargs.set_item(key1, val1);
+    obj.call(py, NoArgs, kwargs);
+
+    // pass arguments as rust tuple
+    let kwargs = ((key1, val1), (key2, val2));
+    obj.call(py, NoArgs, kwargs);
+
+    // pass arguments as HashMap
+    let mut kwargs = HashMap::&lt;&amp;str, i32&gt;::new();
+    kwargs.insert(key1, 1);
+    obj.call(py, NoArgs, kwargs);
+}
+</code></pre></pre>
+<p>TODO</p>
+<a class="header" href="print.html#python-exception" id="python-exception"><h1>Python Exception</h1></a>
+<a class="header" href="print.html#define-a-new-exception" id="define-a-new-exception"><h2>Define a new exception</h2></a>
+<p>You can use the <code>py_exception!</code> macro to define a new exception type:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[macro_use] extern crate pyo3;
+
+py_exception!(module, MyError, pyo3::exceptions::Exception);
+#}</code></pre></pre>
+<ul>
+<li><code>module</code> is the name of the containing module.</li>
+<li><code>MyError</code> is the name of the new exception type.</li>
+</ul>
+<p>For example:</p>
+<pre><pre class="playpen"><code class="language-rust">#[macro_use] extern crate pyo3;
+
+use pyo3::Python;
+use pyo3::types::PyDict;
+
+py_exception!(mymodule, CustomError, pyo3::exceptions::Exception);
+
+fn main() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let ctx = PyDict::new(py);
+
+    ctx.set_item(&quot;CustomError&quot;, py.get_type::&lt;CustomError&gt;()).unwrap();
+
+    py.run(&quot;assert str(CustomError) == \&quot;&lt;class 'mymodule.CustomError'&gt;\&quot;&quot;, None, Some(&amp;ctx)).unwrap();
+    py.run(&quot;assert CustomError('oops').args == ('oops',)&quot;, None, Some(&amp;ctx)).unwrap();
+}
+</code></pre></pre>
+<a class="header" href="print.html#raise-an-exception" id="raise-an-exception"><h2>Raise an exception</h2></a>
+<p>To raise an exception, first you need to obtain an exception type and construct a new <a href="https://docs.rs/pyo3/0.2.7/struct.PyErr.html"><code>PyErr</code></a>, then call <a href="https://docs.rs/pyo3/0.2.7/struct.PyErr.html#method.restore"><code>PyErr::restore()</code></a> method to write the exception back to the Python interpreter's global state.</p>
+<pre><pre class="playpen"><code class="language-rust">extern crate pyo3;
+
+use pyo3::{Python, PyErr, exc};
+
+fn main() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    PyErr::new::&lt;exceptions::TypeError, _&gt;(&quot;Error&quot;).restore(py);
+    assert!(PyErr::occurred(py));
+    drop(PyErr::fetch(py));
+}
+</code></pre></pre>
+<p>If you already have a Python exception instance, you can simply call <a href="https://docs.rs/pyo3/0.2.7/struct.PyErr.html#method.from_instance"><code>PyErr::from_instance()</code></a>.</p>
+<pre><code class="language-rust ignore">PyErr::from_instance(py, err).restore(py);
+</code></pre>
+<p>If rust type exists for exception, then it is possible to use <code>new</code> method.
+For example each standard exception defined in <code>exc</code> module
+has corresponding rust type, exceptions defined by <code>py_exception!</code> and <code>import_exception!</code> macro
+have rust type as well.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# fn check_for_error() -&gt; bool {false}
+fn my_func(arg: PyObject) -&gt; PyResult&lt;()&gt; {
+    if check_for_error() {
+        Err(exceptions::ValueError::py_err(&quot;argument is wrong&quot;))
+    } else {
+        Ok(())
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="print.html#check-exception-type" id="check-exception-type"><h2>Check exception type</h2></a>
+<p>Python has an <a href="https://docs.python.org/3/library/functions.html#isinstance"><code>isinstance</code></a> method to check object type,
+in <code>PyO3</code> there is a <a href="https://docs.rs/pyo3/0.2.7/struct.Python.html#method.is_instance"><code>Python::is_instance()</code></a> method which does the same thing.</p>
+<pre><pre class="playpen"><code class="language-rust">extern crate pyo3;
+
+use pyo3::{Python, PyBool, PyList};
+
+fn main() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    assert!(py.is_instance::&lt;PyBool, _&gt;(PyBool::new(py, true)).unwrap());
+    let list = PyList::new(py, &amp;[1, 2, 3, 4]);
+    assert!(!py.is_instance::&lt;PyBool, _&gt;(list.as_ref()).unwrap());
+    assert!(py.is_instance::&lt;PyList, _&gt;(list.as_ref()).unwrap());
+}
+</code></pre></pre>
+<p><a href="https://docs.rs/pyo3/0.2.7/struct.Python.html#method.is_instance"><code>Python::is_instance()</code></a> calls the underlying <a href="https://docs.rs/pyo3/0.2.7/struct.PyType.html#method.is_instance"><code>PyType::is_instance</code></a> method to do the actual work.</p>
+<p>To check the type of an exception, you can simply do:</p>
+<pre><pre class="playpen"><code class="language-rust"># extern crate pyo3;
+# use pyo3::prelude::*;
+# fn main() {
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# let err = exceptions::TypeError::py_err(NoArgs);
+err.is_instance::&lt;exceptions::TypeError&gt;(py);
+# }
+</code></pre></pre>
+<a class="header" href="print.html#handle-rust-error" id="handle-rust-error"><h2>Handle Rust Error</h2></a>
+<p>The vast majority of operations in this library will return <a href="https://docs.rs/pyo3/0.2.7/type.PyResult.html"><code>PyResult&lt;T&gt;</code></a>.
+This is an alias for the type <code>Result&lt;T, PyErr&gt;</code>.</p>
+<p>A <a href="https://docs.rs/pyo3/0.2.7/struct.PyErr.html"><code>PyErr</code></a> represents a Python exception.
+Errors within the <code>PyO3</code> library are also exposed as Python exceptions.</p>
+<p>PyO3 library handles python exception in two stages. During first stage <code>PyErr</code> instance get
+created. At this stage python GIL is not required. During second stage, actual python
+exception instance get crated and set to python interpreter.</p>
+<p>In simple case, for custom errors support implementation of <code>std::convert::From&lt;T&gt;</code> trait
+for this custom error is enough. <code>PyErr::new</code> accepts arguments in form
+of <code>ToPyObject + 'static</code>. In case if <code>'static</code> constraint can not be satisfied or
+more complex arguments are required <a href="https://docs.rs/pyo3/0.2.7/trait.PyErrArguments.html"><code>PyErrArgument</code></a>
+trait can be implemented. In that case actual exception arguments creation get delayed
+until <code>Python</code> object is available.</p>
+<pre><code class="language-rust ignore">#![feature(specialization)]
+extern crate pyo3;
+
+use std::net::TcpListener;
+use pyo3::{PyErr, PyResult, exc};
+
+impl std::convert::From&lt;std::io::Error&gt; for PyErr {
+    fn from(err: std::io::Error) -&gt; PyErr {
+        exceptions::OSError.into()
+    }
+}
+
+fn connect(s: String) -&gt; PyResult&lt;bool&gt; {
+    TcpListener::bind(&quot;127.0.0.1:80&quot;)?;
+    Ok(true)
+}
+</code></pre>
+<p>The code snippet above will raise <code>OSError</code> in Python if <code>TcpListener::bind()</code> return an error.</p>
+<p><code>std::convert::From&lt;T&gt;</code> trait is implemented for most of the standard library's error
+types so <code>try!</code> macro or <code>?</code> operator can be used.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# extern crate pyo3;
+use pyo3::prelude::*;
+
+fn parse_int(s: String) -&gt; PyResult&lt;usize&gt; {
+    Ok(s.parse::&lt;usize&gt;()?)
+}
+#}</code></pre></pre>
+<p>The code snippet above will raise <code>ValueError</code> in Python if <code>String::parse()</code> return an error.</p>
+<a class="header" href="print.html#using-exceptions-defined-in-python-code" id="using-exceptions-defined-in-python-code"><h2>Using exceptions defined in python code</h2></a>
+<p>It is possible to use exception defined in python code as native rust types.
+<code>import_exception!</code> macro allows to import specific exception class and defined zst type
+for that exception.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[macro_use] extern crate pyo3;
+use pyo3::prelude::*;
+
+import_exception!(io, UnsupportedOperation);
+
+fn tell(file: PyObject) -&gt; PyResult&lt;u64&gt; {
+    use pyo3::exceptions::*;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    match file.call_method0(py, &quot;tell&quot;) {
+        Err(_) =&gt; Err(UnsupportedOperation::new(&quot;not supported: tell&quot;)),
+        Ok(x) =&gt; x.extract::&lt;u64&gt;(py),
+    }    
+}
+
+#}</code></pre></pre>
+<p><a href="https://docs.rs/pyo3/0.2.7/exc/index.html"><code>exc</code></a> defines exceptions for
+several standard library modules.</p>
+<a class="header" href="print.html#python-module" id="python-module"><h1>Python Module</h1></a>
+<p>As shown in the Getting Started chapter, you can create a module as follows:</p>
+<pre><pre class="playpen"><code class="language-rust">#![feature(proc_macro)]
+
+extern crate pyo3;
+use pyo3::{PyResult, Python, PyModule};
+
+
+
+// add bindings to the generated python module
+// N.B: names: &quot;librust2py&quot; must be the name of the `.so` or `.pyd` file
+/// This module is implemented in Rust.
+#[pymodinit]
+fn rust2py(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+
+    // pyo3 aware function. All of our python interface could be declared in a separate module.
+    // Note that the `#[pyfn()]` annotation automatically converts the arguments from
+    // Python objects to Rust values; and the Rust return value back into a Python object.
+    #[pyfn(m, &quot;sum_as_string&quot;)]
+    fn sum_as_string_py(_py: Python, a:i64, b:i64) -&gt; PyResult&lt;String&gt; {
+       let out = sum_as_string(a, b);
+       Ok(out)
+    }
+
+    Ok(())
+}
+
+// logic implemented as a normal rust function
+fn sum_as_string(a:i64, b:i64) -&gt; String {
+    format!(&quot;{}&quot;, a + b).to_string()
+}
+
+# fn main() {}
+</code></pre></pre>
+<p>The <code>#[pymodinit}</code> procedural macro attribute takes care of exporting the initialization function of your module to Python. It takes one argument as the name of your module, it must be the name of the <code>.so</code> or <code>.pyd</code> file.</p>
+<p>The <a href="https://doc.rust-lang.org/stable/book/first-edition/comments.html">Rust doc comments</a> of the module initialization function will be applied automatically as the Python doc string of your module.</p>
+<pre><code class="language-python">import rust2py
+
+print(rust2py.__doc__)
+</code></pre>
+<p>Which means that the above Python code will print <code>This module is implemented in Rust.</code>.</p>
+<blockquote>
+<p>On macOS, you will need to rename the output from <code>*.dylib</code> to <code>*.so</code>.</p>
+<p>On Windows, you will need to rename the output from <code>*.dll</code> to <code>*.pyd</code>.</p>
+</blockquote>
+<p>For <code>setup.py</code> integration, You can use <a href="https://github.com/PyO3/setuptools-rust">setuptools-rust</a>,
+learn more about it in <a href="./distribution.html">Distribution</a>.</p>
+<a class="header" href="print.html#python-function" id="python-function"><h1>Python Function</h1></a>
+<p>Pyo3 supports two ways to define a function in python. Both require registering
+the function to a <a href="./module.md">module</a></p>
+<p>One way is defining the function in the module definition.</p>
+<pre><pre class="playpen"><code class="language-rust">#![feature(proc_macro)]
+
+extern crate pyo3;
+use pyo3::prelude::*;
+
+
+#[pymodinit]
+fn rust2py(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+
+    // Note that the `#[pyfn()]` annotation automatically converts the arguments from
+    // Python objects to Rust values; and the Rust return value back into a Python object.
+    #[pyfn(m, &quot;sum_as_string&quot;)]
+    fn sum_as_string_py(_py: Python, a:i64, b:i64) -&gt; PyResult&lt;String&gt; {
+       Ok(format!(&quot;{}&quot;, a + b).to_string())
+    }
+
+    Ok(())
+}
+
+# fn main() {}
+</code></pre></pre>
+<p>The other is annotating a function with <code>#[py::function]</code> and then adding it
+to the module using the <code>add_function_to_module!</code> macro, which takes the module
+as first parameter, the function name as second and an instance of <code>Python</code>
+as third.</p>
+<pre><pre class="playpen"><code class="language-rust">#![feature(specialization)]
+
+#[macro_use]
+extern crate pyo3;
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn double(x: usize) -&gt; usize {
+    x * 2
+}
+
+#[pymodinit]
+fn module_with_functions(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_function!(double)).unwrap();
+
+    Ok(())
+}
+
+# fn main() {}
+</code></pre></pre>
+<a class="header" href="print.html#closures" id="closures"><h2>Closures</h2></a>
+<p>Currently, there are no conversions between <code>Fn</code>s in rust and callables in python. This would definitely be possible and very useful, so contributions are welcome. In the meantime, you can do the following:</p>
+<a class="header" href="print.html#calling-a-python-function-in-rust" id="calling-a-python-function-in-rust"><h3>Calling a python function in rust</h3></a>
+<p>You can use <code>ObjectProtocol::is_callable</code> to check if you got a callable, which is true for functions (including lambdas), methods and objects with a <code>__call__</code> method. You can call the object with <code>ObjectProtocol::call</code> with the args as first parameter and the kwargs (or <code>NoArgs</code>) as second paramter. There are also <code>ObjectProtocol::call0</code> with no args and <code>ObjectProtocol::call1</code> with only the args.</p>
+<a class="header" href="print.html#calling-rust-fns-in-python" id="calling-rust-fns-in-python"><h3>Calling rust <code>Fn</code>s in python</h3></a>
+<p>If you have a static function, you can expose it with <code>#[pyfunction]</code> and use <code>wrap_function!</code> to get the corresponding <code>PyObject</code>. For dynamic functions, e.g. lambda and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a box. (Long-Term a special container similar to wasm-bindgen's <code>Closure</code> should take care of that). You can than use a <code>#[pyclass]</code> struct with that container as field as a way to pass the function over the ffi-barrier. You can even make that class callable with <code>__call__</code> so it looks like a function in python code.</p>
+<a class="header" href="print.html#python-class" id="python-class"><h1>Python Class</h1></a>
+<a class="header" href="print.html#define-new-class" id="define-new-class"><h2>Define new class</h2></a>
+<p>To define python custom class, rust struct needs to be annotated with <code>#[pyclass]</code> attribute.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+
+#[pyclass]
+struct MyClass {
+   num: i32,
+   debug: bool,
+}
+#}</code></pre></pre>
+<p>The above example generates implementations for <code>PyTypeInfo</code> and <code>PyTypeObject</code> for <code>MyClass</code>.</p>
+<a class="header" href="print.html#customizing-the-class" id="customizing-the-class"><h2>Customizing the class</h2></a>
+<p>The <code>#[pyclass]</code> macro accepts following parameters:</p>
+<ul>
+<li><code>name=XXX</code> - Set the class name shown in python code. By default struct name is used as a class name.</li>
+<li><code>freelist=XXX</code> - <code>freelist</code> parameter add support of free allocation list to custom class.
+The performance improvement applies to types that are often created and deleted in a row,
+so that they can benefit from a freelist. <code>XXX</code> is a number of items for free list.</li>
+<li><code>gc</code> - Classes with the <code>gc</code> parameter
+participate in python garbage collector. If a custom class contains references to other
+python object that can be collected, the <code>PyGCProtocol</code> trait has to be implemented.</li>
+<li><code>weakref</code> - adds support for python weak references</li>
+<li><code>extends=BaseType</code> - use a custom base class. The base BaseType must implement <code>PyTypeInfo</code>.</li>
+<li><code>subclass</code> - Allows Python classes to inherit from this class</li>
+<li><code>dict</code> - adds <code>__dict__</code> support, the instances of this type have a dictionary containing instance variables. (Incomplete, see <a href="https://github.com/PyO3/pyo3/issues/123">#123</a>)</li>
+</ul>
+<a class="header" href="print.html#constructor" id="constructor"><h2>Constructor</h2></a>
+<p>By default it is not possible to create an instance of a custom class from python code.
+To declare a constructor, you need to define a class method and annotate it with <code>#[new]</code>
+attribute. Only the python <code>__new__</code> method can be specified, <code>__init__</code> is not available.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+#
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::PyRawObject;
+
+#[pyclass]
+struct MyClass {
+   num: i32,
+}
+
+#[pymethods]
+impl MyClass {
+
+     #[new]
+     fn __new__(obj: &amp;PyRawObject, num: i32) -&gt; PyResult&lt;()&gt; {
+         obj.init(||   {
+             MyClass {
+                 num,
+             }
+         })
+     }
+}
+#}</code></pre></pre>
+<p>Rules for the <code>new</code> method:</p>
+<ul>
+<li>If no method marked with <code>#[new]</code> is declared, object instances can only be created
+from Rust, but not from Python.</li>
+<li>The first parameter is the raw object and the custom <code>new</code> method must initialize the object
+with an instance of the struct using <code>init</code> method. The type of the object may be the type object of
+a derived class declared in Python.</li>
+<li>The first parameter implicitly has type <code>&amp;PyRawObject</code>.</li>
+<li>For details on <code>parameter-list</code>, see the documentation of <code>Method arguments</code> section.</li>
+<li>The return type must be <code>PyResult&lt;T&gt;</code> for some <code>T</code> that implements <code>IntoPyObject</code>. Usually, <code>T</code> will be <code>MyType</code>.</li>
+</ul>
+<a class="header" href="print.html#inheritance" id="inheritance"><h2>Inheritance</h2></a>
+<p>By default <code>PyObject</code> is used as default base class. To override default base class
+<code>base</code> parameter for <code>class</code> needs to be used. Value is full path to base class.
+<code>__new__</code> method accepts <code>PyRawObject</code> object. <code>obj</code> instance must be initialized
+with value of custom class struct. Subclass must call parent's <code>__new__</code> method.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::PyRawObject;
+#[pyclass]
+struct BaseClass {
+   val1: usize,
+}
+
+#[pymethods]
+impl BaseClass {
+   #[new]
+   fn __new__(obj: &amp;PyRawObject) -&gt; PyResult&lt;()&gt; {
+       obj.init(||   BaseClass{ val1: 10 })
+   }
+
+   pub fn method(&amp;self) -&gt; PyResult&lt;()&gt; {
+      Ok(())
+   }
+}
+
+#[pyclass(extends=BaseClass)]
+struct SubClass {
+   val2: usize,
+}
+
+#[pymethods]
+impl SubClass {
+   #[new]
+   fn __new__(obj: &amp;PyRawObject) -&gt; PyResult&lt;()&gt; {
+       obj.init(||   SubClass{ val2: 10 });
+       BaseClass::__new__(obj)
+   }
+
+   fn method2(&amp;self) -&gt; PyResult&lt;()&gt; {
+       self.get_base().method()
+   }
+}
+#}</code></pre></pre>
+<p><code>ObjectProtocol</code> trait provides <code>get_base()</code> method. It returns reference to instance of
+base class.</p>
+<a class="header" href="print.html#object-properties" id="object-properties"><h2>Object properties</h2></a>
+<p>Descriptor methods can be defined in
+<code>#[pymethods]</code> <code>impl</code> block only and has to be annotated with <code>#[getter]</code> or <code>[setter]</code>
+attributes. i.e.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+# }
+#
+#[pymethods]
+impl MyClass {
+
+     #[getter]
+     fn num(&amp;self) -&gt; PyResult&lt;i32&gt; {
+        Ok(self.num)
+     }
+}
+#}</code></pre></pre>
+<p>Getter or setter function's name is used as property name by default. There are several
+ways how to override name.</p>
+<p>If function name starts with <code>get_</code> or <code>set_</code> for getter or setter respectively.
+Descriptor name becomes function name with prefix removed. This is useful in case os
+rust's special keywords like <code>type</code>.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+# }
+#
+#[pymethods]
+impl MyClass {
+
+     #[getter]
+     fn get_num(&amp;self) -&gt; PyResult&lt;i32&gt; {
+        Ok(self.num)
+     }
+
+     #[setter]
+     fn set_num(&amp;mut self, value: i32) -&gt; PyResult&lt;()&gt; {
+        self.num = value;
+        Ok(())
+     }
+}
+#}</code></pre></pre>
+<p>In this case property <code>num</code> is defined. And it is available from python code as <code>self.num</code>.</p>
+<p>Also both <code>#[getter]</code> and <code>#[setter]</code> attributes accepts one parameter.
+If parameter is specified, it is used and property name. i.e.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+# }
+#
+#[pymethods]
+impl MyClass {
+
+     #[getter(number)]
+     fn num(&amp;self) -&gt; PyResult&lt;i32&gt; {
+        Ok(self.num)
+     }
+
+     #[setter(number)]
+     fn set_num(&amp;mut self, value: i32) -&gt; PyResult&lt;()&gt; {
+        self.num = value;
+        Ok(())
+     }
+}
+#}</code></pre></pre>
+<p>In this case property <code>number</code> is defined. And it is available from python code as <code>self.number</code>.</p>
+<p>For simple cases you can also define getters and setters in your Rust struct field definition, for example:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+  #[prop(get, set)]
+  num: i32
+}
+#}</code></pre></pre>
+<p>Then it is available from Python code as <code>self.num</code>.</p>
+<a class="header" href="print.html#instance-methods" id="instance-methods"><h2>Instance methods</h2></a>
+<p>To define python compatible method, <code>impl</code> block for struct has to be annotated
+with <code>#[pymethods]</code> attribute. <code>pyo3</code> library generates python compatible
+wrappers for all functions in this block with some variations, like descriptors,
+class method static methods, etc.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+# }
+#
+#[pymethods]
+impl MyClass {
+
+     fn method1(&amp;self) -&gt; PyResult&lt;i32&gt; {
+        Ok(10)
+     }
+
+     fn set_method(&amp;mut self, value: i32) -&gt; PyResult&lt;()&gt; {
+        self.num = value;
+        Ok(())
+     }
+}
+#}</code></pre></pre>
+<p>Calls to this methods protected by <code>GIL</code>, <code>&amp;self</code> or <code>&amp;mut self</code> can be used.
+The return type must be <code>PyResult&lt;T&gt;</code> for some <code>T</code> that implements <code>IntoPyObject</code>.</p>
+<p><code>Python</code> parameter can be specified as part of method signature, in this case <code>py</code> argument
+get injected by method wrapper. i.e</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+# }
+
+#[pymethods]
+impl MyClass {
+     fn method2(&amp;self, py: Python) -&gt; PyResult&lt;i32&gt; {
+        Ok(10)
+     }
+}
+#}</code></pre></pre>
+<p>From python perspective <code>method2</code>, in above example, does not accept any arguments.</p>
+<a class="header" href="print.html#class-methods" id="class-methods"><h2>Class methods</h2></a>
+<p>To specify class method for custom class, method needs to be annotated
+with<code>#[classmethod]</code> attribute.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+# }
+
+#[pymethods]
+impl MyClass {
+     #[classmethod]
+     fn cls_method(cls: &amp;PyType) -&gt; PyResult&lt;i32&gt; {
+        Ok(10)
+     }
+}
+#}</code></pre></pre>
+<p>Declares a class method callable from Python.</p>
+<ul>
+<li>The first parameter is the type object of the class on which the method is called.
+This may be the type object of a derived class.</li>
+<li>The first parameter implicitly has type <code>&amp;PyType</code>.</li>
+<li>For details on <code>parameter-list</code>, see the documentation of <code>Method arguments</code> section.</li>
+<li>The return type must be <code>PyResult&lt;T&gt;</code> for some <code>T</code> that implements <code>IntoPyObject</code>.</li>
+</ul>
+<a class="header" href="print.html#static-methods" id="static-methods"><h2>Static methods</h2></a>
+<p>To specify class method for custom class, method needs to be annotated
+with <code>#[staticmethod]</code> attribute. The return type must be <code>PyResult&lt;T&gt;</code>
+for some <code>T</code> that implements <code>IntoPyObject</code>.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+# }
+
+#[pymethods]
+impl MyClass {
+     #[staticmethod]
+     fn static_method(param1: i32, param2: &amp;str) -&gt; PyResult&lt;i32&gt; {
+        Ok(10)
+     }
+}
+#}</code></pre></pre>
+<a class="header" href="print.html#callable-object" id="callable-object"><h2>Callable object</h2></a>
+<p>To specify custom <code>__call__</code> method for custom class, call method needs to be annotated
+with <code>#[call]</code> attribute. Arguments of the method are specified same as for instance method.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+# }
+
+#[pymethods]
+impl MyClass {
+     #[call]
+     #[args(args=&quot;*&quot;)]
+     fn __call__(&amp;self, args: &amp;PyTuple) -&gt; PyResult&lt;i32&gt; {
+        println!(&quot;MyClass has been called&quot;);
+        Ok(self.num)
+     }
+}
+#}</code></pre></pre>
+<a class="header" href="print.html#method-arguments" id="method-arguments"><h2>Method arguments</h2></a>
+<p>By default pyo3 library uses function signature to determine which arguments are required.
+Then it scans incoming <code>args</code> parameter and then incoming <code>kwargs</code> parameter. If it can not
+find all required parameters, it raises <code>TypeError</code> exception.
+It is possible to override default behavior with <code>#[args(...)]</code> attribute. <code>args</code> attribute
+accept comma separated list of parameters in form <code>attr_name=&quot;default value&quot;</code>. Each parameter
+has to match method parameter by name.</p>
+<p>Each parameter could one of following type:</p>
+<ul>
+<li>&quot;*&quot;: var arguments separator, each parameter defined after &quot;*&quot; is keyword only parameters.
+corresponds to python's <code>def meth(*, arg1.., arg2=..)</code></li>
+<li>args=&quot;*&quot;: &quot;args&quot; is var args, corresponds to python's <code>def meth(*args)</code>. Type of <code>args</code>
+parameter has to be <code>&amp;PyTuple</code>.</li>
+<li>kwargs=&quot;**&quot;: &quot;kwargs&quot; is keyword arguments, corresponds to python's <code>def meth(**kwargs)</code>.
+Type of <code>kwargs</code> parameter has to be <code>Option&lt;&amp;PyDict&gt;</code>.</li>
+<li>arg=&quot;Value&quot;: arguments with default value. corresponds to python's <code>def meth(arg=Value)</code>.
+if <code>arg</code> argument is defined after var arguments it is treated as keyword argument.
+Note that <code>Value</code> has to be valid rust code, pyo3 just inserts it into generated
+code unmodified.</li>
+</ul>
+<p>Example:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+# #![feature(specialization)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+#
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+# }
+#
+#[pymethods]
+impl MyClass {
+    #[args(arg1=true, args=&quot;*&quot;, arg2=10, kwargs=&quot;**&quot;)]
+    fn method(&amp;self, arg1: bool, args: &amp;PyTuple, arg2: i32, kwargs: Option&lt;&amp;PyDict&gt;) -&gt; PyResult&lt;i32&gt; {
+        Ok(1)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="print.html#class-customizations" id="class-customizations"><h2>Class customizations</h2></a>
+<p>Python object model defines several protocols for different object behavior,
+like sequence, mapping or number protocols. pyo3 library defines separate trait for each
+of them. To provide specific python object behavior you need to implement specific trait
+for your struct. Important note, each protocol implementation block has to be annotated
+with <code>#[pyproto]</code> attribute.</p>
+<a class="header" href="print.html#basic-object-customization" id="basic-object-customization"><h3>Basic object customization</h3></a>
+<p><a href="https://docs.rs/pyo3/0.2.7/class/basic/trait.PyObjectProtocol.html"><code>PyObjectProtocol</code></a> trait provide several basic customizations.</p>
+<a class="header" href="print.html#attribute-access" id="attribute-access"><h4>Attribute access</h4></a>
+<p>To customize object attribute access define following methods:</p>
+<ul>
+<li><code>fn __getattr__(&amp;self, name: FromPyObject) -&gt; PyResult&lt;impl IntoPyObject&gt;</code></li>
+<li><code>fn __setattr__(&amp;mut self, name: FromPyObject, value: FromPyObject) -&gt; PyResult&lt;()&gt;</code></li>
+<li><code>fn __delattr__(&amp;mut self, name: FromPyObject) -&gt; PyResult&lt;()&gt;</code></li>
+</ul>
+<p>Each methods corresponds to python's <code>self.attr</code>, <code>self.attr = value</code> and <code>del self.attr</code> code.</p>
+<a class="header" href="print.html#string-conversions" id="string-conversions"><h4>String Conversions</h4></a>
+<ul>
+<li>
+<p><code>fn __repr__(&amp;self) -&gt; PyResult&lt;impl ToPyObject&lt;ObjectType=PyString&gt;&gt;</code></p>
+</li>
+<li>
+<p><code>fn __str__(&amp;self) -&gt; PyResult&lt;impl ToPyObject&lt;ObjectType=PyString&gt;&gt;</code></p>
+<p>Possible return types for <code>__str__</code> and <code>__repr__</code> are <code>PyResult&lt;String&gt;</code> or <code>PyResult&lt;PyString&gt;</code>.
+In Python 2.7, Unicode strings returned by <code>__str__</code> and <code>__repr__</code> will be converted to byte strings
+by the Python runtime, which results in an exception if the string contains non-ASCII characters.</p>
+</li>
+<li>
+<p><code>fn __bytes__(&amp;self) -&gt; PyResult&lt;PyBytes&gt;</code></p>
+<p>On Python 3.x, provides the conversion to <code>bytes</code>.
+On Python 2.7, <code>__bytes__</code> is allowed but has no effect.</p>
+</li>
+<li>
+<p><code>fn __unicode__(&amp;self) -&gt; PyResult&lt;PyUnicode&gt;</code></p>
+<p>On Python 2.7, provides the conversion to <code>unicode</code>.
+On Python 3.x, <code>__unicode__</code> is allowed but has no effect.</p>
+</li>
+<li>
+<p><code>fn __format__(&amp;self, format_spec: &amp;str) -&gt; PyResult&lt;impl ToPyObject&lt;ObjectType=PyString&gt;&gt;</code></p>
+<p>Special method that is used by the <code>format()</code> builtin and the <code>str.format()</code> method.
+Possible return types are <code>PyResult&lt;String&gt;</code> or <code>PyResult&lt;PyString&gt;</code>.</p>
+</li>
+</ul>
+<a class="header" href="print.html#comparison-operators" id="comparison-operators"><h4>Comparison operators</h4></a>
+<ul>
+<li>
+<p><code>fn __richcmp__(&amp;self, other: impl FromPyObject, op: CompareOp) -&gt; PyResult&lt;impl ToPyObject&gt;</code></p>
+<p>Overloads Python comparison operations (<code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and <code>&gt;=</code>).
+The <code>op</code> argument indicates the comparison operation being performed.
+The return type will normally be <code>PyResult&lt;bool&gt;</code>, but any Python object can be returned.
+If <code>other</code> is not of the type specified in the signature, the generated code will
+automatically <code>return NotImplemented</code>.</p>
+</li>
+<li>
+<p><code>fn __hash__(&amp;self) -&gt; PyResult&lt;impl PrimInt&gt;</code></p>
+<p>Objects that compare equal must have the same hash value.
+The return type must be <code>PyResult&lt;T&gt;</code> where <code>T</code> is one of Rust's primitive integer types.</p>
+</li>
+</ul>
+<a class="header" href="print.html#other-methods" id="other-methods"><h4>Other methods</h4></a>
+<ul>
+<li>
+<p><code>fn __bool__(&amp;self) -&gt; PyResult&lt;bool&gt;</code></p>
+<p>Determines the &quot;truthyness&quot; of the object.
+This method works for both python 3 and python 2,
+even on Python 2.7 where the Python spelling was <code>__nonzero__</code>.</p>
+</li>
+</ul>
+<a class="header" href="print.html#garbage-collector-integration" id="garbage-collector-integration"><h3>Garbage Collector Integration</h3></a>
+<p>If your type owns references to other python objects, you will need to
+integrate with Python's garbage collector so that the GC is aware of
+those references.
+To do this, implement <a href="https://docs.rs/pyo3/0.2.7/class/gc/trait.PyGCProtocol.html"><code>PyGCProtocol</code></a> trait for your struct.
+It includes two methods <code>__traverse__</code> and <code>__clear__</code>.
+These correspond to the slots <code>tp_traverse</code> and <code>tp_clear</code> in the Python C API.
+<code>__traverse__</code> must call <code>visit.call()</code> for each reference to another python object.
+<code>__clear__</code> must clear out any mutable references to other python objects
+(thus breaking reference cycles). Immutable references do not have to be cleared,
+as every cycle must contain at least one mutable reference.
+Example:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#![feature(specialization)]
+#fn main() {
+extern crate pyo3;
+
+use pyo3::prelude::*;
+
+
+#[pyclass]
+struct ClassWithGCSupport {
+    obj: Option&lt;PyObject&gt;,
+}
+
+#[pyproto]
+impl PyGCProtocol for ClassWithGCSupport {
+    fn __traverse__(&amp;self, visit: PyVisit) -&gt; Result&lt;(), PyTraverseError&gt; {
+        if let Some(ref obj) = self.obj {
+            visit.call(obj)?
+        }
+        Ok(())
+    }
+
+    fn __clear__(&amp;mut self) {
+        if let Some(obj) = self.obj.take() {
+          // Release reference, this decrements ref counter.
+          self.py().release(obj);
+        }
+    }
+}
+#}</code></pre></pre>
+<p>Special protocol trait implementation has to be annotated with <code>#[pyproto]</code> attribute.</p>
+<p>It is also possible to enable gc for custom class using <code>gc</code> parameter for <code>class</code> annotation.
+i.e. <code>#[pyclass(gc)]</code>. In that case instances of custom class participate in python garbage
+collector, and it is possible to track them with <code>gc</code> module methods.</p>
+<a class="header" href="print.html#iterator-types" id="iterator-types"><h3>Iterator Types</h3></a>
+<p>Iterators can be defined using the
+<a href="https://docs.rs/pyo3/0.2.7/class/iter/trait.PyIterProtocol.html"><code>PyIterProtocol</code></a> trait.
+It includes two methods <code>__iter__</code> and <code>__next__</code>:</p>
+<ul>
+<li><code>fn __iter__(&amp;mut self) -&gt; PyResult&lt;impl IntoPyObject&gt;</code></li>
+<li><code>fn __next__(&amp;mut self) -&gt; PyResult&lt;Option&lt;impl IntoPyObject&gt;&gt;</code></li>
+</ul>
+<p>Returning <code>Ok(None)</code> from <code>__next__</code> indicates that that there are no further items.</p>
+<p>Example:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#![feature(specialization)]
+
+#fn main() {
+extern crate pyo3;
+
+use pyo3::prelude::*;
+
+#[pyclass]
+struct MyIterator {
+    iter: Box&lt;Iterator&lt;Item=PyObject&gt; + Send&gt;,
+}
+
+#[pyproto]
+impl PyIterProtocol for MyIterator {
+
+    fn __iter__(&amp;mut self) -&gt; PyResult&lt;PyObject&gt; {
+        Ok(self.into())
+    }
+    fn __next__(&amp;mut self) -&gt; PyResult&lt;Option&lt;PyObject&gt;&gt; {
+        Ok(self.iter.next())
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="print.html#parallelism" id="parallelism"><h1>Parallelism</h1></a>
+<p>CPython has an infamous GIL(Global Interpreter Lock) prevents developers
+getting true parallelism. With <code>pyo3</code> you can release GIL when executing
+Rust code to achieve true parallelism.</p>
+<p>The <a href="https://docs.rs/pyo3/0.2.7/struct.Python.html#method.allow_threads"><code>Python::allow_threads</code></a>
+method temporarily releases the GIL, thus allowing other Python threads to run.</p>
+<pre><code class="language-rust ignore">impl Python {
+    pub fn allow_threads&lt;T, F&gt;(self, f: F) -&gt; T where F: Send + FnOnce() -&gt; T {}
+}
+</code></pre>
+<p>Let's take a look at our <a href="https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs">word-count</a> example,
+we have a <code>wc_parallel</code> function utilize the <a href="https://github.com/nikomatsakis/rayon">rayon</a> crate to count words in parallel.</p>
+<pre><code class="language-rust ignore">fn wc_parallel(lines: &amp;str, search: &amp;str) -&gt; i32 {
+    lines.par_lines()
+         .map(|line| wc_line(line, search))
+         .sum()
+}
+</code></pre>
+<p>Then in the Python bridge, we have a function <code>search</code> exposed to Python runtime which calls <code>wc_parallel</code> inside
+<code>Python::allow_threads</code> method to enable true parallelism:</p>
+<pre><code class="language-rust ignore">#[pymodinit]
+fn word_count(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+
+    #[pyfn(m, &quot;search&quot;)]
+    fn search(py: Python, path: String, search: String) -&gt; PyResult&lt;i32&gt; {
+        let mut file = File::open(path)?;
+        let mut contents = String::new();
+        file.read_to_string(&amp;mut contents)?;
+
+        let count = py.allow_threads(move || wc_parallel(&amp;contents, &amp;search));
+        Ok(count)
+    }
+
+    Ok(())
+}
+</code></pre>
+<a class="header" href="print.html#benchmark" id="benchmark"><h2>Benchmark</h2></a>
+<p>Let's benchmark the <code>word-count</code> example to verify that we did unlock true parallelism with <code>pyo3</code>.
+We are using <code>pytest-benchmark</code> to benchmark three word count functions:</p>
+<ol>
+<li><a href="https://github.com/PyO3/pyo3/blob/master/examples/word-count/word_count/__init__.py#L9">Pure Python version</a></li>
+<li><a href="https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs#L64">Rust sequential version</a></li>
+<li><a href="https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs#L54">Rust parallel version</a></li>
+</ol>
+<p>Benchmark script can be found <a href="https://github.com/PyO3/pyo3/blob/master/examples/word-count/tests/test_word_count.py">here</a>,
+then we can run <code>pytest tests</code> to benchmark them.</p>
+<p>On MacBook Pro (Retina, 15-inch, Mid 2015) the benchmark gives:</p>
+<p><img src="https://user-images.githubusercontent.com/1556054/28604608-81bd6d22-71fe-11e7-8a2c-c3cf3bd0f622.png" alt="Benchmark Result" /></p>
+<a class="header" href="print.html#debugging" id="debugging"><h1>Debugging</h1></a>
+<a class="header" href="print.html#macros" id="macros"><h2>Macros</h2></a>
+<p>Pyo3's attributes, <code>#[pyclass]</code>, <code>#[pymodinit]</code>, etc. are <a href="https://doc.rust-lang.org/unstable-book/language-features/proc-macro.html">procedural macros</a>, which means that rewrite the source of the annotated item. You can view the generated source with the following command, which also expands a few other things:</p>
+<pre><code class="language-bash">cargo rustc --profile=check -- -Z unstable-options --pretty=expanded &gt; expanded.rs; rustfmt expanded.rs
+</code></pre>
+<p>(You might need to install <a href="https://github.com/rust-lang-nursery/rustfmt">rustfmt</a> if you don't already have it.)</p>
+<p>You can also debug classic <code>!</code>-macros by adding -Z trace-macros`:</p>
+<pre><code class="language-bash">cargo rustc --profile=check -- -Z unstable-options --pretty=expanded -Z trace-macros &gt; expanded.rs; rustfmt expanded.rs
+</code></pre>
+<p>See <a href="https://github.com/dtolnay/cargo-expand">cargo expand</a> for a more elaborate version of those commands.</p>
+<a class="header" href="print.html#linking" id="linking"><h2>Linking</h2></a>
+<p>When building, you can set <code>PYTHON_SYS_EXECUTABLE</code> to the python interpreter that pyo3 should be linked to. You might need to set the <code>python2</code> or <code>python3</code> feature accordingly. On linux/mac you might have to change <code>LD_LIBRARY_PATH</code> to include libpython, while on windows you might need to set <code>LIB</code> to include <code>pythonxy.lib</code> (where x and y are major and minor version), which is normally either in the <code>libs</code> or <code>Lib</code> folder of a python installation. Also make sure that python is in <code>PATH</code> when you're not using  <code>PYTHON_SYS_EXECUTABLE</code>.</p>
+<a class="header" href="print.html#distribution" id="distribution"><h1>Distribution</h1></a>
+<p>There are two way to distribute your module as python package: The old <a href="https://github.com/PyO3/setuptools-rust">setuptools-rust</a> and the new <a href="https://github.com/pyo3/pyo3-pack">pyo3-pack</a>. setuptools-rust needs some configuration files (<code>setup.py</code>,  <code>MANIFEST.in</code>, <code>build-wheels.sh</code>, etc.) and external tools (docker, twine). pyo3-pack doesn't need any configuration files. It can not yet build sdist though (<a href="https://github.com/PyO3/pyo3-pack/issues/2">pyo3/pyo3-pack#2</a>).</p>
+<a class="header" href="print.html#appendix-pyo3-and-rust-cpython" id="appendix-pyo3-and-rust-cpython"><h1>Appendix: pyo3 and rust-cpython</h1></a>
+<p>Pyo3 began as fork of <a href="https://github.com/dgrunwald/rust-cpython">rust-cpython</a> when rust-cpython wasn't maintained. Over the time pyo3 has become fundamentally different from rust-cpython.</p>
+<p>This chapter is based on the discussion in <a href="https://github.com/PyO3/pyo3/issues/55">PyO3/pyo3#55</a>.</p>
+<a class="header" href="print.html#macros-1" id="macros-1"><h2>Macros</h2></a>
+<p>While rust-cpython has a macro based dsl for declaring modules and classes, pyo3 use proc macros and spezialization. Pyo3 also doesn't change your struct and functions so you can still use them as normal rust functions. The disadvantage is that proc macros and spezialization currently only work on nightly.</p>
+<p><strong>rust-cpython</strong></p>
+<pre><code class="language-rust ignore">py_class!(class MyClass |py| {
+    data number: i32;
+    def __new__(_cls, arg: i32) -&gt; PyResult&lt;MyClass&gt; {
+        MyClass::create_instance(py, arg)
+    }
+    def half(&amp;self) -&gt; PyResult&lt;i32&gt; {
+        Ok(self.number(py) / 2)
+    }
+});
+</code></pre>
+<p><strong>pyo3</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#![feature(specialization)]
+
+#fn main() {
+extern crate pyo3;
+
+use pyo3::prelude::*;
+use pyo3::PyRawObject;
+
+#[pyclass]
+struct MyClass {
+   num: u32,
+}
+
+#[pymethods]
+impl MyClass {
+    #[new]
+    fn __new__(obj: &amp;PyRawObject, num: u32) -&gt; PyResult&lt;()&gt; {
+        obj.init(|| {
+            MyClass {
+                num,
+            }
+        })
+    }
+
+    fn half(&amp;self) -&gt; PyResult&lt;u32&gt; {
+        Ok(self.num / 2)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="print.html#ownership-and-lifetimes" id="ownership-and-lifetimes"><h2>Ownership and lifetimes</h2></a>
+<p>All objects are owned by pyo3 library and all apis available with references, while in rust-cpython, you own python objects.</p>
+<p>Here is example of PyList api:</p>
+<p><strong>rust-cpython</strong></p>
+<pre><code class="language-rust ignore">impl PyList {
+
+   fn new(py: Python) -&gt; PyList {...}
+
+   fn get_item(&amp;self, py: Python, index: isize) -&gt; PyObject {...}
+}
+</code></pre>
+<p><strong>pyo3</strong></p>
+<pre><code class="language-rust ignore">impl PyList {
+
+   fn new(py: Python) -&gt; &amp;PyList {...}
+
+   fn get_item(&amp;self, index: isize) -&gt; &amp;PyObject {...}
+}
+</code></pre>
+<p>Because pyo3 allows only references to python object, all reference have the Gil lifetime. So the python object is not required, and it is safe to have functions like <code>fn py&lt;'p&gt;(&amp;'p self) -&gt; Python&lt;'p&gt; {}</code>.</p>
+<a class="header" href="print.html#error-handling" id="error-handling"><h2>Error handling</h2></a>
+<p>rust-cpython requires a <code>Python</code> parameter for <code>PyErr</code>, so error handling ergonomics is pretty bad. It is not possible to use <code>?</code> with rust errors.</p>
+<p><code>pyo3</code> on other hand does not require <code>Python</code> for <code>PyErr</code>, it is only required if you want to raise an exception in python with the <code>PyErr::restore()</code> method. Due to the <code>std::convert::From&lt;Err&gt; for PyErr</code> trait <code>?</code> is supported automatically.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+
+                
+            </nav>
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if (getComputedStyle(document.querySelector(".fa")).fontFamily !== "FontAwesome") {
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.type = 'text/css';
+                link.href = '_FontAwesome/css/font-awesome.css';
+                document.head.insertBefore(link, document.head.firstChild)
+            }
+        </script>
+
+        
+
+        
+
+        
+
+        
+        <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
+        
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                window.print();
+            })
+        </script>
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

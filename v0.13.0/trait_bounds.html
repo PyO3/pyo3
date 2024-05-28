@@ -1,0 +1,744 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Appendix C: Trait bounds - PyO3 user guide</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">1.</strong> Python Modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">2.</strong> Python Functions</a></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">3.</strong> Python Classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">3.1.</strong> Class customizations</a></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">4.</strong> Type Conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">5.</strong> Python Exceptions</a></li><li class="chapter-item expanded "><a href="python_from_rust.html"><strong aria-hidden="true">6.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">7.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">8.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">9.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">10.</strong> Advanced Topics</a></li><li class="chapter-item expanded "><a href="building_and_distribution.html"><strong aria-hidden="true">11.</strong> Building and Distribution</a></li><li class="chapter-item expanded "><a href="pypy.html"><strong aria-hidden="true">12.</strong> PyPy support</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">13.</strong> FAQ &amp; Troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration Guide</a></li><li class="chapter-item expanded affix "><a href="rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="trait_bounds.html" class="active">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="logging.html">Appendix D: Logging</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#using-in-python-a-rust-function-with-trait-bounds" id="using-in-python-a-rust-function-with-trait-bounds">Using in Python a Rust function with trait bounds</a></h1>
+<p>PyO3 allows for easy conversion from Rust to Python for certain functions and classes (see the <a href="conversions/tables.html">conversion table</a>.
+However, it is not always straightforward to convert Rust code that requires a given trait implementation as an argument.</p>
+<p>This tutorial explains how to convert a Rust function that takes a trait as argument for use in Python with classes implementing the same methods as the trait.</p>
+<p>Why is this useful?</p>
+<h3><a class="header" href="#pros" id="pros">Pros</a></h3>
+<ul>
+<li>Make your Rust code available to Python users</li>
+<li>Code complex algorithms in Rust with the help of the borrow checker</li>
+</ul>
+<h3><a class="header" href="#cons" id="cons">Cons</a></h3>
+<ul>
+<li>Not as fast as native Rust (type conversion has to be performed and one part of the code runs in Python)</li>
+<li>You need to adapt your code to expose it</li>
+</ul>
+<h2><a class="header" href="#example" id="example">Example</a></h2>
+<p>Let's work with the following basic example of an implementation of a optimization solver operating on a given model.</p>
+<p>Let's say we have a function <code>solve</code> that operates on a model and mutates its state.
+The argument of the function can be any model that implements the <code>Model</code> trait :</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait Model {
+  fn set_variables(&amp;mut self, inputs: &amp;Vec&lt;f64&gt;);
+  fn compute(&amp;mut self);
+  fn get_results(&amp;self) -&gt; Vec&lt;f64&gt;;
+}
+
+pub fn solve&lt;T: Model&gt;(model: &amp;mut T) {
+  println!(&quot;Magic solver that mutates the model into a resolved state&quot;);
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Let's assume we have the following constraints:</p>
+<ul>
+<li>We cannot change that code as it runs on many Rust models.</li>
+<li>We also have many Python models that cannot be solved as this solver is not available in that language.
+Rewriting it in Python would be cumbersome and error-prone, as everything is already available in Rust.</li>
+</ul>
+<p>How could we expose this solver to Python thanks to PyO3 ?</p>
+<h2><a class="header" href="#implementation-of-the-trait-bounds-for-the-python-class" id="implementation-of-the-trait-bounds-for-the-python-class">Implementation of the trait bounds for the Python class</a></h2>
+<p>If a Python class implements the same three methods as the <code>Model</code> trait, it seems logical it could be adapted to use the solver.
+However, it is not possible to pass a <code>PyObject</code> to it as it does not implement the Rust trait (even if the Python model has the required methods).</p>
+<p>In order to implement the trait, we must write a wrapper around the calls in Rust to the Python model.
+The method signatures must be the same as the trait, keeping in mind that the Rust trait cannot be changed for the purpose of making the code available in Python.</p>
+<p>The Python model we want to expose is the following one, which already contains all the required methods:</p>
+<pre><code class="language-python">class Model:
+    def set_variables(self, inputs):
+        self.inputs = inputs
+    def compute(self):
+        self.results = [elt**2 - 3 for elt in self.inputs]
+    def get_results(self):
+        return self.results
+</code></pre>
+<p>The following wrapper will call the Python model from Rust, using a struct to hold the model as a <code>PyAny</code> object:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+use pyo3::types::PyAny;
+
+<span class="boring">pub trait Model {
+</span><span class="boring">  fn set_variables(&amp;mut self, inputs: &amp;Vec&lt;f64&gt;);
+</span><span class="boring">  fn compute(&amp;mut self);
+</span><span class="boring">  fn get_results(&amp;self) -&gt; Vec&lt;f64&gt;;
+</span><span class="boring">}
+</span>
+struct UserModel {
+    model: Py&lt;PyAny&gt;,
+}
+
+impl Model for UserModel {
+    fn set_variables(&amp;mut self, var: &amp;Vec&lt;f64&gt;) {
+        println!(&quot;Rust calling Python to set the variables&quot;);
+        Python::with_gil(|py| {
+            let values: Vec&lt;f64&gt; = var.clone();
+            let list: PyObject = values.into_py(py);
+            let py_model = self.model.as_ref(py);
+            py_model
+                .call_method(&quot;set_variables&quot;, (list,), None)
+                .unwrap();
+        })
+    }
+
+    fn get_results(&amp;self) -&gt; Vec&lt;f64&gt; {
+        println!(&quot;Rust calling Python to get the results&quot;);
+        Python::with_gil(|py| {
+            self.model
+                .as_ref(py)
+                .call_method(&quot;get_results&quot;, (), None)
+                .unwrap()
+                .extract()
+                .unwrap()
+        })
+    }
+
+    fn compute(&amp;mut self) {
+        println!(&quot;Rust calling Python to perform the computation&quot;);
+        Python::with_gil(|py| {
+            self.model
+                .as_ref(py)
+                .call_method(&quot;compute&quot;, (), None)
+                .unwrap();
+        })
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Now that this bit is implemented, let's expose the model wrapper to Python.
+Let's add the PyO3 annotations and add a constructor:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">pub trait Model {
+</span><span class="boring">  fn set_variables(&amp;mut self, inputs: &amp;Vec&lt;f64&gt;);
+</span><span class="boring">  fn compute(&amp;mut self);
+</span><span class="boring">  fn get_results(&amp;self) -&gt; Vec&lt;f64&gt;;
+</span><span class="boring">}
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyAny;
+</span>
+#[pyclass]
+struct UserModel {
+    model: Py&lt;PyAny&gt;,
+}
+
+#[pymodule]
+fn trait_exposure(_py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_class::&lt;UserModel&gt;()?;
+    Ok(())
+}
+
+#[pymethods]
+impl UserModel {
+    #[new]
+    pub fn new(model: Py&lt;PyAny&gt;) -&gt; Self {
+        UserModel { model }
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Now we add the PyO3 annotations to the trait implementation:</p>
+<pre><code class="language-rust ignore">#[pymethods]
+impl Model for UserModel {
+  // the previous trait implementation
+}
+</code></pre>
+<p>However, the previous code will not compile. The compilation error is the following one:
+<code>error: #[pymethods] cannot be used on trait impl blocks</code></p>
+<p>That's a bummer!
+However, we can write a second wrapper around these functions to call them directly.
+This wrapper will also perform the type conversions between Python and Rust.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyAny;
+</span><span class="boring">
+</span><span class="boring">pub trait Model {
+</span><span class="boring">  fn set_variables(&amp;mut self, inputs: &amp;Vec&lt;f64&gt;);
+</span><span class="boring">  fn compute(&amp;mut self);
+</span><span class="boring">  fn get_results(&amp;self) -&gt; Vec&lt;f64&gt;;
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct UserModel {
+</span><span class="boring">    model: Py&lt;PyAny&gt;,
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">impl Model for UserModel {
+</span><span class="boring"> fn set_variables(&amp;mut self, var: &amp;Vec&lt;f64&gt;) {
+</span><span class="boring">     println!(&quot;Rust calling Python to set the variables&quot;);
+</span><span class="boring">     Python::with_gil(|py| {
+</span><span class="boring">         let values: Vec&lt;f64&gt; = var.clone();
+</span><span class="boring">         let list: PyObject = values.into_py(py);
+</span><span class="boring">         let py_model = self.model.as_ref(py);
+</span><span class="boring">         py_model
+</span><span class="boring">             .call_method(&quot;set_variables&quot;, (list,), None)
+</span><span class="boring">             .unwrap();
+</span><span class="boring">     })
+</span><span class="boring"> }
+</span><span class="boring">
+</span><span class="boring"> fn get_results(&amp;self) -&gt; Vec&lt;f64&gt; {
+</span><span class="boring">     println!(&quot;Rust calling Python to get the results&quot;);
+</span><span class="boring">     Python::with_gil(|py| {
+</span><span class="boring">         self.model
+</span><span class="boring">             .as_ref(py)
+</span><span class="boring">             .call_method(&quot;get_results&quot;, (), None)
+</span><span class="boring">             .unwrap()
+</span><span class="boring">             .extract()
+</span><span class="boring">             .unwrap()
+</span><span class="boring">     })
+</span><span class="boring"> }
+</span><span class="boring">
+</span><span class="boring"> fn compute(&amp;mut self) {
+</span><span class="boring">     println!(&quot;Rust calling Python to perform the computation&quot;);
+</span><span class="boring">     Python::with_gil(|py| {
+</span><span class="boring">         self.model
+</span><span class="boring">             .as_ref(py)
+</span><span class="boring">             .call_method(&quot;compute&quot;, (), None)
+</span><span class="boring">             .unwrap();
+</span><span class="boring">     })
+</span><span class="boring">
+</span><span class="boring"> }
+</span><span class="boring">}
+</span>
+#[pymethods]
+impl UserModel {
+    pub fn set_variables(&amp;mut self, var: Vec&lt;f64&gt;) {
+        println!(&quot;Set variables from Python calling Rust&quot;);
+        Model::set_variables(self, &amp;var)
+    }
+
+    pub fn get_results(&amp;mut self) -&gt; Vec&lt;f64&gt; {
+        println!(&quot;Get results from Python calling Rust&quot;);
+        Model::get_results(self)
+    }
+
+    pub fn compute(&amp;mut self) {
+        println!(&quot;Compute from Python calling Rust&quot;);
+        Model::compute(self)
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>This wrapper handles the type conversion between the PyO3 requirements and the trait.
+In order to meet PyO3 requirements, this wrapper must:</p>
+<ul>
+<li>return an object of type <code>PyResult</code></li>
+<li>use only values, not references in the method signatures</li>
+</ul>
+<p>Let's run the file python file:</p>
+<pre><code class="language-python">class Model:
+    def set_variables(self, inputs):
+        self.inputs = inputs
+    def compute(self):
+        self.results = [elt**2 - 3 for elt in self.inputs]
+    def get_results(self):
+        return self.results
+
+if __name__==&quot;__main__&quot;:
+  import trait_exposure
+
+  myModel = Model()
+  my_rust_model = trait_exposure.UserModel(myModel)
+  my_rust_model.set_variables([2.0])
+  print(&quot;Print value from Python: &quot;, myModel.inputs)
+  my_rust_model.compute()
+  print(&quot;Print value from Python through Rust: &quot;, my_rust_model.get_results())
+  print(&quot;Print value directly from Python: &quot;, myModel.get_results())
+</code></pre>
+<p>This outputs:</p>
+<pre><code class="language-block">Set variables from Python calling Rust
+Set variables from Rust calling Python
+Print value from Python:  [2.0]
+Compute from Python calling Rust
+Compute from Rust calling Python
+Get results from Python calling Rust
+Get results from Rust calling Python
+Print value from Python through Rust:  [1.0]
+Print value directly from Python:  [1.0]
+</code></pre>
+<p>We have now successfully exposed a Rust model that implements the <code>Model</code> trait to Python!</p>
+<p>We will now expose the <code>solve</code> function, but before, let's talk about types errors.</p>
+<h2><a class="header" href="#type-errors-in-python" id="type-errors-in-python">Type errors in Python</a></h2>
+<p>What happens if you have type errors when using Python and how can you improve the error messages?</p>
+<h3><a class="header" href="#wrong-types-in-python-function-arguments" id="wrong-types-in-python-function-arguments">Wrong types in Python function arguments</a></h3>
+<p>Let's assume in the first case that you will use in your Python file <code>my_rust_model.set_variables(2.0)</code> instead of <code>my_rust_model.set_variables([2.0])</code>.</p>
+<p>The Rust signature expects a vector, which corresponds to a list in Python.
+What happens if instead of a vector, we pass a single value ?</p>
+<p>At the execution of Python, we get :</p>
+<pre><code class="language-block">File &quot;main.py&quot;, line 15, in &lt;module&gt;
+   my_rust_model.set_variables(2)
+TypeError
+</code></pre>
+<p>It is a type error and Python points to it, so it's easy to identify and solve.</p>
+<h3><a class="header" href="#wrong-types-in-python-method-signatures" id="wrong-types-in-python-method-signatures">Wrong types in Python method signatures</a></h3>
+<p>Let's assume now that the return type of one of the methods of our Model class is wrong, for example the <code>get_results</code> method that is expected to return a <code>Vec&lt;f64&gt;</code> in Rust, a list in Python.</p>
+<pre><code class="language-python">class Model:
+    def set_variables(self, inputs):
+        self.inputs = inputs
+    def compute(self):
+        self.results = [elt**2 -3 for elt in self.inputs]
+    def get_results(self):
+        return self.results[0]
+        #return self.results &lt;-- this is the expected output
+</code></pre>
+<p>This call results in the following panic:</p>
+<pre><code class="language-block">pyo3_runtime.PanicException: called `Result::unwrap()` on an `Err` value: PyErr { type: Py(0x10dcf79f0, PhantomData) }
+</code></pre>
+<p>This error code is not helpful for a Python user that does not know anything about Rust, or someone that does not know PyO3 was used to interface the Rust code.</p>
+<p>However, as we are responsible for making the Rust code available to Python, we can do something about it.</p>
+<p>The issue is that we called <code>unwrap</code> anywhere we could, and therefore any panic from PyO3 will be directly forwarded to the end user.</p>
+<p>Let's modify the code performing the type conversion to give a helpful error message to the Python user:</p>
+<p>We used in our <code>get_results</code> method the following call that performs the type conversion:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyAny;
+</span><span class="boring">
+</span><span class="boring">pub trait Model {
+</span><span class="boring">  fn set_variables(&amp;mut self, inputs: &amp;Vec&lt;f64&gt;);
+</span><span class="boring">  fn compute(&amp;mut self);
+</span><span class="boring">  fn get_results(&amp;self) -&gt; Vec&lt;f64&gt;;
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct UserModel {
+</span><span class="boring">    model: Py&lt;PyAny&gt;,
+</span><span class="boring">}
+</span>
+impl Model for UserModel {
+    fn get_results(&amp;self) -&gt; Vec&lt;f64&gt; {
+        println!(&quot;Rust calling Python to get the results&quot;);
+        Python::with_gil(|py| {
+            self.model
+                .as_ref(py)
+                .call_method(&quot;get_results&quot;, (), None)
+                .unwrap()
+                .extract()
+                .unwrap()
+        })
+    }
+<span class="boring">    fn set_variables(&amp;mut self, var: &amp;Vec&lt;f64&gt;) {
+</span><span class="boring">        println!(&quot;Rust calling Python to set the variables&quot;);
+</span><span class="boring">        Python::with_gil(|py| {
+</span><span class="boring">            let values: Vec&lt;f64&gt; = var.clone();
+</span><span class="boring">            let list: PyObject = values.into_py(py);
+</span><span class="boring">            let py_model = self.model.as_ref(py);
+</span><span class="boring">            py_model
+</span><span class="boring">                .call_method(&quot;set_variables&quot;, (list,), None)
+</span><span class="boring">                .unwrap();
+</span><span class="boring">        })
+</span><span class="boring">    }
+</span><span class="boring">
+</span><span class="boring">    fn compute(&amp;mut self) {
+</span><span class="boring">        println!(&quot;Rust calling Python to perform the computation&quot;);
+</span><span class="boring">        Python::with_gil(|py| {
+</span><span class="boring">            self.model
+</span><span class="boring">                .as_ref(py)
+</span><span class="boring">                .call_method(&quot;compute&quot;, (), None)
+</span><span class="boring">                .unwrap();
+</span><span class="boring">        })
+</span><span class="boring">    }
+</span>}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Let's break it down in order to perform better error handling:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use pyo3::types::PyAny;
+</span><span class="boring">
+</span><span class="boring">pub trait Model {
+</span><span class="boring">  fn set_variables(&amp;mut self, inputs: &amp;Vec&lt;f64&gt;);
+</span><span class="boring">  fn compute(&amp;mut self);
+</span><span class="boring">  fn get_results(&amp;self) -&gt; Vec&lt;f64&gt;;
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct UserModel {
+</span><span class="boring">    model: Py&lt;PyAny&gt;,
+</span><span class="boring">}
+</span>
+impl Model for UserModel {
+    fn get_results(&amp;self) -&gt; Vec&lt;f64&gt; {
+        println!(&quot;Get results from Rust calling Python&quot;);
+        Python::with_gil(|py| {
+            let py_result: &amp;PyAny = self
+                .model
+                .as_ref(py)
+                .call_method(&quot;get_results&quot;, (), None)
+                .unwrap();
+
+            if py_result.get_type().name().unwrap() != &quot;list&quot; {
+                panic!(&quot;Expected a list for the get_results() method signature, got {}&quot;, py_result.get_type().name().unwrap());
+            }
+            py_result.extract()
+        })
+        .unwrap()
+    }
+<span class="boring">    fn set_variables(&amp;mut self, var: &amp;Vec&lt;f64&gt;) {
+</span><span class="boring">        println!(&quot;Rust calling Python to set the variables&quot;);
+</span><span class="boring">        Python::with_gil(|py| {
+</span><span class="boring">            let values: Vec&lt;f64&gt; = var.clone();
+</span><span class="boring">            let list: PyObject = values.into_py(py);
+</span><span class="boring">            let py_model = self.model.as_ref(py);
+</span><span class="boring">            py_model
+</span><span class="boring">                .call_method(&quot;set_variables&quot;, (list,), None)
+</span><span class="boring">                .unwrap();
+</span><span class="boring">        })
+</span><span class="boring">    }
+</span><span class="boring">
+</span><span class="boring">    fn compute(&amp;mut self) {
+</span><span class="boring">        println!(&quot;Rust calling Python to perform the computation&quot;);
+</span><span class="boring">        Python::with_gil(|py| {
+</span><span class="boring">            self.model
+</span><span class="boring">                .as_ref(py)
+</span><span class="boring">                .call_method(&quot;compute&quot;, (), None)
+</span><span class="boring">                .unwrap();
+</span><span class="boring">        })
+</span><span class="boring">    }
+</span>}
+<span class="boring">}
+</span></code></pre></pre>
+<p>By doing so, you catch the result of the Python computation and check its type in order to be able to deliver a better error message before performing the unwrapping.</p>
+<p>Of course, it does not cover all the possible wrong outputs:
+the user could return a list of strings instead of a list of floats.
+In this case, a runtime panic would still occur due to PyO3, but with an error message much more difficult to decipher for non-rust user.</p>
+<p>It is up to the developer exposing the rust code to decide how much effort to invest into Python type error handling and improved error messages.</p>
+<h2><a class="header" href="#the-final-code" id="the-final-code">The final code</a></h2>
+<p>Now let's expose the <code>solve()</code> function to make it available from Python.</p>
+<p>It is not possible to directly expose the <code>solve</code> function to Python, as the type conversion cannot be performed.
+It requires an object implementing the <code>Model</code> trait as input.</p>
+<p>However, the <code>UserModel</code> already implements this trait.
+Because of this, we can write a function wrapper that takes the <code>UserModel</code>--which has already been exposed to Python--as an argument in order to call the core function <code>solve</code>.</p>
+<p>It is also required to make the struct public.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+use pyo3::types::PyAny;
+
+pub trait Model {
+    fn set_variables(&amp;mut self, var: &amp;Vec&lt;f64&gt;);
+    fn get_results(&amp;self) -&gt; Vec&lt;f64&gt;;
+    fn compute(&amp;mut self);
+}
+
+pub fn solve&lt;T: Model&gt;(model: &amp;mut T) {
+  println!(&quot;Magic solver that mutates the model into a resolved state&quot;);
+}
+
+#[pyfunction]
+#[name = &quot;solve&quot;]
+pub fn solve_wrapper(model: &amp;mut UserModel) {
+    solve(model);
+}
+
+#[pyclass]
+pub struct UserModel {
+    model: Py&lt;PyAny&gt;,
+}
+
+#[pymodule]
+fn trait_exposure(_py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_class::&lt;UserModel&gt;()?;
+    m.add_function(wrap_pyfunction!(solve_wrapper, m)?)?;
+    Ok(())
+}
+
+#[pymethods]
+impl UserModel {
+    #[new]
+    pub fn new(model: Py&lt;PyAny&gt;) -&gt; Self {
+        UserModel { model }
+    }
+
+    pub fn set_variables(&amp;mut self, var: Vec&lt;f64&gt;) {
+        println!(&quot;Set variables from Python calling Rust&quot;);
+        Model::set_variables(self, &amp;var)
+    }
+
+    pub fn get_results(&amp;mut self) -&gt; Vec&lt;f64&gt; {
+        println!(&quot;Get results from Python calling Rust&quot;);
+        Model::get_results(self)
+    }
+
+    pub fn compute(&amp;mut self) {
+        Model::compute(self)
+    }
+}
+
+impl Model for UserModel {
+    fn set_variables(&amp;mut self, var: &amp;Vec&lt;f64&gt;) {
+        println!(&quot;Rust calling Python to set the variables&quot;);
+        Python::with_gil(|py| {
+            let values: Vec&lt;f64&gt; = var.clone();
+            let list: PyObject = values.into_py(py);
+            let py_model = self.model.as_ref(py);
+            py_model
+                .call_method(&quot;set_variables&quot;, (list,), None)
+                .unwrap();
+        })
+    }
+
+    fn get_results(&amp;self) -&gt; Vec&lt;f64&gt; {
+        println!(&quot;Get results from Rust calling Python&quot;);
+        Python::with_gil(|py| {
+            let py_result: &amp;PyAny = self
+                .model
+                .as_ref(py)
+                .call_method(&quot;get_results&quot;, (), None)
+                .unwrap();
+
+            if py_result.get_type().name().unwrap() != &quot;list&quot; {
+                panic!(&quot;Expected a list for the get_results() method signature, got {}&quot;, py_result.get_type().name().unwrap());
+            }
+            py_result.extract()
+        })
+        .unwrap()
+    }
+
+    fn compute(&amp;mut self) {
+        println!(&quot;Rust calling Python to perform the computation&quot;);
+        Python::with_gil(|py| {
+            self.model
+                .as_ref(py)
+                .call_method(&quot;compute&quot;, (), None)
+                .unwrap();
+        })
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="rust_cpython.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="logging.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="rust_cpython.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="logging.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

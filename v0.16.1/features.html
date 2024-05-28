@@ -1,0 +1,288 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Features Reference - PyO3 user guide</title>
+                
+
+        <!-- Custom HTML head -->
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+                <link rel="icon" href="favicon.svg">
+                        <link rel="shortcut icon" href="favicon.png">
+                <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+                <link rel="stylesheet" href="css/print.css" media="print">
+        
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="fonts/fonts.css">
+        
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">1.</strong> Python Modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">2.</strong> Python Functions</a></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">3.</strong> Python Classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">3.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/object.html"><strong aria-hidden="true">3.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="class/numeric.html"><strong aria-hidden="true">3.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="class/call.html"><strong aria-hidden="true">3.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">4.</strong> Type Conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">5.</strong> Python Exceptions</a></li><li class="chapter-item expanded "><a href="python_from_rust.html"><strong aria-hidden="true">6.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">7.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">8.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">9.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html" class="active"><strong aria-hidden="true">10.</strong> Features Reference</a></li><li class="chapter-item expanded "><a href="memory.html"><strong aria-hidden="true">11.</strong> Memory Management</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">12.</strong> Advanced Topics</a></li><li class="chapter-item expanded "><a href="building_and_distribution.html"><strong aria-hidden="true">13.</strong> Building and Distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">13.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">14.</strong> Useful Crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">14.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">14.2.</strong> Async / Await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">15.</strong> FAQ &amp; Troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration Guide</a></li><li class="chapter-item expanded affix "><a href="rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="python_typing_hints.html">Appendix D: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                                            </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                                                <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                                                                        
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="features-reference"><a class="header" href="#features-reference">Features Reference</a></h1>
+<p>PyO3 provides a number of Cargo features to customise functionality. This chapter of the guide provides detail on each of them.</p>
+<p>By default, only the <code>macros</code> feature is enabled.</p>
+<h2 id="features-for-extension-module-authors"><a class="header" href="#features-for-extension-module-authors">Features for extension module authors</a></h2>
+<h3 id="extension-module"><a class="header" href="#extension-module"><code>extension-module</code></a></h3>
+<p>This feature is required when building a Python extension module using PyO3.</p>
+<p>It tells PyO3's build script to skip linking against <code>libpython.so</code> on Unix platforms, where this must not be done.</p>
+<p>See the <a href="building_and_distribution.html#linking">building and distribution</a> section for further detail.</p>
+<h3 id="abi3"><a class="header" href="#abi3"><code>abi3</code></a></h3>
+<p>This feature is used when building Python extension modules to create wheels which are compatible with multiple Python versions.</p>
+<p>It restricts PyO3's API to a subset of the full Python API which is guaranteed by <a href="https://www.python.org/dev/peps/pep-0384/">PEP 384</a> to be forwards-compatible with future Python versions.</p>
+<p>See the <a href="building_and_distribution.html#py_limited_apiabi3">building and distribution</a> section for further detail.</p>
+<h3 id="the-abi3-pyxy-features"><a class="header" href="#the-abi3-pyxy-features">The <code>abi3-pyXY</code> features</a></h3>
+<p>(<code>abi3-py37</code>, <code>abi3-py38</code>, <code>abi3-py39</code>, and <code>abi3-py310</code>)</p>
+<p>These features are extensions of the <code>abi3</code> feature to specify the exact minimum Python version which the multiple-version-wheel will support.</p>
+<p>See the <a href="building_and_distribution.html#minimum-python-version-for-abi3">building and distribution</a> section for further detail.</p>
+<h2 id="features-for-embedding-python-in-rust"><a class="header" href="#features-for-embedding-python-in-rust">Features for embedding Python in Rust</a></h2>
+<h3 id="auto-initialize"><a class="header" href="#auto-initialize"><code>auto-initialize</code></a></h3>
+<p>This feature changes <a href="https://docs.rs/pyo3/0.16.1/pyo3/struct.Python.html#method.with_gil"><code>Python::with_gil</code></a> and <a href="https://docs.rs/pyo3/0.16.1/pyo3/struct.Python.html#method.acquire_gil"><code>Python::acquire_gil</code></a> to automatically initialize a Python interpreter (by calling <a href="https://docs.rs/pyo3/0.16.1/pyo3/fn.prepare_freethreaded_python.html"><code>prepare_freethreaded_python</code></a>) if needed.</p>
+<p>If you do not enable this feature, you should call <code>pyo3::prepare_freethreaded_python()</code> before attempting to call any other Python APIs.</p>
+<h2 id="advanced-features"><a class="header" href="#advanced-features">Advanced Features</a></h2>
+<h3 id="macros"><a class="header" href="#macros"><code>macros</code></a></h3>
+<p>This feature enables a dependency on the <code>pyo3-macros</code> crate, which provides the procedural macros portion of PyO3's API:</p>
+<ul>
+<li><code>#[pymodule]</code></li>
+<li><code>#[pyfunction]</code></li>
+<li><code>#[pyclass]</code></li>
+<li><code>#[pymethods]</code></li>
+<li><code>#[pyproto]</code></li>
+<li><code>#[derive(FromPyObject)]</code></li>
+</ul>
+<p>It also provides the <code>py_run!</code> macro.</p>
+<p>These macros require a number of dependencies which may not be needed by users who just need PyO3 for Python FFI. Disabling this feature enables faster builds for those users, as these dependencies will not be built if this feature is disabled.</p>
+<blockquote>
+<p>This feature is enabled by default. To disable it, set <code>default-features = false</code> for the <code>pyo3</code> entry in your Cargo.toml.</p>
+</blockquote>
+<h3 id="multiple-pymethods"><a class="header" href="#multiple-pymethods"><code>multiple-pymethods</code></a></h3>
+<p>This feature enables a dependency on <code>inventory</code>, which enables each <code>#[pyclass]</code> to have more than one <code>#[pymethods]</code> block.</p>
+<p>Most users should only need a single <code>#[pymethods]</code> per <code>#[pyclass]</code>. In addition, not all platforms (e.g. Wasm) are supported by <code>inventory</code>. For this reason this feature is not enabled by default, meaning fewer dependencies and faster compilation for the majority of users.</p>
+<p>See <a href="class.html#implementation-details">the <code>#[pyclass]</code> implementation details</a> for more information.</p>
+<h3 id="pyproto"><a class="header" href="#pyproto"><code>pyproto</code></a></h3>
+<p>This feature enables the <code>#[pyproto]</code> macro, which is an alternative (older, soon-to-be-deprecated) to <code>#[pymethods]</code> for defining magic methods such as <code>__eq__</code>.</p>
+<blockquote>
+<p>This feature is enabled by default. To disable it, set <code>default-features = false</code> for the <code>pyo3</code> entry in your Cargo.toml.</p>
+</blockquote>
+<h3 id="nightly"><a class="header" href="#nightly"><code>nightly</code></a></h3>
+<p>The <code>nightly</code> feature needs the nightly Rust compiler. This allows PyO3 to use the auto_traits and negative_impls features to fix the <code>Python::allow_threads</code> function.</p>
+<h3 id="resolve-config"><a class="header" href="#resolve-config"><code>resolve-config</code></a></h3>
+<p>The <code>resolve-config</code> feature of the <code>pyo3-build-config</code> crate controls whether that crate's
+build script automatically resolves a Python interpreter / build configuration. This feature is primarily useful when building PyO3
+itself. By default this feature is not enabled, meaning you can freely use <code>pyo3-build-config</code> as a standalone library to read or write PyO3 build configuration files or resolve metadata about a Python interpreter.</p>
+<h2 id="optional-dependencies"><a class="header" href="#optional-dependencies">Optional Dependencies</a></h2>
+<p>These features enable conversions between Python types and types from other Rust crates, enabling easy access to the rest of the Rust ecosystem.</p>
+<h3 id="anyhow"><a class="header" href="#anyhow"><code>anyhow</code></a></h3>
+<p>Adds a dependency on <a href="https://docs.rs/anyhow">anyhow</a>. Enables a conversion from <a href="https://docs.rs/anyhow">anyhow</a>’s <a href="https://docs.rs/anyhow/latest/anyhow/struct.Error.html"><code>Error</code></a> type to <a href="https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html"><code>PyErr</code></a>, for easy error handling.</p>
+<h3 id="eyre"><a class="header" href="#eyre"><code>eyre</code></a></h3>
+<p>Adds a dependency on <a href="https://docs.rs/eyre">eyre</a>. Enables a conversion from <a href="https://docs.rs/eyre">eyre</a>’s <a href="https://docs.rs/eyre/latest/eyre/struct.Report.html"><code>Report</code></a> type to <a href="https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html"><code>PyErr</code></a>, for easy error handling.</p>
+<h3 id="hashbrown"><a class="header" href="#hashbrown"><code>hashbrown</code></a></h3>
+<p>Adds a dependency on <a href="https://docs.rs/hashbrown">hashbrown</a> and enables conversions into its <a href="https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html"><code>HashMap</code></a> and <a href="https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html"><code>HashSet</code></a> types.</p>
+<h3 id="indexmap"><a class="header" href="#indexmap"><code>indexmap</code></a></h3>
+<p>Adds a dependency on <a href="https://docs.rs/indexmap">indexmap</a> and enables conversions into its <a href="https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html"><code>IndexMap</code></a> type.</p>
+<h3 id="num-bigint"><a class="header" href="#num-bigint"><code>num-bigint</code></a></h3>
+<p>Adds a dependency on <a href="https://docs.rs/num-bigint">num-bigint</a> and enables conversions into its <a href="https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html"><code>BigInt</code></a> and <a href="https://docs.rs/num-bigint/latest/num_bigint/struct.BigUInt.html"><code>BigUint</code></a> types.</p>
+<h3 id="num-complex"><a class="header" href="#num-complex"><code>num-complex</code></a></h3>
+<p>Adds a dependency on <a href="https://docs.rs/num-complex">num-complex</a> and enables conversions into its <a href="https://docs.rs/num-complex/latest/num_complex/struct.Complex.html"><code>Complex</code></a> type.</p>
+<h3 id="serde"><a class="header" href="#serde"><code>serde</code></a></h3>
+<p>Enables (de)serialization of Py<T> objects via <a href="https://serde.rs/">serde</a>.
+This allows to use <a href="https://serde.rs/derive.html"><code>#[derive(Serialize, Deserialize)</code></a> on structs that hold references to <code>#[pyclass]</code> instances</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">#[cfg(feature = &quot;serde&quot;)]
+</span><span class="boring">#[allow(dead_code)]
+</span><span class="boring">mod serde_only {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">use serde::{Deserialize, Serialize};
+</span>
+#[pyclass]
+#[derive(Serialize, Deserialize)]
+struct Permission {
+    name: String
+}
+
+#[pyclass]
+#[derive(Serialize, Deserialize)]
+struct User {
+    username: String,
+    permissions: Vec&lt;Py&lt;Permission&gt;&gt;
+}
+<span class="boring">}
+</span><span class="boring">}
+</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                                                    <a rel="prev" href="debugging.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+                                                    <a rel="next" href="memory.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                                    <a rel="prev" href="debugging.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+                                    <a rel="next" href="memory.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+        
+                <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+        
+                <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+        
+    </body>
+</html>

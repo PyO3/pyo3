@@ -1,0 +1,467 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Async / Await - PyO3 user guide</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="../favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="../favicon.png">
+        
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../module.html"><strong aria-hidden="true">1.</strong> Python Modules</a></li><li class="chapter-item expanded "><a href="../function.html"><strong aria-hidden="true">2.</strong> Python Functions</a></li><li class="chapter-item expanded "><a href="../class.html"><strong aria-hidden="true">3.</strong> Python Classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/protocols.html"><strong aria-hidden="true">3.1.</strong> Class customizations</a></li></ol></li><li class="chapter-item expanded "><a href="../conversions.html"><strong aria-hidden="true">4.</strong> Type Conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="../conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="../exception.html"><strong aria-hidden="true">5.</strong> Python Exceptions</a></li><li class="chapter-item expanded "><a href="../python_from_rust.html"><strong aria-hidden="true">6.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="../types.html"><strong aria-hidden="true">7.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="../parallelism.html"><strong aria-hidden="true">8.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="../debugging.html"><strong aria-hidden="true">9.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">10.</strong> Features Reference</a></li><li class="chapter-item expanded "><a href="../advanced.html"><strong aria-hidden="true">11.</strong> Advanced Topics</a></li><li class="chapter-item expanded "><a href="../building_and_distribution.html"><strong aria-hidden="true">12.</strong> Building and Distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../building_and_distribution/pypy.html"><strong aria-hidden="true">12.1.</strong> PyPy support</a></li></ol></li><li class="chapter-item expanded "><a href="../ecosystem.html"><strong aria-hidden="true">13.</strong> Useful Crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../ecosystem/logging.html"><strong aria-hidden="true">13.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="../ecosystem/async-await.html" class="active"><strong aria-hidden="true">13.2.</strong> Async / Await</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html"><strong aria-hidden="true">14.</strong> FAQ &amp; Troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../migration.html">Appendix A: Migration Guide</a></li><li class="chapter-item expanded affix "><a href="../rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="../trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="../changelog.html">CHANGELOG</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#async--await" id="async--await">Async / Await</a></h1>
+<p>If you are working with a Python library that makes use of async functions or wish to provide 
+Python bindings for an async Rust library, <a href="https://github.com/awestlake87/pyo3-asyncio"><code>pyo3-asyncio</code></a>
+likely has the tools you need. It provides conversions between async functions in both Python and 
+Rust and was designed with first-class support for popular Rust runtimes such as 
+<a href="https://tokio.rs/"><code>tokio</code></a> and <a href="https://async.rs/"><code>async-std</code></a>. In addition, all async Python 
+code runs on the default <code>asyncio</code> event loop, so <code>pyo3-asyncio</code> should work just fine with existing 
+Python libraries.</p>
+<p>In the following sections, we'll give a general overview of <code>pyo3-asyncio</code> explaining how to call 
+async Python functions with PyO3, how to call async Rust functions from Python, and how to configure
+your codebase to manage the runtimes of both.</p>
+<h2><a class="header" href="#awaiting-an-async-python-function-in-rust" id="awaiting-an-async-python-function-in-rust">Awaiting an Async Python Function in Rust</a></h2>
+<p>Let's take a look at a dead simple async Python function:</p>
+<pre><code class="language-python"># Sleep for 1 second
+async def py_sleep():
+    await asyncio.sleep(1)
+</code></pre>
+<p><strong>Async functions in Python are simply functions that return a <code>coroutine</code> object</strong>. For our purposes, 
+we really don't need to know much about these <code>coroutine</code> objects. The key factor here is that calling
+an <code>async</code> function is <em>just like calling a regular function</em>, the only difference is that we have
+to do something special with the object that it returns.</p>
+<p>Normally in Python, that something special is the <code>await</code> keyword, but in order to await this 
+coroutine in Rust, we first need to convert it into Rust's version of a <code>coroutine</code>: a <code>Future</code>. 
+That's where <code>pyo3-asyncio</code> comes in. 
+<a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.into_future.html"><code>pyo3_asyncio::into_future</code></a> 
+performs this conversion for us:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let future = Python::with_gil(|py| {
+    // import the module containing the py_sleep function
+    let example = py.import(&quot;example&quot;)?;
+
+    // calling the py_sleep method like a normal function returns a coroutine
+    let coroutine = example.call_method0(&quot;py_sleep&quot;)?;
+
+    // convert the coroutine into a Rust future
+    pyo3_asyncio::into_future(coroutine)
+})?;
+
+// await the future
+future.await;
+<span class="boring">}
+</span></code></pre></pre>
+<blockquote>
+<p>If you're interested in learning more about <code>coroutines</code> and <code>awaitables</code> in general, check out the 
+<a href="https://docs.python.org/3/library/asyncio-task.html">Python 3 <code>asyncio</code> docs</a> for more information.</p>
+</blockquote>
+<h2><a class="header" href="#awaiting-a-rust-future-in-python" id="awaiting-a-rust-future-in-python">Awaiting a Rust Future in Python</a></h2>
+<p>Here we have the same async function as before written in Rust using the 
+<a href="https://async.rs/"><code>async-std</code></a> runtime:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Sleep for 1 second
+async fn rust_sleep() {
+    async_std::task::sleep(Duration::from_secs(1)).await;
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Similar to Python, Rust's async functions also return a special object called a
+<code>Future</code>:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let future = rust_sleep();
+<span class="boring">}
+</span></code></pre></pre>
+<p>We can convert this <code>Future</code> object into Python to make it <code>awaitable</code>. This tells Python that you 
+can use the <code>await</code> keyword with it. In order to do this, we'll call 
+<a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.into_coroutine.html"><code>pyo3_asyncio::async_std::into_coroutine</code></a>:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[pyfunction]
+fn call_rust_sleep(py: Python) -&gt; PyResult&lt;PyObject&gt; {
+    pyo3_asyncio::async_std::into_coroutine(py, async move {
+        rust_sleep().await;
+        Ok(())
+    })
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In Python, we can call this pyo3 function just like any other async function:</p>
+<pre><code class="language-python">from example import call_rust_sleep
+
+async def rust_sleep():
+    await call_rust_sleep()
+</code></pre>
+<h2><a class="header" href="#managing-event-loops" id="managing-event-loops">Managing Event Loops</a></h2>
+<p>Python's event loop requires some special treatment, especially regarding the main thread. Some of
+Python's <code>asyncio</code> features, like proper signal handling, require control over the main thread, which
+doesn't always play well with Rust.</p>
+<p>Luckily, Rust's event loops are pretty flexible and don't <em>need</em> control over the main thread, so in
+<code>pyo3-asyncio</code>, we decided the best way to handle Rust/Python interop was to just surrender the main
+thread to Python and run Rust's event loops in the background. Unfortunately, since most event loop 
+implementations <em>prefer</em> control over the main thread, this can still make some things awkward.</p>
+<h3><a class="header" href="#pyo3-asyncio-initialization" id="pyo3-asyncio-initialization">PyO3 Asyncio Initialization</a></h3>
+<p>Because Python needs to control the main thread, we can't use the convenient proc macros from Rust
+runtimes to handle the <code>main</code> function or <code>#[test]</code> functions. Instead, the initialization for PyO3 has to be done from the <code>main</code> function and the main 
+thread must block on <a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.run_forever.html"><code>pyo3_asyncio::run_forever</code></a> or <a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.run_until_complete.html"><code>pyo3_asyncio::async_std::run_until_complete</code></a>.</p>
+<p>Because we have to block on one of those functions, we can't use <a href="https://docs.rs/async-std/latest/async_std/attr.main.html"><code>#[async_std::main]</code></a> or <a href="https://docs.rs/tokio/1.1.0/tokio/attr.main.html"><code>#[tokio::main]</code></a>
+since it's not a good idea to make long blocking calls during an async function.</p>
+<blockquote>
+<p>Internally, these <code>#[main]</code> proc macros are expanded to something like this:</p>
+<pre><pre class="playground"><code class="language-rust">fn main() {
+    // your async main fn
+    async fn _main_impl() { /* ... */ }
+    Runtime::new().block_on(_main_impl());   
+}
+</code></pre></pre>
+<p>Making a long blocking call inside the <code>Future</code> that's being driven by <code>block_on</code> prevents that
+thread from doing anything else and can spell trouble for some runtimes (also this will actually 
+deadlock a single-threaded runtime!). Many runtimes have some sort of <code>spawn_blocking</code> mechanism 
+that can avoid this problem, but again that's not something we can use here since we need it to 
+block on the <em>main</em> thread.</p>
+</blockquote>
+<p>For this reason, <code>pyo3-asyncio</code> provides its own set of proc macros to provide you with this 
+initialization. These macros are intended to mirror the initialization of <code>async-std</code> and <code>tokio</code> 
+while also satisfying the Python runtime's needs.</p>
+<p>Here's a full example of PyO3 initialization with the <code>async-std</code> runtime:</p>
+<pre><pre class="playground"><code class="language-rust">use pyo3::prelude::*;
+
+#[pyo3_asyncio::async_std::main]
+async fn main() -&gt; PyResult&lt;()&gt; {
+    // PyO3 is initialized - Ready to go
+
+    let fut = Python::with_gil(|py| {
+        let asyncio = py.import(&quot;asyncio&quot;)?;
+
+        // convert asyncio.sleep into a Rust Future
+        pyo3_asyncio::into_future(asyncio.call_method1(&quot;sleep&quot;, (1.into_py(py),))?)
+    })?;
+
+    fut.await?;
+
+    Ok(())
+}
+</code></pre></pre>
+<h2><a class="header" href="#pyo3-asyncio-in-cargo-tests" id="pyo3-asyncio-in-cargo-tests">PyO3 Asyncio in Cargo Tests</a></h2>
+<p>The default Cargo Test harness does not currently allow test crates to provide their own <code>main</code> 
+function, so there doesn't seem to be a good way to allow Python to gain control over the main
+thread.</p>
+<p>We can, however, override the default test harness and provide our own. <code>pyo3-asyncio</code> provides some
+utilities to help us do just that! In the following sections, we will provide an overview for 
+constructing a Cargo integration test with <code>pyo3-asyncio</code> and adding your tests to it.</p>
+<h3><a class="header" href="#main-test-file" id="main-test-file">Main Test File</a></h3>
+<p>First, we need to create the test's main file. Although these tests are considered integration
+tests, we cannot put them in the <code>tests</code> directory since that is a special directory owned by
+Cargo. Instead, we put our tests in a <code>pytests</code> directory.</p>
+<blockquote>
+<p>The name <code>pytests</code> is just a convention. You can name this folder anything you want in your own
+projects.</p>
+</blockquote>
+<p>We'll also want to provide the test's main function. Most of the functionality that the test harness needs is packed in the <a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/testing/fn.main.html"><code>pyo3_asyncio::testing::main</code></a> function. This function will parse the test's CLI arguments, collect and pass the functions marked with <a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/attr.test.html"><code>#[pyo3_asyncio::async_std::test]</code></a> or <a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/tokio/attr.test.html"><code>#[pyo3_asyncio::tokio::test]</code></a> and pass them into the test harness for running and filtering.</p>
+<p><code>pytests/test_example.rs</code> for the <code>tokio</code> runtime:</p>
+<pre><pre class="playground"><code class="language-rust">#[pyo3_asyncio::tokio::main]
+async fn main() -&gt; pyo3::PyResult&lt;()&gt; {
+    pyo3_asyncio::testing::main().await
+}
+</code></pre></pre>
+<p><code>pytests/test_example.rs</code> for the <code>async-std</code> runtime:</p>
+<pre><pre class="playground"><code class="language-rust">#[pyo3_asyncio::async_std::main]
+async fn main() -&gt; pyo3::PyResult&lt;()&gt; {
+    pyo3_asyncio::testing::main().await
+}
+</code></pre></pre>
+<h3><a class="header" href="#cargo-configuration" id="cargo-configuration">Cargo Configuration</a></h3>
+<p>Next, we need to add our test file to the Cargo manifest by adding the following section to the
+<code>Cargo.toml</code></p>
+<pre><code class="language-toml">[[test]]
+name = &quot;test_example&quot;
+path = &quot;pytests/test_example.rs&quot;
+harness = false
+</code></pre>
+<p>Also add the <code>testing</code> and <code>attributes</code> features to the <code>pyo3-asyncio</code> dependency and select your preferred runtime:</p>
+<pre><code class="language-toml">pyo3-asyncio = { version = &quot;0.13&quot;, features = [&quot;testing&quot;, &quot;attributes&quot;, &quot;async-std-runtime&quot;] }
+</code></pre>
+<p>At this point, you should be able to run the test via <code>cargo test</code></p>
+<h3><a class="header" href="#adding-tests-to-the-pyo3-asyncio-test-harness" id="adding-tests-to-the-pyo3-asyncio-test-harness">Adding Tests to the PyO3 Asyncio Test Harness</a></h3>
+<p>We can add tests anywhere in the test crate with the runtime's corresponding <code>#[test]</code> attribute:</p>
+<p>For <code>async-std</code> use the <a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/attr.test.html"><code>pyo3_asyncio::async_std::test</code></a> attribute:</p>
+<pre><pre class="playground"><code class="language-rust">mod tests {
+    use std::{time::Duration, thread};
+
+    use pyo3::prelude::*;
+
+    // tests can be async
+    #[pyo3_asyncio::async_std::test]
+    async fn test_async_sleep() -&gt; PyResult&lt;()&gt; {
+        async_std::task::sleep(Duration::from_secs(1)).await;
+        Ok(())
+    }
+
+    // they can also be synchronous
+    #[pyo3_asyncio::async_std::test]
+    fn test_blocking_sleep() -&gt; PyResult&lt;()&gt; {
+        thread::sleep(Duration::from_secs(1));
+        Ok(())
+    }
+}
+
+#[pyo3_asyncio::async_std::main]
+async fn main() -&gt; pyo3::PyResult&lt;()&gt; {
+    pyo3_asyncio::testing::main().await
+}
+</code></pre></pre>
+<p>For <code>tokio</code> use the <a href="https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/tokio/attr.test.html"><code>pyo3_asyncio::tokio::test</code></a> attribute:</p>
+<pre><pre class="playground"><code class="language-rust">mod tests {
+    use std::{time::Duration, thread};
+
+    use pyo3::prelude::*;
+
+    // tests can be async
+    #[pyo3_asyncio::tokio::test]
+    async fn test_async_sleep() -&gt; PyResult&lt;()&gt; {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        Ok(())
+    }
+
+    // they can also be synchronous
+    #[pyo3_asyncio::tokio::test]
+    fn test_blocking_sleep() -&gt; PyResult&lt;()&gt; {
+        thread::sleep(Duration::from_secs(1));
+        Ok(())
+    }
+}
+
+#[pyo3_asyncio::tokio::main]
+async fn main() -&gt; pyo3::PyResult&lt;()&gt; {
+    pyo3_asyncio::testing::main().await
+}
+</code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../ecosystem/logging.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../faq.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../ecosystem/logging.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="../faq.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

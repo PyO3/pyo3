@@ -1,0 +1,258 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Logging - PyO3 user guide</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../getting_started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../module.html"><strong aria-hidden="true">2.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="../function.html"><strong aria-hidden="true">3.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../function/signature.html"><strong aria-hidden="true">3.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="../function/error_handling.html"><strong aria-hidden="true">3.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="../class.html"><strong aria-hidden="true">4.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/protocols.html"><strong aria-hidden="true">4.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/object.html"><strong aria-hidden="true">4.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="../class/numeric.html"><strong aria-hidden="true">4.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="../class/call.html"><strong aria-hidden="true">4.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../conversions.html"><strong aria-hidden="true">5.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../conversions/tables.html"><strong aria-hidden="true">5.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="../conversions/traits.html"><strong aria-hidden="true">5.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="../exception.html"><strong aria-hidden="true">6.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="../python_from_rust.html"><strong aria-hidden="true">7.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="../types.html"><strong aria-hidden="true">8.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="../parallelism.html"><strong aria-hidden="true">9.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="../debugging.html"><strong aria-hidden="true">10.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">11.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="../memory.html"><strong aria-hidden="true">12.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="../performance.html"><strong aria-hidden="true">13.</strong> Performance</a></li><li class="chapter-item expanded "><a href="../advanced.html"><strong aria-hidden="true">14.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="../building_and_distribution.html"><strong aria-hidden="true">15.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">15.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="../ecosystem.html"><strong aria-hidden="true">16.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../ecosystem/logging.html" class="active"><strong aria-hidden="true">16.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="../ecosystem/async-await.html"><strong aria-hidden="true">16.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html"><strong aria-hidden="true">17.</strong> FAQ and troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="../trait_bounds.html">Appendix B: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="../python_typing_hints.html">Appendix C: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="../changelog.html">CHANGELOG</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/ecosystem/logging.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="logging"><a class="header" href="#logging">Logging</a></h1>
+<p>It is desirable if both the Python and Rust parts of the application end up
+logging using the same configuration into the same place.</p>
+<p>This section of the guide briefly discusses how to connect the two languages'
+logging ecosystems together. The recommended way for Python extension modules is
+to configure Rust's logger to send log messages to Python using the <code>pyo3-log</code>
+crate. For users who want to do the opposite and send Python log messages to
+Rust, see the note at the end of this guide.</p>
+<h2 id="using-pyo3-log-to-send-rust-log-messages-to-python"><a class="header" href="#using-pyo3-log-to-send-rust-log-messages-to-python">Using <code>pyo3-log</code> to send Rust log messages to Python</a></h2>
+<p>The <a href="https://crates.io/crates/pyo3-log">pyo3-log</a> crate allows sending the messages from the Rust side to Python's
+<a href="https://docs.python.org/3/library/logging.html">logging</a> system. This is mostly suitable for writing native extensions for
+Python programs.</p>
+<p>Use <a href="https://docs.rs/pyo3-log/*/pyo3_log/fn.init.html"><code>pyo3_log::init</code></a> to install the logger in its default configuration.
+It's also possible to tweak its configuration (mostly to tune its performance).</p>
+<pre><code class="language-rust">use log::info;
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn log_something() {
+    // This will use the logger installed in `my_module` to send the `info`
+    // message to the Python logging facilities.
+    info!(&quot;Something!&quot;);
+}
+
+#[pymodule]
+fn my_module(_py: Python&lt;'_&gt;, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    // A good place to install the Rust -&gt; Python logger.
+    pyo3_log::init();
+
+    m.add_function(wrap_pyfunction!(log_something))?;
+    Ok(())
+}
+</code></pre>
+<p>Then it is up to the Python side to actually output the messages somewhere.</p>
+<pre><code class="language-python">import logging
+import my_module
+
+FORMAT = '%(levelname)s %(name)s %(asctime)-15s %(filename)s:%(lineno)d %(message)s'
+logging.basicConfig(format=FORMAT)
+logging.getLogger().setLevel(logging.INFO)
+my_module.log_something()
+</code></pre>
+<p>It is important to initialize the Python loggers first, before calling any Rust
+functions that may log. This limitation can be worked around if it is not
+possible to satisfy, read the documentation about <a href="https://docs.rs/pyo3-log/*/pyo3_log/#performance-filtering-and-caching">caching</a>.</p>
+<h2 id="the-python-to-rust-direction"><a class="header" href="#the-python-to-rust-direction">The Python to Rust direction</a></h2>
+<p>To have python logs be handled by Rust, one need only register a rust function to handle logs emitted from the core python logging module.</p>
+<p>This has been implemented within the <a href="https://crates.io/crates/pyo3-pylogger">pyo3-pylogger</a> crate.</p>
+<pre><code class="language-rust">use log::{info, warn};
+use pyo3::prelude::*;
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    // register the host handler with python logger, providing a logger target
+    // set the name here to something appropriate for your application
+    pyo3_pylogger::register(&quot;example_application_py_logger&quot;);
+
+    // initialize up a logger
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(&quot;trace&quot;)).init();
+
+    // Log some messages from Rust.
+    info!(&quot;Just some normal information!&quot;);
+    warn!(&quot;Something spooky happened!&quot;);
+
+    // Log some messages from Python
+    Python::with_gil(|py| {
+        py.run(
+            &quot;
+import logging
+logging.error('Something bad happened')
+&quot;,
+            None,
+            None,
+        )
+    })
+}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../ecosystem.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../ecosystem/async-await.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../ecosystem.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../ecosystem/async-await.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

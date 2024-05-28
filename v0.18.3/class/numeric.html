@@ -1,0 +1,614 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Emulating numeric types - PyO3 user guide</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../getting_started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../module.html"><strong aria-hidden="true">2.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="../function.html"><strong aria-hidden="true">3.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../function/signature.html"><strong aria-hidden="true">3.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="../function/error_handling.html"><strong aria-hidden="true">3.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="../class.html"><strong aria-hidden="true">4.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/protocols.html"><strong aria-hidden="true">4.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/object.html"><strong aria-hidden="true">4.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="../class/numeric.html" class="active"><strong aria-hidden="true">4.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="../class/call.html"><strong aria-hidden="true">4.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../conversions.html"><strong aria-hidden="true">5.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../conversions/tables.html"><strong aria-hidden="true">5.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="../conversions/traits.html"><strong aria-hidden="true">5.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="../exception.html"><strong aria-hidden="true">6.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="../python_from_rust.html"><strong aria-hidden="true">7.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="../types.html"><strong aria-hidden="true">8.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="../parallelism.html"><strong aria-hidden="true">9.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="../debugging.html"><strong aria-hidden="true">10.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">11.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="../memory.html"><strong aria-hidden="true">12.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="../advanced.html"><strong aria-hidden="true">13.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="../building_and_distribution.html"><strong aria-hidden="true">14.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">14.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="../ecosystem.html"><strong aria-hidden="true">15.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../ecosystem/logging.html"><strong aria-hidden="true">15.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="../ecosystem/async-await.html"><strong aria-hidden="true">15.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html"><strong aria-hidden="true">16.</strong> FAQ and troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="../rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="../trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="../python_typing_hints.html">Appendix D: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="../changelog.html">CHANGELOG</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/class/numeric.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="emulating-numeric-types"><a class="header" href="#emulating-numeric-types">Emulating numeric types</a></h1>
+<p>At this point we have a <code>Number</code> class that we can't actually do any math on!</p>
+<p>Before proceeding, we should think about how we want to handle overflows. There are three obvious solutions:</p>
+<ul>
+<li>We can have infinite precision just like Python's <code>int</code>. However that would be quite boring - we'd
+be reinventing the wheel.</li>
+<li>We can raise exceptions whenever <code>Number</code> overflows, but that makes the API painful to use.</li>
+<li>We can wrap around the boundary of <code>i32</code>. This is the approach we'll take here. To do that we'll just forward to <code>i32</code>'s
+<code>wrapping_*</code> methods.</li>
+</ul>
+<h3 id="fixing-our-constructor"><a class="header" href="#fixing-our-constructor">Fixing our constructor</a></h3>
+<p>Let's address the first overflow, in <code>Number</code>'s constructor:</p>
+<pre><code class="language-python">from my_module import Number
+
+n = Number(1 &lt;&lt; 1337)
+</code></pre>
+<pre><code class="language-text">Traceback (most recent call last):
+  File &quot;example.py&quot;, line 3, in &lt;module&gt;
+    n = Number(1 &lt;&lt; 1337)
+OverflowError: Python int too large to convert to C long
+</code></pre>
+<p>Instead of relying on the default <a href="https://docs.rs/pyo3/0.18.3/pyo3/conversion/trait.FromPyObject.html"><code>FromPyObject</code></a> extraction to parse arguments, we can specify our
+own extraction function, using the <code>#[pyo3(from_py_with = &quot;...&quot;)]</code> attribute. Unfortunately PyO3
+doesn't provide a way to wrap Python integers out of the box, but we can do a Python call to mask it
+and cast it to an <code>i32</code>.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">#![allow(dead_code)]
+</span>use pyo3::prelude::*;
+
+fn wrap(obj: &amp;PyAny) -&gt; Result&lt;i32, PyErr&gt; {
+    let val = obj.call_method1(&quot;__and__&quot;, (0xFFFFFFFF_u32,))?;
+    let val: u32 = val.extract()?;
+    //     👇 This intentionally overflows!
+    Ok(val as i32)
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>We also add documentation, via <code>///</code> comments and the <code>#[pyo3(text_signature = &quot;...&quot;)]</code> attribute, both of which are visible to Python users.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">#![allow(dead_code)]
+</span>use pyo3::prelude::*;
+
+fn wrap(obj: &amp;PyAny) -&gt; Result&lt;i32, PyErr&gt; {
+    let val = obj.call_method1(&quot;__and__&quot;, (0xFFFFFFFF_u32,))?;
+    let val: u32 = val.extract()?;
+    Ok(val as i32)
+}
+
+/// Did you ever hear the tragedy of Darth Signed The Overfloweth? I thought not.
+/// It's not a story C would tell you. It's a Rust legend.
+#[pyclass(module = &quot;my_module&quot;)]
+#[pyo3(text_signature = &quot;(int)&quot;)]
+struct Number(i32);
+
+#[pymethods]
+impl Number {
+    #[new]
+    fn new(#[pyo3(from_py_with = &quot;wrap&quot;)] value: i32) -&gt; Self {
+        Self(value)
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>With that out of the way, let's implement some operators:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use std::convert::TryInto;
+use pyo3::exceptions::{PyZeroDivisionError, PyValueError};
+
+<span class="boring">use pyo3::prelude::*;
+</span><span class="boring">
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct Number(i32);
+</span><span class="boring">
+</span>#[pymethods]
+impl Number {
+    fn __add__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0.wrapping_add(other.0))
+    }
+
+    fn __sub__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0.wrapping_sub(other.0))
+    }
+
+    fn __mul__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0.wrapping_mul(other.0))
+    }
+
+    fn __truediv__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match self.0.checked_div(other.0) {
+            Some(i) =&gt; Ok(Self(i)),
+            None =&gt; Err(PyZeroDivisionError::new_err(&quot;division by zero&quot;)),
+        }
+    }
+
+    fn __floordiv__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match self.0.checked_div(other.0) {
+            Some(i) =&gt; Ok(Self(i)),
+            None =&gt; Err(PyZeroDivisionError::new_err(&quot;division by zero&quot;)),
+        }
+    }
+
+    fn __rshift__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match other.0.try_into() {
+            Ok(rhs) =&gt; Ok(Self(self.0.wrapping_shr(rhs))),
+            Err(_) =&gt; Err(PyValueError::new_err(&quot;negative shift count&quot;)),
+        }
+    }
+
+    fn __lshift__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match other.0.try_into() {
+            Ok(rhs) =&gt; Ok(Self(self.0.wrapping_shl(rhs))),
+            Err(_) =&gt; Err(PyValueError::new_err(&quot;negative shift count&quot;)),
+        }
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h3 id="unary-arithmetic-operations"><a class="header" href="#unary-arithmetic-operations">Unary arithmetic operations</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct Number(i32);
+</span><span class="boring">
+</span>#[pymethods]
+impl Number {
+    fn __pos__(slf: PyRef&lt;'_, Self&gt;) -&gt; PyRef&lt;'_, Self&gt; {
+        slf
+    }
+
+    fn __neg__(&amp;self) -&gt; Self {
+        Self(-self.0)
+    }
+
+    fn __abs__(&amp;self) -&gt; Self {
+        Self(self.0.abs())
+    }
+
+    fn __invert__(&amp;self) -&gt; Self {
+        Self(!self.0)
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h3 id="support-for-the-complex-int-and-float-built-in-functions"><a class="header" href="#support-for-the-complex-int-and-float-built-in-functions">Support for the <code>complex()</code>, <code>int()</code> and <code>float()</code> built-in functions.</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use pyo3::prelude::*;
+</span><span class="boring">
+</span><span class="boring">#[pyclass]
+</span><span class="boring">struct Number(i32);
+</span><span class="boring">
+</span>use pyo3::types::PyComplex;
+
+#[pymethods]
+impl Number {
+    fn __int__(&amp;self) -&gt; i32 {
+        self.0
+    }
+
+    fn __float__(&amp;self) -&gt; f64 {
+        self.0 as f64
+    }
+
+    fn __complex__&lt;'py&gt;(&amp;self, py: Python&lt;'py&gt;) -&gt; &amp;'py PyComplex {
+        PyComplex::from_doubles(py, self.0 as f64, 0.0)
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>We do not implement the in-place operations like <code>__iadd__</code> because we do not wish to mutate <code>Number</code>.
+Similarly we're not interested in supporting operations with different types, so we do not implement
+the reflected operations like <code>__radd__</code> either.</p>
+<p>Now Python can use our <code>Number</code> class:</p>
+<pre><code class="language-python">from my_module import Number
+
+def hash_djb2(s: str):
+	'''
+	A version of Daniel J. Bernstein's djb2 string hashing algorithm
+	Like many hashing algorithms, it relies on integer wrapping.
+	'''
+
+	n = Number(0)
+	five = Number(5)
+
+	for x in s:
+		n = Number(ord(x)) + ((n &lt;&lt; five) - n)
+	return n
+
+assert hash_djb2('l50_50') == Number(-1152549421)
+</code></pre>
+<h3 id="final-code"><a class="header" href="#final-code">Final code</a></h3>
+<pre><pre class="playground"><code class="language-rust">use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::convert::TryInto;
+
+use pyo3::exceptions::{PyValueError, PyZeroDivisionError};
+use pyo3::prelude::*;
+use pyo3::class::basic::CompareOp;
+use pyo3::types::PyComplex;
+
+fn wrap(obj: &amp;PyAny) -&gt; Result&lt;i32, PyErr&gt; {
+    let val = obj.call_method1(&quot;__and__&quot;, (0xFFFFFFFF_u32,))?;
+    let val: u32 = val.extract()?;
+    Ok(val as i32)
+}
+/// Did you ever hear the tragedy of Darth Signed The Overfloweth? I thought not.
+/// It's not a story C would tell you. It's a Rust legend.
+#[pyclass(module = &quot;my_module&quot;)]
+#[pyo3(text_signature = &quot;(int)&quot;)]
+struct Number(i32);
+
+#[pymethods]
+impl Number {
+    #[new]
+    fn new(#[pyo3(from_py_with = &quot;wrap&quot;)] value: i32) -&gt; Self {
+        Self(value)
+    }
+
+    fn __repr__(slf: &amp;PyCell&lt;Self&gt;) -&gt; PyResult&lt;String&gt; {
+       // Get the class name dynamically in case `Number` is subclassed
+       let class_name: &amp;str = slf.get_type().name()?;
+        Ok(format!(&quot;{}({})&quot;, class_name, slf.borrow().0))
+    }
+
+    fn __str__(&amp;self) -&gt; String {
+        self.0.to_string()
+    }
+
+    fn __hash__(&amp;self) -&gt; u64 {
+        let mut hasher = DefaultHasher::new();
+        self.0.hash(&amp;mut hasher);
+        hasher.finish()
+    }
+
+    fn __richcmp__(&amp;self, other: &amp;Self, op: CompareOp) -&gt; PyResult&lt;bool&gt; {
+        match op {
+            CompareOp::Lt =&gt; Ok(self.0 &lt; other.0),
+            CompareOp::Le =&gt; Ok(self.0 &lt;= other.0),
+            CompareOp::Eq =&gt; Ok(self.0 == other.0),
+            CompareOp::Ne =&gt; Ok(self.0 != other.0),
+            CompareOp::Gt =&gt; Ok(self.0 &gt; other.0),
+            CompareOp::Ge =&gt; Ok(self.0 &gt;= other.0),
+        }
+    }
+
+    fn __bool__(&amp;self) -&gt; bool {
+        self.0 != 0
+    }
+
+    fn __add__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0.wrapping_add(other.0))
+    }
+
+    fn __sub__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0.wrapping_sub(other.0))
+    }
+
+    fn __mul__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0.wrapping_mul(other.0))
+    }
+
+    fn __truediv__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match self.0.checked_div(other.0) {
+            Some(i) =&gt; Ok(Self(i)),
+            None =&gt; Err(PyZeroDivisionError::new_err(&quot;division by zero&quot;)),
+        }
+    }
+
+    fn __floordiv__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match self.0.checked_div(other.0) {
+            Some(i) =&gt; Ok(Self(i)),
+            None =&gt; Err(PyZeroDivisionError::new_err(&quot;division by zero&quot;)),
+        }
+    }
+
+    fn __rshift__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match other.0.try_into() {
+            Ok(rhs) =&gt; Ok(Self(self.0.wrapping_shr(rhs))),
+            Err(_) =&gt; Err(PyValueError::new_err(&quot;negative shift count&quot;)),
+        }
+    }
+
+    fn __lshift__(&amp;self, other: &amp;Self) -&gt; PyResult&lt;Self&gt; {
+        match other.0.try_into() {
+            Ok(rhs) =&gt; Ok(Self(self.0.wrapping_shl(rhs))),
+            Err(_) =&gt; Err(PyValueError::new_err(&quot;negative shift count&quot;)),
+        }
+    }
+
+    fn __xor__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0 ^ other.0)
+    }
+
+    fn __or__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0 | other.0)
+    }
+
+    fn __and__(&amp;self, other: &amp;Self) -&gt; Self {
+        Self(self.0 &amp; other.0)
+    }
+
+    fn __int__(&amp;self) -&gt; i32 {
+        self.0
+    }
+
+    fn __float__(&amp;self) -&gt; f64 {
+        self.0 as f64
+    }
+
+    fn __complex__&lt;'py&gt;(&amp;self, py: Python&lt;'py&gt;) -&gt; &amp;'py PyComplex {
+        PyComplex::from_doubles(py, self.0 as f64, 0.0)
+    }
+}
+
+#[pymodule]
+fn my_module(_py: Python&lt;'_&gt;, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_class::&lt;Number&gt;()?;
+    Ok(())
+}
+<span class="boring">const SCRIPT: &amp;'static str = r#&quot;
+</span><span class="boring">def hash_djb2(s: str):
+</span><span class="boring">    n = Number(0)
+</span><span class="boring">    five = Number(5)
+</span><span class="boring">
+</span><span class="boring">    for x in s:
+</span><span class="boring">        n = Number(ord(x)) + ((n &lt;&lt; five) - n)
+</span><span class="boring">    return n
+</span><span class="boring">
+</span><span class="boring">assert hash_djb2('l50_50') == Number(-1152549421)
+</span><span class="boring">assert hash_djb2('logo') == Number(3327403)
+</span><span class="boring">assert hash_djb2('horizon') == Number(1097468315)
+</span><span class="boring">
+</span><span class="boring">
+</span><span class="boring">assert Number(2) + Number(2) == Number(4)
+</span><span class="boring">assert Number(2) + Number(2) != Number(5)
+</span><span class="boring">
+</span><span class="boring">assert Number(13) - Number(7) == Number(6)
+</span><span class="boring">assert Number(13) - Number(-7) == Number(20)
+</span><span class="boring">
+</span><span class="boring">assert Number(13) / Number(7) == Number(1)
+</span><span class="boring">assert Number(13) // Number(7) == Number(1)
+</span><span class="boring">
+</span><span class="boring">assert Number(13) * Number(7) == Number(13*7)
+</span><span class="boring">
+</span><span class="boring">assert Number(13) &gt; Number(7)
+</span><span class="boring">assert Number(13) &lt; Number(20)
+</span><span class="boring">assert Number(13) == Number(13)
+</span><span class="boring">assert Number(13) &gt;= Number(7)
+</span><span class="boring">assert Number(13) &lt;= Number(20)
+</span><span class="boring">assert Number(13) == Number(13)
+</span><span class="boring">
+</span><span class="boring">
+</span><span class="boring">assert (True if Number(1) else False)
+</span><span class="boring">assert (False if Number(0) else True)
+</span><span class="boring">
+</span><span class="boring">
+</span><span class="boring">assert int(Number(13)) == 13
+</span><span class="boring">assert float(Number(13)) == 13
+</span><span class="boring">assert Number.__doc__ == &quot;Did you ever hear the tragedy of Darth Signed The Overfloweth? I thought not.\nIt's not a story C would tell you. It's a Rust legend.&quot;
+</span><span class="boring">assert Number(12345234523452) == Number(1498514748)
+</span><span class="boring">try:
+</span><span class="boring">    import inspect
+</span><span class="boring">    assert inspect.signature(Number).__str__() == '(int)'
+</span><span class="boring">except ValueError:
+</span><span class="boring">    # Not supported with `abi3` before Python 3.10
+</span><span class="boring">    pass
+</span><span class="boring">assert Number(1337).__str__() == '1337'
+</span><span class="boring">assert Number(1337).__repr__() == 'Number(1337)'
+</span>&quot;#;
+
+<span class="boring">
+</span><span class="boring">use pyo3::PyTypeInfo;
+</span><span class="boring">
+</span><span class="boring">fn main() -&gt; PyResult&lt;()&gt; {
+</span><span class="boring">    Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+</span><span class="boring">        let globals = PyModule::import(py, &quot;__main__&quot;)?.dict();
+</span><span class="boring">        globals.set_item(&quot;Number&quot;, Number::type_object(py))?;
+</span><span class="boring">
+</span><span class="boring">        py.run(SCRIPT, Some(globals), None)?;
+</span><span class="boring">        Ok(())
+</span><span class="boring">    })
+</span><span class="boring">}
+</span></code></pre></pre>
+<h2 id="appendix-writing-some-unsafe-code"><a class="header" href="#appendix-writing-some-unsafe-code">Appendix: Writing some unsafe code</a></h2>
+<p>At the beginning of this chapter we said that PyO3 doesn't provide a way to wrap Python integers out
+of the box but that's a half truth. There's not a PyO3 API for it, but there's a Python C API
+function that does:</p>
+<pre><code class="language-c">unsigned long PyLong_AsUnsignedLongMask(PyObject *obj)
+</code></pre>
+<p>We can call this function from Rust by using <a href="https://docs.rs/pyo3/0.18.3/pyo3/ffi/fn.PyLong_AsUnsignedLongMask.html"><code>pyo3::ffi::PyLong_AsUnsignedLongMask</code></a>. This is an <em>unsafe</em>
+function, which means we have to use an unsafe block to call it and take responsibility for upholding
+the contracts of this function. Let's review those contracts:</p>
+<ul>
+<li>The GIL must be held. If it's not, calling this function causes a data race.</li>
+<li>The pointer must be valid, i.e. it must be properly aligned and point to a valid Python object.</li>
+</ul>
+<p>Let's create that helper function. The signature has to be <code>fn(&amp;PyAny) -&gt; PyResult&lt;T&gt;</code>.</p>
+<ul>
+<li><code>&amp;PyAny</code> represents a checked borrowed reference, so the pointer derived from it is valid (and not null).</li>
+<li>Whenever we have borrowed references to Python objects in scope, it is guaranteed that the GIL is held. This reference is also where we can get a <a href="https://docs.rs/pyo3/0.18.3/pyo3/struct.Python.html"><code>Python</code></a> token to use in our call to <a href="https://docs.rs/pyo3/0.18.3/pyo3/prelude/struct.PyErr.html#method.take"><code>PyErr::take</code></a>.</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">#![allow(dead_code)]
+</span>use std::os::raw::c_ulong;
+use pyo3::prelude::*;
+use pyo3::ffi;
+use pyo3::conversion::AsPyPointer;
+
+fn wrap(obj: &amp;PyAny) -&gt; Result&lt;i32, PyErr&gt; {
+    let py: Python&lt;'_&gt; = obj.py();
+
+    unsafe {
+        let ptr = obj.as_ptr();
+
+        let ret: c_ulong = ffi::PyLong_AsUnsignedLongMask(ptr);
+        if ret == c_ulong::MAX {
+            if let Some(err) = PyErr::take(py) {
+                return Err(err);
+            }
+        }
+
+        Ok(ret as i32)
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../class/object.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../class/call.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../class/object.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../class/call.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

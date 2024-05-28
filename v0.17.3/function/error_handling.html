@@ -1,0 +1,376 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Error handling - PyO3 user guide</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../getting_started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../module.html"><strong aria-hidden="true">2.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="../function.html"><strong aria-hidden="true">3.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../function/signature.html"><strong aria-hidden="true">3.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="../function/error_handling.html" class="active"><strong aria-hidden="true">3.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="../class.html"><strong aria-hidden="true">4.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/protocols.html"><strong aria-hidden="true">4.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/object.html"><strong aria-hidden="true">4.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="../class/numeric.html"><strong aria-hidden="true">4.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="../class/call.html"><strong aria-hidden="true">4.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../conversions.html"><strong aria-hidden="true">5.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../conversions/tables.html"><strong aria-hidden="true">5.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="../conversions/traits.html"><strong aria-hidden="true">5.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="../exception.html"><strong aria-hidden="true">6.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="../python_from_rust.html"><strong aria-hidden="true">7.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="../types.html"><strong aria-hidden="true">8.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="../parallelism.html"><strong aria-hidden="true">9.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="../debugging.html"><strong aria-hidden="true">10.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">11.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="../memory.html"><strong aria-hidden="true">12.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="../advanced.html"><strong aria-hidden="true">13.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="../building_and_distribution.html"><strong aria-hidden="true">14.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">14.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="../ecosystem.html"><strong aria-hidden="true">15.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../ecosystem/logging.html"><strong aria-hidden="true">15.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="../ecosystem/async-await.html"><strong aria-hidden="true">15.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html"><strong aria-hidden="true">16.</strong> FAQ and troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="../rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="../trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="../python_typing_hints.html">Appendix D: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="../changelog.html">CHANGELOG</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/function/error_handling.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h1>
+<p>This chapter contains a little background of error handling in Rust and how PyO3 integrates this with Python exceptions.</p>
+<p>This covers enough detail to create a <code>#[pyfunction]</code> which raises Python exceptions from errors originating in Rust.</p>
+<p>There is a later section of the guide on <a href="../exception.html">Python exceptions</a> which covers exception types in more detail.</p>
+<h2 id="representing-python-exceptions"><a class="header" href="#representing-python-exceptions">Representing Python exceptions</a></h2>
+<p>Rust code uses the generic <a href="https://doc.rust-lang.org/stable/std/result/enum.Result.html"><code>Result&lt;T, E&gt;</code></a> enum to propagate errors. The error type <code>E</code> is chosen by the code author to describe the possible errors which can happen.</p>
+<p>PyO3 has the <a href="https://docs.rs/pyo3/0.17.3/pyo3/struct.PyErr.html"><code>PyErr</code></a> type which represents a Python exception. If a PyO3 API could result in a Python exception being raised, the return type of that <code>API</code> will be <a href="https://docs.rs/pyo3/0.17.3/pyo3/prelude/type.PyResult.html"><code>PyResult&lt;T&gt;</code></a>, which is an alias for the type <code>Result&lt;T, PyErr&gt;</code>.</p>
+<p>In summary:</p>
+<ul>
+<li>When Python exceptions are raised and caught by PyO3, the exception will stored in the <code>Err</code> variant of the <code>PyResult</code>.</li>
+<li>Passing Python exceptions through Rust code then uses all the &quot;normal&quot; techniques such as the <code>?</code> operator, with <code>PyErr</code> as the error type.</li>
+<li>Finally, when a <code>PyResult</code> crosses from Rust back to Python via PyO3, if the result is an <code>Err</code> variant the contained exception will be raised.</li>
+</ul>
+<p>(There are many great tutorials on Rust error handling and the <code>?</code> operator, so this guide will not go into detail on Rust-specific topics.)</p>
+<h2 id="raising-an-exception-from-a-function"><a class="header" href="#raising-an-exception-from-a-function">Raising an exception from a function</a></h2>
+<p>As indicated in the previous section, when a <code>PyResult</code> containing an <code>Err</code> crosses from Rust to Python, PyO3 will raise the exception contained within.</p>
+<p>Accordingly, to raise an exception from a <code>#[pyfunction]</code>, change the return type <code>T</code> to <code>PyResult&lt;T&gt;</code>. When the function returns an <code>Err</code> it will raise a Python exception. (Other <code>Result&lt;T, E&gt;</code> types can be used as long as the error <code>E</code> has a <code>From</code> conversion for <code>PyErr</code>, see <a href="#implementing-an-error-conversion">implementing a conversion</a> below.)</p>
+<p>This also works for functions in <code>#[pymethods]</code>.</p>
+<p>For example, the following <code>check_positive</code> function raises a <code>ValueError</code> when the input is negative:</p>
+<pre><pre class="playground"><code class="language-rust">use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn check_positive(x: i32) -&gt; PyResult&lt;()&gt; {
+    if x &lt; 0 {
+        Err(PyValueError::new_err(&quot;x is negative&quot;))
+    } else {
+        Ok(())
+    }
+}
+<span class="boring">
+</span><span class="boring">fn main(){
+</span><span class="boring">	Python::with_gil(|py|{
+</span><span class="boring">		let fun = pyo3::wrap_pyfunction!(check_positive, py).unwrap();
+</span><span class="boring">		fun.call1((-1,)).unwrap_err();
+</span><span class="boring">		fun.call1((1,)).unwrap();
+</span><span class="boring">	});
+</span><span class="boring">}
+</span></code></pre></pre>
+<p>All built-in Python exception types are defined in the <a href="https://docs.rs/pyo3/0.17.3/pyo3/exceptions/index.html"><code>pyo3::exceptions</code></a> module. They have a <code>new_err</code> constructor to directly build a <code>PyErr</code>, as seen in the example above.</p>
+<h2 id="custom-rust-error-types"><a class="header" href="#custom-rust-error-types">Custom Rust error types</a></h2>
+<p>PyO3 will automatically convert a <code>Result&lt;T, E&gt;</code> returned by a <code>#[pyfunction]</code> into a <code>PyResult&lt;T&gt;</code> as long as there is an implementation of <code>std::from::From&lt;E&gt; for PyErr</code>. Many error types in the Rust standard library have a <a href="https://doc.rust-lang.org/stable/std/convert/trait.From.html"><code>From</code></a> conversion defined in this way.</p>
+<p>If the type <code>E</code> you are handling is defined in a third-party crate, see the section on <a href="#foreign-rust-error-types">foreign rust error types</a> below for ways to work with this error.</p>
+<p>The following example makes use of the implementation of <code>From&lt;ParseIntError&gt; for PyErr</code> to raise exceptions encountered when parsing strings as integers:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">use pyo3::prelude::*;
+</span>use std::num::ParseIntError;
+
+#[pyfunction]
+fn parse_int(x: &amp;str) -&gt; Result&lt;usize, ParseIntError&gt; {
+    x.parse()
+}
+
+<span class="boring">fn main() {
+</span><span class="boring">    Python::with_gil(|py| {
+</span><span class="boring">        let fun = pyo3::wrap_pyfunction!(parse_int, py).unwrap();
+</span><span class="boring">        let value: usize = fun.call1((&quot;5&quot;,)).unwrap().extract().unwrap();
+</span><span class="boring">        assert_eq!(value, 5);
+</span><span class="boring">    });
+</span><span class="boring">}
+</span></code></pre></pre>
+<p>When passed a string which doesn't contain a floating-point number, the exception raised will look like the below:</p>
+<pre><code class="language-python">&gt;&gt;&gt; parse_int(&quot;bar&quot;)
+Traceback (most recent call last):
+  File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;
+ValueError: invalid digit found in string
+</code></pre>
+<p>As a more complete example, the following snippet defines a Rust error named <code>CustomIOError</code>. It then defines a <code>From&lt;CustomIOError&gt; for PyErr</code>, which returns a <code>PyErr</code> representing Python's <code>OSError</code>. Finally, it</p>
+<pre><pre class="playground"><code class="language-rust">use pyo3::exceptions::PyOSError;
+use pyo3::prelude::*;
+use std::fmt;
+
+#[derive(Debug)]
+struct CustomIOError;
+
+impl std::error::Error for CustomIOError {}
+
+impl fmt::Display for CustomIOError {
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter&lt;'_&gt;) -&gt; fmt::Result {
+        write!(f, &quot;Oh no!&quot;)
+    }
+}
+
+impl std::convert::From&lt;CustomIOError&gt; for PyErr {
+    fn from(err: CustomIOError) -&gt; PyErr {
+        PyOSError::new_err(err.to_string())
+    }
+}
+
+pub struct Connection { /* ... */}
+
+fn bind(addr: String) -&gt; Result&lt;Connection, CustomIOError&gt; {
+    if &amp;addr == &quot;0.0.0.0&quot;{
+        Err(CustomIOError)
+    } else {
+        Ok(Connection{ /* ... */})
+    }
+}
+
+#[pyfunction]
+fn connect(s: String) -&gt; Result&lt;(), CustomIOError&gt; {
+    bind(s)?;
+    Ok(())
+}
+
+fn main() {
+    Python::with_gil(|py| {
+        let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
+        let err = fun.call1((&quot;0.0.0.0&quot;,)).unwrap_err();
+        assert!(err.is_instance_of::&lt;PyOSError&gt;(py));
+    });
+}
+</code></pre></pre>
+<p>If lazy construction of the Python exception instance is desired, the
+<a href="https://docs.rs/pyo3/0.17.3/pyo3/trait.PyErrArguments.html"><code>PyErrArguments</code></a>
+trait can be implemented instead of <code>From</code>. In that case, actual exception argument creation is delayed
+until the <code>PyErr</code> is needed.</p>
+<p>A final note is that any errors <code>E</code> which have a <code>From</code> conversion can be used with the <code>?</code>
+(&quot;try&quot;) operator with them. An alternative implementation of the above <code>parse_int</code> which instead returns <code>PyResult</code> is below:</p>
+<pre><pre class="playground"><code class="language-rust">use pyo3::prelude::*;
+
+fn parse_int(s: String) -&gt; PyResult&lt;usize&gt; {
+    let x = s.parse()?;
+    Ok(x)
+}
+<span class="boring">
+</span><span class="boring">use pyo3::exceptions::PyValueError;
+</span><span class="boring">
+</span><span class="boring">fn main() {
+</span><span class="boring">    Python::with_gil(|py| {
+</span><span class="boring">        assert_eq!(parse_int(String::from(&quot;1&quot;)).unwrap(), 1);
+</span><span class="boring">        assert_eq!(parse_int(String::from(&quot;1337&quot;)).unwrap(), 1337);
+</span><span class="boring">
+</span><span class="boring">        assert!(parse_int(String::from(&quot;-1&quot;))
+</span><span class="boring">            .unwrap_err()
+</span><span class="boring">            .is_instance_of::&lt;PyValueError&gt;(py));
+</span><span class="boring">        assert!(parse_int(String::from(&quot;foo&quot;))
+</span><span class="boring">            .unwrap_err()
+</span><span class="boring">            .is_instance_of::&lt;PyValueError&gt;(py));
+</span><span class="boring">        assert!(parse_int(String::from(&quot;13.37&quot;))
+</span><span class="boring">            .unwrap_err()
+</span><span class="boring">            .is_instance_of::&lt;PyValueError&gt;(py));
+</span><span class="boring">    })
+</span><span class="boring">}
+</span></code></pre></pre>
+<h2 id="foreign-rust-error-types"><a class="header" href="#foreign-rust-error-types">Foreign Rust error types</a></h2>
+<p>The Rust compiler will not permit implementation of traits for types outside of the crate where the type is defined. (This is known as the &quot;orphan rule&quot;.)</p>
+<p>Given a type <code>OtherError</code> which is defined in third-party code, there are two main strategies available to integrate it with PyO3:</p>
+<ul>
+<li>Create a newtype wrapper, e.g. <code>MyOtherError</code>. Then implement <code>From&lt;MyOtherError&gt; for PyErr</code> (or <code>PyErrArguments</code>), as well as <code>From&lt;OtherError&gt;</code> for <code>MyOtherError</code>.</li>
+<li>Use Rust's Result combinators such as <code>map_err</code> to write code freely to convert <code>OtherError</code> into whatever is needed. This requires boilerplate at every usage however gives unlimited flexibility.</li>
+</ul>
+<p>To detail the newtype strategy a little further, the key trick is to return <code>Result&lt;T, MyOtherError&gt;</code> from the <code>#[pyfunction]</code>. This means that PyO3 will make use of <code>From&lt;MyOtherError&gt; for PyErr</code> to create Python exceptions while the <code>#[pyfunction]</code> implementation can use <code>?</code> to convert <code>OtherError</code> to <code>MyOtherError</code> automatically.</p>
+<p>The following example demonstrates this for some imaginary third-party crate <code>some_crate</code> with a function <code>get_x</code> returning <code>Result&lt;i32, OtherError&gt;</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">mod some_crate {
+</span><span class="boring">  pub struct OtherError(());
+</span><span class="boring">  impl OtherError {
+</span><span class="boring">      pub fn message(&amp;self) -&gt; &amp;'static str { &quot;some error occurred&quot; }
+</span><span class="boring">  }
+</span><span class="boring">  pub fn get_x() -&gt; Result&lt;i32, OtherError&gt; { Ok(5) }
+</span><span class="boring">}
+</span>
+use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
+use some_crate::{OtherError, get_x};
+
+struct MyOtherError(OtherError);
+
+impl From&lt;MyOtherError&gt; for PyErr {
+    fn from(error: MyOtherError) -&gt; Self {
+        PyValueError::new_err(error.0.message())
+    }
+}
+
+impl From&lt;OtherError&gt; for MyOtherError {
+    fn from(other: OtherError) -&gt; Self {
+        Self(other)
+    }
+}
+
+#[pyfunction]
+fn wrapped_get_x() -&gt; Result&lt;i32, MyOtherError&gt; {
+    // get_x is a function returning Result&lt;i32, OtherError&gt;
+    let x: i32 = get_x()?;
+    Ok(x)
+}
+
+<span class="boring">fn main() {
+</span><span class="boring">    Python::with_gil(|py| {
+</span><span class="boring">        let fun = pyo3::wrap_pyfunction!(wrapped_get_x, py).unwrap();
+</span><span class="boring">        let value: usize = fun.call0().unwrap().extract().unwrap();
+</span><span class="boring">        assert_eq!(value, 5);
+</span><span class="boring">    });
+</span><span class="boring">}
+</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../function/signature.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../class.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../function/signature.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../class.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

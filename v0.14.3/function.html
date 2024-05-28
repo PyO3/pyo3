@@ -1,0 +1,449 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Python Functions - PyO3 user guide</title>
+                
+
+        <!-- Custom HTML head -->
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+                <link rel="icon" href="favicon.svg">
+                        <link rel="shortcut icon" href="favicon.png">
+                <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+                <link rel="stylesheet" href="css/print.css" media="print">
+        
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="fonts/fonts.css">
+        
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="module.html"><strong aria-hidden="true">1.</strong> Python Modules</a></li><li class="chapter-item expanded "><a href="function.html" class="active"><strong aria-hidden="true">2.</strong> Python Functions</a></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">3.</strong> Python Classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">3.1.</strong> Class customizations</a></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">4.</strong> Type Conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">5.</strong> Python Exceptions</a></li><li class="chapter-item expanded "><a href="python_from_rust.html"><strong aria-hidden="true">6.</strong> Calling Python from Rust</a></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">7.</strong> GIL, mutability and object types</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">8.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">9.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">10.</strong> Features Reference</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">11.</strong> Advanced Topics</a></li><li class="chapter-item expanded "><a href="building_and_distribution.html"><strong aria-hidden="true">12.</strong> Building and Distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building_and_distribution/multiple_python_versions.html"><strong aria-hidden="true">12.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">13.</strong> Useful Crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">13.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">13.2.</strong> Async / Await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">14.</strong> FAQ &amp; Troubleshooting</a></li><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration Guide</a></li><li class="chapter-item expanded affix "><a href="rust_cpython.html">Appendix B: PyO3 and rust-cpython</a></li><li class="chapter-item expanded affix "><a href="trait_bounds.html">Appendix C: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                                            </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                                                <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                                                                        
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="python-functions"><a class="header" href="#python-functions">Python Functions</a></h1>
+<p>PyO3 supports two ways to define a free function in Python. Both require registering the function to a <a href="./module.html">module</a>.</p>
+<p>One way is annotating a function with <code>#[pyfunction]</code> and then adding it to the module using the <code>wrap_pyfunction!</code> macro.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+#[pyfunction]
+fn double(x: usize) -&gt; usize {
+    x * 2
+}
+
+#[pymodule]
+fn my_extension(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_pyfunction!(double, m)?)?;
+    Ok(())
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Alternatively, there is a shorthand: the function can be placed inside the module definition and
+annotated with <code>#[pyfn]</code>, as below:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+#[pymodule]
+fn my_extension(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+
+    #[pyfn(m)]
+    fn double(x: usize) -&gt; usize {
+        x * 2
+    }
+
+    Ok(())
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p><code>#[pyfn(m)]</code> is just syntactic sugar for <code>#[pyfunction]</code>, and takes all the same options
+documented in the rest of this chapter. The code above is expanded to the following:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+#[pymodule]
+fn my_extension(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+
+    #[pyfunction]
+    fn double(x: usize) -&gt; usize {
+        x * 2
+    }
+
+    m.add_function(wrap_pyfunction!(double, m)?)?;
+    Ok(())
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="function-options"><a class="header" href="#function-options">Function options</a></h2>
+<p>The <code>#[pyo3]</code> attribute can be used to modify properties of the generated Python function. It can take any combination of the following options:</p>
+<ul>
+<li>
+<p><code>#[pyo3(name = &quot;...&quot;)]</code></p>
+<p>Overrides the name generated in Python:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+#[pyfunction]
+#[pyo3(name = &quot;no_args&quot;)]
+fn no_args_py() -&gt; usize { 42 }
+
+#[pymodule]
+fn module_with_functions(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_pyfunction!(no_args_py, m)?)?;
+    Ok(())
+}
+
+<span class="boring">Python::with_gil(|py| {
+</span><span class="boring">    let m = pyo3::wrap_pymodule!(module_with_functions)(py);
+</span><span class="boring">    assert!(m.getattr(py, &quot;no_args&quot;).is_ok());
+</span><span class="boring">    assert!(m.getattr(py, &quot;no_args_py&quot;).is_err());
+</span><span class="boring">});
+</span><span class="boring">}
+</span></code></pre></pre>
+</li>
+</ul>
+<h2 id="argument-parsing"><a class="header" href="#argument-parsing">Argument parsing</a></h2>
+<p>The <code>#[pyfunction]</code> attribute supports specifying details of argument parsing. The details are given in the section <a href="class.html#method-arguments">&quot;Method arguments&quot; of the Classes chapter</a>.  Here is an example for a function that accepts arbitrary keyword arguments (<code>**kwargs</code> in Python syntax) and returns the number that was passed:</p>
+<pre><pre class="playground"><code class="language-rust">use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+#[pyfunction(kwds=&quot;**&quot;)]
+fn num_kwds(kwds: Option&lt;&amp;PyDict&gt;) -&gt; usize {
+    kwds.map_or(0, |dict| dict.len())
+}
+
+#[pymodule]
+fn module_with_functions(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_pyfunction!(num_kwds, m)?).unwrap();
+    Ok(())
+}
+
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<h2 id="making-the-function-signature-available-to-python"><a class="header" href="#making-the-function-signature-available-to-python">Making the function signature available to Python</a></h2>
+<p>In order to make the function signature available to Python to be retrieved via
+<code>inspect.signature</code>, use the <code>#[pyo3(text_signature)]</code> annotation as in the example
+below. The <code>/</code> signifies the end of positional-only arguments. (This
+is not a feature of this library in particular, but the general format used by
+CPython for annotating signatures of built-in functions.)</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+#[pyo3(text_signature = &quot;(a, b, /)&quot;)]
+fn add(a: u64, b: u64) -&gt; u64 {
+    a + b
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>This also works for classes and methods:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+use pyo3::types::PyType;
+
+// it works even if the item is not documented:
+
+#[pyclass]
+#[pyo3(text_signature = &quot;(c, d, /)&quot;)]
+struct MyClass {}
+
+#[pymethods]
+impl MyClass {
+    // the signature for the constructor is attached
+    // to the struct definition instead.
+    #[new]
+    fn new(c: i32, d: &amp;str) -&gt; Self {
+        Self {}
+    }
+    // the self argument should be written $self
+    #[pyo3(text_signature = &quot;($self, e, f)&quot;)]
+    fn my_method(&amp;self, e: i32, f: i32) -&gt; i32 {
+        e + f
+    }
+    #[classmethod]
+    #[pyo3(text_signature = &quot;(cls, e, f)&quot;)]
+    fn my_class_method(cls: &amp;PyType, e: i32, f: i32) -&gt; i32 {
+        e + f
+    }
+    #[staticmethod]
+    #[pyo3(text_signature = &quot;(e, f)&quot;)]
+    fn my_static_method(e: i32, f: i32) -&gt; i32 {
+        e + f
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Note that <code>text_signature</code> on classes is not compatible with compilation in
+<code>abi3</code> mode until Python 3.10 or greater.</p>
+<h3 id="making-the-function-signature-available-to-python-old-method"><a class="header" href="#making-the-function-signature-available-to-python-old-method">Making the function signature available to Python (old method)</a></h3>
+<p>Alternatively, simply make sure the first line of your docstring is
+formatted like in the following example. Please note that the newline after the
+<code>--</code> is mandatory. The <code>/</code> signifies the end of positional-only arguments.</p>
+<p><code>#[pyo3(text_signature)]</code> should be preferred, since it will override automatically
+generated signatures when those are added in a future version of PyO3.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pyo3::prelude::*;
+
+/// add(a, b, /)
+/// --
+///
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+fn add(a: u64, b: u64) -&gt; u64 {
+    a + b
+}
+
+// a function with a signature but without docs. Both blank lines after the `--` are mandatory.
+
+/// sub(a, b, /)
+/// --
+///
+///
+#[pyfunction]
+fn sub(a: u64, b: u64) -&gt; u64 {
+    a - b
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>When annotated like this, signatures are also correctly displayed in IPython.</p>
+<pre><code class="language-ignore">&gt;&gt;&gt; pyo3_test.add?
+Signature: pyo3_test.add(a, b, /)
+Docstring: This function adds two unsigned 64-bit integers.
+Type:      builtin_function_or_method
+</code></pre>
+<h2 id="closures"><a class="header" href="#closures">Closures</a></h2>
+<p>Currently, there are no conversions between <code>Fn</code>s in Rust and callables in Python. This would
+definitely be possible and very useful, so contributions are welcome. In the meantime, you can do
+the following:</p>
+<h3 id="calling-python-functions-in-rust"><a class="header" href="#calling-python-functions-in-rust">Calling Python functions in Rust</a></h3>
+<p>You can pass Python <code>def</code>'d functions and built-in functions to Rust functions <a href="https://docs.rs/pyo3/0.14.3/pyo3/types/struct.PyFunction.html"><code>PyFunction</code></a>
+corresponds to regular Python functions while <a href="https://docs.rs/pyo3/0.14.3/pyo3/types/struct.PyCFunction.html"><code>PyCFunction</code></a> describes built-ins such as
+<code>repr()</code>.</p>
+<p>You can also use <a href="https://docs.rs/pyo3/0.14.3/pyo3/struct.PyAny.html#tymethod.is_callable"><code>PyAny::is_callable</code></a> to check if you have a callable object. <code>is_callable</code> will
+return <code>true</code> for functions (including lambdas), methods and objects with a <code>__call__</code> method.
+You can call the object with <a href="https://docs.rs/pyo3/0.14.3/pyo3/struct.PyAny.html#tymethod.call"><code>PyAny::call</code></a> with the args as first parameter and the kwargs
+(or <code>None</code>) as second parameter. There are also <a href="https://docs.rs/pyo3/0.14.3/pyo3/struct.PyAny.html#tymethod.call0"><code>PyAny::call0</code></a> with no args and <a href="https://docs.rs/pyo3/0.14.3/pyo3/struct.PyAny.html#tymethod.call1"><code>PyAny::call1</code></a>
+with only positional args.</p>
+<h3 id="calling-rust-functions-in-python"><a class="header" href="#calling-rust-functions-in-python">Calling Rust functions in Python</a></h3>
+<p>If you have a static function, you can expose it with <code>#[pyfunction]</code> and use <a href="https://docs.rs/pyo3/0.14.3/pyo3/macro.wrap_pyfunction.html"><code>wrap_pyfunction!</code></a>
+to get the corresponding <a href="https://docs.rs/pyo3/0.14.3/pyo3/types/struct.PyCFunction.html"><code>PyCFunction</code></a>. For dynamic functions, e.g. lambdas and functions that
+were passed as arguments, you must put them in some kind of owned container, e.g. a <code>Box</code>.
+(A long-term solution will be a special container similar to wasm-bindgen's <code>Closure</code>). You can
+then use a <code>#[pyclass]</code> struct with that container as a field as a way to pass the function over
+the FFI barrier. You can even make that class callable with <code>__call__</code> so it looks like a function
+in Python code.</p>
+<h3 id="accessing-the-module-of-a-function"><a class="header" href="#accessing-the-module-of-a-function">Accessing the module of a function</a></h3>
+<p>It is possible to access the module of a <code>#[pyfunction]</code> in the function body by using <code>#[pyo3(pass_module)]</code> option:</p>
+<pre><pre class="playground"><code class="language-rust">use pyo3::prelude::*;
+
+#[pyfunction]
+#[pyo3(pass_module)]
+fn pyfunction_with_module(module: &amp;PyModule) -&gt; PyResult&lt;&amp;str&gt; {
+    module.name()
+}
+
+#[pymodule]
+fn module_with_fn(py: Python, m: &amp;PyModule) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)
+}
+
+<span class="boring">fn main() {}
+</span></code></pre></pre>
+<p>If <code>pass_module</code> is set, the first argument <strong>must</strong> be the <code>&amp;PyModule</code>. It is then possible to use the module
+in the function body.</p>
+<h2 id="accessing-the-ffi-functions"><a class="header" href="#accessing-the-ffi-functions">Accessing the FFI functions</a></h2>
+<p>In order to make Rust functions callable from Python, PyO3 generates an <code>extern &quot;C&quot;</code>
+function whose exact signature depends on the Rust signature.  (PyO3 chooses the optimal
+Python argument passing convention.) It then embeds the call to the Rust function inside this
+FFI-wrapper function. This wrapper handles extraction of the regular arguments and the keyword
+arguments from the input <code>PyObject</code>s.</p>
+<p>The <code>wrap_pyfunction</code> macro can be used to directly get a <code>PyCFunction</code> given a
+<code>#[pyfunction]</code> and a <code>PyModule</code>: <code>wrap_pyfunction!(rust_fun, module)</code>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                                                    <a rel="prev" href="module.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+                                                    <a rel="next" href="class.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                                    <a rel="prev" href="module.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+                                    <a rel="next" href="class.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+        
+                <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+        
+                <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+        
+    </body>
+</html>
