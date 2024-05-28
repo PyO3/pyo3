@@ -361,7 +361,7 @@ fn impl_class(
     let (default_richcmp, default_slots) = match args.options.ord {
         Some(_) => {
             let ty = syn::parse_quote!(#cls);
-            let (default_richcmp, default_richcmp_slot) = impl_cmp_ops(&args, ctx, &ty, None);
+            let (default_richcmp, default_richcmp_slot) = impl_cmp_ops(args, ctx, &ty, None);
             (
                 quote! {impl #cls {#default_richcmp}},
                 vec![default_richcmp_slot],
@@ -826,7 +826,7 @@ fn impl_cmp_ops(
         }
     };
     let richcmp_slot =
-        generate_default_protocol_slot(&ty, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap();
+        generate_default_protocol_slot(ty, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap();
     (richcmp_impl, richcmp_slot)
 }
 
