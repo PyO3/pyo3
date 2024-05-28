@@ -301,6 +301,13 @@ impl<T: PyClass> From<Py<T>> for PyClassInitializer<T> {
     }
 }
 
+impl<'py, T: PyClass> From<Bound<'py, T>> for PyClassInitializer<T> {
+    #[inline]
+    fn from(value: Bound<'py, T>) -> PyClassInitializer<T> {
+        PyClassInitializer::from(value.unbind())
+    }
+}
+
 // Implementation used by proc macros to allow anything convertible to PyClassInitializer<T> to be
 // the return value of pyclass #[new] method (optionally wrapped in `Result<U, E>`).
 impl<T, U> IntoPyCallbackOutput<PyClassInitializer<T>> for U
