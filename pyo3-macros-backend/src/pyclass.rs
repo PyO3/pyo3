@@ -22,7 +22,7 @@ use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, spanned::Spanned, Result, Token};
+use syn::{parse_quote, spanned::Spanned, ImplItemFn, Result, Token};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -214,13 +214,6 @@ pub fn build_py_class(
             For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
     );
 
-    // flag invalid ord option
-    ensure_spanned!(
-        args.options.ord.is_none(),
-        args.options.ord.span() =>
-            "The `ord` option of #[pyclass] is not supported for structs."
-    );
-
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
         syn::Fields::Named(fields) => fields
             .named
@@ -362,6 +355,21 @@ fn impl_class(
     let Ctx { pyo3_path } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
+    // This match case is in place until an `eq` argument is added to the PyClassArgs options and
+    // will require PartialEq to be implemented.  For now, equality is behind the `ord` argument
+    // for Python class structs, as PartialOrd requires PartialEq.
+    let (default_richcmp, default_slots) = match args.options.ord {
+        Some(_) => {
+            let ty = syn::parse_quote!(#cls);
+            let (default_richcmp, default_richcmp_slot) = impl_cmp_ops(&args, ctx, &ty, None);
+            (
+                quote! {impl #cls {#default_richcmp}},
+                vec![default_richcmp_slot],
+            )
+        }
+        _ => (quote! {}, vec![]),
+    };
+
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
         args,
@@ -373,13 +381,14 @@ fn impl_class(
             field_options,
             ctx,
         )?,
-        vec![],
+        default_slots,
     )
     .doc(doc)
     .impl_all(ctx)?;
 
     Ok(quote! {
         impl #pyo3_path::types::DerefToPyAny for #cls {}
+        #default_richcmp
 
         #pytypeinfo_impl
 
@@ -728,6 +737,99 @@ fn impl_enum(
     }
 }
 
+/// Implements the rich comparison operations (`__eq__`, `__ne__`, `__gt__`, `__lt__`, `__ge__`, `__le__`)
+/// for a PyClass.
+///
+/// # Arguments
+///
+/// * `args` - The PyClassArgs struct that contains information, such as arguments passed to the pyclass macro, about the PyClass.
+/// * `ctx` - The Ctx struct that contains the pyo3_path.
+/// * `ty` - The syn::Type of the PyClass.
+/// * `eq_ne_arms` - An optional tuple containing the custom `__eq__` and `__ne__` arms. If not provided,
+///   default comparison arms using the `==` and `!=` operators will be generated.
+///   *Once `PartialEq` becomes required for simple enums, this argument will be removed.*
+///
+/// # Returns
+///
+/// A tuple containing:
+/// * `richcmp_impl` - The generated rich comparison implementation as a syn::ImplItemFn.
+/// * `richcmp_slot` - The generated protocol slot for `__richcmp__`.
+fn impl_cmp_ops(
+    args: &PyClassArgs,
+    ctx: &Ctx,
+    ty: &syn::Type,
+    eq_ne_arms: Option<(TokenStream, TokenStream)>,
+) -> (ImplItemFn, MethodAndSlotDef) {
+    let Ctx { pyo3_path } = ctx;
+    let comparison_arm = |op| {
+        quote! {
+            let other = &*other.downcast::<Self>()?.borrow();
+            Ok((self #op other).to_object(py))
+        }
+    };
+
+    let (eq_arm, ne_arm) = if let Some((eq_arm, ne_arm)) = eq_ne_arms {
+        (eq_arm, ne_arm)
+    } else {
+        (comparison_arm(quote! {==}), comparison_arm(quote! {!=}))
+    };
+
+    // Add ordering comparisons if ord option is passed to pyclass
+    let richcmp_ord = match args.options.ord {
+        Some(_) => {
+            let gt_arm = comparison_arm(quote! {>});
+            let lt_arm = comparison_arm(quote! {<});
+            let ge_arm = comparison_arm(quote! {>=});
+            let le_arm = comparison_arm(quote! {<=});
+            quote! {
+                #pyo3_path::basic::CompareOp::Gt => {
+                    #gt_arm
+                }
+                #pyo3_path::basic::CompareOp::Lt => {
+                    #lt_arm
+                }
+                #pyo3_path::basic::CompareOp::Le => {
+                    #le_arm
+                }
+                #pyo3_path::basic::CompareOp::Ge => {
+                    #ge_arm
+                }
+            }
+        }
+        _ => {
+            quote! {}
+        }
+    };
+
+    let mut richcmp_impl: syn::ImplItemFn = syn::parse_quote! {
+        fn __pyo3__richcmp__(
+            &self,
+            py: #pyo3_path::Python,
+            other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
+            op: #pyo3_path::basic::CompareOp
+        ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            use #pyo3_path::conversion::ToPyObject;
+            use #pyo3_path::types::PyAnyMethods;
+            use ::core::result::Result::*;
+            match op {
+                #pyo3_path::basic::CompareOp::Eq => {
+                    #eq_arm
+                }
+                #pyo3_path::basic::CompareOp::Ne => {
+                    #ne_arm
+                }
+                #richcmp_ord
+                _ => {
+                    Ok(py.NotImplemented())
+                },
+            }
+        }
+    };
+    let richcmp_slot =
+        generate_default_protocol_slot(&ty, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap();
+    (richcmp_impl, richcmp_slot)
+}
+
 fn impl_simple_enum(
     simple_enum: PyClassSimpleEnum<'_>,
     args: &PyClassArgs,
@@ -735,7 +837,6 @@ fn impl_simple_enum(
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
-    let Ctx { pyo3_path } = ctx;
     let cls = simple_enum.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = simple_enum.variants;
@@ -787,7 +888,12 @@ fn impl_simple_enum(
         (int_impl, int_slot)
     };
 
-    let comparison_arm = |op| {
+    // Because PartialEq was not historically required on simple enums, we need to use the older
+    // logic to compute these arms; otherwise, compile time errors will arise requiring the user
+    // to implement the PartialEq trait.  In a future PR, this trait will become a requirement
+    // for simple enums.
+    let Ctx { pyo3_path } = ctx;
+    let comparison_arm = |op: TokenStream| {
         quote! {
             let self_val = self.__pyo3__int__();
             if let Ok(i) = other.extract::<#repr_type>() {
@@ -800,65 +906,10 @@ fn impl_simple_enum(
             return Ok(py.NotImplemented());
         }
     };
-    let eq_arm = comparison_arm(quote! {==});
-    let ne_arm = comparison_arm(quote! {!=});
+    let (eq_arm, ne_arm) = (comparison_arm(quote! {==}), comparison_arm(quote! {!=}));
 
-    // Add ordering comparisons if ord option is passed to pyclass
-    let richcmp_ord = match args.options.ord {
-        Some(_) => {
-            let gt_arm = comparison_arm(quote! {>});
-            let lt_arm = comparison_arm(quote! {<});
-            let ge_arm = comparison_arm(quote! {>=});
-            let le_arm = comparison_arm(quote! {<=});
-            quote! {
-                #pyo3_path::basic::CompareOp::Gt => {
-                    #gt_arm
-                }
-                #pyo3_path::basic::CompareOp::Lt => {
-                    #lt_arm
-                }
-                #pyo3_path::basic::CompareOp::Le => {
-                    #le_arm
-                }
-                #pyo3_path::basic::CompareOp::Ge => {
-                    #ge_arm
-                }
-            }
-        }
-        _ => {
-            quote! {}
-        }
-    };
-
-    let (default_richcmp, default_richcmp_slot) = {
-        let mut richcmp_impl: syn::ImplItemFn = syn::parse_quote! {
-            fn __pyo3__richcmp__(
-                &self,
-                py: #pyo3_path::Python,
-                other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
-                op: #pyo3_path::basic::CompareOp
-            ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-                use #pyo3_path::conversion::ToPyObject;
-                use #pyo3_path::types::PyAnyMethods;
-                use ::core::result::Result::*;
-                match op {
-                    #pyo3_path::basic::CompareOp::Eq => {
-                        #eq_arm
-                    }
-                    #pyo3_path::basic::CompareOp::Ne => {
-                        #ne_arm
-                    }
-                    #richcmp_ord
-                    _ => {
-                        Ok(py.NotImplemented())
-                    },
-                }
-            }
-        };
-        let richcmp_slot =
-            generate_default_protocol_slot(&ty, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap();
-        (richcmp_impl, richcmp_slot)
-    };
+    let (default_richcmp, default_richcmp_slot) =
+        impl_cmp_ops(args, ctx, &ty, Some((eq_arm, ne_arm)));
 
     let default_slots = vec![default_repr_slot, default_int_slot, default_richcmp_slot];
 
@@ -900,13 +951,6 @@ fn impl_complex_enum(
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path } = ctx;
 
-    // flag invalid ord option
-    ensure_spanned!(
-        args.options.ord.is_none(),
-        args.options.ord.span() =>
-            "The `ord` option of #[pyclass] is not supported for complex enums."
-    );
-
     // Need to rig the enum PyClass options
     let args = {
         let mut rigged_args = args.clone();
@@ -922,7 +966,20 @@ fn impl_complex_enum(
     let variants = complex_enum.variants;
     let pytypeinfo = impl_pytypeinfo(cls, &args, None, ctx);
 
-    let default_slots = vec![];
+    // This match case is in place until an `eq` argument is added to the PyClassArgs options and
+    // will require PartialEq to be implemented.  For now, equality is behind the `ord` argument
+    // for Python class complex enums, as PartialOrd requires PartialEq.
+    let (default_richcmp, default_slots) = match args.options.ord {
+        Some(_) => {
+            let ty = syn::parse_quote!(#cls);
+            let (default_richcmp, default_richcmp_slot) = impl_cmp_ops(&args, ctx, &ty, None);
+            (
+                quote! {impl #cls {#default_richcmp}},
+                vec![default_richcmp_slot],
+            )
+        }
+        _ => (quote! {impl #cls {}}, vec![]),
+    };
 
     let impl_builder = PyClassImplsBuilder::new(
         cls,
@@ -1027,7 +1084,7 @@ fn impl_complex_enum(
 
         #[doc(hidden)]
         #[allow(non_snake_case)]
-        impl #cls {}
+        #default_richcmp
 
         #(#variant_cls_zsts)*
 
