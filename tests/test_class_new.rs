@@ -273,8 +273,9 @@ impl NewReturnsPy {
 #[test]
 fn test_new_returns_py() {
     Python::with_gil(|py| {
-        let obj = NewReturnsPy::new(py).unwrap();
-        assert!(obj.into_bound(py).is_exact_instance_of::<NewReturnsPy>());
+        let type_ = py.get_type_bound::<NewReturnsPy>();
+        let obj = type_.call0().unwrap();
+        assert!(obj.is_exact_instance_of::<NewReturnsPy>());
     })
 }
 
@@ -292,7 +293,8 @@ impl NewReturnsBound {
 #[test]
 fn test_new_returns_bound() {
     Python::with_gil(|py| {
-        let obj = NewReturnsBound::new(py).unwrap();
+        let type_ = py.get_type_bound::<NewReturnsBound>();
+        let obj = type_.call0().unwrap();
         assert!(obj.is_exact_instance_of::<NewReturnsBound>());
     })
 }
