@@ -1155,11 +1155,13 @@ Python::with_gil(|py| {
 })
 ```
 
-Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`.  
+*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
 
 ```rust
 # use pyo3::prelude::*;
 #[pyclass(ord)]
+#[derive(PartialEq, PartialOrd)]
 enum MyEnum{
     A,
     B,
