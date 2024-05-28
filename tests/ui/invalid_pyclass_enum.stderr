@@ -30,8 +30,110 @@ error: `constructor` can't be used on a simple enum variant
 26 |     #[pyo3(constructor = (a, b))]
    |            ^^^^^^^^^^^
 
-error: The `ord` option of #[pyclass] is not supported for complex enums.
-  --> tests/ui/invalid_pyclass_enum.rs:31:11
+error[E0369]: binary operation `==` cannot be applied to type `&InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:31:1
    |
 31 | #[pyclass(ord)]
-   |           ^^^
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialEq` might be missing for `InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum InvalidOrderedComplexEnum {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedComplexEnum` with `#[derive(PartialEq)]`
+   |
+32 + #[derive(PartialEq)]
+33 | enum InvalidOrderedComplexEnum {
+   |
+
+error[E0369]: binary operation `!=` cannot be applied to type `&InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:31:1
+   |
+31 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialEq` might be missing for `InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum InvalidOrderedComplexEnum {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedComplexEnum` with `#[derive(PartialEq)]`
+   |
+32 + #[derive(PartialEq)]
+33 | enum InvalidOrderedComplexEnum {
+   |
+
+error[E0369]: binary operation `>` cannot be applied to type `&InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:31:1
+   |
+31 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum InvalidOrderedComplexEnum {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedComplexEnum` with `#[derive(PartialEq, PartialOrd)]`
+   |
+32 + #[derive(PartialEq, PartialOrd)]
+33 | enum InvalidOrderedComplexEnum {
+   |
+
+error[E0369]: binary operation `<` cannot be applied to type `&InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:31:1
+   |
+31 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum InvalidOrderedComplexEnum {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedComplexEnum` with `#[derive(PartialEq, PartialOrd)]`
+   |
+32 + #[derive(PartialEq, PartialOrd)]
+33 | enum InvalidOrderedComplexEnum {
+   |
+
+error[E0369]: binary operation `<=` cannot be applied to type `&InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:31:1
+   |
+31 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum InvalidOrderedComplexEnum {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedComplexEnum` with `#[derive(PartialEq, PartialOrd)]`
+   |
+32 + #[derive(PartialEq, PartialOrd)]
+33 | enum InvalidOrderedComplexEnum {
+   |
+
+error[E0369]: binary operation `>=` cannot be applied to type `&InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:31:1
+   |
+31 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedComplexEnum`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum InvalidOrderedComplexEnum {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedComplexEnum` with `#[derive(PartialEq, PartialOrd)]`
+   |
+32 + #[derive(PartialEq, PartialOrd)]
+33 | enum InvalidOrderedComplexEnum {
+   |

@@ -13,13 +13,6 @@ pub enum MyEnum {
     OtherVariant,
 }
 
-#[pyclass(ord)]
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum MyEnumOrd {
-    Variant,
-    OtherVariant,
-}
-
 #[test]
 fn test_enum_class_attr() {
     Python::with_gil(|py| {
@@ -56,51 +49,6 @@ fn test_enum_arg() {
         let mynum = py.get_type_bound::<MyEnum>();
 
         py_run!(py, f mynum, "f(mynum.OtherVariant)")
-    })
-}
-
-#[test]
-fn test_enum_eq_enum() {
-    Python::with_gil(|py| {
-        let var1 = Py::new(py, MyEnum::Variant).unwrap();
-        let var2 = Py::new(py, MyEnum::Variant).unwrap();
-        let other_var = Py::new(py, MyEnum::OtherVariant).unwrap();
-        py_assert!(py, var1 var2, "var1 == var2");
-        py_assert!(py, var1 other_var, "var1 != other_var");
-        py_assert!(py, var1 var2, "(var1 != var2) == False");
-    })
-}
-
-#[test]
-fn test_enum_eq_incomparable() {
-    Python::with_gil(|py| {
-        let var1 = Py::new(py, MyEnum::Variant).unwrap();
-        py_assert!(py, var1, "(var1 == 'foo') == False");
-        py_assert!(py, var1, "(var1 != 'foo') == True");
-    })
-}
-
-#[test]
-fn test_enum_ord_comparable_opt_in_only() {
-    Python::with_gil(|py| {
-        let var1 = Py::new(py, MyEnum::Variant).unwrap();
-        let var2 = Py::new(py, MyEnum::OtherVariant).unwrap();
-        // ordering on simple enums if opt in only, thus raising an error below
-        py_expect_exception!(py, var1 var2, "(var1 > var2) == False", PyTypeError);
-    })
-}
-
-#[test]
-fn test_enum_ord_comparable() {
-    Python::with_gil(|py| {
-        let var1 = Py::new(py, MyEnumOrd::Variant).unwrap();
-        let var2 = Py::new(py, MyEnumOrd::OtherVariant).unwrap();
-        let var3 = Py::new(py, MyEnumOrd::OtherVariant).unwrap();
-        py_assert!(py, var1 var2, "(var1 > var2) == False");
-        py_assert!(py, var1 var2, "(var1 < var2) == True");
-        py_assert!(py, var1 var2, "(var1 >= var2) == False");
-        py_assert!(py, var2 var3, "(var3 >= var2) == True");
-        py_assert!(py, var1 var2, "(var1 <= var2) == True");
     })
 }
 

@@ -58,8 +58,110 @@ error: a `#[pyclass]` cannot be both a `mapping` and a `sequence`
 31 | struct CannotBeMappingAndSequence {}
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: The `ord` option of #[pyclass] is not supported for structs.
-  --> tests/ui/invalid_pyclass_args.rs:33:11
+error[E0369]: binary operation `==` cannot be applied to type `&InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:33:1
    |
 33 | #[pyclass(ord)]
-   |           ^^^
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialEq` might be missing for `InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct InvalidOrderedStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedStruct` with `#[derive(PartialEq)]`
+   |
+34 + #[derive(PartialEq)]
+35 | struct InvalidOrderedStruct {
+   |
+
+error[E0369]: binary operation `!=` cannot be applied to type `&InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:33:1
+   |
+33 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialEq` might be missing for `InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct InvalidOrderedStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedStruct` with `#[derive(PartialEq)]`
+   |
+34 + #[derive(PartialEq)]
+35 | struct InvalidOrderedStruct {
+   |
+
+error[E0369]: binary operation `>` cannot be applied to type `&InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:33:1
+   |
+33 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct InvalidOrderedStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedStruct` with `#[derive(PartialEq, PartialOrd)]`
+   |
+34 + #[derive(PartialEq, PartialOrd)]
+35 | struct InvalidOrderedStruct {
+   |
+
+error[E0369]: binary operation `<` cannot be applied to type `&InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:33:1
+   |
+33 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct InvalidOrderedStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedStruct` with `#[derive(PartialEq, PartialOrd)]`
+   |
+34 + #[derive(PartialEq, PartialOrd)]
+35 | struct InvalidOrderedStruct {
+   |
+
+error[E0369]: binary operation `<=` cannot be applied to type `&InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:33:1
+   |
+33 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct InvalidOrderedStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedStruct` with `#[derive(PartialEq, PartialOrd)]`
+   |
+34 + #[derive(PartialEq, PartialOrd)]
+35 | struct InvalidOrderedStruct {
+   |
+
+error[E0369]: binary operation `>=` cannot be applied to type `&InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:33:1
+   |
+33 | #[pyclass(ord)]
+   | ^^^^^^^^^^^^^^^
+   |
+note: an implementation of `PartialOrd` might be missing for `InvalidOrderedStruct`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct InvalidOrderedStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `InvalidOrderedStruct` with `#[derive(PartialEq, PartialOrd)]`
+   |
+34 + #[derive(PartialEq, PartialOrd)]
+35 | struct InvalidOrderedStruct {
+   |
