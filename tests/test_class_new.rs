@@ -265,7 +265,7 @@ struct NewReturnsPy;
 #[pymethods]
 impl NewReturnsPy {
     #[new]
-    fn new(py: Python) -> PyResult<Py<NewReturnsPy>> {
+    fn new(py: Python<'_>) -> PyResult<Py<NewReturnsPy>> {
         Py::new(py, NewReturnsPy)
     }
 }
@@ -284,8 +284,8 @@ struct NewReturnsBound;
 #[pymethods]
 impl NewReturnsBound {
     #[new]
-    fn new(py: Python) -> PyResult<Bound<NewReturnsPy>> {
-        Bound::new(py, NewReturnsPy)
+    fn new(py: Python<'_>) -> PyResult<Bound<'_, NewReturnsBound>> {
+        Bound::new(py, NewReturnsBound)
     }
 }
 
