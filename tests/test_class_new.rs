@@ -258,3 +258,41 @@ fn test_new_existing() {
         assert!(!obj5.is(&obj6));
     });
 }
+
+#[pyclass]
+struct NewReturnsPy;
+
+#[pymethods]
+impl NewReturnsPy {
+    #[new]
+    fn new(py: Python) -> PyResult<Py<NewReturnsPy>> {
+        Py::new(py, NewReturnsPy)
+    }
+}
+
+#[test]
+fn test_new_returns_py() {
+    Python::with_gil(|py| {
+        let obj = NewReturnsPy::new(py).unwrap();
+        assert!(obj.into_bound(py).is_exact_instance_of::<NewReturnsPy>());
+    })
+}
+
+#[pyclass]
+struct NewReturnsBound;
+
+#[pymethods]
+impl NewReturnsBound {
+    #[new]
+    fn new(py: Python) -> PyResult<Bound<NewReturnsPy>> {
+        Bound::new(py, NewReturnsPy)
+    }
+}
+
+#[test]
+fn test_new_returns_bound() {
+    Python::with_gil(|py| {
+        let obj = NewReturnsBound::new(py).unwrap();
+        assert!(obj.is_exact_instance_of::<NewReturnsBound>());
+    })
+}
