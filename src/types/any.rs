@@ -1872,11 +1872,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn neg(&self) -> PyResult<Bound<'py, PyAny>> {
-        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
-            unsafe { ffi::PyNumber_Negative(any.as_ptr()).assume_owned_or_err(any.py()) }
-        }
-
-        inner(self)
+        unsafe { ffi::PyNumber_Negative(self.as_ptr()).assume_owned_or_err(self.py()) }
     }
 
     fn pos(&self) -> PyResult<Bound<'py, PyAny>> {
