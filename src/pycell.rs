@@ -631,7 +631,7 @@ where
     U: PyClass,
 {
     fn as_ref(&self) -> &T::BaseType {
-        &*self.as_super()
+        self.as_super()
     }
 }
 
@@ -870,7 +870,7 @@ where
     U: PyClass<Frozen = False>,
 {
     fn as_ref(&self) -> &T::BaseType {
-        &*PyRefMut::downgrade(self).as_super()
+        PyRefMut::downgrade(self).as_super()
     }
 }
 
@@ -880,7 +880,7 @@ where
     U: PyClass<Frozen = False>,
 {
     fn as_mut(&mut self) -> &mut T::BaseType {
-        &mut *self.as_super()
+        self.as_super()
     }
 }
 
