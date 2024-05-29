@@ -1133,9 +1133,13 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     fn neg(&self) -> PyResult<Bound<'py, PyAny>>;
 
     /// Computes the positive of self.
+    ///
+    /// Equivalent to the Python expression `+self`.
     fn pos(&self) -> PyResult<Bound<'py, PyAny>>;
 
-    /// Computes the absolute of self or `|self|`.
+    /// Computes the absolute of self.
+    ///
+    /// Equivalent to the Python expression `abs(self)`.
     fn abs(&self) -> PyResult<Bound<'py, PyAny>>;
 
     /// Tests whether this object is less than another.
