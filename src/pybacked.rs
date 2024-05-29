@@ -207,9 +207,7 @@ impl ToPyObject for PyBackedBytes {
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
         match &self.storage {
             PyBackedBytesStorage::Python(bytes) => bytes.to_object(py),
-            PyBackedBytesStorage::Rust(bytes) => {
-                PyByteArray::new_bound(py, bytes).into_any().unbind()
-            }
+            PyBackedBytesStorage::Rust(bytes) => PyBytes::new_bound(py, bytes).into_any().unbind(),
         }
     }
 }
@@ -393,7 +391,7 @@ mod test {
     }
 
     #[test]
-    fn py_backed_bytes_to_bytes() {
+    fn py_backed_bytes_into_py() {
         Python::with_gil(|py| {
             let orig_bytes = PyBytes::new_bound(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
@@ -403,13 +401,19 @@ mod test {
     }
 
     #[test]
-    fn py_backed_bytes_to_bytearray() {
+    fn rust_backed_bytes_into_py() {
         Python::with_gil(|py| {
             let orig_bytes = PyByteArray::new_bound(py, b"abcde");
-            let py_backed_bytes = PyBackedBytes::from(orig_bytes);
-            let to_object = py_backed_bytes.to_object(py);
-            let into_py = py_backed_bytes.into_py(py);
-            assert_eq!(&to_object.extract::<PyBackedBytes>(py).unwrap(), b"abcde");
+            let rust_backed_bytes = PyBackedBytes::from(orig_bytes);
+            assert!(matches!(
+                rust_backed_bytes.storage,
+                PyBackedBytesStorage::Rust(_)
+            ));
+            let to_object = rust_backed_bytes.to_object(py).into_bound(py);
+            assert!(&to_object.is_exact_instance_of::<PyBytes>());
+            assert_eq!(&to_object.extract::<PyBackedBytes>().unwrap(), b"abcde");
+            let into_py = rust_backed_bytes.into_py(py);
+            assert!(&to_object.is_exact_instance_of::<PyBytes>());
             assert_eq!(&into_py.extract::<PyBackedBytes>(py).unwrap(), b"abcde");
         });
     }
