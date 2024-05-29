@@ -336,7 +336,7 @@ mod test {
             let orig_str = PyString::new_bound(py, "hello");
             let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
             let new_str = py_backed_str.to_object(py);
-            assert_eq!(new_str.extract::<&str>(py).unwrap(), "hello");
+            assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert!(new_str.is(&orig_str));
         });
@@ -348,7 +348,7 @@ mod test {
             let orig_str = PyString::new_bound(py, "hello");
             let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
             let new_str = py_backed_str.into_py(py);
-            assert_eq!(new_str.extract::<&str>(py).unwrap(), "hello");
+            assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert!(new_str.is(&orig_str));
         });
