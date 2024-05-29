@@ -1,9 +1,11 @@
-error[E0277]: the trait bound `Blah: OkWrap<Blah>` is not satisfied
- --> tests/ui/missing_intopy.rs:3:1
+error[E0277]: `Blah` cannot be converted to a Python object
+ --> tests/ui/missing_intopy.rs:4:14
   |
-3 | #[pyo3::pyfunction]
-  | ^^^^^^^^^^^^^^^^^^^ the trait `IntoPy<Py<PyAny>>` is not implemented for `Blah`, which is required by `Blah: OkWrap<_>`
+4 | fn blah() -> Blah{
+  |              ^^^^ the trait `IntoPy<Py<PyAny>>` is not implemented for `Blah`, which is required by `Blah: OkWrap<_>`
   |
+  = note: `IntoPy` is automatically implemented by the `#[pyclass]` macro
+  = note: if you do not wish to have a corresponding Python type, implement `IntoPy` manually
+  = note: if you do not own `Blah` you can perform a manual conversion to one of the types in `pyo3::types::*`
   = help: the trait `OkWrap<T>` is implemented for `Result<T, E>`
   = note: required for `Blah` to implement `OkWrap<Blah>`
-  = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

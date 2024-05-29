@@ -90,8 +90,8 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
         bail_spanned!(module.span() => "`#[pymodule]` can only be used on inline modules")
     };
     let options = PyModuleOptions::from_attrs(attrs)?;
-    let ctx = &Ctx::new(&options.krate);
-    let Ctx { pyo3_path } = ctx;
+    let ctx = &Ctx::new(&options.krate, None);
+    let Ctx { pyo3_path, .. } = ctx;
     let doc = get_doc(attrs, None, ctx);
     let name = options.name.unwrap_or_else(|| ident.unraw());
     let full_name = if let Some(module) = &options.module {
@@ -326,9 +326,9 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
 pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> {
     let options = PyModuleOptions::from_attrs(&mut function.attrs)?;
     process_functions_in_module(&options, &mut function)?;
-    let ctx = &Ctx::new(&options.krate);
+    let ctx = &Ctx::new(&options.krate, None);
     let stmts = std::mem::take(&mut function.block.stmts);
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let ident = &function.sig.ident;
     let name = options.name.unwrap_or_else(|| ident.unraw());
     let vis = &function.vis;
@@ -400,7 +400,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
 }
 
 fn module_initialization(name: &syn::Ident, ctx: &Ctx) -> TokenStream {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{}", name);
     let name = name.to_string();
 
@@ -424,8 +424,8 @@ fn module_initialization(name: &syn::Ident, ctx: &Ctx) -> TokenStream {
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`
 fn process_functions_in_module(options: &PyModuleOptions, func: &mut syn::ItemFn) -> Result<()> {
-    let ctx = &Ctx::new(&options.krate);
-    let Ctx { pyo3_path } = ctx;
+    let ctx = &Ctx::new(&options.krate, None);
+    let Ctx { pyo3_path, .. } = ctx;
     let mut stmts: Vec<syn::Stmt> = Vec::new();
 
     #[cfg(feature = "gil-refs")]

@@ -205,8 +205,8 @@ pub fn impl_wrap_pyfunction(
         krate,
     } = options;
 
-    let ctx = &Ctx::new(&krate);
-    let Ctx { pyo3_path } = &ctx;
+    let ctx = &Ctx::new(&krate, Some(&func.sig));
+    let Ctx { pyo3_path, .. } = &ctx;
 
     let python_name = name
         .as_ref()

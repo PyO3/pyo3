@@ -32,7 +32,7 @@ impl<'ctx> Deprecations<'ctx> {
 
 impl<'ctx> ToTokens for Deprecations<'ctx> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self(deprecations, Ctx { pyo3_path }) = self;
+        let Self(deprecations, Ctx { pyo3_path, .. }) = self;
 
         for (deprecation, span) in deprecations {
             let pyo3_path = pyo3_path.to_tokens_spanned(*span);

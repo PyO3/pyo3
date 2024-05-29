@@ -45,7 +45,7 @@ impl<'a> Enum<'a> {
 
     /// Build derivation body for enums.
     fn build(&self, ctx: &Ctx) -> (TokenStream, TokenStream) {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let mut var_extracts = Vec::new();
         let mut variant_names = Vec::new();
         let mut error_names = Vec::new();
@@ -263,7 +263,7 @@ impl<'a> Container<'a> {
         from_py_with: &Option<FromPyWithAttribute>,
         ctx: &Ctx,
     ) -> (TokenStream, TokenStream) {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let self_ty = &self.path;
         let struct_name = self.name();
         if let Some(ident) = field_ident {
@@ -329,7 +329,7 @@ impl<'a> Container<'a> {
         struct_fields: &[TupleStructField],
         ctx: &Ctx,
     ) -> (TokenStream, TokenStream) {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let self_ty = &self.path;
         let struct_name = &self.name();
         let field_idents: Vec<_> = (0..struct_fields.len())
@@ -382,7 +382,7 @@ impl<'a> Container<'a> {
         struct_fields: &[NamedStructField<'_>],
         ctx: &Ctx,
     ) -> (TokenStream, TokenStream) {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let self_ty = &self.path;
         let struct_name = &self.name();
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
@@ -670,8 +670,8 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
             .push(parse_quote!(#gen_ident: FromPyObject<#lt_param>))
     }
     let options = ContainerOptions::from_attrs(&tokens.attrs)?;
-    let ctx = &Ctx::new(&options.krate);
-    let Ctx { pyo3_path } = &ctx;
+    let ctx = &Ctx::new(&options.krate, None);
+    let Ctx { pyo3_path, .. } = &ctx;
 
     let (derives, from_py_with_deprecations) = match &tokens.data {
         syn::Data::Enum(en) => {

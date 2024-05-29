@@ -1,8 +1,8 @@
+use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, Token};
-
-use crate::attributes::{CrateAttribute, RenamingRule};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
 macro_rules! err_spanned {
@@ -86,7 +86,7 @@ pub fn get_doc(
     mut text_signature: Option<String>,
     ctx: &Ctx,
 ) -> PythonDoc {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     // insert special divider between `__text_signature__` and doc
     // (assume text_signature is itself well-formed)
     if let Some(text_signature) = &mut text_signature {
@@ -162,17 +162,35 @@ pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
 }
 
 pub struct Ctx {
+    /// Where we can find the pyo3 crate
     pub pyo3_path: PyO3CratePath,
+
+    /// If we are in a pymethod or pyfunction,
+    /// this will be the span of the return type
+    pub output_span: Span,
 }
 
 impl Ctx {
-    pub(crate) fn new(attr: &Option<CrateAttribute>) -> Self {
+    pub(crate) fn new(attr: &Option<CrateAttribute>, signature: Option<&syn::Signature>) -> Self {
         let pyo3_path = match attr {
             Some(attr) => PyO3CratePath::Given(attr.value.0.clone()),
             None => PyO3CratePath::Default,
         };
 
-        Self { pyo3_path }
+        let output_span = if let Some(syn::Signature {
+            output: syn::ReturnType::Type(_, output_type),
+            ..
+        }) = &signature
+        {
+            output_type.span()
+        } else {
+            Span::call_site()
+        };
+
+        Self {
+            pyo3_path,
+            output_span,
+        }
     }
 }
 
