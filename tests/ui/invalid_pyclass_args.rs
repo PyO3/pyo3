@@ -33,4 +33,20 @@ struct CannotBeMappingAndSequence {}
 #[pyclass(eq)]
 struct EqOptRequiresEq {}
 
+#[pyclass(eq)]
+#[derive(PartialEq)]
+struct EqOptAndManualRichCmp {}
+
+#[pymethods]
+impl EqOptAndManualRichCmp {
+    fn __richcmp__(
+        &self,
+        _py: Python,
+        _other: Bound<'_, PyAny>,
+        _op: pyo3::pyclass::CompareOp,
+    ) -> PyResult<PyObject> {
+        todo!()
+    }
+}
+
 fn main() {}

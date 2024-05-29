@@ -1700,7 +1700,7 @@ fn pyclass_richcmp(
     // TODO: `ord` can be integrated here (#4202)
     if options.eq.is_some() {
         let mut richcmp_impl = parse_quote! {
-            fn __pyo3__richcmp__(
+            fn __pymethod___richcmp____(
                 &self,
                 py: #pyo3_path::Python,
                 other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
