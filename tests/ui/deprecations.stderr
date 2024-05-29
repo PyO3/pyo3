@@ -34,7 +34,7 @@ error: use of deprecated constant `__pyfunction_pyfunction_option_4::SIGNATURE`:
 138 | fn pyfunction_option_4(
     |    ^^^^^^^^^^^^^^^^^^^
 
-error: use of deprecated constant `SimpleEnumWithoutEq::__pyo3__richcmp__::DEPRECATION`: Implicit equality for simple enums in deprecated. Use `#[pyclass(eq)` to opt-in to the new behavior.
+error: use of deprecated constant `SimpleEnumWithoutEq::__pymethod___richcmp____::DEPRECATION`: Implicit equality for simple enums is deprecated. Use `#[pyclass(eq_int)` to keep the current behavior.
    --> tests/ui/deprecations.rs:200:1
     |
 200 | #[pyclass]

@@ -28,7 +28,7 @@ enum SimpleNoSignature {
     B,
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, eq_int)]
 enum SimpleEqOptRequiresPartialEq {
     A,
     B,
@@ -36,6 +36,12 @@ enum SimpleEqOptRequiresPartialEq {
 
 #[pyclass(eq)]
 enum ComplexEqOptRequiresPartialEq {
+    A(i32),
+    B { msg: String },
+}
+
+#[pyclass(eq_int)]
+enum NoEqInt {
     A(i32),
     B { msg: String },
 }

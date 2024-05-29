@@ -15,6 +15,7 @@ pub mod kw {
     syn::custom_keyword!(constructor);
     syn::custom_keyword!(dict);
     syn::custom_keyword!(eq);
+    syn::custom_keyword!(eq_int);
     syn::custom_keyword!(extends);
     syn::custom_keyword!(freelist);
     syn::custom_keyword!(from_py_with);

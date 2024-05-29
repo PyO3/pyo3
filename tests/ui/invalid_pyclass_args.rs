@@ -49,4 +49,7 @@ impl EqOptAndManualRichCmp {
     }
 }
 
+#[pyclass(eq_int)]
+struct NoEqInt {}
+
 fn main() {}

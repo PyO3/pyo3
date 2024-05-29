@@ -1,4 +1,4 @@
-error: expected one of: `crate`, `dict`, `eq`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
  --> tests/ui/invalid_pyclass_args.rs:3:11
   |
 3 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -46,7 +46,7 @@ error: expected string literal
 24 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `eq`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
   --> tests/ui/invalid_pyclass_args.rs:27:11
    |
 27 | #[pyclass(weakrev)]
@@ -57,6 +57,12 @@ error: a `#[pyclass]` cannot be both a `mapping` and a `sequence`
    |
 31 | struct CannotBeMappingAndSequence {}
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `eq_int` can only be used on simple enums.
+  --> tests/ui/invalid_pyclass_args.rs:52:11
+   |
+52 | #[pyclass(eq_int)]
+   |           ^^^^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:36:1

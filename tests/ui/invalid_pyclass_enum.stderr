@@ -30,10 +30,16 @@ error: `constructor` can't be used on a simple enum variant
 26 |     #[pyo3(constructor = (a, b))]
    |            ^^^^^^^^^^^
 
+error: `eq_int` can only be used on simple enums.
+  --> tests/ui/invalid_pyclass_enum.rs:43:11
+   |
+43 | #[pyclass(eq_int)]
+   |           ^^^^^^
+
 error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
   --> tests/ui/invalid_pyclass_enum.rs:31:11
    |
-31 | #[pyclass(eq)]
+31 | #[pyclass(eq, eq_int)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequiresPartialEq`
@@ -50,7 +56,7 @@ help: consider annotating `SimpleEqOptRequiresPartialEq` with `#[derive(PartialE
 error[E0369]: binary operation `!=` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
   --> tests/ui/invalid_pyclass_enum.rs:31:11
    |
-31 | #[pyclass(eq)]
+31 | #[pyclass(eq, eq_int)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequiresPartialEq`
