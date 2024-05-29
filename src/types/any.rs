@@ -1127,6 +1127,15 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         O: ToPyObject;
 
+    /// Computes the negative of self or `-self`.
+    fn neg(&self) -> PyResult<Bound<'py, PyAny>>;
+
+    /// Computes the positive of self.
+    fn pos(&self) -> PyResult<Bound<'py, PyAny>>;
+
+    /// Computes the absolute of self or `|self|`.
+    fn abs(&self) -> PyResult<Bound<'py, PyAny>>;
+
     /// Tests whether this object is less than another.
     ///
     /// This is equivalent to the Python expression `self < other`.
@@ -1860,6 +1869,30 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
         let py = self.py();
         inner(self, other.to_object(py).into_bound(py), compare_op)
+    }
+
+    fn neg(&self) -> PyResult<Bound<'py, PyAny>> {
+        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+            unsafe { ffi::PyNumber_Negative(any.as_ptr()).assume_owned_or_err(any.py()) }
+        }
+
+        inner(self)
+    }
+
+    fn pos(&self) -> PyResult<Bound<'py, PyAny>> {
+        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+            unsafe { ffi::PyNumber_Positive(any.as_ptr()).assume_owned_or_err(any.py()) }
+        }
+
+        inner(self)
+    }
+
+    fn abs(&self) -> PyResult<Bound<'py, PyAny>> {
+        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+            unsafe { ffi::PyNumber_Absolute(any.as_ptr()).assume_owned_or_err(any.py()) }
+        }
+
+        inner(self)
     }
 
     fn lt<O>(&self, other: O) -> PyResult<bool>
