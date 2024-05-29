@@ -1127,7 +1127,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         O: ToPyObject;
 
-    /// Computes the negative of self or `-self`.
+    /// Computes the negative of self.
+    ///
+    /// Equivalent to the Python expression `-self`.
     fn neg(&self) -> PyResult<Bound<'py, PyAny>>;
 
     /// Computes the positive of self.
