@@ -127,15 +127,6 @@ note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-warning: use of deprecated method `pyo3::deprecations::GilRefs::<T>::function_arg`: use `&Bound<'_, T>` instead for this function argument
-  --> tests/ui/invalid_pyclass_args.rs:36:1
-   |
-36 | #[pyclass(eq)]
-   | ^^^^^^^^^^^^^^
-   |
-   = note: `#[warn(deprecated)]` on by default
-   = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_pyclass_args.rs:40:1
    |

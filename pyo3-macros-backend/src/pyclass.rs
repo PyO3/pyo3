@@ -1265,6 +1265,23 @@ fn gen_complex_enum_variant_class_ident(enum_: &syn::Ident, variant: &syn::Ident
     format_ident!("{}_{}", enum_, variant)
 }
 
+fn generate_protocol_slot(
+    cls: &syn::Type,
+    method: &mut syn::ImplItemFn,
+    slot: &SlotDef,
+    name: &str,
+    ctx: &Ctx,
+) -> syn::Result<MethodAndSlotDef> {
+    let spec = FnSpec::parse(
+        &mut method.sig,
+        &mut Vec::new(),
+        PyFunctionOptions::default(),
+        ctx,
+    )
+    .unwrap();
+    slot.generate_type_slot(&syn::parse_quote!(#cls), &spec, name, ctx)
+}
+
 fn generate_default_protocol_slot(
     cls: &syn::Type,
     method: &mut syn::ImplItemFn,
@@ -1707,7 +1724,7 @@ fn pyclass_richcmp_simple_enum(
     });
 
     let mut richcmp_impl = parse_quote! {
-        fn __pymethod___richcmp____(
+        fn __pyo3__generated____richcmp__(
             &self,
             py: #pyo3_path::Python,
             other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
@@ -1722,8 +1739,11 @@ fn pyclass_richcmp_simple_enum(
             ::std::result::Result::Ok(py.NotImplemented())
         }
     };
-    let richcmp_slot =
-        generate_default_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap();
+    let richcmp_slot = if options.eq.is_some() {
+        generate_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, "__richcmp__", ctx).unwrap()
+    } else {
+        generate_default_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap()
+    };
     (Some(richcmp_impl), Some(richcmp_slot))
 }
 
@@ -1740,7 +1760,7 @@ fn pyclass_richcmp(
     let arms = pyclass_richcmp_arms(options, ctx);
     if options.eq.is_some() {
         let mut richcmp_impl = parse_quote! {
-            fn __pymethod___richcmp____(
+            fn __pyo3__generated____richcmp__(
                 &self,
                 py: #pyo3_path::Python,
                 other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
@@ -1755,7 +1775,8 @@ fn pyclass_richcmp(
             }
         };
         let richcmp_slot =
-            generate_default_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap();
+            generate_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, "__richcmp__", ctx)
+                .unwrap();
         Ok((Some(richcmp_impl), Some(richcmp_slot)))
     } else {
         Ok((None, None))
