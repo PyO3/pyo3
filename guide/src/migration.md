@@ -47,6 +47,37 @@ However, take care to note that the behaviour is different from previous version
 Related to this, we also added a `pyo3_disable_reference_pool` conditional compilation flag which removes the infrastructure necessary to apply delayed reference count decrements implied by `impl<T> Drop for Py<T>`. They do not appear to be a soundness hazard as they should lead to memory leaks in the worst case. However, the global synchronization adds significant overhead to cross the Python-Rust boundary. Enabling this feature will remove these costs and make the `Drop` implementation abort the process if called without the GIL being held instead.
 </details>
 
+### Deprecation of implicit integer comparison for simple enums
+<details open>
+<summary><small>Click to expand</small></summary>
+
+With `pyo3` 0.22 the implicit implementation of integer comparison for simple enums using their discriminants is deprecated. To migrate, place a `#[pyo3(eq_int)]` attribute on affected classes. In addition the `#[pyo3(eq)]` option can be used to implement comparison based on the `PartialEq` implementation. If both options are specified, comparing by `PartialEq` and on failure the integer comparision is used as a fallback.
+
+Before:
+
+```rust
+# #![allow(deprecated, dead_code)]
+# use pyo3::prelude::*;
+#[pyclass]
+enum SimpleEnum {
+    VariantA,
+    VariantB = 42,
+}
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyclass(eq_int)]
+enum SimpleEnum {
+    VariantA,
+    VariantB = 42,
+}
+```
+</details>
+
 ## from 0.20.* to 0.21
 <details open>
 <summary><small>Click to expand</small></summary>
