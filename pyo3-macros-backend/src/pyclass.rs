@@ -1682,7 +1682,7 @@ fn pyclass_richcmp_simple_enum(
             quote! {
                 #[deprecated(
                     since = "0.22.0",
-                    note = "Implicit equality for simple enums is deprecated. Use `#[pyclass(eq_int)` to keep the current behavior."
+                    note = "Implicit equality for simple enums is deprecated. Use `#[pyclass(eq, eq_int)` to keep the current behavior."
                 )]
                 const DEPRECATION: () = ();
                 const _: () = DEPRECATION;

@@ -47,11 +47,13 @@ However, take care to note that the behaviour is different from previous version
 Related to this, we also added a `pyo3_disable_reference_pool` conditional compilation flag which removes the infrastructure necessary to apply delayed reference count decrements implied by `impl<T> Drop for Py<T>`. They do not appear to be a soundness hazard as they should lead to memory leaks in the worst case. However, the global synchronization adds significant overhead to cross the Python-Rust boundary. Enabling this feature will remove these costs and make the `Drop` implementation abort the process if called without the GIL being held instead.
 </details>
 
-### Deprecation of implicit integer comparison for simple enums
+### Require explicit opt-in for comparison for simple enums
 <details open>
 <summary><small>Click to expand</small></summary>
 
-With `pyo3` 0.22 the implicit implementation of integer comparison for simple enums using their discriminants is deprecated. To migrate, place a `#[pyo3(eq_int)]` attribute on affected classes. In addition the `#[pyo3(eq)]` option can be used to implement comparison based on the `PartialEq` implementation. If both options are specified, comparing by `PartialEq` and on failure the integer comparision is used as a fallback.
+With `pyo3` 0.22 the new `#[pyo3(eq)]` options allows automatic implementation of Python equality using Rust's `PartialEq`. Previously simple enums automatically implemented equality in terms of their discriminants. To make PyO3 more consistent, this automatic equality implementation is deprecated in favour of having opt-ins for all `#[pyclass]` types. Similarly, simple enums supported comparison with integers, which is not covered by Rust's `PartialEq` derive, so has been split out into the `#[pyo3(eq_int)]` attribute.
+
+To migrate, place a `#[pyo3(eq, eq_int)]` attribute on simple enum classes.
 
 Before:
 
@@ -70,7 +72,8 @@ After:
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
-#[pyclass(eq_int)]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum SimpleEnum {
     VariantA,
     VariantB = 42,

@@ -226,7 +226,7 @@ impl Number {
 # }
 ```
 
-To implement `__eq__` in terms of the `PartialEq` implementation of the underlying datatype, the `eq` option can be used.
+To implement `__eq__` using the Rust [`PartialEq`] trait implementation, the `eq` option can be used.
 
 ```rust
 # use pyo3::prelude::*;
@@ -315,3 +315,4 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 [`Hasher`]: https://doc.rust-lang.org/std/hash/trait.Hasher.html
 [`DefaultHasher`]: https://doc.rust-lang.org/std/collections/hash_map/struct.DefaultHasher.html
 [SipHash]: https://en.wikipedia.org/wiki/SipHash
+[`PartialEq`]: https://doc.rust-lang.org/stable/std/cmp/trait.PartialEq.html
