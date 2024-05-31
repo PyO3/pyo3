@@ -65,16 +65,16 @@ error: `eq_int` can only be used on simple enums.
    |           ^^^^^^
 
 error: The `hash` option requires the `frozen` option.
-  --> tests/ui/invalid_pyclass_args.rs:59:15
+  --> tests/ui/invalid_pyclass_args.rs:59:11
    |
-59 | #[pyclass(eq, hash)]
-   |               ^^^^
+59 | #[pyclass(hash)]
+   |           ^^^^
 
 error: The `hash` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_args.rs:63:19
+  --> tests/ui/invalid_pyclass_args.rs:59:11
    |
-63 | #[pyclass(frozen, hash)]
-   |                   ^^^^
+59 | #[pyclass(hash)]
+   |           ^^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:36:1
@@ -88,12 +88,12 @@ error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod___hash____`
-  --> tests/ui/invalid_pyclass_args.rs:67:1
+  --> tests/ui/invalid_pyclass_args.rs:63:1
    |
-67 | #[pyclass(frozen, eq, hash)]
+63 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___hash____`
 ...
-71 | #[pymethods]
+67 | #[pymethods]
    | ------------ other definition for `__pymethod___hash____`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -181,37 +181,37 @@ help: consider annotating `HashOptRequiresHash` with `#[derive(Hash)]`
    |
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:67:1
+  --> tests/ui/invalid_pyclass_args.rs:63:1
    |
-67 | #[pyclass(frozen, eq, hash)]
+63 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___hash____` found
    |
 note: candidate #1 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:67:1
+  --> tests/ui/invalid_pyclass_args.rs:63:1
    |
-67 | #[pyclass(frozen, eq, hash)]
+63 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:71:1
+  --> tests/ui/invalid_pyclass_args.rs:67:1
    |
-71 | #[pymethods]
+67 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:71:1
+  --> tests/ui/invalid_pyclass_args.rs:67:1
    |
-71 | #[pymethods]
+67 | #[pymethods]
    | ^^^^^^^^^^^^ multiple `__pymethod___hash____` found
    |
 note: candidate #1 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:67:1
+  --> tests/ui/invalid_pyclass_args.rs:63:1
    |
-67 | #[pyclass(frozen, eq, hash)]
+63 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:71:1
+  --> tests/ui/invalid_pyclass_args.rs:67:1
    |
-71 | #[pymethods]
+67 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)

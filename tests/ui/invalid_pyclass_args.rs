@@ -56,13 +56,9 @@ struct NoEqInt {}
 #[derive(PartialEq)]
 struct HashOptRequiresHash;
 
-#[pyclass(eq, hash)]
-#[derive(PartialEq, Hash)]
-struct HashWithoutFrozen;
-
-#[pyclass(frozen, hash)]
+#[pyclass(hash)]
 #[derive(Hash)]
-struct HashWithoutEq;
+struct HashWithoutFrozenAndEq;
 
 #[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]

@@ -37,21 +37,21 @@ error: `eq_int` can only be used on simple enums.
    |           ^^^^^^
 
 error: The `hash` option requires the `frozen` option.
-  --> tests/ui/invalid_pyclass_enum.rs:63:15
+  --> tests/ui/invalid_pyclass_enum.rs:63:11
    |
-63 | #[pyclass(eq, hash)]
-   |               ^^^^
+63 | #[pyclass(hash)]
+   |           ^^^^
 
 error: The `hash` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_enum.rs:70:19
+  --> tests/ui/invalid_pyclass_enum.rs:63:11
    |
-70 | #[pyclass(frozen, hash)]
-   |                   ^^^^
+63 | #[pyclass(hash)]
+   |           ^^^^
 
 error: The `hash` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_enum.rs:77:11
+  --> tests/ui/invalid_pyclass_enum.rs:70:11
    |
-77 | #[pyclass(hash)]
+70 | #[pyclass(hash)]
    |           ^^^^
 
 error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`

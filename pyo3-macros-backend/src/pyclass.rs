@@ -1806,8 +1806,10 @@ fn pyclass_hash(
     ctx: &Ctx,
 ) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
     if options.hash.is_some() {
-        ensure_spanned!(options.frozen.is_some(), options.hash.span() => "The `hash` option requires the `frozen` option.");
-        ensure_spanned!(options.eq.is_some(), options.hash.span() => "The `hash` option requires the `eq` option.");
+        ensure_spanned!(
+            options.frozen.is_some(), options.hash.span() => "The `hash` option requires the `frozen` option.";
+            options.eq.is_some(), options.hash.span() => "The `hash` option requires the `eq` option.";
+        );
     }
     // FIXME: Use hash.map(...).unzip() on MSRV >= 1.66
     match options.hash {

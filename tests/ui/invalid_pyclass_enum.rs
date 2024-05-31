@@ -60,16 +60,9 @@ enum ComplexHashOptRequiresHash {
     B { msg: String },
 }
 
-#[pyclass(eq, hash)]
-#[derive(PartialEq, Hash)]
-enum SimpleHashOptRequiresFrozen {
-    A,
-    B,
-}
-
-#[pyclass(frozen, hash)]
+#[pyclass(hash)]
 #[derive(Hash)]
-enum SimpleHashOptRequiresEq {
+enum SimpleHashOptRequiresFrozenAndEq {
     A,
     B,
 }
