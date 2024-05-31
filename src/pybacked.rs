@@ -216,9 +216,7 @@ impl IntoPy<Py<PyAny>> for PyBackedBytes {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         match self.storage {
             PyBackedBytesStorage::Python(bytes) => bytes.into_any(),
-            PyBackedBytesStorage::Rust(bytes) => {
-                PyByteArray::new_bound(py, &bytes).into_any().unbind()
-            }
+            PyBackedBytesStorage::Rust(bytes) => PyBytes::new_bound(py, &bytes).into_any().unbind(),
         }
     }
 }
@@ -412,9 +410,9 @@ mod test {
             let to_object = rust_backed_bytes.to_object(py).into_bound(py);
             assert!(&to_object.is_exact_instance_of::<PyBytes>());
             assert_eq!(&to_object.extract::<PyBackedBytes>().unwrap(), b"abcde");
-            let into_py = rust_backed_bytes.into_py(py);
-            assert!(&to_object.is_exact_instance_of::<PyBytes>());
-            assert_eq!(&into_py.extract::<PyBackedBytes>(py).unwrap(), b"abcde");
+            let into_py = rust_backed_bytes.into_py(py).into_bound(py);
+            assert!(&into_py.is_exact_instance_of::<PyBytes>());
+            assert_eq!(&into_py.extract::<PyBackedBytes>().unwrap(), b"abcde");
         });
     }
 
