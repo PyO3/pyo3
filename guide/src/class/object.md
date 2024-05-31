@@ -123,7 +123,9 @@ impl Number {
 ```
 To implement `__hash__` using the Rust [`Hash`] trait implementation, the `hash` option can be used.
 This option is only available for `frozen` classes to prevent accidental hash changes from mutating the object. If you need
-an `__hash__` implementation for a mutable class, use the manual method from above.
+an `__hash__` implementation for a mutable class, use the manual method from above. This option also requires `eq`: According to the
+[Python docs](https://docs.python.org/3/reference/datamodel.html#object.__hash__) "If a class does not define an `__eq__()`
+method it should not define a `__hash__()` operation either"
 ```rust
 # use pyo3::prelude::*;
 #

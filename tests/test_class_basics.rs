@@ -200,8 +200,8 @@ fn class_with_object_field() {
     });
 }
 
-#[pyclass(frozen, hash)]
-#[derive(Hash)]
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq, Hash)]
 struct ClassWithHash {
     value: usize,
 }

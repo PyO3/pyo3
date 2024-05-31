@@ -250,8 +250,8 @@ fn test_simple_enum_with_hash() {
     });
 }
 
-#[pyclass(hash)]
-#[derive(Hash)]
+#[pyclass(eq, hash)]
+#[derive(PartialEq, Hash)]
 enum ComplexEnumWithHash {
     A(u32),
     B { msg: String },

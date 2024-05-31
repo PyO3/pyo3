@@ -53,17 +53,32 @@ enum SimpleHashOptRequiresHash {
     B,
 }
 
-#[pyclass(frozen, hash)]
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq)]
 enum ComplexHashOptRequiresHash {
     A(i32),
     B { msg: String },
 }
 
-#[pyclass(hash)]
-#[derive(Hash)]
+#[pyclass(eq, hash)]
+#[derive(PartialEq, Hash)]
 enum SimpleHashOptRequiresFrozen {
     A,
     B,
+}
+
+#[pyclass(frozen, hash)]
+#[derive(Hash)]
+enum SimpleHashOptRequiresEq {
+    A,
+    B,
+}
+
+#[pyclass(hash)]
+#[derive(Hash)]
+enum ComplexHashOptRequiresEq {
+    A(i32),
+    B { msg: String },
 }
 
 fn main() {}

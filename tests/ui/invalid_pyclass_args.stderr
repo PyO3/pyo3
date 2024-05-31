@@ -65,10 +65,16 @@ error: `eq_int` can only be used on simple enums.
    |           ^^^^^^
 
 error: The `hash` option requires the `frozen` option.
-  --> tests/ui/invalid_pyclass_args.rs:58:11
+  --> tests/ui/invalid_pyclass_args.rs:59:15
    |
-58 | #[pyclass(hash)]
-   |           ^^^^
+59 | #[pyclass(eq, hash)]
+   |               ^^^^
+
+error: The `hash` option requires the `eq` option.
+  --> tests/ui/invalid_pyclass_args.rs:63:19
+   |
+63 | #[pyclass(frozen, hash)]
+   |                   ^^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:36:1
@@ -152,13 +158,13 @@ note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `HashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_args.rs:55:19
+  --> tests/ui/invalid_pyclass_args.rs:55:23
    |
-55 | #[pyclass(frozen, hash)]
-   |                   ^^^^ the trait `Hash` is not implemented for `HashOptRequiresHash`
+55 | #[pyclass(frozen, eq, hash)]
+   |                       ^^^^ the trait `Hash` is not implemented for `HashOptRequiresHash`
    |
 help: consider annotating `HashOptRequiresHash` with `#[derive(Hash)]`
    |
-56 + #[derive(Hash)]
-57 | struct HashOptRequiresHash;
+57 + #[derive(Hash)]
+58 | struct HashOptRequiresHash;
    |
