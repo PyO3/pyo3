@@ -1670,14 +1670,16 @@ fn pyclass_richcmp_arms(options: &PyClassPyO3Options, ctx: &Ctx) -> TokenStream 
 
     let eq_arms = options
         .eq
-        .map(|eq| {
-            quote_spanned! { eq.span() =>
+        .map(|eq| eq.span)
+        .or(options.eq_int.map(|eq_int| eq_int.span))
+        .map(|span| {
+            quote_spanned! { span =>
                 #pyo3_path::pyclass::CompareOp::Eq => {
                     ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val == other, py))
                 },
                 #pyo3_path::pyclass::CompareOp::Ne => {
                     ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val != other, py))
-                 },
+                },
             }
         })
         .unwrap_or_default();
@@ -1694,8 +1696,6 @@ fn pyclass_richcmp_simple_enum(
     ctx: &Ctx,
 ) -> (Option<syn::ImplItemFn>, Option<MethodAndSlotDef>) {
     let Ctx { pyo3_path } = ctx;
-
-    let arms = pyclass_richcmp_arms(options, ctx);
 
     let deprecation = options
         .eq_int
@@ -1717,6 +1717,8 @@ fn pyclass_richcmp_simple_enum(
     if options.eq.is_none() && options.eq_int.is_none() {
         return (None, None);
     }
+
+    let arms = pyclass_richcmp_arms(&options, ctx);
 
     let eq = options.eq.map(|eq| {
         quote_spanned! { eq.span() =>
