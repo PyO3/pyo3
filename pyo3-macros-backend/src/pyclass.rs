@@ -18,7 +18,7 @@ use crate::utils::Ctx;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
 use crate::PyFunctionOptions;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -59,6 +59,8 @@ impl PyClassArgs {
 pub struct PyClassPyO3Options {
     pub krate: Option<CrateAttribute>,
     pub dict: Option<kw::dict>,
+    pub eq: Option<kw::eq>,
+    pub eq_int: Option<kw::eq_int>,
     pub extends: Option<ExtendsAttribute>,
     pub get_all: Option<kw::get_all>,
     pub freelist: Option<FreelistAttribute>,
@@ -77,6 +79,8 @@ pub struct PyClassPyO3Options {
 enum PyClassPyO3Option {
     Crate(CrateAttribute),
     Dict(kw::dict),
+    Eq(kw::eq),
+    EqInt(kw::eq_int),
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
     Frozen(kw::frozen),
@@ -99,6 +103,10 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Crate)
         } else if lookahead.peek(kw::dict) {
             input.parse().map(PyClassPyO3Option::Dict)
+        } else if lookahead.peek(kw::eq) {
+            input.parse().map(PyClassPyO3Option::Eq)
+        } else if lookahead.peek(kw::eq_int) {
+            input.parse().map(PyClassPyO3Option::EqInt)
         } else if lookahead.peek(kw::extends) {
             input.parse().map(PyClassPyO3Option::Extends)
         } else if lookahead.peek(attributes::kw::freelist) {
@@ -166,6 +174,8 @@ impl PyClassPyO3Options {
         match option {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
             PyClassPyO3Option::Dict(dict) => set_option!(dict),
+            PyClassPyO3Option::Eq(eq) => set_option!(eq),
+            PyClassPyO3Option::EqInt(eq_int) => set_option!(eq_int),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
             PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
@@ -350,6 +360,12 @@ fn impl_class(
     let Ctx { pyo3_path } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
+    let (default_richcmp, default_richcmp_slot) =
+        pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
+
+    let mut slots = Vec::new();
+    slots.extend(default_richcmp_slot);
+
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
         args,
@@ -361,7 +377,7 @@ fn impl_class(
             field_options,
             ctx,
         )?,
-        vec![],
+        slots,
     )
     .doc(doc)
     .impl_all(ctx)?;
@@ -372,6 +388,12 @@ fn impl_class(
         #pytypeinfo_impl
 
         #py_class_impl
+
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        impl #cls {
+            #default_richcmp
+        }
     })
 }
 
@@ -723,7 +745,6 @@ fn impl_simple_enum(
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
-    let Ctx { pyo3_path } = ctx;
     let cls = simple_enum.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = simple_enum.variants;
@@ -775,50 +796,11 @@ fn impl_simple_enum(
         (int_impl, int_slot)
     };
 
-    let (default_richcmp, default_richcmp_slot) = {
-        let mut richcmp_impl: syn::ImplItemFn = syn::parse_quote! {
-            fn __pyo3__richcmp__(
-                &self,
-                py: #pyo3_path::Python,
-                other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
-                op: #pyo3_path::basic::CompareOp
-            ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-                use #pyo3_path::conversion::ToPyObject;
-                use #pyo3_path::types::PyAnyMethods;
-                use ::core::result::Result::*;
-                match op {
-                    #pyo3_path::basic::CompareOp::Eq => {
-                        let self_val = self.__pyo3__int__();
-                        if let Ok(i) = other.extract::<#repr_type>() {
-                            return Ok((self_val == i).to_object(py));
-                        }
-                        if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
-                            return Ok((self_val == other.__pyo3__int__()).to_object(py));
-                        }
+    let (default_richcmp, default_richcmp_slot) =
+        pyclass_richcmp_simple_enum(&args.options, &ty, repr_type, ctx);
 
-                        return Ok(py.NotImplemented());
-                    }
-                    #pyo3_path::basic::CompareOp::Ne => {
-                        let self_val = self.__pyo3__int__();
-                        if let Ok(i) = other.extract::<#repr_type>() {
-                            return Ok((self_val != i).to_object(py));
-                        }
-                        if let Ok(other) = other.extract::<#pyo3_path::PyRef<Self>>() {
-                            return Ok((self_val != other.__pyo3__int__()).to_object(py));
-                        }
-
-                        return Ok(py.NotImplemented());
-                    }
-                    _ => Ok(py.NotImplemented()),
-                }
-            }
-        };
-        let richcmp_slot =
-            generate_default_protocol_slot(&ty, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap();
-        (richcmp_impl, richcmp_slot)
-    };
-
-    let default_slots = vec![default_repr_slot, default_int_slot, default_richcmp_slot];
+    let mut default_slots = vec![default_repr_slot, default_int_slot];
+    default_slots.extend(default_richcmp_slot);
 
     let pyclass_impls = PyClassImplsBuilder::new(
         cls,
@@ -857,6 +839,8 @@ fn impl_complex_enum(
     ctx: &Ctx,
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path } = ctx;
+    let cls = complex_enum.ident;
+    let ty: syn::Type = syn::parse_quote!(#cls);
 
     // Need to rig the enum PyClass options
     let args = {
@@ -873,7 +857,10 @@ fn impl_complex_enum(
     let variants = complex_enum.variants;
     let pytypeinfo = impl_pytypeinfo(cls, &args, None, ctx);
 
-    let default_slots = vec![];
+    let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
+
+    let mut default_slots = vec![];
+    default_slots.extend(default_richcmp_slot);
 
     let impl_builder = PyClassImplsBuilder::new(
         cls,
@@ -978,7 +965,9 @@ fn impl_complex_enum(
 
         #[doc(hidden)]
         #[allow(non_snake_case)]
-        impl #cls {}
+        impl #cls {
+            #default_richcmp
+        }
 
         #(#variant_cls_zsts)*
 
@@ -1274,6 +1263,23 @@ fn impl_complex_enum_tuple_variant_cls(
 
 fn gen_complex_enum_variant_class_ident(enum_: &syn::Ident, variant: &syn::Ident) -> syn::Ident {
     format_ident!("{}_{}", enum_, variant)
+}
+
+fn generate_protocol_slot(
+    cls: &syn::Type,
+    method: &mut syn::ImplItemFn,
+    slot: &SlotDef,
+    name: &str,
+    ctx: &Ctx,
+) -> syn::Result<MethodAndSlotDef> {
+    let spec = FnSpec::parse(
+        &mut method.sig,
+        &mut Vec::new(),
+        PyFunctionOptions::default(),
+        ctx,
+    )
+    .unwrap();
+    slot.generate_type_slot(&syn::parse_quote!(#cls), &spec, name, ctx)
 }
 
 fn generate_default_protocol_slot(
@@ -1634,6 +1640,146 @@ fn impl_pytypeinfo(
                     .as_type_ptr()
             }
         }
+    }
+}
+
+fn pyclass_richcmp_arms(options: &PyClassPyO3Options, ctx: &Ctx) -> TokenStream {
+    let Ctx { pyo3_path } = ctx;
+
+    let eq_arms = options
+        .eq
+        .map(|eq| {
+            quote_spanned! { eq.span() =>
+                #pyo3_path::pyclass::CompareOp::Eq => {
+                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val == other, py))
+                },
+                #pyo3_path::pyclass::CompareOp::Ne => {
+                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val != other, py))
+                 },
+            }
+        })
+        .unwrap_or_default();
+
+    // TODO: `ord` can be integrated here (#4202)
+    #[allow(clippy::let_and_return)]
+    eq_arms
+}
+
+fn pyclass_richcmp_simple_enum(
+    options: &PyClassPyO3Options,
+    cls: &syn::Type,
+    repr_type: &syn::Ident,
+    ctx: &Ctx,
+) -> (Option<syn::ImplItemFn>, Option<MethodAndSlotDef>) {
+    let Ctx { pyo3_path } = ctx;
+
+    let arms = pyclass_richcmp_arms(options, ctx);
+
+    let deprecation = options
+        .eq_int
+        .map(|_| TokenStream::new())
+        .unwrap_or_else(|| {
+            quote! {
+                #[deprecated(
+                    since = "0.22.0",
+                    note = "Implicit equality for simple enums is deprecated. Use `#[pyclass(eq, eq_int)` to keep the current behavior."
+                )]
+                const DEPRECATION: () = ();
+                const _: () = DEPRECATION;
+            }
+        });
+
+    let mut options = options.clone();
+    options.eq_int = Some(parse_quote!(eq_int));
+
+    if options.eq.is_none() && options.eq_int.is_none() {
+        return (None, None);
+    }
+
+    let eq = options.eq.map(|eq| {
+        quote_spanned! { eq.span() =>
+            let self_val = self;
+            if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::downcast::<Self>(other) {
+                let other = &*other.borrow();
+                return match op {
+                    #arms
+                    _ => ::std::result::Result::Ok(py.NotImplemented())
+                }
+            }
+        }
+    });
+
+    let eq_int = options.eq_int.map(|eq_int| {
+        quote_spanned! { eq_int.span() =>
+            let self_val = self.__pyo3__int__();
+            if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#repr_type>(other).or_else(|_| {
+                #pyo3_path::types::PyAnyMethods::downcast::<Self>(other).map(|o| o.borrow().__pyo3__int__())
+            }) {
+                return match op {
+                    #arms
+                    _ => ::std::result::Result::Ok(py.NotImplemented())
+                }
+            }
+        }
+    });
+
+    let mut richcmp_impl = parse_quote! {
+        fn __pyo3__generated____richcmp__(
+            &self,
+            py: #pyo3_path::Python,
+            other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
+            op: #pyo3_path::pyclass::CompareOp
+        ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+            #deprecation
+
+            #eq
+
+            #eq_int
+
+            ::std::result::Result::Ok(py.NotImplemented())
+        }
+    };
+    let richcmp_slot = if options.eq.is_some() {
+        generate_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, "__richcmp__", ctx).unwrap()
+    } else {
+        generate_default_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap()
+    };
+    (Some(richcmp_impl), Some(richcmp_slot))
+}
+
+fn pyclass_richcmp(
+    options: &PyClassPyO3Options,
+    cls: &syn::Type,
+    ctx: &Ctx,
+) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
+    let Ctx { pyo3_path } = ctx;
+    if let Some(eq_int) = options.eq_int {
+        bail_spanned!(eq_int.span() => "`eq_int` can only be used on simple enums.")
+    }
+
+    let arms = pyclass_richcmp_arms(options, ctx);
+    if options.eq.is_some() {
+        let mut richcmp_impl = parse_quote! {
+            fn __pyo3__generated____richcmp__(
+                &self,
+                py: #pyo3_path::Python,
+                other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
+                op: #pyo3_path::pyclass::CompareOp
+            ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
+                let self_val = self;
+                let other = &*#pyo3_path::types::PyAnyMethods::downcast::<Self>(other)?.borrow();
+                match op {
+                    #arms
+                    _ => ::std::result::Result::Ok(py.NotImplemented())
+                }
+            }
+        };
+        let richcmp_slot =
+            generate_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, "__richcmp__", ctx)
+                .unwrap();
+        Ok((Some(richcmp_impl), Some(richcmp_slot)))
+    } else {
+        Ok((None, None))
     }
 }
 
