@@ -6,7 +6,7 @@ use pyo3::py_run;
 #[path = "../src/tests/common.rs"]
 mod common;
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MyEnum {
     Variant,
@@ -52,7 +52,8 @@ fn test_enum_arg() {
     })
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum CustomDiscriminant {
     One = 1,
     Two = 2,
@@ -100,7 +101,8 @@ fn test_enum_compare_int() {
     })
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(u8)]
 enum SmallEnum {
     V = 1,
@@ -114,7 +116,8 @@ fn test_enum_compare_int_no_throw_when_overflow() {
     })
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(usize)]
 #[allow(clippy::enum_clike_unportable_variant)]
 enum BigEnum {
@@ -126,12 +129,14 @@ fn test_big_enum_no_overflow() {
     Python::with_gil(|py| {
         let usize_max = usize::MAX;
         let v = Py::new(py, BigEnum::V).unwrap();
+
         py_assert!(py, usize_max v, "v == usize_max");
         py_assert!(py, usize_max v, "int(v) == usize_max");
     })
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(u16, align(8))]
 enum TestReprParse {
     V,
@@ -142,7 +147,7 @@ fn test_repr_parse() {
     assert_eq!(std::mem::align_of::<TestReprParse>(), 8);
 }
 
-#[pyclass(name = "MyEnum")]
+#[pyclass(eq, eq_int, name = "MyEnum")]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RenameEnum {
     Variant,
@@ -156,7 +161,7 @@ fn test_rename_enum_repr_correct() {
     })
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RenameVariantEnum {
     #[pyo3(name = "VARIANT")]
@@ -171,7 +176,8 @@ fn test_rename_variant_repr_correct() {
     })
 }
 
-#[pyclass(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(clippy::enum_variant_names)]
 enum RenameAllVariantsEnum {
     VariantOne,

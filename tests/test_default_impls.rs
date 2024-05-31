@@ -6,7 +6,8 @@ use pyo3::prelude::*;
 mod common;
 
 // Test default generated __repr__.
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum TestDefaultRepr {
     Var,
 }
@@ -23,7 +24,8 @@ fn test_default_slot_exists() {
     })
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum OverrideSlot {
     Var,
 }
