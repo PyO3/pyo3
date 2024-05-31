@@ -64,4 +64,15 @@ struct HashWithoutFrozen;
 #[derive(Hash)]
 struct HashWithoutEq;
 
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq, Hash)]
+struct HashOptAndManualHash {}
+
+#[pymethods]
+impl HashOptAndManualHash {
+    fn __hash__(&self) -> u64 {
+        todo!()
+    }
+}
+
 fn main() {}

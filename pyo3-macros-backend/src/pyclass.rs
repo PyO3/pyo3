@@ -1813,14 +1813,14 @@ fn pyclass_hash(
     match options.hash {
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
-                fn __pyo3__hash__(&self) -> u64 {
+                fn __pyo3__generated____hash__(&self) -> u64 {
                     let mut s = ::std::collections::hash_map::DefaultHasher::new();
                     ::std::hash::Hash::hash(self, &mut s);
                     ::std::hash::Hasher::finish(&s)
                 }
             };
             let hash_slot =
-                generate_default_protocol_slot(cls, &mut hash_impl, &__HASH__, ctx).unwrap();
+                generate_protocol_slot(cls, &mut hash_impl, &__HASH__, "__hash__", ctx).unwrap();
             Ok((Some(hash_impl), Some(hash_slot)))
         }
         None => Ok((None, None)),
