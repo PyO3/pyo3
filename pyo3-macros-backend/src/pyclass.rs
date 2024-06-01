@@ -12,7 +12,7 @@ use crate::pyfunction::ConstructorAttribute;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __GETITEM__, __INT__, __LEN__, __REPR__, __RICHCMP__,
+    SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__,
 };
 use crate::utils::Ctx;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
@@ -21,6 +21,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
+use syn::parse_quote_spanned;
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, spanned::Spanned, Result, Token};
 
@@ -65,6 +66,7 @@ pub struct PyClassPyO3Options {
     pub get_all: Option<kw::get_all>,
     pub freelist: Option<FreelistAttribute>,
     pub frozen: Option<kw::frozen>,
+    pub hash: Option<kw::hash>,
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
@@ -85,6 +87,7 @@ enum PyClassPyO3Option {
     Freelist(FreelistAttribute),
     Frozen(kw::frozen),
     GetAll(kw::get_all),
+    Hash(kw::hash),
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
@@ -115,6 +118,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Frozen)
         } else if lookahead.peek(attributes::kw::get_all) {
             input.parse().map(PyClassPyO3Option::GetAll)
+        } else if lookahead.peek(attributes::kw::hash) {
+            input.parse().map(PyClassPyO3Option::Hash)
         } else if lookahead.peek(attributes::kw::mapping) {
             input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
@@ -180,6 +185,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
             PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
             PyClassPyO3Option::GetAll(get_all) => set_option!(get_all),
+            PyClassPyO3Option::Hash(hash) => set_option!(hash),
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
@@ -363,8 +369,12 @@ fn impl_class(
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
+    let (default_hash, default_hash_slot) =
+        pyclass_hash(&args.options, &syn::parse_quote!(#cls), ctx)?;
+
     let mut slots = Vec::new();
     slots.extend(default_richcmp_slot);
+    slots.extend(default_hash_slot);
 
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
@@ -393,6 +403,7 @@ fn impl_class(
         #[allow(non_snake_case)]
         impl #cls {
             #default_richcmp
+            #default_hash
         }
     })
 }
@@ -798,9 +809,11 @@ fn impl_simple_enum(
 
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp_simple_enum(&args.options, &ty, repr_type, ctx);
+    let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
     let mut default_slots = vec![default_repr_slot, default_int_slot];
     default_slots.extend(default_richcmp_slot);
+    default_slots.extend(default_hash_slot);
 
     let pyclass_impls = PyClassImplsBuilder::new(
         cls,
@@ -827,6 +840,7 @@ fn impl_simple_enum(
             #default_repr
             #default_int
             #default_richcmp
+            #default_hash
         }
     })
 }
@@ -858,9 +872,11 @@ fn impl_complex_enum(
     let pytypeinfo = impl_pytypeinfo(cls, &args, None, ctx);
 
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
+    let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
     let mut default_slots = vec![];
     default_slots.extend(default_richcmp_slot);
+    default_slots.extend(default_hash_slot);
 
     let impl_builder = PyClassImplsBuilder::new(
         cls,
@@ -967,6 +983,7 @@ fn impl_complex_enum(
         #[allow(non_snake_case)]
         impl #cls {
             #default_richcmp
+            #default_hash
         }
 
         #(#variant_cls_zsts)*
@@ -1780,6 +1797,35 @@ fn pyclass_richcmp(
         Ok((Some(richcmp_impl), Some(richcmp_slot)))
     } else {
         Ok((None, None))
+    }
+}
+
+fn pyclass_hash(
+    options: &PyClassPyO3Options,
+    cls: &syn::Type,
+    ctx: &Ctx,
+) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
+    if options.hash.is_some() {
+        ensure_spanned!(
+            options.frozen.is_some(), options.hash.span() => "The `hash` option requires the `frozen` option.";
+            options.eq.is_some(), options.hash.span() => "The `hash` option requires the `eq` option.";
+        );
+    }
+    // FIXME: Use hash.map(...).unzip() on MSRV >= 1.66
+    match options.hash {
+        Some(opt) => {
+            let mut hash_impl = parse_quote_spanned! { opt.span() =>
+                fn __pyo3__generated____hash__(&self) -> u64 {
+                    let mut s = ::std::collections::hash_map::DefaultHasher::new();
+                    ::std::hash::Hash::hash(self, &mut s);
+                    ::std::hash::Hasher::finish(&s)
+                }
+            };
+            let hash_slot =
+                generate_protocol_slot(cls, &mut hash_impl, &__HASH__, "__hash__", ctx).unwrap();
+            Ok((Some(hash_impl), Some(hash_slot)))
+        }
+        None => Ok((None, None)),
     }
 }
 

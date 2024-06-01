@@ -11,6 +11,7 @@
 | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
 | <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrow checker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |
 | `get_all` | Generates getters for all fields of the pyclass. |
+| `hash` | Implements `__hash__` using the `Hash` implementation of the underlying Rust datatype. |
 | `mapping` |  Inform PyO3 that this class is a [`Mapping`][params-mapping], and so leave its implementation of sequence C-API slots empty. |
 | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |

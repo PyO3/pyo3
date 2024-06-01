@@ -22,6 +22,7 @@ pub mod kw {
     syn::custom_keyword!(frozen);
     syn::custom_keyword!(get);
     syn::custom_keyword!(get_all);
+    syn::custom_keyword!(hash);
     syn::custom_keyword!(item);
     syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
