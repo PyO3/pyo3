@@ -1697,10 +1697,8 @@ fn pyclass_richcmp_simple_enum(
 ) -> (Option<syn::ImplItemFn>, Option<MethodAndSlotDef>) {
     let Ctx { pyo3_path } = ctx;
 
-    let deprecation = options
-        .eq_int
-        .map(|_| TokenStream::new())
-        .unwrap_or_else(|| {
+    let deprecation = (options.eq_int.is_none() && options.eq.is_none())
+        .then(|| {
             quote! {
                 #[deprecated(
                     since = "0.22.0",
@@ -1709,10 +1707,13 @@ fn pyclass_richcmp_simple_enum(
                 const DEPRECATION: () = ();
                 const _: () = DEPRECATION;
             }
-        });
+        })
+        .unwrap_or_default();
 
     let mut options = options.clone();
-    options.eq_int = Some(parse_quote!(eq_int));
+    if options.eq.is_none() {
+        options.eq_int = Some(parse_quote!(eq_int));
+    }
 
     if options.eq.is_none() && options.eq_int.is_none() {
         return (None, None);

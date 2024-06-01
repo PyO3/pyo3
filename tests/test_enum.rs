@@ -259,6 +259,24 @@ fn test_simple_enum_eq_int_only() {
     })
 }
 
+#[pyclass(eq)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum EqOnly {
+    VariantA,
+    VariantB,
+}
+
+#[test]
+fn test_simple_enum_eq_only() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, EqOnly::VariantA).unwrap();
+        let var2 = Py::new(py, EqOnly::VariantA).unwrap();
+        let var3 = Py::new(py, EqOnly::VariantB).unwrap();
+        py_assert!(py, var1 var2, "var1 == var2");
+        py_assert!(py, var1 var3, "var1 != var3");
+    })
+}
+
 #[pyclass(frozen, eq, eq_int, hash)]
 #[derive(PartialEq, Hash)]
 enum SimpleEnumWithHash {
