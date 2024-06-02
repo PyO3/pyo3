@@ -219,15 +219,15 @@ impl GILGuard {
             return Self::assume();
         }
 
-        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        let gstate = ffi::PyGILState_Ensure(); // acquire GIL
         increment_gil_count();
 
         #[cfg(feature = "gil-refs")]
         #[allow(deprecated)]
-        let pool = unsafe { mem::ManuallyDrop::new(GILPool::new()) };
+        let pool = mem::ManuallyDrop::new(GILPool::new());
 
         #[cfg(not(pyo3_disable_reference_pool))]
-        POOL.update_counts(unsafe { Python::assume_gil_acquired() });
+        POOL.update_counts(Python::assume_gil_acquired());
         GILGuard::Ensured {
             gstate,
             #[cfg(feature = "gil-refs")]
