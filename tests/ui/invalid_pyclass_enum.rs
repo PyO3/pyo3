@@ -28,12 +28,6 @@ enum SimpleNoSignature {
     B,
 }
 
-#[pyclass]
-enum SimpleNoModule {
-    #[pyo3(module = "custom_module")]
-    A,
-}
-
 #[pyclass(eq, eq_int)]
 enum SimpleEqOptRequiresPartialEq {
     A,

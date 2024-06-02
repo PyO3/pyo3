@@ -221,17 +221,16 @@ fn test_renaming_all_enum_variants() {
     });
 }
 
-#[pyclass(eq)]
-#[derive(Debug, PartialEq, Eq, Clone)]
-enum CustomModuleVariantsEnum {
-    #[pyo3(module = "custom_module")]
+#[pyclass(module = "custom_module")]
+#[derive(Debug, Clone)]
+enum CustomModuleComplexEnum {
     Variant(),
 }
 
 #[test]
 fn test_custom_module() {
     Python::with_gil(|py| {
-        let enum_obj = py.get_type_bound::<CustomModuleVariantsEnum>();
+        let enum_obj = py.get_type_bound::<CustomModuleComplexEnum>();
         py_assert!(
             py,
             enum_obj,
