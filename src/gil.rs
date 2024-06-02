@@ -166,11 +166,8 @@ impl GILGuard {
     /// `GILGuard::Ensured` will be returned.
     pub(crate) fn acquire() -> Self {
         if gil_is_acquired() {
-            increment_gil_count();
-            let guard = GILGuard::Assumed;
-            #[cfg(not(pyo3_disable_reference_pool))]
-            POOL.update_counts(guard.python());
-            return guard;
+            // SAFETY: We just checked that the GIL is already acquired.
+            return unsafe { Self::assume() };
         }
 
         // Maybe auto-initialize the GIL:
@@ -219,11 +216,7 @@ impl GILGuard {
     /// as part of multi-phase interpreter initialization.
     pub(crate) unsafe fn acquire_unchecked() -> Self {
         if gil_is_acquired() {
-            increment_gil_count();
-            let guard = GILGuard::Assumed;
-            #[cfg(not(pyo3_disable_reference_pool))]
-            POOL.update_counts(guard.python());
-            return guard;
+            return Self::assume();
         }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
@@ -241,12 +234,14 @@ impl GILGuard {
             pool,
         }
     }
+
     /// Acquires the `GILGuard` while assuming that the GIL is already held.
     pub(crate) unsafe fn assume() -> Self {
         increment_gil_count();
+        let guard = GILGuard::Assumed;
         #[cfg(not(pyo3_disable_reference_pool))]
-        POOL.update_counts(Python::assume_gil_acquired());
-        GILGuard::Assumed
+        POOL.update_counts(guard.python());
+        guard
     }
 
     /// Gets the Python token associated with this [`GILGuard`].
