@@ -676,15 +676,17 @@ struct PyClassEnumVariantUnnamedField<'a> {
 }
 
 /// `#[pyo3()]` options for pyclass enum variants
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct EnumVariantPyO3Options {
     name: Option<NameAttribute>,
     constructor: Option<ConstructorAttribute>,
+    module: Option<ModuleAttribute>,
 }
 
 enum EnumVariantPyO3Option {
     Name(NameAttribute),
     Constructor(ConstructorAttribute),
+    Module(ModuleAttribute),
 }
 
 impl Parse for EnumVariantPyO3Option {
@@ -694,6 +696,8 @@ impl Parse for EnumVariantPyO3Option {
             input.parse().map(EnumVariantPyO3Option::Name)
         } else if lookahead.peek(attributes::kw::constructor) {
             input.parse().map(EnumVariantPyO3Option::Constructor)
+        } else if lookahead.peek(attributes::kw::module) {
+            input.parse().map(EnumVariantPyO3Option::Module)
         } else {
             Err(lookahead.error())
         }
@@ -727,6 +731,7 @@ impl EnumVariantPyO3Options {
         match option {
             EnumVariantPyO3Option::Constructor(constructor) => set_option!(constructor),
             EnumVariantPyO3Option::Name(name) => set_option!(name),
+            EnumVariantPyO3Option::Module(module) => set_option!(module),
         }
         Ok(())
     }
@@ -763,6 +768,7 @@ fn impl_simple_enum(
 
     for variant in &variants {
         ensure_spanned!(variant.options.constructor.is_none(), variant.options.constructor.span() => "`constructor` can't be used on a simple enum variant");
+        ensure_spanned!(variant.options.module.is_none(), variant.options.module.span() => "`module` can't be used on a simple enum variant");
     }
 
     let (default_repr, default_repr_slot) = {
@@ -949,7 +955,15 @@ fn impl_complex_enum(
         let variant_args = PyClassArgs {
             class_kind: PyClassKind::Struct,
             // TODO(mkovaxx): propagate variant.options
-            options: parse_quote!(extends = #cls, frozen),
+            options: {
+                let mut options: PyClassPyO3Options = parse_quote!(extends = #cls, frozen);
+                let variant_options = variant.get_options().clone();
+                // If a specific name was given to a variant, use it.
+                options.name = variant_options.name;
+                // If a specific module was given to a variant, use it.
+                options.module = variant_options.module;
+                options
+            },
         };
 
         let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, None, ctx);

@@ -221,6 +221,25 @@ fn test_renaming_all_enum_variants() {
     });
 }
 
+#[pyclass(eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+enum CustomModuleVariantsEnum {
+    #[pyo3(module = "custom_module")]
+    Variant(),
+}
+
+#[test]
+fn test_custom_module() {
+    Python::with_gil(|py| {
+        let enum_obj = py.get_type_bound::<CustomModuleVariantsEnum>();
+        py_assert!(
+            py,
+            enum_obj,
+            "enum_obj.Variant.__module__ == 'custom_module'"
+        );
+    });
+}
+
 #[pyclass(frozen, eq, eq_int, hash)]
 #[derive(PartialEq, Hash)]
 enum SimpleEnumWithHash {
