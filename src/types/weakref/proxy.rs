@@ -669,6 +669,7 @@ mod tests {
                         let result = result
                             & (err.value_bound(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
+                        #[allow(clippy::let_and_return)]
                         result
                     }));
 
@@ -693,6 +694,7 @@ mod tests {
                         let result = result
                             & (err.value_bound(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
+                        #[allow(clippy::let_and_return)]
                         result
                     }));
 
@@ -943,6 +945,7 @@ mod tests {
                         let result = result
                             & (err.value_bound(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
+                        #[allow(clippy::let_and_return)]
                         result
                     }));
 
@@ -967,6 +970,7 @@ mod tests {
                         let result = result
                             & (err.value_bound(py).to_string()
                                 == format!("{} object is not callable", CLASS_NAME));
+                        #[allow(clippy::let_and_return)]
                         result
                     }));
 
