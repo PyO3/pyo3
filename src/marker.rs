@@ -1280,6 +1280,11 @@ mod tests {
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;
 
+        // Before starting the interpreter the state of calling `PyGILState_Check`
+        // seems to be undefined, so let's ensure that Python is up.
+        #[cfg(not(any(PyPy, GraalPy)))]
+        crate::prepare_freethreaded_python();
+
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
 
