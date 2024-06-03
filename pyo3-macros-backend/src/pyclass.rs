@@ -808,7 +808,7 @@ fn impl_simple_enum(
     };
 
     let (default_richcmp, default_richcmp_slot) =
-        pyclass_richcmp_simple_enum(&args.options, &ty, repr_type, ctx);
+        pyclass_richcmp_simple_enum(&args.options, &ty, repr_type, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
     let mut default_slots = vec![default_repr_slot, default_int_slot];
@@ -1694,8 +1694,12 @@ fn pyclass_richcmp_simple_enum(
     cls: &syn::Type,
     repr_type: &syn::Ident,
     ctx: &Ctx,
-) -> (Option<syn::ImplItemFn>, Option<MethodAndSlotDef>) {
+) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
     let Ctx { pyo3_path } = ctx;
+
+    if let Some(eq_int) = options.eq_int {
+        ensure_spanned!(options.eq.is_some(), eq_int.span() => "The `eq_int` option requires the `eq` option.");
+    }
 
     let deprecation = (options.eq_int.is_none() && options.eq.is_none())
         .then(|| {
@@ -1716,7 +1720,7 @@ fn pyclass_richcmp_simple_enum(
     }
 
     if options.eq.is_none() && options.eq_int.is_none() {
-        return (None, None);
+        return Ok((None, None));
     }
 
     let arms = pyclass_richcmp_arms(&options, ctx);
@@ -1769,7 +1773,7 @@ fn pyclass_richcmp_simple_enum(
     } else {
         generate_default_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, ctx).unwrap()
     };
-    (Some(richcmp_impl), Some(richcmp_slot))
+    Ok((Some(richcmp_impl), Some(richcmp_slot)))
 }
 
 fn pyclass_richcmp(

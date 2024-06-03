@@ -239,26 +239,6 @@ fn test_custom_module() {
     });
 }
 
-#[pyclass(eq_int)]
-#[derive(Debug, Clone)]
-pub enum EqIntOnly {
-    VariantA,
-    VariantB,
-}
-
-#[test]
-fn test_simple_enum_eq_int_only() {
-    Python::with_gil(|py| {
-        let var1 = Py::new(py, EqIntOnly::VariantA).unwrap();
-        let var2 = Py::new(py, EqIntOnly::VariantA).unwrap();
-        let var3 = Py::new(py, EqIntOnly::VariantB).unwrap();
-        py_assert!(py, var1 var2, "var1 == var2");
-        py_assert!(py, var1 var3, "var1 != var3");
-        py_assert!(py, var1, "var1 == 0");
-        py_assert!(py, var3, "var3 == 1");
-    })
-}
-
 #[pyclass(eq)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum EqOnly {
@@ -387,7 +367,11 @@ mod deprecated {
             py_run!(py, CustomDiscriminant one two, r#"
             assert CustomDiscriminant.One == one
             assert CustomDiscriminant.Two == two
+            assert CustomDiscriminant.One == 1
+            assert CustomDiscriminant.Two == 2
             assert one != two
+            assert CustomDiscriminant.One != 2
+            assert CustomDiscriminant.Two != 1
             "#);
         })
     }

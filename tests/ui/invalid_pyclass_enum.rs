@@ -41,6 +41,12 @@ enum ComplexEqOptRequiresPartialEq {
 }
 
 #[pyclass(eq_int)]
+enum SimpleEqIntWithoutEq {
+    A,
+    B,
+}
+
+#[pyclass(eq_int)]
 enum NoEqInt {
     A(i32),
     B { msg: String },
