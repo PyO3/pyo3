@@ -558,3 +558,30 @@ fn test_reference_to_bound_arguments() {
         py_assert!(py, function, "function(1, 2) == 3");
     })
 }
+
+#[test]
+fn test_pyfunction_raw_ident() {
+    #[pyfunction]
+    fn r#struct() -> bool {
+        true
+    }
+
+    #[pyfunction]
+    #[pyo3(name = "r#enum")]
+    fn raw_ident() -> bool {
+        true
+    }
+
+    #[pymodule]
+    fn m(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add_function(wrap_pyfunction!(r#struct, m)?)?;
+        m.add_function(wrap_pyfunction!(raw_ident, m)?)?;
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(m)(py);
+        py_assert!(py, m, "m.struct()");
+        py_assert!(py, m, "m.enum()");
+    })
+}
