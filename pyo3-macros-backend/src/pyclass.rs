@@ -1670,7 +1670,10 @@ fn impl_pytypeinfo(
     }
 }
 
-fn pyclass_richcmp_arms(options: &PyClassPyO3Options, ctx: &Ctx) -> std::result::Result<TokenStream, syn::Error, > {
+fn pyclass_richcmp_arms(
+    options: &PyClassPyO3Options,
+    ctx: &Ctx,
+) -> std::result::Result<TokenStream, syn::Error> {
     let Ctx { pyo3_path } = ctx;
 
     let eq_arms = options
@@ -1692,7 +1695,7 @@ fn pyclass_richcmp_arms(options: &PyClassPyO3Options, ctx: &Ctx) -> std::result:
     if let Some(ord) = options.ord {
         ensure_spanned!(options.eq.is_some(), ord.span() => "The `ord` option requires the `eq` option.");
     }
-    
+
     let ord_arms = options
         .ord
         .map(|ord| {
