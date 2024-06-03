@@ -25,7 +25,20 @@ macro_rules! ensure_spanned {
         if !($condition) {
             bail_spanned!($span => $msg);
         }
-    }
+    };
+    ($($condition:expr, $span:expr => $msg:expr;)*) => {
+        if let Some(e) = [$(
+            (!($condition)).then(|| err_spanned!($span => $msg)),
+        )*]
+            .into_iter()
+            .flatten()
+            .reduce(|mut acc, e| {
+                acc.combine(e);
+                acc
+            }) {
+                return Err(e);
+            }
+    };
 }
 
 /// Check if the given type `ty` is `pyo3::Python`.

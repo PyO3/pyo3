@@ -199,3 +199,159 @@ fn test_renaming_all_enum_variants() {
         );
     });
 }
+
+#[pyclass(module = "custom_module")]
+#[derive(Debug, Clone)]
+enum CustomModuleComplexEnum {
+    Variant(),
+}
+
+#[test]
+fn test_custom_module() {
+    Python::with_gil(|py| {
+        let enum_obj = py.get_type_bound::<CustomModuleComplexEnum>();
+        py_assert!(
+            py,
+            enum_obj,
+            "enum_obj.Variant.__module__ == 'custom_module'"
+        );
+    });
+}
+
+#[pyclass(eq)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum EqOnly {
+    VariantA,
+    VariantB,
+}
+
+#[test]
+fn test_simple_enum_eq_only() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, EqOnly::VariantA).unwrap();
+        let var2 = Py::new(py, EqOnly::VariantA).unwrap();
+        let var3 = Py::new(py, EqOnly::VariantB).unwrap();
+        py_assert!(py, var1 var2, "var1 == var2");
+        py_assert!(py, var1 var3, "var1 != var3");
+    })
+}
+
+#[pyclass(frozen, eq, eq_int, hash)]
+#[derive(PartialEq, Hash)]
+enum SimpleEnumWithHash {
+    A,
+    B,
+}
+
+#[test]
+fn test_simple_enum_with_hash() {
+    Python::with_gil(|py| {
+        use pyo3::types::IntoPyDict;
+        let class = SimpleEnumWithHash::A;
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            class.hash(&mut hasher);
+            hasher.finish() as isize
+        };
+
+        let env = [
+            ("obj", Py::new(py, class).unwrap().into_any()),
+            ("hsh", hash.into_py(py)),
+        ]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *env, "hash(obj) == hsh");
+    });
+}
+
+#[pyclass(eq, hash)]
+#[derive(PartialEq, Hash)]
+enum ComplexEnumWithHash {
+    A(u32),
+    B { msg: String },
+}
+
+#[test]
+fn test_complex_enum_with_hash() {
+    Python::with_gil(|py| {
+        use pyo3::types::IntoPyDict;
+        let class = ComplexEnumWithHash::B {
+            msg: String::from("Hello"),
+        };
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            class.hash(&mut hasher);
+            hasher.finish() as isize
+        };
+
+        let env = [
+            ("obj", Py::new(py, class).unwrap().into_any()),
+            ("hsh", hash.into_py(py)),
+        ]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *env, "hash(obj) == hsh");
+    });
+}
+
+#[allow(deprecated)]
+mod deprecated {
+    use crate::py_assert;
+    use pyo3::prelude::*;
+    use pyo3::py_run;
+
+    #[pyclass]
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub enum MyEnum {
+        Variant,
+        OtherVariant,
+    }
+
+    #[test]
+    fn test_enum_eq_enum() {
+        Python::with_gil(|py| {
+            let var1 = Py::new(py, MyEnum::Variant).unwrap();
+            let var2 = Py::new(py, MyEnum::Variant).unwrap();
+            let other_var = Py::new(py, MyEnum::OtherVariant).unwrap();
+            py_assert!(py, var1 var2, "var1 == var2");
+            py_assert!(py, var1 other_var, "var1 != other_var");
+            py_assert!(py, var1 var2, "(var1 != var2) == False");
+        })
+    }
+
+    #[test]
+    fn test_enum_eq_incomparable() {
+        Python::with_gil(|py| {
+            let var1 = Py::new(py, MyEnum::Variant).unwrap();
+            py_assert!(py, var1, "(var1 == 'foo') == False");
+            py_assert!(py, var1, "(var1 != 'foo') == True");
+        })
+    }
+
+    #[pyclass]
+    enum CustomDiscriminant {
+        One = 1,
+        Two = 2,
+    }
+
+    #[test]
+    fn test_custom_discriminant() {
+        Python::with_gil(|py| {
+            #[allow(non_snake_case)]
+            let CustomDiscriminant = py.get_type_bound::<CustomDiscriminant>();
+            let one = Py::new(py, CustomDiscriminant::One).unwrap();
+            let two = Py::new(py, CustomDiscriminant::Two).unwrap();
+            py_run!(py, CustomDiscriminant one two, r#"
+            assert CustomDiscriminant.One == one
+            assert CustomDiscriminant.Two == two
+            assert CustomDiscriminant.One == 1
+            assert CustomDiscriminant.Two == 2
+            assert one != two
+            assert CustomDiscriminant.One != 2
+            assert CustomDiscriminant.Two != 1
+            "#);
+        })
+    }
+}
