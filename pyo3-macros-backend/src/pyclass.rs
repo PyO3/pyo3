@@ -676,7 +676,7 @@ struct PyClassEnumVariantUnnamedField<'a> {
 }
 
 /// `#[pyo3()]` options for pyclass enum variants
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct EnumVariantPyO3Options {
     name: Option<NameAttribute>,
     constructor: Option<ConstructorAttribute>,
@@ -949,7 +949,12 @@ fn impl_complex_enum(
         let variant_args = PyClassArgs {
             class_kind: PyClassKind::Struct,
             // TODO(mkovaxx): propagate variant.options
-            options: parse_quote!(extends = #cls, frozen),
+            options: {
+                let mut rigged_options: PyClassPyO3Options = parse_quote!(extends = #cls, frozen);
+                // If a specific module was given to the base class, use it for all variants.
+                rigged_options.module.clone_from(&args.options.module);
+                rigged_options
+            },
         };
 
         let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, None, ctx);
