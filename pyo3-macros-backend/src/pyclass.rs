@@ -952,7 +952,7 @@ fn impl_complex_enum(
             options: {
                 let mut rigged_options: PyClassPyO3Options = parse_quote!(extends = #cls, frozen);
                 // If a specific module was given to the base class, use it for all variants.
-                rigged_options.module = args.options.module.clone();
+                rigged_options.module.clone_from(&args.options.module);
                 rigged_options
             },
         };
