@@ -5,14 +5,14 @@ use pyo3::prelude::*;
 #[path = "../src/tests/common.rs"]
 mod common;
 
-#[pyclass]
-#[derive(Debug, Clone)]
+#[pyclass(eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MyEnum {
     Variant,
     OtherVariant,
 }
 
-#[pyclass(ord)]
+#[pyclass(eq,ord)]
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd)]
 pub enum MyEnumOrd {
     Variant,
@@ -64,14 +64,14 @@ fn test_simple_enum_ord_comparable() {
     })
 }
 
-#[pyclass(ord)]
+#[pyclass(eq,ord)]
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd)]
 pub enum MyComplexEnumOrd {
     Variant(i32),
     OtherVariant(String),
 }
 
-#[pyclass(ord)]
+#[pyclass(eq,ord)]
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd)]
 pub enum MyComplexEnumOrd2 {
     Variant { msg: String, idx: u32 },
@@ -146,7 +146,7 @@ fn test_complex_enum_ord_comparable() {
     })
 }
 
-#[pyclass(ord)]
+#[pyclass(eq,ord)]
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point {
     x: i32,
@@ -171,7 +171,7 @@ fn test_struct_numeric_ord_comparable() {
     })
 }
 
-#[pyclass(ord)]
+#[pyclass(eq,ord)]
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd)]
 pub struct Person {
     surname: String,
@@ -223,7 +223,7 @@ fn test_struct_string_ord_comparable() {
     })
 }
 
-#[pyclass(ord)]
+#[pyclass(eq,ord)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Record {
     name: String,
