@@ -14,6 +14,18 @@ use pyo3::types::{self, PyCFunction};
 #[path = "../src/tests/common.rs"]
 mod common;
 
+#[pyfunction(name = "struct")]
+fn struct_function() {}
+
+#[test]
+fn test_rust_keyword_name() {
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction_bound!(struct_function)(py).unwrap();
+
+        py_assert!(py, f, "f.__name__ == 'struct'");
+    });
+}
+
 #[pyfunction(signature = (arg = true))]
 fn optional_bool(arg: Option<bool>) -> String {
     format!("{:?}", arg)

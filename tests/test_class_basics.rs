@@ -123,6 +123,36 @@ fn custom_names() {
     });
 }
 
+#[pyclass(name = "loop")]
+struct ClassRustKeywords {
+    #[pyo3(name = "unsafe", get, set)]
+    unsafe_variable: usize,
+}
+
+#[pymethods]
+impl ClassRustKeywords {
+    #[pyo3(name = "struct")]
+    fn struct_method(&self) {}
+
+    #[staticmethod]
+    #[pyo3(name = "type")]
+    fn type_method() {}
+}
+
+#[test]
+fn keyword_names() {
+    Python::with_gil(|py| {
+        let typeobj = py.get_type_bound::<ClassRustKeywords>();
+        py_assert!(py, typeobj, "typeobj.__name__ == 'loop'");
+        py_assert!(py, typeobj, "typeobj.struct.__name__ == 'struct'");
+        py_assert!(py, typeobj, "typeobj.type.__name__ == 'type'");
+        py_assert!(py, typeobj, "typeobj.unsafe.__name__ == 'unsafe'");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'unsafe_variable')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'struct_method')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'type_method')");
+    });
+}
+
 #[pyclass]
 struct RawIdents {
     #[pyo3(get, set)]

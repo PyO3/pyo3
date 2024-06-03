@@ -1,6 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
+    ext::IdentExt,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
@@ -72,7 +73,7 @@ pub struct NameLitStr(pub Ident);
 impl Parse for NameLitStr {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let string_literal: LitStr = input.parse()?;
-        if let Ok(ident) = string_literal.parse() {
+        if let Ok(ident) = string_literal.parse_with(Ident::parse_any) {
             Ok(NameLitStr(ident))
         } else {
             bail_spanned!(string_literal.span() => "expected a single identifier in double quotes")
