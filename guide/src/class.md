@@ -1165,7 +1165,7 @@ Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass(eq,ord)]
+#[pyclass(eq, ord)]
 #[derive(PartialEq, PartialOrd)]
 enum MyEnum{
     A,
