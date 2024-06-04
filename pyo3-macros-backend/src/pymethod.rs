@@ -908,7 +908,7 @@ impl PropertyType<'_> {
     }
 }
 
-const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
+pub const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 pub const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     .ret_ty(Ty::PyHashT)
