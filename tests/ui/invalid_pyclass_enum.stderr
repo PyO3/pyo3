@@ -29,3 +29,125 @@ error: `constructor` can't be used on a simple enum variant
    |
 26 |     #[pyo3(constructor = (a, b))]
    |            ^^^^^^^^^^^
+
+error: The `eq_int` option requires the `eq` option.
+  --> tests/ui/invalid_pyclass_enum.rs:43:11
+   |
+43 | #[pyclass(eq_int)]
+   |           ^^^^^^
+
+error: `eq_int` can only be used on simple enums.
+  --> tests/ui/invalid_pyclass_enum.rs:49:11
+   |
+49 | #[pyclass(eq_int)]
+   |           ^^^^^^
+
+error: The `hash` option requires the `frozen` option.
+  --> tests/ui/invalid_pyclass_enum.rs:69:11
+   |
+69 | #[pyclass(hash)]
+   |           ^^^^
+
+error: The `hash` option requires the `eq` option.
+  --> tests/ui/invalid_pyclass_enum.rs:69:11
+   |
+69 | #[pyclass(hash)]
+   |           ^^^^
+
+error: The `hash` option requires the `eq` option.
+  --> tests/ui/invalid_pyclass_enum.rs:76:11
+   |
+76 | #[pyclass(hash)]
+   |           ^^^^
+
+error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:31:11
+   |
+31 | #[pyclass(eq, eq_int)]
+   |           ^^
+   |
+note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum SimpleEqOptRequiresPartialEq {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `SimpleEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
+   |
+32 + #[derive(PartialEq)]
+33 | enum SimpleEqOptRequiresPartialEq {
+   |
+
+error[E0369]: binary operation `!=` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:31:11
+   |
+31 | #[pyclass(eq, eq_int)]
+   |           ^^
+   |
+note: an implementation of `PartialEq` might be missing for `SimpleEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:32:1
+   |
+32 | enum SimpleEqOptRequiresPartialEq {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `SimpleEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
+   |
+32 + #[derive(PartialEq)]
+33 | enum SimpleEqOptRequiresPartialEq {
+   |
+
+error[E0369]: binary operation `==` cannot be applied to type `&ComplexEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:37:11
+   |
+37 | #[pyclass(eq)]
+   |           ^^
+   |
+note: an implementation of `PartialEq` might be missing for `ComplexEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:38:1
+   |
+38 | enum ComplexEqOptRequiresPartialEq {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
+   |
+38 + #[derive(PartialEq)]
+39 | enum ComplexEqOptRequiresPartialEq {
+   |
+
+error[E0369]: binary operation `!=` cannot be applied to type `&ComplexEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:37:11
+   |
+37 | #[pyclass(eq)]
+   |           ^^
+   |
+note: an implementation of `PartialEq` might be missing for `ComplexEqOptRequiresPartialEq`
+  --> tests/ui/invalid_pyclass_enum.rs:38:1
+   |
+38 | enum ComplexEqOptRequiresPartialEq {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(PartialEq)]`
+   |
+38 + #[derive(PartialEq)]
+39 | enum ComplexEqOptRequiresPartialEq {
+   |
+
+error[E0277]: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:55:31
+   |
+55 | #[pyclass(frozen, eq, eq_int, hash)]
+   |                               ^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
+   |
+help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+57 + #[derive(Hash)]
+58 | enum SimpleHashOptRequiresHash {
+   |
+
+error[E0277]: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:62:23
+   |
+62 | #[pyclass(frozen, eq, hash)]
+   |                       ^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
+   |
+help: consider annotating `ComplexHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+64 + #[derive(Hash)]
+65 | enum ComplexHashOptRequiresHash {
+   |

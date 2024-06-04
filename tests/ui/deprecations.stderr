@@ -34,6 +34,14 @@ error: use of deprecated constant `__pyfunction_pyfunction_option_4::SIGNATURE`:
 138 | fn pyfunction_option_4(
     |    ^^^^^^^^^^^^^^^^^^^
 
+error: use of deprecated constant `SimpleEnumWithoutEq::__pyo3__generated____richcmp__::DEPRECATION`: Implicit equality for simple enums is deprecated. Use `#[pyclass(eq, eq_int)` to keep the current behavior.
+   --> tests/ui/deprecations.rs:200:1
+    |
+200 | #[pyclass]
+    | ^^^^^^^^^^
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error: use of deprecated struct `pyo3::PyCell`: `PyCell` was merged into `Bound`, use that instead; see the migration guide for more info
   --> tests/ui/deprecations.rs:23:30
    |

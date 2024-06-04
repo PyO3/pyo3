@@ -123,6 +123,36 @@ fn custom_names() {
     });
 }
 
+#[pyclass(name = "loop")]
+struct ClassRustKeywords {
+    #[pyo3(name = "unsafe", get, set)]
+    unsafe_variable: usize,
+}
+
+#[pymethods]
+impl ClassRustKeywords {
+    #[pyo3(name = "struct")]
+    fn struct_method(&self) {}
+
+    #[staticmethod]
+    #[pyo3(name = "type")]
+    fn type_method() {}
+}
+
+#[test]
+fn keyword_names() {
+    Python::with_gil(|py| {
+        let typeobj = py.get_type_bound::<ClassRustKeywords>();
+        py_assert!(py, typeobj, "typeobj.__name__ == 'loop'");
+        py_assert!(py, typeobj, "typeobj.struct.__name__ == 'struct'");
+        py_assert!(py, typeobj, "typeobj.type.__name__ == 'type'");
+        py_assert!(py, typeobj, "typeobj.unsafe.__name__ == 'unsafe'");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'unsafe_variable')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'struct_method')");
+        py_assert!(py, typeobj, "not hasattr(typeobj, 'type_method')");
+    });
+}
+
 #[pyclass]
 struct RawIdents {
     #[pyo3(get, set)]
@@ -197,6 +227,34 @@ fn class_with_object_field() {
         let ty = py.get_type_bound::<ClassWithObjectField>();
         py_assert!(py, ty, "ty(5).value == 5");
         py_assert!(py, ty, "ty(None).value == None");
+    });
+}
+
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq, Hash)]
+struct ClassWithHash {
+    value: usize,
+}
+
+#[test]
+fn class_with_hash() {
+    Python::with_gil(|py| {
+        use pyo3::types::IntoPyDict;
+        let class = ClassWithHash { value: 42 };
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            class.hash(&mut hasher);
+            hasher.finish() as isize
+        };
+
+        let env = [
+            ("obj", Py::new(py, class).unwrap().into_any()),
+            ("hsh", hash.into_py(py)),
+        ]
+        .into_py_dict_bound(py);
+
+        py_assert!(py, *env, "hash(obj) == hsh");
     });
 }
 

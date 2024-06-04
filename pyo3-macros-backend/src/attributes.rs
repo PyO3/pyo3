@@ -1,6 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
+    ext::IdentExt,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
@@ -14,12 +15,15 @@ pub mod kw {
     syn::custom_keyword!(cancel_handle);
     syn::custom_keyword!(constructor);
     syn::custom_keyword!(dict);
+    syn::custom_keyword!(eq);
+    syn::custom_keyword!(eq_int);
     syn::custom_keyword!(extends);
     syn::custom_keyword!(freelist);
     syn::custom_keyword!(from_py_with);
     syn::custom_keyword!(frozen);
     syn::custom_keyword!(get);
     syn::custom_keyword!(get_all);
+    syn::custom_keyword!(hash);
     syn::custom_keyword!(item);
     syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
@@ -69,7 +73,7 @@ pub struct NameLitStr(pub Ident);
 impl Parse for NameLitStr {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let string_literal: LitStr = input.parse()?;
-        if let Ok(ident) = string_literal.parse() {
+        if let Ok(ident) = string_literal.parse_with(Ident::parse_any) {
             Ok(NameLitStr(ident))
         } else {
             bail_spanned!(string_literal.span() => "expected a single identifier in double quotes")

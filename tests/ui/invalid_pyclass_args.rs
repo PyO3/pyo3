@@ -30,4 +30,45 @@ struct InvalidArg {}
 #[pyclass(mapping, sequence)]
 struct CannotBeMappingAndSequence {}
 
+#[pyclass(eq)]
+struct EqOptRequiresEq {}
+
+#[pyclass(eq)]
+#[derive(PartialEq)]
+struct EqOptAndManualRichCmp {}
+
+#[pymethods]
+impl EqOptAndManualRichCmp {
+    fn __richcmp__(
+        &self,
+        _py: Python,
+        _other: Bound<'_, PyAny>,
+        _op: pyo3::pyclass::CompareOp,
+    ) -> PyResult<PyObject> {
+        todo!()
+    }
+}
+
+#[pyclass(eq_int)]
+struct NoEqInt {}
+
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq)]
+struct HashOptRequiresHash;
+
+#[pyclass(hash)]
+#[derive(Hash)]
+struct HashWithoutFrozenAndEq;
+
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq, Hash)]
+struct HashOptAndManualHash {}
+
+#[pymethods]
+impl HashOptAndManualHash {
+    fn __hash__(&self) -> u64 {
+        todo!()
+    }
+}
+
 fn main() {}
