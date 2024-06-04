@@ -1714,7 +1714,7 @@ fn pyclass_richcmp_arms(
                  },
             }
         })
-        .unwrap_or_else(|| {quote! {_ => ::std::result::Result::Ok(py.NotImplemented())}});
+        .unwrap_or_else(|| quote! { _ => ::std::result::Result::Ok(py.NotImplemented()) });
 
     Ok(quote! {
         #eq_arms
