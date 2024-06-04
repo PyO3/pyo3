@@ -1,9 +1,10 @@
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
+    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, StrFormatterAttribute,
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -23,7 +24,7 @@ use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::parse_quote_spanned;
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, spanned::Spanned, Result, Token};
+use syn::{parse_quote, spanned::Spanned, ImplItemFn, Result, Token};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -73,6 +74,7 @@ pub struct PyClassPyO3Options {
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
+    pub str: Option<StrFormatterAttribute>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
@@ -94,6 +96,7 @@ enum PyClassPyO3Option {
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
+    Str(StrFormatterAttribute),
     Subclass(kw::subclass),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
@@ -132,6 +135,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Sequence)
         } else if lookahead.peek(attributes::kw::set_all) {
             input.parse().map(PyClassPyO3Option::SetAll)
+        } else if lookahead.peek(attributes::kw::str) {
+            input.parse().map(PyClassPyO3Option::Str)
         } else if lookahead.peek(attributes::kw::subclass) {
             input.parse().map(PyClassPyO3Option::Subclass)
         } else if lookahead.peek(attributes::kw::unsendable) {
@@ -192,6 +197,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
+            PyClassPyO3Option::Str(str) => set_option!(str),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
@@ -366,6 +372,15 @@ fn impl_class(
     let Ctx { pyo3_path } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
+    let (repr_impl, repr_slot) = match &args.options.str {
+        Some(option) => {
+            let (default_repr, default_repr_slot) =
+                implement_str_structs(&syn::parse_quote!(#cls), ctx, option);
+            (Some(default_repr), Some(default_repr_slot))
+        }
+        _ => (None, None),
+    };
+
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
@@ -375,6 +390,7 @@ fn impl_class(
     let mut slots = Vec::new();
     slots.extend(default_richcmp_slot);
     slots.extend(default_hash_slot);
+    slots.extend(repr_slot);
 
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
@@ -404,6 +420,7 @@ fn impl_class(
         impl #cls {
             #default_richcmp
             #default_hash
+            #repr_impl
         }
     })
 }
@@ -732,6 +749,63 @@ impl EnumVariantPyO3Options {
     }
 }
 
+fn implement_str_structs(
+    ty: &syn::Type,
+    ctx: &Ctx,
+    option: &StrFormatterAttribute,
+) -> (ImplItemFn, MethodAndSlotDef) {
+    let mut repr_impl = match &option.value {
+        Some(opt) => {
+            let fmt = &opt.fmt.value();
+            let args = &opt.args;
+            let repr_impl: syn::ImplItemFn = syn::parse_quote! {
+                fn __pyo3__repr__(&self) -> String {
+                    format!(#fmt, #(self.#args, )*)
+                }
+            };
+            repr_impl
+        }
+        None => {
+            let repr_impl: syn::ImplItemFn = syn::parse_quote! {
+                fn __pyo3__repr__(&self) -> String {
+                    format!("{:?}", &self)
+                }
+            };
+            repr_impl
+        }
+    };
+    let repr_slot = generate_default_protocol_slot(ty, &mut repr_impl, &__REPR__, ctx).unwrap();
+    (repr_impl, repr_slot)
+}
+
+fn implement_str_simple_enums<'a>(
+    ty: &syn::Type,
+    ctx: &Ctx,
+    cls: &Ident,
+    variants: &Vec<PyClassEnumUnitVariant<'a>>,
+    args: &PyClassArgs,
+) -> (ImplItemFn, MethodAndSlotDef) {
+    let variants_repr = variants.iter().map(|variant| {
+        let variant_name = variant.ident;
+        // Assuming all variants are unit variants because they are the only type we support.
+        let repr = format!(
+            "{}.{}",
+            get_class_python_name(cls, args),
+            variant.get_python_name(args),
+        );
+        quote! { #cls::#variant_name => #repr, }
+    });
+    let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
+        fn __pyo3__repr__(&self) -> &'static str {
+            match self {
+                #(#variants_repr)*
+            }
+        }
+    };
+    let repr_slot = generate_default_protocol_slot(ty, &mut repr_impl, &__REPR__, ctx).unwrap();
+    (repr_impl, repr_slot)
+}
+
 fn impl_enum(
     enum_: PyClassEnum<'_>,
     args: &PyClassArgs,
@@ -765,28 +839,8 @@ fn impl_simple_enum(
         ensure_spanned!(variant.options.constructor.is_none(), variant.options.constructor.span() => "`constructor` can't be used on a simple enum variant");
     }
 
-    let (default_repr, default_repr_slot) = {
-        let variants_repr = variants.iter().map(|variant| {
-            let variant_name = variant.ident;
-            // Assuming all variants are unit variants because they are the only type we support.
-            let repr = format!(
-                "{}.{}",
-                get_class_python_name(cls, args),
-                variant.get_python_name(args),
-            );
-            quote! { #cls::#variant_name => #repr, }
-        });
-        let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
-            fn __pyo3__repr__(&self) -> &'static str {
-                match self {
-                    #(#variants_repr)*
-                }
-            }
-        };
-        let repr_slot =
-            generate_default_protocol_slot(&ty, &mut repr_impl, &__REPR__, ctx).unwrap();
-        (repr_impl, repr_slot)
-    };
+    let (default_repr, default_repr_slot) =
+        implement_str_simple_enums(&ty, ctx, cls, &variants, args);
 
     let repr_type = &simple_enum.repr_type;
 

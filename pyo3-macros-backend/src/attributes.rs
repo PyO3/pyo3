@@ -1,12 +1,13 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
+use syn::parse::Parser;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Expr, ExprPath, Ident, LitStr, Path, Result, Token,
+    Attribute, Expr, ExprPath, Ident, Index, LitStr, Member, Path, Result, Token,
 };
 
 pub mod kw {
@@ -35,6 +36,7 @@ pub mod kw {
     syn::custom_keyword!(set);
     syn::custom_keyword!(set_all);
     syn::custom_keyword!(signature);
+    syn::custom_keyword!(str);
     syn::custom_keyword!(subclass);
     syn::custom_keyword!(text_signature);
     syn::custom_keyword!(transparent);
@@ -42,10 +44,107 @@ pub mod kw {
     syn::custom_keyword!(weakref);
 }
 
+fn take_int(read: &mut &str) -> String {
+    let mut int = String::new();
+    for (i, ch) in read.char_indices() {
+        match ch {
+            '0'..='9' => int.push(ch),
+            _ => {
+                *read = &read[i..];
+                break;
+            }
+        }
+    }
+    int
+}
+
+fn take_ident(read: &mut &str) -> Ident {
+    let mut ident = String::new();
+    for (i, ch) in read.char_indices() {
+        match ch {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => ident.push(ch),
+            _ => {
+                *read = &read[i..];
+                break;
+            }
+        }
+    }
+    Ident::parse_any.parse_str(&ident).unwrap()
+}
+
+// shorthand parsing logic inspiration taken from https://github.com/dtolnay/thiserror/blob/master/impl/src/fmt.rs
+fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<Member>) {
+    let span = fmt.span();
+    let value = fmt.value();
+    let mut read = value.as_str();
+    let mut out = String::new();
+    let mut members = Vec::new();
+    while let Some(brace) = read.find('{') {
+        out += &read[..brace + 1];
+        read = &read[brace + 1..];
+        if read.starts_with('{') {
+            out.push('{');
+            read = &read[1..];
+            continue;
+        }
+        let next = match read.chars().next() {
+            Some(next) => next,
+            None => break,
+        };
+        let member = match next {
+            '0'..='9' => {
+                // todo: fix this stupid error that we just unwrap now...
+                let index = take_int(&mut read).parse::<u32>().unwrap();
+                Member::Unnamed(Index { index, span })
+            }
+            'a'..='z' | 'A'..='Z' | '_' => {
+                let mut ident = take_ident(&mut read);
+                ident.set_span(span);
+                Member::Named(ident)
+            }
+            '}' => {
+                // we found an empty set of brackets and assume the user wants the entire class formatted here
+                Member::Named(Ident::new("self", span))
+            }
+            _ => continue,
+        };
+        members.push(member);
+    }
+    out += read;
+    (LitStr::new(&out, fmt.span()), members)
+}
+
+#[derive(Clone, Debug)]
+pub struct StringFormatter {
+    pub fmt: LitStr,
+    pub args: Vec<Member>,
+}
+
+impl Parse for crate::attributes::StringFormatter {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let (fmt, args) = parse_shorthand_format(input.parse()?);
+        println!("{:?}", fmt);
+        println!("{:?}", args);
+        Ok(Self { fmt, args })
+    }
+}
+
+impl ToTokens for crate::attributes::StringFormatter {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.fmt.to_tokens(tokens)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct KeywordAttribute<K, V> {
     pub kw: K,
     pub value: V,
+}
+
+#[derive(Clone, Debug)]
+pub struct OptionalKeywordAttribute<K, V> {
+    pub kw: K,
+    pub value: Option<V>,
 }
 
 /// A helper type which parses the inner type via a literal string
@@ -176,6 +275,7 @@ pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
 pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
 pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
 pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitStr>;
+pub type StrFormatterAttribute = OptionalKeywordAttribute<kw::str, StringFormatter>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
@@ -192,6 +292,27 @@ impl<K: ToTokens, V: ToTokens> ToTokens for KeywordAttribute<K, V> {
         self.kw.to_tokens(tokens);
         Token![=](self.kw.span()).to_tokens(tokens);
         self.value.to_tokens(tokens);
+    }
+}
+
+impl<K: Parse + std::fmt::Debug, V: Parse> Parse for OptionalKeywordAttribute<K, V> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let kw: K = input.parse()?;
+        let value = match input.parse::<Token![=]>() {
+            Ok(_) => Some(input.parse()?),
+            Err(_) => None,
+        };
+        Ok(OptionalKeywordAttribute { kw, value })
+    }
+}
+
+impl<K: ToTokens, V: ToTokens> ToTokens for OptionalKeywordAttribute<K, V> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.kw.to_tokens(tokens);
+        if let Some(_) = &self.value {
+            Token![=](self.kw.span()).to_tokens(tokens);
+            self.value.to_tokens(tokens);
+        }
     }
 }
 
