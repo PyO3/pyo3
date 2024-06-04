@@ -3,8 +3,9 @@ use std::fmt::Debug;
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, StrFormatterAttribute,
+    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FormatIdentity,
+    FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
+    StrFormatterAttribute,
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -13,7 +14,7 @@ use crate::pyfunction::ConstructorAttribute;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__,
+    SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__, __STR__,
 };
 use crate::utils::Ctx;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
@@ -372,11 +373,11 @@ fn impl_class(
     let Ctx { pyo3_path } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
-    let (repr_impl, repr_slot) = match &args.options.str {
+    let (str_impl, str_slot) = match &args.options.str {
         Some(option) => {
-            let (default_repr, default_repr_slot) =
+            let (default_str, default_str_slot) =
                 implement_str_structs(&syn::parse_quote!(#cls), ctx, option);
-            (Some(default_repr), Some(default_repr_slot))
+            (Some(default_str), Some(default_str_slot))
         }
         _ => (None, None),
     };
@@ -390,7 +391,7 @@ fn impl_class(
     let mut slots = Vec::new();
     slots.extend(default_richcmp_slot);
     slots.extend(default_hash_slot);
-    slots.extend(repr_slot);
+    slots.extend(str_slot);
 
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
@@ -420,7 +421,7 @@ fn impl_class(
         impl #cls {
             #default_richcmp
             #default_hash
-            #repr_impl
+            #str_impl
         }
     })
 }
@@ -754,56 +755,60 @@ fn implement_str_structs(
     ctx: &Ctx,
     option: &StrFormatterAttribute,
 ) -> (ImplItemFn, MethodAndSlotDef) {
-    let mut repr_impl = match &option.value {
+    // TODO(need to incorporate renaming operations into format if present)
+    let mut str_impl = match &option.value {
         Some(opt) => {
             let fmt = &opt.fmt.value();
-            let args = &opt.args;
-            let repr_impl: syn::ImplItemFn = syn::parse_quote! {
-                fn __pyo3__repr__(&self) -> String {
-                    format!(#fmt, #(self.#args, )*)
+            let args = &opt
+                .args
+                .iter()
+                .map(|member| match member {
+                    FormatIdentity::Attribute(member) => quote! {self.#member},
+                    FormatIdentity::Instance(_) => quote! {self},
+                })
+                .collect::<Vec<TokenStream>>();
+            let str_impl: ImplItemFn = syn::parse_quote! {
+                fn __pyo3__generated____str__(&self) -> String {
+                    format!(#fmt, #(#args, )*)
                 }
             };
-            repr_impl
+            str_impl
         }
         None => {
-            let repr_impl: syn::ImplItemFn = syn::parse_quote! {
-                fn __pyo3__repr__(&self) -> String {
+            let str_impl: syn::ImplItemFn = syn::parse_quote! {
+                fn __pyo3__generated____str__(&self) -> String {
                     format!("{}", &self)
                 }
             };
-            repr_impl
+            str_impl
         }
     };
-    let repr_slot = generate_default_protocol_slot(ty, &mut repr_impl, &__REPR__, ctx).unwrap();
-    (repr_impl, repr_slot)
+    let str_slot = generate_default_protocol_slot(ty, &mut str_impl, &__STR__, ctx).unwrap();
+    (str_impl, str_slot)
+}
+
+fn pyclass_str(
+    options: &PyClassPyO3Options,
+    ty: &syn::Type,
+    ctx: &Ctx,
+) -> (Option<ImplItemFn>, Option<MethodAndSlotDef>) {
+    match &options.str {
+        Some(option) => {
+            let (default_str, default_str_slot) = implement_str_structs(ty, ctx, option);
+            (Some(default_str), Some(default_str_slot))
+        }
+        _ => (None, None),
+    }
 }
 
 fn implement_str_simple_enums<'a>(
-    ty: &syn::Type,
     ctx: &Ctx,
-    cls: &Ident,
-    variants: &Vec<PyClassEnumUnitVariant<'a>>,
+    ty: &syn::Type,
+    _variants: &Vec<PyClassEnumUnitVariant<'a>>,
     args: &PyClassArgs,
-) -> (ImplItemFn, MethodAndSlotDef) {
-    let variants_repr = variants.iter().map(|variant| {
-        let variant_name = variant.ident;
-        // Assuming all variants are unit variants because they are the only type we support.
-        let repr = format!(
-            "{}.{}",
-            get_class_python_name(cls, args),
-            variant.get_python_name(args),
-        );
-        quote! { #cls::#variant_name => #repr, }
-    });
-    let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
-        fn __pyo3__repr__(&self) -> &'static str {
-            match self {
-                #(#variants_repr)*
-            }
-        }
-    };
-    let repr_slot = generate_default_protocol_slot(ty, &mut repr_impl, &__REPR__, ctx).unwrap();
-    (repr_impl, repr_slot)
+) -> (Option<ImplItemFn>, Option<MethodAndSlotDef>) {
+    // TODO(need to incorporate renaming of variants into format if present)
+    pyclass_str(&args.options, ty, ctx)
 }
 
 fn impl_enum(
@@ -839,8 +844,29 @@ fn impl_simple_enum(
         ensure_spanned!(variant.options.constructor.is_none(), variant.options.constructor.span() => "`constructor` can't be used on a simple enum variant");
     }
 
-    let (default_repr, default_repr_slot) =
-        implement_str_simple_enums(&ty, ctx, cls, &variants, args);
+    let (default_repr, default_repr_slot) = {
+        let variants_repr = variants.iter().map(|variant| {
+            let variant_name = variant.ident;
+            // Assuming all variants are unit variants because they are the only type we support.
+            let repr = format!(
+                "{}.{}",
+                get_class_python_name(cls, args),
+                variant.get_python_name(args),
+            );
+            quote! { #cls::#variant_name => #repr, }
+        });
+        let mut repr_impl: syn::ImplItemFn = syn::parse_quote! {
+            fn __pyo3__repr__(&self) -> &'static str {
+                match self {
+                    #(#variants_repr)*
+                }
+            }
+        };
+        let repr_slot =
+            generate_default_protocol_slot(&ty, &mut repr_impl, &__REPR__, ctx).unwrap();
+        (repr_impl, repr_slot)
+    };
+    let (default_str, default_str_slot) = implement_str_simple_enums(ctx, &ty, &variants, args);
 
     let repr_type = &simple_enum.repr_type;
 
@@ -868,6 +894,7 @@ fn impl_simple_enum(
     let mut default_slots = vec![default_repr_slot, default_int_slot];
     default_slots.extend(default_richcmp_slot);
     default_slots.extend(default_hash_slot);
+    default_slots.extend(default_str_slot);
 
     let pyclass_impls = PyClassImplsBuilder::new(
         cls,
@@ -895,6 +922,7 @@ fn impl_simple_enum(
             #default_int
             #default_richcmp
             #default_hash
+            #default_str
         }
     })
 }
@@ -927,10 +955,12 @@ fn impl_complex_enum(
 
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
+    let (default_str, default_str_slot) = pyclass_str(&args.options, &ty, ctx);
 
     let mut default_slots = vec![];
     default_slots.extend(default_richcmp_slot);
     default_slots.extend(default_hash_slot);
+    default_slots.extend(default_str_slot);
 
     let impl_builder = PyClassImplsBuilder::new(
         cls,
@@ -1043,6 +1073,7 @@ fn impl_complex_enum(
         impl #cls {
             #default_richcmp
             #default_hash
+            #default_str
         }
 
         #(#variant_cls_zsts)*

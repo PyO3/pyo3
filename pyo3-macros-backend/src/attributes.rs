@@ -1,4 +1,4 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::Parser;
 use syn::{
@@ -72,13 +72,20 @@ fn take_ident(read: &mut &str) -> Ident {
     Ident::parse_any.parse_str(&ident).unwrap()
 }
 
+#[derive(Clone, Debug)]
+pub enum FormatIdentity {
+    Attribute(Member),
+    Instance(Span),
+}
+
 // shorthand parsing logic inspiration taken from https://github.com/dtolnay/thiserror/blob/master/impl/src/fmt.rs
-fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<Member>) {
+fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
     let span = fmt.span();
     let value = fmt.value();
     let mut read = value.as_str();
     let mut out = String::new();
     let mut members = Vec::new();
+    let mut found_member: bool = false;
     while let Some(brace) = read.find('{') {
         out += &read[..brace + 1];
         read = &read[brace + 1..];
@@ -93,18 +100,24 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<Member>) {
         };
         let member = match next {
             '0'..='9' => {
-                // todo: fix this stupid error that we just unwrap now...
                 let index = take_int(&mut read).parse::<u32>().unwrap();
-                Member::Unnamed(Index { index, span })
+                found_member = true;
+                FormatIdentity::Attribute(Member::Unnamed(Index { index, span }))
             }
             'a'..='z' | 'A'..='Z' | '_' => {
                 let mut ident = take_ident(&mut read);
                 ident.set_span(span);
-                Member::Named(ident)
+                found_member = true;
+                FormatIdentity::Attribute(Member::Named(ident))
             }
-            '}' => {
-                // we found an empty set of brackets and assume the user wants the instance formatted here
-                Member::Named(Ident::new("self", span))
+            '}' | ':' => {
+                // we found a closing bracket or formatting ':' without finding a member, we assume the user wants the instance formatted here
+                if !found_member {
+                    FormatIdentity::Instance(span)
+                } else {
+                    found_member = false;
+                    continue;
+                }
             }
             _ => continue,
         };
@@ -117,7 +130,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<Member>) {
 #[derive(Clone, Debug)]
 pub struct StringFormatter {
     pub fmt: LitStr,
-    pub args: Vec<Member>,
+    pub args: Vec<FormatIdentity>,
 }
 
 impl Parse for crate::attributes::StringFormatter {
