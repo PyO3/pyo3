@@ -768,7 +768,7 @@ fn implement_str_structs(
         None => {
             let repr_impl: syn::ImplItemFn = syn::parse_quote! {
                 fn __pyo3__repr__(&self) -> String {
-                    format!("{:?}", &self)
+                    format!("{}", &self)
                 }
             };
             repr_impl
