@@ -249,6 +249,16 @@ To implement `__eq__` using the Rust [`PartialEq`] trait implementation, the `eq
 struct Number(i32);
 ```
 
+To implement `__lt__`, `__le__`, `__gt__`, & `__ge__` using the Rust `PartialOrd` trait implementation, the `ord` option can be used. *Note: Requires `eq`.*
+
+```rust
+# use pyo3::prelude::*;
+#
+#[pyclass(eq, ord)]
+#[derive(PartialEq, PartialOrd)]
+struct Number(i32);
+```
+
 ### Truthyness
 
 We'll consider `Number` to be `True` if it is nonzero:
