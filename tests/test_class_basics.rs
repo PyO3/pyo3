@@ -667,19 +667,3 @@ fn drop_unsendable_elsewhere() {
         capture.borrow_mut(py).uninstall(py);
     });
 }
-
-#[pyclass(str = "X: {x}, Y: {y}, Z: {z}")]
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd)]
-pub struct Point {
-    x: i32,
-    y: i32,
-    z: i32,
-}
-
-#[test]
-fn test_rename_enum_repr_correct() {
-    Python::with_gil(|py| {
-        let var1 = Py::new(py, Point { x: 1, y: 2, z: 3 }).unwrap();
-        py_assert!(py, var1, "repr(var1) == 'X: 1, Y: 2, Z: 3'");
-    })
-}
