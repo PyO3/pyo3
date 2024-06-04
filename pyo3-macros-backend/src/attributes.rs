@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use syn::parse::Parser;
 use syn::{
     ext::IdentExt,
@@ -129,7 +129,8 @@ impl Parse for crate::attributes::StringFormatter {
 
 impl ToTokens for crate::attributes::StringFormatter {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.fmt.to_tokens(tokens)
+        self.fmt.to_tokens(tokens);
+        tokens.extend(quote! {self.args})
     }
 }
 
