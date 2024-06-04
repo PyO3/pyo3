@@ -373,14 +373,8 @@ fn impl_class(
     let Ctx { pyo3_path } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
-    let (str_impl, str_slot) = match &args.options.str {
-        Some(option) => {
-            let (default_str, default_str_slot) =
-                implement_str_structs(&syn::parse_quote!(#cls), ctx, option);
-            (Some(default_str), Some(default_str_slot))
-        }
-        _ => (None, None),
-    };
+    let (default_str, default_str_slot) =
+        pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
 
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
@@ -391,7 +385,7 @@ fn impl_class(
     let mut slots = Vec::new();
     slots.extend(default_richcmp_slot);
     slots.extend(default_hash_slot);
-    slots.extend(str_slot);
+    slots.extend(default_str_slot);
 
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
@@ -421,7 +415,7 @@ fn impl_class(
         impl #cls {
             #default_richcmp
             #default_hash
-            #str_impl
+            #default_str
         }
     })
 }
