@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, spanned::Spanned, Result, Token};
+use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, Result, Token};
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
