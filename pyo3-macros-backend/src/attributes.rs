@@ -103,7 +103,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<Member>) {
                 Member::Named(ident)
             }
             '}' => {
-                // we found an empty set of brackets and assume the user wants the entire class formatted here
+                // we found an empty set of brackets and assume the user wants the instance formatted here
                 Member::Named(Ident::new("self", span))
             }
             _ => continue,
@@ -111,7 +111,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<Member>) {
         members.push(member);
     }
     out += read;
-    (LitStr::new(&out, fmt.span()), members)
+    (LitStr::new(&out, span), members)
 }
 
 #[derive(Clone, Debug)]
@@ -123,8 +123,6 @@ pub struct StringFormatter {
 impl Parse for crate::attributes::StringFormatter {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let (fmt, args) = parse_shorthand_format(input.parse()?);
-        println!("{:?}", fmt);
-        println!("{:?}", args);
         Ok(Self { fmt, args })
     }
 }
