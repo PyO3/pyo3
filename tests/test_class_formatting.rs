@@ -91,7 +91,7 @@ fn test_str_representation_complex_enum() {
                 msg: "Hello".to_string(),
             },
         )
-            .unwrap();
+        .unwrap();
         py_assert!(py, var1, "str(var1) == 'A(45)'");
         py_assert!(py, var2, "str(var2) == 'B { msg: \"Hello\" }'");
     })

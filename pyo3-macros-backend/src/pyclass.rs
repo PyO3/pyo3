@@ -373,8 +373,7 @@ fn impl_class(
     let Ctx { pyo3_path } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
-    let (default_str, default_str_slot) =
-        pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
+    let (default_str, default_str_slot) = pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
 
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
