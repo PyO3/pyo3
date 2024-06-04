@@ -321,7 +321,7 @@ impl<K: Parse + std::fmt::Debug, V: Parse> Parse for OptionalKeywordAttribute<K,
 impl<K: ToTokens, V: ToTokens> ToTokens for OptionalKeywordAttribute<K, V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.kw.to_tokens(tokens);
-        if let Some(_) = &self.value {
+        if self.value.is_some() {
             Token![=](self.kw.span()).to_tokens(tokens);
             self.value.to_tokens(tokens);
         }

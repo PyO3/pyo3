@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use pyo3::prelude::*;
 
 #[pyclass(extend=pyo3::types::PyDict)]
@@ -67,6 +68,24 @@ struct HashOptAndManualHash {}
 #[pymethods]
 impl HashOptAndManualHash {
     fn __hash__(&self) -> u64 {
+        todo!()
+    }
+}
+
+#[pyclass(str)]
+struct StrOptAndManualStr {}
+
+impl Display for StrOptAndManualStr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+#[pymethods]
+impl StrOptAndManualStr {
+    fn __str__(
+        &self,
+    ) -> String {
         todo!()
     }
 }

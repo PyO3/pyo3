@@ -783,7 +783,7 @@ fn implement_str_structs(
             str_impl
         }
     };
-    let str_slot = generate_default_protocol_slot(ty, &mut str_impl, &__STR__, ctx).unwrap();
+    let str_slot = generate_protocol_slot(ty, &mut str_impl, &__STR__, "__str__", ctx).unwrap();
     (str_impl, str_slot)
 }
 

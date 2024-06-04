@@ -96,21 +96,3 @@ fn test_str_representation_complex_enum() {
         py_assert!(py, var2, "str(var2) == 'B { msg: \"Hello\" }'");
     })
 }
-
-// #[pyclass(str)]
-// struct StrOptAndManualStr {}
-//
-// impl Display for StrOptAndManualStr {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{}", self)
-//     }
-// }
-//
-// #[pymethods]
-// impl StrOptAndManualStr {
-//     fn __repr__(
-//         &self,
-//     ) -> String {
-//         todo!()
-//     }
-// }
