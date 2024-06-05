@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
@@ -20,7 +20,7 @@ use crate::utils::Ctx;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
 use crate::PyFunctionOptions;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, IdentFragment};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::parse_quote_spanned;
@@ -743,13 +743,42 @@ impl EnumVariantPyO3Options {
     }
 }
 
-fn implement_str_structs(
+// todo(remove this dead code allowance once __repr__ is implemented
+#[allow(dead_code)]
+pub enum PyFmtName {
+    Str,
+    Repr,
+}
+
+impl Display for PyFmtName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PyFmtName::Str => write!(f, "__str__"),
+            PyFmtName::Repr => write!(f, "__repr__"),
+        }
+    }
+}
+
+impl IdentFragment for PyFmtName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format!("{}", self))
+    }
+}
+
+fn implement_py_formatting(
     ty: &syn::Type,
     ctx: &Ctx,
     option: &StrFormatterAttribute,
+    fmt_name: PyFmtName,
 ) -> (ImplItemFn, MethodAndSlotDef) {
     // TODO(need to incorporate renaming operations into format if present)
-    let mut str_impl = match &option.value {
+    let name = format!("{}", fmt_name);
+    let fn_name = format_ident!("__pyo3__generated__{}", fmt_name);
+    let fmt_string = match fmt_name {
+        PyFmtName::Str => "{}",
+        PyFmtName::Repr => "{:?}",
+    };
+    let mut fmt_impl = match &option.value {
         Some(opt) => {
             let fmt = &opt.fmt.value();
             let args = &opt
@@ -760,24 +789,24 @@ fn implement_str_structs(
                     FormatIdentity::Instance(_) => quote! {self},
                 })
                 .collect::<Vec<TokenStream>>();
-            let str_impl: ImplItemFn = syn::parse_quote! {
-                fn __pyo3__generated____str__(&self) -> String {
+            let fmt_impl: ImplItemFn = syn::parse_quote! {
+                fn #fn_name(&self) -> String {
                     format!(#fmt, #(#args, )*)
                 }
             };
-            str_impl
+            fmt_impl
         }
         None => {
-            let str_impl: syn::ImplItemFn = syn::parse_quote! {
-                fn __pyo3__generated____str__(&self) -> String {
-                    format!("{}", &self)
+            let fmt_impl: syn::ImplItemFn = syn::parse_quote! {
+                fn #fn_name(&self) -> String {
+                    format!(#fmt_string, &self)
                 }
             };
-            str_impl
+            fmt_impl
         }
     };
-    let str_slot = generate_protocol_slot(ty, &mut str_impl, &__STR__, "__str__", ctx).unwrap();
-    (str_impl, str_slot)
+    let fmt_slot = generate_protocol_slot(ty, &mut fmt_impl, &__STR__, name.as_str(), ctx).unwrap();
+    (fmt_impl, fmt_slot)
 }
 
 fn pyclass_str(
@@ -787,7 +816,8 @@ fn pyclass_str(
 ) -> (Option<ImplItemFn>, Option<MethodAndSlotDef>) {
     match &options.str {
         Some(option) => {
-            let (default_str, default_str_slot) = implement_str_structs(ty, ctx, option);
+            let (default_str, default_str_slot) =
+                implement_py_formatting(ty, ctx, option, PyFmtName::Str);
             (Some(default_str), Some(default_str_slot))
         }
         _ => (None, None),
