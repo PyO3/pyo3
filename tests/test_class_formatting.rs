@@ -27,13 +27,25 @@ impl Display for MyEnum2 {
     }
 }
 
+#[pyclass(eq, str = "MyEnum.{}")]
+#[derive(Debug, PartialEq)]
+pub enum MyEnum3 {
+    #[pyo3(name = "AwesomeVariant")]
+    Variant,
+    OtherVariant,
+}
+
 #[test]
 fn test_enum_class_attr() {
     Python::with_gil(|py| {
         let var1 = Py::new(py, MyEnum::Variant).unwrap();
         let var2 = Py::new(py, MyEnum2::Variant).unwrap();
+        let var3 = Py::new(py, MyEnum3::Variant).unwrap();
+        let var4 = Py::new(py, MyEnum3::OtherVariant).unwrap();
         py_assert!(py, var1, "str(var1) == 'MyEnum.Variant'");
         py_assert!(py, var2, "str(var2) == 'Variant'");
+        py_assert!(py, var3, "str(var3) == 'MyEnum.AwesomeVariant'");
+        py_assert!(py, var4, "str(var4) == 'MyEnum.OtherVariant'");
     })
 }
 

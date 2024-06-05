@@ -373,7 +373,8 @@ fn impl_class(
     let Ctx { pyo3_path } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
-    let (default_str, default_str_slot) = pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
+    let (default_str, default_str_slot) =
+        pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx, None);
 
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
@@ -770,8 +771,8 @@ fn implement_py_formatting(
     ctx: &Ctx,
     option: &StrFormatterAttribute,
     fmt_name: PyFmtName,
+    renaming: Option<TokenStream>,
 ) -> (ImplItemFn, MethodAndSlotDef) {
-    // TODO(need to incorporate renaming operations into format if present)
     let name = format!("{}", fmt_name);
     let fn_name = format_ident!("__pyo3__generated__{}", fmt_name);
     let fmt_string = match fmt_name {
@@ -786,11 +787,18 @@ fn implement_py_formatting(
                 .iter()
                 .map(|member| match member {
                     FormatIdentity::Attribute(member) => quote! {self.#member},
-                    FormatIdentity::Instance(_) => quote! {self},
+                    FormatIdentity::Instance(_) => {
+                        // passed renaming should define the variable "mapped_self" as a String to be passed to format!() in place of self
+                        match renaming {
+                            Some(_) => quote! {mapped_self},
+                            None => quote! {self},
+                        }
+                    }
                 })
                 .collect::<Vec<TokenStream>>();
             let fmt_impl: ImplItemFn = syn::parse_quote! {
                 fn #fn_name(&self) -> String {
+                    #renaming
                     format!(#fmt, #(#args, )*)
                 }
             };
@@ -813,11 +821,12 @@ fn pyclass_str(
     options: &PyClassPyO3Options,
     ty: &syn::Type,
     ctx: &Ctx,
+    renaming: Option<TokenStream>,
 ) -> (Option<ImplItemFn>, Option<MethodAndSlotDef>) {
     match &options.str {
         Some(option) => {
             let (default_str, default_str_slot) =
-                implement_py_formatting(ty, ctx, option, PyFmtName::Str);
+                implement_py_formatting(ty, ctx, option, PyFmtName::Str, renaming);
             (Some(default_str), Some(default_str_slot))
         }
         _ => (None, None),
@@ -825,13 +834,32 @@ fn pyclass_str(
 }
 
 fn implement_str_simple_enums(
+    cls: &Ident,
     ctx: &Ctx,
     ty: &syn::Type,
-    _variants: &[PyClassEnumUnitVariant<'_>],
+    variants: &[PyClassEnumUnitVariant<'_>],
     args: &PyClassArgs,
 ) -> (Option<ImplItemFn>, Option<MethodAndSlotDef>) {
-    // TODO(need to incorporate renaming of variants into format if present)
-    pyclass_str(&args.options, ty, ctx)
+    let renaming = if variants
+        .iter()
+        .fold(false, |acc, variant| acc | variant.options.name.is_some())
+    {
+        let variants_repr = variants.iter().map(|variant| {
+            let variant_name = variant.ident;
+            // Assuming all variants are unit variants because they are the only type we support.
+            let repr = format!("{}", variant.get_python_name(args),);
+            quote! { #cls::#variant_name => #repr, }
+        });
+        Some(quote! {
+            let mapped_self = match self {
+                        #(#variants_repr)*
+                    };
+        })
+    } else {
+        None
+    };
+
+    pyclass_str(&args.options, ty, ctx, renaming)
 }
 
 fn impl_enum(
@@ -889,7 +917,8 @@ fn impl_simple_enum(
             generate_default_protocol_slot(&ty, &mut repr_impl, &__REPR__, ctx).unwrap();
         (repr_impl, repr_slot)
     };
-    let (default_str, default_str_slot) = implement_str_simple_enums(ctx, &ty, &variants, args);
+    let (default_str, default_str_slot) =
+        implement_str_simple_enums(cls, ctx, &ty, &variants, args);
 
     let repr_type = &simple_enum.repr_type;
 
@@ -978,7 +1007,7 @@ fn impl_complex_enum(
 
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
-    let (default_str, default_str_slot) = pyclass_str(&args.options, &ty, ctx);
+    let (default_str, default_str_slot) = pyclass_str(&args.options, &ty, ctx, None);
 
     let mut default_slots = vec![];
     default_slots.extend(default_richcmp_slot);
