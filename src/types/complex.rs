@@ -1,3 +1,5 @@
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "gil-refs")]
 use crate::PyNativeType;
 use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
@@ -59,7 +61,6 @@ impl PyComplex {
 
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 mod not_limited_impls {
-    use crate::ffi_ptr_ext::FfiPtrExt;
     use crate::Borrowed;
 
     use super::*;
@@ -77,27 +78,17 @@ mod not_limited_impls {
         }
     }
 
-    #[inline(always)]
-    pub(super) unsafe fn complex_operation<'py>(
-        l: Borrowed<'_, 'py, PyComplex>,
-        r: Borrowed<'_, 'py, PyComplex>,
-        operation: unsafe extern "C" fn(ffi::Py_complex, ffi::Py_complex) -> ffi::Py_complex,
-    ) -> *mut ffi::PyObject {
-        let l_val = (*l.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-        let r_val = (*r.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-        ffi::PyComplex_FromCComplex(operation(l_val, r_val))
-    }
-
     macro_rules! bin_ops {
-        ($trait:ident, $fn:ident, $op:tt, $ffi:path) => {
+        ($trait:ident, $fn:ident, $op:tt) => {
             impl<'py> $trait for Borrowed<'_, 'py, PyComplex> {
                 type Output = Bound<'py, PyComplex>;
                 fn $fn(self, other: Self) -> Self::Output {
-                    unsafe {
-                        complex_operation(self, other, $ffi)
-                            .assume_owned(self.py())
-                            .downcast_into_unchecked()
-                    }
+                    PyAnyMethods::$fn(self.as_any(), other)
+                    .downcast_into().expect(
+                        concat!("Complex method ",
+                            stringify!($fn),
+                            " failed.")
+                        )
                 }
             }
 
@@ -139,10 +130,10 @@ mod not_limited_impls {
         };
     }
 
-    bin_ops!(Add, add, +, ffi::_Py_c_sum);
-    bin_ops!(Sub, sub, -, ffi::_Py_c_diff);
-    bin_ops!(Mul, mul, *, ffi::_Py_c_prod);
-    bin_ops!(Div, div, /, ffi::_Py_c_quot);
+    bin_ops!(Add, add, +);
+    bin_ops!(Sub, sub, -);
+    bin_ops!(Mul, mul, *);
+    bin_ops!(Div, div, /);
 
     #[cfg(feature = "gil-refs")]
     impl<'py> Neg for &'py PyComplex {
@@ -155,12 +146,9 @@ mod not_limited_impls {
     impl<'py> Neg for Borrowed<'_, 'py, PyComplex> {
         type Output = Bound<'py, PyComplex>;
         fn neg(self) -> Self::Output {
-            unsafe {
-                let val = (*self.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-                ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val))
-                    .assume_owned(self.py())
-                    .downcast_into_unchecked()
-            }
+            PyAnyMethods::neg(self.as_any())
+                .downcast_into()
+                .expect("Complex method __neg__ failed.")
         }
     }
 
@@ -289,24 +277,20 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn abs(&self) -> c_double {
-        unsafe {
-            let val = (*self.as_ptr().cast::<ffi::PyComplexObject>()).cval;
-            ffi::_Py_c_abs(val)
-        }
+        PyAnyMethods::abs(self.as_any())
+            .downcast_into()
+            .expect("Complex method __abs__ failed.")
+            .extract()
+            .expect("Failed to extract to c double.")
     }
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn pow(&self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
-        use crate::ffi_ptr_ext::FfiPtrExt;
-        unsafe {
-            not_limited_impls::complex_operation(
-                self.as_borrowed(),
-                other.as_borrowed(),
-                ffi::_Py_c_pow,
-            )
-            .assume_owned(self.py())
-            .downcast_into_unchecked()
-        }
+        Python::with_gil(|py| {
+            PyAnyMethods::pow(self.as_any(), other, py.None())
+                .downcast_into()
+                .expect("Complex method __pow__ failed.")
+        })
     }
 }
 
