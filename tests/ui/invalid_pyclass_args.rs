@@ -90,4 +90,12 @@ impl StrOptAndManualStr {
     }
 }
 
+#[pyclass(str = "{")]
+#[derive(PartialEq)]
+struct Coord(u32, u32, u32);
+
+#[pyclass(str = "{$}")]
+#[derive(PartialEq)]
+struct Coord2(u32, u32, u32);
+
 fn main() {}

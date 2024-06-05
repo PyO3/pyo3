@@ -76,6 +76,24 @@ error: The `hash` option requires the `eq` option.
 60 | #[pyclass(hash)]
    |           ^^^^
 
+error: invalid format string: expected `'}'` but string was terminated
+  --> tests/ui/invalid_pyclass_args.rs:93:1
+   |
+93 | #[pyclass(str = "{")]
+   | ^^^^^^^^^^^^^^^^^^^^^ expected `'}'` in format string
+   |
+   = note: if you intended to print `{`, you can escape it using `{{`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: invalid format string: expected `'}'`, found `'$'`
+  --> tests/ui/invalid_pyclass_args.rs:97:1
+   |
+97 | #[pyclass(str = "{$}")]
+   | ^^^^^^^^^^^^^^^^^^^^^^^ expected `'}'` in format string
+   |
+   = note: if you intended to print `{`, you can escape it using `{{`
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
    |

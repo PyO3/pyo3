@@ -100,13 +100,19 @@ fn test_str_representation_complex_enum() {
 
 #[pyclass(str = "{0}, {1}, {2}")]
 #[derive(PartialEq)]
-struct Point3(u32, u32, u32);
+struct Coord(u32, u32, u32);
+
+#[pyclass(str = "{{{0}, {1}, {2}}}")]
+#[derive(PartialEq)]
+struct Coord2(u32, u32, u32);
 
 #[test]
 fn test_str_representation_by_position() {
     Python::with_gil(|py| {
-        let var1 = Py::new(py, Point3(1, 2, 3)).unwrap();
+        let var1 = Py::new(py, Coord(1, 2, 3)).unwrap();
+        let var2 = Py::new(py, Coord2(1, 2, 3)).unwrap();
         py_assert!(py, var1, "str(var1) == '1, 2, 3'");
+        py_assert!(py, var2, "str(var2) == '{1, 2, 3}'");
     })
 }
 
