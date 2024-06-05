@@ -794,10 +794,10 @@ fn pyclass_str(
     }
 }
 
-fn implement_str_simple_enums<'a>(
+fn implement_str_simple_enums(
     ctx: &Ctx,
     ty: &syn::Type,
-    _variants: &Vec<PyClassEnumUnitVariant<'a>>,
+    _variants: &[PyClassEnumUnitVariant<'_>],
     args: &PyClassArgs,
 ) -> (Option<ImplItemFn>, Option<MethodAndSlotDef>) {
     // TODO(need to incorporate renaming of variants into format if present)
