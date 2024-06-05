@@ -249,16 +249,15 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
 
             #initialization
 
+            // FIXME: Support multi-phase initialization here
             #[allow(unknown_lints, non_local_definitions)]
             impl MakeDef {
                 const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
                     use #pyo3_path::impl_::pymodule as impl_;
-                    const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
                     unsafe {
                        impl_::ModuleDef::new(
                             __PYO3_NAME,
                             #doc,
-                            INITIALIZER
                         )
                     }
                 }
@@ -288,6 +287,9 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     let ident = &function.sig.ident;
     let vis = &function.vis;
     let doc = get_doc(&function.attrs, None);
+
+    // Each generated `module_objects_init` function is exported as a separate symbol.
+    let module_objects_init_symbol = format!("__module_objects_init__{}", ident.unraw());
 
     let initialization = module_initialization(options, ident);
 
@@ -327,6 +329,32 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         #function
         #[doc(hidden)]
         #vis mod #ident {
+            /// Function used to add classes, functions, etc. to the module during
+            /// multi-phase initialization.
+            #[doc(hidden)]
+            #[export_name = #module_objects_init_symbol]
+            pub unsafe extern "C" fn __module_objects_init(module: *mut #pyo3_path::ffi::PyObject) -> ::std::ffi::c_int {
+                let module = unsafe {
+                    let nonnull = ::std::ptr::NonNull::new(module).expect("'module' shouldn't be NULL");
+                    #pyo3_path::Py::<#pyo3_path::types::PyModule>::from_non_null(nonnull)
+                };
+
+                let res = unsafe {
+                    #pyo3_path::Python::with_gil_unchecked(|py| {
+                        let bound = module.bind(py);
+                        MakeDef::do_init_multiphase(bound)
+                    })
+                };
+
+                // FIXME: Better error handling?
+                let _ = res.unwrap();
+
+                0
+            }
+
+            #[doc(hidden)]
+            pub const __PYO3_INIT: *mut ::std::ffi::c_void = __module_objects_init as *mut ::std::ffi::c_void;
+
             #initialization
         }
 
@@ -336,17 +364,22 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         // inside a function body)
         #[allow(unknown_lints, non_local_definitions)]
         impl #ident::MakeDef {
+            /// Helper function for `__module_objects_init`. Should probably be put
+            /// somewhere else.
+            #[doc(hidden)]
+            pub fn do_init_multiphase(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
+                #ident(#(#module_args),*)
+            }
+
             const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
                 fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
                     #ident(#(#module_args),*)
                 }
 
-                const INITIALIZER: #pyo3_path::impl_::pymodule::ModuleInitializer = #pyo3_path::impl_::pymodule::ModuleInitializer(__pyo3_pymodule);
                 unsafe {
                     #pyo3_path::impl_::pymodule::ModuleDef::new(
                         #ident::__PYO3_NAME,
                         #doc,
-                        INITIALIZER
                     )
                 }
             }
@@ -368,12 +401,36 @@ fn module_initialization(options: PyModuleOptions, ident: &syn::Ident) -> TokenS
         #[doc(hidden)]
         pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = MakeDef::make_def();
 
+        #[doc(hidden)]
+        pub static _PYO3_SLOTS: &[#pyo3_path::impl_::pymodule::ModuleDefSlot] = &[
+            #pyo3_path::impl_::pymodule::ModuleDefSlot(#pyo3_path::ffi::PyModuleDef_Slot {
+                slot: #pyo3_path::ffi::Py_mod_exec,
+                value: #pyo3_path::impl_::pymodule_state::module_state_init as *mut ::std::ffi::c_void,
+            }),
+            #pyo3_path::impl_::pymodule::ModuleDefSlot(#pyo3_path::ffi::PyModuleDef_Slot {
+                slot: #pyo3_path::ffi::Py_mod_exec,
+                value: __PYO3_INIT,
+            }),
+            #[cfg(Py_3_12)]
+            #pyo3_path::impl_::pymodule::ModuleDefSlot(#pyo3_path::ffi::PyModuleDef_Slot {
+                slot: #pyo3_path::ffi::Py_mod_multiple_interpreters,
+                value: #pyo3_path::ffi::Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+            }),
+            #pyo3_path::impl_::pymodule::ModuleDefSlot(#pyo3_path::ffi::PyModuleDef_Slot {
+                slot: 0,
+                value: ::std::ptr::null_mut(),
+            }),
+        ];
+
         /// This autogenerated function is called by the python interpreter when importing
         /// the module.
         #[doc(hidden)]
         #[export_name = #pyinit_symbol]
         pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyObject {
-            #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py))
+            #pyo3_path::impl_::trampoline::module_init(|py| {
+                _PYO3_DEF.set_multiphase_items(_PYO3_SLOTS);
+                _PYO3_DEF.make_module(py)
+            })
         }
     }
 }

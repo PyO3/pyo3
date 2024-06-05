@@ -12,14 +12,14 @@ use std::{
 use crate::gil::GILGuard;
 use crate::{
     callback::PyCallbackOutput, ffi, ffi_ptr_ext::FfiPtrExt, impl_::panic::PanicTrap,
-    methods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
+    methods::IPowModulo, panic::PanicException, PyResult, Python,
 };
 
 #[inline]
 pub unsafe fn module_init(
-    f: for<'py> unsafe fn(Python<'py>) -> PyResult<Py<PyModule>>,
+    f: for<'py> unsafe fn(Python<'py>) -> PyResult<*mut ffi::PyModuleDef>,
 ) -> *mut ffi::PyObject {
-    trampoline(|py| f(py).map(|module| module.into_ptr()))
+    trampoline(|py| f(py).map(|module_def| module_def.cast()))
 }
 
 #[inline]

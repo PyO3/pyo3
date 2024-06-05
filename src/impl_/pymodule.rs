@@ -26,11 +26,18 @@ use crate::{
     Bound, Py, PyClass, PyMethodDef, PyResult, PyTypeInfo, Python,
 };
 
+use crate::impl_::pymodule_state as state;
+
+/// `Sync` wrapper of `ffi::PyModuleDef_Slot`.
+#[allow(unused)]
+pub struct ModuleDefSlot(pub ffi::PyModuleDef_Slot);
+
+unsafe impl Sync for ModuleDefSlot {}
+
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
-    initializer: ModuleInitializer,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
         not(any(PyPy, GraalPy)),
@@ -38,12 +45,11 @@ pub struct ModuleDef {
         not(all(windows, Py_LIMITED_API, not(Py_3_10)))
     ))]
     interpreter: AtomicI64,
+    // TODO: Figure out how to cache module with multi-phase init
     /// Initialized module object, cached to avoid reinitialization.
+    #[allow(unused)]
     module: GILOnceCell<Py<PyModule>>,
 }
-
-/// Wrapper to enable initializer to be used in const fns.
-pub struct ModuleInitializer(pub for<'py> fn(&Bound<'py, PyModule>) -> PyResult<()>);
 
 unsafe impl Sync for ModuleDef {}
 
@@ -52,11 +58,7 @@ impl ModuleDef {
     ///
     /// # Safety
     /// `name` and `doc` must be null-terminated strings.
-    pub const unsafe fn new(
-        name: &'static str,
-        doc: &'static str,
-        initializer: ModuleInitializer,
-    ) -> Self {
+    pub const unsafe fn new(name: &'static str, doc: &'static str) -> Self {
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
             m_name: std::ptr::null(),
@@ -77,7 +79,6 @@ impl ModuleDef {
 
         ModuleDef {
             ffi_def,
-            initializer,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
                 not(any(PyPy, GraalPy)),
@@ -88,8 +89,9 @@ impl ModuleDef {
             module: GILOnceCell::new(),
         }
     }
+
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
-    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
+    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<*mut ffi::PyModuleDef> {
         #[cfg(all(PyPy, not(Py_3_8)))]
         {
             use crate::types::any::PyAnyMethods;
@@ -143,18 +145,32 @@ impl ModuleDef {
                 }
             }
         }
-        self.module
-            .get_or_try_init(py, || {
-                let module = unsafe {
-                    Py::<PyModule>::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyModule_Create(self.ffi_def.get()),
-                    )?
-                };
-                self.initializer.0(module.bind(py))?;
-                Ok(module)
-            })
-            .map(|py_module| py_module.clone_ref(py))
+
+        if (unsafe { *self.ffi_def.get() }).m_slots.is_null() {
+            return Err(PyImportError::new_err(
+                "'m_slots' of module definition is NULL",
+            ));
+        }
+
+        let module_def_ptr = unsafe { ffi::PyModuleDef_Init(self.ffi_def.get()) };
+
+        if module_def_ptr.is_null() {
+            return Err(PyImportError::new_err("PyModuleDef_Init returned NULL"));
+        }
+
+        Ok(module_def_ptr.cast())
+    }
+
+    pub fn set_multiphase_items(&'static self, slots: &'static [ModuleDefSlot]) {
+        let slots = slots as *const [ModuleDefSlot] as *mut ffi::PyModuleDef_Slot;
+        let ffi_def = self.ffi_def.get();
+        unsafe {
+            (*ffi_def).m_size = std::mem::size_of::<state::ModuleState>() as ffi::Py_ssize_t;
+            (*ffi_def).m_slots = slots;
+            (*ffi_def).m_traverse = Some(state::module_state_traverse);
+            (*ffi_def).m_clear = Some(state::module_state_clear);
+            (*ffi_def).m_free = Some(state::module_state_free);
+        };
     }
 }
 
@@ -206,8 +222,9 @@ impl PyAddToModule for PyMethodDef {
 
 /// For adding a module to a module.
 impl PyAddToModule for ModuleDef {
-    fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add_submodule(self.make_module(module.py())?.bind(module.py()))
+    fn add_to_module(&'static self, _module: &Bound<'_, PyModule>) -> PyResult<()> {
+        // FIXME: Support multi-phase initialization
+        unimplemented!("Adding submodules to a module is not supported at the moment.")
     }
 }
 
@@ -219,50 +236,40 @@ mod tests {
     };
 
     use crate::{
+        ffi,
+        impl_::pymodule_state::module_state_init,
         types::{any::PyAnyMethods, module::PyModuleMethods, PyModule},
         Bound, PyResult, Python,
     };
 
-    use super::{ModuleDef, ModuleInitializer};
+    use super::{ModuleDef, ModuleDefSlot};
 
     #[test]
     fn module_init() {
-        static MODULE_DEF: ModuleDef = unsafe {
-            ModuleDef::new(
-                "test_module\0",
-                "some doc\0",
-                ModuleInitializer(|m| {
-                    m.add("SOME_CONSTANT", 42)?;
-                    Ok(())
-                }),
-            )
-        };
+        static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new("test_module\0", "some doc\0") };
+
+        static SLOTS: &[ModuleDefSlot] = &[
+            ModuleDefSlot(ffi::PyModuleDef_Slot {
+                slot: ffi::Py_mod_exec,
+                value: module_state_init as *mut std::ffi::c_void,
+            }),
+            #[cfg(Py_3_12)]
+            ModuleDefSlot(ffi::PyModuleDef_Slot {
+                slot: ffi::Py_mod_multiple_interpreters,
+                value: ffi::Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+            }),
+            ModuleDefSlot(ffi::PyModuleDef_Slot {
+                slot: 0,
+                value: std::ptr::null_mut(),
+            }),
+        ];
+
+        MODULE_DEF.set_multiphase_items(SLOTS);
+
         Python::with_gil(|py| {
-            let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
-            assert_eq!(
-                module
-                    .getattr("__name__")
-                    .unwrap()
-                    .extract::<Cow<'_, str>>()
-                    .unwrap(),
-                "test_module",
-            );
-            assert_eq!(
-                module
-                    .getattr("__doc__")
-                    .unwrap()
-                    .extract::<Cow<'_, str>>()
-                    .unwrap(),
-                "some doc",
-            );
-            assert_eq!(
-                module
-                    .getattr("SOME_CONSTANT")
-                    .unwrap()
-                    .extract::<u8>()
-                    .unwrap(),
-                42,
-            );
+            let module_def = MODULE_DEF.make_module(py).unwrap();
+            // FIXME: Use PyState_FindModule to retrieve module here?
+            unimplemented!("Test currently not implemented");
         })
     }
 
@@ -273,6 +280,22 @@ mod tests {
         static NAME: &str = "test_module\0";
         static DOC: &str = "some doc\0";
 
+        static SLOTS: &[ModuleDefSlot] = &[
+            ModuleDefSlot(ffi::PyModuleDef_Slot {
+                slot: ffi::Py_mod_exec,
+                value: module_state_init as *mut std::ffi::c_void,
+            }),
+            #[cfg(Py_3_12)]
+            ModuleDefSlot(ffi::PyModuleDef_Slot {
+                slot: ffi::Py_mod_multiple_interpreters,
+                value: ffi::Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+            }),
+            ModuleDefSlot(ffi::PyModuleDef_Slot {
+                slot: 0,
+                value: std::ptr::null_mut(),
+            }),
+        ];
+
         static INIT_CALLED: AtomicBool = AtomicBool::new(false);
 
         #[allow(clippy::unnecessary_wraps)]
@@ -282,12 +305,12 @@ mod tests {
         }
 
         unsafe {
-            let module_def: ModuleDef = ModuleDef::new(NAME, DOC, ModuleInitializer(init));
+            let module_def: ModuleDef = ModuleDef::new(NAME, DOC);
+            module_def.set_multiphase_items(SLOTS);
             assert_eq!((*module_def.ffi_def.get()).m_name, NAME.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
 
             Python::with_gil(|py| {
-                module_def.initializer.0(&py.import_bound("builtins").unwrap()).unwrap();
                 assert!(INIT_CALLED.load(Ordering::SeqCst));
             })
         }
