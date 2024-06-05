@@ -1,6 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
+use pyo3::py_run;
 use std::fmt::{Display, Formatter};
 
 #[path = "../src/tests/common.rs"]
@@ -76,7 +77,7 @@ fn test_display_trait_implementation() {
 
 #[pyclass(str = "{:?}")]
 #[derive(PartialEq, Debug)]
-enum ComplexEnumWithHash {
+enum ComplexEnumWithStr {
     A(u32),
     B { msg: String },
 }
@@ -84,15 +85,57 @@ enum ComplexEnumWithHash {
 #[test]
 fn test_str_representation_complex_enum() {
     Python::with_gil(|py| {
-        let var1 = Py::new(py, ComplexEnumWithHash::A(45)).unwrap();
+        let var1 = Py::new(py, ComplexEnumWithStr::A(45)).unwrap();
         let var2 = Py::new(
             py,
-            ComplexEnumWithHash::B {
+            ComplexEnumWithStr::B {
                 msg: "Hello".to_string(),
             },
         )
         .unwrap();
         py_assert!(py, var1, "str(var1) == 'A(45)'");
         py_assert!(py, var2, "str(var2) == 'B { msg: \"Hello\" }'");
+    })
+}
+
+#[pyclass(str = "{0}, {1}, {2}")]
+#[derive(PartialEq)]
+struct Point3(u32, u32, u32);
+
+#[test]
+fn test_str_representation_by_position() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, Point3(1, 2, 3)).unwrap();
+        py_assert!(py, var1, "str(var1) == '1, 2, 3'");
+    })
+}
+
+#[pyclass(str = "name: {name}: {name}, idn: {idn:03} with message: {msg} full output: {:?}")]
+#[derive(PartialEq, Debug)]
+struct Point4 {
+    name: String,
+    msg: String,
+    idn: u32,
+}
+
+#[test]
+fn test_mixed_and_repeated_str_formats() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(
+            py,
+            Point4 {
+                name: "aaa".to_string(),
+                msg: "hello".to_string(),
+                idn: 1,
+            },
+        )
+        .unwrap();
+        py_run!(
+            py,
+            var1,
+            r#"
+        assert str(var1) == 'name: aaa: aaa, idn: 001 with message: hello full output: Point4 { name: "aaa", msg: "hello", idn: 1 }'
+        "#
+        );
     })
 }

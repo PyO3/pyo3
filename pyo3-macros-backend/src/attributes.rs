@@ -85,7 +85,6 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
     let mut read = value.as_str();
     let mut out = String::new();
     let mut members = Vec::new();
-    let mut found_member: bool = false;
     while let Some(brace) = read.find('{') {
         out += &read[..brace + 1];
         read = &read[brace + 1..];
@@ -101,23 +100,16 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
         let member = match next {
             '0'..='9' => {
                 let index = take_int(&mut read).parse::<u32>().unwrap();
-                found_member = true;
                 FormatIdentity::Attribute(Member::Unnamed(Index { index, span }))
             }
             'a'..='z' | 'A'..='Z' | '_' => {
                 let mut ident = take_ident(&mut read);
                 ident.set_span(span);
-                found_member = true;
                 FormatIdentity::Attribute(Member::Named(ident))
             }
             '}' | ':' => {
                 // we found a closing bracket or formatting ':' without finding a member, we assume the user wants the instance formatted here
-                if !found_member {
-                    FormatIdentity::Instance(span)
-                } else {
-                    found_member = false;
-                    continue;
-                }
+                FormatIdentity::Instance(span)
             }
             _ => continue,
         };
