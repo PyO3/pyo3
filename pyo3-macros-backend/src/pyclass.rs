@@ -762,7 +762,7 @@ impl Display for PyFmtName {
 
 impl IdentFragment for PyFmtName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", format!("{}", self))
+        write!(f, "{}", self)
     }
 }
 
