@@ -807,7 +807,7 @@ fn implement_py_formatting(
         None => {
             let fmt_impl: syn::ImplItemFn = syn::parse_quote! {
                 fn #fn_name(&self) -> String {
-                    format!(#fmt_string, &self)
+                    ::std::format!(#fmt_string, &self)
                 }
             };
             fmt_impl
