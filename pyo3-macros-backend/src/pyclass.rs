@@ -781,7 +781,7 @@ fn implement_py_formatting(
     };
     let mut fmt_impl = match &option.value {
         Some(opt) => {
-            let fmt = &opt.fmt.value();
+            let fmt = &opt.fmt;
             let args = &opt
                 .args
                 .iter()
