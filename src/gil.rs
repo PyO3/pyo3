@@ -5,6 +5,8 @@ use crate::impl_::not_send::{NotSend, NOT_SEND};
 #[cfg(pyo3_disable_reference_pool)]
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
+#[cfg(not(pyo3_disable_reference_pool))]
+use once_cell::sync::Lazy;
 use std::cell::Cell;
 #[cfg(all(feature = "gil-refs", debug_assertions))]
 use std::cell::RefCell;
@@ -227,7 +229,9 @@ impl GILGuard {
         let pool = mem::ManuallyDrop::new(GILPool::new());
 
         #[cfg(not(pyo3_disable_reference_pool))]
-        POOL.update_counts(Python::assume_gil_acquired());
+        if let Some(pool) = Lazy::get(&POOL) {
+            pool.update_counts(Python::assume_gil_acquired());
+        }
         GILGuard::Ensured {
             gstate,
             #[cfg(feature = "gil-refs")]
@@ -240,7 +244,9 @@ impl GILGuard {
         increment_gil_count();
         let guard = GILGuard::Assumed;
         #[cfg(not(pyo3_disable_reference_pool))]
-        POOL.update_counts(guard.python());
+        if let Some(pool) = Lazy::get(&POOL) {
+            pool.update_counts(guard.python());
+        }
         guard
     }
 
@@ -308,10 +314,13 @@ impl ReferencePool {
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
+unsafe impl Send for ReferencePool {}
+
+#[cfg(not(pyo3_disable_reference_pool))]
 unsafe impl Sync for ReferencePool {}
 
 #[cfg(not(pyo3_disable_reference_pool))]
-static POOL: ReferencePool = ReferencePool::new();
+static POOL: Lazy<ReferencePool> = Lazy::new(ReferencePool::new);
 
 /// A guard which can be used to temporarily release the GIL and restore on `Drop`.
 pub(crate) struct SuspendGIL {
@@ -336,7 +345,9 @@ impl Drop for SuspendGIL {
 
             // Update counts of PyObjects / Py that were cloned or dropped while the GIL was released.
             #[cfg(not(pyo3_disable_reference_pool))]
-            POOL.update_counts(Python::assume_gil_acquired());
+            if let Some(pool) = Lazy::get(&POOL) {
+                pool.update_counts(Python::assume_gil_acquired());
+            }
         }
     }
 }
@@ -409,7 +420,9 @@ impl GILPool {
     pub unsafe fn new() -> GILPool {
         // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
         #[cfg(not(pyo3_disable_reference_pool))]
-        POOL.update_counts(Python::assume_gil_acquired());
+        if let Some(pool) = Lazy::get(&POOL) {
+            pool.update_counts(Python::assume_gil_acquired());
+        }
         GILPool {
             start: OWNED_OBJECTS
                 .try_with(|owned_objects| {
