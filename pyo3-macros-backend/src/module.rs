@@ -287,6 +287,7 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
 
     let initialization = module_initialization(&name, ctx);
     Ok(quote!(
+        #(#attrs)*
         #vis mod #ident {
             #(#items)*
 

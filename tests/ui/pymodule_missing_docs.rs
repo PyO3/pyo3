@@ -9,4 +9,9 @@ pub fn python_module(_m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "experimental-declarative-modules")]
+/// Some module documentation
+#[pymodule]
+pub mod declarative_python_module {}
+
 fn main() {}
