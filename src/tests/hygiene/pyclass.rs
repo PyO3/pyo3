@@ -10,15 +10,24 @@ pub struct Foo;
 #[pyo3(crate = "crate")]
 pub struct Foo2;
 
-#[cfg_attr(any(Py_3_9, not(Py_LIMITED_API)), pyo3(weakref))]
-#[crate::pyclass(
+#[cfg_attr(any(Py_3_9, not(Py_LIMITED_API)), crate::pyclass(
+    name = "ActuallyBar",
+    freelist = 8,
+    unsendable,
+    subclass,
+    extends = crate::types::PyAny,
+    module = "Spam",
+    weakref,
+    dict
+))]
+#[cfg_attr(not(any(Py_3_9, not(Py_LIMITED_API))), crate::pyclass(
     name = "ActuallyBar",
     freelist = 8,
     unsendable,
     subclass,
     extends = crate::types::PyAny,
     module = "Spam"
-)]
+))]
 #[pyo3(crate = "crate")]
 pub struct Bar {
     #[pyo3(get, set)]
