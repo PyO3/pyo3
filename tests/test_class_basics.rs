@@ -428,6 +428,7 @@ fn test_tuple_struct_class() {
     });
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(dict, subclass)]
 struct DunderDictSupport {
     // Make sure that dict_offset runs with non-zero sized Self
@@ -435,7 +436,7 @@ struct DunderDictSupport {
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn dunder_dict_support() {
     Python::with_gil(|py| {
         let inst = Py::new(
@@ -458,7 +459,7 @@ fn dunder_dict_support() {
 
 // Accessing inst.__dict__ only supported in limited API from Python 3.10
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 fn access_dunder_dict() {
     Python::with_gil(|py| {
         let inst = Py::new(
@@ -480,13 +481,14 @@ fn access_dunder_dict() {
 }
 
 // If the base class has dict support, child class also has dict
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(extends=DunderDictSupport)]
 struct InheritDict {
     _value: usize,
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn inherited_dict() {
     Python::with_gil(|py| {
         let inst = Py::new(
@@ -510,6 +512,7 @@ fn inherited_dict() {
     });
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(weakref, dict)]
 struct WeakRefDunderDictSupport {
     // Make sure that weaklist_offset runs with non-zero sized Self
@@ -517,7 +520,7 @@ struct WeakRefDunderDictSupport {
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn weakref_dunder_dict_support() {
     Python::with_gil(|py| {
         let inst = Py::new(
@@ -535,13 +538,14 @@ fn weakref_dunder_dict_support() {
     });
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(weakref, subclass)]
 struct WeakRefSupport {
     _pad: [u8; 32],
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn weakref_support() {
     Python::with_gil(|py| {
         let inst = Py::new(
@@ -560,13 +564,14 @@ fn weakref_support() {
 }
 
 // If the base class has weakref support, child class also has weakref.
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(extends=WeakRefSupport)]
 struct InheritWeakRef {
     _value: usize,
 }
 
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn inherited_weakref() {
     Python::with_gil(|py| {
         let inst = Py::new(
@@ -665,5 +670,50 @@ fn drop_unsendable_elsewhere() {
         assert!(object.is_none(py));
 
         capture.borrow_mut(py).uninstall(py);
+    });
+}
+
+#[test]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+fn test_unsendable_dict() {
+    #[pyclass(dict, unsendable)]
+    struct UnsendableDictClass {}
+
+    #[pymethods]
+    impl UnsendableDictClass {
+        #[new]
+        fn new() -> Self {
+            UnsendableDictClass {}
+        }
+    }
+
+    Python::with_gil(|py| {
+        let inst = Py::new(py, UnsendableDictClass {}).unwrap();
+        py_run!(py, inst, "assert inst.__dict__ == {}");
+    });
+}
+
+#[test]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+fn test_unsendable_dict_with_weakref() {
+    #[pyclass(dict, unsendable, weakref)]
+    struct UnsendableDictClassWithWeakRef {}
+
+    #[pymethods]
+    impl UnsendableDictClassWithWeakRef {
+        #[new]
+        fn new() -> Self {
+            Self {}
+        }
+    }
+
+    Python::with_gil(|py| {
+        let inst = Py::new(py, UnsendableDictClassWithWeakRef {}).unwrap();
+        py_run!(py, inst, "assert inst.__dict__ == {}");
+        py_run!(
+            py,
+            inst,
+            "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
+        );
     });
 }

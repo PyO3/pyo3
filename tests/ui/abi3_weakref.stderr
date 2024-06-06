@@ -1,4 +1,4 @@
-error: `weakref` requires >= python 3.9 with the `abi3` feature
+error: `weakref` requires Python >= 3.9 when using the `abi3` feature
  --> tests/ui/abi3_weakref.rs:4:11
   |
 4 | #[pyclass(weakref)]
