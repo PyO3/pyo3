@@ -797,16 +797,16 @@ fn implement_py_formatting(
                 })
                 .collect::<Vec<TokenStream>>();
             let fmt_impl: ImplItemFn = syn::parse_quote! {
-                fn #fn_name(&self) -> String {
+                fn #fn_name(&self) -> ::std::string::String {
                     #renaming
-                    format!(#fmt, #(#args, )*)
+                    ::std::format!(#fmt, #(#args, )*)
                 }
             };
             fmt_impl
         }
         None => {
             let fmt_impl: syn::ImplItemFn = syn::parse_quote! {
-                fn #fn_name(&self) -> String {
+                fn #fn_name(&self) -> ::std::string::String {
                     ::std::format!(#fmt_string, &self)
                 }
             };
