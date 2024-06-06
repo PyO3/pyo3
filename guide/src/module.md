@@ -160,11 +160,11 @@ but the `Ext` class will have for `module` the default `builtins` because it not
 # #[cfg(feature = "experimental-declarative-modules")]
 # mod declarative_module_module_attr_test {
 use pyo3::prelude::*;
-    
+
 #[pyclass]
 struct Ext;
 
-    #[pymodule]
+#[pymodule]
 mod my_extension {
     use super::*;
 
@@ -173,8 +173,9 @@ mod my_extension {
 
     #[pymodule]
     mod submodule {
+        use super::*;
         // This is a submodule
-        
+
         #[pyclass] // This will be part of the module
         struct Unit;
     }
