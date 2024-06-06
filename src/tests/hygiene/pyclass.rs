@@ -61,7 +61,7 @@ pub struct Foo4 {
     field: u32,
 }
 
-#[crate::pyclass(eq, str="{:?}")]
+#[crate::pyclass(eq, str = "{:?}")]
 #[pyo3(crate = "crate")]
 #[derive(Debug, PartialEq)]
 pub enum EnumFmt {
