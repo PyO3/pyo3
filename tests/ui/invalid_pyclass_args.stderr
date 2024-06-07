@@ -282,3 +282,11 @@ note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
 84 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0609]: no field `aaaa` on type `&Point`
+   --> tests/ui/invalid_pyclass_args.rs:101:17
+    |
+101 | #[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `x`, `y`, `z`

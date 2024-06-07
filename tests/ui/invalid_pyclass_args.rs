@@ -98,4 +98,12 @@ struct Coord(u32, u32, u32);
 #[derive(PartialEq)]
 struct Coord2(u32, u32, u32);
 
+#[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
+#[derive(PartialEq, Eq, Clone, PartialOrd)]
+pub struct Point {
+    x: i32,
+    y: i32,
+    z: i32,
+}
+
 fn main() {}
