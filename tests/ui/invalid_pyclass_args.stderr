@@ -1,4 +1,4 @@
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
  --> tests/ui/invalid_pyclass_args.rs:3:11
   |
 3 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -46,7 +46,7 @@ error: expected string literal
 24 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
   --> tests/ui/invalid_pyclass_args.rs:27:11
    |
 27 | #[pyclass(weakrev)]
@@ -75,6 +75,12 @@ error: The `hash` option requires the `eq` option.
    |
 59 | #[pyclass(hash)]
    |           ^^^^
+
+error: The `ord` option requires the `eq` option.
+  --> tests/ui/invalid_pyclass_args.rs:74:11
+   |
+74 | #[pyclass(ord)]
+   |           ^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:36:1

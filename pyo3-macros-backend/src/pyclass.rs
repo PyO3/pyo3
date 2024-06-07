@@ -70,6 +70,7 @@ pub struct PyClassPyO3Options {
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
+    pub ord: Option<kw::ord>,
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
@@ -91,6 +92,7 @@ pub enum PyClassPyO3Option {
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
+    Ord(kw::ord),
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
@@ -126,6 +128,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
             input.parse().map(PyClassPyO3Option::Name)
+        } else if lookahead.peek(attributes::kw::ord) {
+            input.parse().map(PyClassPyO3Option::Ord)
         } else if lookahead.peek(kw::rename_all) {
             input.parse().map(PyClassPyO3Option::RenameAll)
         } else if lookahead.peek(attributes::kw::sequence) {
@@ -189,6 +193,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
+            PyClassPyO3Option::Ord(ord) => set_option!(ord),
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
@@ -1665,7 +1670,10 @@ fn impl_pytypeinfo(
     }
 }
 
-fn pyclass_richcmp_arms(options: &PyClassPyO3Options, ctx: &Ctx) -> TokenStream {
+fn pyclass_richcmp_arms(
+    options: &PyClassPyO3Options,
+    ctx: &Ctx,
+) -> std::result::Result<TokenStream, syn::Error> {
     let Ctx { pyo3_path } = ctx;
 
     let eq_arms = options
@@ -1684,9 +1692,34 @@ fn pyclass_richcmp_arms(options: &PyClassPyO3Options, ctx: &Ctx) -> TokenStream 
         })
         .unwrap_or_default();
 
-    // TODO: `ord` can be integrated here (#4202)
-    #[allow(clippy::let_and_return)]
-    eq_arms
+    if let Some(ord) = options.ord {
+        ensure_spanned!(options.eq.is_some(), ord.span() => "The `ord` option requires the `eq` option.");
+    }
+
+    let ord_arms = options
+        .ord
+        .map(|ord| {
+            quote_spanned! { ord.span() =>
+                #pyo3_path::pyclass::CompareOp::Gt => {
+                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val > other, py))
+                },
+                #pyo3_path::pyclass::CompareOp::Lt => {
+                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val < other, py))
+                 },
+                #pyo3_path::pyclass::CompareOp::Le => {
+                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val <= other, py))
+                 },
+                #pyo3_path::pyclass::CompareOp::Ge => {
+                    ::std::result::Result::Ok(#pyo3_path::conversion::IntoPy::into_py(self_val >= other, py))
+                 },
+            }
+        })
+        .unwrap_or_else(|| quote! { _ => ::std::result::Result::Ok(py.NotImplemented()) });
+
+    Ok(quote! {
+        #eq_arms
+        #ord_arms
+    })
 }
 
 fn pyclass_richcmp_simple_enum(
@@ -1723,7 +1756,7 @@ fn pyclass_richcmp_simple_enum(
         return Ok((None, None));
     }
 
-    let arms = pyclass_richcmp_arms(&options, ctx);
+    let arms = pyclass_richcmp_arms(&options, ctx)?;
 
     let eq = options.eq.map(|eq| {
         quote_spanned! { eq.span() =>
@@ -1732,7 +1765,6 @@ fn pyclass_richcmp_simple_enum(
                 let other = &*other.borrow();
                 return match op {
                     #arms
-                    _ => ::std::result::Result::Ok(py.NotImplemented())
                 }
             }
         }
@@ -1746,7 +1778,6 @@ fn pyclass_richcmp_simple_enum(
             }) {
                 return match op {
                     #arms
-                    _ => ::std::result::Result::Ok(py.NotImplemented())
                 }
             }
         }
@@ -1786,7 +1817,7 @@ fn pyclass_richcmp(
         bail_spanned!(eq_int.span() => "`eq_int` can only be used on simple enums.")
     }
 
-    let arms = pyclass_richcmp_arms(options, ctx);
+    let arms = pyclass_richcmp_arms(options, ctx)?;
     if options.eq.is_some() {
         let mut richcmp_impl = parse_quote! {
             fn __pyo3__generated____richcmp__(
@@ -1799,7 +1830,6 @@ fn pyclass_richcmp(
                 let other = &*#pyo3_path::types::PyAnyMethods::downcast::<Self>(other)?.borrow();
                 match op {
                     #arms
-                    _ => ::std::result::Result::Ok(py.NotImplemented())
                 }
             }
         };
