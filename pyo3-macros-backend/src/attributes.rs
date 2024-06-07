@@ -113,7 +113,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
                 let start = tracker;
                 let index = take_int(&mut read, &mut tracker).parse::<u32>().unwrap();
                 let end = tracker;
-                let subspan = token.subspan(start..end).unwrap_or_else(|| span);
+                let subspan = token.subspan(start..end).unwrap_or(span);
                 let idx = Index {
                     index,
                     span: subspan,
@@ -124,7 +124,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
                 let start = tracker;
                 let mut ident = take_ident(&mut read, &mut tracker);
                 let end = tracker;
-                let subspan = token.subspan(start..end).unwrap_or_else(|| span);
+                let subspan = token.subspan(start..end).unwrap_or(span);
                 ident.set_span(subspan);
                 FormatIdentity::Attribute(Member::Named(ident))
             }
@@ -132,7 +132,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
                 let start = tracker;
                 tracker += 1;
                 let end = tracker;
-                let subspan = token.subspan(start..end).unwrap_or_else(|| span);
+                let subspan = token.subspan(start..end).unwrap_or(span);
                 // we found a closing bracket or formatting ':' without finding a member, we assume the user wants the instance formatted here
                 FormatIdentity::Instance(subspan)
             }
