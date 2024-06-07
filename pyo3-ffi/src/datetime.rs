@@ -13,7 +13,9 @@
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
 use std::cell::UnsafeCell;
-use std::os::raw::{c_char, c_int};
+#[cfg(not(GraalPy))]
+use std::os::raw::c_char;
+use std::os::raw::c_int;
 use std::ptr;
 #[cfg(not(PyPy))]
 use {crate::PyCapsule_Import, std::ffi::CString};
