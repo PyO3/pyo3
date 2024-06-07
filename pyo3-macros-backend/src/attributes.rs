@@ -44,11 +44,14 @@ pub mod kw {
     syn::custom_keyword!(weakref);
 }
 
-fn take_int(read: &mut &str) -> String {
+fn take_int(read: &mut &str, tracker: &mut usize) -> String {
     let mut int = String::new();
     for (i, ch) in read.char_indices() {
         match ch {
-            '0'..='9' => int.push(ch),
+            '0'..='9' => {
+                *tracker += 1;
+                int.push(ch)
+            }
             _ => {
                 *read = &read[i..];
                 break;
@@ -58,11 +61,14 @@ fn take_int(read: &mut &str) -> String {
     int
 }
 
-fn take_ident(read: &mut &str) -> Ident {
+fn take_ident(read: &mut &str, tracker: &mut usize) -> Ident {
     let mut ident = String::new();
     for (i, ch) in read.char_indices() {
         match ch {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => ident.push(ch),
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {
+                *tracker += 1;
+                ident.push(ch)
+            }
             _ => {
                 *read = &read[i..];
                 break;
@@ -81,35 +87,54 @@ pub enum FormatIdentity {
 // shorthand parsing logic inspiration taken from https://github.com/dtolnay/thiserror/blob/master/impl/src/fmt.rs
 fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
     let span = fmt.span();
+    let token = fmt.token();
     let value = fmt.value();
     let mut read = value.as_str();
     let mut out = String::new();
     let mut members = Vec::new();
+    let mut tracker = 1;
     while let Some(brace) = read.find('{') {
+        tracker += brace;
         out += &read[..brace + 1];
         read = &read[brace + 1..];
         if read.starts_with('{') {
             out.push('{');
             read = &read[1..];
+            tracker += 2;
             continue;
         }
         let next = match read.chars().next() {
             Some(next) => next,
             None => break,
         };
+        tracker += 1;
         let member = match next {
             '0'..='9' => {
-                let index = take_int(&mut read).parse::<u32>().unwrap();
-                FormatIdentity::Attribute(Member::Unnamed(Index { index, span }))
+                let start = tracker;
+                let index = take_int(&mut read, &mut tracker).parse::<u32>().unwrap();
+                let end = tracker;
+                let subspan = token.subspan(start..end).unwrap_or_else(|| span);
+                let idx = Index {
+                    index,
+                    span: subspan,
+                };
+                FormatIdentity::Attribute(Member::Unnamed(idx))
             }
             'a'..='z' | 'A'..='Z' | '_' => {
-                let mut ident = take_ident(&mut read);
-                ident.set_span(span);
+                let start = tracker;
+                let mut ident = take_ident(&mut read, &mut tracker);
+                let end = tracker;
+                let subspan = token.subspan(start..end).unwrap_or_else(|| span);
+                ident.set_span(subspan);
                 FormatIdentity::Attribute(Member::Named(ident))
             }
             '}' | ':' => {
+                let start = tracker;
+                tracker += 1;
+                let end = tracker;
+                let subspan = token.subspan(start..end).unwrap_or_else(|| span);
                 // we found a closing bracket or formatting ':' without finding a member, we assume the user wants the instance formatted here
-                FormatIdentity::Instance(span)
+                FormatIdentity::Instance(subspan)
             }
             _ => continue,
         };

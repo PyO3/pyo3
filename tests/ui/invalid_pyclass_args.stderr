@@ -96,6 +96,116 @@ error: invalid format string: expected `'}'`, found `'$'`
    |
    = note: if you intended to print `{`, you can escape it using `{{`
 
+error[E0428]: the name `Coord` is defined multiple times
+   --> tests/ui/invalid_pyclass_args.rs:119:1
+    |
+95  | struct Coord(u32, u32, u32);
+    | ---------------------------- previous definition of the type `Coord` here
+...
+119 | struct Coord(u32, u32, u32);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Coord` redefined here
+    |
+    = note: `Coord` must be defined only once in the type namespace of this module
+
+error[E0119]: conflicting implementations of trait `DerefToPyAny` for type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+93  | #[pyclass(str = "{")]
+    | --------------------- first implementation here
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `Coord`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `PyTypeInfo` for type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+93  | #[pyclass(str = "{")]
+    | --------------------- first implementation here
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `Coord`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `PyClass` for type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+93  | #[pyclass(str = "{")]
+    | --------------------- first implementation here
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `Coord`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `PyFunctionArgument<'_, '_>` for type `&Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+93  | #[pyclass(str = "{")]
+    | --------------------- first implementation here
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `&Coord`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `PyFunctionArgument<'_, '_>` for type `&mut Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+93  | #[pyclass(str = "{")]
+    | --------------------- first implementation here
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `&mut Coord`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `IntoPy<Py<pyo3::PyAny>>` for type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+93  | #[pyclass(str = "{")]
+    | --------------------- first implementation here
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `Coord`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `PyClassImpl` for type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+93  | #[pyclass(str = "{")]
+    | --------------------- first implementation here
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `Coord`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `StructuralPartialEq` for type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:118:10
+    |
+94  | #[derive(PartialEq)]
+    |          --------- first implementation here
+...
+118 | #[derive(PartialEq)]
+    |          ^^^^^^^^^ conflicting implementation for `Coord`
+    |
+    = note: this error originates in the derive macro `PartialEq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `PartialEq` for type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:118:10
+    |
+94  | #[derive(PartialEq)]
+    |          --------- first implementation here
+...
+118 | #[derive(PartialEq)]
+    |          ^^^^^^^^^ conflicting implementation for `Coord`
+    |
+    = note: this error originates in the derive macro `PartialEq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
    |
@@ -128,6 +238,39 @@ error[E0592]: duplicate definitions with name `__pymethod___str____`
    | ------------ other definition for `__pymethod___str____`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod___str____`
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___str____`
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | -------------------------------------- other definition for `__pymethod___str____`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `_PYO3_DEF`
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `_PYO3_DEF`
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | -------------------------------------- other definition for `_PYO3_DEF`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pyo3__generated____str__`
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pyo3__generated____str__`
+...
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | -------------------------------------- other definition for `__pyo3__generated____str__`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0369]: binary operation `==` cannot be applied to type `&EqOptRequiresEq`
   --> tests/ui/invalid_pyclass_args.rs:34:11
@@ -283,6 +426,42 @@ note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___str____` found
+    |
+note: candidate #1 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^ multiple `__pyo3__generated____str__` found
+    |
+note: candidate #1 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0609]: no field `aaaa` on type `&Point`
    --> tests/ui/invalid_pyclass_args.rs:101:17
     |
@@ -290,3 +469,55 @@ error[E0609]: no field `aaaa` on type `&Point`
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `x`, `y`, `z`
+
+error[E0609]: no field `zzz` on type `&Point2`
+   --> tests/ui/invalid_pyclass_args.rs:109:17
+    |
+109 | #[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `x`, `y`, `z`
+
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___str____` found
+    |
+note: candidate #1 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pyo3__generated____str__` found
+    |
+note: candidate #1 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:93:1
+    |
+93  | #[pyclass(str = "{")]
+    | ^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:1
+    |
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0609]: no field `162543` on type `&Coord`
+   --> tests/ui/invalid_pyclass_args.rs:117:17
+    |
+117 | #[pyclass(str = "{0}, {162543}, {2}")]
+    |                 ^^^^^^^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `0`, `1`, `2`

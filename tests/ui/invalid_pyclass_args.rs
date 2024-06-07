@@ -106,4 +106,16 @@ pub struct Point {
     z: i32,
 }
 
+#[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
+#[derive(PartialEq, Eq, Clone, PartialOrd)]
+pub struct Point2 {
+    x: i32,
+    y: i32,
+    z: i32,
+}
+
+#[pyclass(str = "{0}, {162543}, {2}")]
+#[derive(PartialEq)]
+struct Coord(u32, u32, u32);
+
 fn main() {}
