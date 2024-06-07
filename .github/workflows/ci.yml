@@ -149,13 +149,11 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
-      extra-features: ${{ matrix.platform.extra-features }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
-        extra-features: ["multiple-pymethods"]
         rust: [stable]
         python-version: ["3.12"]
         platform:
@@ -197,7 +195,6 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
-            extra-features: "nightly multiple-pymethods"
   build-full:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
@@ -209,13 +206,11 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
-      extra-features: ${{ matrix.platform.extra-features }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
-        extra-features: ["multiple-pymethods"]  # Because MSRV doesn't support this
         rust: [stable]
         python-version: [
           "3.7",
@@ -264,7 +259,6 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
-            extra-features: ""
 
           # Test the `nightly` feature
           - rust: nightly
@@ -275,7 +269,6 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
-            extra-features: "nightly multiple-pymethods"
 
           # Run rust beta to help catch toolchain regressions
           - rust: beta
@@ -286,7 +279,6 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
-            extra-features: "multiple-pymethods"
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
@@ -297,7 +289,6 @@ jobs:
                 python-architecture: "x86",
                 rust-target: "i686-pc-windows-msvc",
               }
-            extra-features: "multiple-pymethods"
 
           # test arm macos runner with the latest Python version
           # NB: if the full matrix switchess to arm, switch to x86_64 here
@@ -309,7 +300,6 @@ jobs:
                 python-architecture: "arm64",
                 rust-target: "aarch64-apple-darwin",
               }
-            extra-features: "multiple-pymethods"
 
   valgrind:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}

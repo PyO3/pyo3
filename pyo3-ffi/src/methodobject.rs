@@ -186,9 +186,8 @@ impl std::fmt::Pointer for PyMethodDefPointer {
     }
 }
 
-// TODO: This can be a const assert on Rust 1.57
 const _: () =
-    [()][mem::size_of::<PyMethodDefPointer>() - mem::size_of::<Option<extern "C" fn()>>()];
+    assert!(mem::size_of::<PyMethodDefPointer>() == mem::size_of::<Option<extern "C" fn()>>());
 
 #[cfg(not(Py_3_9))]
 extern "C" {
