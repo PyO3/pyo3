@@ -1,5 +1,6 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
+use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 #[cfg(feature = "gil-refs")]
@@ -42,7 +43,7 @@ pub unsafe trait PyNativeType: Sized {
         // Safety: &'py Self is expected to be a Python pointer,
         // so has the same layout as Borrowed<'py, 'py, T>
         Borrowed(
-            unsafe { NonNull::new_unchecked(self as *const Self as *mut _) },
+            unsafe { NonNull::new_unchecked(ptr_from_ref(self) as *mut _) },
             PhantomData,
             self.py(),
         )
@@ -193,7 +194,7 @@ impl<'py> Bound<'py, PyAny> {
         _py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> &'a Self {
-        &*(ptr as *const *mut ffi::PyObject).cast::<Bound<'py, PyAny>>()
+        &*ptr_from_ref(ptr).cast::<Bound<'py, PyAny>>()
     }
 
     /// Variant of the above which returns `None` for null pointers.
@@ -205,7 +206,7 @@ impl<'py> Bound<'py, PyAny> {
         _py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> &'a Option<Self> {
-        &*(ptr as *const *mut ffi::PyObject).cast::<Option<Bound<'py, PyAny>>>()
+        &*ptr_from_ref(ptr).cast::<Option<Bound<'py, PyAny>>>()
     }
 }
 
@@ -454,7 +455,7 @@ impl<'py, T> Bound<'py, T> {
     pub fn as_any(&self) -> &Bound<'py, PyAny> {
         // Safety: all Bound<T> have the same memory layout, and all Bound<T> are valid
         // Bound<PyAny>, so pointer casting is valid.
-        unsafe { &*(self as *const Self).cast::<Bound<'py, PyAny>>() }
+        unsafe { &*ptr_from_ref(self).cast::<Bound<'py, PyAny>>() }
     }
 
     /// Helper to cast to `Bound<'py, PyAny>`, transferring ownership.
@@ -694,7 +695,7 @@ impl<'py, T> Deref for Borrowed<'_, 'py, T> {
     #[inline]
     fn deref(&self) -> &Bound<'py, T> {
         // safety: Bound has the same layout as NonNull<ffi::PyObject>
-        unsafe { &*(&self.0 as *const _ as *const Bound<'py, T>) }
+        unsafe { &*ptr_from_ref(&self.0).cast() }
     }
 }
 
@@ -1097,7 +1098,7 @@ impl<T> Py<T> {
     pub fn as_any(&self) -> &Py<PyAny> {
         // Safety: all Py<T> have the same memory layout, and all Py<T> are valid
         // Py<PyAny>, so pointer casting is valid.
-        unsafe { &*(self as *const Self).cast::<Py<PyAny>>() }
+        unsafe { &*ptr_from_ref(self).cast::<Py<PyAny>>() }
     }
 
     /// Helper to cast to `Py<PyAny>`, transferring ownership.
@@ -1273,7 +1274,7 @@ impl<T> Py<T> {
     #[inline]
     pub fn bind<'py>(&self, _py: Python<'py>) -> &Bound<'py, T> {
         // Safety: `Bound` has the same layout as `Py`
-        unsafe { &*(self as *const Py<T>).cast() }
+        unsafe { &*ptr_from_ref(self).cast() }
     }
 
     /// Same as `bind` but takes ownership of `self`.

@@ -114,10 +114,7 @@ extern "C" {
 #[cfg(not(any(Py_3_8, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    crate::PyObject_HasAttrString(
-        crate::Py_TYPE(o).cast(),
-        "__next__\0".as_ptr() as *const c_char,
-    )
+    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), "__next__\0".as_ptr().cast())
 }
 
 extern "C" {

@@ -4,6 +4,7 @@ use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+use crate::internal_tricks::ptr_from_ref;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -912,7 +913,7 @@ impl PyAny {
     /// when they are finished with the pointer.
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
-        self as *const PyAny as *mut ffi::PyObject
+        ptr_from_ref(self) as *mut ffi::PyObject
     }
 
     /// Returns an owned raw FFI pointer represented by self.
@@ -2211,7 +2212,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        &*(self as *const Bound<'py, PyAny>).cast()
+        &*ptr_from_ref(self).cast()
     }
 
     #[inline]

@@ -6,7 +6,6 @@ use crate::types::any::PyAnyMethods;
 use crate::{ffi, PyAny, Python};
 #[cfg(feature = "gil-refs")]
 use crate::{AsPyPointer, PyNativeType};
-use std::os::raw::c_char;
 use std::slice;
 
 /// Represents a Python `bytearray`.
@@ -20,7 +19,7 @@ impl PyByteArray {
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
     pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
-        let ptr = src.as_ptr() as *const c_char;
+        let ptr = src.as_ptr().cast();
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {
             ffi::PyByteArray_FromStringAndSize(ptr, len)

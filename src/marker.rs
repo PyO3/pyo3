@@ -652,7 +652,7 @@ impl<'py> Python<'py> {
     ) -> PyResult<Bound<'py, PyAny>> {
         let code = CString::new(code)?;
         unsafe {
-            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
+            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr().cast());
             if mptr.is_null() {
                 return Err(PyErr::fetch(self));
             }

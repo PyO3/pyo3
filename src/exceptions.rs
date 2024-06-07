@@ -12,7 +12,6 @@
 use crate::{ffi, Bound, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
-use std::os::raw::c_char;
 
 /// The boilerplate to convert between a Rust type and a Python exception.
 #[doc(hidden)]
@@ -682,7 +681,7 @@ impl PyUnicodeDecodeError {
         unsafe {
             ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
-                input.as_ptr() as *const c_char,
+                input.as_ptr().cast(),
                 input.len() as ffi::Py_ssize_t,
                 range.start as ffi::Py_ssize_t,
                 range.end as ffi::Py_ssize_t,

@@ -356,7 +356,7 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn _get_attr(obj: *mut PyObject, field: &str) -> c_int {
-    let result = PyObject_GetAttrString(obj, field.as_ptr() as *const c_char);
+    let result = PyObject_GetAttrString(obj, field.as_ptr().cast());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {
         PyLong_AsLong(result) as c_int
@@ -416,7 +416,7 @@ pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr() as *const c_char);
+    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -454,7 +454,7 @@ pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr() as *const c_char);
+    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
