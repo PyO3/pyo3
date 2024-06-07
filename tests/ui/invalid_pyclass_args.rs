@@ -116,6 +116,6 @@ pub struct Point2 {
 
 #[pyclass(str = "{0}, {162543}, {2}")]
 #[derive(PartialEq)]
-struct Coord(u32, u32, u32);
+struct Coord3(u32, u32, u32);
 
 fn main() {}
