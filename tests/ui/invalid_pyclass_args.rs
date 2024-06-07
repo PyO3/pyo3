@@ -72,6 +72,11 @@ impl HashOptAndManualHash {
     }
 }
 
+#[pyclass(ord)]
+struct InvalidOrderedStruct {
+    inner: i32
+}
+
 #[pyclass(str)]
 struct StrOptAndManualStr {}
 

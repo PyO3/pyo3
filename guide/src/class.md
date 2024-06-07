@@ -1160,6 +1160,32 @@ Python::with_gil(|py| {
 })
 ```
 
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`.  
+*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass(eq, ord)]
+#[derive(PartialEq, PartialOrd)]
+enum MyEnum{
+    A,
+    B,
+    C,
+}
+
+Python::with_gil(|py| {
+    let cls = py.get_type_bound::<MyEnum>();
+    let a = Py::new(py, MyEnum::A).unwrap();
+    let b = Py::new(py, MyEnum::B).unwrap();
+    let c = Py::new(py, MyEnum::C).unwrap();
+    pyo3::py_run!(py, cls a b c, r#"
+        assert (a < b) == True
+        assert (c <= b) == False
+        assert (c > a) == True
+    "#)
+})
+```
+
 You may not use enums as a base class or let enums inherit from other classes.
 
 ```rust,compile_fail
