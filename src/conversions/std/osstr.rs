@@ -4,8 +4,6 @@ use crate::types::PyString;
 use crate::{ffi, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
-#[cfg(not(windows))]
-use std::os::raw::c_char;
 
 impl ToPyObject for OsStr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -23,7 +21,7 @@ impl ToPyObject for OsStr {
             #[cfg(not(target_os = "wasi"))]
             let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
 
-            let ptr = bytes.as_ptr() as *const c_char;
+            let ptr = bytes.as_ptr().cast();
             let len = bytes.len() as ffi::Py_ssize_t;
             unsafe {
                 // DecodeFSDefault automatically chooses an appropriate decoding mechanism to
