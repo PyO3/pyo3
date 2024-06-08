@@ -196,7 +196,7 @@
 use crate::conversion::AsPyPointer;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::internal_tricks::ptr_from_ref;
+use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::types::any::PyAnyMethods;
 #[cfg(feature = "gil-refs")]
@@ -959,7 +959,7 @@ where
     ///
     /// See [`PyRef::as_super`] for more.
     pub fn as_super(&mut self) -> &mut PyRefMut<'p, U> {
-        let ptr = (&mut self.inner as *mut Bound<'p, T>)
+        let ptr = ptr_from_mut::<Bound<'p, T>>(&mut self.inner)
             // `Bound<T>` has the same layout as `Bound<T::BaseType>`
             .cast::<Bound<'p, T::BaseType>>()
             // `Bound<T::BaseType>` has the same layout as `PyRefMut<T::BaseType>`,

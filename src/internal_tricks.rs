@@ -223,3 +223,9 @@ pub(crate) fn extract_c_string(
 pub(crate) const fn ptr_from_ref<T>(t: &T) -> *const T {
     t as *const T
 }
+
+// TODO: use ptr::from_mut on MSRV 1.76
+#[inline]
+pub(crate) fn ptr_from_mut<T>(t: &mut T) -> *mut T {
+    t as *mut T
+}
