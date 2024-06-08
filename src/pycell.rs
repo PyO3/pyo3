@@ -743,6 +743,7 @@ where
             },
         }
     }
+
     /// Borrows a shared reference to `PyRef<T::BaseType>`.
     ///
     /// With the help of this method, you can access attributes and call methods
@@ -787,12 +788,12 @@ where
     /// # });
     /// ```
     pub fn as_super(&self) -> &PyRef<'p, U> {
-        unsafe {
-            // trait bound guarantees compatibility
-            let inner: &Bound<'p, U> = self.inner.as_any().downcast_unchecked();
-            // `repr(transparent)` guarantees `Bound<U>` has the same layout as `PyRef<U>`
-            &*(inner as *const Bound<'p, U> as *const PyRef<'p, U>)
-        }
+        let ptr = (&self.inner as *const Bound<'p, T>)
+            // `Bound<T>` has the same layout as `Bound<T::BaseType>`
+            .cast::<Bound<'p, T::BaseType>>()
+            // `Bound<T::BaseType>` has the same layout as `PyRef<T::BaseType>`
+            .cast::<PyRef<'p, T::BaseType>>();
+        unsafe { &*ptr }
     }
 }
 
@@ -926,7 +927,7 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     pub(crate) fn downgrade(slf: &Self) -> &PyRef<'py, T> {
         // `PyRef<T>` and `PyRefMut<T>` have the same layout, and they are behind
         // a reference so the difference in `Drop` behavior is irrelevant.
-        unsafe { &*(slf as *const Self as *const PyRef<'py, T>) }
+        unsafe { &*(slf as *const Self).cast::<PyRef<'py, T>>() }
     }
 }
 
@@ -949,21 +950,22 @@ where
             },
         }
     }
+
     /// Borrows a mutable reference to `PyRefMut<T::BaseType>`.
     ///
     /// With the help of this method, you can mutate attributes and call mutating
-    /// methods on the superclass without consuming the `PyRefMet<T>`. This method
+    /// methods on the superclass without consuming the `PyRefMut<T>`. This method
     /// can also be chained to access the super-superclass (and so on).
     ///
     /// See [`PyRef::as_super`] for more.
     pub fn as_super(&mut self) -> &mut PyRefMut<'p, U> {
-        unsafe {
-            // trait bound guarantees compatibility
-            let inner = &mut self.inner as *mut Bound<'p, T> as *mut Bound<'p, U>;
-            // `repr(transparent)` guarantees `Bound<U>` has the same layout as
-            // `PyRefMut<U>`, and the mutable borrow on `self` prevents aliasing
-            &mut *(inner as *mut PyRefMut<'p, U>)
-        }
+        let ptr = (&mut self.inner as *mut Bound<'p, T>)
+            // `Bound<T>` has the same layout as `Bound<T::BaseType>`
+            .cast::<Bound<'p, T::BaseType>>()
+            // `Bound<T::BaseType>` has the same layout as `PyRefMut<T::BaseType>`,
+            // and the mutable borrow on `self` prevents aliasing
+            .cast::<PyRefMut<'p, T::BaseType>>();
+        unsafe { &mut *ptr }
     }
 }
 
