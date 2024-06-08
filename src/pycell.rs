@@ -1245,7 +1245,7 @@ mod tests {
                 .add_subclass(SubSubClass { val3: 20 });
             crate::Py::new(py, init).expect("allocation error")
         }
-        
+
         fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
             let val1 = self_.as_super().as_super().val1;
             let val2 = self_.as_super().val2;
