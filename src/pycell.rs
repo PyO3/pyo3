@@ -1219,64 +1219,85 @@ mod tests {
 
     #[crate::pyclass]
     #[pyo3(crate = "crate", subclass)]
-    struct Base {
-        base_name: &'static str,
+    struct BaseClass {
+        val1: usize,
     }
 
     #[crate::pyclass]
-    #[pyo3(crate = "crate", extends=Base, subclass)]
-    struct Sub {
-        sub_name: &'static str,
+    #[pyo3(crate = "crate", extends=BaseClass, subclass)]
+    struct SubClass {
+        val2: usize,
     }
 
     #[crate::pyclass]
-    #[pyo3(crate = "crate", extends=Sub)]
-    struct SubSub {
-        subsub_name: &'static str,
+    #[pyo3(crate = "crate", extends=SubClass)]
+    struct SubSubClass {
+        val3: usize,
     }
 
     #[crate::pymethods]
     #[pyo3(crate = "crate")]
-    impl SubSub {
+    impl SubSubClass {
         #[new]
-        #[rustfmt::skip]
-        fn new(py: Python<'_>) -> crate::PyResult<crate::Py<SubSub>> {
-            let base = Base { base_name: "base_name" };
-            let sub = Sub { sub_name: "sub_name" };
-            let subsub = SubSub { subsub_name: "subsub_name"};
-            let init = crate::PyClassInitializer::from(base)
-                .add_subclass(sub).add_subclass(subsub);
-            crate::Py::new(py, init)
+        fn new(py: Python<'_>) -> crate::Py<SubSubClass> {
+            let init = crate::PyClassInitializer::from(BaseClass { val1: 10 })
+                .add_subclass(SubClass { val2: 15 })
+                .add_subclass(SubSubClass { val3: 20 });
+            crate::Py::new(py, init).expect("allocation error")
+        }
+        
+        fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+            let val1 = self_.as_super().as_super().val1;
+            let val2 = self_.as_super().val2;
+            (val1, val2, self_.val3)
+        }
+
+        fn double_values(mut self_: PyRefMut<'_, Self>) {
+            self_.as_super().as_super().val1 *= 2;
+            self_.as_super().val2 *= 2;
+            self_.val3 *= 2;
         }
     }
 
     #[test]
     fn test_pyref_as_super() {
         Python::with_gil(|py| {
-            let subsub = SubSub::new(py).unwrap().into_bound(py);
-            let pyref = subsub.borrow();
-            assert_eq!(pyref.as_super().as_super().base_name, "base_name");
-            assert_eq!(pyref.as_super().sub_name, "sub_name");
-            assert_eq!(pyref.subsub_name, "subsub_name");
-            // `as_ref` still works the same
-            assert_eq!(pyref.as_ref().sub_name, "sub_name");
+            let obj = SubSubClass::new(py).into_bound(py);
+            let pyref = obj.borrow();
+            assert_eq!(pyref.as_super().as_super().val1, 10);
+            assert_eq!(pyref.as_super().val2, 15);
+            assert_eq!(pyref.as_ref().val2, 15); // `as_ref` also works
+            assert_eq!(pyref.val3, 20);
+            assert_eq!(SubSubClass::get_values(pyref), (10, 15, 20));
         });
     }
 
     #[test]
     fn test_pyrefmut_as_super() {
         Python::with_gil(|py| {
-            let subsub = SubSub::new(py).unwrap().into_bound(py);
-            let mut pyrefmut = subsub.borrow_mut();
-            pyrefmut.as_super().as_super().base_name = "base_name2";
-            pyrefmut.as_super().sub_name = "sub_name2";
-            pyrefmut.subsub_name = "subsub_name2";
-            assert_eq!(pyrefmut.as_super().as_super().base_name, "base_name2");
-            assert_eq!(pyrefmut.as_super().sub_name, "sub_name2");
-            assert_eq!(pyrefmut.subsub_name, "subsub_name2");
-            // `as_ref`/`as_mut` still work the same
-            pyrefmut.as_mut().sub_name = "sub_name3";
-            assert_eq!(pyrefmut.as_ref().sub_name, "sub_name3");
+            let obj = SubSubClass::new(py).into_bound(py);
+            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 15, 20));
+            {
+                let mut pyrefmut = obj.borrow_mut();
+                assert_eq!(pyrefmut.as_super().as_ref().val1, 10);
+                pyrefmut.as_super().as_super().val1 -= 5;
+                pyrefmut.as_super().val2 -= 3;
+                pyrefmut.as_mut().val2 -= 2; // `as_mut` also works
+                pyrefmut.val3 -= 5;
+            }
+            assert_eq!(SubSubClass::get_values(obj.borrow()), (5, 10, 15));
+            SubSubClass::double_values(obj.borrow_mut());
+            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 20, 30));
+        });
+    }
+
+    #[test]
+    fn test_pyrefs_in_python() {
+        Python::with_gil(|py| {
+            let obj = SubSubClass::new(py);
+            crate::py_run!(py, obj, "assert obj.get_values() == (10, 15, 20)");
+            crate::py_run!(py, obj, "assert obj.double_values() is None");
+            crate::py_run!(py, obj, "assert obj.get_values() == (20, 30, 40)");
         });
     }
 }
