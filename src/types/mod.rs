@@ -47,6 +47,7 @@ pub use self::string::{PyString, PyString as PyUnicode, PyStringMethods};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
+pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
 
 /// Iteration over Python collections.
 ///
@@ -365,3 +366,4 @@ pub(crate) mod string;
 pub(crate) mod traceback;
 pub(crate) mod tuple;
 pub(crate) mod typeobject;
+pub(crate) mod weakref;

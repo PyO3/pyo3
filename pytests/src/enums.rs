@@ -18,7 +18,8 @@ pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 pub enum SimpleEnum {
     Sunday,
     Monday,

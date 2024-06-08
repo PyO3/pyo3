@@ -318,9 +318,9 @@ impl FunctionDescription {
         let kwnames: Option<Borrowed<'_, '_, PyTuple>> =
             Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.downcast_unchecked());
         if let Some(kwnames) = kwnames {
-            // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
             let kwargs = ::std::slice::from_raw_parts(
-                (args as *const PyArg<'py>).offset(nargs),
+                // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
+                args.offset(nargs).cast::<PyArg<'py>>(),
                 kwnames.len(),
             );
 

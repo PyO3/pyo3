@@ -388,13 +388,10 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn as_slice(&self) -> &[Bound<'py, PyAny>] {
-        // This is safe because Bound<'py, PyAny> has the same memory layout as *mut ffi::PyObject,
-        // and because tuples are immutable.
-        unsafe {
-            let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
-            let slice = std::slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
-            &*(slice as *const [*mut ffi::PyObject] as *const [Bound<'py, PyAny>])
-        }
+        // SAFETY: self is known to be a tuple object, and tuples are immutable
+        let items = unsafe { &(*self.as_ptr().cast::<ffi::PyTupleObject>()).ob_item };
+        // SAFETY: Bound<'py, PyAny> has the same memory layout as *mut ffi::PyObject
+        unsafe { std::slice::from_raw_parts(items.as_ptr().cast(), self.len()) }
     }
 
     #[inline]

@@ -652,7 +652,7 @@ impl<'py> Python<'py> {
     ) -> PyResult<Bound<'py, PyAny>> {
         let code = CString::new(code)?;
         unsafe {
-            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
+            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr().cast());
             if mptr.is_null() {
                 return Err(PyErr::fetch(self));
             }
@@ -1279,6 +1279,11 @@ mod tests {
     fn test_acquire_gil() {
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;
+
+        // Before starting the interpreter the state of calling `PyGILState_Check`
+        // seems to be undefined, so let's ensure that Python is up.
+        #[cfg(not(any(PyPy, GraalPy)))]
+        crate::prepare_freethreaded_python();
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);

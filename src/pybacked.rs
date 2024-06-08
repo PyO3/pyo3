@@ -7,7 +7,7 @@ use crate::{
         any::PyAnyMethods, bytearray::PyByteArrayMethods, bytes::PyBytesMethods,
         string::PyStringMethods, PyByteArray, PyBytes, PyString,
     },
-    Bound, DowncastError, FromPyObject, Py, PyAny, PyErr, PyResult,
+    Bound, DowncastError, FromPyObject, IntoPy, Py, PyAny, PyErr, PyResult, Python, ToPyObject,
 };
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
@@ -82,6 +82,28 @@ impl FromPyObject<'_> for PyBackedStr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let py_string = obj.downcast::<PyString>()?.to_owned();
         Self::try_from(py_string)
+    }
+}
+
+impl ToPyObject for PyBackedStr {
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+        self.storage.clone_ref(py)
+    }
+    #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+        PyString::new_bound(py, self).into_any().unbind()
+    }
+}
+
+impl IntoPy<Py<PyAny>> for PyBackedStr {
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn into_py(self, _py: Python<'_>) -> Py<PyAny> {
+        self.storage
+    }
+    #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
+        PyString::new_bound(py, &self).into_any().unbind()
     }
 }
 
@@ -177,6 +199,24 @@ impl FromPyObject<'_> for PyBackedBytes {
             Ok(Self::from(bytearray.to_owned()))
         } else {
             Err(DowncastError::new(obj, "`bytes` or `bytearray`").into())
+        }
+    }
+}
+
+impl ToPyObject for PyBackedBytes {
+    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
+        match &self.storage {
+            PyBackedBytesStorage::Python(bytes) => bytes.to_object(py),
+            PyBackedBytesStorage::Rust(bytes) => PyBytes::new_bound(py, bytes).into_any().unbind(),
+        }
+    }
+}
+
+impl IntoPy<Py<PyAny>> for PyBackedBytes {
+    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
+        match self.storage {
+            PyBackedBytesStorage::Python(bytes) => bytes.into_any(),
+            PyBackedBytesStorage::Rust(bytes) => PyBytes::new_bound(py, &bytes).into_any().unbind(),
         }
     }
 }
@@ -289,6 +329,30 @@ mod test {
     }
 
     #[test]
+    fn py_backed_str_to_object() {
+        Python::with_gil(|py| {
+            let orig_str = PyString::new_bound(py, "hello");
+            let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
+            let new_str = py_backed_str.to_object(py);
+            assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
+            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+            assert!(new_str.is(&orig_str));
+        });
+    }
+
+    #[test]
+    fn py_backed_str_into_py() {
+        Python::with_gil(|py| {
+            let orig_str = PyString::new_bound(py, "hello");
+            let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
+            let new_str = py_backed_str.into_py(py);
+            assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
+            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+            assert!(new_str.is(&orig_str));
+        });
+    }
+
+    #[test]
     fn py_backed_bytes_empty() {
         Python::with_gil(|py| {
             let b = PyBytes::new_bound(py, b"");
@@ -321,6 +385,34 @@ mod test {
             let b = PyByteArray::new_bound(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(b);
             assert_eq!(&*py_backed_bytes, b"abcde");
+        });
+    }
+
+    #[test]
+    fn py_backed_bytes_into_py() {
+        Python::with_gil(|py| {
+            let orig_bytes = PyBytes::new_bound(py, b"abcde");
+            let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
+            assert!(py_backed_bytes.to_object(py).is(&orig_bytes));
+            assert!(py_backed_bytes.into_py(py).is(&orig_bytes));
+        });
+    }
+
+    #[test]
+    fn rust_backed_bytes_into_py() {
+        Python::with_gil(|py| {
+            let orig_bytes = PyByteArray::new_bound(py, b"abcde");
+            let rust_backed_bytes = PyBackedBytes::from(orig_bytes);
+            assert!(matches!(
+                rust_backed_bytes.storage,
+                PyBackedBytesStorage::Rust(_)
+            ));
+            let to_object = rust_backed_bytes.to_object(py).into_bound(py);
+            assert!(&to_object.is_exact_instance_of::<PyBytes>());
+            assert_eq!(&to_object.extract::<PyBackedBytes>().unwrap(), b"abcde");
+            let into_py = rust_backed_bytes.into_py(py).into_bound(py);
+            assert!(&into_py.is_exact_instance_of::<PyBytes>());
+            assert_eq!(&into_py.extract::<PyBackedBytes>().unwrap(), b"abcde");
         });
     }
 

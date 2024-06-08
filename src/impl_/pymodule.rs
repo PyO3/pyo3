@@ -70,8 +70,8 @@ impl ModuleDef {
         };
 
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
-            m_name: name.as_ptr() as *const _,
-            m_doc: doc.as_ptr() as *const _,
+            m_name: name.as_ptr().cast(),
+            m_doc: doc.as_ptr().cast(),
             ..INIT
         });
 
