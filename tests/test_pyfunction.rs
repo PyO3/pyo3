@@ -14,6 +14,18 @@ use pyo3::types::{self, PyCFunction};
 #[path = "../src/tests/common.rs"]
 mod common;
 
+#[pyfunction(name = "struct")]
+fn struct_function() {}
+
+#[test]
+fn test_rust_keyword_name() {
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction_bound!(struct_function)(py).unwrap();
+
+        py_assert!(py, f, "f.__name__ == 'struct'");
+    });
+}
+
 #[pyfunction(signature = (arg = true))]
 fn optional_bool(arg: Option<bool>) -> String {
     format!("{:?}", arg)
@@ -556,5 +568,32 @@ fn test_reference_to_bound_arguments() {
         let function = wrap_pyfunction_bound!(reference_args, py).unwrap();
         py_assert!(py, function, "function(1) == 1");
         py_assert!(py, function, "function(1, 2) == 3");
+    })
+}
+
+#[test]
+fn test_pyfunction_raw_ident() {
+    #[pyfunction]
+    fn r#struct() -> bool {
+        true
+    }
+
+    #[pyfunction]
+    #[pyo3(name = "r#enum")]
+    fn raw_ident() -> bool {
+        true
+    }
+
+    #[pymodule]
+    fn m(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add_function(wrap_pyfunction!(r#struct, m)?)?;
+        m.add_function(wrap_pyfunction!(raw_ident, m)?)?;
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(m)(py);
+        py_assert!(py, m, "m.struct()");
+        py_assert!(py, m, "m.enum()");
     })
 }

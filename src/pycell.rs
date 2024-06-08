@@ -202,6 +202,7 @@ use crate::types::any::PyAnyMethods;
 use crate::{
     conversion::ToPyObject,
     impl_::pyclass::PyClassImpl,
+    internal_tricks::ptr_from_ref,
     pyclass::boolean_struct::True,
     pyclass_init::PyClassInitializer,
     type_object::{PyLayout, PySizedLayout},
@@ -511,7 +512,7 @@ where
 #[allow(deprecated)]
 unsafe impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        (self as *const _) as *mut _
+        ptr_from_ref(self) as *mut _
     }
 }
 

@@ -1,4 +1,4 @@
-error: expected one of: `crate`, `dict`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
  --> tests/ui/invalid_pyclass_args.rs:3:11
   |
 3 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -46,7 +46,7 @@ error: expected string literal
 24 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `extends`, `freelist`, `frozen`, `get_all`, `mapping`, `module`, `name`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `subclass`, `unsendable`, `weakref`
   --> tests/ui/invalid_pyclass_args.rs:27:11
    |
 27 | #[pyclass(weakrev)]
@@ -57,3 +57,167 @@ error: a `#[pyclass]` cannot be both a `mapping` and a `sequence`
    |
 31 | struct CannotBeMappingAndSequence {}
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `eq_int` can only be used on simple enums.
+  --> tests/ui/invalid_pyclass_args.rs:52:11
+   |
+52 | #[pyclass(eq_int)]
+   |           ^^^^^^
+
+error: The `hash` option requires the `frozen` option.
+  --> tests/ui/invalid_pyclass_args.rs:59:11
+   |
+59 | #[pyclass(hash)]
+   |           ^^^^
+
+error: The `hash` option requires the `eq` option.
+  --> tests/ui/invalid_pyclass_args.rs:59:11
+   |
+59 | #[pyclass(hash)]
+   |           ^^^^
+
+error: The `ord` option requires the `eq` option.
+  --> tests/ui/invalid_pyclass_args.rs:74:11
+   |
+74 | #[pyclass(ord)]
+   |           ^^^
+
+error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
+  --> tests/ui/invalid_pyclass_args.rs:36:1
+   |
+36 | #[pyclass(eq)]
+   | ^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___richcmp____`
+...
+40 | #[pymethods]
+   | ------------ other definition for `__pymethod___richcmp____`
+   |
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod___hash____`
+  --> tests/ui/invalid_pyclass_args.rs:63:1
+   |
+63 | #[pyclass(frozen, eq, hash)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___hash____`
+...
+67 | #[pymethods]
+   | ------------ other definition for `__pymethod___hash____`
+   |
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0369]: binary operation `==` cannot be applied to type `&EqOptRequiresEq`
+  --> tests/ui/invalid_pyclass_args.rs:33:11
+   |
+33 | #[pyclass(eq)]
+   |           ^^
+   |
+note: an implementation of `PartialEq` might be missing for `EqOptRequiresEq`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct EqOptRequiresEq {}
+   | ^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `EqOptRequiresEq` with `#[derive(PartialEq)]`
+   |
+34 + #[derive(PartialEq)]
+35 | struct EqOptRequiresEq {}
+   |
+
+error[E0369]: binary operation `!=` cannot be applied to type `&EqOptRequiresEq`
+  --> tests/ui/invalid_pyclass_args.rs:33:11
+   |
+33 | #[pyclass(eq)]
+   |           ^^
+   |
+note: an implementation of `PartialEq` might be missing for `EqOptRequiresEq`
+  --> tests/ui/invalid_pyclass_args.rs:34:1
+   |
+34 | struct EqOptRequiresEq {}
+   | ^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `EqOptRequiresEq` with `#[derive(PartialEq)]`
+   |
+34 + #[derive(PartialEq)]
+35 | struct EqOptRequiresEq {}
+   |
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_args.rs:36:1
+   |
+36 | #[pyclass(eq)]
+   | ^^^^^^^^^^^^^^ multiple `__pymethod___richcmp____` found
+   |
+note: candidate #1 is defined in an impl for the type `EqOptAndManualRichCmp`
+  --> tests/ui/invalid_pyclass_args.rs:36:1
+   |
+36 | #[pyclass(eq)]
+   | ^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
+  --> tests/ui/invalid_pyclass_args.rs:40:1
+   |
+40 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_args.rs:40:1
+   |
+40 | #[pymethods]
+   | ^^^^^^^^^^^^ multiple `__pymethod___richcmp____` found
+   |
+note: candidate #1 is defined in an impl for the type `EqOptAndManualRichCmp`
+  --> tests/ui/invalid_pyclass_args.rs:36:1
+   |
+36 | #[pyclass(eq)]
+   | ^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
+  --> tests/ui/invalid_pyclass_args.rs:40:1
+   |
+40 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `HashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_args.rs:55:23
+   |
+55 | #[pyclass(frozen, eq, hash)]
+   |                       ^^^^ the trait `Hash` is not implemented for `HashOptRequiresHash`
+   |
+help: consider annotating `HashOptRequiresHash` with `#[derive(Hash)]`
+   |
+57 + #[derive(Hash)]
+58 | struct HashOptRequiresHash;
+   |
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_args.rs:63:1
+   |
+63 | #[pyclass(frozen, eq, hash)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___hash____` found
+   |
+note: candidate #1 is defined in an impl for the type `HashOptAndManualHash`
+  --> tests/ui/invalid_pyclass_args.rs:63:1
+   |
+63 | #[pyclass(frozen, eq, hash)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `HashOptAndManualHash`
+  --> tests/ui/invalid_pyclass_args.rs:67:1
+   |
+67 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_args.rs:67:1
+   |
+67 | #[pymethods]
+   | ^^^^^^^^^^^^ multiple `__pymethod___hash____` found
+   |
+note: candidate #1 is defined in an impl for the type `HashOptAndManualHash`
+  --> tests/ui/invalid_pyclass_args.rs:63:1
+   |
+63 | #[pyclass(frozen, eq, hash)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `HashOptAndManualHash`
+  --> tests/ui/invalid_pyclass_args.rs:67:1
+   |
+67 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)

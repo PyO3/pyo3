@@ -37,14 +37,16 @@ struct Number(i32);
 
 // PyO3 supports unit-only enums (which contain only unit variants)
 // These simple enums behave similarly to Python's enumerations (enum.Enum)
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum MyEnum {
     Variant,
     OtherVariant = 30, // PyO3 supports custom discriminants.
 }
 
 // PyO3 supports custom discriminants in unit-only enums
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum HttpResponse {
     Ok = 200,
     NotFound = 404,
@@ -1053,7 +1055,8 @@ PyO3 adds a class attribute for each variant, so you can access them in Python w
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum MyEnum {
     Variant,
     OtherVariant,
@@ -1075,7 +1078,8 @@ You can also convert your simple enums into `int`:
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum MyEnum {
     Variant,
     OtherVariant = 10,
@@ -1087,8 +1091,6 @@ Python::with_gil(|py| {
     pyo3::py_run!(py, cls x, r#"
         assert int(cls.Variant) == x
         assert int(cls.OtherVariant) == 10
-        assert cls.OtherVariant == 10  # You can also compare against int.
-        assert 10 == cls.OtherVariant
     "#)
 })
 ```
@@ -1097,7 +1099,8 @@ PyO3 also provides `__repr__` for enums:
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum MyEnum{
     Variant,
     OtherVariant,
@@ -1117,7 +1120,8 @@ All methods defined by PyO3 can be overridden. For example here's how you overri
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq)]
 enum MyEnum {
     Answer = 42,
 }
@@ -1139,7 +1143,8 @@ Enums and their variants can also be renamed using `#[pyo3(name)]`.
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass(name = "RenamedEnum")]
+#[pyclass(eq, eq_int, name = "RenamedEnum")]
+#[derive(PartialEq)]
 enum MyEnum {
     #[pyo3(name = "UPPERCASE")]
     Variant,
@@ -1151,6 +1156,32 @@ Python::with_gil(|py| {
     pyo3::py_run!(py, x cls, r#"
         assert repr(x) == 'RenamedEnum.UPPERCASE'
         assert x == cls.UPPERCASE
+    "#)
+})
+```
+
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`.  
+*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass(eq, ord)]
+#[derive(PartialEq, PartialOrd)]
+enum MyEnum{
+    A,
+    B,
+    C,
+}
+
+Python::with_gil(|py| {
+    let cls = py.get_type_bound::<MyEnum>();
+    let a = Py::new(py, MyEnum::A).unwrap();
+    let b = Py::new(py, MyEnum::B).unwrap();
+    let c = Py::new(py, MyEnum::C).unwrap();
+    pyo3::py_run!(py, cls a b c, r#"
+        assert (a < b) == True
+        assert (c <= b) == False
+        assert (c > a) == True
     "#)
 })
 ```

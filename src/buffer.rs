@@ -263,7 +263,7 @@ impl<T: Element> PyBuffer<T> {
                 },
                 #[cfg(Py_3_11)]
                 {
-                    indices.as_ptr() as *const ffi::Py_ssize_t
+                    indices.as_ptr().cast()
                 },
                 #[cfg(not(Py_3_11))]
                 {
@@ -317,7 +317,7 @@ impl<T: Element> PyBuffer<T> {
     /// However, dimensions of length 0 are possible and might need special attention.
     #[inline]
     pub fn shape(&self) -> &[usize] {
-        unsafe { slice::from_raw_parts(self.0.shape as *const usize, self.0.ndim as usize) }
+        unsafe { slice::from_raw_parts(self.0.shape.cast(), self.0.ndim as usize) }
     }
 
     /// Returns an array that holds, for each dimension, the number of bytes to skip to get to the next element in the dimension.
@@ -361,23 +361,13 @@ impl<T: Element> PyBuffer<T> {
     /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
-        unsafe {
-            ffi::PyBuffer_IsContiguous(
-                &*self.0 as *const ffi::Py_buffer,
-                b'C' as std::os::raw::c_char,
-            ) != 0
-        }
+        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'C' as std::os::raw::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
-        unsafe {
-            ffi::PyBuffer_IsContiguous(
-                &*self.0 as *const ffi::Py_buffer,
-                b'F' as std::os::raw::c_char,
-            ) != 0
-        }
+        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'F' as std::os::raw::c_char) != 0 }
     }
 
     /// Gets the buffer memory as a slice.
@@ -609,7 +599,7 @@ impl<T: Element> PyBuffer<T> {
                 },
                 #[cfg(Py_3_11)]
                 {
-                    source.as_ptr() as *const raw::c_void
+                    source.as_ptr().cast()
                 },
                 #[cfg(not(Py_3_11))]
                 {

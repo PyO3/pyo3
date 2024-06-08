@@ -5,7 +5,6 @@ use crate::types::any::PyAnyMethods;
 use crate::PyNativeType;
 use crate::{ffi, Py, PyAny, PyResult, Python};
 use std::ops::Index;
-use std::os::raw::c_char;
 use std::slice::SliceIndex;
 use std::str;
 
@@ -23,7 +22,7 @@ impl PyBytes {
     ///
     /// Panics if out of memory.
     pub fn new_bound<'p>(py: Python<'p>, s: &[u8]) -> Bound<'p, PyBytes> {
-        let ptr = s.as_ptr() as *const c_char;
+        let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
             ffi::PyBytes_FromStringAndSize(ptr, len)
@@ -85,7 +84,7 @@ impl PyBytes {
     /// `std::slice::from_raw_parts`, this is
     /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
     pub unsafe fn bound_from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
-        ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize)
+        ffi::PyBytes_FromStringAndSize(ptr.cast(), len as isize)
             .assume_owned(py)
             .downcast_into_unchecked()
     }

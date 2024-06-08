@@ -10,7 +10,6 @@ use crate::types::PyBytes;
 use crate::PyNativeType;
 use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
-use std::os::raw::c_char;
 use std::str;
 
 /// Represents raw data backing a Python `str`.
@@ -37,16 +36,10 @@ impl<'a> PyStringData<'a> {
         match self {
             Self::Ucs1(s) => s,
             Self::Ucs2(s) => unsafe {
-                std::slice::from_raw_parts(
-                    s.as_ptr() as *const u8,
-                    s.len() * self.value_width_bytes(),
-                )
+                std::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
             },
             Self::Ucs4(s) => unsafe {
-                std::slice::from_raw_parts(
-                    s.as_ptr() as *const u8,
-                    s.len() * self.value_width_bytes(),
-                )
+                std::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
             },
         }
     }
@@ -141,7 +134,7 @@ impl PyString {
     ///
     /// Panics if out of memory.
     pub fn new_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        let ptr = s.as_ptr() as *const c_char;
+        let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
             ffi::PyUnicode_FromStringAndSize(ptr, len)
@@ -159,7 +152,7 @@ impl PyString {
     ///
     /// Panics if out of memory.
     pub fn intern_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        let ptr = s.as_ptr() as *const c_char;
+        let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
             let mut ob = ffi::PyUnicode_FromStringAndSize(ptr, len);
@@ -181,8 +174,8 @@ impl PyString {
         unsafe {
             ffi::PyUnicode_FromEncodedObject(
                 src.as_ptr(),
-                encoding.as_ptr() as *const c_char,
-                errors.as_ptr() as *const c_char,
+                encoding.as_ptr().cast(),
+                errors.as_ptr().cast(),
             )
             .assume_owned_or_err(src.py())
             .downcast_into_unchecked()
@@ -607,7 +600,7 @@ mod tests {
             let ptr = unsafe {
                 crate::ffi::PyUnicode_FromKindAndData(
                     crate::ffi::PyUnicode_1BYTE_KIND as _,
-                    buffer.as_ptr() as *const _,
+                    buffer.as_ptr().cast(),
                     2,
                 )
             };
@@ -651,7 +644,7 @@ mod tests {
             let ptr = unsafe {
                 crate::ffi::PyUnicode_FromKindAndData(
                     crate::ffi::PyUnicode_2BYTE_KIND as _,
-                    buffer.as_ptr() as *const _,
+                    buffer.as_ptr().cast(),
                     2,
                 )
             };
@@ -692,7 +685,7 @@ mod tests {
             let ptr = unsafe {
                 crate::ffi::PyUnicode_FromKindAndData(
                     crate::ffi::PyUnicode_4BYTE_KIND as _,
-                    buffer.as_ptr() as *const _,
+                    buffer.as_ptr().cast(),
                     2,
                 )
             };

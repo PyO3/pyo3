@@ -196,3 +196,9 @@ fn test_wrap_pyfunction(py: Python<'_>, m: &Bound<'_, PyModule>) {
     let _ = wrap_pyfunction_bound!(double, py);
     let _ = wrap_pyfunction_bound!(double)(py);
 }
+
+#[pyclass]
+pub enum SimpleEnumWithoutEq {
+    VariamtA,
+    VariantB,
+}
