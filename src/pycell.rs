@@ -196,13 +196,13 @@
 use crate::conversion::AsPyPointer;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::internal_tricks::ptr_from_ref;
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::types::any::PyAnyMethods;
 #[cfg(feature = "gil-refs")]
 use crate::{
     conversion::ToPyObject,
     impl_::pyclass::PyClassImpl,
-    internal_tricks::ptr_from_ref,
     pyclass::boolean_struct::True,
     pyclass_init::PyClassInitializer,
     type_object::{PyLayout, PySizedLayout},
@@ -789,7 +789,7 @@ where
     /// # });
     /// ```
     pub fn as_super(&self) -> &PyRef<'p, U> {
-        let ptr = (&self.inner as *const Bound<'p, T>)
+        let ptr = ptr_from_ref::<Bound<'p, T>>(&self.inner)
             // `Bound<T>` has the same layout as `Bound<T::BaseType>`
             .cast::<Bound<'p, T::BaseType>>()
             // `Bound<T::BaseType>` has the same layout as `PyRef<T::BaseType>`
@@ -926,9 +926,8 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 
     pub(crate) fn downgrade(slf: &Self) -> &PyRef<'py, T> {
-        // `PyRef<T>` and `PyRefMut<T>` have the same layout, and they are behind
-        // a reference so the difference in `Drop` behavior is irrelevant.
-        unsafe { &*(slf as *const Self).cast::<PyRef<'py, T>>() }
+        // `PyRefMut<T>` and `PyRef<T>` have the same layout
+        unsafe { &*ptr_from_ref(slf).cast() }
     }
 }
 
