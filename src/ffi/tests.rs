@@ -2,10 +2,7 @@ use crate::ffi::*;
 use crate::types::any::PyAnyMethods;
 use crate::Python;
 
-#[cfg(all(PyPy, feature = "macros"))]
-use crate::types::PyString;
-
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(all(not(Py_LIMITED_API), any(not(PyPy), feature = "macros")))]
 use crate::types::PyString;
 
 #[cfg(not(Py_LIMITED_API))]
@@ -164,7 +161,6 @@ fn ascii_object_bitfield() {
 
 #[test]
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-#[cfg_attr(Py_3_10, allow(deprecated))]
 fn ascii() {
     Python::with_gil(|py| {
         // This test relies on implementation details of PyString.
@@ -206,7 +202,6 @@ fn ascii() {
 
 #[test]
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-#[cfg_attr(Py_3_10, allow(deprecated))]
 fn ucs4() {
     Python::with_gil(|py| {
         let s = "哈哈🐈";
