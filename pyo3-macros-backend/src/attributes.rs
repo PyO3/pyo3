@@ -64,6 +64,11 @@ fn take_int(read: &mut &str, tracker: &mut usize) -> String {
 
 fn take_ident(read: &mut &str, tracker: &mut usize) -> Ident {
     let mut ident = String::new();
+    if read.starts_with("r#") {
+        ident.push_str("r#");
+        *tracker += 2;
+        *read = &read[2..];
+    }
     for (i, ch) in read.char_indices() {
         match ch {
             'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {

@@ -157,3 +157,16 @@ fn test_mixed_and_repeated_str_formats() {
         );
     })
 }
+
+#[pyclass(str = "type: {r#type}")]
+struct Foo {
+    r#type: u32,
+}
+
+#[test]
+fn test_raw_identifier_struct_custom_str() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, Foo { r#type: 3 }).unwrap();
+        py_assert!(py, var1, "str(var1) == 'type: 3'");
+    })
+}
