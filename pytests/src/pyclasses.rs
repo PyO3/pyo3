@@ -80,5 +80,7 @@ impl ClassWithDict {
 #[pymodule]
 pub mod pyclasses {
     #[pymodule_export]
-    use super::{AssertingBaseClass, ClassWithoutConstructor, EmptyClass, PyClassIter, ClassWithDict};
+    use super::{
+        AssertingBaseClass, ClassWithDict, ClassWithoutConstructor, EmptyClass, PyClassIter,
+    };
 }

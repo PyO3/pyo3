@@ -86,74 +86,72 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
         .context("The built library is not valid or not supported by our binary parser")?
     {
         Object::Elf(elf) => find_introspection_chunks_in_elf(&elf, &library_content),
-        Object::Mach(Mach::Binary(matcho)) => {
-            find_introspection_chunks_in_matcho(&matcho, &library_content)
+        Object::Mach(Mach::Binary(macho)) => {
+            find_introspection_chunks_in_macho(&macho, &library_content)
         }
         Object::Mach(Mach::Fat(multi_arch)) => {
             for arch in &multi_arch {
                 match arch? {
-                    SingleArch::MachO(matcho) => {
-                        return find_introspection_chunks_in_matcho(&matcho, &library_content)
+                    SingleArch::MachO(macho) => {
+                        return find_introspection_chunks_in_macho(&macho, &library_content)
                     }
                     SingleArch::Archive(_) => (),
                 }
             }
-            bail!("No Match-o chunk found in the multi-arch Match-o container")
+            bail!("No Mach-o chunk found in the multi-arch Mach-o container")
         }
         Object::PE(pe) => find_introspection_chunks_in_pe(&pe, &library_content),
         _ => {
-            bail!("Only ELF, Match-o and PE containers can be introspected")
+            bail!("Only ELF, Mach-o and PE containers can be introspected")
         }
     }
 }
 
 fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Result<Vec<Chunk>> {
-    let pyo3_data_section_header = elf
-        .section_headers
-        .iter()
-        .find(|section| elf.shdr_strtab.get_at(section.sh_name).unwrap_or_default() == ".pyo3i0")
-        .context("No .pyo3i0 section found")?;
-    let sh_offset =
-        usize::try_from(pyo3_data_section_header.sh_offset).context("Section offset overflow")?;
-    let sh_size =
-        usize::try_from(pyo3_data_section_header.sh_size).context("Section len overflow")?;
-    if elf.is_64 {
-        read_section_with_ptr_and_len_64bits(
-            &library_content[sh_offset..sh_offset + sh_size],
-            0,
-            library_content,
-        )
-    } else {
-        read_section_with_ptr_and_len_32bits(
-            &library_content[sh_offset..sh_offset + sh_size],
-            0,
-            library_content,
-        )
+    let mut chunks = Vec::new();
+    for sym in &elf.syms {
+        if is_introspection_symbol(elf.strtab.get_at(sym.st_name).unwrap_or_default()) {
+            let section_header = &elf.section_headers[sym.st_shndx];
+            let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
+            chunks.push(read_symbol_value_with_ptr_and_len(
+                &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
+                0,
+                library_content,
+                elf.is_64,
+            )?);
+        }
     }
+    Ok(chunks)
 }
 
-fn find_introspection_chunks_in_matcho(
-    matcho: &MachO<'_>,
+fn find_introspection_chunks_in_macho(
+    macho: &MachO<'_>,
     library_content: &[u8],
 ) -> Result<Vec<Chunk>> {
-    if !matcho.little_endian {
-        bail!("Only little endian Match-o binaries are supported");
+    if !macho.little_endian {
+        bail!("Only little endian Mach-o binaries are supported");
     }
-    let text_segment = matcho
+
+    let sections = macho
         .segments
-        .iter()
-        .find(|s| s.segname == *b"__TEXT\0\0\0\0\0\0\0\0\0\0")
-        .context("No __TEXT segment found")?;
-    let (_, pyo3_data_section) = text_segment
-        .sections()?
-        .into_iter()
-        .find(|s| s.0.sectname == *b"__pyo3i0\0\0\0\0\0\0\0\0")
-        .context("No __pyo3i0 section found")?;
-    if matcho.is_64 {
-        read_section_with_ptr_and_len_64bits(pyo3_data_section, 0, library_content)
-    } else {
-        read_section_with_ptr_and_len_32bits(pyo3_data_section, 0, library_content)
+        .sections()
+        .flatten()
+        .map(|t| t.map(|s| s.0))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut chunks = Vec::new();
+    for (name, nlist) in macho.symbols().flatten() {
+        if is_introspection_symbol(name) {
+            let section = &sections[nlist.n_sect];
+            let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
+            chunks.push(read_symbol_value_with_ptr_and_len(
+                &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
+                0,
+                library_content,
+                macho.is_64,
+            )?);
+        }
     }
+    Ok(chunks)
 }
 
 fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Result<Vec<Chunk>> {
@@ -167,77 +165,63 @@ fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Resul
             .context(".rdata virtual_address overflow")?
         - usize::try_from(rdata_data_section.pointer_to_raw_data)
             .context(".rdata pointer_to_raw_data overflow")?;
-    let pyo3_data_section = pe
-        .sections
-        .iter()
-        .find(|section| section.name().unwrap_or_default() == ".pyo3i0")
-        .context("No .pyo3i0 section found")?;
-    let pyo3_data = pyo3_data_section
-        .data(library_content)?
-        .context("Not able to find the .pyo3i0 section content")?;
-    if pe.is_64 {
-        read_section_with_ptr_and_len_64bits(&pyo3_data, rdata_shift, library_content)
-    } else {
-        read_section_with_ptr_and_len_32bits(&pyo3_data, rdata_shift, library_content)
+
+    let mut chunks = Vec::new();
+    for export in &pe.exports {
+        if is_introspection_symbol(export.name.unwrap_or_default()) {
+            chunks.push(read_symbol_value_with_ptr_and_len(
+                &library_content[export.offset.context("No symbol offset")?..],
+                rdata_shift,
+                library_content,
+                pe.is_64,
+            )?);
+        }
     }
+    Ok(chunks)
 }
 
-fn read_section_with_ptr_and_len_32bits(
-    slice: &[u8],
+fn read_symbol_value_with_ptr_and_len(
+    value_slice: &[u8],
     shift: usize,
     full_library_content: &[u8],
-) -> Result<Vec<Chunk>> {
-    slice
-        .chunks_exact(8)
-        .filter_map(|element| {
-            let (ptr, len) = element.split_at(4);
-            let ptr = match usize::try_from(u32::from_le_bytes(ptr.try_into().unwrap())) {
-                Ok(ptr) => ptr,
-                Err(e) => return Some(Err(e).context("Pointer overflow")),
-            };
-            let len = match usize::try_from(u32::from_le_bytes(len.try_into().unwrap())) {
-                Ok(ptr) => ptr,
-                Err(e) => return Some(Err(e).context("Length overflow")),
-            };
-            if ptr == 0 || len == 0 {
-                // Workaround for PE
-                return None;
-            }
-            Some(
-                serde_json::from_slice(&full_library_content[ptr - shift..ptr - shift + len])
-                    .context("Failed to parse introspection chunk"),
-            )
-        })
-        .collect()
+    is_64: bool,
+) -> Result<Chunk> {
+    let (ptr, len) = if is_64 {
+        let (ptr, len) = value_slice[..16].split_at(8);
+        let ptr = usize::try_from(u64::from_le_bytes(
+            ptr.try_into().context("Too short symbol value")?,
+        ))
+        .context("Pointer overflow")?;
+        let len = usize::try_from(u64::from_le_bytes(
+            len.try_into().context("Too short symbol value")?,
+        ))
+        .context("Length overflow")?;
+        (ptr, len)
+    } else {
+        let (ptr, len) = value_slice[..8].split_at(4);
+        let ptr = usize::try_from(u32::from_le_bytes(
+            ptr.try_into().context("Too short symbol value")?,
+        ))
+        .context("Pointer overflow")?;
+        let len = usize::try_from(u32::from_le_bytes(
+            len.try_into().context("Too short symbol value")?,
+        ))
+        .context("Length overflow")?;
+        (ptr, len)
+    };
+    let chunk = &full_library_content[ptr - shift..ptr - shift + len];
+    serde_json::from_slice(chunk).with_context(|| {
+        format!(
+            "Failed to parse introspection chunk: '{}'",
+            String::from_utf8_lossy(chunk)
+        )
+    })
 }
 
-fn read_section_with_ptr_and_len_64bits(
-    slice: &[u8],
-    shift: usize,
-    full_library_content: &[u8],
-) -> Result<Vec<Chunk>> {
-    slice
-        .chunks_exact(16)
-        .filter_map(|element| {
-            let (ptr, len) = element.split_at(8);
-            let ptr = match usize::try_from(u64::from_le_bytes(ptr.try_into().unwrap())) {
-                Ok(ptr) => ptr,
-                Err(e) => return Some(Err(e).context("Pointer overflow")),
-            };
-            let len = match usize::try_from(u64::from_le_bytes(len.try_into().unwrap())) {
-                Ok(ptr) => ptr,
-                Err(e) => return Some(Err(e).context("Length overflow")),
-            };
-            if ptr == 0 || len == 0 {
-                // Workaround for PE
-                return None;
-            }
-            Some(
-                serde_json::from_slice(&full_library_content[ptr - shift..ptr - shift + len])
-                    .context("Failed to parse introspection chunk"),
-            )
-        })
-        .collect()
+fn is_introspection_symbol(name: &str) -> bool {
+    name.strip_prefix('_')
+        .unwrap_or(name)
+        .starts_with("PYO3_INTROSPECTION_0_")
 }
 
 #[derive(Deserialize)]
