@@ -2253,7 +2253,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     #[cfg(feature = "experimental-inspect")]
     fn impl_introspection(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let name = get_class_python_name(self.cls, self.attr).to_string();
         class_introspection_code(pyo3_path, self.cls, &name)
     }
