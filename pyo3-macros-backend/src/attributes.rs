@@ -233,13 +233,28 @@ pub fn take_attributes(
 
 pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
     let mut out = Vec::new();
-    take_attributes(attrs, |attr| {
-        if let Some(options) = get_pyo3_options(attr)? {
-            out.extend(options);
+    let mut allerr = Vec::new();
+    take_attributes(attrs, |attr| match get_pyo3_options(attr) {
+        Ok(result) => {
+            if let Some(options) = result {
+                out.extend(options);
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+        Err(err) => {
+            allerr.extend(err);
             Ok(true)
-        } else {
-            Ok(false)
         }
     })?;
-    Ok(out)
+    if !allerr.is_empty() {
+        let mut error = allerr[0].clone();
+        for err in &allerr[1..] {
+            error.combine(err.clone());
+        }
+        Err(error)
+    } else {
+        Ok(out)
+    }
 }
