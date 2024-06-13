@@ -113,7 +113,7 @@ impl FromPyObject<'_> for bool {
 
         if obj
             .get_type()
-            .name()
+            .fully_qualified_name()
             .map_or(false, |name| name == "numpy.bool_")
         {
             let missing_conversion = |obj: &Bound<'_, PyAny>| {
