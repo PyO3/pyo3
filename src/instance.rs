@@ -2010,9 +2010,7 @@ impl PyObject {
 #[cfg(test)]
 mod tests {
     use super::{Bound, Py, PyObject};
-    use crate::types::any::PyAnyMethods;
-    use crate::types::{dict::IntoPyDict, PyDict, PyString};
-    use crate::types::{PyCapsule, PyStringMethods};
+    use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python, ToPyObject};
 
     #[test]
@@ -2021,7 +2019,7 @@ mod tests {
             let obj = py.get_type_bound::<PyDict>().to_object(py);
 
             let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
-                assert_eq!(obj.repr().unwrap().to_cow().unwrap(), expected);
+                assert_eq!(obj.repr().unwrap(), expected);
             };
 
             assert_repr(obj.call0(py).unwrap().bind(py), "{}");
@@ -2221,7 +2219,7 @@ a = A()
             let obj_unbound: Py<PyString> = obj.unbind();
             let obj: Bound<'_, PyString> = obj_unbound.into_bound(py);
 
-            assert_eq!(obj.to_cow().unwrap(), "hello world");
+            assert_eq!(obj, "hello world");
         });
     }
 

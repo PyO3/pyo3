@@ -37,7 +37,7 @@ impl PyModule {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::new_bound(py, "my_module")?;
     ///
-    ///     assert_eq!(module.name()?.to_cow()?, "my_module");
+    ///     assert_eq!(module.name()?, "my_module");
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -729,10 +729,7 @@ mod tests {
     fn module_import_and_name() {
         Python::with_gil(|py| {
             let builtins = PyModule::import_bound(py, "builtins").unwrap();
-            assert_eq!(
-                builtins.name().unwrap().to_cow().unwrap().as_ref(),
-                "builtins"
-            );
+            assert_eq!(builtins.name().unwrap(), "builtins");
         })
     }
 

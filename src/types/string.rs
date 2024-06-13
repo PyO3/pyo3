@@ -490,6 +490,88 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
     }
 }
 
+impl PartialEq<str> for Bound<'_, PyString> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
+impl PartialEq<&'_ str> for Bound<'_, PyString> {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        self.as_borrowed() == **other
+    }
+}
+
+impl PartialEq<Bound<'_, PyString>> for str {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyString>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+impl PartialEq<&'_ Bound<'_, PyString>> for str {
+    #[inline]
+    fn eq(&self, other: &&Bound<'_, PyString>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+impl PartialEq<Bound<'_, PyString>> for &'_ str {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyString>) -> bool {
+        **self == other.as_borrowed()
+    }
+}
+
+impl PartialEq<str> for &'_ Bound<'_, PyString> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_borrowed() == other
+    }
+}
+
+impl PartialEq<str> for Borrowed<'_, '_, PyString> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        #[cfg(not(Py_3_13))]
+        {
+            self.to_cow().map_or(false, |s| s == other)
+        }
+
+        #[cfg(Py_3_13)]
+        {
+            ffi::PyUnicode_EqualToUTF8AndSize(
+                self.as_ptr(),
+                other.as_ptr().cast(),
+                other.len() as _,
+            ) == 1
+        }
+    }
+}
+
+impl PartialEq<&str> for Borrowed<'_, '_, PyString> {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        *self == **other
+    }
+}
+
+impl PartialEq<Borrowed<'_, '_, PyString>> for str {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyString>) -> bool {
+        other == self
+    }
+}
+
+impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyString>) -> bool {
+        other == self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -708,15 +790,15 @@ mod tests {
     fn test_intern_string() {
         Python::with_gil(|py| {
             let py_string1 = PyString::intern_bound(py, "foo");
-            assert_eq!(py_string1.to_cow().unwrap(), "foo");
+            assert_eq!(py_string1, "foo");
 
             let py_string2 = PyString::intern_bound(py, "foo");
-            assert_eq!(py_string2.to_cow().unwrap(), "foo");
+            assert_eq!(py_string2, "foo");
 
             assert_eq!(py_string1.as_ptr(), py_string2.as_ptr());
 
             let py_string3 = PyString::intern_bound(py, "bar");
-            assert_eq!(py_string3.to_cow().unwrap(), "bar");
+            assert_eq!(py_string3, "bar");
 
             assert_ne!(py_string1.as_ptr(), py_string3.as_ptr());
         });
@@ -760,6 +842,28 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(py_string.to_string_lossy(py), "🐈 Hello ���World");
+        })
+    }
+
+    #[test]
+    fn test_comparisons() {
+        Python::with_gil(|py| {
+            let s = "hello, world";
+            let py_string = PyString::new_bound(py, s);
+
+            assert_eq!(py_string, "hello, world");
+
+            assert_eq!(py_string, s);
+            assert_eq!(&py_string, s);
+            assert_eq!(s, py_string);
+            assert_eq!(s, &py_string);
+
+            let py_string = py_string.as_borrowed();
+
+            assert_eq!(py_string, s);
+            assert_eq!(&py_string, s);
+            assert_eq!(s, py_string);
+            assert_eq!(s, &py_string);
         })
     }
 }
