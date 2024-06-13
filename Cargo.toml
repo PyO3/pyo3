@@ -172,7 +172,7 @@ used_underscore_binding = "warn"
 [workspace.lints.rust]
 elided_lifetimes_in_paths = "warn"
 invalid_doc_attributes = "warn"
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_prelude_collisions = "warn"
 unused_lifetimes = "warn"
 

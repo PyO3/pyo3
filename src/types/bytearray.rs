@@ -149,11 +149,11 @@ impl PyByteArray {
     ///
     /// These mutations may occur in Python code as well as from Rust:
     /// - Calling methods like [`PyByteArray::as_bytes_mut`] and [`PyByteArray::resize`] will
-    /// invalidate the slice.
+    ///   invalidate the slice.
     /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
-    /// handlers, which may execute arbitrary Python code. This means that if Python code has a
-    /// reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
-    /// using the slice.
+    ///   handlers, which may execute arbitrary Python code. This means that if Python code has a
+    ///   reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
+    ///   using the slice.
     ///
     /// As a result, this slice should only be used for short-lived operations without executing any
     /// Python code, such as copying into a Vec.
@@ -311,11 +311,11 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     /// These mutations may occur in Python code as well as from Rust:
     /// - Calling methods like [`PyByteArrayMethods::as_bytes_mut`] and [`PyByteArrayMethods::resize`] will
-    /// invalidate the slice.
+    ///   invalidate the slice.
     /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
-    /// handlers, which may execute arbitrary Python code. This means that if Python code has a
-    /// reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
-    /// using the slice.
+    ///   handlers, which may execute arbitrary Python code. This means that if Python code has a
+    ///   reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
+    ///   using the slice.
     ///
     /// As a result, this slice should only be used for short-lived operations without executing any
     /// Python code, such as copying into a Vec.

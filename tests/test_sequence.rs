@@ -280,7 +280,7 @@ fn test_generic_list_set() {
             .items
             .iter()
             .zip(&[1u32, 2, 3])
-            .all(|(a, b)| a.bind(py).eq(&b.into_py(py)).unwrap()));
+            .all(|(a, b)| a.bind(py).eq(b.into_py(py)).unwrap()));
     });
 }
 

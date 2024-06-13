@@ -959,11 +959,11 @@ impl CrossCompileEnvVars {
 ///
 /// This function relies on PyO3 cross-compiling environment variables:
 ///
-///   * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
-///   * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
+/// * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
+/// * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
 ///   the target's libpython DSO and the associated `_sysconfigdata*.py` file for
 ///   Unix-like targets, or the Python DLL import libraries for the Windows target.
-///   * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
+/// * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
 ///   installation. This variable is only needed if PyO3 cannnot determine the version to target
 ///   from `abi3-py3*` features, or if there are multiple versions of Python present in
 ///   `PYO3_CROSS_LIB_DIR`.
@@ -1056,7 +1056,7 @@ impl BuildFlags {
                 .iter()
                 .filter(|flag| {
                     config_map
-                        .get_value(&flag.to_string())
+                        .get_value(flag.to_string())
                         .map_or(false, |value| value == "1")
                 })
                 .cloned()

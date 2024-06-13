@@ -26,13 +26,13 @@ use std::os::raw::c_int;
 /// with the other [native Python types](crate::types):
 ///
 /// - It can only be obtained and used while the GIL is held,
-/// therefore its API does not require a [`Python<'py>`](crate::Python) token.
+///   therefore its API does not require a [`Python<'py>`](crate::Python) token.
 /// - It can't be used in situations where the GIL is temporarily released,
-/// such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+///   such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
 /// - The underlying Python object, if mutable, can be mutated through any reference.
 /// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
-/// allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
-/// *does* require a [`Python<'py>`](crate::Python) token.
+///   allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
+///   *does* require a [`Python<'py>`](crate::Python) token.
 ///
 /// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
 /// and FromPyObject::extract. See their documentation for more information.
