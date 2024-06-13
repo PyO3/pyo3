@@ -8,14 +8,14 @@
 //! pattern. This requires that PyO3 enforces the borrowing rules and it has two mechanisms for
 //! doing so:
 //! - Statically it can enforce threadsafe access with the [`Python<'py>`](crate::Python) token.
-//! All Rust code holding that token, or anything derived from it, can assume that they have
-//! safe access to the Python interpreter's state. For this reason all the native Python objects
-//! can be mutated through shared references.
+//!   All Rust code holding that token, or anything derived from it, can assume that they have
+//!   safe access to the Python interpreter's state. For this reason all the native Python objects
+//!   can be mutated through shared references.
 //! - However, methods and functions in Rust usually *do* need `&mut` references. While PyO3 can
-//! use the [`Python<'py>`](crate::Python) token to guarantee thread-safe access to them, it cannot
-//! statically guarantee uniqueness of `&mut` references. As such those references have to be tracked
-//! dynamically at runtime, using `PyCell` and the other types defined in this module. This works
-//! similar to std's [`RefCell`](std::cell::RefCell) type.
+//!   use the [`Python<'py>`](crate::Python) token to guarantee thread-safe access to them, it cannot
+//!   statically guarantee uniqueness of `&mut` references. As such those references have to be tracked
+//!   dynamically at runtime, using `PyCell` and the other types defined in this module. This works
+//!   similar to std's [`RefCell`](std::cell::RefCell) type.
 //!
 //! # When *not* to use PyCell
 //!

@@ -730,10 +730,12 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 /// Instead, call one of its methods to access the inner object:
 ///  - [`Py::bind`] or [`Py::into_bound`], to borrow a GIL-bound reference to the contained object.
 ///  - [`Py::borrow`], [`Py::try_borrow`], [`Py::borrow_mut`], or [`Py::try_borrow_mut`],
+///
 /// to get a (mutable) reference to a contained pyclass, using a scheme similar to std's [`RefCell`].
 /// See the [guide entry](https://pyo3.rs/latest/class.html#bound-and-interior-mutability)
 /// for more information.
 ///  - You can call methods directly on `Py` with [`Py::call_bound`], [`Py::call_method_bound`] and friends.
+///
 /// These require passing in the [`Python<'py>`](crate::Python) token but are otherwise similar to the corresponding
 /// methods on [`PyAny`].
 ///

@@ -180,6 +180,7 @@ macro_rules! import_exception_bound {
 /// * `name` is the name of the new exception type.
 /// * `base` is the base class of `MyError`, usually [`PyException`].
 /// * `doc` (optional) is the docstring visible to users (with `.__doc__` and `help()`) and
+///
 /// accompanies your error type in your crate's documentation.
 ///
 /// # Examples

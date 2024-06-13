@@ -29,9 +29,11 @@ error[E0597]: `holder_0` does not live long enough
   | |           |
   | |           `holder_0` dropped here while still borrowed
   | binding `holder_0` declared here
-  | argument requires that `holder_0` is borrowed for `'static`
 5 | fn static_ref(list: &'static Bound<'_, PyList>) -> usize {
-  |               ^^^^^^^ borrowed value does not live long enough
+  |               ^^^^^^-
+  |               |     |
+  |               |     argument requires that `holder_0` is borrowed for `'static`
+  |               borrowed value does not live long enough
 
 error: lifetime may not live long enough
  --> tests/ui/static_ref.rs:9:1
