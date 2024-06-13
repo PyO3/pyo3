@@ -1,5 +1,7 @@
 use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
+#[cfg(not(Py_3_13))]
+use crate::pybacked::PyBackedStr;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 #[cfg(feature = "gil-refs")]
@@ -156,65 +158,57 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
     /// Gets the name of the `PyType`.
     fn name(&self) -> PyResult<String> {
-        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
+        #[cfg(not(Py_3_11))]
         let name = self.getattr(intern!(self.py(), "__name__"))?.extract();
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
-        let name = {
+        #[cfg(Py_3_11)]
+        let name = unsafe {
             use crate::ffi_ptr_ext::FfiPtrExt;
-            let obj =
-                unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? };
-
-            obj.extract()
-        };
+            ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())?
+        }
+        .extract();
 
         name
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
     fn qualname(&self) -> PyResult<String> {
-        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
+        #[cfg(not(Py_3_11))]
         let name = self.getattr(intern!(self.py(), "__qualname__"))?.extract();
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
-        let name = {
+        #[cfg(Py_3_11)]
+        let name = unsafe {
             use crate::ffi_ptr_ext::FfiPtrExt;
-            let obj = unsafe {
-                ffi::PyType_GetQualName(self.as_type_ptr()).assume_owned_or_err(self.py())?
-            };
-
-            obj.extract()
-        };
+            ffi::PyType_GetQualName(self.as_type_ptr()).assume_owned_or_err(self.py())?
+        }
+        .extract();
 
         name
     }
 
     /// Gets the name of the module defining the `PyType`.
     fn module(&self) -> PyResult<String> {
-        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_13)))]
+        #[cfg(not(Py_3_13))]
         let name = self.getattr(intern!(self.py(), "__module__"))?.extract();
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_13))))]
-        let name = {
+        #[cfg(Py_3_13)]
+        let name = unsafe {
             use crate::ffi_ptr_ext::FfiPtrExt;
-            let obj = unsafe {
-                ffi::PyType_GetModuleName(self.as_type_ptr()).assume_owned_or_err(self.py())?
-            };
-
-            obj.extract()
-        };
+            ffi::PyType_GetModuleName(self.as_type_ptr()).assume_owned_or_err(self.py())?
+        }
+        .extract();
 
         name
     }
 
     /// Gets the [fully qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
     fn fully_qualified_name(&self) -> PyResult<String> {
-        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_13)))]
+        #[cfg(not(Py_3_13))]
         let name = {
             let module = self.getattr(intern!(self.py(), "__module__"))?;
             let qualname = self.getattr(intern!(self.py(), "__qualname__"))?;
 
-            let module_str = module.extract::<&str>()?;
+            let module_str = module.extract::<PyBackedStr>()?;
             if module_str == "builtins" || module_str == "__main__" {
                 qualname.extract()
             } else {
@@ -222,16 +216,12 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
             }
         };
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_13))))]
-        let name = {
+        #[cfg(Py_3_13)]
+        let name = unsafe {
             use crate::ffi_ptr_ext::FfiPtrExt;
-            let obj = unsafe {
-                ffi::PyType_GetFullyQualifiedName(self.as_type_ptr())
-                    .assume_owned_or_err(self.py())?
-            };
-
-            obj.extract()
-        };
+            ffi::PyType_GetFullyQualifiedName(self.as_type_ptr()).assume_owned_or_err(self.py())?
+        }
+        .extract();
 
         name
     }
