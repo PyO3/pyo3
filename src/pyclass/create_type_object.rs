@@ -1,5 +1,3 @@
-use pyo3_ffi::PyType_IS_GC;
-
 use crate::{
     exceptions::PyTypeError,
     ffi,
@@ -68,7 +66,7 @@ where
             has_setitem: false,
             has_traverse: false,
             has_clear: false,
-            has_dict: false,
+            dictoffset: None,
             class_flags: 0,
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             buffer_procs: Default::default(),
@@ -121,7 +119,7 @@ struct PyTypeBuilder {
     has_setitem: bool,
     has_traverse: bool,
     has_clear: bool,
-    has_dict: bool,
+    dictoffset: Option<ffi::Py_ssize_t>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -218,16 +216,53 @@ impl PyTypeBuilder {
             })
             .collect::<PyResult<_>>()?;
 
-        // PyPy doesn't automatically add __dict__ getter / setter.
-        // PyObject_GenericGetDict not in the limited API until Python 3.10.
-        if self.has_dict {
-            #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+        // PyPy automatically adds __dict__ getter / setter.
+        #[cfg(not(PyPy))]
+        if let Some(dictoffset) = self.dictoffset {
+            let get_dict;
+            let closure;
+            // PyObject_GenericGetDict not in the limited API until Python 3.10.
+            #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+            {
+                let _ = dictoffset;
+                get_dict = ffi::PyObject_GenericGetDict;
+                closure = ptr::null_mut();
+            }
+
+            // ... so we write a basic implementation ourselves
+            #[cfg(not(any(not(Py_LIMITED_API), Py_3_10)))]
+            {
+                extern "C" fn get_dict_impl(
+                    object: *mut ffi::PyObject,
+                    closure: *mut c_void,
+                ) -> *mut ffi::PyObject {
+                    unsafe {
+                        trampoline(|_| {
+                            let dictoffset = closure as isize;
+                            // we don't support negative dictoffset here; PyO3 doesn't set it negative
+                            assert!(dictoffset > 0);
+                            let dict_ptr = object
+                                .cast::<u8>()
+                                .offset(dictoffset)
+                                .cast::<*mut ffi::PyObject>();
+                            if (*dict_ptr).is_null() {
+                                std::ptr::write(dict_ptr, ffi::PyDict_New());
+                            }
+                            Ok(ffi::_Py_XNewRef(*dict_ptr))
+                        })
+                    }
+                }
+
+                get_dict = get_dict_impl;
+                closure = dictoffset as _;
+            }
+
             property_defs.push(ffi::PyGetSetDef {
                 name: "__dict__\0".as_ptr().cast(),
-                get: Some(ffi::PyObject_GenericGetDict),
+                get: Some(get_dict),
                 set: Some(ffi::PyObject_GenericSetDict),
                 doc: ptr::null(),
-                closure: ptr::null_mut(),
+                closure,
             });
         }
 
@@ -315,20 +350,17 @@ impl PyTypeBuilder {
         dict_offset: Option<ffi::Py_ssize_t>,
         #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
     ) -> Self {
-        self.has_dict = dict_offset.is_some();
+        self.dictoffset = dict_offset;
 
         #[cfg(Py_3_9)]
         {
             #[inline(always)]
-            fn offset_def(
-                name: &'static str,
-                offset: ffi::Py_ssize_t,
-            ) -> ffi::structmember::PyMemberDef {
-                ffi::structmember::PyMemberDef {
-                    name: name.as_ptr() as _,
-                    type_code: ffi::structmember::T_PYSSIZET,
+            fn offset_def(name: &'static str, offset: ffi::Py_ssize_t) -> ffi::PyMemberDef {
+                ffi::PyMemberDef {
+                    name: name.as_ptr().cast(),
+                    type_code: ffi::Py_T_PYSSIZET,
                     offset,
-                    flags: ffi::structmember::READONLY,
+                    flags: ffi::Py_READONLY,
                     doc: std::ptr::null_mut(),
                 }
             }
@@ -391,7 +423,7 @@ impl PyTypeBuilder {
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
         }
 
-        let tp_dealloc = if self.has_traverse || unsafe { PyType_IS_GC(self.tp_base) == 1 } {
+        let tp_dealloc = if self.has_traverse || unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 } {
             self.tp_dealloc_with_gc
         } else {
             self.tp_dealloc
