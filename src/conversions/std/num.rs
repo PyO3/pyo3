@@ -1,3 +1,4 @@
+use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
@@ -63,14 +64,8 @@ macro_rules! extract_int {
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as(long.as_ptr()) })
         } else {
             unsafe {
-                let num = ffi::PyNumber_Index($obj.as_ptr());
-                if num.is_null() {
-                    Err(PyErr::fetch($obj.py()))
-                } else {
-                    let result = err_if_invalid_value($obj.py(), $error_val, $pylong_as(num));
-                    ffi::Py_DECREF(num);
-                    result
-                }
+                let num = ffi::PyNumber_Index($obj.as_ptr()).assume_owned_or_err($obj.py())?;
+                err_if_invalid_value($obj.py(), $error_val, $pylong_as(num.as_ptr()))
             }
         }
     };
@@ -181,7 +176,7 @@ mod fast_128bit_int_conversion {
 
     // for 128bit Integers
     macro_rules! int_convert_128 {
-        ($rust_type: ty, $is_signed: expr) => {
+        ($rust_type: ty, $is_signed: literal) => {
             impl ToPyObject for $rust_type {
                 #[inline]
                 fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -190,18 +185,44 @@ mod fast_128bit_int_conversion {
             }
             impl IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python<'_>) -> PyObject {
-                    // Always use little endian
-                    let bytes = self.to_le_bytes();
-                    unsafe {
-                        PyObject::from_owned_ptr(
-                            py,
+                    #[cfg(not(Py_3_13))]
+                    {
+                        let bytes = self.to_le_bytes();
+                        unsafe {
                             ffi::_PyLong_FromByteArray(
-                                bytes.as_ptr() as *const std::os::raw::c_uchar,
+                                bytes.as_ptr().cast(),
                                 bytes.len(),
                                 1,
-                                $is_signed,
-                            ),
-                        )
+                                $is_signed.into(),
+                            )
+                            .assume_owned(py)
+                            .unbind()
+                        }
+                    }
+                    #[cfg(Py_3_13)]
+                    {
+                        let bytes = self.to_ne_bytes();
+
+                        if $is_signed {
+                            unsafe {
+                                ffi::PyLong_FromNativeBytes(
+                                    bytes.as_ptr().cast(),
+                                    bytes.len(),
+                                    ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
+                                )
+                                .assume_owned(py)
+                            }
+                        } else {
+                            unsafe {
+                                ffi::PyLong_FromUnsignedNativeBytes(
+                                    bytes.as_ptr().cast(),
+                                    bytes.len(),
+                                    ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN,
+                                )
+                                .assume_owned(py)
+                            }
+                        }
+                        .unbind()
                     }
                 }
 
@@ -213,20 +234,46 @@ mod fast_128bit_int_conversion {
 
             impl FromPyObject<'_> for $rust_type {
                 fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<$rust_type> {
-                    let num = unsafe {
-                        PyObject::from_owned_ptr_or_err(ob.py(), ffi::PyNumber_Index(ob.as_ptr()))?
-                    };
-                    let mut buffer = [0; std::mem::size_of::<$rust_type>()];
+                    let num =
+                        unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(ob.py())? };
+                    let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
+                    #[cfg(not(Py_3_13))]
                     crate::err::error_on_minusone(ob.py(), unsafe {
                         ffi::_PyLong_AsByteArray(
                             num.as_ptr() as *mut ffi::PyLongObject,
                             buffer.as_mut_ptr(),
                             buffer.len(),
                             1,
-                            $is_signed,
+                            $is_signed.into(),
                         )
                     })?;
-                    Ok(<$rust_type>::from_le_bytes(buffer))
+                    #[cfg(Py_3_13)]
+                    {
+                        let mut flags = ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN;
+                        if !$is_signed {
+                            flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER
+                                | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
+                        }
+                        let actual_size: usize = unsafe {
+                            ffi::PyLong_AsNativeBytes(
+                                num.as_ptr(),
+                                buffer.as_mut_ptr().cast(),
+                                buffer
+                                    .len()
+                                    .try_into()
+                                    .expect("length of buffer fits in Py_ssize_t"),
+                                flags,
+                            )
+                        }
+                        .try_into()
+                        .map_err(|_| PyErr::fetch(ob.py()))?;
+                        if actual_size as usize > buffer.len() {
+                            return Err(crate::exceptions::PyOverflowError::new_err(
+                                "Python int larger than 128 bits",
+                            ));
+                        }
+                    }
+                    Ok(<$rust_type>::from_ne_bytes(buffer))
                 }
 
                 #[cfg(feature = "experimental-inspect")]
@@ -237,8 +284,8 @@ mod fast_128bit_int_conversion {
         };
     }
 
-    int_convert_128!(i128, 1);
-    int_convert_128!(u128, 0);
+    int_convert_128!(i128, true);
+    int_convert_128!(u128, false);
 }
 
 // For ABI3 we implement the conversion manually.

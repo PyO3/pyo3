@@ -3,17 +3,17 @@ use pyo3_ffi::PyType_IS_GC;
 use crate::{
     exceptions::PyTypeError,
     ffi,
-    impl_::pycell::PyClassObject,
-    impl_::pyclass::{
-        assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-        tp_dealloc_with_gc, PyClassItemsIter,
-    },
     impl_::{
+        pycell::PyClassObject,
+        pyclass::{
+            assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
+            tp_dealloc_with_gc, PyClassItemsIter,
+        },
         pymethods::{get_doc, get_name, Getter, Setter},
         trampoline::trampoline,
     },
-    types::typeobject::PyTypeMethods,
-    types::PyType,
+    internal_tricks::ptr_from_ref,
+    types::{typeobject::PyTypeMethods, PyType},
     Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
@@ -608,7 +608,7 @@ impl GetSetDefType {
                         slf: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
-                        let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
+                        let getset: &GetterAndSetter = &*closure.cast();
                         trampoline(|py| (getset.getter)(py, slf))
                     }
 
@@ -617,13 +617,13 @@ impl GetSetDefType {
                         value: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> c_int {
-                        let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
+                        let getset: &GetterAndSetter = &*closure.cast();
                         trampoline(|py| (getset.setter)(py, slf, value))
                     }
                     (
                         Some(getset_getter),
                         Some(getset_setter),
-                        closure.as_ref() as *const GetterAndSetter as _,
+                        ptr_from_ref::<GetterAndSetter>(closure) as *mut _,
                     )
                 }
             };

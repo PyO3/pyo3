@@ -4,7 +4,7 @@ use pyo3_build_config::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_interpreter_config,
         InterpreterConfig, PythonVersion,
     },
-    PythonImplementation,
+    warn, PythonImplementation,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -17,7 +17,7 @@ const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
     min: PythonVersion { major: 3, minor: 7 },
     max: PythonVersion {
         major: 3,
-        minor: 12,
+        minor: 13,
     },
 };
 
@@ -101,6 +101,19 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 versions.max,
                 std::env::var("CARGO_PKG_VERSION").unwrap()
             );
+        }
+    }
+
+    if interpreter_config.abi3 {
+        match interpreter_config.implementation {
+            PythonImplementation::CPython => {}
+            PythonImplementation::PyPy => warn!(
+                "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
+                See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
+            ),
+            PythonImplementation::GraalPy => warn!(
+                "GraalPy does not support abi3 so the build artifacts will be version-specific."
+            ),
         }
     }
 

@@ -152,8 +152,39 @@ mod my_extension {
 # }
 ```
 
+The `#[pymodule]` macro automatically sets the `module` attribute of the `#[pyclass]` macros declared inside of it with its name.
+For nested modules, the name of the parent module is automatically added.
+In the following example, the `Unit` class will have for `module` `my_extension.submodule` because it is properly nested
+but the `Ext` class will have for `module` the default `builtins` because it not nested.
+```rust
+# #[cfg(feature = "experimental-declarative-modules")]
+# mod declarative_module_module_attr_test {
+use pyo3::prelude::*;
+
+#[pyclass]
+struct Ext;
+
+#[pymodule]
+mod my_extension {
+    use super::*;
+
+    #[pymodule_export]
+    use super::Ext;
+
+    #[pymodule]
+    mod submodule {
+        use super::*;
+        // This is a submodule
+
+        #[pyclass] // This will be part of the module
+        struct Unit;
+    }
+}
+# }
+```
+It is possible to customize the `module` value for a `#[pymodule]` with the `#[pyo3(module = "MY_MODULE")]` option.
+
 Some changes are planned to this feature before stabilization, like automatically
-filling submodules into `sys.modules` to allow easier imports (see [issue #759](https://github.com/PyO3/pyo3/issues/759))
-and filling the `module` argument of inlined `#[pyclass]` automatically with the proper module name.
+filling submodules into `sys.modules` to allow easier imports (see [issue #759](https://github.com/PyO3/pyo3/issues/759)).
 Macro names might also change.
 See [issue #3900](https://github.com/PyO3/pyo3/issues/3900) to track this feature progress.

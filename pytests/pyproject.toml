@@ -20,7 +20,6 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "gevent>=22.10.2; implementation_name == 'cpython'",
     "hypothesis>=3.55",
     "pytest-asyncio>=0.21",
     "pytest-benchmark>=3.4",

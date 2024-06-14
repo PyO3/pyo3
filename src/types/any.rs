@@ -4,6 +4,7 @@ use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+use crate::internal_tricks::ptr_from_ref;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -912,7 +913,7 @@ impl PyAny {
     /// when they are finished with the pointer.
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
-        self as *const PyAny as *mut ffi::PyObject
+        ptr_from_ref(self) as *mut ffi::PyObject
     }
 
     /// Returns an owned raw FFI pointer represented by self.
@@ -1126,6 +1127,21 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<Bound<'py, PyAny>>
     where
         O: ToPyObject;
+
+    /// Computes the negative of self.
+    ///
+    /// Equivalent to the Python expression `-self`.
+    fn neg(&self) -> PyResult<Bound<'py, PyAny>>;
+
+    /// Computes the positive of self.
+    ///
+    /// Equivalent to the Python expression `+self`.
+    fn pos(&self) -> PyResult<Bound<'py, PyAny>>;
+
+    /// Computes the absolute of self.
+    ///
+    /// Equivalent to the Python expression `abs(self)`.
+    fn abs(&self) -> PyResult<Bound<'py, PyAny>>;
 
     /// Tests whether this object is less than another.
     ///
@@ -1862,6 +1878,26 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         inner(self, other.to_object(py).into_bound(py), compare_op)
     }
 
+    fn neg(&self) -> PyResult<Bound<'py, PyAny>> {
+        unsafe { ffi::PyNumber_Negative(self.as_ptr()).assume_owned_or_err(self.py()) }
+    }
+
+    fn pos(&self) -> PyResult<Bound<'py, PyAny>> {
+        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+            unsafe { ffi::PyNumber_Positive(any.as_ptr()).assume_owned_or_err(any.py()) }
+        }
+
+        inner(self)
+    }
+
+    fn abs(&self) -> PyResult<Bound<'py, PyAny>> {
+        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+            unsafe { ffi::PyNumber_Absolute(any.as_ptr()).assume_owned_or_err(any.py()) }
+        }
+
+        inner(self)
+    }
+
     fn lt<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
@@ -2176,7 +2212,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        &*(self as *const Bound<'py, PyAny>).cast()
+        &*ptr_from_ref(self).cast()
     }
 
     #[inline]

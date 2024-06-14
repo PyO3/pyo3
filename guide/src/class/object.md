@@ -121,6 +121,19 @@ impl Number {
     }
 }
 ```
+To implement `__hash__` using the Rust [`Hash`] trait implementation, the `hash` option can be used.
+This option is only available for `frozen` classes to prevent accidental hash changes from mutating the object. If you need
+an `__hash__` implementation for a mutable class, use the manual method from above. This option also requires `eq`: According to the
+[Python docs](https://docs.python.org/3/reference/datamodel.html#object.__hash__) "If a class does not define an `__eq__()`
+method it should not define a `__hash__()` operation either"
+```rust
+# use pyo3::prelude::*;
+#
+#[pyclass(frozen, eq, hash)]
+#[derive(PartialEq, Hash)]
+struct Number(i32);
+```
+
 
 > **Note**: When implementing `__hash__` and comparisons, it is important that the following property holds:
 >
@@ -226,6 +239,26 @@ impl Number {
 # }
 ```
 
+To implement `__eq__` using the Rust [`PartialEq`] trait implementation, the `eq` option can be used.
+
+```rust
+# use pyo3::prelude::*;
+#
+#[pyclass(eq)]
+#[derive(PartialEq)]
+struct Number(i32);
+```
+
+To implement `__lt__`, `__le__`, `__gt__`, & `__ge__` using the Rust `PartialOrd` trait implementation, the `ord` option can be used. *Note: Requires `eq`.*
+
+```rust
+# use pyo3::prelude::*;
+#
+#[pyclass(eq, ord)]
+#[derive(PartialEq, PartialOrd)]
+struct Number(i32);
+```
+
 ### Truthyness
 
 We'll consider `Number` to be `True` if it is nonzero:
@@ -305,3 +338,4 @@ fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 [`Hasher`]: https://doc.rust-lang.org/std/hash/trait.Hasher.html
 [`DefaultHasher`]: https://doc.rust-lang.org/std/collections/hash_map/struct.DefaultHasher.html
 [SipHash]: https://en.wikipedia.org/wiki/SipHash
+[`PartialEq`]: https://doc.rust-lang.org/stable/std/cmp/trait.PartialEq.html

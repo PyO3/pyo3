@@ -296,6 +296,8 @@ pub struct _specialization_cache {
     pub getitem: *mut PyObject,
     #[cfg(Py_3_12)]
     pub getitem_version: u32,
+    #[cfg(Py_3_13)]
+    pub init: *mut PyObject,
 }
 
 #[repr(C)]

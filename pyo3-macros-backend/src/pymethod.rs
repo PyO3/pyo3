@@ -936,7 +936,7 @@ impl PropertyType<'_> {
 
 const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
-const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
+pub const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     .ret_ty(Ty::PyHashT)
     .return_conversion(TokenGenerator(
         |Ctx { pyo3_path }: &Ctx| quote! { #pyo3_path::callback::HashCallbackOutput },

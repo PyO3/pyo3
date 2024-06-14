@@ -2,7 +2,7 @@
 
 PyO3 offers two main sets of types to interact with Python objects. This section of the guide expands into detail about these types and how to choose which to use.
 
-The first set of types is are the [smart pointers][smart-pointers] which all Python objects are wrapped in. These are `Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`. The [first section below](#pyo3s-smart-pointers) expands on each of these in detail and why there are three of them.
+The first set of types are the [smart pointers][smart-pointers] which all Python objects are wrapped in. These are `Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`. The [first section below](#pyo3s-smart-pointers) expands on each of these in detail and why there are three of them.
 
 The second set of types are types which fill in the generic parameter `T` of the smart pointers. The most common is `PyAny`, which represents any Python object (similar to Python's `typing.Any`). There are also concrete types for many Python built-in types, such as `PyList`, `PyDict`, and `PyTuple`. User defined `#[pyclass]` types also fit this category. The [second section below](#concrete-python-types) expands on how to use these types.
 

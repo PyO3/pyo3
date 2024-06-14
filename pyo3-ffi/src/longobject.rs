@@ -1,8 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::size_t;
-#[cfg(not(Py_LIMITED_API))]
-use std::os::raw::c_uchar;
 use std::os::raw::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 use std::ptr::addr_of_mut;
 
@@ -90,34 +88,12 @@ extern "C" {
         arg3: c_int,
     ) -> *mut PyObject;
 }
-// skipped non-limited PyLong_FromUnicodeObject
-// skipped non-limited _PyLong_FromBytes
 
 #[cfg(not(Py_LIMITED_API))]
 extern "C" {
-    // skipped non-limited _PyLong_Sign
-
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
+    #[cfg(not(Py_3_13))]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
-
-    // skipped _PyLong_DivmodNear
-
-    #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
-    pub fn _PyLong_FromByteArray(
-        bytes: *const c_uchar,
-        n: size_t,
-        little_endian: c_int,
-        is_signed: c_int,
-    ) -> *mut PyObject;
-
-    #[cfg_attr(PyPy, link_name = "_PyPyLong_AsByteArrayO")]
-    pub fn _PyLong_AsByteArray(
-        v: *mut PyLongObject,
-        bytes: *mut c_uchar,
-        n: size_t,
-        little_endian: c_int,
-        is_signed: c_int,
-    ) -> c_int;
 }
 
 // skipped non-limited _PyLong_Format
@@ -130,6 +106,5 @@ extern "C" {
     pub fn PyOS_strtol(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_long;
 }
 
-// skipped non-limited _PyLong_GCD
 // skipped non-limited _PyLong_Rshift
 // skipped non-limited _PyLong_Lshift

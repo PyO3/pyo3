@@ -13,6 +13,7 @@ use crate::{
     method::{FnArg, RegularArg},
 };
 
+#[derive(Clone)]
 pub struct Signature {
     paren_token: syn::token::Paren,
     pub items: Punctuated<SignatureItem, Token![,]>,
@@ -36,35 +37,35 @@ impl ToTokens for Signature {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemArgument {
     pub ident: syn::Ident,
     pub eq_and_default: Option<(Token![=], syn::Expr)>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemPosargsSep {
     pub slash: Token![/],
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemVarargsSep {
     pub asterisk: Token![*],
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemVarargs {
     pub sep: SignatureItemVarargsSep,
     pub ident: syn::Ident,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureItemKwargs {
     pub asterisks: (Token![*], Token![*]),
     pub ident: syn::Ident,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SignatureItem {
     Argument(Box<SignatureItemArgument>),
     PosargsSep(SignatureItemPosargsSep),

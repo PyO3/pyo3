@@ -208,7 +208,10 @@ pub fn impl_wrap_pyfunction(
     let ctx = &Ctx::new(&krate);
     let Ctx { pyo3_path } = &ctx;
 
-    let python_name = name.map_or_else(|| func.sig.ident.unraw(), |name| name.value.0);
+    let python_name = name
+        .as_ref()
+        .map_or_else(|| &func.sig.ident, |name| &name.value.0)
+        .unraw();
 
     let tp = if pass_module.is_some() {
         let span = match func.sig.inputs.first() {
