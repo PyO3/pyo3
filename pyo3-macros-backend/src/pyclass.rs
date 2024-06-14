@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
+    self, kw, take_pyo3_options, CrateAttribute, ErrorCombiner, ExtendsAttribute,
+    FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -262,26 +262,20 @@ pub fn build_py_class(
 
     // handle error here
 
-    let mut allerr = Vec::new();
+    let mut all_error = ErrorCombiner(None);
 
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = field_options_res
         .drain(..)
         .filter_map(|result| match result {
             Err(err) => {
-                allerr.push(err.clone());
+                all_error.combine(err);
                 None
             }
             Ok(options) => Some(options),
         })
         .collect::<Vec<_>>();
 
-    if !allerr.is_empty() {
-        let mut error = allerr[0].clone();
-        for err in &allerr[1..] {
-            error.combine(err.clone());
-        }
-        return Err(error);
-    }
+    all_error.ensure_empty()?;
 
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {

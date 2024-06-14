@@ -233,7 +233,7 @@ pub fn take_attributes(
 
 pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
     let mut out = Vec::new();
-    let mut allerr = Vec::new();
+    let mut all_error = ErrorCombiner(None);
     take_attributes(attrs, |attr| match get_pyo3_options(attr) {
         Ok(result) => {
             if let Some(options) = result {
@@ -244,17 +244,30 @@ pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Ve
             }
         }
         Err(err) => {
-            allerr.extend(err);
+            all_error.combine(err);
             Ok(true)
         }
     })?;
-    if !allerr.is_empty() {
-        let mut error = allerr[0].clone();
-        for err in &allerr[1..] {
-            error.combine(err.clone());
+    all_error.ensure_empty()?;
+    Ok(out)
+}
+
+pub struct ErrorCombiner(pub Option<syn::Error>);
+
+impl ErrorCombiner {
+    pub fn combine(&mut self, error: syn::Error) {
+        if let Some(existing) = &mut self.0 {
+            existing.combine(error);
+        } else {
+            self.0 = Some(error);
         }
-        Err(error)
-    } else {
-        Ok(out)
+    }
+
+    pub fn ensure_empty(self) -> Result<()> {
+        if let Some(error) = self.0 {
+            Err(error)
+        } else {
+            Ok(())
+        }
     }
 }
