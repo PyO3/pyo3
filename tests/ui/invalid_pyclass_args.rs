@@ -76,4 +76,13 @@ struct InvalidOrderedStruct {
     inner: i32
 }
 
+#[pyclass]
+struct Example {
+    #[pyo3(foo)]
+    #[pyo3(blah)]
+    x: i32,
+    #[pyo3(pop)]
+    y: i32,
+}
+
 fn main() {}
