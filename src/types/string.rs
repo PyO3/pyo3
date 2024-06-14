@@ -541,7 +541,7 @@ impl PartialEq<str> for Borrowed<'_, '_, PyString> {
         }
 
         #[cfg(Py_3_13)]
-        {
+        unsafe {
             ffi::PyUnicode_EqualToUTF8AndSize(
                 self.as_ptr(),
                 other.as_ptr().cast(),

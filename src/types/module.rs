@@ -721,7 +721,7 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{module::PyModuleMethods, string::PyStringMethods, PyModule},
+        types::{module::PyModuleMethods, PyModule},
         Python,
     };
 
@@ -736,6 +736,7 @@ mod tests {
     #[test]
     #[cfg(not(PyPy))]
     fn module_filename() {
+        use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
             let site = PyModule::import_bound(py, "site").unwrap();
             assert!(site
