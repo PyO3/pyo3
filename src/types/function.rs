@@ -46,7 +46,7 @@ impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).
     ///
     /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
-    /// use the `c_str!` macro.
+    /// use the [`c_str!`](crate::ffi::c_str) macro.
     pub fn new_with_keywords_bound<'py>(
         py: Python<'py>,
         fun: ffi::PyCFunctionWithKeywords,
@@ -85,7 +85,7 @@ impl PyCFunction {
     /// Create a new built-in function which takes no arguments.
     ///
     /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
-    /// use the [`c_str!`] macro.
+    /// use the [`c_str!`](crate::ffi::c_str) macro.
     pub fn new_bound<'py>(
         py: Python<'py>,
         fun: ffi::PyCFunction,
