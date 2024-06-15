@@ -484,10 +484,7 @@ fn impl_py_class_attribute(
     spec: &FnSpec<'_>,
     ctx: &Ctx,
 ) -> syn::Result<MethodAndMethodDef> {
-    let Ctx {
-        pyo3_path,
-        output_span,
-    } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     ensure_spanned!(
         args.is_empty(),
@@ -503,7 +500,7 @@ fn impl_py_class_attribute(
 
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
     let python_name = spec.null_terminated_python_name(ctx);
-    let body = quotes::ok_wrap(fncall, ctx, *output_span);
+    let body = quotes::ok_wrap(fncall, ctx);
 
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
@@ -748,10 +745,7 @@ pub fn impl_py_getter_def(
     property_type: PropertyType<'_>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-    let Ctx {
-        pyo3_path,
-        output_span,
-    } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
     let doc = property_type.doc(ctx);
 
@@ -778,10 +772,8 @@ pub fn impl_py_getter_def(
                         ::std::clone::Clone::clone(&(#slf.#field_token))
                     },
                     ctx,
-                    *output_span,
                 ),
                 ctx,
-                *output_span,
             )
         }
         // Forward to `IntoPyCallbackOutput`, to handle `#[getter]`s returning results.

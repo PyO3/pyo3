@@ -711,11 +711,7 @@ impl<'a> FnSpec<'a> {
             // but *not* of the call itself otherwise the spans get really weird
             let ret_expr = quote! { let ret = #call; };
             let ret_var = quote_spanned! {*output_span=> ret };
-            let return_conversion = quotes::map_result_into_ptr(
-                quotes::ok_wrap(ret_var, ctx, *output_span),
-                ctx,
-                *output_span,
-            );
+            let return_conversion = quotes::map_result_into_ptr(quotes::ok_wrap(ret_var, ctx), ctx);
             quote! {
                 {
                     #ret_expr
