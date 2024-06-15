@@ -4,12 +4,13 @@ use std::collections::HashMap;
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
+use pyo3::ffi::c_str;
+use pyo3::prelude::*;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::PyDateTime;
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
-use pyo3::{c_str, prelude::*};
 
 #[path = "../src/tests/common.rs"]
 mod common;

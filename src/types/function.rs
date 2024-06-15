@@ -1,4 +1,3 @@
-use crate::c_str;
 #[cfg(feature = "gil-refs")]
 use crate::derive_utils::PyFunctionArguments;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -146,8 +145,8 @@ impl PyCFunction {
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
-        let name = name.unwrap_or(c_str!("pyo3-closure"));
-        let doc = doc.unwrap_or(c_str!(""));
+        let name = name.unwrap_or(ffi::c_str!("pyo3-closure"));
+        let doc = doc.unwrap_or(ffi::c_str!(""));
         let method_def =
             pymethods::PyMethodDef::cfunction_with_keywords(&name, run_closure::<F, R>, &doc);
         let def = method_def.as_method_def();
@@ -200,7 +199,7 @@ impl PyCFunction {
     }
 }
 
-static CLOSURE_CAPSULE_NAME: &'static CStr = c_str!("pyo3-closure");
+static CLOSURE_CAPSULE_NAME: &'static CStr = ffi::c_str!("pyo3-closure");
 
 unsafe extern "C" fn run_closure<F, R>(
     capsule_ptr: *mut ffi::PyObject,

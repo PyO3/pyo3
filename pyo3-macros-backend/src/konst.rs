@@ -32,7 +32,7 @@ impl ConstSpec<'_> {
     pub fn null_terminated_python_name(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
         let name = self.python_name().to_string();
-        quote!(#pyo3_path::c_str!(#name))
+        quote!(#pyo3_path::ffi::c_str!(#name))
     }
 }
 

@@ -475,7 +475,7 @@ impl<'a> FnSpec<'a> {
     pub fn null_terminated_python_name(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
         let name = self.python_name.to_string();
-        quote_spanned!(self.python_name.span() => #pyo3_path::c_str!(#name))
+        quote_spanned!(self.python_name.span() => #pyo3_path::ffi::c_str!(#name))
     }
 
     fn parse_fn_type(

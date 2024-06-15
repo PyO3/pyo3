@@ -145,7 +145,7 @@ pub fn get_doc(
         // Just a string doc - return directly with nul terminator
         current_part.to_token_stream()
     };
-    PythonDoc(quote!(#pyo3_path::c_str!(#tokens)))
+    PythonDoc(quote!(#pyo3_path::ffi::c_str!(#tokens)))
 }
 
 impl quote::ToTokens for PythonDoc {

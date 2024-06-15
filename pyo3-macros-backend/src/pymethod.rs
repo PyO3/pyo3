@@ -892,7 +892,7 @@ impl PropertyType<'_> {
                         bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
                     }
                 };
-                Ok(quote_spanned!(field.span() => #pyo3_path::c_str!(#name)))
+                Ok(quote_spanned!(field.span() => #pyo3_path::ffi::c_str!(#name)))
             }
             PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name(ctx)),
         }

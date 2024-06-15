@@ -2000,10 +2000,10 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclassimpl(&self, ctx: &Ctx) -> Result<TokenStream> {
         let Ctx { pyo3_path } = ctx;
         let cls = self.cls;
-        let doc = self
-            .doc
-            .as_ref()
-            .map_or(quote! {#pyo3_path::c_str!("")}, PythonDoc::to_token_stream);
+        let doc = self.doc.as_ref().map_or(
+            quote! {#pyo3_path::ffi::c_str!("")},
+            PythonDoc::to_token_stream,
+        );
         let is_basetype = self.attr.options.subclass.is_some();
         let base = match &self.attr.options.extends {
             Some(extends_attr) => extends_attr.value.clone(),

@@ -435,8 +435,6 @@ pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `mult
 #[macro_use]
 mod tests;
 
-pub use pyo3_ffi::c_str;
-
 #[macro_use]
 mod internal_tricks;
 

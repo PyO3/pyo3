@@ -406,7 +406,7 @@ fn module_initialization(name: &syn::Ident, ctx: &Ctx) -> TokenStream {
 
     quote! {
         #[doc(hidden)]
-        pub const __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_path::c_str!(#name);
+        pub const __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_path::ffi::c_str!(#name);
 
         pub(super) struct MakeDef;
         #[doc(hidden)]

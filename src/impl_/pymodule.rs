@@ -217,7 +217,7 @@ mod tests {
     };
 
     use crate::{
-        c_str,
+        ffi,
         types::{any::PyAnyMethods, module::PyModuleMethods, PyModule},
         Bound, PyResult, Python,
     };
@@ -228,8 +228,8 @@ mod tests {
     fn module_init() {
         static MODULE_DEF: ModuleDef = unsafe {
             ModuleDef::new(
-                c_str!("test_module"),
-                c_str!("some doc"),
+                ffi::c_str!("test_module"),
+                ffi::c_str!("some doc"),
                 ModuleInitializer(|m| {
                     m.add("SOME_CONSTANT", 42)?;
                     Ok(())
@@ -269,8 +269,8 @@ mod tests {
     fn module_def_new() {
         // To get coverage for ModuleDef::new() need to create a non-static ModuleDef, however init
         // etc require static ModuleDef, so this test needs to be separated out.
-        static NAME: &CStr = c_str!("test_module");
-        static DOC: &CStr = c_str!("some doc");
+        static NAME: &CStr = ffi::c_str!("test_module");
+        static DOC: &CStr = ffi::c_str!("some doc");
 
         static INIT_CALLED: AtomicBool = AtomicBool::new(false);
 
