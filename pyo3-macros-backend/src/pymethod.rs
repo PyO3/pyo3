@@ -227,21 +227,21 @@ pub fn gen_py_method(
         (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs),
+            &spec.get_doc(meth_attrs, ctx),
             None,
             ctx,
         )?),
         (_, FnType::FnClass(_)) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs),
+            &spec.get_doc(meth_attrs, ctx),
             Some(quote!(#pyo3_path::ffi::METH_CLASS)),
             ctx,
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            &spec.get_doc(meth_attrs),
+            &spec.get_doc(meth_attrs, ctx),
             Some(quote!(#pyo3_path::ffi::METH_STATIC)),
             ctx,
         )?),
@@ -255,7 +255,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs),
+                doc: spec.get_doc(meth_attrs, ctx),
             },
             ctx,
         )?),
@@ -264,7 +264,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs),
+                doc: spec.get_doc(meth_attrs, ctx),
             },
             ctx,
         )?),
@@ -499,7 +499,7 @@ fn impl_py_class_attribute(
     };
 
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
-    let python_name = spec.null_terminated_python_name();
+    let python_name = spec.null_terminated_python_name(ctx);
     let body = quotes::ok_wrap(fncall, ctx);
 
     let associated_method = quote! {
@@ -560,8 +560,8 @@ pub fn impl_py_setter_def(
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path } = ctx;
-    let python_name = property_type.null_terminated_python_name()?;
-    let doc = property_type.doc();
+    let python_name = property_type.null_terminated_python_name(ctx)?;
+    let doc = property_type.doc(ctx);
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -746,8 +746,8 @@ pub fn impl_py_getter_def(
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path } = ctx;
-    let python_name = property_type.null_terminated_python_name()?;
-    let doc = property_type.doc();
+    let python_name = property_type.null_terminated_python_name(ctx)?;
+    let doc = property_type.doc(ctx);
 
     let mut holders = Holders::new();
     let body = match property_type {
@@ -870,7 +870,8 @@ pub enum PropertyType<'a> {
 }
 
 impl PropertyType<'_> {
-    fn null_terminated_python_name(&self) -> Result<syn::LitStr> {
+    fn null_terminated_python_name(&self, ctx: &Ctx) -> Result<TokenStream> {
+        let Ctx { pyo3_path } = ctx;
         match self {
             PropertyType::Descriptor {
                 field,
@@ -885,23 +886,22 @@ impl PropertyType<'_> {
                         if let Some(rule) = renaming_rule {
                             name = utils::apply_renaming_rule(*rule, &name);
                         }
-                        name.push('\0');
                         name
                     }
                     (None, None) => {
                         bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
                     }
                 };
-                Ok(syn::LitStr::new(&name, field.span()))
+                Ok(quote_spanned!(field.span() => #pyo3_path::c_str!(#name)))
             }
-            PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name()),
+            PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name(ctx)),
         }
     }
 
-    fn doc(&self) -> Cow<'_, PythonDoc> {
+    fn doc(&self, ctx: &Ctx) -> Cow<'_, PythonDoc> {
         match self {
             PropertyType::Descriptor { field, .. } => {
-                Cow::Owned(utils::get_doc(&field.attrs, None))
+                Cow::Owned(utils::get_doc(&field.attrs, None, ctx))
             }
             PropertyType::Function { doc, .. } => Cow::Borrowed(doc),
         }

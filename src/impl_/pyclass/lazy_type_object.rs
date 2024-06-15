@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     cell::RefCell,
     ffi::CStr,
     marker::PhantomData,
@@ -151,10 +150,8 @@ impl LazyTypeObjectInner {
         for class_items in items_iter {
             for def in class_items.methods {
                 if let PyMethodDefType::ClassAttribute(attr) = def {
-                    let key = attr.attribute_c_string().unwrap();
-
                     match (attr.meth)(py) {
-                        Ok(val) => items.push((key, val)),
+                        Ok(val) => items.push((attr.name, val)),
                         Err(err) => {
                             return Err(wrap_in_runtime_error(
                                 py,
@@ -162,7 +159,7 @@ impl LazyTypeObjectInner {
                                 format!(
                                     "An error occurred while initializing `{}.{}`",
                                     name,
-                                    attr.name.trim_end_matches('\0')
+                                    attr.name.to_str().unwrap()
                                 ),
                             ))
                         }
@@ -198,7 +195,7 @@ impl LazyTypeObjectInner {
 fn initialize_tp_dict(
     py: Python<'_>,
     type_object: *mut ffi::PyObject,
-    items: Vec<(Cow<'static, CStr>, PyObject)>,
+    items: Vec<(&'static CStr, PyObject)>,
 ) -> PyResult<()> {
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.

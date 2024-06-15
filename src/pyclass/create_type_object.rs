@@ -9,7 +9,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassItemsIter,
         },
-        pymethods::{get_doc, get_name, Getter, Setter},
+        pymethods::{Getter, Setter},
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
@@ -17,7 +17,6 @@ use crate::{
     Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
-    borrow::Cow,
     collections::HashMap,
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_ulong, c_void},
@@ -105,7 +104,7 @@ type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
     method_defs: Vec<ffi::PyMethodDef>,
-    getset_builders: HashMap<&'static str, GetSetDefBuilder>,
+    getset_builders: HashMap<&'static CStr, GetSetDefBuilder>,
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
@@ -175,26 +174,19 @@ impl PyTypeBuilder {
 
     fn pymethod_def(&mut self, def: &PyMethodDefType) {
         match def {
-            PyMethodDefType::Getter(getter) => {
-                self.getset_builders
-                    .entry(getter.name)
-                    .or_default()
-                    .add_getter(getter);
-            }
-            PyMethodDefType::Setter(setter) => {
-                self.getset_builders
-                    .entry(setter.name)
-                    .or_default()
-                    .add_setter(setter);
-            }
+            PyMethodDefType::Getter(getter) => self
+                .getset_builders
+                .entry(getter.name)
+                .or_default()
+                .add_getter(getter),
+            PyMethodDefType::Setter(setter) => self
+                .getset_builders
+                .entry(setter.name)
+                .or_default()
+                .add_setter(setter),
             PyMethodDefType::Method(def)
             | PyMethodDefType::Class(def)
-            | PyMethodDefType::Static(def) => {
-                let (def, destructor) = def.as_method_def().unwrap();
-                // FIXME: stop leaking destructor
-                std::mem::forget(destructor);
-                self.method_defs.push(def);
-            }
+            | PyMethodDefType::Static(def) => self.method_defs.push(def.as_method_def()),
             // These class attributes are added after the type gets created by LazyStaticType
             PyMethodDefType::ClassAttribute(_) => {}
         }
@@ -496,7 +488,7 @@ unsafe extern "C" fn no_constructor_defined(
 
 #[derive(Default)]
 struct GetSetDefBuilder {
-    doc: Option<&'static str>,
+    doc: Option<&'static CStr>,
     getter: Option<Getter>,
     setter: Option<Setter>,
 }
@@ -522,11 +514,8 @@ impl GetSetDefBuilder {
 
     fn as_get_set_def(
         &self,
-        name: &'static str,
+        name: &'static CStr,
     ) -> PyResult<(ffi::PyGetSetDef, GetSetDefDestructor)> {
-        let name = get_name(name)?;
-        let doc = self.doc.map(get_doc).transpose()?;
-
         let getset_type = match (self.getter, self.setter) {
             (Some(getter), None) => GetSetDefType::Getter(getter),
             (None, Some(setter)) => GetSetDefType::Setter(setter),
@@ -538,10 +527,8 @@ impl GetSetDefBuilder {
             }
         };
 
-        let getset_def = getset_type.create_py_get_set_def(&name, doc.as_deref());
+        let getset_def = getset_type.create_py_get_set_def(name, self.doc);
         let destructor = GetSetDefDestructor {
-            name,
-            doc,
             closure: getset_type,
         };
         Ok((getset_def, destructor))
@@ -550,8 +537,6 @@ impl GetSetDefBuilder {
 
 #[allow(dead_code)] // a stack of fields which are purely to cache until dropped
 struct GetSetDefDestructor {
-    name: Cow<'static, CStr>,
-    doc: Option<Cow<'static, CStr>>,
     closure: GetSetDefType,
 }
 

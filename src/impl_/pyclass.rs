@@ -5,7 +5,6 @@ use crate::{
     ffi,
     impl_::freelist::FreeList,
     impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
-    internal_tricks::extract_c_string,
     pyclass_init::PyObjectInit,
     types::any::PyAnyMethods,
     types::PyBool,
@@ -214,7 +213,7 @@ pub trait PyClassImpl: Sized + 'static {
 /// specialization in to the `#[pyclass]` macro from the `#[pymethods]` macro.
 pub fn build_pyclass_doc(
     class_name: &'static str,
-    doc: &'static str,
+    doc: &'static CStr,
     text_signature: Option<&'static str>,
 ) -> PyResult<Cow<'static, CStr>> {
     if let Some(text_signature) = text_signature {
@@ -222,12 +221,12 @@ pub fn build_pyclass_doc(
             "{}{}\n--\n\n{}",
             class_name,
             text_signature,
-            doc.trim_end_matches('\0')
+            doc.to_str().unwrap(),
         ))
         .map_err(|_| PyValueError::new_err("class doc cannot contain nul bytes"))?;
         Ok(Cow::Owned(doc))
     } else {
-        extract_c_string(doc, "class doc cannot contain nul bytes")
+        Ok(Cow::Borrowed(doc))
     }
 }
 

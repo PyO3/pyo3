@@ -1,5 +1,6 @@
 use core::sync::atomic::{AtomicU64, Ordering};
 use core::{mem, ptr};
+use std::ffi::CString;
 use std::os::raw::{c_char, c_int, c_uint, c_ulonglong, c_void};
 
 use pyo3_ffi::*;
@@ -27,10 +28,7 @@ unsafe extern "C" fn id_new(
     kwds: *mut PyObject,
 ) -> *mut PyObject {
     if PyTuple_Size(args) != 0 || !kwds.is_null() {
-        PyErr_SetString(
-            PyExc_TypeError,
-            "Id() takes no arguments\0".as_ptr().cast::<c_char>(),
-        );
+        PyErr_SetString(PyExc_TypeError, c_str!("Id() takes no arguments").as_ptr());
         return ptr::null_mut();
     }
 
@@ -81,8 +79,8 @@ unsafe extern "C" fn id_richcompare(
         pyo3_ffi::Py_GT => slf > other,
         pyo3_ffi::Py_GE => slf >= other,
         unrecognized => {
-            let msg = format!("unrecognized richcompare opcode {}\0", unrecognized);
-            PyErr_SetString(PyExc_SystemError, msg.as_ptr().cast::<c_char>());
+            let msg = CString::from(&format!("unrecognized richcompare opcode {}"));
+            PyErr_SetString(PyExc_SystemError, msg.as_ptr());
             return ptr::null_mut();
         }
     };
@@ -101,7 +99,7 @@ static mut SLOTS: &[PyType_Slot] = &[
     },
     PyType_Slot {
         slot: Py_tp_doc,
-        pfunc: "An id that is increased every time an instance is created\0".as_ptr()
+        pfunc: c_str!("An id that is increased every time an instance is created").as_ptr()
             as *mut c_void,
     },
     PyType_Slot {
@@ -123,7 +121,7 @@ static mut SLOTS: &[PyType_Slot] = &[
 ];
 
 pub static mut ID_SPEC: PyType_Spec = PyType_Spec {
-    name: "sequential.Id\0".as_ptr().cast::<c_char>(),
+    name: c_str!("sequential.Id").as_ptr(),
     basicsize: mem::size_of::<PyId>() as c_int,
     itemsize: 0,
     flags: (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE) as c_uint,

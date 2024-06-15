@@ -330,8 +330,8 @@ or [`PyRefMut`] instead of `&mut self`.
 Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`,
 or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut`
 case). For convenience, `self_.as_ref()` can also be used to get `&Self::BaseClass`
-directly; however, this approach does not let you access base clases higher in the 
-inheritance hierarchy, for which you would need to chain multiple `as_super` or 
+directly; however, this approach does not let you access base clases higher in the
+inheritance hierarchy, for which you would need to chain multiple `as_super` or
 `into_super` calls.
 
 ```rust
@@ -400,7 +400,7 @@ impl SubSubClass {
           let val2 = self_.as_super().val2;
           (val1, val2, self_.val3)
       }
-  
+
     fn double_values(mut self_: PyRefMut<'_, Self>) {
         self_.as_super().as_super().val1 *= 2;
         self_.as_super().val2 *= 2;
@@ -1187,7 +1187,7 @@ Python::with_gil(|py| {
 })
 ```
 
-Ordering of enum variants is optionally added using `#[pyo3(ord)]`.  
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
 *Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
 
 ```rust

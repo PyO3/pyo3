@@ -472,8 +472,10 @@ impl<'a> FnSpec<'a> {
         })
     }
 
-    pub fn null_terminated_python_name(&self) -> syn::LitStr {
-        syn::LitStr::new(&format!("{}\0", self.python_name), self.python_name.span())
+    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> TokenStream {
+        let Ctx { pyo3_path } = ctx;
+        let name = self.python_name.to_string();
+        quote_spanned!(self.python_name.span() => #pyo3_path::c_str!(#name))
     }
 
     fn parse_fn_type(
@@ -830,7 +832,7 @@ impl<'a> FnSpec<'a> {
     /// calling convention.
     pub fn get_methoddef(&self, wrapper: impl ToTokens, doc: &PythonDoc, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path } = ctx;
-        let python_name = self.null_terminated_python_name();
+        let python_name = self.null_terminated_python_name(ctx);
         match self.convention {
             CallingConvention::Noargs => quote! {
                 #pyo3_path::impl_::pymethods::PyMethodDef::noargs(
@@ -903,11 +905,11 @@ impl<'a> FnSpec<'a> {
     }
 
     /// Forwards to [utils::get_doc] with the text signature of this spec.
-    pub fn get_doc(&self, attrs: &[syn::Attribute]) -> PythonDoc {
+    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> PythonDoc {
         let text_signature = self
             .text_signature_call_signature()
             .map(|sig| format!("{}{}", self.python_name, sig));
-        utils::get_doc(attrs, text_signature)
+        utils::get_doc(attrs, text_signature, ctx)
     }
 
     /// Creates the parenthesised arguments list for `__text_signature__` snippet based on this spec's signature

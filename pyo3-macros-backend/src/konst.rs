@@ -29,9 +29,10 @@ impl ConstSpec<'_> {
     }
 
     /// Null-terminated Python name
-    pub fn null_terminated_python_name(&self) -> TokenStream {
-        let name = format!("{}\0", self.python_name());
-        quote!({#name})
+    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> TokenStream {
+        let Ctx { pyo3_path } = ctx;
+        let name = self.python_name().to_string();
+        quote!(#pyo3_path::c_str!(#name))
     }
 }
 

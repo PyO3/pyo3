@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::attributes::{CrateAttribute, RenamingRule};
@@ -81,7 +81,12 @@ pub struct PythonDoc(TokenStream);
 /// If this doc is for a callable, the provided `text_signature` can be passed to prepend
 /// this to the documentation suitable for Python to extract this into the `__text_signature__`
 /// attribute.
-pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> PythonDoc {
+pub fn get_doc(
+    attrs: &[syn::Attribute],
+    mut text_signature: Option<String>,
+    ctx: &Ctx,
+) -> PythonDoc {
+    let Ctx { pyo3_path } = ctx;
     // insert special divider between `__text_signature__` and doc
     // (assume text_signature is itself well-formed)
     if let Some(text_signature) = &mut text_signature {
@@ -120,7 +125,7 @@ pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> 
         }
     }
 
-    if !parts.is_empty() {
+    let tokens = if !parts.is_empty() {
         // Doc contained macro pieces - return as `concat!` expression
         if !current_part.is_empty() {
             parts.push(current_part.to_token_stream());
@@ -133,15 +138,14 @@ pub fn get_doc(attrs: &[syn::Attribute], mut text_signature: Option<String>) -> 
         syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
             parts.to_tokens(tokens);
             syn::token::Comma(Span::call_site()).to_tokens(tokens);
-            syn::LitStr::new("\0", Span::call_site()).to_tokens(tokens);
         });
 
-        PythonDoc(tokens)
+        tokens
     } else {
         // Just a string doc - return directly with nul terminator
-        current_part.push('\0');
-        PythonDoc(current_part.to_token_stream())
-    }
+        current_part.to_token_stream()
+    };
+    PythonDoc(quote!(#pyo3_path::c_str!(#tokens)))
 }
 
 impl quote::ToTokens for PythonDoc {

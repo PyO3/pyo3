@@ -92,7 +92,7 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
     let options = PyModuleOptions::from_attrs(attrs)?;
     let ctx = &Ctx::new(&options.krate);
     let Ctx { pyo3_path } = ctx;
-    let doc = get_doc(attrs, None);
+    let doc = get_doc(attrs, None, ctx);
     let name = options.name.unwrap_or_else(|| ident.unraw());
     let full_name = if let Some(module) = &options.module {
         format!("{}.{}", module.value.value(), name)
@@ -332,7 +332,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     let ident = &function.sig.ident;
     let name = options.name.unwrap_or_else(|| ident.unraw());
     let vis = &function.vis;
-    let doc = get_doc(&function.attrs, None);
+    let doc = get_doc(&function.attrs, None, ctx);
 
     let initialization = module_initialization(&name, ctx);
 
@@ -402,10 +402,11 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
 fn module_initialization(name: &syn::Ident, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path } = ctx;
     let pyinit_symbol = format!("PyInit_{}", name);
+    let name = name.to_string();
 
     quote! {
         #[doc(hidden)]
-        pub const __PYO3_NAME: &'static str = concat!(stringify!(#name), "\0");
+        pub const __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_path::c_str!(#name);
 
         pub(super) struct MakeDef;
         #[doc(hidden)]

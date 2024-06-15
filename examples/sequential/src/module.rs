@@ -4,10 +4,8 @@ use std::os::raw::{c_char, c_int, c_void};
 
 pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
-    m_name: "sequential\0".as_ptr().cast::<c_char>(),
-    m_doc: "A library for generating sequential ids, written in Rust.\0"
-        .as_ptr()
-        .cast::<c_char>(),
+    m_name: c_str!("sequential").as_ptr(),
+    m_doc: c_str!("A library for generating sequential ids, written in Rust.").as_ptr(),
     m_size: mem::size_of::<sequential_state>() as Py_ssize_t,
     m_methods: std::ptr::null_mut(),
     m_slots: unsafe { SEQUENTIAL_SLOTS as *const [PyModuleDef_Slot] as *mut PyModuleDef_Slot },
@@ -40,15 +38,12 @@ unsafe extern "C" fn sequential_exec(module: *mut PyObject) -> c_int {
         ptr::null_mut(),
     );
     if id_type.is_null() {
-        PyErr_SetString(
-            PyExc_SystemError,
-            "cannot locate type object\0".as_ptr().cast::<c_char>(),
-        );
+        PyErr_SetString(PyExc_SystemError, c_str!("cannot locate type object"));
         return -1;
     }
     (*state).id_type = id_type.cast::<PyTypeObject>();
 
-    PyModule_AddObjectRef(module, "Id\0".as_ptr().cast::<c_char>(), id_type)
+    PyModule_AddObjectRef(module, c_str!("Id"), id_type)
 }
 
 unsafe extern "C" fn sequential_traverse(

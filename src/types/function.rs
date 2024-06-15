@@ -1,3 +1,4 @@
+use crate::c_str;
 #[cfg(feature = "gil-refs")]
 use crate::derive_utils::PyFunctionArguments;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -8,7 +9,7 @@ use crate::types::module::PyModuleMethods;
 use crate::PyNativeType;
 use crate::{
     ffi,
-    impl_::pymethods::{self, PyMethodDef, PyMethodDefDestructor},
+    impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
 };
 use crate::{Bound, IntoPy, Py, PyAny, PyResult, Python};
@@ -30,8 +31,8 @@ impl PyCFunction {
     )]
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
-        name: &'static str,
-        doc: &'static str,
+        name: &'static CStr,
+        doc: &'static CStr,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
@@ -44,11 +45,14 @@ impl PyCFunction {
     }
 
     /// Create a new built-in function with keywords (*args and/or **kwargs).
+    ///
+    /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
+    /// use the `c_str!` macro.
     pub fn new_with_keywords_bound<'py>(
         py: Python<'py>,
         fun: ffi::PyCFunctionWithKeywords,
-        name: &'static str,
-        doc: &'static str,
+        name: &'static CStr,
+        doc: &'static CStr,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
         Self::internal_new(
@@ -66,8 +70,8 @@ impl PyCFunction {
     )]
     pub fn new<'a>(
         fun: ffi::PyCFunction,
-        name: &'static str,
-        doc: &'static str,
+        name: &'static CStr,
+        doc: &'static CStr,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
@@ -80,11 +84,14 @@ impl PyCFunction {
     }
 
     /// Create a new built-in function which takes no arguments.
+    ///
+    /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
+    /// use the [`c_str!`] macro.
     pub fn new_bound<'py>(
         py: Python<'py>,
         fun: ffi::PyCFunction,
-        name: &'static str,
-        doc: &'static str,
+        name: &'static CStr,
+        doc: &'static CStr,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
         Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
@@ -131,29 +138,27 @@ impl PyCFunction {
     /// ```
     pub fn new_closure_bound<'py, F, R>(
         py: Python<'py>,
-        name: Option<&'static str>,
-        doc: Option<&'static str>,
+        name: Option<&'static CStr>,
+        doc: Option<&'static CStr>,
         closure: F,
     ) -> PyResult<Bound<'py, Self>>
     where
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
-        let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
-            name.unwrap_or("pyo3-closure\0"),
-            run_closure::<F, R>,
-            doc.unwrap_or("\0"),
-        );
-        let (def, def_destructor) = method_def.as_method_def()?;
+        let name = name.unwrap_or(c_str!("pyo3-closure"));
+        let doc = doc.unwrap_or(c_str!(""));
+        let method_def =
+            pymethods::PyMethodDef::cfunction_with_keywords(&name, run_closure::<F, R>, &doc);
+        let def = method_def.as_method_def();
 
         let capsule = PyCapsule::new_bound(
             py,
             ClosureDestructor::<F> {
                 closure,
                 def: UnsafeCell::new(def),
-                def_destructor,
             },
-            Some(closure_capsule_name().to_owned()),
+            Some(CLOSURE_CAPSULE_NAME.to_owned()),
         )?;
 
         // Safety: just created the capsule with type ClosureDestructor<F> above
@@ -178,11 +183,10 @@ impl PyCFunction {
         } else {
             (std::ptr::null_mut(), None)
         };
-        let (def, destructor) = method_def.as_method_def()?;
+        let def = method_def.as_method_def();
 
-        // FIXME: stop leaking the def and destructor
+        // FIXME: stop leaking the def
         let def = Box::into_raw(Box::new(def));
-        std::mem::forget(destructor);
 
         let module_name_ptr = module_name
             .as_ref()
@@ -196,10 +200,7 @@ impl PyCFunction {
     }
 }
 
-fn closure_capsule_name() -> &'static CStr {
-    // TODO replace this with const CStr once MSRV new enough
-    CStr::from_bytes_with_nul(b"pyo3-closure\0").unwrap()
-}
+static CLOSURE_CAPSULE_NAME: &'static CStr = c_str!("pyo3-closure");
 
 unsafe extern "C" fn run_closure<F, R>(
     capsule_ptr: *mut ffi::PyObject,
@@ -218,7 +219,7 @@ where
         kwargs,
         |py, capsule_ptr, args, kwargs| {
             let boxed_fn: &ClosureDestructor<F> =
-                &*(ffi::PyCapsule_GetPointer(capsule_ptr, closure_capsule_name().as_ptr())
+                &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
                     as *mut ClosureDestructor<F>);
             let args = Bound::ref_from_ptr(py, &args).downcast_unchecked::<PyTuple>();
             let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
@@ -235,9 +236,6 @@ struct ClosureDestructor<F> {
     // Wrapped in UnsafeCell because Python C-API wants a *mut pointer
     // to this member.
     def: UnsafeCell<ffi::PyMethodDef>,
-    // Used to destroy the cstrings in `def`, if necessary.
-    #[allow(dead_code)]
-    def_destructor: PyMethodDefDestructor,
 }
 
 // Safety: F is send and none of the fields are ever mutated

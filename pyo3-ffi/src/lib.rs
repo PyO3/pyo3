@@ -88,10 +88,8 @@
 //!
 //! static mut MODULE_DEF: PyModuleDef = PyModuleDef {
 //!     m_base: PyModuleDef_HEAD_INIT,
-//!     m_name: "string_sum\0".as_ptr().cast::<c_char>(),
-//!     m_doc: "A Python module written in Rust.\0"
-//!         .as_ptr()
-//!         .cast::<c_char>(),
+//!     m_name: c_str!("string_sum").as_ptr(),
+//!     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
 //!     m_size: 0,
 //!     m_methods: unsafe { METHODS.as_mut_ptr().cast() },
 //!     m_slots: std::ptr::null_mut(),
@@ -102,14 +100,12 @@
 //!
 //! static mut METHODS: [PyMethodDef; 2] = [
 //!     PyMethodDef {
-//!         ml_name: "sum_as_string\0".as_ptr().cast::<c_char>(),
+//!         ml_name: c_str!("sum_as_string").as_ptr(),
 //!         ml_meth: PyMethodDefPointer {
 //!             _PyCFunctionFast: sum_as_string,
 //!         },
 //!         ml_flags: METH_FASTCALL,
-//!         ml_doc: "returns the sum of two integers as a string\0"
-//!             .as_ptr()
-//!             .cast::<c_char>(),
+//!         ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
 //!     },
 //!     // A zeroed PyMethodDef to mark the end of the array.
 //!     PyMethodDef::zeroed()
@@ -130,9 +126,7 @@
 //!     if nargs != 2 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             "sum_as_string() expected 2 positional arguments\0"
-//!                 .as_ptr()
-//!                 .cast::<c_char>(),
+//!             c_str!("sum_as_string() expected 2 positional arguments").as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
@@ -141,9 +135,7 @@
 //!     if PyLong_Check(arg1) == 0 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             "sum_as_string() expected an int for positional argument 1\0"
-//!                 .as_ptr()
-//!                 .cast::<c_char>(),
+//!             c_str!("sum_as_string() expected an int for positional argument 1").as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
@@ -157,9 +149,7 @@
 //!     if PyLong_Check(arg2) == 0 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             "sum_as_string() expected an int for positional argument 2\0"
-//!                 .as_ptr()
-//!                 .cast::<c_char>(),
+//!             c_str!("sum_as_string() expected an int for positional argument 2").as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
@@ -177,7 +167,7 @@
 //!         None => {
 //!             PyErr_SetString(
 //!                 PyExc_OverflowError,
-//!                 "arguments too large to add\0".as_ptr().cast::<c_char>(),
+//!                 c_str!("arguments too large to add").as_ptr(),
 //!             );
 //!             std::ptr::null_mut()
 //!         }
@@ -254,6 +244,48 @@ macro_rules! opaque_struct {
         #[repr(C)]
         pub struct $name([u8; 0]);
     };
+}
+
+/// This is a helper macro to create a `&'static CStr`.
+///
+/// It can be used on all Rust versions supported by PyO3, unlike c"" literals which
+/// were stabilised in Rust 1.77.
+///
+/// Due to the nature of PyO3 making heavy use of C FFI interop with Python, it is
+/// common for PyO3 to use CStr.
+///
+/// Examples:
+///
+/// ```rust
+/// const HELLO: &CStr = pyo3::c_str!("hello");
+/// static WORLD: &CStr = pyo3::c_str!("world");
+/// ```
+#[macro_export]
+macro_rules! c_str {
+    ($s:expr) => {{
+        const _: () = {
+            assert!(
+                $crate::str_contains_no_nul($s),
+                "string contains null bytes"
+            );
+        };
+        // SAFETY: the string is checked to not contain null bytes
+        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($s, "\0").as_bytes()) }
+    }};
+}
+
+#[doc(hidden)]
+pub const fn str_contains_no_nul(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let len = s.len();
+    let mut i = 0;
+    while i < len {
+        if bytes[i] == 0 {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
 }
 
 pub use self::abstract_::*;

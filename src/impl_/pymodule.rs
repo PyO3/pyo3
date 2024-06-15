@@ -1,6 +1,6 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::{cell::UnsafeCell, marker::PhantomData};
+use std::{cell::UnsafeCell, ffi::CStr, marker::PhantomData};
 
 #[cfg(all(
     not(any(PyPy, GraalPy)),
@@ -49,12 +49,9 @@ unsafe impl Sync for ModuleDef {}
 
 impl ModuleDef {
     /// Make new module definition with given module name.
-    ///
-    /// # Safety
-    /// `name` and `doc` must be null-terminated strings.
     pub const unsafe fn new(
-        name: &'static str,
-        doc: &'static str,
+        name: &'static CStr,
+        doc: &'static CStr,
         initializer: ModuleInitializer,
     ) -> Self {
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
@@ -70,8 +67,8 @@ impl ModuleDef {
         };
 
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
-            m_name: name.as_ptr().cast(),
-            m_doc: doc.as_ptr().cast(),
+            m_name: name.as_ptr(),
+            m_doc: doc.as_ptr(),
             ..INIT
         });
 
@@ -215,10 +212,12 @@ impl PyAddToModule for ModuleDef {
 mod tests {
     use std::{
         borrow::Cow,
+        ffi::CStr,
         sync::atomic::{AtomicBool, Ordering},
     };
 
     use crate::{
+        c_str,
         types::{any::PyAnyMethods, module::PyModuleMethods, PyModule},
         Bound, PyResult, Python,
     };
@@ -229,8 +228,8 @@ mod tests {
     fn module_init() {
         static MODULE_DEF: ModuleDef = unsafe {
             ModuleDef::new(
-                "test_module\0",
-                "some doc\0",
+                c_str!("test_module"),
+                c_str!("some doc"),
                 ModuleInitializer(|m| {
                     m.add("SOME_CONSTANT", 42)?;
                     Ok(())
@@ -270,8 +269,8 @@ mod tests {
     fn module_def_new() {
         // To get coverage for ModuleDef::new() need to create a non-static ModuleDef, however init
         // etc require static ModuleDef, so this test needs to be separated out.
-        static NAME: &str = "test_module\0";
-        static DOC: &str = "some doc\0";
+        static NAME: &CStr = c_str!("test_module");
+        static DOC: &CStr = c_str!("some doc");
 
         static INIT_CALLED: AtomicBool = AtomicBool::new(false);
 
