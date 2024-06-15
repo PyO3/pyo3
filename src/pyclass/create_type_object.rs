@@ -119,7 +119,7 @@ struct PyTypeBuilder {
     has_setitem: bool,
     has_traverse: bool,
     has_clear: bool,
-    dictoffset: Option<ffi::Py_ssize_t>,
+    dict_offset: Option<ffi::Py_ssize_t>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -238,7 +238,7 @@ impl PyTypeBuilder {
                 ) -> *mut ffi::PyObject {
                     unsafe {
                         trampoline(|_| {
-                            let dictoffset = closure as isize;
+                            let dictoffset = closure as Py_ssize_t;
                             // we don't support negative dictoffset here; PyO3 doesn't set it negative
                             assert!(dictoffset > 0);
                             let dict_ptr = object
