@@ -78,7 +78,7 @@ impl<'a> PyStringData<'a> {
 
                     Err(PyUnicodeDecodeError::new_bound(
                         py,
-                        CStr::from_bytes_with_nul(b"utf-16\0").unwrap(),
+                        ffi::c_str!("utf-16"),
                         self.as_bytes(),
                         0..self.as_bytes().len(),
                         CStr::from_bytes_with_nul(&message).unwrap(),
@@ -90,10 +90,10 @@ impl<'a> PyStringData<'a> {
                 Some(s) => Ok(Cow::Owned(s)),
                 None => Err(PyUnicodeDecodeError::new_bound(
                     py,
-                    CStr::from_bytes_with_nul(b"utf-32\0").unwrap(),
+                    ffi::c_str!("utf-32"),
                     self.as_bytes(),
                     0..self.as_bytes().len(),
-                    CStr::from_bytes_with_nul(b"error converting utf-32\0").unwrap(),
+                    ffi::c_str!("error converting utf-32"),
                 )?
                 .into()),
             },
@@ -388,8 +388,8 @@ impl<'a> Borrowed<'a, '_, PyString> {
         let bytes = unsafe {
             ffi::PyUnicode_AsEncodedString(
                 ptr,
-                b"utf-8\0".as_ptr().cast(),
-                b"surrogatepass\0".as_ptr().cast(),
+                ffi::c_str!("utf-8").as_ptr(),
+                ffi::c_str!("surrogatepass").as_ptr(),
             )
             .assume_owned(py)
             .downcast_into_unchecked::<PyBytes>()

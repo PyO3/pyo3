@@ -104,8 +104,8 @@ impl PyCFunction {
     )]
     pub fn new_closure<'a, F, R>(
         py: Python<'a>,
-        name: Option<&'static str>,
-        doc: Option<&'static str>,
+        name: Option<&'static CStr>,
+        doc: Option<&'static CStr>,
         closure: F,
     ) -> PyResult<&'a PyCFunction>
     where

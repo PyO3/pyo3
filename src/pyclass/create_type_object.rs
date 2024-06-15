@@ -215,7 +215,7 @@ impl PyTypeBuilder {
         if self.has_dict {
             #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
             property_defs.push(ffi::PyGetSetDef {
-                name: "__dict__\0".as_ptr().cast(),
+                name: ffi::c_str!("__dict__").as_ptr(),
                 get: Some(ffi::PyObject_GenericGetDict),
                 set: Some(ffi::PyObject_GenericSetDict),
                 doc: ptr::null(),
@@ -313,11 +313,11 @@ impl PyTypeBuilder {
         {
             #[inline(always)]
             fn offset_def(
-                name: &'static str,
+                name: &'static CStr,
                 offset: ffi::Py_ssize_t,
             ) -> ffi::structmember::PyMemberDef {
                 ffi::structmember::PyMemberDef {
-                    name: name.as_ptr() as _,
+                    name: name.as_ptr(),
                     type_code: ffi::structmember::T_PYSSIZET,
                     offset,
                     flags: ffi::structmember::READONLY,
@@ -329,12 +329,15 @@ impl PyTypeBuilder {
 
             // __dict__ support
             if let Some(dict_offset) = dict_offset {
-                members.push(offset_def("__dictoffset__\0", dict_offset));
+                members.push(offset_def(ffi::c_str!("__dictoffset__"), dict_offset));
             }
 
             // weakref support
             if let Some(weaklist_offset) = weaklist_offset {
-                members.push(offset_def("__weaklistoffset__\0", weaklist_offset));
+                members.push(offset_def(
+                    ffi::c_str!("__weaklistoffset__"),
+                    weaklist_offset,
+                ));
             }
 
             // Safety: Py_tp_members expects a raw vec of PyMemberDef

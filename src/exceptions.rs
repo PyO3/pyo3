@@ -736,10 +736,10 @@ impl PyUnicodeDecodeError {
         let pos = err.valid_up_to();
         PyUnicodeDecodeError::new_bound(
             py,
-            CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
+            ffi::c_str!("utf-8"),
             input,
             pos..(pos + 1),
-            CStr::from_bytes_with_nul(b"invalid utf-8\0").unwrap(),
+            ffi::c_str!("invalid utf-8"),
         )
     }
 }
