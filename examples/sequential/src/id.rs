@@ -28,6 +28,9 @@ unsafe extern "C" fn id_new(
     kwds: *mut PyObject,
 ) -> *mut PyObject {
     if PyTuple_Size(args) != 0 || !kwds.is_null() {
+        // We use pyo3-ffi's `c_str!` macro to create null-terminated literals because
+        // Rust's string literals are not null-terminated
+        // On Rust 1.77 or newer you can use `c"text"` instead.
         PyErr_SetString(PyExc_TypeError, c_str!("Id() takes no arguments").as_ptr());
         return ptr::null_mut();
     }
