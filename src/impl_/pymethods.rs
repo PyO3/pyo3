@@ -67,6 +67,8 @@ pub enum PyMethodDefType {
     Getter(PyGetterDef),
     /// Represents setter descriptor, used by `#[setter]`
     Setter(PySetterDef),
+    /// Represents a struct member
+    StructMember(ffi::PyMemberDef),
 }
 
 #[derive(Copy, Clone, Debug)]

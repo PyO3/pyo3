@@ -3,13 +3,15 @@ use crate::PyNativeType;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
-    impl_::freelist::FreeList,
-    impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+    impl_::{
+        freelist::FreeList,
+        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+    },
     internal_tricks::extract_c_string,
     pyclass_init::PyObjectInit,
-    types::any::PyAnyMethods,
-    types::PyBool,
-    Borrowed, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
+    types::{any::PyAnyMethods, PyBool},
+    Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
+    ToPyObject,
 };
 use std::{
     borrow::Cow,
@@ -891,7 +893,7 @@ macro_rules! generate_pyclass_richcompare_slot {
 }
 pub use generate_pyclass_richcompare_slot;
 
-use super::pycell::PyClassObject;
+use super::{pycell::PyClassObject, pymethods::BoundRef};
 
 /// Implements a freelist.
 ///
@@ -1171,4 +1173,134 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     };
     ffi::Py_DECREF(index);
     result
+}
+
+/// Type which uses deref specialization to determine how to read a value from a Rust pyclass
+/// as part of a `#[pyo3(get)]` annotation.
+pub struct PyClassGetterGenerator<T: PyClass, X, const OFFSET: usize, const IS_PY_T: bool>(
+    PhantomData<T>,
+    PhantomData<X>,
+);
+
+impl<T: PyClass, X, const OFFSET: usize, const IS_PY_T: bool>
+    PyClassGetterGenerator<T, X, OFFSET, IS_PY_T>
+{
+    /// Safety: constructing this type requires that there exists a value of type X
+    /// at offset OFFSET within the type T.
+    pub const unsafe fn new() -> Self {
+        Self(PhantomData, PhantomData)
+    }
+}
+
+impl<T: PyClass, X, const OFFSET: usize> PyClassGetterGenerator<T, Py<X>, OFFSET, true> {
+    /// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+        use crate::pyclass::boolean_struct::private::Boolean;
+        if T::Frozen::VALUE {
+            PyMethodDefType::StructMember(ffi::PyMemberDef {
+                name: name.as_ptr(),
+                type_code: ffi::Py_T_OBJECT_EX,
+                offset: (std::mem::offset_of!(PyClassObject::<T>, contents) + OFFSET)
+                    as ffi::Py_ssize_t,
+                flags: ffi::Py_READONLY,
+                doc: doc.as_ptr(),
+            })
+        } else {
+            PyMethodDefType::Getter(crate::PyGetterDef {
+                // TODO: store &CStr in PyGetterDef etc
+                name: unsafe { std::str::from_utf8_unchecked(name.to_bytes_with_nul()) },
+                meth: pyo3_get_py_t::<T, Py<X>, OFFSET>,
+                doc: unsafe { std::str::from_utf8_unchecked(doc.to_bytes_with_nul()) },
+            })
+        }
+    }
+}
+
+impl<T: PyClass, X: IntoPy<Py<PyAny>> + Clone, const OFFSET: usize>
+    PyClassGetterGenerator<T, X, OFFSET, false>
+{
+    /// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+        PyMethodDefType::Getter(crate::PyGetterDef {
+            // TODO: store &CStr in PyGetterDef etc
+            name: unsafe { std::str::from_utf8_unchecked(name.to_bytes_with_nul()) },
+            meth: pyo3_get_value::<T, X, OFFSET>,
+            doc: unsafe { std::str::from_utf8_unchecked(doc.to_bytes_with_nul()) },
+        })
+    }
+}
+
+pub trait Tester {
+    const VALUE: bool = false;
+}
+
+macro_rules! tester {
+    ($name:ident) => {
+        pub struct $name<T>(PhantomData<T>);
+        impl<T> Tester for $name<T> {}
+    };
+}
+
+tester!(IsPyT);
+
+impl<T> IsPyT<Py<T>> {
+    pub const VALUE: bool = true;
+}
+
+macro_rules! trait_tester {
+    ($name:ident, $($trait:tt)+) => {
+        tester!($name);
+
+        impl<T: $($trait)+> $name<T> {
+            pub const VALUE: bool = true;
+        }
+    }
+}
+
+trait_tester!(IsIntoPyAndClone, IntoPy<Py<PyAny>> + Clone);
+trait_tester!(IsToPyObject, ToPyObject);
+
+fn pyo3_get_py_t<T: PyClass, U, const OFFSET: usize>(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) -> PyResult<*mut ffi::PyObject> {
+    // Check for mutable aliasing
+    let _holder = unsafe {
+        BoundRef::ref_from_ptr(py, &obj)
+            .downcast_unchecked::<T>()
+            .try_borrow()?
+    };
+
+    let value = unsafe {
+        obj.cast::<u8>()
+            .offset((std::mem::offset_of!(PyClassObject::<T>, contents) + OFFSET) as isize)
+            .cast::<Py<U>>()
+    };
+
+    // SAFETY: OFFSET is known to describe the location of the value, and
+    // _holder is preventing mutable aliasing
+    Ok((unsafe { &*value }).clone_ref(py).into_py(py).into_ptr())
+}
+
+fn pyo3_get_value<T: PyClass, X: IntoPy<Py<PyAny>> + Clone, const OFFSET: usize>(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) -> PyResult<*mut ffi::PyObject> {
+    assert!(IsIntoPyAndClone::<X>::VALUE);
+    // Check for mutable aliasing
+    let _holder = unsafe {
+        BoundRef::ref_from_ptr(py, &obj)
+            .downcast_unchecked::<T>()
+            .try_borrow()?
+    };
+
+    let value = unsafe {
+        obj.cast::<u8>()
+            .offset((std::mem::offset_of!(PyClassObject::<T>, contents) + OFFSET) as isize)
+            .cast::<X>()
+    };
+
+    // SAFETY: OFFSET is known to describe the location of the value, and
+    // _holder is preventing mutable aliasing
+    Ok((unsafe { &*value }).clone().into_py(py).into_ptr())
 }

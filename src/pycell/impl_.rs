@@ -253,7 +253,7 @@ where
 #[repr(C)]
 pub struct PyClassObject<T: PyClassImpl> {
     pub(crate) ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-    contents: PyClassObjectContents<T>,
+    pub(crate) contents: PyClassObjectContents<T>,
 }
 
 #[repr(C)]
