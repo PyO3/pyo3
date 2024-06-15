@@ -257,6 +257,8 @@ macro_rules! opaque_struct {
 /// Examples:
 ///
 /// ```rust
+/// use std::ffi::CStr;
+///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
 /// static WORLD: &CStr = pyo3_ffi::c_str!("world");
 /// ```
