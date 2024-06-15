@@ -66,7 +66,7 @@ where
             has_setitem: false,
             has_traverse: false,
             has_clear: false,
-            dictoffset: None,
+            dict_offset: None,
             class_flags: 0,
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             buffer_procs: Default::default(),
@@ -218,13 +218,15 @@ impl PyTypeBuilder {
 
         // PyPy automatically adds __dict__ getter / setter.
         #[cfg(not(PyPy))]
-        if let Some(dictoffset) = self.dictoffset {
+        // Supported on unlimited API for all versions, and on 3.9+ for limited API
+        #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+        if let Some(dict_offset) = self.dict_offset {
             let get_dict;
             let closure;
             // PyObject_GenericGetDict not in the limited API until Python 3.10.
             #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
             {
-                let _ = dictoffset;
+                let _ = dict_offset;
                 get_dict = ffi::PyObject_GenericGetDict;
                 closure = ptr::null_mut();
             }
@@ -238,12 +240,13 @@ impl PyTypeBuilder {
                 ) -> *mut ffi::PyObject {
                     unsafe {
                         trampoline(|_| {
-                            let dictoffset = closure as Py_ssize_t;
-                            // we don't support negative dictoffset here; PyO3 doesn't set it negative
-                            assert!(dictoffset > 0);
+                            let dict_offset = closure as Py_ssize_t;
+                            // we don't support negative dict_offset here; PyO3 doesn't set it negative
+                            assert!(dict_offset > 0);
+                            // TODO: use `.byte_offset` on MSRV 1.75
                             let dict_ptr = object
                                 .cast::<u8>()
-                                .offset(dictoffset)
+                                .offset(dict_offset)
                                 .cast::<*mut ffi::PyObject>();
                             if (*dict_ptr).is_null() {
                                 std::ptr::write(dict_ptr, ffi::PyDict_New());
@@ -254,7 +257,7 @@ impl PyTypeBuilder {
                 }
 
                 get_dict = get_dict_impl;
-                closure = dictoffset as _;
+                closure = dict_offset as _;
             }
 
             property_defs.push(ffi::PyGetSetDef {
@@ -350,7 +353,7 @@ impl PyTypeBuilder {
         dict_offset: Option<ffi::Py_ssize_t>,
         #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
     ) -> Self {
-        self.dictoffset = dict_offset;
+        self.dict_offset = dict_offset;
 
         #[cfg(Py_3_9)]
         {

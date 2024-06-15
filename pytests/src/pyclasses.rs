@@ -66,14 +66,14 @@ impl AssertingBaseClass {
 #[pyclass]
 struct ClassWithoutConstructor;
 
-#[pyclass(dict, weakref)]
-struct ClassWithDictAndWeakref;
+#[pyclass(dict)]
+struct ClassWithDict;
 
 #[pymethods]
-impl ClassWithDictAndWeakref {
+impl ClassWithDict {
     #[new]
     fn new() -> Self {
-        ClassWithDictAndWeakref
+        ClassWithDict
     }
 }
 
@@ -83,7 +83,7 @@ pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyClassIter>()?;
     m.add_class::<AssertingBaseClass>()?;
     m.add_class::<ClassWithoutConstructor>()?;
-    m.add_class::<ClassWithDictAndWeakref>()?;
+    m.add_class::<ClassWithDict>()?;
 
     Ok(())
 }

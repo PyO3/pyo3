@@ -87,7 +87,7 @@ def test_no_constructor_defined_propagates_cause(cls: Type):
 
 
 def test_dict():
-    d = pyclasses.ClassWithDictAndWeakref()
+    d = pyclasses.ClassWithDict()
     assert d.__dict__ == {}
 
     d.foo = 42
