@@ -192,7 +192,7 @@ impl PyTypeBuilder {
         }
     }
 
-    fn finalize_methods_and_properties(&mut self) -> PyResult<Vec<GetSetDefDestructor>> {
+    fn finalize_methods_and_properties(&mut self) -> Vec<GetSetDefDestructor> {
         let method_defs: Vec<pyo3_ffi::PyMethodDef> = std::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
@@ -204,11 +204,11 @@ impl PyTypeBuilder {
             .getset_builders
             .iter()
             .map(|(name, builder)| {
-                let (def, destructor) = builder.as_get_set_def(name)?;
+                let (def, destructor) = builder.as_get_set_def(name);
                 getset_destructors.push(destructor);
-                Ok(def)
+                def
             })
-            .collect::<PyResult<_>>()?;
+            .collect();
 
         // PyPy doesn't automatically add __dict__ getter / setter.
         // PyObject_GenericGetDict not in the limited API until Python 3.10.
@@ -254,7 +254,7 @@ impl PyTypeBuilder {
             }
         }
 
-        Ok(getset_destructors)
+        getset_destructors
     }
 
     fn set_is_basetype(mut self, is_basetype: bool) -> Self {
@@ -377,7 +377,7 @@ impl PyTypeBuilder {
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
 
-        let getset_destructors = self.finalize_methods_and_properties()?;
+        let getset_destructors = self.finalize_methods_and_properties();
 
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
@@ -515,10 +515,7 @@ impl GetSetDefBuilder {
         self.setter = Some(setter.meth)
     }
 
-    fn as_get_set_def(
-        &self,
-        name: &'static CStr,
-    ) -> PyResult<(ffi::PyGetSetDef, GetSetDefDestructor)> {
+    fn as_get_set_def(&self, name: &'static CStr) -> (ffi::PyGetSetDef, GetSetDefDestructor) {
         let getset_type = match (self.getter, self.setter) {
             (Some(getter), None) => GetSetDefType::Getter(getter),
             (None, Some(setter)) => GetSetDefType::Setter(setter),
@@ -534,7 +531,7 @@ impl GetSetDefBuilder {
         let destructor = GetSetDefDestructor {
             closure: getset_type,
         };
-        Ok((getset_def, destructor))
+        (getset_def, destructor)
     }
 }
 

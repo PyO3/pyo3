@@ -82,7 +82,11 @@ unsafe extern "C" fn id_richcompare(
         pyo3_ffi::Py_GT => slf > other,
         pyo3_ffi::Py_GE => slf >= other,
         unrecognized => {
-            let msg = CString::new(&*format!("unrecognized richcompare opcode {}", op)).unwrap();
+            let msg = CString::new(&*format!(
+                "unrecognized richcompare opcode {}",
+                unrecognized
+            ))
+            .unwrap();
             PyErr_SetString(PyExc_SystemError, msg.as_ptr());
             return ptr::null_mut();
         }

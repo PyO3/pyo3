@@ -148,7 +148,7 @@ impl PyCFunction {
         let name = name.unwrap_or(ffi::c_str!("pyo3-closure"));
         let doc = doc.unwrap_or(ffi::c_str!(""));
         let method_def =
-            pymethods::PyMethodDef::cfunction_with_keywords(&name, run_closure::<F, R>, &doc);
+            pymethods::PyMethodDef::cfunction_with_keywords(name, run_closure::<F, R>, doc);
         let def = method_def.as_method_def();
 
         let capsule = PyCapsule::new_bound(
@@ -199,7 +199,7 @@ impl PyCFunction {
     }
 }
 
-static CLOSURE_CAPSULE_NAME: &'static CStr = ffi::c_str!("pyo3-closure");
+static CLOSURE_CAPSULE_NAME: &CStr = ffi::c_str!("pyo3-closure");
 
 unsafe extern "C" fn run_closure<F, R>(
     capsule_ptr: *mut ffi::PyObject,
