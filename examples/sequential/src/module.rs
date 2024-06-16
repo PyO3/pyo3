@@ -1,6 +1,6 @@
 use core::{mem, ptr};
 use pyo3_ffi::*;
-use std::os::raw::{c_char, c_int, c_void};
+use std::os::raw::{c_int, c_void};
 
 pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
@@ -38,12 +38,15 @@ unsafe extern "C" fn sequential_exec(module: *mut PyObject) -> c_int {
         ptr::null_mut(),
     );
     if id_type.is_null() {
-        PyErr_SetString(PyExc_SystemError, c_str!("cannot locate type object"));
+        PyErr_SetString(
+            PyExc_SystemError,
+            c_str!("cannot locate type object").as_ptr(),
+        );
         return -1;
     }
     (*state).id_type = id_type.cast::<PyTypeObject>();
 
-    PyModule_AddObjectRef(module, c_str!("Id"), id_type)
+    PyModule_AddObjectRef(module, c_str!("Id").as_ptr(), id_type)
 }
 
 unsafe extern "C" fn sequential_traverse(

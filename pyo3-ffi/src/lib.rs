@@ -287,7 +287,7 @@ pub const fn str_contains_no_nul(s: &str) -> bool {
         }
         i += 1;
     }
-    return true;
+    true
 }
 
 pub use self::abstract_::*;

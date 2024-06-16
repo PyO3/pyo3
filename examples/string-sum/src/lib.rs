@@ -89,9 +89,7 @@ pub unsafe extern "C" fn sum_as_string(
     if nargs != 2 {
         PyErr_SetString(
             PyExc_TypeError,
-            "sum_as_string expected 2 positional arguments\0"
-                .as_ptr()
-                .cast::<c_char>(),
+            c_str!("sum_as_string expected 2 positional arguments").as_ptr(),
         );
         return std::ptr::null_mut();
     }
@@ -113,7 +111,10 @@ pub unsafe extern "C" fn sum_as_string(
             PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as isize)
         }
         None => {
-            PyErr_SetString(PyExc_OverflowError, c_str!("arguments too large to add"));
+            PyErr_SetString(
+                PyExc_OverflowError,
+                c_str!("arguments too large to add").as_ptr(),
+            );
             std::ptr::null_mut()
         }
     }
