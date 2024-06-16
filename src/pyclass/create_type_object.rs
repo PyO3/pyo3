@@ -240,7 +240,7 @@ impl PyTypeBuilder {
                 ) -> *mut ffi::PyObject {
                     unsafe {
                         trampoline(|_| {
-                            let dict_offset = closure as Py_ssize_t;
+                            let dict_offset = closure as ffi::Py_ssize_t;
                             // we don't support negative dict_offset here; PyO3 doesn't set it negative
                             assert!(dict_offset > 0);
                             // TODO: use `.byte_offset` on MSRV 1.75
