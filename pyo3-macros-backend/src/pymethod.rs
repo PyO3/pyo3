@@ -2,8 +2,10 @@ use std::borrow::Cow;
 
 use crate::attributes::{NameAttribute, RenamingRule};
 use crate::deprecations::deprecate_trailing_option_default;
-use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
-use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
+use crate::method::PyArg;
+use crate::method::{AssumeCorrectReceiverType, CallingConvention, ExtractErrorMode};
+use crate::params::Holders;
+use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param};
 use crate::utils::Ctx;
 use crate::utils::PythonDoc;
 use crate::{
@@ -532,7 +534,13 @@ fn impl_call_setter(
     ctx: &Ctx,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
+    let slf = self_type.receiver(
+        cls,
+        ExtractErrorMode::Raise,
+        holders,
+        AssumeCorrectReceiverType::Yes,
+        ctx,
+    );
 
     if args.is_empty() {
         bail_spanned!(spec.name.span() => "setter function expected to have one argument");
@@ -571,7 +579,13 @@ pub fn impl_py_setter_def(
                 mutable: true,
                 span: Span::call_site(),
             }
-            .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+            .receiver(
+                cls,
+                ExtractErrorMode::Raise,
+                &mut holders,
+                AssumeCorrectReceiverType::Yes,
+                ctx,
+            );
             if let Some(ident) = &field.ident {
                 // named struct field
                 quote!({ #slf.#ident = _val; })
@@ -723,7 +737,13 @@ fn impl_call_getter(
     ctx: &Ctx,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
+    let slf = self_type.receiver(
+        cls,
+        ExtractErrorMode::Raise,
+        holders,
+        AssumeCorrectReceiverType::Yes,
+        ctx,
+    );
     ensure_spanned!(
         args.is_empty(),
         args[0].ty().span() => "getter function can only have one argument (of type pyo3::Python)"
@@ -758,7 +778,13 @@ pub fn impl_py_getter_def(
                 mutable: false,
                 span: Span::call_site(),
             }
-            .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+            .receiver(
+                cls,
+                ExtractErrorMode::Raise,
+                &mut holders,
+                AssumeCorrectReceiverType::Yes,
+                ctx,
+            );
             let field_token = if let Some(ident) = &field.ident {
                 // named struct field
                 ident.to_token_stream()
@@ -1295,6 +1321,7 @@ impl SlotDef {
             *extract_error_mode,
             &mut holders,
             return_mode.as_ref(),
+            AssumeCorrectReceiverType::Yes,
             ctx,
         )?;
         let name = spec.name;
@@ -1343,12 +1370,17 @@ fn generate_method_body(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     return_mode: Option<&ReturnMode>,
+    assume_correct_receiver_type: AssumeCorrectReceiverType,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path } = ctx;
-    let self_arg = spec
-        .tp
-        .self_arg(Some(cls), extract_error_mode, holders, ctx);
+    let self_arg = spec.tp.self_arg(
+        Some(cls),
+        extract_error_mode,
+        holders,
+        assume_correct_receiver_type,
+        ctx,
+    );
     let rust_name = spec.name;
     let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
     let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
@@ -1368,6 +1400,7 @@ struct SlotFragmentDef {
     fragment: &'static str,
     arguments: &'static [Ty],
     extract_error_mode: ExtractErrorMode,
+    assume_correct_receiver_type: AssumeCorrectReceiverType,
     ret_ty: Ty,
 }
 
@@ -1377,12 +1410,18 @@ impl SlotFragmentDef {
             fragment,
             arguments,
             extract_error_mode: ExtractErrorMode::Raise,
+            assume_correct_receiver_type: AssumeCorrectReceiverType::Yes,
             ret_ty: Ty::Void,
         }
     }
 
     const fn extract_error_mode(mut self, extract_error_mode: ExtractErrorMode) -> Self {
         self.extract_error_mode = extract_error_mode;
+        self
+    }
+
+    const fn no_assume_correct_receiver_type(mut self) -> Self {
+        self.assume_correct_receiver_type = AssumeCorrectReceiverType::No;
         self
     }
 
@@ -1402,6 +1441,7 @@ impl SlotFragmentDef {
             fragment,
             arguments,
             extract_error_mode,
+            assume_correct_receiver_type,
             ret_ty,
         } = self;
         let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
@@ -1419,6 +1459,7 @@ impl SlotFragmentDef {
             *extract_error_mode,
             &mut holders,
             None,
+            *assume_correct_receiver_type,
             ctx,
         )?;
         let ret_ty = ret_ty.ffi_type(ctx);
@@ -1469,6 +1510,7 @@ macro_rules! binary_num_slot_fragment_def {
     ($ident:ident, $name:literal) => {
         const $ident: SlotFragmentDef = SlotFragmentDef::new($name, &[Ty::Object])
             .extract_error_mode(ExtractErrorMode::NotImplemented)
+            .no_assume_correct_receiver_type()
             .ret_ty(Ty::Object);
     };
 }
@@ -1502,28 +1544,36 @@ binary_num_slot_fragment_def!(__ROR__, "__ror__");
 
 const __POW__: SlotFragmentDef = SlotFragmentDef::new("__pow__", &[Ty::Object, Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object, Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 
 const __LT__: SlotFragmentDef = SlotFragmentDef::new("__lt__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 const __LE__: SlotFragmentDef = SlotFragmentDef::new("__le__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 const __EQ__: SlotFragmentDef = SlotFragmentDef::new("__eq__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 const __NE__: SlotFragmentDef = SlotFragmentDef::new("__ne__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 const __GT__: SlotFragmentDef = SlotFragmentDef::new("__gt__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 const __GE__: SlotFragmentDef = SlotFragmentDef::new("__ge__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .no_assume_correct_receiver_type()
     .ret_ty(Ty::Object);
 
 fn extract_proto_arguments(

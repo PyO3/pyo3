@@ -4,11 +4,11 @@ error[E0271]: type mismatch resolving `<ComplexEnum as PyClass>::Frozen == False
 11 |     fn mutate_in_place(&mut self) {
    |                        ^ expected `False`, found `True`
    |
-note: required by a bound in `extract_pyclass_ref_mut`
-  --> src/impl_/extract_argument.rs
+note: required by a bound in `receive_pyclass_mut`
+  --> src/impl_/pymethods.rs
    |
-   | pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
-   |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+   | pub unsafe fn receive_pyclass_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
+   |                                                           ^^^^^^^^^^^^^^ required by this bound in `receive_pyclass_mut`
 
 error[E0271]: type mismatch resolving `<ComplexEnum as PyClass>::Frozen == False`
  --> tests/ui/invalid_pymethod_enum.rs:9:1
@@ -29,11 +29,11 @@ error[E0271]: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
 27 |     fn mutate_in_place(&mut self) {
    |                        ^ expected `False`, found `True`
    |
-note: required by a bound in `extract_pyclass_ref_mut`
-  --> src/impl_/extract_argument.rs
+note: required by a bound in `receive_pyclass_mut`
+  --> src/impl_/pymethods.rs
    |
-   | pub fn extract_pyclass_ref_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
-   |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+   | pub unsafe fn receive_pyclass_mut<'a, 'py: 'a, T: PyClass<Frozen = False>>(
+   |                                                           ^^^^^^^^^^^^^^ required by this bound in `receive_pyclass_mut`
 
 error[E0271]: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
   --> tests/ui/invalid_pymethod_enum.rs:25:1
