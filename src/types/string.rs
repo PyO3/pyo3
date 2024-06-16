@@ -123,7 +123,32 @@ impl<'a> PyStringData<'a> {
 
 /// Represents a Python `string` (a Unicode string object).
 ///
-/// This type is immutable.
+/// This type is only seen inside PyO3's smart pointers as [`Py<PyString>`], [`Bound<'py, PyString>`],
+/// and [`Borrowed<'a, 'py, PyString>`].
+///
+/// All functionality on this type is implemented through the [`PyStringMethods`] trait.
+///
+/// # Equality
+///
+/// For convenience, [`Bound<'py, PyString>`] implements [`PartialEq<str>`] to allow comparing the
+/// data in the Python string to a Rust UTF-8 string slice.
+///
+/// This is not always the most appropriate way to compare Python strings, as Python string subclasses
+/// may have different equality semantics. In situations where subclasses overriding equality might be
+/// relevant, use [`PyAnyMethods::eq`], at cost of the additional overhead of a Python method call.
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+///
+/// # Python::with_gil(|py| {
+/// let py_string = PyString::new(py, "foo");
+/// // via PartialEq<str>
+/// assert_eq!(py_string, "foo");
+///
+/// // via Python equality
+/// assert!(py_string.eq("foo").unwrap());
+/// # });
+/// ```
 #[repr(transparent)]
 pub struct PyString(PyAny);
 
@@ -490,6 +515,9 @@ impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<str> for Bound<'_, PyString> {
     #[inline]
     fn eq(&self, other: &str) -> bool {
@@ -497,6 +525,9 @@ impl PartialEq<str> for Bound<'_, PyString> {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<&'_ str> for Bound<'_, PyString> {
     #[inline]
     fn eq(&self, other: &&str) -> bool {
@@ -504,6 +535,9 @@ impl PartialEq<&'_ str> for Bound<'_, PyString> {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<Bound<'_, PyString>> for str {
     #[inline]
     fn eq(&self, other: &Bound<'_, PyString>) -> bool {
@@ -511,6 +545,9 @@ impl PartialEq<Bound<'_, PyString>> for str {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<&'_ Bound<'_, PyString>> for str {
     #[inline]
     fn eq(&self, other: &&Bound<'_, PyString>) -> bool {
@@ -518,6 +555,9 @@ impl PartialEq<&'_ Bound<'_, PyString>> for str {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<Bound<'_, PyString>> for &'_ str {
     #[inline]
     fn eq(&self, other: &Bound<'_, PyString>) -> bool {
@@ -525,6 +565,9 @@ impl PartialEq<Bound<'_, PyString>> for &'_ str {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<str> for &'_ Bound<'_, PyString> {
     #[inline]
     fn eq(&self, other: &str) -> bool {
@@ -532,6 +575,9 @@ impl PartialEq<str> for &'_ Bound<'_, PyString> {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<str> for Borrowed<'_, '_, PyString> {
     #[inline]
     fn eq(&self, other: &str) -> bool {
@@ -551,6 +597,9 @@ impl PartialEq<str> for Borrowed<'_, '_, PyString> {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<&str> for Borrowed<'_, '_, PyString> {
     #[inline]
     fn eq(&self, other: &&str) -> bool {
@@ -558,6 +607,9 @@ impl PartialEq<&str> for Borrowed<'_, '_, PyString> {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<Borrowed<'_, '_, PyString>> for str {
     #[inline]
     fn eq(&self, other: &Borrowed<'_, '_, PyString>) -> bool {
@@ -565,6 +617,9 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for str {
     }
 }
 
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
 impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
     #[inline]
     fn eq(&self, other: &Borrowed<'_, '_, PyString>) -> bool {
@@ -858,12 +913,20 @@ mod tests {
             assert_eq!(s, py_string);
             assert_eq!(s, &py_string);
 
+            assert_eq!(py_string, *s);
+            assert_eq!(&py_string, *s);
+            assert_eq!(*s, py_string);
+            assert_eq!(*s, &py_string);
+
             let py_string = py_string.as_borrowed();
 
             assert_eq!(py_string, s);
             assert_eq!(&py_string, s);
             assert_eq!(s, py_string);
             assert_eq!(s, &py_string);
+
+            assert_eq!(py_string, *s);
+            assert_eq!(*s, py_string);
         })
     }
 }
