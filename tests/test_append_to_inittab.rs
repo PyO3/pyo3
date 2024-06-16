@@ -13,7 +13,6 @@ fn module_fn_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(feature = "experimental-declarative-modules")]
 #[pymodule]
 mod module_mod_with_functions {
     #[pymodule_export]
@@ -27,7 +26,6 @@ fn test_module_append_to_inittab() {
 
     append_to_inittab!(module_fn_with_functions);
 
-    #[cfg(feature = "experimental-declarative-modules")]
     append_to_inittab!(module_mod_with_functions);
 
     Python::with_gil(|py| {
@@ -43,7 +41,6 @@ assert module_fn_with_functions.foo() == 123
         .unwrap();
     });
 
-    #[cfg(feature = "experimental-declarative-modules")]
     Python::with_gil(|py| {
         py.run_bound(
             r#"

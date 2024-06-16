@@ -75,9 +75,6 @@ experimental-async = ["macros", "pyo3-macros/experimental-async"]
 # and IntoPy traits
 experimental-inspect = []
 
-# Enables annotating Rust inline modules with #[pymodule] to build Python modules declaratively
-experimental-declarative-modules = ["pyo3-macros/experimental-declarative-modules", "macros"]
-
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
 
@@ -125,7 +122,6 @@ full = [
     "chrono-tz",
     "either",
     "experimental-async",
-    "experimental-declarative-modules",
     "experimental-inspect",
     "eyre",
     "hashbrown",
