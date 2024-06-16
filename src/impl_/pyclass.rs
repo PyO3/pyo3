@@ -76,6 +76,7 @@ impl PyClassWeakRef for PyClassDummySlot {
 ///
 /// `#[pyclass(dict)]` automatically adds this.
 #[repr(transparent)]
+#[allow(dead_code)] // These are constructed in INIT and used by the macro code
 pub struct PyClassDictSlot(*mut ffi::PyObject);
 
 impl PyClassDict for PyClassDictSlot {
@@ -93,6 +94,7 @@ impl PyClassDict for PyClassDictSlot {
 ///
 /// `#[pyclass(weakref)]` automatically adds this.
 #[repr(transparent)]
+#[allow(dead_code)] // These are constructed in INIT and used by the macro code
 pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 
 impl PyClassWeakRef for PyClassWeakRefSlot {

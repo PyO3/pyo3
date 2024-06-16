@@ -457,9 +457,8 @@ fn dunder_dict_support() {
     });
 }
 
-// Accessing inst.__dict__ only supported in limited API from Python 3.10
 #[test]
-#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn access_dunder_dict() {
     Python::with_gil(|py| {
         let inst = Py::new(

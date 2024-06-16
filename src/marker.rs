@@ -11,7 +11,7 @@
 //! It also supports this pattern that many extension modules employ:
 //! - Drop the GIL, so that other Python threads can acquire it and make progress themselves
 //! - Do something independently of the Python interpreter, like IO, a long running calculation or
-//! awaiting a future
+//!   awaiting a future
 //! - Once that is done, reacquire the GIL
 //!
 //! That API is provided by [`Python::allow_threads`] and enforced via the [`Ungil`] bound on the
@@ -308,9 +308,9 @@ pub use nightly::Ungil;
 /// It serves three main purposes:
 /// - It provides a global API for the Python interpreter, such as [`Python::eval_bound`].
 /// - It can be passed to functions that require a proof of holding the GIL, such as
-/// [`Py::clone_ref`].
+///   [`Py::clone_ref`].
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
-/// references that are bound to it, such as `&`[`PyAny`].
+///   references that are bound to it, such as `&`[`PyAny`].
 ///
 /// Note that there are some caveats to using it that you might need to be aware of. See the
 /// [Deadlocks](#deadlocks) and [Releasing and freeing memory](#releasing-and-freeing-memory)
@@ -320,11 +320,11 @@ pub use nightly::Ungil;
 ///
 /// The following are the recommended ways to obtain a [`Python`] token, in order of preference:
 /// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
-/// as a parameter, and PyO3 will pass in the token when Python code calls it.
+///   as a parameter, and PyO3 will pass in the token when Python code calls it.
 /// - If you already have something with a lifetime bound to the GIL, such as `&`[`PyAny`], you can
-/// use its `.py()` method to get a token.
+///   use its `.py()` method to get a token.
 /// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
-/// should call [`Python::with_gil`] to do that and pass your code as a closure to it.
+///   should call [`Python::with_gil`] to do that and pass your code as a closure to it.
 ///
 /// # Deadlocks
 ///
@@ -652,7 +652,7 @@ impl<'py> Python<'py> {
     ) -> PyResult<Bound<'py, PyAny>> {
         let code = CString::new(code)?;
         unsafe {
-            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
+            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr().cast());
             if mptr.is_null() {
                 return Err(PyErr::fetch(self));
             }
@@ -1157,12 +1157,12 @@ impl<'unbound> Python<'unbound> {
     /// # Safety
     ///
     /// - This token and any borrowed Python references derived from it can only be safely used
-    /// whilst the currently executing thread is actually holding the GIL.
+    ///   whilst the currently executing thread is actually holding the GIL.
     /// - This function creates a token with an *unbounded* lifetime. Safe code can assume that
-    /// holding a `Python<'py>` token means the GIL is and stays acquired for the lifetime `'py`.
-    /// If you let it or borrowed Python references escape to safe code you are
-    /// responsible for bounding the lifetime `'unbound` appropriately. For more on unbounded
-    /// lifetimes, see the [nomicon].
+    ///   holding a `Python<'py>` token means the GIL is and stays acquired for the lifetime `'py`.
+    ///   If you let it or borrowed Python references escape to safe code you are
+    ///   responsible for bounding the lifetime `'unbound` appropriately. For more on unbounded
+    ///   lifetimes, see the [nomicon].
     ///
     /// [nomicon]: https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html
     #[inline]

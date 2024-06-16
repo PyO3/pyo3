@@ -48,7 +48,6 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
-use std::os::raw::c_char;
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -68,19 +67,13 @@ macro_rules! rational_conversion {
                 let py_numerator_obj = unsafe {
                     Bound::from_owned_ptr_or_err(
                         py,
-                        ffi::PyObject_GetAttrString(
-                            obj.as_ptr(),
-                            "numerator\0".as_ptr() as *const c_char,
-                        ),
+                        ffi::PyObject_GetAttrString(obj.as_ptr(), "numerator\0".as_ptr().cast()),
                     )
                 };
                 let py_denominator_obj = unsafe {
                     Bound::from_owned_ptr_or_err(
                         py,
-                        ffi::PyObject_GetAttrString(
-                            obj.as_ptr(),
-                            "denominator\0".as_ptr() as *const c_char,
-                        ),
+                        ffi::PyObject_GetAttrString(obj.as_ptr(), "denominator\0".as_ptr().cast()),
                     )
                 };
                 let numerator_owned = unsafe {

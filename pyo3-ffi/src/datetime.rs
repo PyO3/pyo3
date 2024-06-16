@@ -13,7 +13,9 @@
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
 use std::cell::UnsafeCell;
-use std::os::raw::{c_char, c_int};
+#[cfg(not(GraalPy))]
+use std::os::raw::c_char;
+use std::os::raw::c_int;
 use std::ptr;
 #[cfg(not(PyPy))]
 use {crate::PyCapsule_Import, std::ffi::CString};
@@ -356,7 +358,7 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn _get_attr(obj: *mut PyObject, field: &str) -> c_int {
-    let result = PyObject_GetAttrString(obj, field.as_ptr() as *const c_char);
+    let result = PyObject_GetAttrString(obj, field.as_ptr().cast());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {
         PyLong_AsLong(result) as c_int
@@ -416,7 +418,7 @@ pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr() as *const c_char);
+    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -454,7 +456,7 @@ pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr() as *const c_char);
+    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }

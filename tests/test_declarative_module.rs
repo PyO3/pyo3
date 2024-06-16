@@ -3,6 +3,7 @@
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+use pyo3::sync::GILOnceCell;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::PyBool;
 
@@ -78,7 +79,7 @@ mod declarative_module {
             x * 3
         }
 
-        #[pyclass]
+        #[pyclass(name = "Struct")]
         struct Struct;
 
         #[pymethods]
@@ -89,12 +90,31 @@ mod declarative_module {
             }
         }
 
-        #[pyclass(eq, eq_int)]
+        #[pyclass(module = "foo")]
+        struct StructInCustomModule;
+
+        #[pyclass(eq, eq_int, name = "Enum")]
         #[derive(PartialEq)]
         enum Enum {
             A,
             B,
         }
+
+        #[pyclass(eq, eq_int, module = "foo")]
+        #[derive(PartialEq)]
+        enum EnumInCustomModule {
+            A,
+            B,
+        }
+    }
+
+    #[pymodule]
+    #[pyo3(module = "custom_root")]
+    mod inner_custom_root {
+        use super::*;
+
+        #[pyclass]
+        struct Struct;
     }
 
     #[pymodule_init]
@@ -121,10 +141,17 @@ mod declarative_module2 {
     use super::double;
 }
 
+fn declarative_module(py: Python<'_>) -> &Bound<'_, PyModule> {
+    static MODULE: GILOnceCell<Py<PyModule>> = GILOnceCell::new();
+    MODULE
+        .get_or_init(py, || pyo3::wrap_pymodule!(declarative_module)(py))
+        .bind(py)
+}
+
 #[test]
 fn test_declarative_module() {
     Python::with_gil(|py| {
-        let m = pyo3::wrap_pymodule!(declarative_module)(py).into_bound(py);
+        let m = declarative_module(py);
         py_assert!(
             py,
             m,
@@ -186,5 +213,29 @@ fn test_raw_ident_module() {
     Python::with_gil(|py| {
         let m = pyo3::wrap_pymodule!(r#type)(py).into_bound(py);
         py_assert!(py, m, "m.double(2) == 4");
+    })
+}
+
+#[test]
+fn test_module_names() {
+    Python::with_gil(|py| {
+        let m = declarative_module(py);
+        py_assert!(
+            py,
+            m,
+            "m.inner.Struct.__module__ == 'declarative_module.inner'"
+        );
+        py_assert!(py, m, "m.inner.StructInCustomModule.__module__ == 'foo'");
+        py_assert!(
+            py,
+            m,
+            "m.inner.Enum.__module__ == 'declarative_module.inner'"
+        );
+        py_assert!(py, m, "m.inner.EnumInCustomModule.__module__ == 'foo'");
+        py_assert!(
+            py,
+            m,
+            "m.inner_custom_root.Struct.__module__ == 'custom_root.inner_custom_root'"
+        );
     })
 }

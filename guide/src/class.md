@@ -327,8 +327,12 @@ explicitly.
 
 To get a parent class from a child, use [`PyRef`] instead of `&self` for methods,
 or [`PyRefMut`] instead of `&mut self`.
-Then you can access a parent class by `self_.as_ref()` as `&Self::BaseClass`,
-or by `self_.into_super()` as `PyRef<Self::BaseClass>`.
+Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`,
+or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut`
+case). For convenience, `self_.as_ref()` can also be used to get `&Self::BaseClass`
+directly; however, this approach does not let you access base clases higher in the 
+inheritance hierarchy, for which you would need to chain multiple `as_super` or 
+`into_super` calls.
 
 ```rust
 # use pyo3::prelude::*;
@@ -345,7 +349,7 @@ impl BaseClass {
         BaseClass { val1: 10 }
     }
 
-    pub fn method(&self) -> PyResult<usize> {
+    pub fn method1(&self) -> PyResult<usize> {
         Ok(self.val1)
     }
 }
@@ -363,8 +367,8 @@ impl SubClass {
     }
 
     fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
-        let super_ = self_.as_ref(); // Get &BaseClass
-        super_.method().map(|x| x * self_.val2)
+        let super_ = self_.as_super(); // Get &PyRef<BaseClass>
+        super_.method1().map(|x| x * self_.val2)
     }
 }
 
@@ -381,9 +385,26 @@ impl SubSubClass {
     }
 
     fn method3(self_: PyRef<'_, Self>) -> PyResult<usize> {
+        let base = self_.as_super().as_super(); // Get &PyRef<'_, BaseClass>
+        base.method1().map(|x| x * self_.val3)
+    }
+
+    fn method4(self_: PyRef<'_, Self>) -> PyResult<usize> {
         let v = self_.val3;
         let super_ = self_.into_super(); // Get PyRef<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
+    }
+
+      fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+          let val1 = self_.as_super().as_super().val1;
+          let val2 = self_.as_super().val2;
+          (val1, val2, self_.val3)
+      }
+  
+    fn double_values(mut self_: PyRefMut<'_, Self>) {
+        self_.as_super().as_super().val1 *= 2;
+        self_.as_super().val2 *= 2;
+        self_.val3 *= 2;
     }
 
     #[staticmethod]
@@ -400,7 +421,13 @@ impl SubSubClass {
 }
 # Python::with_gil(|py| {
 #     let subsub = pyo3::Py::new(py, SubSubClass::new()).unwrap();
-#     pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000");
+#     pyo3::py_run!(py, subsub, "assert subsub.method1() == 10");
+#     pyo3::py_run!(py, subsub, "assert subsub.method2() == 150");
+#     pyo3::py_run!(py, subsub, "assert subsub.method3() == 200");
+#     pyo3::py_run!(py, subsub, "assert subsub.method4() == 3000");
+#     pyo3::py_run!(py, subsub, "assert subsub.get_values() == (10, 15, 20)");
+#     pyo3::py_run!(py, subsub, "assert subsub.double_values() == None");
+#     pyo3::py_run!(py, subsub, "assert subsub.get_values() == (20, 30, 40)");
 #     let subsub = SubSubClass::factory_method(py, 2).unwrap();
 #     let subsubsub = SubSubClass::factory_method(py, 3).unwrap();
 #     let cls = py.get_type_bound::<SubSubClass>();
@@ -1156,6 +1183,32 @@ Python::with_gil(|py| {
     pyo3::py_run!(py, x cls, r#"
         assert repr(x) == 'RenamedEnum.UPPERCASE'
         assert x == cls.UPPERCASE
+    "#)
+})
+```
+
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`.  
+*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass(eq, ord)]
+#[derive(PartialEq, PartialOrd)]
+enum MyEnum{
+    A,
+    B,
+    C,
+}
+
+Python::with_gil(|py| {
+    let cls = py.get_type_bound::<MyEnum>();
+    let a = Py::new(py, MyEnum::A).unwrap();
+    let b = Py::new(py, MyEnum::B).unwrap();
+    let c = Py::new(py, MyEnum::C).unwrap();
+    pyo3::py_run!(py, cls a b c, r#"
+        assert (a < b) == True
+        assert (c <= b) == False
+        assert (c > a) == True
     "#)
 })
 ```

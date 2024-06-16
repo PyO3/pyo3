@@ -26,7 +26,7 @@ use target_lexicon::{Environment, OperatingSystem};
 use crate::{
     bail, ensure,
     errors::{Context, Error, Result},
-    format_warn, warn,
+    warn,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -171,20 +171,13 @@ impl InterpreterConfig {
             out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
         }
 
-        if self.implementation.is_pypy() {
-            out.push("cargo:rustc-cfg=PyPy".to_owned());
-            if self.abi3 {
-                out.push(format_warn!(
-                    "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
-                    See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
-                ));
-            }
-        } else if self.implementation.is_graalpy() {
-            println!("cargo:rustc-cfg=GraalPy");
-            if self.abi3 {
-                warn!("GraalPy does not support abi3 so the build artifacts will be version-specific.");
-            }
-        } else if self.abi3 {
+        match self.implementation {
+            PythonImplementation::CPython => {}
+            PythonImplementation::PyPy => out.push("cargo:rustc-cfg=PyPy".to_owned()),
+            PythonImplementation::GraalPy => out.push("cargo:rustc-cfg=GraalPy".to_owned()),
+        }
+
+        if self.abi3 {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
@@ -966,11 +959,11 @@ impl CrossCompileEnvVars {
 ///
 /// This function relies on PyO3 cross-compiling environment variables:
 ///
-///   * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
-///   * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
+/// * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
+/// * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
 ///   the target's libpython DSO and the associated `_sysconfigdata*.py` file for
 ///   Unix-like targets, or the Python DLL import libraries for the Windows target.
-///   * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
+/// * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
 ///   installation. This variable is only needed if PyO3 cannnot determine the version to target
 ///   from `abi3-py3*` features, or if there are multiple versions of Python present in
 ///   `PYO3_CROSS_LIB_DIR`.
@@ -1063,7 +1056,7 @@ impl BuildFlags {
                 .iter()
                 .filter(|flag| {
                     config_map
-                        .get_value(&flag.to_string())
+                        .get_value(flag.to_string())
                         .map_or(false, |value| value == "1")
                 })
                 .cloned()
@@ -2722,10 +2715,7 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
-                "cargo:warning=PyPy does not yet support abi3 so the build artifacts \
-            will be version-specific. See https://foss.heptapod.net/pypy/pypy/-/issues/3397 \
-            for more information."
-                    .to_owned(),
+                "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
         );
     }

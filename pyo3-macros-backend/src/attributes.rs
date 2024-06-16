@@ -29,6 +29,7 @@ pub mod kw {
     syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
     syn::custom_keyword!(name);
+    syn::custom_keyword!(ord);
     syn::custom_keyword!(pass_module);
     syn::custom_keyword!(rename_all);
     syn::custom_keyword!(sequence);

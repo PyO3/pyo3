@@ -61,7 +61,7 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
     assert!(PyCallable_Check(callable) > 0);
     let offset = (*tp).tp_vectorcall_offset;
     assert!(offset > 0);
-    let ptr = (callable as *const c_char).offset(offset) as *const Option<vectorcallfunc>;
+    let ptr = callable.cast::<c_char>().offset(offset).cast();
     *ptr
 }
 
