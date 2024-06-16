@@ -139,14 +139,15 @@ impl<'a> PyStringData<'a> {
 ///
 /// ```rust
 /// # use pyo3::prelude::*;
+/// use pyo3::types::PyString;
 ///
 /// # Python::with_gil(|py| {
-/// let py_string = PyString::new(py, "foo");
+/// let py_string = PyString::new_bound(py, "foo");
 /// // via PartialEq<str>
 /// assert_eq!(py_string, "foo");
 ///
 /// // via Python equality
-/// assert!(py_string.eq("foo").unwrap());
+/// assert!(py_string.as_any().eq("foo").unwrap());
 /// # });
 /// ```
 #[repr(transparent)]
