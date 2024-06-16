@@ -515,12 +515,8 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::any::PyAnyMethods;
-    use crate::types::bytearray::PyByteArrayMethods;
-    use crate::types::string::PyStringMethods;
-    use crate::types::PyByteArray;
-    use crate::{exceptions, Bound, PyAny};
-    use crate::{PyObject, Python};
+    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
+    use crate::{exceptions, Bound, PyAny, PyObject, Python};
 
     #[test]
     fn test_len() {
@@ -555,10 +551,7 @@ mod tests {
 
             slice[0..5].copy_from_slice(b"Hi...");
 
-            assert_eq!(
-                bytearray.str().unwrap().to_cow().unwrap(),
-                "bytearray(b'Hi... Python')"
-            );
+            assert_eq!(bytearray.str().unwrap(), "bytearray(b'Hi... Python')");
         });
     }
 
