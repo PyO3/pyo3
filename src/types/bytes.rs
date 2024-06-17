@@ -280,7 +280,7 @@ impl PartialEq<[u8]> for &'_ Bound<'_, PyBytes> {
 impl PartialEq<[u8]> for Borrowed<'_, '_, PyBytes> {
     #[inline]
     fn eq(&self, other: &[u8]) -> bool {
-        self.to_cow().map_or(false, |s| s == other)
+        self.as_bytes() == other
     }
 }
 
