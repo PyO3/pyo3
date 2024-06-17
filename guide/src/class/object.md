@@ -80,6 +80,7 @@ the subclass name. This is typically done in Python code by accessing
 
 ```rust
 # use pyo3::prelude::*;
+# use pyo3::types::PyString;
 #
 # #[pyclass]
 # struct Number(i32);
@@ -88,7 +89,7 @@ the subclass name. This is typically done in Python code by accessing
 impl Number {
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         // This is the equivalent of `self.__class__.__name__` in Python.
-        let class_name: String = slf.get_type().qualname()?;
+        let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
         // To access fields of the Rust struct, we need to borrow the `PyCell`.
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
@@ -285,6 +286,7 @@ use std::hash::{Hash, Hasher};
 
 use pyo3::prelude::*;
 use pyo3::class::basic::CompareOp;
+use pyo3::types::PyString;
 
 #[pyclass]
 struct Number(i32);
@@ -297,7 +299,7 @@ impl Number {
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
-        let class_name: String = slf.get_type().qualname()?;
+        let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 

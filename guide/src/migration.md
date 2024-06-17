@@ -81,15 +81,17 @@ enum SimpleEnum {
 ```
 </details>
 
-### `PyType::name` now returns `PyResult<String>` instead of `PyResult<Cow<'_, str>>`
+### `PyType::name` reworked to better match Python `__name__`
 <details open>
 <summary><small>Click to expand</small></summary>
 
-This function previously would try to reuse a raw C API field (`tp_name`) in which case it would return a `Cow::Borrowed`,
-but this caused inconsistency with Python.
-It now always returned a fully owned String.
+This function previously would try to read directly from Python type objects' C API field (`tp_name`), in which case it
+would return a `Cow::Borrowed`. However the contents of `tp_name` don't have well-defined semantics.
 
-To migrate, remove any `.into_owned()` and `.into_mut()` calls on the output of `PyType::name`.
+Instead `PyType::name()` now returns the equivalent of Python `__name__` and returns `PyResult<Bound<'py, PyString>>`.
+
+The closest equivalent to PyO3 0.21's version of `PyType::name()` has been introduced as a new function `PyType::fully_qualified_name()`,
+which is equivalent to `__module__` and `__qualname__` joined as `module.qualname`.
 
 Before:
 
@@ -124,7 +126,8 @@ Python::with_gil(|py| {
     let name = bool_type.name()?;
     println!("Hello, {}", name);
 
-    let mut name_upper = bool_type.name()?;
+    // (if the full dotted path was desired, switch from `name()` to `fully_qualified_name()`)
+    let mut name_upper = bool_type.fully_qualified_name()?.to_string();
     name_upper.make_ascii_uppercase();
     println!("Hello, {}", name_upper);
 

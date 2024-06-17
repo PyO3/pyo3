@@ -84,3 +84,11 @@ def test_no_constructor_defined_propagates_cause(cls: Type):
     assert exc_info.type is TypeError
     assert exc_info.value.args == ("No constructor defined",)
     assert exc_info.value.__context__ is original_error
+
+
+def test_dict():
+    d = pyclasses.ClassWithDict()
+    assert d.__dict__ == {}
+
+    d.foo = 42
+    assert d.__dict__ == {"foo": 42}

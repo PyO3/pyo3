@@ -1,5 +1,12 @@
 use std::borrow::Cow;
 
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{format_ident, quote, quote_spanned};
+use syn::ext::IdentExt;
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, Result, Token};
+
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
@@ -14,16 +21,9 @@ use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
     SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__,
 };
-use crate::utils::Ctx;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
-use crate::PyFunctionOptions;
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
-use syn::ext::IdentExt;
-use syn::parse::{Parse, ParseStream};
-use syn::parse_quote_spanned;
-use syn::punctuated::Punctuated;
-use syn::{parse_quote, spanned::Spanned, Result, Token};
+use crate::utils::{is_abi3, Ctx};
+use crate::{pyversions, PyFunctionOptions};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -180,9 +180,17 @@ impl PyClassPyO3Options {
             };
         }
 
+        let python_version = pyo3_build_config::get().version;
+
         match option {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
-            PyClassPyO3Option::Dict(dict) => set_option!(dict),
+            PyClassPyO3Option::Dict(dict) => {
+                ensure_spanned!(
+                    python_version >= pyversions::PY_3_9 || !is_abi3(),
+                    dict.span() => "`dict` requires Python >= 3.9 when using the `abi3` feature"
+                );
+                set_option!(dict);
+            }
             PyClassPyO3Option::Eq(eq) => set_option!(eq),
             PyClassPyO3Option::EqInt(eq_int) => set_option!(eq_int),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
@@ -199,7 +207,13 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
-            PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
+            PyClassPyO3Option::Weakref(weakref) => {
+                ensure_spanned!(
+                    python_version >= pyversions::PY_3_9 || !is_abi3(),
+                    weakref.span() => "`weakref` requires Python >= 3.9 when using the `abi3` feature"
+                );
+                set_option!(weakref);
+            }
         }
         Ok(())
     }

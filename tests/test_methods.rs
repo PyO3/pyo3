@@ -78,9 +78,8 @@ impl ClassMethod {
     }
 
     #[classmethod]
-    fn method_owned(cls: Py<PyType>) -> PyResult<String> {
-        let qualname = Python::with_gil(|gil| cls.bind(gil).qualname())?;
-        Ok(format!("{}.method_owned()!", qualname))
+    fn method_owned(cls: Py<PyType>, py: Python<'_>) -> PyResult<String> {
+        Ok(format!("{}.method_owned()!", cls.bind(py).qualname()?))
     }
 }
 

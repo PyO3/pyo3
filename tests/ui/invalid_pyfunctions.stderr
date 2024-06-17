@@ -54,10 +54,10 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModu
    |              ^ the trait `From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::prelude::PyModule>: Into<_>`
    |
    = help: the following other types implement trait `From<T>`:
-             <String as From<char>>
+             <String as From<&String>>
+             <String as From<&mut str>>
+             <String as From<&str>>
              <String as From<Box<str>>>
              <String as From<Cow<'a, str>>>
-             <String as From<&str>>
-             <String as From<&mut str>>
-             <String as From<&String>>
+             <String as From<char>>
    = note: required for `BoundRef<'_, '_, pyo3::prelude::PyModule>` to implement `Into<&str>`
