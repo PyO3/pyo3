@@ -374,4 +374,34 @@ mod tests {
                 .is_instance_of::<PyValueError>(py));
         });
     }
+
+    #[test]
+    fn test_comparisons() {
+        Python::with_gil(|py| {
+            let b = b"hello, world";
+            let py_bytes = PyBytes::new_bound(py, b);
+
+            assert_eq!(py_bytes, b"hello, world");
+
+            assert_eq!(py_bytes, b);
+            assert_eq!(&py_bytes, b);
+            assert_eq!(b, py_bytes);
+            assert_eq!(b, &py_bytes);
+
+            assert_eq!(py_bytes, *b);
+            assert_eq!(&py_bytes, *b);
+            assert_eq!(*b, py_bytes);
+            assert_eq!(*b, &py_bytes);
+
+            let py_string = py_bytes.as_borrowed();
+
+            assert_eq!(py_string, b);
+            assert_eq!(&py_string, b);
+            assert_eq!(b, py_string);
+            assert_eq!(b, &py_string);
+
+            assert_eq!(py_string, *b);
+            assert_eq!(*b, py_string);
+        })
+    }
 }
