@@ -14,7 +14,7 @@ use std::str;
 ///
 /// # Equality
 ///
-/// For convenience, [`Bound<'py, PyBytes>`] implements [`PartialEq<str>`] to allow comparing the
+/// For convenience, [`Bound<'py, PyBytes>`] implements [`PartialEq<[u8]>`] to allow comparing the
 /// data in the Python bytes to a Rust `[u8]`.
 ///
 /// This is not always the most appropriate way to compare Python bytes, as Python bytes subclasses
