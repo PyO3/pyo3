@@ -1,4 +1,4 @@
-#![cfg(feature = "experimental-declarative-modules")]
+#![cfg(feature = "macros")]
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
