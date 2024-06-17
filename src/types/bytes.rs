@@ -11,6 +11,29 @@ use std::str;
 /// Represents a Python `bytes` object.
 ///
 /// This type is immutable.
+///
+/// # Equality
+///
+/// For convenience, [`Bound<'py, PyBytes>`] implements [`PartialEq<str>`] to allow comparing the
+/// data in the Python bytes to a Rust `[u8]`.
+///
+/// This is not always the most appropriate way to compare Python bytes, as Python bytes subclasses
+/// may have different equality semantics. In situations where subclasses overriding equality might be
+/// relevant, use [`PyAnyMethods::eq`], at cost of the additional overhead of a Python method call.
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+/// use pyo3::types::PyBytes;
+///
+/// # Python::with_gil(|py| {
+/// let py_bytes = PyBytes::new_bound(py, b"foo");
+/// // via PartialEq<[u8]>
+/// assert_eq!(py_bytes, b"foo");
+///
+/// // via Python equality
+/// assert!(py_bytes.as_any().eq(b"foo").unwrap());
+/// # });
+/// ```
 #[repr(transparent)]
 pub struct PyBytes(PyAny);
 
@@ -188,6 +211,118 @@ impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
 
     fn index(&self, index: I) -> &Self::Output {
         &self.as_bytes()[index]
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<[u8]> for Bound<'_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &[u8]) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<&'_ [u8]> for Bound<'_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &&[u8]) -> bool {
+        self.as_borrowed() == **other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Bound<'_, PyBytes>> for [u8] {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBytes>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<&'_ Bound<'_, PyBytes>> for [u8] {
+    #[inline]
+    fn eq(&self, other: &&Bound<'_, PyBytes>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Bound<'_, PyBytes>> for &'_ [u8] {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBytes>) -> bool {
+        **self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<[u8]> for &'_ Bound<'_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &[u8]) -> bool {
+        self.as_borrowed() == other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<[u8]> for Borrowed<'_, '_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &[u8]) -> bool {
+        #[cfg(not(Py_3_13))]
+        {
+            self.to_cow().map_or(false, |s| s == other)
+        }
+
+        #[cfg(Py_3_13)]
+        unsafe {
+            ffi::PyUnicode_EqualToUTF8AndSize(
+                self.as_ptr(),
+                other.as_ptr().cast(),
+                other.len() as _,
+            ) == 1
+        }
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<&[u8]> for Borrowed<'_, '_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &&[u8]) -> bool {
+        *self == **other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Borrowed<'_, '_, PyBytes>> for [u8] {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBytes>) -> bool {
+        other == self
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Borrowed<'_, '_, PyBytes>> for &'_ [u8] {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBytes>) -> bool {
+        other == self
     }
 }
 
