@@ -272,7 +272,10 @@ macro_rules! c_str {
             );
         };
         // SAFETY: the string is checked to not contain null bytes
-        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($s, "\0").as_bytes()) }
+        #[allow(unsafe_op_in_unsafe_fn, unused_unsafe)] // MSRV 1.63 needs these allows
+        unsafe {
+            ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($s, "\0").as_bytes())
+        }
     }};
 }
 
