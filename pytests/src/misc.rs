@@ -1,4 +1,7 @@
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyString},
+};
 
 #[pyfunction]
 fn issue_219() {
@@ -7,7 +10,7 @@ fn issue_219() {
 }
 
 #[pyfunction]
-fn get_type_fully_qualified_name(obj: &Bound<'_, PyAny>) -> PyResult<String> {
+fn get_type_fully_qualified_name<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
     obj.get_type().fully_qualified_name()
 }
 

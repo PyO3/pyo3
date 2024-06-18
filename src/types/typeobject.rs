@@ -74,13 +74,13 @@ impl PyType {
 
     /// Gets the name of the `PyType`. Equivalent to `self.__name__` in Python.
     pub fn name(&self) -> PyResult<&PyString> {
-        self.as_borrowed().name().map(Bound::into_ref)
+        self.as_borrowed().name().map(Bound::into_gil_ref)
     }
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
     /// Equivalent to `self.__qualname__` in Python.
     pub fn qualname(&self) -> PyResult<&PyString> {
-        self.as_borrowed().qualname().map(Bound::into_ref)
+        self.as_borrowed().qualname().map(Bound::into_gil_ref)
     }
 
     // `module` and `fully_qualified_name` intentionally omitted
@@ -220,12 +220,9 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
             let module_str = module.extract::<PyBackedStr>()?;
             if module_str == "builtins" || module_str == "__main__" {
-                Ok(qualname.downcast_into()?)
+                qualname.downcast_into()?
             } else {
-                Ok(PyString::new_bound(
-                    self.py(),
-                    &format!("{}.{}", module, qualname),
-                ))
+                PyString::new_bound(self.py(), &format!("{}.{}", module, qualname))
             }
         };
 
@@ -237,7 +234,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
                 .downcast_into_unchecked()
         };
 
-        name
+        Ok(name)
     }
 
     /// Checks whether `self` is a subclass of `other`.
