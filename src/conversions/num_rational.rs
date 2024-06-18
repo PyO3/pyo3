@@ -64,28 +64,15 @@ macro_rules! rational_conversion {
         impl<'py> FromPyObject<'py> for Ratio<$int> {
             fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
                 let py = obj.py();
-                let py_numerator_obj = unsafe {
-                    Bound::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyObject_GetAttrString(obj.as_ptr(), "numerator\0".as_ptr().cast()),
-                    )
-                };
-                let py_denominator_obj = unsafe {
-                    Bound::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyObject_GetAttrString(obj.as_ptr(), "denominator\0".as_ptr().cast()),
-                    )
-                };
+                let py_numerator_obj = obj.getattr(crate::intern!(py, "numerator"))?;
+                let py_denominator_obj = obj.getattr(crate::intern!(py, "denominator"))?;
                 let numerator_owned = unsafe {
-                    Bound::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyNumber_Long(py_numerator_obj?.as_ptr()),
-                    )?
+                    Bound::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_numerator_obj.as_ptr()))?
                 };
                 let denominator_owned = unsafe {
                     Bound::from_owned_ptr_or_err(
                         py,
-                        ffi::PyNumber_Long(py_denominator_obj?.as_ptr()),
+                        ffi::PyNumber_Long(py_denominator_obj.as_ptr()),
                     )?
                 };
                 let rs_numerator: $int = numerator_owned.extract()?;

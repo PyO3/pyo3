@@ -5,10 +5,8 @@ use pyo3_ffi::*;
 
 static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
-    m_name: "string_sum\0".as_ptr().cast::<c_char>(),
-    m_doc: "A Python module written in Rust.\0"
-        .as_ptr()
-        .cast::<c_char>(),
+    m_name: c_str!("string_sum").as_ptr(),
+    m_doc: c_str!("A Python module written in Rust.").as_ptr(),
     m_size: 0,
     m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
     m_slots: std::ptr::null_mut(),
@@ -19,14 +17,12 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
 
 static mut METHODS: &[PyMethodDef] = &[
     PyMethodDef {
-        ml_name: "sum_as_string\0".as_ptr().cast::<c_char>(),
+        ml_name: c_str!("sum_as_string").as_ptr(),
         ml_meth: PyMethodDefPointer {
             _PyCFunctionFast: sum_as_string,
         },
         ml_flags: METH_FASTCALL,
-        ml_doc: "returns the sum of two integers as a string\0"
-            .as_ptr()
-            .cast::<c_char>(),
+        ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
     },
     // A zeroed PyMethodDef to mark the end of the array.
     PyMethodDef::zeroed(),
@@ -93,9 +89,7 @@ pub unsafe extern "C" fn sum_as_string(
     if nargs != 2 {
         PyErr_SetString(
             PyExc_TypeError,
-            "sum_as_string expected 2 positional arguments\0"
-                .as_ptr()
-                .cast::<c_char>(),
+            c_str!("sum_as_string expected 2 positional arguments").as_ptr(),
         );
         return std::ptr::null_mut();
     }
@@ -119,7 +113,7 @@ pub unsafe extern "C" fn sum_as_string(
         None => {
             PyErr_SetString(
                 PyExc_OverflowError,
-                "arguments too large to add\0".as_ptr().cast::<c_char>(),
+                c_str!("arguments too large to add").as_ptr(),
             );
             std::ptr::null_mut()
         }

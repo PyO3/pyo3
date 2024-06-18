@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -21,9 +21,10 @@ use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
     SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__,
 };
+use crate::pyversions;
 use crate::utils::{self, apply_renaming_rule, PythonDoc};
 use crate::utils::{is_abi3, Ctx};
-use crate::{pyversions, PyFunctionOptions};
+use crate::PyFunctionOptions;
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -225,9 +226,9 @@ pub fn build_py_class(
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut class.attrs)?;
-    let doc = utils::get_doc(&class.attrs, None);
 
     let ctx = &Ctx::new(&args.options.krate);
+    let doc = utils::get_doc(&class.attrs, None, ctx);
 
     if let Some(lt) = class.generics.lifetimes().next() {
         bail_spanned!(
@@ -465,7 +466,7 @@ pub fn build_py_enum(
         bail_spanned!(enum_.brace_token.span.join() => "#[pyclass] can't be used on enums without any variants");
     }
 
-    let doc = utils::get_doc(&enum_.attrs, None);
+    let doc = utils::get_doc(&enum_.attrs, None, ctx);
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type, ctx)
 }
@@ -1403,7 +1404,7 @@ pub fn gen_complex_enum_variant_attr(
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_variant_cls_{}__", member);
     let deprecations = &spec.attributes.deprecations;
-    let python_name = &spec.null_terminated_python_name();
+    let python_name = spec.null_terminated_python_name(ctx);
 
     let variant_cls = format_ident!("{}_{}", cls, member);
     let associated_method = quote! {
@@ -1580,7 +1581,7 @@ fn complex_enum_variant_field_getter<'a>(
     let property_type = crate::pymethod::PropertyType::Function {
         self_type: &self_type,
         spec: &spec,
-        doc: crate::get_doc(&[], None),
+        doc: crate::get_doc(&[], None, ctx),
     };
 
     let getter = crate::pymethod::impl_py_getter_def(variant_cls_type, property_type, ctx)?;
@@ -2014,7 +2015,10 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclassimpl(&self, ctx: &Ctx) -> Result<TokenStream> {
         let Ctx { pyo3_path } = ctx;
         let cls = self.cls;
-        let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
+        let doc = self.doc.as_ref().map_or(
+            quote! {#pyo3_path::ffi::c_str!("")},
+            PythonDoc::to_token_stream,
+        );
         let is_basetype = self.attr.options.subclass.is_some();
         let base = match &self.attr.options.extends {
             Some(extends_attr) => extends_attr.value.clone(),

@@ -214,7 +214,7 @@ macro_rules! append_to_inittab {
                 );
             }
             $crate::ffi::PyImport_AppendInittab(
-                $module::__PYO3_NAME.as_ptr().cast(),
+                $module::__PYO3_NAME.as_ptr(),
                 ::std::option::Option::Some($module::__pyo3_init),
             );
         }

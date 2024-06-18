@@ -3,7 +3,6 @@
 
 use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*};
 use std::{
-    ffi::CStr,
     os::raw::{c_int, c_void},
     ptr,
 };
@@ -48,7 +47,7 @@ impl TestBufferErrors {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<u32>() as isize;
 
-        let msg = CStr::from_bytes_with_nul(b"I\0").unwrap();
+        let msg = ffi::c_str!("I");
         (*view).format = msg.as_ptr() as *mut _;
 
         (*view).ndim = 1;
@@ -72,7 +71,7 @@ impl TestBufferErrors {
                     (*view).itemsize += 1;
                 }
                 IncorrectFormat => {
-                    (*view).format = CStr::from_bytes_with_nul(b"B\0").unwrap().as_ptr() as _;
+                    (*view).format = ffi::c_str!("B").as_ptr() as _;
                 }
                 IncorrectAlignment => (*view).buf = (*view).buf.add(1),
             }
