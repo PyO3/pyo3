@@ -26,7 +26,7 @@ use std::str;
 /// use pyo3::types::PyBytes;
 ///
 /// # Python::with_gil(|py| {
-/// let py_bytes = PyBytes::new_bound(py, b"foo");
+/// let py_bytes = PyBytes::new_bound(py, b"foo".as_slice());
 /// // via PartialEq<[u8]>
 /// assert_eq!(py_bytes, b"foo");
 ///
@@ -378,10 +378,10 @@ mod tests {
     #[test]
     fn test_comparisons() {
         Python::with_gil(|py| {
-            let b = b"hello, world";
+            let b = b"hello, world".as_slice();
             let py_bytes = PyBytes::new_bound(py, b);
 
-            assert_eq!(py_bytes, b"hello, world");
+            assert_eq!(py_bytes, b"hello, world".as_slice());
 
             assert_eq!(py_bytes, b);
             assert_eq!(&py_bytes, b);
