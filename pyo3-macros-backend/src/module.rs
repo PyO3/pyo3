@@ -1,5 +1,7 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::module_introspection_code;
 use crate::{
     attributes::{
         self, take_attributes, take_pyo3_options, CrateAttribute, ModuleAttribute, NameAttribute,
@@ -286,12 +288,18 @@ pub fn pymodule_module_impl(mut module: syn::ItemMod) -> Result<TokenStream> {
     }
 
     let initialization = module_initialization(&name, ctx);
+    #[cfg(feature = "experimental-inspect")]
+    let introspection = module_introspection_code(pyo3_path, &name.to_string(), &module_items);
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection = quote! {};
+
     Ok(quote!(
         #(#attrs)*
         #vis mod #ident {
             #(#items)*
 
             #initialization
+            #introspection
 
             #[allow(unknown_lints, non_local_definitions)]
             impl MakeDef {
@@ -336,6 +344,11 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
 
     let initialization = module_initialization(&name, ctx);
 
+    #[cfg(feature = "experimental-inspect")]
+    let introspection = module_introspection_code(pyo3_path, &name.to_string(), &[]);
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection = quote! {};
+
     // Module function called with optional Python<'_> marker as first arg, followed by the module.
     let mut module_args = Vec::new();
     if function.sig.inputs.len() == 2 {
@@ -373,6 +386,7 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         #[doc(hidden)]
         #vis mod #ident {
             #initialization
+            #introspection
         }
 
         // Generate the definition inside an anonymous function in the same scope as the original function -
