@@ -4,6 +4,7 @@ use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+use crate::internal_tricks::ptr_from_ref;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -25,13 +26,13 @@ use std::os::raw::c_int;
 /// with the other [native Python types](crate::types):
 ///
 /// - It can only be obtained and used while the GIL is held,
-/// therefore its API does not require a [`Python<'py>`](crate::Python) token.
+///   therefore its API does not require a [`Python<'py>`](crate::Python) token.
 /// - It can't be used in situations where the GIL is temporarily released,
-/// such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+///   such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
 /// - The underlying Python object, if mutable, can be mutated through any reference.
 /// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
-/// allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
-/// *does* require a [`Python<'py>`](crate::Python) token.
+///   allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
+///   *does* require a [`Python<'py>`](crate::Python) token.
 ///
 /// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
 /// and FromPyObject::extract. See their documentation for more information.
@@ -912,7 +913,7 @@ impl PyAny {
     /// when they are finished with the pointer.
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
-        self as *const PyAny as *mut ffi::PyObject
+        ptr_from_ref(self) as *mut ffi::PyObject
     }
 
     /// Returns an owned raw FFI pointer represented by self.
@@ -2211,7 +2212,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        &*(self as *const Bound<'py, PyAny>).cast()
+        &*ptr_from_ref(self).cast()
     }
 
     #[inline]

@@ -8,14 +8,14 @@
 //! pattern. This requires that PyO3 enforces the borrowing rules and it has two mechanisms for
 //! doing so:
 //! - Statically it can enforce threadsafe access with the [`Python<'py>`](crate::Python) token.
-//! All Rust code holding that token, or anything derived from it, can assume that they have
-//! safe access to the Python interpreter's state. For this reason all the native Python objects
-//! can be mutated through shared references.
+//!   All Rust code holding that token, or anything derived from it, can assume that they have
+//!   safe access to the Python interpreter's state. For this reason all the native Python objects
+//!   can be mutated through shared references.
 //! - However, methods and functions in Rust usually *do* need `&mut` references. While PyO3 can
-//! use the [`Python<'py>`](crate::Python) token to guarantee thread-safe access to them, it cannot
-//! statically guarantee uniqueness of `&mut` references. As such those references have to be tracked
-//! dynamically at runtime, using `PyCell` and the other types defined in this module. This works
-//! similar to std's [`RefCell`](std::cell::RefCell) type.
+//!   use the [`Python<'py>`](crate::Python) token to guarantee thread-safe access to them, it cannot
+//!   statically guarantee uniqueness of `&mut` references. As such those references have to be tracked
+//!   dynamically at runtime, using `PyCell` and the other types defined in this module. This works
+//!   similar to std's [`RefCell`](std::cell::RefCell) type.
 //!
 //! # When *not* to use PyCell
 //!
@@ -196,6 +196,7 @@
 use crate::conversion::AsPyPointer;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::internal_tricks::{ptr_from_mut, ptr_from_ref};
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::types::any::PyAnyMethods;
 #[cfg(feature = "gil-refs")]
@@ -511,7 +512,7 @@ where
 #[allow(deprecated)]
 unsafe impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        (self as *const _) as *mut _
+        ptr_from_ref(self) as *mut _
     }
 }
 
@@ -611,6 +612,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// ```
 ///
 /// See the [module-level documentation](self) for more information.
+#[repr(transparent)]
 pub struct PyRef<'p, T: PyClass> {
     // TODO: once the GIL Ref API is removed, consider adding a lifetime parameter to `PyRef` to
     // store `Borrowed` here instead, avoiding reference counting overhead.
@@ -630,7 +632,7 @@ where
     U: PyClass,
 {
     fn as_ref(&self) -> &T::BaseType {
-        unsafe { &*self.inner.get_class_object().ob_base.get_ptr() }
+        self.as_super()
     }
 }
 
@@ -742,6 +744,58 @@ where
             },
         }
     }
+
+    /// Borrows a shared reference to `PyRef<T::BaseType>`.
+    ///
+    /// With the help of this method, you can access attributes and call methods
+    /// on the superclass without consuming the `PyRef<T>`. This method can also
+    /// be chained to access the super-superclass (and so on).
+    ///
+    /// # Examples
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #[pyclass(subclass)]
+    /// struct Base {
+    ///     base_name: &'static str,
+    /// }
+    /// #[pymethods]
+    /// impl Base {
+    ///     fn base_name_len(&self) -> usize {
+    ///         self.base_name.len()
+    ///     }
+    /// }
+    ///
+    /// #[pyclass(extends=Base)]
+    /// struct Sub {
+    ///     sub_name: &'static str,
+    /// }
+    ///
+    /// #[pymethods]
+    /// impl Sub {
+    ///     #[new]
+    ///     fn new() -> (Self, Base) {
+    ///         (Self { sub_name: "sub_name" }, Base { base_name: "base_name" })
+    ///     }
+    ///     fn sub_name_len(&self) -> usize {
+    ///         self.sub_name.len()
+    ///     }
+    ///     fn format_name_lengths(slf: PyRef<'_, Self>) -> String {
+    ///         format!("{} {}", slf.as_super().base_name_len(), slf.sub_name_len())
+    ///     }
+    /// }
+    /// # Python::with_gil(|py| {
+    /// #     let sub = Py::new(py, Sub::new()).unwrap();
+    /// #     pyo3::py_run!(py, sub, "assert sub.format_name_lengths() == '9 8'")
+    /// # });
+    /// ```
+    pub fn as_super(&self) -> &PyRef<'p, U> {
+        let ptr = ptr_from_ref::<Bound<'p, T>>(&self.inner)
+            // `Bound<T>` has the same layout as `Bound<T::BaseType>`
+            .cast::<Bound<'p, T::BaseType>>()
+            // `Bound<T::BaseType>` has the same layout as `PyRef<T::BaseType>`
+            .cast::<PyRef<'p, T::BaseType>>();
+        unsafe { &*ptr }
+    }
 }
 
 impl<'p, T: PyClass> Deref for PyRef<'p, T> {
@@ -798,6 +852,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
 /// A wrapper type for a mutably borrowed value from a [`Bound<'py, T>`].
 ///
 /// See the [module-level documentation](self) for more information.
+#[repr(transparent)]
 pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
     // TODO: once the GIL Ref API is removed, consider adding a lifetime parameter to `PyRef` to
     // store `Borrowed` here instead, avoiding reference counting overhead.
@@ -817,7 +872,7 @@ where
     U: PyClass<Frozen = False>,
 {
     fn as_ref(&self) -> &T::BaseType {
-        unsafe { &*self.inner.get_class_object().ob_base.get_ptr() }
+        PyRefMut::downgrade(self).as_super()
     }
 }
 
@@ -827,7 +882,7 @@ where
     U: PyClass<Frozen = False>,
 {
     fn as_mut(&mut self) -> &mut T::BaseType {
-        unsafe { &mut *self.inner.get_class_object().ob_base.get_ptr() }
+        self.as_super()
     }
 }
 
@@ -869,6 +924,11 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
             .try_borrow_mut()
             .map(|_| Self { inner: obj.clone() })
     }
+
+    pub(crate) fn downgrade(slf: &Self) -> &PyRef<'py, T> {
+        // `PyRefMut<T>` and `PyRef<T>` have the same layout
+        unsafe { &*ptr_from_ref(slf).cast() }
+    }
 }
 
 impl<'p, T, U> PyRefMut<'p, T>
@@ -889,6 +949,23 @@ where
                     .downcast_into_unchecked()
             },
         }
+    }
+
+    /// Borrows a mutable reference to `PyRefMut<T::BaseType>`.
+    ///
+    /// With the help of this method, you can mutate attributes and call mutating
+    /// methods on the superclass without consuming the `PyRefMut<T>`. This method
+    /// can also be chained to access the super-superclass (and so on).
+    ///
+    /// See [`PyRef::as_super`] for more.
+    pub fn as_super(&mut self) -> &mut PyRefMut<'p, U> {
+        let ptr = ptr_from_mut::<Bound<'p, T>>(&mut self.inner)
+            // `Bound<T>` has the same layout as `Bound<T::BaseType>`
+            .cast::<Bound<'p, T::BaseType>>()
+            // `Bound<T::BaseType>` has the same layout as `PyRefMut<T::BaseType>`,
+            // and the mutable borrow on `self` prevents aliasing
+            .cast::<PyRefMut<'p, T::BaseType>>();
+        unsafe { &mut *ptr }
     }
 }
 
@@ -1138,5 +1215,89 @@ mod tests {
             assert_eq!(cell.borrow_mut().into_ptr(), ptr);
             unsafe { ffi::Py_DECREF(ptr) };
         })
+    }
+
+    #[crate::pyclass]
+    #[pyo3(crate = "crate", subclass)]
+    struct BaseClass {
+        val1: usize,
+    }
+
+    #[crate::pyclass]
+    #[pyo3(crate = "crate", extends=BaseClass, subclass)]
+    struct SubClass {
+        val2: usize,
+    }
+
+    #[crate::pyclass]
+    #[pyo3(crate = "crate", extends=SubClass)]
+    struct SubSubClass {
+        val3: usize,
+    }
+
+    #[crate::pymethods]
+    #[pyo3(crate = "crate")]
+    impl SubSubClass {
+        #[new]
+        fn new(py: Python<'_>) -> crate::Py<SubSubClass> {
+            let init = crate::PyClassInitializer::from(BaseClass { val1: 10 })
+                .add_subclass(SubClass { val2: 15 })
+                .add_subclass(SubSubClass { val3: 20 });
+            crate::Py::new(py, init).expect("allocation error")
+        }
+
+        fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+            let val1 = self_.as_super().as_super().val1;
+            let val2 = self_.as_super().val2;
+            (val1, val2, self_.val3)
+        }
+
+        fn double_values(mut self_: PyRefMut<'_, Self>) {
+            self_.as_super().as_super().val1 *= 2;
+            self_.as_super().val2 *= 2;
+            self_.val3 *= 2;
+        }
+    }
+
+    #[test]
+    fn test_pyref_as_super() {
+        Python::with_gil(|py| {
+            let obj = SubSubClass::new(py).into_bound(py);
+            let pyref = obj.borrow();
+            assert_eq!(pyref.as_super().as_super().val1, 10);
+            assert_eq!(pyref.as_super().val2, 15);
+            assert_eq!(pyref.as_ref().val2, 15); // `as_ref` also works
+            assert_eq!(pyref.val3, 20);
+            assert_eq!(SubSubClass::get_values(pyref), (10, 15, 20));
+        });
+    }
+
+    #[test]
+    fn test_pyrefmut_as_super() {
+        Python::with_gil(|py| {
+            let obj = SubSubClass::new(py).into_bound(py);
+            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 15, 20));
+            {
+                let mut pyrefmut = obj.borrow_mut();
+                assert_eq!(pyrefmut.as_super().as_ref().val1, 10);
+                pyrefmut.as_super().as_super().val1 -= 5;
+                pyrefmut.as_super().val2 -= 3;
+                pyrefmut.as_mut().val2 -= 2; // `as_mut` also works
+                pyrefmut.val3 -= 5;
+            }
+            assert_eq!(SubSubClass::get_values(obj.borrow()), (5, 10, 15));
+            SubSubClass::double_values(obj.borrow_mut());
+            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 20, 30));
+        });
+    }
+
+    #[test]
+    fn test_pyrefs_in_python() {
+        Python::with_gil(|py| {
+            let obj = SubSubClass::new(py);
+            crate::py_run!(py, obj, "assert obj.get_values() == (10, 15, 20)");
+            crate::py_run!(py, obj, "assert obj.double_values() is None");
+            crate::py_run!(py, obj, "assert obj.get_values() == (20, 30, 40)");
+        });
     }
 }

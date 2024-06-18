@@ -16,14 +16,14 @@ error[E0277]: the trait bound `TwoNew: PyTypeInfo` is not satisfied
   |      ^^^^^^ the trait `PyTypeInfo` is not implemented for `TwoNew`
   |
   = help: the following other types implement trait `PyTypeInfo`:
+            CancelledError
+            IncompleteReadError
+            InvalidStateError
+            LimitOverrunError
+            PanicException
             PyAny
-            PyBool
-            PyByteArray
-            PyBytes
-            PyCapsule
-            PyCode
-            PyComplex
-            PyDate
+            PyArithmeticError
+            PyAssertionError
           and $N others
 
 error[E0592]: duplicate definitions with name `__pymethod___new____`

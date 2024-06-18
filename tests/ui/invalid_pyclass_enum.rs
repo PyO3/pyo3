@@ -80,4 +80,17 @@ enum ComplexHashOptRequiresEq {
     B { msg: String },
 }
 
+#[pyclass(ord)]
+enum InvalidOrderedComplexEnum {
+    VariantA (i32),
+    VariantB { msg: String }
+}
+
+#[pyclass(eq,ord)]
+#[derive(PartialEq)]
+enum InvalidOrderedComplexEnum2 {
+    VariantA (i32),
+    VariantB { msg: String }
+}
+
 fn main() {}

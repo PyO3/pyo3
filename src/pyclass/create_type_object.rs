@@ -1,19 +1,17 @@
-use pyo3_ffi::PyType_IS_GC;
-
 use crate::{
     exceptions::PyTypeError,
     ffi,
-    impl_::pycell::PyClassObject,
-    impl_::pyclass::{
-        assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-        tp_dealloc_with_gc, PyClassItemsIter,
-    },
     impl_::{
+        pycell::PyClassObject,
+        pyclass::{
+            assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
+            tp_dealloc_with_gc, PyClassItemsIter,
+        },
         pymethods::{get_doc, get_name, Getter, Setter},
         trampoline::trampoline,
     },
-    types::typeobject::PyTypeMethods,
-    types::PyType,
+    internal_tricks::ptr_from_ref,
+    types::{typeobject::PyTypeMethods, PyType},
     Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
@@ -68,7 +66,7 @@ where
             has_setitem: false,
             has_traverse: false,
             has_clear: false,
-            has_dict: false,
+            dict_offset: None,
             class_flags: 0,
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             buffer_procs: Default::default(),
@@ -121,7 +119,7 @@ struct PyTypeBuilder {
     has_setitem: bool,
     has_traverse: bool,
     has_clear: bool,
-    has_dict: bool,
+    dict_offset: Option<ffi::Py_ssize_t>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -218,16 +216,56 @@ impl PyTypeBuilder {
             })
             .collect::<PyResult<_>>()?;
 
-        // PyPy doesn't automatically add __dict__ getter / setter.
-        // PyObject_GenericGetDict not in the limited API until Python 3.10.
-        if self.has_dict {
-            #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+        // PyPy automatically adds __dict__ getter / setter.
+        #[cfg(not(PyPy))]
+        // Supported on unlimited API for all versions, and on 3.9+ for limited API
+        #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+        if let Some(dict_offset) = self.dict_offset {
+            let get_dict;
+            let closure;
+            // PyObject_GenericGetDict not in the limited API until Python 3.10.
+            #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+            {
+                let _ = dict_offset;
+                get_dict = ffi::PyObject_GenericGetDict;
+                closure = ptr::null_mut();
+            }
+
+            // ... so we write a basic implementation ourselves
+            #[cfg(not(any(not(Py_LIMITED_API), Py_3_10)))]
+            {
+                extern "C" fn get_dict_impl(
+                    object: *mut ffi::PyObject,
+                    closure: *mut c_void,
+                ) -> *mut ffi::PyObject {
+                    unsafe {
+                        trampoline(|_| {
+                            let dict_offset = closure as ffi::Py_ssize_t;
+                            // we don't support negative dict_offset here; PyO3 doesn't set it negative
+                            assert!(dict_offset > 0);
+                            // TODO: use `.byte_offset` on MSRV 1.75
+                            let dict_ptr = object
+                                .cast::<u8>()
+                                .offset(dict_offset)
+                                .cast::<*mut ffi::PyObject>();
+                            if (*dict_ptr).is_null() {
+                                std::ptr::write(dict_ptr, ffi::PyDict_New());
+                            }
+                            Ok(ffi::_Py_XNewRef(*dict_ptr))
+                        })
+                    }
+                }
+
+                get_dict = get_dict_impl;
+                closure = dict_offset as _;
+            }
+
             property_defs.push(ffi::PyGetSetDef {
                 name: "__dict__\0".as_ptr().cast(),
-                get: Some(ffi::PyObject_GenericGetDict),
+                get: Some(get_dict),
                 set: Some(ffi::PyObject_GenericSetDict),
                 doc: ptr::null(),
-                closure: ptr::null_mut(),
+                closure,
             });
         }
 
@@ -315,20 +353,17 @@ impl PyTypeBuilder {
         dict_offset: Option<ffi::Py_ssize_t>,
         #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
     ) -> Self {
-        self.has_dict = dict_offset.is_some();
+        self.dict_offset = dict_offset;
 
         #[cfg(Py_3_9)]
         {
             #[inline(always)]
-            fn offset_def(
-                name: &'static str,
-                offset: ffi::Py_ssize_t,
-            ) -> ffi::structmember::PyMemberDef {
-                ffi::structmember::PyMemberDef {
-                    name: name.as_ptr() as _,
-                    type_code: ffi::structmember::T_PYSSIZET,
+            fn offset_def(name: &'static str, offset: ffi::Py_ssize_t) -> ffi::PyMemberDef {
+                ffi::PyMemberDef {
+                    name: name.as_ptr().cast(),
+                    type_code: ffi::Py_T_PYSSIZET,
                     offset,
-                    flags: ffi::structmember::READONLY,
+                    flags: ffi::Py_READONLY,
                     doc: std::ptr::null_mut(),
                 }
             }
@@ -391,7 +426,7 @@ impl PyTypeBuilder {
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
         }
 
-        let tp_dealloc = if self.has_traverse || unsafe { PyType_IS_GC(self.tp_base) == 1 } {
+        let tp_dealloc = if self.has_traverse || unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 } {
             self.tp_dealloc_with_gc
         } else {
             self.tp_dealloc
@@ -608,7 +643,7 @@ impl GetSetDefType {
                         slf: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
-                        let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
+                        let getset: &GetterAndSetter = &*closure.cast();
                         trampoline(|py| (getset.getter)(py, slf))
                     }
 
@@ -617,13 +652,13 @@ impl GetSetDefType {
                         value: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> c_int {
-                        let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
+                        let getset: &GetterAndSetter = &*closure.cast();
                         trampoline(|py| (getset.setter)(py, slf, value))
                     }
                     (
                         Some(getset_getter),
                         Some(getset_setter),
-                        closure.as_ref() as *const GetterAndSetter as _,
+                        ptr_from_ref::<GetterAndSetter>(closure) as *mut _,
                     )
                 }
             };

@@ -131,7 +131,7 @@ fn test_delattr() {
 fn test_str() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(example_py.str().unwrap().to_cow().unwrap(), "5");
+        assert_eq!(example_py.str().unwrap(), "5");
     })
 }
 
@@ -139,10 +139,7 @@ fn test_str() {
 fn test_repr() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(
-            example_py.repr().unwrap().to_cow().unwrap(),
-            "ExampleClass(value=5)"
-        );
+        assert_eq!(example_py.repr().unwrap(), "ExampleClass(value=5)");
     })
 }
 
