@@ -219,6 +219,7 @@ fn impl_py_methods(
 ) -> TokenStream {
     let Ctx { pyo3_path } = ctx;
     quote! {
+        #[allow(unknown_lints, non_local_definitions)]
         impl #pyo3_path::impl_::pyclass::PyMethods<#ty>
             for #pyo3_path::impl_::pyclass::PyClassImplCollector<#ty>
         {

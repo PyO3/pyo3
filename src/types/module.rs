@@ -37,7 +37,7 @@ impl PyModule {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::new_bound(py, "my_module")?;
     ///
-    ///     assert_eq!(module.name()?.to_cow()?, "my_module");
+    ///     assert_eq!(module.name()?, "my_module");
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -728,7 +728,7 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{module::PyModuleMethods, string::PyStringMethods, PyModule},
+        types::{module::PyModuleMethods, PyModule},
         Python,
     };
 
@@ -736,15 +736,13 @@ mod tests {
     fn module_import_and_name() {
         Python::with_gil(|py| {
             let builtins = PyModule::import_bound(py, "builtins").unwrap();
-            assert_eq!(
-                builtins.name().unwrap().to_cow().unwrap().as_ref(),
-                "builtins"
-            );
+            assert_eq!(builtins.name().unwrap(), "builtins");
         })
     }
 
     #[test]
     fn module_filename() {
+        use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
             let site = PyModule::import_bound(py, "site").unwrap();
             assert!(site
