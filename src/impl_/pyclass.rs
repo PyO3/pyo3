@@ -1172,15 +1172,27 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     result
 }
 
-/// Type which uses deref specialization to determine how to read a value from a Rust pyclass
+/// Type which uses specialization on impl blocks to determine how to read a field from a Rust pyclass
 /// as part of a `#[pyo3(get)]` annotation.
-pub struct PyClassGetterGenerator<T: PyClass, X, const OFFSET: usize, const IS_PY_T: bool>(
-    PhantomData<T>,
-    PhantomData<X>,
-);
+pub struct PyClassGetterGenerator<
+    // structural information about the field: class type, field type, where the field is within the
+    // class struct
+    ClassT: PyClass,
+    FieldT,
+    const OFFSET: usize,
+    // additional metadata about the field which is used to switch between different implementations
+    // at compile time
+    const IS_PY_T: bool,
+    const IMPLEMENTS_TOPYOBJECT: bool,
+>(PhantomData<ClassT>, PhantomData<FieldT>);
 
-impl<T: PyClass, X, const OFFSET: usize, const IS_PY_T: bool>
-    PyClassGetterGenerator<T, X, OFFSET, IS_PY_T>
+impl<
+        ClassT: PyClass,
+        FieldT,
+        const OFFSET: usize,
+        const IS_PY_T: bool,
+        const IMPLEMENTS_TOPYOBJECT: bool,
+    > PyClassGetterGenerator<ClassT, FieldT, OFFSET, IS_PY_T, IMPLEMENTS_TOPYOBJECT>
 {
     /// Safety: constructing this type requires that there exists a value of type X
     /// at offset OFFSET within the type T.
@@ -1189,15 +1201,21 @@ impl<T: PyClass, X, const OFFSET: usize, const IS_PY_T: bool>
     }
 }
 
-impl<T: PyClass, X, const OFFSET: usize> PyClassGetterGenerator<T, Py<X>, OFFSET, true> {
-    /// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
+impl<ClassT: PyClass, U, const OFFSET: usize, const IMPLEMENTS_TOPYOBJECT: bool>
+    PyClassGetterGenerator<ClassT, Py<U>, OFFSET, true, IMPLEMENTS_TOPYOBJECT>
+{
+    /// Py<T> fields have a potential optimization to use Python's "struct members" to read
+    /// the field directly from the struct, rather than using a getter function.
+    ///
+    /// This is the most efficient operation the Python interpreter could possibly do to
+    /// read a field, but it's only possible for us to allow this for frozen classes.
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
-        if T::Frozen::VALUE {
+        if ClassT::Frozen::VALUE {
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
                 type_code: ffi::Py_T_OBJECT_EX,
-                offset: (std::mem::offset_of!(PyClassObject::<T>, contents) + OFFSET)
+                offset: (std::mem::offset_of!(PyClassObject::<ClassT>, contents) + OFFSET)
                     as ffi::Py_ssize_t,
                 flags: ffi::Py_READONLY,
                 doc: doc.as_ptr(),
@@ -1205,27 +1223,67 @@ impl<T: PyClass, X, const OFFSET: usize> PyClassGetterGenerator<T, Py<X>, OFFSET
         } else {
             PyMethodDefType::Getter(crate::PyGetterDef {
                 name,
-                meth: pyo3_get_py_t::<T, Py<X>, OFFSET>,
+                meth: pyo3_get_value_topyobject::<ClassT, Py<U>, OFFSET>,
                 doc,
             })
         }
     }
 }
 
-impl<T: PyClass, X: IntoPy<Py<PyAny>> + Clone, const OFFSET: usize>
-    PyClassGetterGenerator<T, X, OFFSET, false>
+/// Field is not Py<T>; try to use `ToPyObject` to avoid potentially expensive clones of containers like `Vec`
+impl<ClassT: PyClass, FieldT: ToPyObject, const OFFSET: usize>
+    PyClassGetterGenerator<ClassT, FieldT, OFFSET, false, true>
 {
-    /// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(crate::PyGetterDef {
             // TODO: store &CStr in PyGetterDef etc
             name,
-            meth: pyo3_get_value::<T, X, OFFSET>,
+            meth: pyo3_get_value_topyobject::<ClassT, FieldT, OFFSET>,
             doc,
         })
     }
 }
 
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be converted to a Python object",
+        label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
+        note = "`Py<T>` fields are always converible to Python objects",
+        note = "implement `ToPyObject` or `IntoPy<PyObject> + Clone` for `{Self}` to define the conversion",
+    )
+)]
+pub trait PyO3GetField: IntoPy<Py<PyAny>> + Clone {}
+impl<T: IntoPy<Py<PyAny>> + Clone> PyO3GetField for T {}
+
+/// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
+impl<ClassT: PyClass, FieldT, const OFFSET: usize>
+    PyClassGetterGenerator<ClassT, FieldT, OFFSET, false, false>
+{
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
+    // The bound goes here rather than on the block so that this impl is always available
+    // if no specialization is used instead
+    where
+        FieldT: PyO3GetField,
+    {
+        PyMethodDefType::Getter(crate::PyGetterDef {
+            // TODO: store &CStr in PyGetterDef etc
+            name,
+            meth: pyo3_get_value::<ClassT, FieldT, OFFSET>,
+            doc,
+        })
+    }
+}
+
+/// Trait used to combine with zero-sized types to calculate at compile time
+/// some property of a type.
+///
+/// The trick uses the fact that an associated constant has higher priority
+/// than a trait constant, so we can use the trait to define the false case.
+///
+/// The true case is defined in the zero-sized type's impl block, which is
+/// gated on some property like trait bound or only being implemented
+/// for fixed concrete types.
 pub trait Tester {
     const VALUE: bool = false;
 }
@@ -1243,57 +1301,49 @@ impl<T> IsPyT<Py<T>> {
     pub const VALUE: bool = true;
 }
 
-macro_rules! trait_tester {
-    ($name:ident, $($trait:tt)+) => {
-        tester!($name);
+tester!(IsToPyObject);
 
-        impl<T: $($trait)+> $name<T> {
-            pub const VALUE: bool = true;
-        }
-    }
+impl<T: ToPyObject> IsToPyObject<T> {
+    pub const VALUE: bool = true;
 }
 
-trait_tester!(IsIntoPyAndClone, IntoPy<Py<PyAny>> + Clone);
-trait_tester!(IsToPyObject, ToPyObject);
-
-fn pyo3_get_py_t<T: PyClass, U, const OFFSET: usize>(
+fn pyo3_get_value_topyobject<ClassT: PyClass, FieldT: ToPyObject, const OFFSET: usize>(
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
     // Check for mutable aliasing
     let _holder = unsafe {
         BoundRef::ref_from_ptr(py, &obj)
-            .downcast_unchecked::<T>()
+            .downcast_unchecked::<ClassT>()
             .try_borrow()?
     };
 
     let value = unsafe {
         obj.cast::<u8>()
-            .offset((std::mem::offset_of!(PyClassObject::<T>, contents) + OFFSET) as isize)
-            .cast::<Py<U>>()
+            .offset((std::mem::offset_of!(PyClassObject::<ClassT>, contents) + OFFSET) as isize)
+            .cast::<FieldT>()
     };
 
     // SAFETY: OFFSET is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
-    Ok((unsafe { &*value }).clone_ref(py).into_py(py).into_ptr())
+    Ok((unsafe { &*value }).to_object(py).into_ptr())
 }
 
-fn pyo3_get_value<T: PyClass, X: IntoPy<Py<PyAny>> + Clone, const OFFSET: usize>(
+fn pyo3_get_value<ClassT: PyClass, FieldT: IntoPy<Py<PyAny>> + Clone, const OFFSET: usize>(
     py: Python<'_>,
     obj: *mut ffi::PyObject,
 ) -> PyResult<*mut ffi::PyObject> {
-    assert!(IsIntoPyAndClone::<X>::VALUE);
     // Check for mutable aliasing
     let _holder = unsafe {
         BoundRef::ref_from_ptr(py, &obj)
-            .downcast_unchecked::<T>()
+            .downcast_unchecked::<ClassT>()
             .try_borrow()?
     };
 
     let value = unsafe {
         obj.cast::<u8>()
-            .offset((std::mem::offset_of!(PyClassObject::<T>, contents) + OFFSET) as isize)
-            .cast::<X>()
+            .offset((std::mem::offset_of!(PyClassObject::<ClassT>, contents) + OFFSET) as isize)
+            .cast::<FieldT>()
     };
 
     // SAFETY: OFFSET is known to describe the location of the value, and

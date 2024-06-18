@@ -772,19 +772,19 @@ pub fn impl_py_getter_def(
                 syn::Index::from(field_index).to_token_stream()
             };
 
-            let method_def = quote! {
+            let method_def = quote_spanned! {ty.span()=>
                 #cfg_attrs
                 {
+                    use #pyo3_path::impl_::pyclass::Tester;
                     const OFFSET: usize = ::std::mem::offset_of!(#cls, #field);
-                    unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
+                    const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
                         #cls,
                         #ty,
                         OFFSET,
-                        {
-                            use #pyo3_path::impl_::pyclass::Tester;
-                            #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE
-                        }
-                    >::new() }.generate(#python_name, #doc)
+                        { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
+                        { #pyo3_path::impl_::pyclass::IsToPyObject::<#ty>::VALUE },
+                    > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
+                    GENERATOR.generate(#python_name, #doc)
                 }
             };
 

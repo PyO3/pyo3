@@ -899,8 +899,8 @@ impl r#RawIdents {
     }
 
     #[getter(r#subtype)]
-    pub fn r#get_subtype(&self) -> PyObject {
-        self.r#subtype.clone()
+    pub fn r#get_subtype(&self, py: Python<'_>) -> PyObject {
+        self.r#subtype.clone_ref(py)
     }
 
     #[setter(r#subtype)]
@@ -909,8 +909,8 @@ impl r#RawIdents {
     }
 
     #[getter]
-    pub fn r#get_subsubtype(&self) -> PyObject {
-        self.r#subsubtype.clone()
+    pub fn r#get_subsubtype(&self, py: Python<'_>) -> PyObject {
+        self.r#subsubtype.clone_ref(py)
     }
 
     #[setter]
