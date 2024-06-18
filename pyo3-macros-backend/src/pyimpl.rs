@@ -186,7 +186,7 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec<'_>, ctx: &Ctx) -> MethodA
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
     let deprecations = &spec.attributes.deprecations;
-    let python_name = &spec.null_terminated_python_name();
+    let python_name = spec.null_terminated_python_name(ctx);
     let Ctx { pyo3_path } = ctx;
 
     let associated_method = quote! {
@@ -219,6 +219,7 @@ fn impl_py_methods(
 ) -> TokenStream {
     let Ctx { pyo3_path } = ctx;
     quote! {
+        #[allow(unknown_lints, non_local_definitions)]
         impl #pyo3_path::impl_::pyclass::PyMethods<#ty>
             for #pyo3_path::impl_::pyclass::PyClassImplCollector<#ty>
         {

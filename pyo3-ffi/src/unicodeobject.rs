@@ -328,6 +328,15 @@ extern "C" {
     pub fn PyUnicode_Compare(left: *mut PyObject, right: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_CompareWithASCIIString")]
     pub fn PyUnicode_CompareWithASCIIString(left: *mut PyObject, right: *const c_char) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyUnicode_EqualToUTF8(unicode: *mut PyObject, string: *const c_char) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyUnicode_EqualToUTF8AndSize(
+        unicode: *mut PyObject,
+        string: *const c_char,
+        size: Py_ssize_t,
+    ) -> c_int;
+
     pub fn PyUnicode_RichCompare(
         left: *mut PyObject,
         right: *mut PyObject,

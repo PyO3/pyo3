@@ -37,14 +37,7 @@ use syn::{parse::Nothing, parse_macro_input, Item};
 pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
     parse_macro_input!(args as Nothing);
     match parse_macro_input!(input as Item) {
-        Item::Mod(module) => if cfg!(feature = "experimental-declarative-modules") {
-            pymodule_module_impl(module)
-        } else {
-            Err(syn::Error::new_spanned(
-                module,
-                "#[pymodule] requires the 'experimental-declarative-modules' feature to be used on Rust modules.",
-            ))
-        },
+        Item::Mod(module) => pymodule_module_impl(module),
         Item::Fn(function) => pymodule_function_impl(function),
         unsupported => Err(syn::Error::new_spanned(
             unsupported,

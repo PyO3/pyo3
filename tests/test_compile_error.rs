@@ -52,13 +52,9 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/not_send2.rs");
     t.compile_fail("tests/ui/get_set_all.rs");
     t.compile_fail("tests/ui/traverse.rs");
-    #[cfg(feature = "experimental-declarative-modules")]
     t.compile_fail("tests/ui/invalid_pymodule_in_root.rs");
-    #[cfg(feature = "experimental-declarative-modules")]
     t.compile_fail("tests/ui/invalid_pymodule_glob.rs");
-    #[cfg(feature = "experimental-declarative-modules")]
     t.compile_fail("tests/ui/invalid_pymodule_trait.rs");
-    #[cfg(feature = "experimental-declarative-modules")]
     t.compile_fail("tests/ui/invalid_pymodule_two_pymodule_init.rs");
     #[cfg(feature = "experimental-async")]
     #[cfg(any(not(Py_LIMITED_API), Py_3_10))] // to avoid PyFunctionArgument for &str
@@ -67,4 +63,8 @@ fn test_compile_errors() {
     #[cfg(all(Py_LIMITED_API, not(feature = "experimental-async")))]
     // output changes with async feature
     t.compile_fail("tests/ui/abi3_inheritance.rs");
+    #[cfg(all(Py_LIMITED_API, not(Py_3_9)))]
+    t.compile_fail("tests/ui/abi3_weakref.rs");
+    #[cfg(all(Py_LIMITED_API, not(Py_3_9)))]
+    t.compile_fail("tests/ui/abi3_dict.rs");
 }

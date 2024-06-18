@@ -106,14 +106,12 @@ submodules by using `from parent_module import child_module`. For more informati
 
 It is not necessary to add `#[pymodule]` on nested modules, which is only required on the top-level module.
 
-## Declarative modules (experimental)
+## Declarative modules
 
 Another syntax based on Rust inline modules is also available to declare modules.
-The `experimental-declarative-modules` feature must be enabled to use it.
 
 For example:
 ```rust
-# #[cfg(feature = "experimental-declarative-modules")]
 # mod declarative_module_test {
 use pyo3::prelude::*;
 
@@ -157,7 +155,6 @@ For nested modules, the name of the parent module is automatically added.
 In the following example, the `Unit` class will have for `module` `my_extension.submodule` because it is properly nested
 but the `Ext` class will have for `module` the default `builtins` because it not nested.
 ```rust
-# #[cfg(feature = "experimental-declarative-modules")]
 # mod declarative_module_module_attr_test {
 use pyo3::prelude::*;
 
@@ -184,7 +181,3 @@ mod my_extension {
 ```
 It is possible to customize the `module` value for a `#[pymodule]` with the `#[pyo3(module = "MY_MODULE")]` option.
 
-Some changes are planned to this feature before stabilization, like automatically
-filling submodules into `sys.modules` to allow easier imports (see [issue #759](https://github.com/PyO3/pyo3/issues/759)).
-Macro names might also change.
-See [issue #3900](https://github.com/PyO3/pyo3/issues/3900) to track this feature progress.

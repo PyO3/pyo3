@@ -357,8 +357,8 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 // but copying them seems suboptimal
 #[inline]
 #[cfg(GraalPy)]
-pub unsafe fn _get_attr(obj: *mut PyObject, field: &str) -> c_int {
-    let result = PyObject_GetAttrString(obj, field.as_ptr().cast());
+pub unsafe fn _get_attr(obj: *mut PyObject, field: &std::ffi::CStr) -> c_int {
+    let result = PyObject_GetAttrString(obj, field.as_ptr());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {
         PyLong_AsLong(result) as c_int
@@ -370,55 +370,55 @@ pub unsafe fn _get_attr(obj: *mut PyObject, field: &str) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
-    _get_attr(o, "year\0")
+    _get_attr(o, c_str!("year"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
-    _get_attr(o, "month\0")
+    _get_attr(o, c_str!("month"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
-    _get_attr(o, "day\0")
+    _get_attr(o, c_str!("day"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int {
-    _get_attr(o, "hour\0")
+    _get_attr(o, c_str!("hour"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int {
-    _get_attr(o, "minute\0")
+    _get_attr(o, c_str!("minute"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "second\0")
+    _get_attr(o, c_str!("second"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "microsecond\0")
+    _get_attr(o, c_str!("microsecond"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int {
-    _get_attr(o, "fold\0")
+    _get_attr(o, c_str!("fold"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr().cast());
+    let res = PyObject_GetAttrString(o, c_str!("tzinfo").as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -426,37 +426,37 @@ pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int {
-    _get_attr(o, "hour\0")
+    _get_attr(o, c_str!("hour"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int {
-    _get_attr(o, "minute\0")
+    _get_attr(o, c_str!("minute"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "second\0")
+    _get_attr(o, c_str!("second"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, "microsecond\0")
+    _get_attr(o, c_str!("microsecond"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int {
-    _get_attr(o, "fold\0")
+    _get_attr(o, c_str!("fold"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, "tzinfo\0".as_ptr().cast());
+    let res = PyObject_GetAttrString(o, c_str!("tzinfo").as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -464,19 +464,19 @@ pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int {
-    _get_attr(o, "days\0")
+    _get_attr(o, c_str!("days"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int {
-    _get_attr(o, "seconds\0")
+    _get_attr(o, c_str!("seconds"))
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
-    _get_attr(o, "microseconds\0")
+    _get_attr(o, c_str!("microseconds"))
 }
 
 #[cfg(PyPy)]

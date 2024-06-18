@@ -57,12 +57,6 @@ This feature adds support for `async fn` in `#[pyfunction]` and `#[pymethods]`.
 
 The feature has some unfinished refinements and performance improvements. To help finish this off, see [issue #1632](https://github.com/PyO3/pyo3/issues/1632) and its associated draft PRs.
 
-### `experimental-declarative-modules`
-
-This feature allows to declare Python modules using `#[pymodule] mod my_module { ... }` syntax. 
-
-The feature has some unfinished refinements and edge cases. To help finish this off, see [issue #3900](https://github.com/PyO3/pyo3/issues/3900).
-
 ### `experimental-inspect`
 
 This feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` and `FromPyObject::type_input` APIs to produce Python type "annotations" for Rust types.

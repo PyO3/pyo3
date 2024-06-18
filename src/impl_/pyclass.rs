@@ -3,11 +3,8 @@ use crate::PyNativeType;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
-    impl_::{
-        freelist::FreeList,
-        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
-    },
-    internal_tricks::extract_c_string,
+    impl_::freelist::FreeList,
+    impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
     pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
@@ -216,7 +213,7 @@ pub trait PyClassImpl: Sized + 'static {
 /// specialization in to the `#[pyclass]` macro from the `#[pymethods]` macro.
 pub fn build_pyclass_doc(
     class_name: &'static str,
-    doc: &'static str,
+    doc: &'static CStr,
     text_signature: Option<&'static str>,
 ) -> PyResult<Cow<'static, CStr>> {
     if let Some(text_signature) = text_signature {
@@ -224,12 +221,12 @@ pub fn build_pyclass_doc(
             "{}{}\n--\n\n{}",
             class_name,
             text_signature,
-            doc.trim_end_matches('\0')
+            doc.to_str().unwrap(),
         ))
         .map_err(|_| PyValueError::new_err("class doc cannot contain nul bytes"))?;
         Ok(Cow::Owned(doc))
     } else {
-        extract_c_string(doc, "class doc cannot contain nul bytes")
+        Ok(Cow::Borrowed(doc))
     }
 }
 
@@ -1207,10 +1204,9 @@ impl<T: PyClass, X, const OFFSET: usize> PyClassGetterGenerator<T, Py<X>, OFFSET
             })
         } else {
             PyMethodDefType::Getter(crate::PyGetterDef {
-                // TODO: store &CStr in PyGetterDef etc
-                name: unsafe { std::str::from_utf8_unchecked(name.to_bytes_with_nul()) },
+                name,
                 meth: pyo3_get_py_t::<T, Py<X>, OFFSET>,
-                doc: unsafe { std::str::from_utf8_unchecked(doc.to_bytes_with_nul()) },
+                doc,
             })
         }
     }
@@ -1223,9 +1219,9 @@ impl<T: PyClass, X: IntoPy<Py<PyAny>> + Clone, const OFFSET: usize>
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(crate::PyGetterDef {
             // TODO: store &CStr in PyGetterDef etc
-            name: unsafe { std::str::from_utf8_unchecked(name.to_bytes_with_nul()) },
+            name,
             meth: pyo3_get_value::<T, X, OFFSET>,
-            doc: unsafe { std::str::from_utf8_unchecked(doc.to_bytes_with_nul()) },
+            doc,
         })
     }
 }

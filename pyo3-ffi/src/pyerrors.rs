@@ -101,7 +101,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 ) -> *mut PyObject {
     crate::_PyObject_CallFunction_SizeT(
         PyExc_UnicodeDecodeError,
-        b"sy#nns\0".as_ptr().cast::<c_char>(),
+        c_str!("sy#nns").as_ptr(),
         encoding,
         object,
         length,

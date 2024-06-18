@@ -1,5 +1,3 @@
-use pyo3_ffi::PyType_IS_GC;
-
 use crate::{
     exceptions::PyTypeError,
     ffi,
@@ -9,7 +7,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassItemsIter,
         },
-        pymethods::{get_doc, get_name, Getter, Setter},
+        pymethods::{Getter, Setter},
         trampoline::trampoline,
     },
     internal_tricks::ptr_from_ref,
@@ -17,7 +15,6 @@ use crate::{
     Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
-    borrow::Cow,
     collections::HashMap,
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_ulong, c_void},
@@ -69,7 +66,7 @@ where
             has_setitem: false,
             has_traverse: false,
             has_clear: false,
-            has_dict: false,
+            dict_offset: None,
             class_flags: 0,
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             buffer_procs: Default::default(),
@@ -107,7 +104,7 @@ struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
     method_defs: Vec<ffi::PyMethodDef>,
     member_defs: Vec<ffi::PyMemberDef>,
-    getset_builders: HashMap<&'static str, GetSetDefBuilder>,
+    getset_builders: HashMap<&'static CStr, GetSetDefBuilder>,
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
@@ -123,7 +120,7 @@ struct PyTypeBuilder {
     has_setitem: bool,
     has_traverse: bool,
     has_clear: bool,
-    has_dict: bool,
+    dict_offset: Option<ffi::Py_ssize_t>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -177,33 +174,26 @@ impl PyTypeBuilder {
 
     fn pymethod_def(&mut self, def: &PyMethodDefType) {
         match def {
-            PyMethodDefType::Getter(getter) => {
-                self.getset_builders
-                    .entry(getter.name)
-                    .or_default()
-                    .add_getter(getter);
-            }
-            PyMethodDefType::Setter(setter) => {
-                self.getset_builders
-                    .entry(setter.name)
-                    .or_default()
-                    .add_setter(setter);
-            }
+            PyMethodDefType::Getter(getter) => self
+                .getset_builders
+                .entry(getter.name)
+                .or_default()
+                .add_getter(getter),
+            PyMethodDefType::Setter(setter) => self
+                .getset_builders
+                .entry(setter.name)
+                .or_default()
+                .add_setter(setter),
             PyMethodDefType::Method(def)
             | PyMethodDefType::Class(def)
-            | PyMethodDefType::Static(def) => {
-                let (def, destructor) = def.as_method_def().unwrap();
-                // FIXME: stop leaking destructor
-                std::mem::forget(destructor);
-                self.method_defs.push(def);
-            }
+            | PyMethodDefType::Static(def) => self.method_defs.push(def.as_method_def()),
             // These class attributes are added after the type gets created by LazyStaticType
             PyMethodDefType::ClassAttribute(_) => {}
             PyMethodDefType::StructMember(def) => self.member_defs.push(*def),
         }
     }
 
-    fn finalize_methods_and_properties(&mut self) -> PyResult<Vec<GetSetDefDestructor>> {
+    fn finalize_methods_and_properties(&mut self) -> Vec<GetSetDefDestructor> {
         let method_defs: Vec<pyo3_ffi::PyMethodDef> = std::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
@@ -219,22 +209,62 @@ impl PyTypeBuilder {
             .getset_builders
             .iter()
             .map(|(name, builder)| {
-                let (def, destructor) = builder.as_get_set_def(name)?;
+                let (def, destructor) = builder.as_get_set_def(name);
                 getset_destructors.push(destructor);
-                Ok(def)
+                def
             })
-            .collect::<PyResult<_>>()?;
+            .collect();
 
-        // PyPy doesn't automatically add __dict__ getter / setter.
-        // PyObject_GenericGetDict not in the limited API until Python 3.10.
-        if self.has_dict {
-            #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+        // PyPy automatically adds __dict__ getter / setter.
+        #[cfg(not(PyPy))]
+        // Supported on unlimited API for all versions, and on 3.9+ for limited API
+        #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+        if let Some(dict_offset) = self.dict_offset {
+            let get_dict;
+            let closure;
+            // PyObject_GenericGetDict not in the limited API until Python 3.10.
+            #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+            {
+                let _ = dict_offset;
+                get_dict = ffi::PyObject_GenericGetDict;
+                closure = ptr::null_mut();
+            }
+
+            // ... so we write a basic implementation ourselves
+            #[cfg(not(any(not(Py_LIMITED_API), Py_3_10)))]
+            {
+                extern "C" fn get_dict_impl(
+                    object: *mut ffi::PyObject,
+                    closure: *mut c_void,
+                ) -> *mut ffi::PyObject {
+                    unsafe {
+                        trampoline(|_| {
+                            let dict_offset = closure as ffi::Py_ssize_t;
+                            // we don't support negative dict_offset here; PyO3 doesn't set it negative
+                            assert!(dict_offset > 0);
+                            // TODO: use `.byte_offset` on MSRV 1.75
+                            let dict_ptr = object
+                                .cast::<u8>()
+                                .offset(dict_offset)
+                                .cast::<*mut ffi::PyObject>();
+                            if (*dict_ptr).is_null() {
+                                std::ptr::write(dict_ptr, ffi::PyDict_New());
+                            }
+                            Ok(ffi::_Py_XNewRef(*dict_ptr))
+                        })
+                    }
+                }
+
+                get_dict = get_dict_impl;
+                closure = dict_offset as _;
+            }
+
             property_defs.push(ffi::PyGetSetDef {
-                name: "__dict__\0".as_ptr().cast(),
-                get: Some(ffi::PyObject_GenericGetDict),
+                name: ffi::c_str!("__dict__").as_ptr(),
+                get: Some(get_dict),
                 set: Some(ffi::PyObject_GenericSetDict),
                 doc: ptr::null(),
-                closure: ptr::null_mut(),
+                closure,
             });
         }
 
@@ -269,7 +299,7 @@ impl PyTypeBuilder {
             }
         }
 
-        Ok(getset_destructors)
+        getset_destructors
     }
 
     fn set_is_basetype(mut self, is_basetype: bool) -> Self {
@@ -322,20 +352,17 @@ impl PyTypeBuilder {
         dict_offset: Option<ffi::Py_ssize_t>,
         #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
     ) -> Self {
-        self.has_dict = dict_offset.is_some();
+        self.dict_offset = dict_offset;
 
         #[cfg(Py_3_9)]
         {
             #[inline(always)]
-            fn offset_def(
-                name: &'static str,
-                offset: ffi::Py_ssize_t,
-            ) -> ffi::structmember::PyMemberDef {
-                ffi::structmember::PyMemberDef {
-                    name: name.as_ptr() as _,
-                    type_code: ffi::structmember::T_PYSSIZET,
+            fn offset_def(name: &'static CStr, offset: ffi::Py_ssize_t) -> ffi::PyMemberDef {
+                ffi::PyMemberDef {
+                    name: name.as_ptr().cast(),
+                    type_code: ffi::Py_T_PYSSIZET,
                     offset,
-                    flags: ffi::structmember::READONLY,
+                    flags: ffi::Py_READONLY,
                     doc: std::ptr::null_mut(),
                 }
             }
@@ -343,13 +370,15 @@ impl PyTypeBuilder {
             // __dict__ support
             if let Some(dict_offset) = dict_offset {
                 self.member_defs
-                    .push(offset_def("__dictoffset__\0", dict_offset));
+                    .push(offset_def(ffi::c_str!("__dictoffset__"), dict_offset));
             }
 
             // weakref support
             if let Some(weaklist_offset) = weaklist_offset {
-                self.member_defs
-                    .push(offset_def("__weaklistoffset__\0", weaklist_offset));
+                self.member_defs.push(offset_def(
+                    ffi::c_str!("__weaklistoffset__"),
+                    weaklist_offset,
+                ));
             }
         }
 
@@ -386,7 +415,7 @@ impl PyTypeBuilder {
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
 
-        let getset_destructors = self.finalize_methods_and_properties()?;
+        let getset_destructors = self.finalize_methods_and_properties();
 
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
@@ -395,7 +424,7 @@ impl PyTypeBuilder {
             unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
         }
 
-        let tp_dealloc = if self.has_traverse || unsafe { PyType_IS_GC(self.tp_base) == 1 } {
+        let tp_dealloc = if self.has_traverse || unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 } {
             self.tp_dealloc_with_gc
         } else {
             self.tp_dealloc
@@ -500,7 +529,7 @@ unsafe extern "C" fn no_constructor_defined(
 
 #[derive(Default)]
 struct GetSetDefBuilder {
-    doc: Option<&'static str>,
+    doc: Option<&'static CStr>,
     getter: Option<Getter>,
     setter: Option<Setter>,
 }
@@ -524,13 +553,7 @@ impl GetSetDefBuilder {
         self.setter = Some(setter.meth)
     }
 
-    fn as_get_set_def(
-        &self,
-        name: &'static str,
-    ) -> PyResult<(ffi::PyGetSetDef, GetSetDefDestructor)> {
-        let name = get_name(name)?;
-        let doc = self.doc.map(get_doc).transpose()?;
-
+    fn as_get_set_def(&self, name: &'static CStr) -> (ffi::PyGetSetDef, GetSetDefDestructor) {
         let getset_type = match (self.getter, self.setter) {
             (Some(getter), None) => GetSetDefType::Getter(getter),
             (None, Some(setter)) => GetSetDefType::Setter(setter),
@@ -542,20 +565,16 @@ impl GetSetDefBuilder {
             }
         };
 
-        let getset_def = getset_type.create_py_get_set_def(&name, doc.as_deref());
+        let getset_def = getset_type.create_py_get_set_def(name, self.doc);
         let destructor = GetSetDefDestructor {
-            name,
-            doc,
             closure: getset_type,
         };
-        Ok((getset_def, destructor))
+        (getset_def, destructor)
     }
 }
 
 #[allow(dead_code)] // a stack of fields which are purely to cache until dropped
 struct GetSetDefDestructor {
-    name: Cow<'static, CStr>,
-    doc: Option<Cow<'static, CStr>>,
     closure: GetSetDefType,
 }
 

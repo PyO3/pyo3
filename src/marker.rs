@@ -652,7 +652,7 @@ impl<'py> Python<'py> {
     ) -> PyResult<Bound<'py, PyAny>> {
         let code = CString::new(code)?;
         unsafe {
-            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr().cast());
+            let mptr = ffi::PyImport_AddModule(ffi::c_str!("__main__").as_ptr());
             if mptr.is_null() {
                 return Err(PyErr::fetch(self));
             }
@@ -685,7 +685,8 @@ impl<'py> Python<'py> {
                 }
             }
 
-            let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
+            let code_obj =
+                ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start);
             if code_obj.is_null() {
                 return Err(PyErr::fetch(self));
             }
