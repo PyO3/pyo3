@@ -329,7 +329,9 @@ pub fn impl_py_method_def(
     };
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc, ctx);
     let method_def = quote! {
-        #pyo3_path::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        )
     };
     Ok(MethodAndMethodDef {
         associated_method,
@@ -510,12 +512,14 @@ fn impl_py_class_attribute(
     };
 
     let method_def = quote! {
-        #pyo3_path::class::PyMethodDefType::ClassAttribute({
-            #pyo3_path::class::PyClassAttributeDef::new(
-                #python_name,
-                #cls::#wrapper_ident
-            )
-        })
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::ClassAttribute({
+                #pyo3_path::class::PyClassAttributeDef::new(
+                    #python_name,
+                    #cls::#wrapper_ident
+                )
+            })
+        )
     };
 
     Ok(MethodAndMethodDef {
@@ -700,11 +704,13 @@ pub fn impl_py_setter_def(
 
     let method_def = quote! {
         #cfg_attrs
-        #pyo3_path::class::PyMethodDefType::Setter(
-            #pyo3_path::class::PySetterDef::new(
-                #python_name,
-                #cls::#wrapper_ident,
-                #doc
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::Setter(
+                #pyo3_path::class::PySetterDef::new(
+                    #python_name,
+                    #cls::#wrapper_ident,
+                    #doc
+                )
             )
         )
     };
@@ -772,19 +778,31 @@ pub fn impl_py_getter_def(
                 syn::Index::from(field_index).to_token_stream()
             };
 
+            // TODO: on MSRV 1.77+, we can use `::std::mem::offset_of!` here, and it should
+            // make it possible for the `MaybeRuntimePyMethodDef` to be a `Static` variant.
             let method_def = quote_spanned! {ty.span()=>
                 #cfg_attrs
                 {
                     use #pyo3_path::impl_::pyclass::Tester;
-                    const OFFSET: usize = ::std::mem::offset_of!(#cls, #field);
+
+                    struct Offset;
+                    unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
+                        fn offset() -> usize {
+                            #pyo3_path::impl_::pyclass::class_offset::<#cls>() +
+                            #pyo3_path::impl_::pyclass::offset_of!(#cls, #field)
+                        }
+                    }
+
                     const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
                         #cls,
                         #ty,
-                        OFFSET,
+                        Offset,
                         { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsToPyObject::<#ty>::VALUE },
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
-                    GENERATOR.generate(#python_name, #doc)
+                    #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Runtime(
+                        || GENERATOR.generate(#python_name, #doc)
+                    )
                 }
             };
 
@@ -820,11 +838,13 @@ pub fn impl_py_getter_def(
 
             let method_def = quote! {
                 #cfg_attrs
-                #pyo3_path::class::PyMethodDefType::Getter(
-                    #pyo3_path::class::PyGetterDef::new(
-                        #python_name,
-                        #cls::#wrapper_ident,
-                        #doc
+                #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+                    #pyo3_path::class::PyMethodDefType::Getter(
+                        #pyo3_path::class::PyGetterDef::new(
+                            #python_name,
+                            #cls::#wrapper_ident,
+                            #doc
+                        )
                     )
                 )
             };
