@@ -18,7 +18,7 @@ fn search_sequential(contents: &str, needle: &str) -> usize {
 
 #[pyfunction]
 fn search_sequential_allow_threads(py: Python<'_>, contents: &str, needle: &str) -> usize {
-    py.allow_threads(|| search_sequential(contents, needle))
+    py.allow_threads().with(|| search_sequential(contents, needle))
 }
 
 /// Count the occurrences of needle in line, case insensitive

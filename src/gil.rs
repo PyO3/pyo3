@@ -747,23 +747,25 @@ mod tests {
 
     #[test]
     fn test_allow_threads() {
-        assert!(!gil_is_acquired());
+        for _ in 0..10 {
+            assert!(!gil_is_acquired());
 
-        Python::with_gil(|py| {
-            assert!(gil_is_acquired());
+            Python::with_gil(|py| {
+                assert!(gil_is_acquired());
 
-            py.allow_threads(move || {
-                assert!(!gil_is_acquired());
+                py.allow_threads().with(move || {
+                    assert!(!gil_is_acquired());
 
-                Python::with_gil(|_| assert!(gil_is_acquired()));
+                    Python::with_gil(|_| assert!(gil_is_acquired()));
 
-                assert!(!gil_is_acquired());
+                    assert!(!gil_is_acquired());
+                });
+
+                assert!(gil_is_acquired());
             });
 
-            assert!(gil_is_acquired());
-        });
-
-        assert!(!gil_is_acquired());
+            assert!(!gil_is_acquired());
+        }
     }
 
     #[cfg(feature = "py-clone")]
@@ -775,7 +777,7 @@ mod tests {
             let obj = get_object(py);
             assert!(obj.get_refcnt(py) == 1);
             // Clone the object without the GIL which should panic
-            py.allow_threads(|| obj.clone());
+            py.allow_threads().with(|| obj.clone());
         });
     }
 

@@ -67,7 +67,7 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let waker = cx.waker();
         Python::with_gil(|gil| {
-            gil.allow_threads(|| pin!(&mut self.0).poll(&mut Context::from_waker(waker)))
+            gil.allow_threads().with(|| pin!(&mut self.0).poll(&mut Context::from_waker(waker)))
         })
     }
 }

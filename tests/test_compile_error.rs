@@ -49,7 +49,6 @@ fn test_compile_errors() {
     )))]
     t.compile_fail("tests/ui/invalid_result_conversion.rs");
     t.compile_fail("tests/ui/not_send.rs");
-    t.compile_fail("tests/ui/not_send2.rs");
     t.compile_fail("tests/ui/get_set_all.rs");
     t.compile_fail("tests/ui/traverse.rs");
     t.compile_fail("tests/ui/invalid_pymodule_in_root.rs");

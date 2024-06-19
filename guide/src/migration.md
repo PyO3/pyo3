@@ -169,6 +169,10 @@ Python::with_gil(|py| {
 ```
 </details>
 
+### `Python::allow_threads` was split into `Python::safe_allow_threads` and `Python::unsafe_allow_threads`
+
+TODO
+
 ### `Iter(A)NextOutput` are deprecated
 <details>
 <summary><small>Click to expand</small></summary>

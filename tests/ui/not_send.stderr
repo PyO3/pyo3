@@ -1,12 +1,15 @@
 error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
- --> tests/ui/not_send.rs:4:22
+ --> tests/ui/not_send.rs:6:33
   |
-4 |     py.allow_threads(|| { drop(py); });
-  |        ------------- ^^^^^^^^^^^^^^^^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
-  |        |
-  |        required by a bound introduced by this call
+6 |           py.allow_threads().with(|| {
+  |  ____________________________----_^
+  | |                            |
+  | |                            required by a bound introduced by this call
+7 | |             drop(py);
+8 | |         });
+  | |_________^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
   |
-  = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`, which is required by `{closure@$DIR/tests/ui/not_send.rs:4:22: 4:24}: Ungil`
+  = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`, which is required by `{closure@$DIR/tests/ui/not_send.rs:6:33: 6:35}: Send`
 note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
  --> $RUST/core/src/marker.rs
   |
@@ -30,16 +33,68 @@ note: required because it appears within the type `pyo3::Python<'_>`
   |            ^^^^^^
   = note: required for `&pyo3::Python<'_>` to implement `Send`
 note: required because it's used within this closure
- --> tests/ui/not_send.rs:4:22
+ --> tests/ui/not_send.rs:6:33
   |
-4 |     py.allow_threads(|| { drop(py); });
-  |                      ^^
-  = note: required for `{closure@$DIR/tests/ui/not_send.rs:4:22: 4:24}` to implement `Ungil`
-note: required by a bound in `pyo3::Python::<'py>::allow_threads`
- --> src/marker.rs
+6 |         py.allow_threads().with(|| {
+  |                                 ^^
+note: required by a bound in `RemoteAllowThreads::<'py>::with`
+ --> src/sync.rs
   |
-  |     pub fn allow_threads<T, F>(self, f: F) -> T
-  |            ------------- required by a bound in this associated function
+  |     pub fn with<T, F>(self, f: F) -> T
+  |            ---- required by a bound in this associated function
   |     where
-  |         F: Ungil + FnOnce() -> T,
-  |            ^^^^^ required by this bound in `Python::<'py>::allow_threads`
+  |         F: Send + FnOnce() -> T,
+  |            ^^^^ required by this bound in `RemoteAllowThreads::<'py>::with`
+
+error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
+  --> tests/ui/not_send.rs:16:33
+   |
+16 |           py.allow_threads().with(|| {
+   |  ____________________________----_^
+   | |                            |
+   | |                            required by a bound introduced by this call
+17 | |             println!("{:?}", string);
+18 | |         });
+   | |_________^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
+   |
+   = help: within `pyo3::Bound<'_, PyString>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`, which is required by `{closure@$DIR/tests/ui/not_send.rs:16:33: 16:35}: Send`
+note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: ?Sized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `impl_::not_send::NotSend`
+  --> src/impl_/not_send.rs
+   |
+   | pub(crate) struct NotSend(PhantomData<*mut Python<'static>>);
+   |                   ^^^^^^^
+   = note: required because it appears within the type `(&pyo3::gil::GILGuard, impl_::not_send::NotSend)`
+note: required because it appears within the type `PhantomData<(&pyo3::gil::GILGuard, impl_::not_send::NotSend)>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: ?Sized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `pyo3::Python<'_>`
+  --> src/marker.rs
+   |
+   | pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
+   |            ^^^^^^
+note: required because it appears within the type `pyo3::Bound<'_, PyString>`
+  --> src/instance.rs
+   |
+   | pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
+   |            ^^^^^
+   = note: required for `&pyo3::Bound<'_, PyString>` to implement `Send`
+note: required because it's used within this closure
+  --> tests/ui/not_send.rs:16:33
+   |
+16 |         py.allow_threads().with(|| {
+   |                                 ^^
+note: required by a bound in `RemoteAllowThreads::<'py>::with`
+  --> src/sync.rs
+   |
+   |     pub fn with<T, F>(self, f: F) -> T
+   |            ---- required by a bound in this associated function
+   |     where
+   |         F: Send + FnOnce() -> T,
+   |            ^^^^ required by this bound in `RemoteAllowThreads::<'py>::with`

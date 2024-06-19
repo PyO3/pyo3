@@ -652,7 +652,7 @@ fn drop_unsendable_elsewhere() {
         )
         .unwrap();
 
-        py.allow_threads(|| {
+        py.allow_threads().with(|| {
             spawn(move || {
                 Python::with_gil(move |_py| {
                     drop(unsendable);

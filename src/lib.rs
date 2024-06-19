@@ -1,5 +1,4 @@
 #![warn(missing_docs)]
-#![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
@@ -115,10 +114,6 @@
 //! [`Py`]`<T>` for all `T` that implement [`Serialize`] and [`Deserialize`].
 //! - [`smallvec`][smallvec]: Enables conversions between Python list and [smallvec]'s [`SmallVec`].
 //!
-//! ## Unstable features
-//!
-//! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
-//
 //! ## `rustc` environment flags
 //!
 //! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
@@ -314,7 +309,6 @@
 //! [Python from Rust]: https://github.com/PyO3/pyo3#using-python-from-rust
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
-//! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[cfg(feature = "gil-refs")]
