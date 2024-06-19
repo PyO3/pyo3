@@ -28,10 +28,10 @@ use std::str;
 /// # Python::with_gil(|py| {
 /// let py_bytes = PyBytes::new_bound(py, b"foo".as_slice());
 /// // via PartialEq<[u8]>
-/// assert_eq!(py_bytes, b"foo");
+/// assert_eq!(py_bytes, b"foo".as_slice());
 ///
 /// // via Python equality
-/// assert!(py_bytes.as_any().eq(b"foo").unwrap());
+/// assert!(py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
 /// # });
 /// ```
 #[repr(transparent)]
