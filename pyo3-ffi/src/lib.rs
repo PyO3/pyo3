@@ -276,7 +276,7 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
     let bytes = s.as_bytes();
     let len = bytes.len();
     assert!(
-        bytes.len() >= 1 && bytes[bytes.len() - 1] == b'\0',
+        !bytes.is_empty() && bytes[bytes.len() - 1] == b'\0',
         "string is not nul-terminated"
     );
     let mut i = 0;
