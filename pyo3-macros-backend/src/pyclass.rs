@@ -2016,7 +2016,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(
-            LitCStr::empty(ctx.clone()).to_token_stream(),
+            LitCStr::empty(ctx).to_token_stream(),
             PythonDoc::to_token_stream,
         );
         let is_basetype = self.attr.options.subclass.is_some();

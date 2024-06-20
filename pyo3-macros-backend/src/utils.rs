@@ -73,35 +73,36 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
 pub struct LitCStr {
     lit: CString,
     span: Span,
-    #[allow(dead_code)]
-    ctx: Ctx,
+    pyo3_path: PyO3CratePath,
 }
 
 impl LitCStr {
-    pub fn new(lit: CString, span: Span, ctx: Ctx) -> Self {
-        Self { lit, span, ctx }
+    pub fn new(lit: CString, span: Span, ctx: &Ctx) -> Self {
+        Self {
+            lit,
+            span,
+            pyo3_path: ctx.pyo3_path.clone(),
+        }
     }
 
-    pub fn empty(ctx: Ctx) -> Self {
+    pub fn empty(ctx: &Ctx) -> Self {
         Self {
             lit: CString::new("").unwrap(),
             span: Span::call_site(),
-            ctx,
+            pyo3_path: ctx.pyo3_path.clone(),
         }
     }
 }
 
 impl quote::ToTokens for LitCStr {
-    #[cfg(c_str_lit)]
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        syn::LitCStr::new(&self.lit, self.span).to_tokens(tokens);
-    }
-
-    #[cfg(not(c_str_lit))]
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Ctx { pyo3_path, .. } = &self.ctx;
-        let lit = self.lit.to_str().unwrap();
-        tokens.extend(quote::quote_spanned!(self.span => #pyo3_path::ffi::c_str!(#lit)));
+        if cfg!(c_str_lit) {
+            syn::LitCStr::new(&self.lit, self.span).to_tokens(tokens);
+        } else {
+            let pyo3_path = &self.pyo3_path;
+            let lit = self.lit.to_str().unwrap();
+            tokens.extend(quote::quote_spanned!(self.span => #pyo3_path::ffi::c_str!(#lit)));
+        }
     }
 }
 
@@ -194,7 +195,7 @@ pub fn get_doc(
         PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
             docs,
             Span::call_site(),
-            ctx.clone(),
+            ctx,
         )))
     }
 }
@@ -215,7 +216,6 @@ pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
     ty
 }
 
-#[derive(Clone)]
 pub struct Ctx {
     /// Where we can find the pyo3 crate
     pub pyo3_path: PyO3CratePath,

@@ -893,7 +893,7 @@ impl PropertyType<'_> {
                     }
                 };
                 let name = CString::new(name).unwrap();
-                Ok(LitCStr::new(name, field.span(), ctx.clone()))
+                Ok(LitCStr::new(name, field.span(), ctx))
             }
             PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name(ctx)),
         }

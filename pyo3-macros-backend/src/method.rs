@@ -476,7 +476,7 @@ impl<'a> FnSpec<'a> {
     pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
         let name = self.python_name.to_string();
         let name = CString::new(name).unwrap();
-        LitCStr::new(name, self.python_name.span(), ctx.clone())
+        LitCStr::new(name, self.python_name.span(), ctx)
     }
 
     fn parse_fn_type(

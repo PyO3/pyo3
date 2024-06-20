@@ -31,7 +31,7 @@ impl ConstSpec<'_> {
     /// Null-terminated Python name
     pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
         let name = self.python_name().to_string();
-        LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx.clone())
+        LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx)
     }
 }
 
