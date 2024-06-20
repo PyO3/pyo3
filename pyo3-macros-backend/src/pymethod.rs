@@ -196,7 +196,7 @@ pub fn gen_py_method(
     ensure_function_options_valid(&options)?;
     let method = PyMethod::parse(sig, meth_attrs, options, ctx)?;
     let spec = &method.spec;
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     Ok(match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
@@ -318,7 +318,7 @@ pub fn impl_py_method_def(
     flags: Option<TokenStream>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
     let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
     let add_flags = flags.map(|flags| quote!(.flags(#flags)));
@@ -343,7 +343,7 @@ pub fn impl_py_method_def_new(
     spec: &FnSpec<'_>,
     ctx: &Ctx,
 ) -> Result<MethodAndSlotDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = syn::Ident::new("__pymethod___new____", Span::call_site());
     let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls), ctx)?;
     // Use just the text_signature_call_signature() because the class' Python name
@@ -393,7 +393,7 @@ pub fn impl_py_method_def_new(
 }
 
 fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     // HACK: __call__ proto slot must always use varargs calling convention, so change the spec.
     // Probably indicates there's a refactoring opportunity somewhere.
@@ -433,7 +433,7 @@ fn impl_traverse_slot(
     spec: &FnSpec<'_>,
     ctx: &Ctx,
 ) -> syn::Result<MethodAndSlotDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
         return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
             Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
@@ -484,7 +484,7 @@ fn impl_py_class_attribute(
     spec: &FnSpec<'_>,
     ctx: &Ctx,
 ) -> syn::Result<MethodAndMethodDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     ensure_spanned!(
         args.is_empty(),
@@ -559,7 +559,7 @@ pub fn impl_py_setter_def(
     property_type: PropertyType<'_>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
     let doc = property_type.doc(ctx);
     let mut holders = Holders::new();
@@ -745,7 +745,7 @@ pub fn impl_py_getter_def(
     property_type: PropertyType<'_>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name(ctx)?;
     let doc = property_type.doc(ctx);
 
@@ -871,7 +871,7 @@ pub enum PropertyType<'a> {
 
 impl PropertyType<'_> {
     fn null_terminated_python_name(&self, ctx: &Ctx) -> Result<TokenStream> {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         match self {
             PropertyType::Descriptor {
                 field,
@@ -913,7 +913,7 @@ pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 pub const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     .ret_ty(Ty::PyHashT)
     .return_conversion(TokenGenerator(
-        |Ctx { pyo3_path }: &Ctx| quote! { #pyo3_path::callback::HashCallbackOutput },
+        |Ctx { pyo3_path, .. }: &Ctx| quote! { #pyo3_path::callback::HashCallbackOutput },
     ));
 pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented)
@@ -1036,7 +1036,11 @@ enum Ty {
 
 impl Ty {
     fn ffi_type(self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx {
+            pyo3_path,
+            output_span,
+        } = ctx;
+        let pyo3_path = pyo3_path.to_tokens_spanned(*output_span);
         match self {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
@@ -1057,7 +1061,7 @@ impl Ty {
         holders: &mut Holders,
         ctx: &Ctx,
     ) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         match self {
             Ty::Object => extract_object(
                 extract_error_mode,
@@ -1122,7 +1126,7 @@ fn extract_object(
     source_ptr: TokenStream,
     ctx: &Ctx,
 ) -> TokenStream {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let gil_refs_checker = holders.push_gil_refs_checker(arg.ty().span());
     let name = arg.name().unraw().to_string();
 
@@ -1162,7 +1166,7 @@ enum ReturnMode {
 
 impl ReturnMode {
     fn return_call_output(&self, call: TokenStream, ctx: &Ctx, holders: &Holders) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let check_gil_refs = holders.check_gil_refs();
         match self {
             ReturnMode::Conversion(conversion) => {
@@ -1265,7 +1269,7 @@ impl SlotDef {
         method_name: &str,
         ctx: &Ctx,
     ) -> Result<MethodAndSlotDef> {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let SlotDef {
             slot,
             func_ty,
@@ -1345,7 +1349,7 @@ fn generate_method_body(
     return_mode: Option<&ReturnMode>,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let self_arg = spec
         .tp
         .self_arg(Some(cls), extract_error_mode, holders, ctx);
@@ -1397,7 +1401,7 @@ impl SlotFragmentDef {
         spec: &FnSpec<'_>,
         ctx: &Ctx,
     ) -> Result<TokenStream> {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let SlotFragmentDef {
             fragment,
             arguments,

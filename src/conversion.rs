@@ -152,7 +152,15 @@ pub trait ToPyObject {
 /// # }
 /// ```
 /// Python code will see this as any of the `int`, `string` or `None` objects.
-#[doc(alias = "IntoPyCallbackOutput")]
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be converted to a Python object",
+        note = "`IntoPy` is automatically implemented by the `#[pyclass]` macro",
+        note = "if you do not wish to have a corresponding Python type, implement it manually",
+        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
+    )
+)]
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python<'_>) -> T;

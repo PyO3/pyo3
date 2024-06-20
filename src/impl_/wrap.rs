@@ -20,6 +20,15 @@ impl<T> SomeWrap<T> for Option<T> {
 }
 
 /// Used to wrap the result of `#[pyfunction]` and `#[pymethods]`.
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be converted to a Python object",
+        note = "`IntoPy` is automatically implemented by the `#[pyclass]` macro",
+        note = "if you do not wish to have a corresponding Python type, implement `IntoPy` manually",
+        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
+    )
+)]
 pub trait OkWrap<T> {
     type Error;
     fn wrap(self) -> Result<T, Self::Error>;
