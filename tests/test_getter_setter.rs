@@ -258,3 +258,25 @@ fn borrowed_value_with_lifetime_of_self() {
         py_run!(py, inst, "assert inst.value == 'value'");
     });
 }
+
+#[test]
+fn frozen_py_field_get() {
+    #[pyclass(frozen)]
+    struct FrozenPyField {
+        #[pyo3(get)]
+        value: Py<PyAny>,
+    }
+
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            FrozenPyField {
+                value: "value".into_py(py),
+            },
+        )
+        .unwrap()
+        .to_object(py);
+
+        py_run!(py, inst, "assert inst.value == 'value'");
+    });
+}

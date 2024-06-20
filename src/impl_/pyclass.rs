@@ -1236,7 +1236,7 @@ impl<
         const IMPLEMENTS_TOPYOBJECT: bool,
     > PyClassGetterGenerator<ClassT, Py<U>, Offset, true, IMPLEMENTS_TOPYOBJECT>
 {
-    /// Py<T> fields have a potential optimization to use Python's "struct members" to read
+    /// `Py<T>` fields have a potential optimization to use Python's "struct members" to read
     /// the field directly from the struct, rather than using a getter function.
     ///
     /// This is the most efficient operation the Python interpreter could possibly do to
@@ -1261,7 +1261,7 @@ impl<
     }
 }
 
-/// Field is not Py<T>; try to use `ToPyObject` to avoid potentially expensive clones of containers like `Vec`
+/// Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive clones of containers like `Vec`
 impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, FieldT>>
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, true>
 {
