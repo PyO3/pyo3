@@ -22,7 +22,7 @@ use crate::pymethod::{
     SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__,
 };
 use crate::pyversions;
-use crate::utils::{self, apply_renaming_rule, PythonDoc};
+use crate::utils::{self, apply_renaming_rule, LitCStr, PythonDoc};
 use crate::utils::{is_abi3, Ctx};
 use crate::PyFunctionOptions;
 
@@ -2016,7 +2016,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(
-            quote! {#pyo3_path::ffi::c_str!("")},
+            LitCStr::empty(ctx.clone()).to_token_stream(),
             PythonDoc::to_token_stream,
         );
         let is_basetype = self.attr.options.subclass.is_some();

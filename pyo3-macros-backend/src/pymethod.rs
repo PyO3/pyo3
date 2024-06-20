@@ -1,11 +1,12 @@
 use std::borrow::Cow;
+use std::ffi::CString;
 
 use crate::attributes::{NameAttribute, RenamingRule};
 use crate::deprecations::deprecate_trailing_option_default;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
-use crate::utils::Ctx;
 use crate::utils::PythonDoc;
+use crate::utils::{Ctx, LitCStr};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -870,8 +871,7 @@ pub enum PropertyType<'a> {
 }
 
 impl PropertyType<'_> {
-    fn null_terminated_python_name(&self, ctx: &Ctx) -> Result<TokenStream> {
-        let Ctx { pyo3_path, .. } = ctx;
+    fn null_terminated_python_name(&self, ctx: &Ctx) -> Result<LitCStr> {
         match self {
             PropertyType::Descriptor {
                 field,
@@ -892,7 +892,8 @@ impl PropertyType<'_> {
                         bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
                     }
                 };
-                Ok(quote_spanned!(field.span() => #pyo3_path::ffi::c_str!(#name)))
+                let name = CString::new(name).unwrap();
+                Ok(LitCStr::new(name, field.span(), ctx.clone()))
             }
             PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name(ctx)),
         }

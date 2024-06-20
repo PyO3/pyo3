@@ -7,10 +7,11 @@ use crate::{
     get_doc,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
-    utils::Ctx,
+    utils::{Ctx, LitCStr},
 };
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
+use std::ffi::CString;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -403,10 +404,11 @@ fn module_initialization(name: &syn::Ident, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{}", name);
     let name = name.to_string();
+    let pyo3_name = LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx.clone());
 
     quote! {
         #[doc(hidden)]
-        pub const __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_path::ffi::c_str!(#name);
+        pub const __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_name;
 
         pub(super) struct MakeDef;
         #[doc(hidden)]
