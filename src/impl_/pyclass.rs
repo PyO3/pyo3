@@ -1179,12 +1179,16 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
     result
 }
 
-// Below MSRV 1.77 we can't use `std::mem::offset_of!`, and the replacement in
-// `memoffset::offset_of` doesn't work in const contexts for types containing `UnsafeCell`.
+/// Helper trait to locate field within a `#[pyclass]` for a `#[pyo3(get)]`.
+///
+/// Below MSRV 1.77 we can't use `std::mem::offset_of!`, and the replacement in
+/// `memoffset::offset_of` doesn't work in const contexts for types containing `UnsafeCell`.
+///
+/// # Safety
+///
+/// The trait is unsafe to implement because producing an incorrect offset will lead to UB.
 pub unsafe trait OffsetCalculator<T: PyClass, U> {
     /// Offset to the field within a `PyClassObject<T>`, in bytes.
-    ///
-    /// The trait is unsafe to implement because producing an incorrect offset will lead to UB.
     fn offset() -> usize;
 }
 
