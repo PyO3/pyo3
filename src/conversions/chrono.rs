@@ -1194,7 +1194,7 @@ mod tests {
                         let py_time = CatchWarnings::enter(py, |_| Ok(time.to_object(py))).unwrap();
                         let roundtripped: NaiveTime = py_time.extract(py).expect("Round trip");
                         // Leap seconds are not roundtripped
-                        let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
+                        let expected_roundtrip_time = micro.checked_sub(1_000_000).map_or(time, |micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap());
                         assert_eq!(expected_roundtrip_time, roundtripped);
                     }
                 })
@@ -1241,7 +1241,7 @@ mod tests {
                         let py_dt = CatchWarnings::enter(py, |_| Ok(dt.into_py(py))).unwrap();
                         let roundtripped: DateTime<Utc> = py_dt.extract(py).expect("Round trip");
                         // Leap seconds are not roundtripped
-                        let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
+                        let expected_roundtrip_time = micro.checked_sub(1_000_000).map_or(time, |micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap());
                         let expected_roundtrip_dt: DateTime<Utc> = NaiveDateTime::new(date, expected_roundtrip_time).and_utc();
                         assert_eq!(expected_roundtrip_dt, roundtripped);
                     }
@@ -1269,7 +1269,7 @@ mod tests {
                         let py_dt = CatchWarnings::enter(py, |_| Ok(dt.into_py(py))).unwrap();
                         let roundtripped: DateTime<FixedOffset> = py_dt.extract(py).expect("Round trip");
                         // Leap seconds are not roundtripped
-                        let expected_roundtrip_time = micro.checked_sub(1_000_000).map(|micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap()).unwrap_or(time);
+                        let expected_roundtrip_time = micro.checked_sub(1_000_000).map_or(time, |micro| NaiveTime::from_hms_micro_opt(hour, min, sec, micro).unwrap());
                         let expected_roundtrip_dt: DateTime<FixedOffset> = NaiveDateTime::new(date, expected_roundtrip_time).and_local_timezone(offset).unwrap();
                         assert_eq!(expected_roundtrip_dt, roundtripped);
                     }

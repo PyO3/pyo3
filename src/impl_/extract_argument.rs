@@ -32,15 +32,12 @@ where
     type Holder = ();
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, (): &'a mut ()) -> PyResult<Self> {
         obj.extract()
     }
 }
 
-impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T>
-where
-    T: PyTypeCheck,
-{
+impl<'a, 'py, T: 'py + PyTypeCheck> PyFunctionArgument<'a, 'py> for &'a Bound<'py, T> {
     type Holder = Option<()>;
 
     #[inline]
@@ -49,14 +46,11 @@ where
     }
 }
 
-impl<'a, 'py, T: 'py> PyFunctionArgument<'a, 'py> for Option<&'a Bound<'py, T>>
-where
-    T: PyTypeCheck,
-{
+impl<'a, 'py, T: 'py + PyTypeCheck> PyFunctionArgument<'a, 'py> for Option<&'a Bound<'py, T>> {
     type Holder = ();
 
     #[inline]
-    fn extract(obj: &'a Bound<'py, PyAny>, _: &'a mut ()) -> PyResult<Self> {
+    fn extract(obj: &'a Bound<'py, PyAny>, (): &'a mut ()) -> PyResult<Self> {
         if obj.is_none() {
             Ok(None)
         } else {

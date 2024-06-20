@@ -19,6 +19,14 @@
         non_local_definitions,
     )
 )))]
+#![deny(
+    clippy::ignored_unit_patterns,
+    clippy::implicit_clone,
+    clippy::inefficient_to_string,
+    clippy::map_unwrap_or,
+    clippy::redundant_else,
+    clippy::type_repetition_in_bounds
+)]
 
 //! Rust bindings to the Python interpreter.
 //!
