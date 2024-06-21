@@ -15,7 +15,7 @@ edition = "2021"
 # See https://github.com/PyO3/pyo3/pull/810 for more.
 [dependencies]
 heck = "0.5"
-proc-macro2 = { version = "1", default-features = false }
+proc-macro2 = { version = "1.0.60", default-features = false }
 pyo3-build-config = { path = "../pyo3-build-config", version = "=0.22.0-dev", features = ["resolve-config"] }
 quote = { version = "1", default-features = false }
 
