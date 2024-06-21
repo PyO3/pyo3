@@ -19,9 +19,6 @@
 //! # Example: Convert a `datetime.datetime` to chrono's `DateTime<Utc>`
 //!
 //! ```rust
-//! # // `chrono::Duration` has been renamed to `chrono::TimeDelta` and its constructors changed
-//! # // TODO: upgrade to Chrono 0.4.35+ after upgrading our MSRV to 1.61+
-//! # #![allow(deprecated)]
 //! use chrono::{DateTime, Duration, TimeZone, Utc};
 //! use pyo3::{Python, ToPyObject};
 //!
@@ -42,10 +39,6 @@
 //!     });
 //! }
 //! ```
-
-// `chrono::Duration` has been renamed to `chrono::TimeDelta` and its constructors changed
-// TODO: upgrade to Chrono 0.4.35+ after upgrading our MSRV to 1.61+
-#![allow(deprecated)]
 
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]

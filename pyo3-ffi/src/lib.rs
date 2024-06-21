@@ -264,34 +264,32 @@ macro_rules! opaque_struct {
 /// ```
 #[macro_export]
 macro_rules! c_str {
-    ($s:expr) => {{
-        const _: () = {
-            assert!(
-                $crate::str_contains_no_nul($s),
-                "string contains null bytes"
-            );
-        };
-        // SAFETY: the string is checked to not contain null bytes
-        #[allow(unsafe_op_in_unsafe_fn, unused_unsafe)] // MSRV 1.63 needs these allows
-        unsafe {
-            ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($s, "\0").as_bytes())
-        }
-    }};
+    ($s:expr) => {
+        $crate::_cstr_from_utf8_with_nul_checked(concat!($s, "\0"))
+    };
 }
 
+/// Private helper for `c_str!` macro.
 #[doc(hidden)]
-pub const fn str_contains_no_nul(s: &str) -> bool {
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
+    // TODO: Replace this implementation with `CStr::from_bytes_with_nul` when MSRV above 1.72.
     let bytes = s.as_bytes();
-    let len = s.len();
+    let len = bytes.len();
+    assert!(
+        !bytes.is_empty() && bytes[bytes.len() - 1] == b'\0',
+        "string is not nul-terminated"
+    );
     let mut i = 0;
-    while i < len {
-        if bytes[i] == 0 {
-            return false;
-        }
+    let non_null_len = len - 1;
+    while i < non_null_len {
+        assert!(bytes[i] != b'\0', "string contains null bytes");
         i += 1;
     }
-    true
+
+    unsafe { CStr::from_bytes_with_nul_unchecked(bytes) }
 }
+
+use std::ffi::CStr;
 
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;

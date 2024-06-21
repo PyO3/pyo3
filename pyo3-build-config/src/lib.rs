@@ -145,7 +145,9 @@ pub fn print_feature_cfgs() {
         println!("cargo:rustc-cfg=c_str_lit");
     }
 
-    if rustc_minor_version >= 78 {
+    // Actually this is available on 1.78, but we should avoid
+    // https://github.com/rust-lang/rust/issues/124651 just in case
+    if rustc_minor_version >= 79 {
         println!("cargo:rustc-cfg=diagnostic_namespace");
     }
 }
