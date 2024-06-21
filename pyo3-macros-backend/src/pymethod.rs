@@ -330,7 +330,9 @@ pub fn impl_py_method_def(
     };
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc, ctx);
     let method_def = quote! {
-        #pyo3_path::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        )
     };
     Ok(MethodAndMethodDef {
         associated_method,
@@ -511,12 +513,14 @@ fn impl_py_class_attribute(
     };
 
     let method_def = quote! {
-        #pyo3_path::class::PyMethodDefType::ClassAttribute({
-            #pyo3_path::class::PyClassAttributeDef::new(
-                #python_name,
-                #cls::#wrapper_ident
-            )
-        })
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::ClassAttribute({
+                #pyo3_path::class::PyClassAttributeDef::new(
+                    #python_name,
+                    #cls::#wrapper_ident
+                )
+            })
+        )
     };
 
     Ok(MethodAndMethodDef {
@@ -701,11 +705,13 @@ pub fn impl_py_setter_def(
 
     let method_def = quote! {
         #cfg_attrs
-        #pyo3_path::class::PyMethodDefType::Setter(
-            #pyo3_path::class::PySetterDef::new(
-                #python_name,
-                #cls::#wrapper_ident,
-                #doc
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::Setter(
+                #pyo3_path::class::PySetterDef::new(
+                    #python_name,
+                    #cls::#wrapper_ident,
+                    #doc
+                )
             )
         )
     };
@@ -750,61 +756,6 @@ pub fn impl_py_getter_def(
     let python_name = property_type.null_terminated_python_name(ctx)?;
     let doc = property_type.doc(ctx);
 
-    let mut holders = Holders::new();
-    let body = match property_type {
-        PropertyType::Descriptor {
-            field_index, field, ..
-        } => {
-            let slf = SelfType::Receiver {
-                mutable: false,
-                span: Span::call_site(),
-            }
-            .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
-            let field_token = if let Some(ident) = &field.ident {
-                // named struct field
-                ident.to_token_stream()
-            } else {
-                // tuple struct field
-                syn::Index::from(field_index).to_token_stream()
-            };
-            quotes::map_result_into_ptr(
-                quotes::ok_wrap(
-                    quote! {
-                        ::std::clone::Clone::clone(&(#slf.#field_token))
-                    },
-                    ctx,
-                ),
-                ctx,
-            )
-        }
-        // Forward to `IntoPyCallbackOutput`, to handle `#[getter]`s returning results.
-        PropertyType::Function {
-            spec, self_type, ..
-        } => {
-            let call = impl_call_getter(cls, spec, self_type, &mut holders, ctx)?;
-            quote! {
-                #pyo3_path::callback::convert(py, #call)
-            }
-        }
-    };
-
-    let wrapper_ident = match property_type {
-        PropertyType::Descriptor {
-            field: syn::Field {
-                ident: Some(ident), ..
-            },
-            ..
-        } => {
-            format_ident!("__pymethod_get_{}__", ident)
-        }
-        PropertyType::Descriptor { field_index, .. } => {
-            format_ident!("__pymethod_get_field_{}__", field_index)
-        }
-        PropertyType::Function { spec, .. } => {
-            format_ident!("__pymethod_get_{}__", spec.name)
-        }
-    };
-
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
         for attr in field
@@ -816,36 +767,96 @@ pub fn impl_py_getter_def(
         }
     }
 
-    let init_holders = holders.init_holders(ctx);
-    let check_gil_refs = holders.check_gil_refs();
-    let associated_method = quote! {
-        #cfg_attrs
-        unsafe fn #wrapper_ident(
-            py: #pyo3_path::Python<'_>,
-            _slf: *mut #pyo3_path::ffi::PyObject
-        ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-            #init_holders
-            let result = #body;
-            #check_gil_refs
-            result
+    let mut holders = Holders::new();
+    match property_type {
+        PropertyType::Descriptor {
+            field_index, field, ..
+        } => {
+            let ty = &field.ty;
+            let field = if let Some(ident) = &field.ident {
+                ident.to_token_stream()
+            } else {
+                syn::Index::from(field_index).to_token_stream()
+            };
+
+            // TODO: on MSRV 1.77+, we can use `::std::mem::offset_of!` here, and it should
+            // make it possible for the `MaybeRuntimePyMethodDef` to be a `Static` variant.
+            let method_def = quote_spanned! {ty.span()=>
+                #cfg_attrs
+                {
+                    #[allow(unused_imports)]  // might not be used if all probes are positve
+                    use #pyo3_path::impl_::pyclass::Probe;
+
+                    struct Offset;
+                    unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
+                        fn offset() -> usize {
+                            #pyo3_path::impl_::pyclass::class_offset::<#cls>() +
+                            #pyo3_path::impl_::pyclass::offset_of!(#cls, #field)
+                        }
+                    }
+
+                    const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
+                        #cls,
+                        #ty,
+                        Offset,
+                        { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
+                        { #pyo3_path::impl_::pyclass::IsToPyObject::<#ty>::VALUE },
+                    > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
+                    #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Runtime(
+                        || GENERATOR.generate(#python_name, #doc)
+                    )
+                }
+            };
+
+            Ok(MethodAndMethodDef {
+                associated_method: quote! {},
+                method_def,
+            })
         }
-    };
+        // Forward to `IntoPyCallbackOutput`, to handle `#[getter]`s returning results.
+        PropertyType::Function {
+            spec, self_type, ..
+        } => {
+            let wrapper_ident = format_ident!("__pymethod_get_{}__", spec.name);
+            let call = impl_call_getter(cls, spec, self_type, &mut holders, ctx)?;
+            let body = quote! {
+                #pyo3_path::callback::convert(py, #call)
+            };
 
-    let method_def = quote! {
-        #cfg_attrs
-        #pyo3_path::class::PyMethodDefType::Getter(
-            #pyo3_path::class::PyGetterDef::new(
-                #python_name,
-                #cls::#wrapper_ident,
-                #doc
-            )
-        )
-    };
+            let init_holders = holders.init_holders(ctx);
+            let check_gil_refs = holders.check_gil_refs();
+            let associated_method = quote! {
+                #cfg_attrs
+                unsafe fn #wrapper_ident(
+                    py: #pyo3_path::Python<'_>,
+                    _slf: *mut #pyo3_path::ffi::PyObject
+                ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                    #init_holders
+                    let result = #body;
+                    #check_gil_refs
+                    result
+                }
+            };
 
-    Ok(MethodAndMethodDef {
-        associated_method,
-        method_def,
-    })
+            let method_def = quote! {
+                #cfg_attrs
+                #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+                    #pyo3_path::class::PyMethodDefType::Getter(
+                        #pyo3_path::class::PyGetterDef::new(
+                            #python_name,
+                            #cls::#wrapper_ident,
+                            #doc
+                        )
+                    )
+                )
+            };
+
+            Ok(MethodAndMethodDef {
+                associated_method,
+                method_def,
+            })
+        }
+    }
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present

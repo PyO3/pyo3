@@ -1415,12 +1415,14 @@ pub fn gen_complex_enum_variant_attr(
     };
 
     let method_def = quote! {
-        #pyo3_path::class::PyMethodDefType::ClassAttribute({
-            #pyo3_path::class::PyClassAttributeDef::new(
-                #python_name,
-                #cls_type::#wrapper_ident
-            )
-        })
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::ClassAttribute({
+                #pyo3_path::class::PyClassAttributeDef::new(
+                    #python_name,
+                    #cls_type::#wrapper_ident
+                )
+            })
+        )
     };
 
     MethodAndMethodDef {

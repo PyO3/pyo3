@@ -202,7 +202,6 @@ fn empty_class_in_module() {
     });
 }
 
-#[cfg(feature = "py-clone")]
 #[pyclass]
 struct ClassWithObjectField {
     // It used to be that PyObject was not supported with (get, set)
@@ -211,7 +210,6 @@ struct ClassWithObjectField {
     value: PyObject,
 }
 
-#[cfg(feature = "py-clone")]
 #[pymethods]
 impl ClassWithObjectField {
     #[new]
@@ -220,7 +218,6 @@ impl ClassWithObjectField {
     }
 }
 
-#[cfg(feature = "py-clone")]
 #[test]
 fn class_with_object_field() {
     Python::with_gil(|py| {

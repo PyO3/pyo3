@@ -5,7 +5,7 @@ use crate::{
         pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, PyClassItemsIter,
+            tp_dealloc_with_gc, MaybeRuntimePyMethodDef, PyClassItemsIter,
         },
         pymethods::{Getter, Setter},
         trampoline::trampoline,
@@ -52,6 +52,7 @@ where
         PyTypeBuilder {
             slots: Vec::new(),
             method_defs: Vec::new(),
+            member_defs: Vec::new(),
             getset_builders: HashMap::new(),
             cleanup: Vec::new(),
             tp_base: base,
@@ -102,6 +103,7 @@ type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
     method_defs: Vec<ffi::PyMethodDef>,
+    member_defs: Vec<ffi::PyMemberDef>,
     getset_builders: HashMap<&'static CStr, GetSetDefBuilder>,
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
@@ -187,6 +189,7 @@ impl PyTypeBuilder {
             | PyMethodDefType::Static(def) => self.method_defs.push(def.as_method_def()),
             // These class attributes are added after the type gets created by LazyStaticType
             PyMethodDefType::ClassAttribute(_) => {}
+            PyMethodDefType::StructMember(def) => self.member_defs.push(*def),
         }
     }
 
@@ -194,6 +197,10 @@ impl PyTypeBuilder {
         let method_defs: Vec<pyo3_ffi::PyMethodDef> = std::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
+
+        let member_defs = std::mem::take(&mut self.member_defs);
+        // Safety: Py_tp_members expects a raw vec of PyMemberDef
+        unsafe { self.push_raw_vec_slot(ffi::Py_tp_members, member_defs) };
 
         let mut getset_destructors = Vec::with_capacity(self.getset_builders.len());
 
@@ -261,7 +268,7 @@ impl PyTypeBuilder {
             });
         }
 
-        // Safety: Py_tp_members expects a raw vec of PyGetSetDef
+        // Safety: Py_tp_getset expects a raw vec of PyGetSetDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_getset, property_defs) };
 
         // If mapping methods implemented, define sequence methods get implemented too.
@@ -310,6 +317,14 @@ impl PyTypeBuilder {
                 self.push_slot(slot.slot, slot.pfunc);
             }
             for method in items.methods {
+                let built_method;
+                let method = match method {
+                    MaybeRuntimePyMethodDef::Runtime(builder) => {
+                        built_method = builder();
+                        &built_method
+                    }
+                    MaybeRuntimePyMethodDef::Static(method) => method,
+                };
                 self.pymethod_def(method);
             }
         }
@@ -360,23 +375,19 @@ impl PyTypeBuilder {
                 }
             }
 
-            let mut members = Vec::new();
-
             // __dict__ support
             if let Some(dict_offset) = dict_offset {
-                members.push(offset_def(ffi::c_str!("__dictoffset__"), dict_offset));
+                self.member_defs
+                    .push(offset_def(ffi::c_str!("__dictoffset__"), dict_offset));
             }
 
             // weakref support
             if let Some(weaklist_offset) = weaklist_offset {
-                members.push(offset_def(
+                self.member_defs.push(offset_def(
                     ffi::c_str!("__weaklistoffset__"),
                     weaklist_offset,
                 ));
             }
-
-            // Safety: Py_tp_members expects a raw vec of PyMemberDef
-            unsafe { self.push_raw_vec_slot(ffi::Py_tp_members, members) };
         }
 
         // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until

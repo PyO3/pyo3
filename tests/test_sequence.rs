@@ -248,14 +248,12 @@ fn test_inplace_repeat() {
 
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
 
-#[cfg(feature = "py-clone")]
 #[pyclass]
 struct GenericList {
     #[pyo3(get, set)]
     items: Vec<PyObject>,
 }
 
-#[cfg(feature = "py-clone")]
 #[test]
 fn test_generic_list_get() {
     Python::with_gil(|py| {
@@ -268,7 +266,6 @@ fn test_generic_list_get() {
     });
 }
 
-#[cfg(feature = "py-clone")]
 #[test]
 fn test_generic_list_set() {
     Python::with_gil(|py| {

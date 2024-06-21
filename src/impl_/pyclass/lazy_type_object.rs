@@ -8,6 +8,7 @@ use std::{
 use crate::{
     exceptions::PyRuntimeError,
     ffi,
+    impl_::pyclass::MaybeRuntimePyMethodDef,
     pyclass::{create_type_object, PyClassTypeObject},
     sync::{GILOnceCell, GILProtected},
     types::PyType,
@@ -149,7 +150,15 @@ impl LazyTypeObjectInner {
         let mut items = vec![];
         for class_items in items_iter {
             for def in class_items.methods {
-                if let PyMethodDefType::ClassAttribute(attr) = def {
+                let built_method;
+                let method = match def {
+                    MaybeRuntimePyMethodDef::Runtime(builder) => {
+                        built_method = builder();
+                        &built_method
+                    }
+                    MaybeRuntimePyMethodDef::Static(method) => method,
+                };
+                if let PyMethodDefType::ClassAttribute(attr) = method {
                     match (attr.meth)(py) {
                         Ok(val) => items.push((attr.name, val)),
                         Err(err) => {
