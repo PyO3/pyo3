@@ -1324,7 +1324,8 @@ fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
 fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
     let mut sysconfig_paths = vec![];
-    for f in fs::read_dir(path).expect("Path does not exist") {
+
+    for f in fs::read_dir(path).expect(format!("Path does not exist:  {}",  path.to_string())) {
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
