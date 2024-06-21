@@ -1279,7 +1279,6 @@ impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, Field
     diagnostic::on_unimplemented(
         message = "`{Self}` cannot be converted to a Python object",
         label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
-        note = "`Py<T>` fields are always converible to Python objects",
         note = "implement `ToPyObject` or `IntoPy<PyObject> + Clone` for `{Self}` to define the conversion",
     )
 )]
@@ -1313,24 +1312,24 @@ impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
 /// The true case is defined in the zero-sized type's impl block, which is
 /// gated on some property like trait bound or only being implemented
 /// for fixed concrete types.
-pub trait Tester {
+pub trait Probe {
     const VALUE: bool = false;
 }
 
-macro_rules! tester {
+macro_rules! probe {
     ($name:ident) => {
         pub struct $name<T>(PhantomData<T>);
-        impl<T> Tester for $name<T> {}
+        impl<T> Probe for $name<T> {}
     };
 }
 
-tester!(IsPyT);
+probe!(IsPyT);
 
 impl<T> IsPyT<Py<T>> {
     pub const VALUE: bool = true;
 }
 
-tester!(IsToPyObject);
+probe!(IsToPyObject);
 
 impl<T: ToPyObject> IsToPyObject<T> {
     pub const VALUE: bool = true;
@@ -1378,4 +1377,80 @@ fn pyo3_get_value<
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
     Ok((unsafe { &*value }).clone().into_py(py).into_ptr())
+}
+
+#[cfg(test)]
+#[cfg(feature = "macros")]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_py_for_frozen_class() {
+        #[crate::pyclass(crate = "crate", frozen)]
+        struct FrozenClass {
+            #[pyo3(get)]
+            value: Py<PyAny>,
+        }
+
+        let mut methods = Vec::new();
+        let mut slots = Vec::new();
+
+        for items in FrozenClass::items_iter() {
+            methods.extend(items.methods.iter().map(|m| match m {
+                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Runtime(r) => r(),
+            }));
+            slots.extend_from_slice(items.slots);
+        }
+
+        assert_eq!(methods.len(), 1);
+        assert!(slots.is_empty());
+
+        match methods.first() {
+            Some(PyMethodDefType::StructMember(member)) => {
+                assert_eq!(unsafe { CStr::from_ptr(member.name) }, ffi::c_str!("value"));
+                assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
+                assert_eq!(
+                    member.offset,
+                    (memoffset::offset_of!(PyClassObject<FrozenClass>, contents)
+                        + memoffset::offset_of!(FrozenClass, value))
+                        as ffi::Py_ssize_t
+                );
+                assert_eq!(member.flags, ffi::Py_READONLY);
+            }
+            _ => panic!("Expected a StructMember"),
+        }
+    }
+
+    #[test]
+    fn get_py_for_non_frozen_class() {
+        #[crate::pyclass(crate = "crate")]
+        struct FrozenClass {
+            #[pyo3(get)]
+            value: Py<PyAny>,
+        }
+
+        let mut methods = Vec::new();
+        let mut slots = Vec::new();
+
+        for items in FrozenClass::items_iter() {
+            methods.extend(items.methods.iter().map(|m| match m {
+                MaybeRuntimePyMethodDef::Static(m) => m.clone(),
+                MaybeRuntimePyMethodDef::Runtime(r) => r(),
+            }));
+            slots.extend_from_slice(items.slots);
+        }
+
+        assert_eq!(methods.len(), 1);
+        assert!(slots.is_empty());
+
+        match methods.first() {
+            Some(PyMethodDefType::Getter(getter)) => {
+                assert_eq!(getter.name, ffi::c_str!("value"));
+                assert_eq!(getter.doc, ffi::c_str!(""));
+                // tests for the function pointer are in test_getter_setter.py
+            }
+            _ => panic!("Expected a StructMember"),
+        }
+    }
 }

@@ -783,7 +783,8 @@ pub fn impl_py_getter_def(
             let method_def = quote_spanned! {ty.span()=>
                 #cfg_attrs
                 {
-                    use #pyo3_path::impl_::pyclass::Tester;
+                    #[allow(unused_imports)]  // might not be used if all probes are positve
+                    use #pyo3_path::impl_::pyclass::Probe;
 
                     struct Offset;
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {

@@ -53,7 +53,6 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
    |            ^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
    |
    = help: the trait `IntoPy<Py<PyAny>>` is not implemented for `PhantomData<i32>`, which is required by `PhantomData<i32>: PyO3GetField`
-   = note: `Py<T>` fields are always converible to Python objects
    = note: implement `ToPyObject` or `IntoPy<PyObject> + Clone` for `PhantomData<i32>` to define the conversion
    = note: required for `PhantomData<i32>` to implement `PyO3GetField`
 note: required by a bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false>::generate`

@@ -52,6 +52,7 @@ impl IPowModulo {
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
+#[cfg_attr(test, derive(Clone))]
 pub enum PyMethodDefType {
     /// Represents class method
     Class(PyMethodDef),
