@@ -1,6 +1,7 @@
 use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::ffi::CString;
 use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, Token};
 
@@ -67,14 +68,59 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
     None
 }
 
+// TODO: Replace usage of this by [`syn::LitCStr`] when on MSRV 1.77
+#[derive(Clone)]
+pub struct LitCStr {
+    lit: CString,
+    span: Span,
+    pyo3_path: PyO3CratePath,
+}
+
+impl LitCStr {
+    pub fn new(lit: CString, span: Span, ctx: &Ctx) -> Self {
+        Self {
+            lit,
+            span,
+            pyo3_path: ctx.pyo3_path.clone(),
+        }
+    }
+
+    pub fn empty(ctx: &Ctx) -> Self {
+        Self {
+            lit: CString::new("").unwrap(),
+            span: Span::call_site(),
+            pyo3_path: ctx.pyo3_path.clone(),
+        }
+    }
+}
+
+impl quote::ToTokens for LitCStr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if cfg!(c_str_lit) {
+            syn::LitCStr::new(&self.lit, self.span).to_tokens(tokens);
+        } else {
+            let pyo3_path = &self.pyo3_path;
+            let lit = self.lit.to_str().unwrap();
+            tokens.extend(quote::quote_spanned!(self.span => #pyo3_path::ffi::c_str!(#lit)));
+        }
+    }
+}
+
 /// A syntax tree which evaluates to a nul-terminated docstring for Python.
 ///
 /// Typically the tokens will just be that string, but if the original docs included macro
 /// expressions then the tokens will be a concat!("...", "\n", "\0") expression of the strings and
-/// macro parts.
-/// contents such as parse the string contents.
+/// macro parts. contents such as parse the string contents.
 #[derive(Clone)]
-pub struct PythonDoc(TokenStream);
+pub struct PythonDoc(PythonDocKind);
+
+#[derive(Clone)]
+enum PythonDocKind {
+    LitCStr(LitCStr),
+    // There is currently no way to `concat!` c-string literals, we fallback to the `c_str!` macro in
+    // this case.
+    Tokens(TokenStream),
+}
 
 /// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string.
 ///
@@ -125,7 +171,7 @@ pub fn get_doc(
         }
     }
 
-    let tokens = if !parts.is_empty() {
+    if !parts.is_empty() {
         // Doc contained macro pieces - return as `concat!` expression
         if !current_part.is_empty() {
             parts.push(current_part.to_token_stream());
@@ -140,17 +186,26 @@ pub fn get_doc(
             syn::token::Comma(Span::call_site()).to_tokens(tokens);
         });
 
-        tokens
+        PythonDoc(PythonDocKind::Tokens(
+            quote!(#pyo3_path::ffi::c_str!(#tokens)),
+        ))
     } else {
         // Just a string doc - return directly with nul terminator
-        current_part.to_token_stream()
-    };
-    PythonDoc(quote!(#pyo3_path::ffi::c_str!(#tokens)))
+        let docs = CString::new(current_part).unwrap();
+        PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
+            docs,
+            Span::call_site(),
+            ctx,
+        )))
+    }
 }
 
 impl quote::ToTokens for PythonDoc {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
+        match &self.0 {
+            PythonDocKind::LitCStr(lit) => lit.to_tokens(tokens),
+            PythonDocKind::Tokens(toks) => toks.to_tokens(tokens),
+        }
     }
 }
 
@@ -194,6 +249,7 @@ impl Ctx {
     }
 }
 
+#[derive(Clone)]
 pub enum PyO3CratePath {
     Given(syn::Path),
     Default,

@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
@@ -6,7 +7,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::deprecations::deprecate_trailing_option_default;
-use crate::utils::Ctx;
+use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     deprecations::{Deprecation, Deprecations},
@@ -472,12 +473,10 @@ impl<'a> FnSpec<'a> {
         })
     }
 
-    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path, .. } = ctx;
-        let span = self.python_name.span();
-        let pyo3_path = pyo3_path.to_tokens_spanned(span);
+    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
         let name = self.python_name.to_string();
-        quote_spanned!(self.python_name.span() => #pyo3_path::ffi::c_str!(#name))
+        let name = CString::new(name).unwrap();
+        LitCStr::new(name, self.python_name.span(), ctx)
     }
 
     fn parse_fn_type(

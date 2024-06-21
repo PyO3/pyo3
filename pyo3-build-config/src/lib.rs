@@ -141,6 +141,10 @@ pub fn print_feature_cfgs() {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
     }
 
+    if rustc_minor_version >= 77 {
+        println!("cargo:rustc-cfg=c_str_lit");
+    }
+
     // Actually this is available on 1.78, but we should avoid
     // https://github.com/rust-lang/rust/issues/124651 just in case
     if rustc_minor_version >= 79 {
@@ -167,6 +171,7 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
     println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
     println!("cargo:rustc-check-cfg=cfg(diagnostic_namespace)");
+    println!("cargo:rustc-check-cfg=cfg(c_str_lit)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)

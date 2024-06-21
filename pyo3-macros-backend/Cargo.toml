@@ -20,9 +20,12 @@ pyo3-build-config = { path = "../pyo3-build-config", version = "=0.22.0-dev", fe
 quote = { version = "1", default-features = false }
 
 [dependencies.syn]
-version = "2"
+version = "2.0.59" # for `LitCStr`
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
+
+[build-dependencies]
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.22.0-dev" }
 
 [lints]
 workspace = true
