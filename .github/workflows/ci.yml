@@ -155,7 +155,7 @@ jobs:
   build-pr:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
-    needs: [fmt]
+    needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
     with:
       os: ${{ matrix.platform.os }}
@@ -163,6 +163,7 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
+      MSRV: ${{ needs.resolve.outputs.MSRV }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
@@ -220,14 +221,13 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
-      msrv: ${{ matrix.msrv }}
+      MSRV: ${{ needs.resolve.outputs.MSRV }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        msrv: [false]
         python-version: [
           "3.7",
           "3.8",
@@ -267,8 +267,7 @@ jobs:
           ]
         include:
           # Test minimal supported Rust version
-          - msrv: true
-            rust: ${{ needs.resolve.outputs.MSRV }}
+          - rust: ${{ needs.resolve.outputs.MSRV }}
             python-version: "3.12"
             platform:
               {
