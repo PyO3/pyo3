@@ -311,7 +311,7 @@ pub use nightly::Ungil;
 /// - It can be passed to functions that require a proof of holding the GIL, such as
 ///   [`Py::clone_ref`].
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
-///   references that are bound to it, such as `&`[`PyAny`].
+///   references that are bound to it, such as [`Bound<'py, PyAny>`].
 ///
 /// Note that there are some caveats to using it that you might need to be aware of. See the
 /// [Deadlocks](#deadlocks) and [Releasing and freeing memory](#releasing-and-freeing-memory)
@@ -319,13 +319,16 @@ pub use nightly::Ungil;
 ///
 /// # Obtaining a Python token
 ///
-/// The following are the recommended ways to obtain a [`Python`] token, in order of preference:
+/// The following are the recommended ways to obtain a [`Python<'py>`] token, in order of preference:
+/// - If you already have something with a lifetime bound to the GIL, such as [`Bound<'py, PyAny>`], you can
+///   use its `.py()` method to get a token.
 /// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
 ///   as a parameter, and PyO3 will pass in the token when Python code calls it.
-/// - If you already have something with a lifetime bound to the GIL, such as `&`[`PyAny`], you can
-///   use its `.py()` method to get a token.
 /// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
 ///   should call [`Python::with_gil`] to do that and pass your code as a closure to it.
+///
+/// The first two options are zero-cost; [`Python::with_gil`] requires runtime checking and may need to block
+/// to acquire the GIL.
 ///
 /// # Deadlocks
 ///
@@ -353,14 +356,8 @@ pub use nightly::Ungil;
 ///
 /// # Releasing and freeing memory
 ///
-/// The [`Python`] type can be used to create references to variables owned by the Python
+/// The [`Python<'py>`] type can be used to create references to variables owned by the Python
 /// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import_bound`].
-///
-/// See the [Memory Management] chapter of the guide for more information about how PyO3 manages memory.
-///
-/// [scoping rules]: https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html#ownership-rules
-/// [`Py::clone_ref`]: crate::Py::clone_ref
-/// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[derive(Copy, Clone)]
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
