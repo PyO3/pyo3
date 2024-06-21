@@ -281,6 +281,7 @@ mod nightly {
 
     // All the borrowing wrappers
     #[allow(deprecated)]
+    #[cfg(feature = "gil-refs")]
     impl<T> !Ungil for crate::PyCell<T> {}
     impl<T> !Ungil for crate::PyRef<'_, T> {}
     impl<T> !Ungil for crate::PyRefMut<'_, T> {}
