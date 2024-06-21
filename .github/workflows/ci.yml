@@ -220,12 +220,14 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
+      msrv: ${{ matrix.msrv }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
+        msrv: [false]
         python-version: [
           "3.7",
           "3.8",
@@ -265,7 +267,8 @@ jobs:
           ]
         include:
           # Test minimal supported Rust version
-          - rust: ${{ needs.resolve.outputs.MSRV }}
+          - msrv: true
+            rust: ${{ needs.resolve.outputs.MSRV }}
             python-version: "3.12"
             platform:
               {

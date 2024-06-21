@@ -16,6 +16,9 @@ on:
       rust-target:
         required: true
         type: string
+      msrv:
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -51,7 +54,7 @@ jobs:
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-      - if: inputs.rust == '1.63.0'
+      - if: inputs.msrv
         name: Prepare MSRV package versions
         run: nox -s set-msrv-package-versions
 
