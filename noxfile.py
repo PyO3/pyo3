@@ -543,8 +543,8 @@ def check_changelog(session: nox.Session):
         print(fragment.name)
 
 
-@nox.session(name="set-minimal-package-versions", venv_backend="none")
-def set_minimal_package_versions(session: nox.Session):
+@nox.session(name="set-msrv-package-versions", venv_backend="none")
+def set_msrv_package_versions(session: nox.Session):
     from collections import defaultdict
 
     if toml is None:
@@ -708,10 +708,14 @@ def check_feature_powerset(session: nox.Session):
     rust_flags = env.get("RUSTFLAGS", "")
     env["RUSTFLAGS"] = f"{rust_flags} -Dwarnings"
 
+    subcommand = "hack"
+    if "minimal-versions" in session.posargs:
+        subcommand = "minimal-versions"
+
     comma_join = ",".join
     _run_cargo(
         session,
-        "hack",
+        subcommand,
         "--feature-powerset",
         '--optional-deps=""',
         f'--skip="{comma_join(features_to_skip)}"',
