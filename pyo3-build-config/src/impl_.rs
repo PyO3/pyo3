@@ -1276,7 +1276,12 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
 /// is not set via `PYO3_CROSS_LIB_DIR`.
 pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Result<Vec<PathBuf>> {
     let sysconfig_paths = if let Some(lib_dir) = cross.lib_dir.as_ref() {
-        search_lib_dir(lib_dir, cross)?
+        search_lib_dir(lib_dir, cross).with_context(|| {
+            format!(
+                "failed to search the lib dir at 'PYO3_CROSS_LIB_DIR={}'",
+                lib_dir.display()
+            )
+        })?
     } else {
         return Ok(Vec::new());
     };
@@ -1329,9 +1334,12 @@ fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
 fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<Vec<PathBuf>> {
     let mut sysconfig_paths = vec![];
-    for f in fs::read_dir(path)
-        .context("failed to search the lib dir, please check your path and permissions.")?
-    {
+    for f in fs::read_dir(path.as_ref()).with_context(|| {
+        format!(
+            "failed to list the entries in '{}'",
+            path.as_ref().display()
+        )
+    })? {
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
@@ -2756,5 +2764,25 @@ mod tests {
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn test_find_sysconfigdata_in_invalid_lib_dir() {
+        let e = find_all_sysconfigdata(&CrossCompileConfig {
+            lib_dir: Some(PathBuf::from("/abc/123/not/a/real/path")),
+            version: None,
+            implementation: None,
+            target: triple!("x86_64-unknown-linux-gnu"),
+        })
+        .unwrap_err();
+
+        // actual error message is platform-dependent, so just check the context we add
+        assert!(e.report().to_string().starts_with(
+            "failed to search the lib dir at 'PYO3_CROSS_LIB_DIR=/abc/123/not/a/real/path'\n\
+            caused by:\n  \
+              - 0: failed to list the entries in '/abc/123/not/a/real/path'\n  \
+              - 1: \
+            "
+        ));
     }
 }
