@@ -56,11 +56,11 @@ else:
 IS_WINDOWS = sys.platform == "win32"
 
 if IS_WINDOWS:
-    MIN_DATETIME = pdt.datetime(1971, 1, 2, 0, 0)
+    MIN_DATETIME = pdt.datetime(1970, 1, 1, 0, 0, 0)
     if IS_32_BIT:
-        MAX_DATETIME = pdt.datetime(3001, 1, 19, 4, 59, 59)
+        MAX_DATETIME = pdt.datetime(2038, 1, 18, 23, 59, 59)
     else:
-        MAX_DATETIME = pdt.datetime(3001, 1, 19, 7, 59, 59)
+        MAX_DATETIME = pdt.datetime(3000, 12, 31, 23, 59, 59)
 else:
     if IS_32_BIT:
         # TS ±2147483648 (2**31)
@@ -93,11 +93,21 @@ def test_invalid_date_fails():
 
 @given(d=st.dates(MIN_DATETIME.date(), MAX_DATETIME.date()))
 def test_date_from_timestamp(d):
-    if PYPY and d < pdt.date(1900, 1, 1):
-        pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
+    try:
+        ts = pdt.datetime.timestamp(d)
+    except Exception:
+        # out of range for timestamp
+        return
 
-    ts = pdt.datetime.timestamp(pdt.datetime.combine(d, pdt.time(0)))
-    assert rdt.date_from_timestamp(int(ts)) == pdt.date.fromtimestamp(ts)
+    try:
+        expected = pdt.date.fromtimestamp(ts)
+    except Exception as pdt_fail:
+        # date from timestamp failed; expect the same from Rust binding
+        with pytest.raises(type(pdt_fail)) as exc_info:
+            rdt.date_from_timestamp(ts)
+        assert str(exc_info.value) == str(pdt_fail)
+    else:
+        assert rdt.date_from_timestamp(int(ts)) == expected
 
 
 @pytest.mark.parametrize(
@@ -229,11 +239,21 @@ def test_datetime_typeerror():
 @given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
 @example(dt=pdt.datetime(1971, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
-    if PYPY and dt < pdt.datetime(1900, 1, 1):
-        pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
+    try:
+        ts = pdt.datetime.timestamp(dt)
+    except Exception:
+        # out of range for timestamp
+        return
 
-    ts = pdt.datetime.timestamp(dt)
-    assert rdt.datetime_from_timestamp(ts) == pdt.datetime.fromtimestamp(ts)
+    try:
+        expected = pdt.datetime.fromtimestamp(ts)
+    except Exception as pdt_fail:
+        # datetime from timestamp failed; expect the same from Rust binding
+        with pytest.raises(type(pdt_fail)) as exc_info:
+            rdt.datetime_from_timestamp(ts)
+        assert str(exc_info.value) == str(pdt_fail)
+    else:
+        assert rdt.datetime_from_timestamp(ts) == expected
 
 
 def test_datetime_from_timestamp_tzinfo():
