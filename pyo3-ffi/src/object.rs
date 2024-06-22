@@ -261,6 +261,14 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_GetQualName")]
     pub fn PyType_GetQualName(arg1: *mut PyTypeObject) -> *mut PyObject;
 
+    #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetFullyQualifiedName")]
+    pub fn PyType_GetFullyQualifiedName(arg1: *mut PyTypeObject) -> *mut PyObject;
+
+    #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleName")]
+    pub fn PyType_GetModuleName(arg1: *mut PyTypeObject) -> *mut PyObject;
+
     #[cfg(Py_3_12)]
     #[cfg_attr(PyPy, link_name = "PyPyType_FromMetaclass")]
     pub fn PyType_FromMetaclass(

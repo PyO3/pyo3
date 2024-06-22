@@ -971,16 +971,13 @@ struct PyDowncastErrorArguments {
 
 impl PyErrArguments for PyDowncastErrorArguments {
     fn arguments(self, py: Python<'_>) -> PyObject {
-        format!(
-            "'{}' object cannot be converted to '{}'",
-            self.from
-                .bind(py)
-                .qualname()
-                .as_deref()
-                .unwrap_or("<failed to extract type name>"),
-            self.to
-        )
-        .to_object(py)
+        const FAILED_TO_EXTRACT: Cow<'_, str> = Cow::Borrowed("<failed to extract type name>");
+        let from = self.from.bind(py).qualname();
+        let from = match &from {
+            Ok(qn) => qn.to_cow().unwrap_or(FAILED_TO_EXTRACT),
+            Err(_) => FAILED_TO_EXTRACT,
+        };
+        format!("'{}' object cannot be converted to '{}'", from, self.to).to_object(py)
     }
 }
 

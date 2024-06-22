@@ -51,11 +51,11 @@ def test_import_in_subinterpreter_forbidden():
     subinterpreters.destroy(sub_interpreter)
 
 
-def test_type_full_name_includes_module():
+def test_type_fully_qualified_name_includes_module():
     numpy = pytest.importorskip("numpy")
 
     # For numpy 1.x and 2.x
-    assert pyo3_pytests.misc.get_type_full_name(numpy.bool_(True)) in [
+    assert pyo3_pytests.misc.get_type_fully_qualified_name(numpy.bool_(True)) in [
         "numpy.bool",
         "numpy.bool_",
     ]
