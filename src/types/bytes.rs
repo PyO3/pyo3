@@ -31,7 +31,13 @@ use std::str;
 /// assert_eq!(py_bytes, b"foo".as_slice());
 ///
 /// // via Python equality
-/// assert!(py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
+/// let other = PyBytes::new_bound(py, b"foo".as_slice());
+/// assert!(py_bytes.as_any().eq(other).unwrap());
+///
+/// // Note that `eq` will convert it's argument to Python using `ToPyObject`,
+/// // so the following does not compare equal since the slice will convert into a
+/// // `list`, not a `bytes` object.
+/// assert!(!py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
 /// # });
 /// ```
 #[repr(transparent)]
