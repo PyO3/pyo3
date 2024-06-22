@@ -1206,7 +1206,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// Returns `None` if the library directory is not available, and a runtime error
 /// when no or multiple sysconfigdata files are found.
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
-    let mut sysconfig_paths = find_all_sysconfigdata(cross);
+    let mut sysconfig_paths = find_all_sysconfigdata(cross)?;
     if sysconfig_paths.is_empty() {
         if let Some(lib_dir) = cross.lib_dir.as_ref() {
             bail!("Could not find _sysconfigdata*.py in {}", lib_dir.display());
@@ -1269,11 +1269,16 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
 ///
 /// Returns an empty vector when the target Python library directory
 /// is not set via `PYO3_CROSS_LIB_DIR`.
-pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
+pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Result<Vec<PathBuf>> {
     let sysconfig_paths = if let Some(lib_dir) = cross.lib_dir.as_ref() {
-        search_lib_dir(lib_dir, cross)
+        search_lib_dir(lib_dir, cross).with_context(|| {
+            format!(
+                "failed to search the lib dir at 'PYO3_CROSS_LIB_DIR={}'",
+                lib_dir.display()
+            )
+        })?
     } else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
 
     let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
@@ -1291,7 +1296,7 @@ pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
     sysconfig_paths.sort();
     sysconfig_paths.dedup();
 
-    sysconfig_paths
+    Ok(sysconfig_paths)
 }
 
 fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
@@ -1322,9 +1327,14 @@ fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 }
 
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
-fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
+fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<Vec<PathBuf>> {
     let mut sysconfig_paths = vec![];
-    for f in fs::read_dir(path).expect("Path does not exist") {
+    for f in fs::read_dir(path.as_ref()).with_context(|| {
+        format!(
+            "failed to list the entries in '{}'",
+            path.as_ref().display()
+        )
+    })? {
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
@@ -1332,7 +1342,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                 let file_name = f.file_name();
                 let file_name = file_name.to_string_lossy();
                 if file_name == "build" || file_name == "lib" {
-                    search_lib_dir(f.path(), cross)
+                    search_lib_dir(f.path(), cross)?
                 } else if file_name.starts_with("lib.") {
                     // check if right target os
                     if !file_name.contains(&cross.target.operating_system.to_string()) {
@@ -1342,12 +1352,12 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                     if !file_name.contains(&cross.target.architecture.to_string()) {
                         continue;
                     }
-                    search_lib_dir(f.path(), cross)
+                    search_lib_dir(f.path(), cross)?
                 } else if is_cpython_lib_dir(&file_name, &cross.version)
                     || is_pypy_lib_dir(&file_name, &cross.version)
                     || is_graalpy_lib_dir(&file_name, &cross.version)
                 {
-                    search_lib_dir(f.path(), cross)
+                    search_lib_dir(f.path(), cross)?
                 } else {
                     continue;
                 }
@@ -1376,7 +1386,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
         }
     }
 
-    sysconfig_paths
+    Ok(sysconfig_paths)
 }
 
 /// Find cross compilation information from sysconfigdata file
@@ -2746,5 +2756,25 @@ mod tests {
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn test_find_sysconfigdata_in_invalid_lib_dir() {
+        let e = find_all_sysconfigdata(&CrossCompileConfig {
+            lib_dir: Some(PathBuf::from("/abc/123/not/a/real/path")),
+            version: None,
+            implementation: None,
+            target: triple!("x86_64-unknown-linux-gnu"),
+        })
+        .unwrap_err();
+
+        // actual error message is platform-dependent, so just check the context we add
+        assert!(e.report().to_string().starts_with(
+            "failed to search the lib dir at 'PYO3_CROSS_LIB_DIR=/abc/123/not/a/real/path'\n\
+            caused by:\n  \
+              - 0: failed to list the entries in '/abc/123/not/a/real/path'\n  \
+              - 1: \
+            "
+        ));
     }
 }
