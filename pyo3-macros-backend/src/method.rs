@@ -191,16 +191,26 @@ fn handle_argument_error(pat: &syn::Pat) -> syn::Error {
     syn::Error::new(span, msg)
 }
 
+/// Represents what kind of a function a pyfunction or pymethod is
 #[derive(Clone, Debug)]
 pub enum FnType {
+    /// Represents a pymethod annotated with `#[getter]`
     Getter(SelfType),
+    /// Represents a pymethod annotated with `#[setter]`
     Setter(SelfType),
+    /// Represents a regular pymethod
     Fn(SelfType),
+    /// Represents a pymethod annotated with `#[new]`, i.e. the `__new__` dunder.
     FnNew,
+    /// Represents a pymethod annotated with both `#[new]` and `#[classmethod]` (in either order)
     FnNewClass(Span),
+    /// Represents a pymethod annotated with `#[classmethod]`, like a `@classmethod`
     FnClass(Span),
+    /// Represents a pyfunction or a pymethod annotated with `#[staticmethod]`, like a `@staticmethod`
     FnStatic,
+    /// Represents a pyfunction annotated with `#[pyo3(pass_module)]
     FnModule(Span),
+    /// Represents a pymethod or associated constant annotated with `#[classattr]`
     ClassAttribute,
 }
 
@@ -223,7 +233,7 @@ impl FnType {
         error_mode: ExtractErrorMode,
         holders: &mut Holders,
         ctx: &Ctx,
-    ) -> TokenStream {
+    ) -> Option<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
             FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => {
@@ -234,35 +244,35 @@ impl FnType {
                     ctx,
                 );
                 syn::Token![,](Span::call_site()).to_tokens(&mut receiver);
-                receiver
-            }
-            FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
-                quote!()
+                Some(receiver)
             }
             FnType::FnClass(span) | FnType::FnNewClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf_ref", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                quote_spanned! { *span =>
+                let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyType>()
                     ),
-                }
+                };
+                Some(ret)
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf_ref", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                quote_spanned! { *span =>
+                let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion)]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(#slf as *const _ as *const *mut _))
                             .downcast_unchecked::<#pyo3_path::types::PyModule>()
                     ),
-                }
+                };
+                Some(ret)
             }
+            FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => None,
         }
     }
 }
@@ -659,10 +669,7 @@ impl<'a> FnSpec<'a> {
                         }}
                     }
                     _ => {
-                        let self_arg = self_arg();
-                        if self_arg.is_empty() {
-                            quote! { function(#(#args),*) }
-                        } else {
+                        if let Some(self_arg) = self_arg() {
                             let self_checker = holders.push_gil_refs_checker(self_arg.span());
                             quote! {
                                 function(
@@ -671,6 +678,8 @@ impl<'a> FnSpec<'a> {
                                     #(#args),*
                                 )
                             }
+                        } else {
+                            quote! { function(#(#args),*) }
                         }
                     }
                 };
@@ -691,20 +700,17 @@ impl<'a> FnSpec<'a> {
                     }};
                 }
                 call
-            } else {
-                let self_arg = self_arg();
-                if self_arg.is_empty() {
-                    quote! { function(#(#args),*) }
-                } else {
-                    let self_checker = holders.push_gil_refs_checker(self_arg.span());
-                    quote! {
-                        function(
-                            // NB #self_arg includes a comma, so none inserted here
-                            #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
-                            #(#args),*
-                        )
-                    }
+            } else if let Some(self_arg) = self_arg() {
+                let self_checker = holders.push_gil_refs_checker(self_arg.span());
+                quote! {
+                    function(
+                        // NB #self_arg includes a comma, so none inserted here
+                        #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                        #(#args),*
+                    )
                 }
+            } else {
+                quote! { function(#(#args),*) }
             };
 
             // We must assign the output_span to the return value of the call,
