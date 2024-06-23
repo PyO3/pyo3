@@ -3,7 +3,7 @@ use crate::ffi;
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyFrame;
 use crate::{Bound, PyAny, PyClass, PyObject, PyRefMut, PyResult, Python};
-use std::ffi::c_int;
+use std::os::raw::c_int;
 
 /// Represents a monitoring event used by the profiling API
 pub enum ProfileEvent<'py> {
