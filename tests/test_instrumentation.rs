@@ -11,7 +11,7 @@ mod tests {
     }
 
     impl Profiler for BasicProfiler {
-        fn profile(&mut self, frame: Bound<'_, PyFrame>, event: ProfileEvent<'_>) -> PyResult<()> {
+        fn profile(&self, frame: Bound<'_, PyFrame>, event: ProfileEvent<'_>) -> PyResult<()> {
             let py = frame.py();
             let events = self.events.bind(py);
             match event {

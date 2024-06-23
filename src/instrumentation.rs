@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyCFunction, PyFrame};
-use crate::{Bound, PyAny, PyClass, PyRefMut, PyResult, Python};
+use crate::{Bound, PyAny, PyClass, PyRef, PyResult, Python};
 use std::os::raw::c_int;
 
 /// Represents a monitoring event used by the profiling API
@@ -54,11 +54,7 @@ impl<'py> ProfileEvent<'py> {
 /// Trait for Rust structs that can be used with Python's profiling API.
 pub trait Profiler: PyClass<Frozen = False> {
     /// Callback for implementing custom profiling logic.
-    fn profile<'py>(
-        &mut self,
-        frame: Bound<'py, PyFrame>,
-        event: ProfileEvent<'py>,
-    ) -> PyResult<()>;
+    fn profile<'py>(&self, frame: Bound<'py, PyFrame>, event: ProfileEvent<'py>) -> PyResult<()>;
 }
 
 /// Register a custom Profiler with the Python interpreter.
@@ -89,7 +85,7 @@ where
         //
         // https://docs.python.org/3/c-api/init.html#c.Py_tracefunc
         let obj = unsafe { obj.assume_borrowed_unchecked(py).downcast_unchecked() };
-        let mut profiler = obj.extract::<PyRefMut<'_, P>>().unwrap();
+        let profiler = obj.extract::<PyRef<'_, P>>().unwrap();
 
         // Safety:
         //
