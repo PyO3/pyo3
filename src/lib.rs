@@ -456,7 +456,7 @@ mod gil;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
-#[cfg(all(feature = "instrumentation", not(Py_LIMITED_API)))]
+#[cfg(all(feature = "instrumentation", not(Py_LIMITED_API), not(PyPy)))]
 pub mod instrumentation;
 pub mod marker;
 pub mod marshal;

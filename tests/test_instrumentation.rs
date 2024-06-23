@@ -1,4 +1,4 @@
-#[cfg(all(feature = "instrumentation", not(Py_LIMITED_API)))]
+#[cfg(all(feature = "instrumentation", not(Py_LIMITED_API), not(PyPy)))]
 mod tests {
     use pyo3::instrumentation::{register_profiler, ProfileEvent, Profiler};
     use pyo3::prelude::*;
