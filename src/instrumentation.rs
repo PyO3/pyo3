@@ -1,8 +1,10 @@
 //! APIs wrapping the Python interpreter's instrumentation features.
 use crate::ffi;
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pyclass::boolean_struct::False;
+use crate::types::any::PyAnyMethods;
 use crate::types::PyFrame;
-use crate::{Bound, PyAny, PyClass, PyObject, PyRefMut, PyResult, Python};
+use crate::{Bound, PyAny, PyClass, PyRefMut, PyResult, Python};
 use std::os::raw::c_int;
 
 /// Represents a monitoring event used by the profiling API
@@ -74,16 +76,16 @@ where
         // We borrow the object so we don't break reference counting.
         //
         // https://docs.python.org/3/c-api/init.html#c.Py_tracefunc
-        let obj = unsafe { PyObject::from_borrowed_ptr(py, obj) };
-        let mut profiler = obj.extract::<PyRefMut<'_, P>>(py).unwrap();
+        let obj = unsafe { obj.assume_borrowed_unchecked(py).downcast_unchecked() };
+        let mut profiler = obj.extract::<PyRefMut<'_, P>>().unwrap();
 
         // Safety:
         //
         // We borrow the object so we don't break reference counting.
         //
         // https://docs.python.org/3/c-api/init.html#c.Py_tracefunc
-        let frame = unsafe { PyObject::from_borrowed_ptr(py, frame) };
-        let frame = frame.extract(py).unwrap();
+        let frame = unsafe { frame.assume_borrowed_unchecked(py).downcast_unchecked() };
+        let frame = frame.extract().unwrap();
 
         // Safety:
         //
@@ -93,7 +95,11 @@ where
         // We borrow the object so we don't break reference counting.
         //
         // https://docs.python.org/3/c-api/init.html#c.Py_tracefunc
-        let arg = unsafe { Bound::from_borrowed_ptr_or_opt(py, arg) };
+        let arg = unsafe {
+            arg.assume_borrowed_or_opt(py)
+                .map(|arg| arg.downcast_unchecked())
+        };
+        let arg = arg.map(|arg| arg.extract().unwrap());
 
         let event = ProfileEvent::from_raw(what, arg);
 
