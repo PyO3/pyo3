@@ -3,7 +3,7 @@ use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
-use crate::types::PyFrame;
+use crate::types::{PyCFunction, PyFrame};
 use crate::{Bound, PyAny, PyClass, PyRefMut, PyResult, Python};
 use std::os::raw::c_int;
 
@@ -17,13 +17,13 @@ pub enum ProfileEvent<'py> {
     Return(Option<Bound<'py, PyAny>>),
     /// A C function is about to be called. The contained data is the
     /// function object being called.
-    CCall(Bound<'py, PyAny>),
+    CCall(Bound<'py, PyCFunction>),
     /// A C function has raised an exception. The contained data is the
     /// function object being called.
-    CException(Bound<'py, PyAny>),
+    CException(Bound<'py, PyCFunction>),
     /// A C function has returned. The contained data is the function
     /// object being called.
-    CReturn(Bound<'py, PyAny>),
+    CReturn(Bound<'py, PyCFunction>),
 }
 
 impl<'py> ProfileEvent<'py> {
@@ -31,9 +31,21 @@ impl<'py> ProfileEvent<'py> {
         match what {
             ffi::PyTrace_CALL => ProfileEvent::Call,
             ffi::PyTrace_RETURN => ProfileEvent::Return(arg),
-            ffi::PyTrace_C_CALL => ProfileEvent::CCall(arg.unwrap()),
-            ffi::PyTrace_C_EXCEPTION => ProfileEvent::CException(arg.unwrap()),
-            ffi::PyTrace_C_RETURN => ProfileEvent::CReturn(arg.unwrap()),
+            ffi::PyTrace_C_CALL => ProfileEvent::CCall(
+                arg.unwrap()
+                    .extract()
+                    .expect("CPython guarantees arg is a PyCFunction"),
+            ),
+            ffi::PyTrace_C_EXCEPTION => ProfileEvent::CException(
+                arg.unwrap()
+                    .extract()
+                    .expect("CPython guarantees arg is a PyCFunction"),
+            ),
+            ffi::PyTrace_C_RETURN => ProfileEvent::CReturn(
+                arg.unwrap()
+                    .extract()
+                    .expect("CPython guarantees arg is a PyCFunction"),
+            ),
             _ => unreachable!(),
         }
     }
