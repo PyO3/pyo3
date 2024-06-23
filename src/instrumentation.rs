@@ -62,6 +62,12 @@ pub fn setprofile<P: Profiler>(profiler: Bound<'_, P>) {
     unsafe { ffi::PyEval_SetProfile(Some(profile_callback::<P>), profiler.into_ptr()) };
 }
 
+/// Register a custom Profiler with the Python interpreter.
+#[cfg(Py_3_12)]
+pub fn setprofile_all_threads<P: Profiler>(profiler: Bound<'_, P>) {
+    unsafe { ffi::PyEval_SetProfileAllThreads(Some(profile_callback::<P>), profiler.into_ptr()) };
+}
+
 extern "C" fn profile_callback<P>(
     obj: *mut ffi::PyObject,
     frame: *mut ffi::PyFrameObject,
