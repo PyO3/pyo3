@@ -62,7 +62,7 @@ pub trait Profiler: PyClass<Frozen = False> {
 }
 
 /// Register a custom Profiler with the Python interpreter.
-pub fn register_profiler<P: Profiler>(profiler: Bound<'_, P>) {
+pub fn setprofile<P: Profiler>(profiler: Bound<'_, P>) {
     unsafe { ffi::PyEval_SetProfile(Some(profile_callback::<P>), profiler.into_ptr()) };
 }
 

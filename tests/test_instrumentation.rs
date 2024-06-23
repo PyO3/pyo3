@@ -1,6 +1,6 @@
 #[cfg(all(feature = "instrumentation", not(Py_LIMITED_API), not(PyPy)))]
 mod tests {
-    use pyo3::instrumentation::{register_profiler, ProfileEvent, Profiler};
+    use pyo3::instrumentation::{setprofile, ProfileEvent, Profiler};
     use pyo3::prelude::*;
     use pyo3::pyclass;
     use pyo3::types::{PyFrame, PyList};
@@ -43,7 +43,7 @@ foo()
                 },
             )
             .unwrap();
-            register_profiler(profiler);
+            setprofile(profiler);
 
             py.run_bound(PYTHON_CODE, None, None).unwrap();
 
@@ -72,7 +72,7 @@ json.dumps()
                 },
             )
             .unwrap();
-            register_profiler(profiler);
+            setprofile(profiler);
 
             let _ = py.run_bound(C_CALL_CODE, None, None);
 
