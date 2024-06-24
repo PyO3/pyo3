@@ -61,8 +61,9 @@ pub(crate) fn deprecate_trailing_option_default(spec: &FnSpec<'_>) -> TokenStrea
     {
         use std::fmt::Write;
         let mut deprecation_msg = String::from(
-            "This function has implicit defaults for the trailing `Option<T>` arguments. \
-             These implicit defaults are being phased out. Add `#[pyo3(signature = (",
+            "this function has implicit defaults for the trailing `Option<T>` arguments \n\
+             = note: these implicit defaults are being phased out \n\
+             = help: add `#[pyo3(signature = (",
         );
         spec.signature.arguments.iter().for_each(|arg| {
             match arg {
@@ -84,8 +85,9 @@ pub(crate) fn deprecate_trailing_option_default(spec: &FnSpec<'_>) -> TokenStrea
         deprecation_msg.pop();
         deprecation_msg.pop();
 
-        deprecation_msg
-            .push_str(")]` to this function to silence this warning and keep the current behavior");
+        deprecation_msg.push_str(
+            "))]` to this function to silence this warning and keep the current behavior",
+        );
         quote_spanned! { spec.name.span() =>
             #[deprecated(note = #deprecation_msg)]
             #[allow(dead_code)]
