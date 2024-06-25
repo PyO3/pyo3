@@ -27,12 +27,22 @@ impl Display for MyEnum2 {
     }
 }
 
-#[pyclass(eq, str = "MyEnum.{}")]
+#[pyclass(eq, str)]
 #[derive(Debug, PartialEq)]
 pub enum MyEnum3 {
     #[pyo3(name = "AwesomeVariant")]
     Variant,
     OtherVariant,
+}
+
+impl Display for MyEnum3 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let variant = match self {
+            MyEnum3::Variant => "AwesomeVariant",
+            MyEnum3::OtherVariant => "OtherVariant",
+        };
+        write!(f, "MyEnum.{}", variant)
+    }
 }
 
 #[test]

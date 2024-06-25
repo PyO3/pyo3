@@ -98,6 +98,7 @@ For convenience, a shorthand format string can be pass to `str` as `str="<format
 * `"{:?}"` -> `"{:?}", self`
 
 *Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*  
+*Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
 
 ```rust
 # use pyo3::prelude::*;

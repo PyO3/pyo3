@@ -74,7 +74,6 @@ pub struct Foo4 {
 #[pyo3(crate = "crate")]
 #[derive(Debug, PartialEq)]
 pub enum EnumFmt {
-    #[pyo3(name = "NewEnum")]
     Var0,
 }
 

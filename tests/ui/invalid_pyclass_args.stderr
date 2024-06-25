@@ -102,6 +102,42 @@ error: invalid format string: expected `'}'`, found `'$'`
     |
     = note: if you intended to print `{`, you can escape it using `{{`
 
+error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+   --> tests/ui/invalid_pyclass_args.rs:126:29
+    |
+126 | #[pyclass(name = "aaa", str="unsafe: {unsafe_variable}")]
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+   --> tests/ui/invalid_pyclass_args.rs:132:29
+    |
+132 | #[pyclass(name = "aaa", str="unsafe: {unsafe_variable}")]
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+   --> tests/ui/invalid_pyclass_args.rs:137:15
+    |
+137 | #[pyclass(str="unsafe: {unsafe_variable}")]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+   --> tests/ui/invalid_pyclass_args.rs:143:64
+    |
+143 | #[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE", str="{:?}")]
+    |                                                                ^^^^^^
+
+error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+   --> tests/ui/invalid_pyclass_args.rs:151:27
+    |
+151 | #[pyclass(eq, eq_int, str="MyEnum.{:?}")]
+    |                           ^^^^^^^^^^^^^
+
+error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+   --> tests/ui/invalid_pyclass_args.rs:159:29
+    |
+159 | #[pyclass(name="zzz", str = "{:?}")]
+    |                             ^^^^^^
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
    |
