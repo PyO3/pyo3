@@ -12,7 +12,6 @@
 use crate::{ffi, Bound, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
-use std::os::raw::c_char;
 
 /// The boilerplate to convert between a Rust type and a Python exception.
 #[doc(hidden)]
@@ -181,6 +180,7 @@ macro_rules! import_exception_bound {
 /// * `name` is the name of the new exception type.
 /// * `base` is the base class of `MyError`, usually [`PyException`].
 /// * `doc` (optional) is the docstring visible to users (with `.__doc__` and `help()`) and
+///
 /// accompanies your error type in your crate's documentation.
 ///
 /// # Examples
@@ -682,7 +682,7 @@ impl PyUnicodeDecodeError {
         unsafe {
             ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
-                input.as_ptr() as *const c_char,
+                input.as_ptr().cast(),
                 input.len() as ffi::Py_ssize_t,
                 range.start as ffi::Py_ssize_t,
                 range.end as ffi::Py_ssize_t,
@@ -736,10 +736,10 @@ impl PyUnicodeDecodeError {
         let pos = err.valid_up_to();
         PyUnicodeDecodeError::new_bound(
             py,
-            CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
+            ffi::c_str!("utf-8"),
             input,
             pos..(pos + 1),
-            CStr::from_bytes_with_nul(b"invalid utf-8\0").unwrap(),
+            ffi::c_str!("invalid utf-8"),
         )
     }
 }

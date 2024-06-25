@@ -1,12 +1,12 @@
 use std::borrow::Cow;
+use std::ffi::CString;
 
-use crate::utils::Ctx;
+use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{self, get_pyo3_options, take_attributes, NameAttribute},
     deprecations::Deprecations,
 };
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use proc_macro2::{Ident, Span};
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -29,9 +29,9 @@ impl ConstSpec<'_> {
     }
 
     /// Null-terminated Python name
-    pub fn null_terminated_python_name(&self) -> TokenStream {
-        let name = format!("{}\0", self.python_name());
-        quote!({#name})
+    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
+        let name = self.python_name().to_string();
+        LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx)
     }
 }
 

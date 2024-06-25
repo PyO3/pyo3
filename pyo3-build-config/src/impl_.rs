@@ -26,7 +26,7 @@ use target_lexicon::{Environment, OperatingSystem};
 use crate::{
     bail, ensure,
     errors::{Context, Error, Result},
-    format_warn, warn,
+    warn,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -171,20 +171,13 @@ impl InterpreterConfig {
             out.push(format!("cargo:rustc-cfg=Py_3_{}", i));
         }
 
-        if self.implementation.is_pypy() {
-            out.push("cargo:rustc-cfg=PyPy".to_owned());
-            if self.abi3 {
-                out.push(format_warn!(
-                    "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
-                    See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
-                ));
-            }
-        } else if self.implementation.is_graalpy() {
-            println!("cargo:rustc-cfg=GraalPy");
-            if self.abi3 {
-                warn!("GraalPy does not support abi3 so the build artifacts will be version-specific.");
-            }
-        } else if self.abi3 {
+        match self.implementation {
+            PythonImplementation::CPython => {}
+            PythonImplementation::PyPy => out.push("cargo:rustc-cfg=PyPy".to_owned()),
+            PythonImplementation::GraalPy => out.push("cargo:rustc-cfg=GraalPy".to_owned()),
+        }
+
+        if self.abi3 {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
@@ -966,11 +959,11 @@ impl CrossCompileEnvVars {
 ///
 /// This function relies on PyO3 cross-compiling environment variables:
 ///
-///   * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
-///   * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
+/// * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
+/// * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
 ///   the target's libpython DSO and the associated `_sysconfigdata*.py` file for
 ///   Unix-like targets, or the Python DLL import libraries for the Windows target.
-///   * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
+/// * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
 ///   installation. This variable is only needed if PyO3 cannnot determine the version to target
 ///   from `abi3-py3*` features, or if there are multiple versions of Python present in
 ///   `PYO3_CROSS_LIB_DIR`.
@@ -1063,7 +1056,7 @@ impl BuildFlags {
                 .iter()
                 .filter(|flag| {
                     config_map
-                        .get_value(&flag.to_string())
+                        .get_value(flag.to_string())
                         .map_or(false, |value| value == "1")
                 })
                 .cloned()
@@ -1213,7 +1206,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// Returns `None` if the library directory is not available, and a runtime error
 /// when no or multiple sysconfigdata files are found.
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
-    let mut sysconfig_paths = find_all_sysconfigdata(cross);
+    let mut sysconfig_paths = find_all_sysconfigdata(cross)?;
     if sysconfig_paths.is_empty() {
         if let Some(lib_dir) = cross.lib_dir.as_ref() {
             bail!("Could not find _sysconfigdata*.py in {}", lib_dir.display());
@@ -1276,11 +1269,16 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
 ///
 /// Returns an empty vector when the target Python library directory
 /// is not set via `PYO3_CROSS_LIB_DIR`.
-pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
+pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Result<Vec<PathBuf>> {
     let sysconfig_paths = if let Some(lib_dir) = cross.lib_dir.as_ref() {
-        search_lib_dir(lib_dir, cross)
+        search_lib_dir(lib_dir, cross).with_context(|| {
+            format!(
+                "failed to search the lib dir at 'PYO3_CROSS_LIB_DIR={}'",
+                lib_dir.display()
+            )
+        })?
     } else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
 
     let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
@@ -1298,7 +1296,7 @@ pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
     sysconfig_paths.sort();
     sysconfig_paths.dedup();
 
-    sysconfig_paths
+    Ok(sysconfig_paths)
 }
 
 fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
@@ -1329,9 +1327,14 @@ fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
 }
 
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
-fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
+fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<Vec<PathBuf>> {
     let mut sysconfig_paths = vec![];
-    for f in fs::read_dir(path).expect("Path does not exist") {
+    for f in fs::read_dir(path.as_ref()).with_context(|| {
+        format!(
+            "failed to list the entries in '{}'",
+            path.as_ref().display()
+        )
+    })? {
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
@@ -1339,7 +1342,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                 let file_name = f.file_name();
                 let file_name = file_name.to_string_lossy();
                 if file_name == "build" || file_name == "lib" {
-                    search_lib_dir(f.path(), cross)
+                    search_lib_dir(f.path(), cross)?
                 } else if file_name.starts_with("lib.") {
                     // check if right target os
                     if !file_name.contains(&cross.target.operating_system.to_string()) {
@@ -1349,12 +1352,12 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                     if !file_name.contains(&cross.target.architecture.to_string()) {
                         continue;
                     }
-                    search_lib_dir(f.path(), cross)
+                    search_lib_dir(f.path(), cross)?
                 } else if is_cpython_lib_dir(&file_name, &cross.version)
                     || is_pypy_lib_dir(&file_name, &cross.version)
                     || is_graalpy_lib_dir(&file_name, &cross.version)
                 {
-                    search_lib_dir(f.path(), cross)
+                    search_lib_dir(f.path(), cross)?
                 } else {
                     continue;
                 }
@@ -1383,7 +1386,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
         }
     }
 
-    sysconfig_paths
+    Ok(sysconfig_paths)
 }
 
 /// Find cross compilation information from sysconfigdata file
@@ -2722,10 +2725,7 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_6".to_owned(),
                 "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
-                "cargo:warning=PyPy does not yet support abi3 so the build artifacts \
-            will be version-specific. See https://foss.heptapod.net/pypy/pypy/-/issues/3397 \
-            for more information."
-                    .to_owned(),
+                "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
         );
     }
@@ -2756,5 +2756,25 @@ mod tests {
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn test_find_sysconfigdata_in_invalid_lib_dir() {
+        let e = find_all_sysconfigdata(&CrossCompileConfig {
+            lib_dir: Some(PathBuf::from("/abc/123/not/a/real/path")),
+            version: None,
+            implementation: None,
+            target: triple!("x86_64-unknown-linux-gnu"),
+        })
+        .unwrap_err();
+
+        // actual error message is platform-dependent, so just check the context we add
+        assert!(e.report().to_string().starts_with(
+            "failed to search the lib dir at 'PYO3_CROSS_LIB_DIR=/abc/123/not/a/real/path'\n\
+            caused by:\n  \
+              - 0: failed to list the entries in '/abc/123/not/a/real/path'\n  \
+              - 1: \
+            "
+        ));
     }
 }

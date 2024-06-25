@@ -663,7 +663,7 @@ def check_feature_powerset(session: nox.Session):
         "default",
         "auto-initialize",
         "generate-import-lib",
-        "multiple-pymethods",  # TODO add this after MSRV 1.62
+        "multiple-pymethods",  # Because it's not supported on wasm
     }
 
     features = cargo_toml["features"]
@@ -764,10 +764,9 @@ def _get_rust_default_target() -> str:
 @lru_cache()
 def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
     """Returns feature sets to use for clippy job"""
-    rust_version = _get_rust_version()
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
-    if rust_version[:2] >= (1, 62) and "wasm32-wasi" not in cargo_target:
-        # multiple-pymethods feature not supported before 1.62 or on WASI
+    if "wasm32-wasi" not in cargo_target:
+        # multiple-pymethods not supported on wasm
         return (
             ("--no-default-features",),
             (

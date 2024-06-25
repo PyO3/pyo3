@@ -57,12 +57,6 @@ This feature adds support for `async fn` in `#[pyfunction]` and `#[pymethods]`.
 
 The feature has some unfinished refinements and performance improvements. To help finish this off, see [issue #1632](https://github.com/PyO3/pyo3/issues/1632) and its associated draft PRs.
 
-### `experimental-declarative-modules`
-
-This feature allows to declare Python modules using `#[pymodule] mod my_module { ... }` syntax. 
-
-The feature has some unfinished refinements and edge cases. To help finish this off, see [issue #3900](https://github.com/PyO3/pyo3/issues/3900).
-
 ### `experimental-inspect`
 
 This feature adds the `pyo3::inspect` module, as well as `IntoPy::type_output` and `FromPyObject::type_input` APIs to produce Python type "annotations" for Rust types.
@@ -101,9 +95,9 @@ These macros require a number of dependencies which may not be needed by users w
 
 ### `multiple-pymethods`
 
-This feature enables a dependency on `inventory`, which enables each `#[pyclass]` to have more than one `#[pymethods]` block. This feature also requires a minimum Rust version of 1.62 due to limitations in the `inventory` crate.
+This feature enables each `#[pyclass]` to have more than one `#[pymethods]` block.
 
-Most users should only need a single `#[pymethods]` per `#[pyclass]`. In addition, not all platforms (e.g. Wasm) are supported by `inventory`. For this reason this feature is not enabled by default, meaning fewer dependencies and faster compilation for the majority of users.
+Most users should only need a single `#[pymethods]` per `#[pyclass]`. In addition, not all platforms (e.g. Wasm) are supported by `inventory`, which is used in the implementation of the feature. For this reason this feature is not enabled by default, meaning fewer dependencies and faster compilation for the majority of users.
 
 See [the `#[pyclass]` implementation details](class.md#implementation-details) for more information.
 

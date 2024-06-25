@@ -210,7 +210,7 @@ use std::hash::{Hash, Hasher};
 use pyo3::exceptions::{PyValueError, PyZeroDivisionError};
 use pyo3::prelude::*;
 use pyo3::class::basic::CompareOp;
-use pyo3::types::PyComplex;
+use pyo3::types::{PyComplex, PyString};
 
 fn wrap(obj: &Bound<'_, PyAny>) -> PyResult<i32> {
     let val = obj.call_method1("__and__", (0xFFFFFFFF_u32,))?;
@@ -231,7 +231,7 @@ impl Number {
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
        // Get the class name dynamically in case `Number` is subclassed
-       let class_name: String = slf.get_type().qualname()?;
+       let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
         Ok(format!("{}({})", class_name, slf.borrow().0))
     }
 

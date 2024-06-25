@@ -205,8 +205,8 @@ pub fn impl_wrap_pyfunction(
         krate,
     } = options;
 
-    let ctx = &Ctx::new(&krate);
-    let Ctx { pyo3_path } = &ctx;
+    let ctx = &Ctx::new(&krate, Some(&func.sig));
+    let Ctx { pyo3_path, .. } = &ctx;
 
     let python_name = name
         .as_ref()
@@ -260,7 +260,7 @@ pub fn impl_wrap_pyfunction(
 
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs), ctx);
+    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
 
     let wrapped_pyfunction = quote! {
 

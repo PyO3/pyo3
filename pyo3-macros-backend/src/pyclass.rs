@@ -1,6 +1,13 @@
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
+use syn::ext::IdentExt;
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, Result, Token};
+
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FormatIdentity,
@@ -16,16 +23,10 @@ use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
     SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__, __STR__,
 };
-use crate::utils::Ctx;
-use crate::utils::{self, apply_renaming_rule, PythonDoc};
+use crate::pyversions;
+use crate::utils::{self, apply_renaming_rule, LitCStr, PythonDoc};
+use crate::utils::{is_abi3, Ctx};
 use crate::PyFunctionOptions;
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, IdentFragment};
-use syn::ext::IdentExt;
-use syn::parse::{Parse, ParseStream};
-use syn::parse_quote_spanned;
-use syn::punctuated::Punctuated;
-use syn::{parse_quote, spanned::Spanned, ImplItemFn, Result, Token};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -76,7 +77,6 @@ pub struct PyClassPyO3Options {
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
-    pub str: Option<StrFormatterAttribute>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
@@ -186,9 +186,17 @@ impl PyClassPyO3Options {
             };
         }
 
+        let python_version = pyo3_build_config::get().version;
+
         match option {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
-            PyClassPyO3Option::Dict(dict) => set_option!(dict),
+            PyClassPyO3Option::Dict(dict) => {
+                ensure_spanned!(
+                    python_version >= pyversions::PY_3_9 || !is_abi3(),
+                    dict.span() => "`dict` requires Python >= 3.9 when using the `abi3` feature"
+                );
+                set_option!(dict);
+            }
             PyClassPyO3Option::Eq(eq) => set_option!(eq),
             PyClassPyO3Option::EqInt(eq_int) => set_option!(eq_int),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
@@ -206,7 +214,13 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Str(str) => set_option!(str),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
-            PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
+            PyClassPyO3Option::Weakref(weakref) => {
+                ensure_spanned!(
+                    python_version >= pyversions::PY_3_9 || !is_abi3(),
+                    weakref.span() => "`weakref` requires Python >= 3.9 when using the `abi3` feature"
+                );
+                set_option!(weakref);
+            }
         }
         Ok(())
     }
@@ -218,9 +232,9 @@ pub fn build_py_class(
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut class.attrs)?;
-    let doc = utils::get_doc(&class.attrs, None);
 
-    let ctx = &Ctx::new(&args.options.krate);
+    let ctx = &Ctx::new(&args.options.krate, None);
+    let doc = utils::get_doc(&class.attrs, None, ctx);
 
     if let Some(lt) = class.generics.lifetimes().next() {
         bail_spanned!(
@@ -375,7 +389,7 @@ fn impl_class(
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
 ) -> syn::Result<TokenStream> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
     let (default_str, default_str_slot) =
@@ -454,7 +468,7 @@ pub fn build_py_enum(
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut enum_.attrs)?;
 
-    let ctx = &Ctx::new(&args.options.krate);
+    let ctx = &Ctx::new(&args.options.krate, None);
     if let Some(extends) = &args.options.extends {
         bail_spanned!(extends.span() => "enums can't extend from other classes");
     } else if let Some(subclass) = &args.options.subclass {
@@ -463,7 +477,7 @@ pub fn build_py_enum(
         bail_spanned!(enum_.brace_token.span.join() => "#[pyclass] can't be used on enums without any variants");
     }
 
-    let doc = utils::get_doc(&enum_.attrs, None);
+    let doc = utils::get_doc(&enum_.attrs, None, ctx);
     let enum_ = PyClassEnum::new(enum_)?;
     impl_enum(enum_, &args, doc, method_type, ctx)
 }
@@ -991,7 +1005,7 @@ fn impl_complex_enum(
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let cls = complex_enum.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
 
@@ -1005,7 +1019,7 @@ fn impl_complex_enum(
         rigged_args
     };
 
-    let ctx = &Ctx::new(&args.options.krate);
+    let ctx = &Ctx::new(&args.options.krate, None);
     let cls = complex_enum.ident;
     let variants = complex_enum.variants;
     let pytypeinfo = impl_pytypeinfo(cls, &args, None, ctx);
@@ -1193,7 +1207,7 @@ fn impl_complex_enum_struct_variant_cls(
     variant: &PyClassEnumStructVariant<'_>,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let variant_ident = &variant.ident;
     let variant_cls = gen_complex_enum_variant_class_ident(enum_name, variant.ident);
     let variant_cls_type = parse_quote!(#variant_cls);
@@ -1257,7 +1271,7 @@ fn impl_complex_enum_tuple_variant_field_getters(
     field_names: &mut Vec<Ident>,
     fields_types: &mut Vec<syn::Type>,
 ) -> Result<(Vec<MethodAndMethodDef>, Vec<syn::ImplItemFn>)> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     let mut field_getters = vec![];
     let mut field_getter_impls = vec![];
@@ -1304,7 +1318,7 @@ fn impl_complex_enum_tuple_variant_len(
     variant_cls_type: &syn::Type,
     num_fields: usize,
 ) -> Result<(MethodAndSlotDef, syn::ImplItemFn)> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     let mut len_method_impl: syn::ImplItemFn = parse_quote! {
         fn __len__(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<usize> {
@@ -1324,7 +1338,7 @@ fn impl_complex_enum_tuple_variant_getitem(
     variant_cls_type: &syn::Type,
     num_fields: usize,
 ) -> Result<(MethodAndSlotDef, syn::ImplItemFn)> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     let match_arms: Vec<_> = (0..num_fields)
         .map(|i| {
@@ -1365,7 +1379,7 @@ fn impl_complex_enum_tuple_variant_cls(
     variant: &PyClassEnumTupleVariant<'_>,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let variant_ident = &variant.ident;
     let variant_cls = gen_complex_enum_variant_class_ident(enum_name, variant.ident);
     let variant_cls_type = parse_quote!(#variant_cls);
@@ -1522,11 +1536,11 @@ pub fn gen_complex_enum_variant_attr(
     spec: &ConstSpec<'_>,
     ctx: &Ctx,
 ) -> MethodAndMethodDef {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_variant_cls_{}__", member);
     let deprecations = &spec.attributes.deprecations;
-    let python_name = &spec.null_terminated_python_name();
+    let python_name = spec.null_terminated_python_name(ctx);
 
     let variant_cls = format_ident!("{}_{}", cls, member);
     let associated_method = quote! {
@@ -1537,12 +1551,14 @@ pub fn gen_complex_enum_variant_attr(
     };
 
     let method_def = quote! {
-        #pyo3_path::class::PyMethodDefType::ClassAttribute({
-            #pyo3_path::class::PyClassAttributeDef::new(
-                #python_name,
-                #cls_type::#wrapper_ident
-            )
-        })
+        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
+            #pyo3_path::class::PyMethodDefType::ClassAttribute({
+                #pyo3_path::class::PyClassAttributeDef::new(
+                    #python_name,
+                    #cls_type::#wrapper_ident
+                )
+            })
+        )
     };
 
     MethodAndMethodDef {
@@ -1571,7 +1587,7 @@ fn complex_enum_struct_variant_new<'a>(
     variant: PyClassEnumStructVariant<'a>,
     ctx: &Ctx,
 ) -> Result<MethodAndSlotDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let variant_cls = format_ident!("{}_{}", cls, variant.ident);
     let variant_cls_type: syn::Type = parse_quote!(#variant_cls);
 
@@ -1628,7 +1644,7 @@ fn complex_enum_tuple_variant_new<'a>(
     variant: PyClassEnumTupleVariant<'a>,
     ctx: &Ctx,
 ) -> Result<MethodAndSlotDef> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     let variant_cls: Ident = format_ident!("{}_{}", cls, variant.ident);
     let variant_cls_type: syn::Type = parse_quote!(#variant_cls);
@@ -1703,7 +1719,7 @@ fn complex_enum_variant_field_getter<'a>(
     let property_type = crate::pymethod::PropertyType::Function {
         self_type: &self_type,
         spec: &spec,
-        doc: crate::get_doc(&[], None),
+        doc: crate::get_doc(&[], None, ctx),
     };
 
     let getter = crate::pymethod::impl_py_getter_def(variant_cls_type, property_type, ctx)?;
@@ -1767,7 +1783,7 @@ fn impl_pytypeinfo(
     deprecations: Option<&Deprecations<'_>>,
     ctx: &Ctx,
 ) -> TokenStream {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let cls_name = get_class_python_name(cls, attr).to_string();
 
     let module = if let Some(ModuleAttribute { value, .. }) = &attr.options.module {
@@ -1811,7 +1827,7 @@ fn pyclass_richcmp_arms(
     options: &PyClassPyO3Options,
     ctx: &Ctx,
 ) -> std::result::Result<TokenStream, syn::Error> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     let eq_arms = options
         .eq
@@ -1865,7 +1881,7 @@ fn pyclass_richcmp_simple_enum(
     repr_type: &syn::Ident,
     ctx: &Ctx,
 ) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     if let Some(eq_int) = options.eq_int {
         ensure_spanned!(options.eq.is_some(), eq_int.span() => "The `eq_int` option requires the `eq` option.");
@@ -1949,7 +1965,7 @@ fn pyclass_richcmp(
     cls: &syn::Type,
     ctx: &Ctx,
 ) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     if let Some(eq_int) = options.eq_int {
         bail_spanned!(eq_int.span() => "`eq_int` can only be used on simple enums.")
     }
@@ -2062,7 +2078,7 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     fn impl_pyclass(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
 
         let frozen = if self.attr.options.frozen.is_some() {
@@ -2078,7 +2094,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         }
     }
     fn impl_extractext(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
         if self.attr.options.frozen.is_some() {
             quote! {
@@ -2118,7 +2134,7 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     fn impl_into_py(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
         let attr = self.attr;
         // If #cls is not extended type, we allow Self->PyObject conversion
@@ -2135,9 +2151,12 @@ impl<'a> PyClassImplsBuilder<'a> {
         }
     }
     fn impl_pyclassimpl(&self, ctx: &Ctx) -> Result<TokenStream> {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
-        let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
+        let doc = self.doc.as_ref().map_or(
+            LitCStr::empty(ctx).to_token_stream(),
+            PythonDoc::to_token_stream,
+        );
         let is_basetype = self.attr.options.subclass.is_some();
         let base = match &self.attr.options.extends {
             Some(extends_attr) => extends_attr.value.clone(),
@@ -2303,7 +2322,7 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     fn impl_add_to_module(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
         quote! {
             impl #cls {
@@ -2315,7 +2334,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     fn impl_freelist(&self, ctx: &Ctx) -> TokenStream {
         let cls = self.cls;
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
 
         self.attr.options.freelist.as_ref().map_or(quote!{}, |freelist| {
             let freelist = &freelist.value;
@@ -2338,7 +2357,7 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     fn freelist_slots(&self, ctx: &Ctx) -> Vec<TokenStream> {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
 
         if self.attr.options.freelist.is_some() {
@@ -2363,7 +2382,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 }
 
 fn define_inventory_class(inventory_class_name: &syn::Ident, ctx: &Ctx) -> TokenStream {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     quote! {
         #[doc(hidden)]
         pub struct #inventory_class_name {

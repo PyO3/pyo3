@@ -48,7 +48,6 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
-use std::os::raw::c_char;
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -65,34 +64,15 @@ macro_rules! rational_conversion {
         impl<'py> FromPyObject<'py> for Ratio<$int> {
             fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
                 let py = obj.py();
-                let py_numerator_obj = unsafe {
-                    Bound::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyObject_GetAttrString(
-                            obj.as_ptr(),
-                            "numerator\0".as_ptr() as *const c_char,
-                        ),
-                    )
-                };
-                let py_denominator_obj = unsafe {
-                    Bound::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyObject_GetAttrString(
-                            obj.as_ptr(),
-                            "denominator\0".as_ptr() as *const c_char,
-                        ),
-                    )
-                };
+                let py_numerator_obj = obj.getattr(crate::intern!(py, "numerator"))?;
+                let py_denominator_obj = obj.getattr(crate::intern!(py, "denominator"))?;
                 let numerator_owned = unsafe {
-                    Bound::from_owned_ptr_or_err(
-                        py,
-                        ffi::PyNumber_Long(py_numerator_obj?.as_ptr()),
-                    )?
+                    Bound::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_numerator_obj.as_ptr()))?
                 };
                 let denominator_owned = unsafe {
                     Bound::from_owned_ptr_or_err(
                         py,
-                        ffi::PyNumber_Long(py_denominator_obj?.as_ptr()),
+                        ffi::PyNumber_Long(py_denominator_obj.as_ptr()),
                     )?
                 };
                 let rs_numerator: $int = numerator_owned.extract()?;

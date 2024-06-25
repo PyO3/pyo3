@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-macros-backend"
-version = "0.22.0-dev"
+version = "0.22.0"
 description = "Code generation for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -15,14 +15,17 @@ edition = "2021"
 # See https://github.com/PyO3/pyo3/pull/810 for more.
 [dependencies]
 heck = "0.5"
-proc-macro2 = { version = "1", default-features = false }
-pyo3-build-config = { path = "../pyo3-build-config", version = "=0.22.0-dev", features = ["resolve-config"] }
+proc-macro2 = { version = "1.0.60", default-features = false }
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.22.0", features = ["resolve-config"] }
 quote = { version = "1", default-features = false }
 
 [dependencies.syn]
-version = "2"
+version = "2.0.59" # for `LitCStr`
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
+
+[build-dependencies]
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.22.0" }
 
 [lints]
 workspace = true

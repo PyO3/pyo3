@@ -111,11 +111,15 @@ impl FromPyObject<'_> for bool {
             Err(err) => err,
         };
 
-        if obj
-            .get_type()
-            .name()
-            .map_or(false, |name| name == "numpy.bool_")
-        {
+        let is_numpy_bool = {
+            let ty = obj.get_type();
+            ty.module().map_or(false, |module| module == "numpy")
+                && ty
+                    .name()
+                    .map_or(false, |name| name == "bool_" || name == "bool")
+        };
+
+        if is_numpy_bool {
             let missing_conversion = |obj: &Bound<'_, PyAny>| {
                 PyTypeError::new_err(format!(
                     "object of type '{}' does not define a '__bool__' conversion",

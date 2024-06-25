@@ -6,7 +6,6 @@ use crate::types::any::PyAnyMethods;
 use crate::{ffi, PyAny, Python};
 #[cfg(feature = "gil-refs")]
 use crate::{AsPyPointer, PyNativeType};
-use std::os::raw::c_char;
 use std::slice;
 
 /// Represents a Python `bytearray`.
@@ -20,7 +19,7 @@ impl PyByteArray {
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
     pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
-        let ptr = src.as_ptr() as *const c_char;
+        let ptr = src.as_ptr().cast();
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {
             ffi::PyByteArray_FromStringAndSize(ptr, len)
@@ -150,11 +149,11 @@ impl PyByteArray {
     ///
     /// These mutations may occur in Python code as well as from Rust:
     /// - Calling methods like [`PyByteArray::as_bytes_mut`] and [`PyByteArray::resize`] will
-    /// invalidate the slice.
+    ///   invalidate the slice.
     /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
-    /// handlers, which may execute arbitrary Python code. This means that if Python code has a
-    /// reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
-    /// using the slice.
+    ///   handlers, which may execute arbitrary Python code. This means that if Python code has a
+    ///   reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
+    ///   using the slice.
     ///
     /// As a result, this slice should only be used for short-lived operations without executing any
     /// Python code, such as copying into a Vec.
@@ -312,11 +311,11 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     /// These mutations may occur in Python code as well as from Rust:
     /// - Calling methods like [`PyByteArrayMethods::as_bytes_mut`] and [`PyByteArrayMethods::resize`] will
-    /// invalidate the slice.
+    ///   invalidate the slice.
     /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
-    /// handlers, which may execute arbitrary Python code. This means that if Python code has a
-    /// reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
-    /// using the slice.
+    ///   handlers, which may execute arbitrary Python code. This means that if Python code has a
+    ///   reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
+    ///   using the slice.
     ///
     /// As a result, this slice should only be used for short-lived operations without executing any
     /// Python code, such as copying into a Vec.
@@ -516,12 +515,8 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::any::PyAnyMethods;
-    use crate::types::bytearray::PyByteArrayMethods;
-    use crate::types::string::PyStringMethods;
-    use crate::types::PyByteArray;
-    use crate::{exceptions, Bound, PyAny};
-    use crate::{PyObject, Python};
+    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
+    use crate::{exceptions, Bound, PyAny, PyObject, Python};
 
     #[test]
     fn test_len() {
@@ -556,10 +551,7 @@ mod tests {
 
             slice[0..5].copy_from_slice(b"Hi...");
 
-            assert_eq!(
-                bytearray.str().unwrap().to_cow().unwrap(),
-                "bytearray(b'Hi... Python')"
-            );
+            assert_eq!(bytearray.str().unwrap(), "bytearray(b'Hi... Python')");
         });
     }
 

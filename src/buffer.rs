@@ -263,7 +263,7 @@ impl<T: Element> PyBuffer<T> {
                 },
                 #[cfg(Py_3_11)]
                 {
-                    indices.as_ptr() as *const ffi::Py_ssize_t
+                    indices.as_ptr().cast()
                 },
                 #[cfg(not(Py_3_11))]
                 {
@@ -317,7 +317,7 @@ impl<T: Element> PyBuffer<T> {
     /// However, dimensions of length 0 are possible and might need special attention.
     #[inline]
     pub fn shape(&self) -> &[usize] {
-        unsafe { slice::from_raw_parts(self.0.shape as *const usize, self.0.ndim as usize) }
+        unsafe { slice::from_raw_parts(self.0.shape.cast(), self.0.ndim as usize) }
     }
 
     /// Returns an array that holds, for each dimension, the number of bytes to skip to get to the next element in the dimension.
@@ -352,7 +352,7 @@ impl<T: Element> PyBuffer<T> {
     #[inline]
     pub fn format(&self) -> &CStr {
         if self.0.format.is_null() {
-            CStr::from_bytes_with_nul(b"B\0").unwrap()
+            ffi::c_str!("B")
         } else {
             unsafe { CStr::from_ptr(self.0.format) }
         }
@@ -361,23 +361,13 @@ impl<T: Element> PyBuffer<T> {
     /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
-        unsafe {
-            ffi::PyBuffer_IsContiguous(
-                &*self.0 as *const ffi::Py_buffer,
-                b'C' as std::os::raw::c_char,
-            ) != 0
-        }
+        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'C' as std::os::raw::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
-        unsafe {
-            ffi::PyBuffer_IsContiguous(
-                &*self.0 as *const ffi::Py_buffer,
-                b'F' as std::os::raw::c_char,
-            ) != 0
-        }
+        unsafe { ffi::PyBuffer_IsContiguous(&*self.0, b'F' as std::os::raw::c_char) != 0 }
     }
 
     /// Gets the buffer memory as a slice.
@@ -609,7 +599,7 @@ impl<T: Element> PyBuffer<T> {
                 },
                 #[cfg(Py_3_11)]
                 {
-                    source.as_ptr() as *const raw::c_void
+                    source.as_ptr().cast()
                 },
                 #[cfg(not(Py_3_11))]
                 {
@@ -733,125 +723,124 @@ mod tests {
     fn test_element_type_from_format() {
         use super::ElementType;
         use super::ElementType::*;
-        use std::ffi::CStr;
         use std::mem::size_of;
         use std::os::raw;
 
-        for (cstr, expected) in &[
+        for (cstr, expected) in [
             // @ prefix goes to native_element_type_from_type_char
             (
-                "@b\0",
+                ffi::c_str!("@b"),
                 SignedInteger {
                     bytes: size_of::<raw::c_schar>(),
                 },
             ),
             (
-                "@c\0",
+                ffi::c_str!("@c"),
                 UnsignedInteger {
                     bytes: size_of::<raw::c_char>(),
                 },
             ),
             (
-                "@b\0",
+                ffi::c_str!("@b"),
                 SignedInteger {
                     bytes: size_of::<raw::c_schar>(),
                 },
             ),
             (
-                "@B\0",
+                ffi::c_str!("@B"),
                 UnsignedInteger {
                     bytes: size_of::<raw::c_uchar>(),
                 },
             ),
-            ("@?\0", Bool),
+            (ffi::c_str!("@?"), Bool),
             (
-                "@h\0",
+                ffi::c_str!("@h"),
                 SignedInteger {
                     bytes: size_of::<raw::c_short>(),
                 },
             ),
             (
-                "@H\0",
+                ffi::c_str!("@H"),
                 UnsignedInteger {
                     bytes: size_of::<raw::c_ushort>(),
                 },
             ),
             (
-                "@i\0",
+                ffi::c_str!("@i"),
                 SignedInteger {
                     bytes: size_of::<raw::c_int>(),
                 },
             ),
             (
-                "@I\0",
+                ffi::c_str!("@I"),
                 UnsignedInteger {
                     bytes: size_of::<raw::c_uint>(),
                 },
             ),
             (
-                "@l\0",
+                ffi::c_str!("@l"),
                 SignedInteger {
                     bytes: size_of::<raw::c_long>(),
                 },
             ),
             (
-                "@L\0",
+                ffi::c_str!("@L"),
                 UnsignedInteger {
                     bytes: size_of::<raw::c_ulong>(),
                 },
             ),
             (
-                "@q\0",
+                ffi::c_str!("@q"),
                 SignedInteger {
                     bytes: size_of::<raw::c_longlong>(),
                 },
             ),
             (
-                "@Q\0",
+                ffi::c_str!("@Q"),
                 UnsignedInteger {
                     bytes: size_of::<raw::c_ulonglong>(),
                 },
             ),
             (
-                "@n\0",
+                ffi::c_str!("@n"),
                 SignedInteger {
                     bytes: size_of::<libc::ssize_t>(),
                 },
             ),
             (
-                "@N\0",
+                ffi::c_str!("@N"),
                 UnsignedInteger {
                     bytes: size_of::<libc::size_t>(),
                 },
             ),
-            ("@e\0", Float { bytes: 2 }),
-            ("@f\0", Float { bytes: 4 }),
-            ("@d\0", Float { bytes: 8 }),
-            ("@z\0", Unknown),
+            (ffi::c_str!("@e"), Float { bytes: 2 }),
+            (ffi::c_str!("@f"), Float { bytes: 4 }),
+            (ffi::c_str!("@d"), Float { bytes: 8 }),
+            (ffi::c_str!("@z"), Unknown),
             // = prefix goes to standard_element_type_from_type_char
-            ("=b\0", SignedInteger { bytes: 1 }),
-            ("=c\0", UnsignedInteger { bytes: 1 }),
-            ("=B\0", UnsignedInteger { bytes: 1 }),
-            ("=?\0", Bool),
-            ("=h\0", SignedInteger { bytes: 2 }),
-            ("=H\0", UnsignedInteger { bytes: 2 }),
-            ("=l\0", SignedInteger { bytes: 4 }),
-            ("=l\0", SignedInteger { bytes: 4 }),
-            ("=I\0", UnsignedInteger { bytes: 4 }),
-            ("=L\0", UnsignedInteger { bytes: 4 }),
-            ("=q\0", SignedInteger { bytes: 8 }),
-            ("=Q\0", UnsignedInteger { bytes: 8 }),
-            ("=e\0", Float { bytes: 2 }),
-            ("=f\0", Float { bytes: 4 }),
-            ("=d\0", Float { bytes: 8 }),
-            ("=z\0", Unknown),
-            ("=0\0", Unknown),
+            (ffi::c_str!("=b"), SignedInteger { bytes: 1 }),
+            (ffi::c_str!("=c"), UnsignedInteger { bytes: 1 }),
+            (ffi::c_str!("=B"), UnsignedInteger { bytes: 1 }),
+            (ffi::c_str!("=?"), Bool),
+            (ffi::c_str!("=h"), SignedInteger { bytes: 2 }),
+            (ffi::c_str!("=H"), UnsignedInteger { bytes: 2 }),
+            (ffi::c_str!("=l"), SignedInteger { bytes: 4 }),
+            (ffi::c_str!("=l"), SignedInteger { bytes: 4 }),
+            (ffi::c_str!("=I"), UnsignedInteger { bytes: 4 }),
+            (ffi::c_str!("=L"), UnsignedInteger { bytes: 4 }),
+            (ffi::c_str!("=q"), SignedInteger { bytes: 8 }),
+            (ffi::c_str!("=Q"), UnsignedInteger { bytes: 8 }),
+            (ffi::c_str!("=e"), Float { bytes: 2 }),
+            (ffi::c_str!("=f"), Float { bytes: 4 }),
+            (ffi::c_str!("=d"), Float { bytes: 8 }),
+            (ffi::c_str!("=z"), Unknown),
+            (ffi::c_str!("=0"), Unknown),
             // unknown prefix -> Unknown
-            (":b\0", Unknown),
+            (ffi::c_str!(":b"), Unknown),
         ] {
             assert_eq!(
-                ElementType::from_format(CStr::from_bytes_with_nul(cstr.as_bytes()).unwrap()),
-                *expected,
+                ElementType::from_format(cstr),
+                expected,
                 "element from format &Cstr: {:?}",
                 cstr,
             );

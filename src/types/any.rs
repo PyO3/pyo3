@@ -4,6 +4,7 @@ use crate::err::{DowncastError, DowncastIntoError, PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+use crate::internal_tricks::ptr_from_ref;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -25,13 +26,13 @@ use std::os::raw::c_int;
 /// with the other [native Python types](crate::types):
 ///
 /// - It can only be obtained and used while the GIL is held,
-/// therefore its API does not require a [`Python<'py>`](crate::Python) token.
+///   therefore its API does not require a [`Python<'py>`](crate::Python) token.
 /// - It can't be used in situations where the GIL is temporarily released,
-/// such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+///   such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
 /// - The underlying Python object, if mutable, can be mutated through any reference.
 /// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
-/// allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
-/// *does* require a [`Python<'py>`](crate::Python) token.
+///   allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
+///   *does* require a [`Python<'py>`](crate::Python) token.
 ///
 /// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
 /// and FromPyObject::extract. See their documentation for more information.
@@ -912,7 +913,7 @@ impl PyAny {
     /// when they are finished with the pointer.
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
-        self as *const PyAny as *mut ffi::PyObject
+        ptr_from_ref(self) as *mut ffi::PyObject
     }
 
     /// Returns an owned raw FFI pointer represented by self.
@@ -1142,6 +1143,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Equivalent to the Python expression `abs(self)`.
     fn abs(&self) -> PyResult<Bound<'py, PyAny>>;
 
+    /// Computes `~self`.
+    fn bitnot(&self) -> PyResult<Bound<'py, PyAny>>;
+
     /// Tests whether this object is less than another.
     ///
     /// This is equivalent to the Python expression `self < other`.
@@ -1199,8 +1203,28 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         O: ToPyObject;
 
+    /// Computes `self @ other`.
+    fn matmul<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
     /// Computes `self / other`.
     fn div<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self // other`.
+    fn floor_div<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self % other`.
+    fn rem<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `divmod(self, other)`.
+    fn divmod<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
         O: ToPyObject;
 
@@ -1897,6 +1921,14 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         inner(self)
     }
 
+    fn bitnot(&self) -> PyResult<Bound<'py, PyAny>> {
+        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+            unsafe { ffi::PyNumber_Invert(any.as_ptr()).assume_owned_or_err(any.py()) }
+        }
+
+        inner(self)
+    }
+
     fn lt<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
@@ -1948,12 +1980,33 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     implement_binop!(add, PyNumber_Add, "+");
     implement_binop!(sub, PyNumber_Subtract, "-");
     implement_binop!(mul, PyNumber_Multiply, "*");
+    implement_binop!(matmul, PyNumber_MatrixMultiply, "@");
     implement_binop!(div, PyNumber_TrueDivide, "/");
+    implement_binop!(floor_div, PyNumber_FloorDivide, "//");
+    implement_binop!(rem, PyNumber_Remainder, "%");
     implement_binop!(lshift, PyNumber_Lshift, "<<");
     implement_binop!(rshift, PyNumber_Rshift, ">>");
     implement_binop!(bitand, PyNumber_And, "&");
     implement_binop!(bitor, PyNumber_Or, "|");
     implement_binop!(bitxor, PyNumber_Xor, "^");
+
+    /// Computes `divmod(self, other)`.
+    fn divmod<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject,
+    {
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            other: Bound<'_, PyAny>,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            unsafe {
+                ffi::PyNumber_Divmod(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py())
+            }
+        }
+
+        let py = self.py();
+        inner(self, other.to_object(py).into_bound(py))
+    }
 
     /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
     /// `py.None()` may be passed for the `modulus`.
@@ -2211,7 +2264,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[inline]
     unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        &*(self as *const Bound<'py, PyAny>).cast()
+        &*ptr_from_ref(self).cast()
     }
 
     #[inline]

@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::py_run;
-use pyo3::types::{PyDict, PyTuple};
+use pyo3::types::PyTuple;
 
 use std::fmt;
 
@@ -113,39 +113,41 @@ fn pytuple_pyclass_iter() {
     });
 }
 
-#[pyclass(dict, module = "test_module")]
-struct PickleSupport {}
-
-#[pymethods]
-impl PickleSupport {
-    #[new]
-    fn new() -> PickleSupport {
-        PickleSupport {}
-    }
-
-    pub fn __reduce__<'py>(
-        slf: &Bound<'py, Self>,
-        py: Python<'py>,
-    ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
-        let cls = slf.to_object(py).getattr(py, "__class__")?;
-        let dict = slf.to_object(py).getattr(py, "__dict__")?;
-        Ok((cls, PyTuple::empty_bound(py), dict))
-    }
-}
-
-fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
-    PyModule::import_bound(module.py(), "sys")?
-        .dict()
-        .get_item("modules")
-        .unwrap()
-        .unwrap()
-        .downcast::<PyDict>()?
-        .set_item(module.name()?, module)
-}
-
 #[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn test_pickle() {
+    use pyo3::types::PyDict;
+
+    #[pyclass(dict, module = "test_module")]
+    struct PickleSupport {}
+
+    #[pymethods]
+    impl PickleSupport {
+        #[new]
+        fn new() -> PickleSupport {
+            PickleSupport {}
+        }
+
+        pub fn __reduce__<'py>(
+            slf: &Bound<'py, Self>,
+            py: Python<'py>,
+        ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
+            let cls = slf.to_object(py).getattr(py, "__class__")?;
+            let dict = slf.to_object(py).getattr(py, "__dict__")?;
+            Ok((cls, PyTuple::empty_bound(py), dict))
+        }
+    }
+
+    fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
+        PyModule::import_bound(module.py(), "sys")?
+            .dict()
+            .get_item("modules")
+            .unwrap()
+            .unwrap()
+            .downcast::<PyDict>()?
+            .set_item(module.name()?, module)
+    }
+
     Python::with_gil(|py| {
         let module = PyModule::new_bound(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();

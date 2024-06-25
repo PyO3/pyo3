@@ -213,10 +213,16 @@ pub mod boolean_struct {
         use super::*;
 
         /// A way to "seal" the boolean traits.
-        pub trait Boolean {}
+        pub trait Boolean {
+            const VALUE: bool;
+        }
 
-        impl Boolean for True {}
-        impl Boolean for False {}
+        impl Boolean for True {
+            const VALUE: bool = true;
+        }
+        impl Boolean for False {
+            const VALUE: bool = false;
+        }
     }
 
     pub struct True(());

@@ -10,7 +10,6 @@ use crate::types::PyBytes;
 use crate::PyNativeType;
 use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
-use std::os::raw::c_char;
 use std::str;
 
 /// Represents raw data backing a Python `str`.
@@ -37,16 +36,10 @@ impl<'a> PyStringData<'a> {
         match self {
             Self::Ucs1(s) => s,
             Self::Ucs2(s) => unsafe {
-                std::slice::from_raw_parts(
-                    s.as_ptr() as *const u8,
-                    s.len() * self.value_width_bytes(),
-                )
+                std::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
             },
             Self::Ucs4(s) => unsafe {
-                std::slice::from_raw_parts(
-                    s.as_ptr() as *const u8,
-                    s.len() * self.value_width_bytes(),
-                )
+                std::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
             },
         }
     }
@@ -85,7 +78,7 @@ impl<'a> PyStringData<'a> {
 
                     Err(PyUnicodeDecodeError::new_bound(
                         py,
-                        CStr::from_bytes_with_nul(b"utf-16\0").unwrap(),
+                        ffi::c_str!("utf-16"),
                         self.as_bytes(),
                         0..self.as_bytes().len(),
                         CStr::from_bytes_with_nul(&message).unwrap(),
@@ -97,10 +90,10 @@ impl<'a> PyStringData<'a> {
                 Some(s) => Ok(Cow::Owned(s)),
                 None => Err(PyUnicodeDecodeError::new_bound(
                     py,
-                    CStr::from_bytes_with_nul(b"utf-32\0").unwrap(),
+                    ffi::c_str!("utf-32"),
                     self.as_bytes(),
                     0..self.as_bytes().len(),
-                    CStr::from_bytes_with_nul(b"error converting utf-32\0").unwrap(),
+                    ffi::c_str!("error converting utf-32"),
                 )?
                 .into()),
             },
@@ -130,7 +123,33 @@ impl<'a> PyStringData<'a> {
 
 /// Represents a Python `string` (a Unicode string object).
 ///
-/// This type is immutable.
+/// This type is only seen inside PyO3's smart pointers as [`Py<PyString>`], [`Bound<'py, PyString>`],
+/// and [`Borrowed<'a, 'py, PyString>`].
+///
+/// All functionality on this type is implemented through the [`PyStringMethods`] trait.
+///
+/// # Equality
+///
+/// For convenience, [`Bound<'py, PyString>`] implements [`PartialEq<str>`] to allow comparing the
+/// data in the Python string to a Rust UTF-8 string slice.
+///
+/// This is not always the most appropriate way to compare Python strings, as Python string subclasses
+/// may have different equality semantics. In situations where subclasses overriding equality might be
+/// relevant, use [`PyAnyMethods::eq`], at cost of the additional overhead of a Python method call.
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+/// use pyo3::types::PyString;
+///
+/// # Python::with_gil(|py| {
+/// let py_string = PyString::new_bound(py, "foo");
+/// // via PartialEq<str>
+/// assert_eq!(py_string, "foo");
+///
+/// // via Python equality
+/// assert!(py_string.as_any().eq("foo").unwrap());
+/// # });
+/// ```
 #[repr(transparent)]
 pub struct PyString(PyAny);
 
@@ -141,7 +160,7 @@ impl PyString {
     ///
     /// Panics if out of memory.
     pub fn new_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        let ptr = s.as_ptr() as *const c_char;
+        let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
             ffi::PyUnicode_FromStringAndSize(ptr, len)
@@ -159,7 +178,7 @@ impl PyString {
     ///
     /// Panics if out of memory.
     pub fn intern_bound<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        let ptr = s.as_ptr() as *const c_char;
+        let ptr = s.as_ptr().cast();
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
             let mut ob = ffi::PyUnicode_FromStringAndSize(ptr, len);
@@ -181,8 +200,8 @@ impl PyString {
         unsafe {
             ffi::PyUnicode_FromEncodedObject(
                 src.as_ptr(),
-                encoding.as_ptr() as *const c_char,
-                errors.as_ptr() as *const c_char,
+                encoding.as_ptr().cast(),
+                errors.as_ptr().cast(),
             )
             .assume_owned_or_err(src.py())
             .downcast_into_unchecked()
@@ -395,8 +414,8 @@ impl<'a> Borrowed<'a, '_, PyString> {
         let bytes = unsafe {
             ffi::PyUnicode_AsEncodedString(
                 ptr,
-                b"utf-8\0".as_ptr().cast(),
-                b"surrogatepass\0".as_ptr().cast(),
+                ffi::c_str!("utf-8").as_ptr(),
+                ffi::c_str!("surrogatepass").as_ptr(),
             )
             .assume_owned(py)
             .downcast_into_unchecked::<PyBytes>()
@@ -494,6 +513,118 @@ impl IntoPy<Py<PyString>> for &Bound<'_, PyString> {
 impl IntoPy<Py<PyString>> for &'_ Py<PyString> {
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         self.clone_ref(py)
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<str> for Bound<'_, PyString> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<&'_ str> for Bound<'_, PyString> {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        self.as_borrowed() == **other
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<Bound<'_, PyString>> for str {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyString>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<&'_ Bound<'_, PyString>> for str {
+    #[inline]
+    fn eq(&self, other: &&Bound<'_, PyString>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<Bound<'_, PyString>> for &'_ str {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyString>) -> bool {
+        **self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<str> for &'_ Bound<'_, PyString> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_borrowed() == other
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<str> for Borrowed<'_, '_, PyString> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        #[cfg(not(Py_3_13))]
+        {
+            self.to_cow().map_or(false, |s| s == other)
+        }
+
+        #[cfg(Py_3_13)]
+        unsafe {
+            ffi::PyUnicode_EqualToUTF8AndSize(
+                self.as_ptr(),
+                other.as_ptr().cast(),
+                other.len() as _,
+            ) == 1
+        }
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<&str> for Borrowed<'_, '_, PyString> {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        *self == **other
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<Borrowed<'_, '_, PyString>> for str {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyString>) -> bool {
+        other == self
+    }
+}
+
+/// Compares whether the data in the Python string is equal to the given UTF8.
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyString`].
+impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyString>) -> bool {
+        other == self
     }
 }
 
@@ -607,7 +738,7 @@ mod tests {
             let ptr = unsafe {
                 crate::ffi::PyUnicode_FromKindAndData(
                     crate::ffi::PyUnicode_1BYTE_KIND as _,
-                    buffer.as_ptr() as *const _,
+                    buffer.as_ptr().cast(),
                     2,
                 )
             };
@@ -651,7 +782,7 @@ mod tests {
             let ptr = unsafe {
                 crate::ffi::PyUnicode_FromKindAndData(
                     crate::ffi::PyUnicode_2BYTE_KIND as _,
-                    buffer.as_ptr() as *const _,
+                    buffer.as_ptr().cast(),
                     2,
                 )
             };
@@ -692,7 +823,7 @@ mod tests {
             let ptr = unsafe {
                 crate::ffi::PyUnicode_FromKindAndData(
                     crate::ffi::PyUnicode_4BYTE_KIND as _,
-                    buffer.as_ptr() as *const _,
+                    buffer.as_ptr().cast(),
                     2,
                 )
             };
@@ -715,15 +846,15 @@ mod tests {
     fn test_intern_string() {
         Python::with_gil(|py| {
             let py_string1 = PyString::intern_bound(py, "foo");
-            assert_eq!(py_string1.to_cow().unwrap(), "foo");
+            assert_eq!(py_string1, "foo");
 
             let py_string2 = PyString::intern_bound(py, "foo");
-            assert_eq!(py_string2.to_cow().unwrap(), "foo");
+            assert_eq!(py_string2, "foo");
 
             assert_eq!(py_string1.as_ptr(), py_string2.as_ptr());
 
             let py_string3 = PyString::intern_bound(py, "bar");
-            assert_eq!(py_string3.to_cow().unwrap(), "bar");
+            assert_eq!(py_string3, "bar");
 
             assert_ne!(py_string1.as_ptr(), py_string3.as_ptr());
         });
@@ -767,6 +898,36 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(py_string.to_string_lossy(py), "🐈 Hello ���World");
+        })
+    }
+
+    #[test]
+    fn test_comparisons() {
+        Python::with_gil(|py| {
+            let s = "hello, world";
+            let py_string = PyString::new_bound(py, s);
+
+            assert_eq!(py_string, "hello, world");
+
+            assert_eq!(py_string, s);
+            assert_eq!(&py_string, s);
+            assert_eq!(s, py_string);
+            assert_eq!(s, &py_string);
+
+            assert_eq!(py_string, *s);
+            assert_eq!(&py_string, *s);
+            assert_eq!(*s, py_string);
+            assert_eq!(*s, &py_string);
+
+            let py_string = py_string.as_borrowed();
+
+            assert_eq!(py_string, s);
+            assert_eq!(&py_string, s);
+            assert_eq!(s, py_string);
+            assert_eq!(s, &py_string);
+
+            assert_eq!(py_string, *s);
+            assert_eq!(*s, py_string);
         })
     }
 }

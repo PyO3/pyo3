@@ -1,13 +1,4 @@
-use std::{
-    borrow::Cow,
-    ffi::{CStr, CString},
-};
-
-use crate::{
-    exceptions::PyValueError,
-    ffi::{Py_ssize_t, PY_SSIZE_T_MAX},
-    PyResult,
-};
+use crate::ffi::{Py_ssize_t, PY_SSIZE_T_MAX};
 pub struct PrivateMarker;
 
 macro_rules! private_decl {
@@ -193,27 +184,14 @@ pub(crate) fn slice_index_order_fail(index: usize, end: usize) -> ! {
     panic!("slice index starts at {} but ends at {}", index, end);
 }
 
-pub(crate) fn extract_c_string(
-    src: &'static str,
-    err_msg: &'static str,
-) -> PyResult<Cow<'static, CStr>> {
-    let bytes = src.as_bytes();
-    let cow = match bytes {
-        [] => {
-            // Empty string, we can trivially refer to a static "\0" string
-            Cow::Borrowed(unsafe { CStr::from_bytes_with_nul_unchecked(b"\0") })
-        }
-        [.., 0] => {
-            // Last byte is a nul; try to create as a CStr
-            let c_str =
-                CStr::from_bytes_with_nul(bytes).map_err(|_| PyValueError::new_err(err_msg))?;
-            Cow::Borrowed(c_str)
-        }
-        _ => {
-            // Allocate a new CString for this
-            let c_string = CString::new(bytes).map_err(|_| PyValueError::new_err(err_msg))?;
-            Cow::Owned(c_string)
-        }
-    };
-    Ok(cow)
+// TODO: use ptr::from_ref on MSRV 1.76
+#[inline]
+pub(crate) const fn ptr_from_ref<T>(t: &T) -> *const T {
+    t as *const T
+}
+
+// TODO: use ptr::from_mut on MSRV 1.76
+#[inline]
+pub(crate) fn ptr_from_mut<T>(t: &mut T) -> *mut T {
+    t as *mut T
 }

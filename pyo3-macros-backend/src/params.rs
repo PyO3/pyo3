@@ -48,7 +48,7 @@ impl Holders {
     }
 
     pub fn init_holders(&self, ctx: &Ctx) -> TokenStream {
-        let Ctx { pyo3_path } = ctx;
+        let Ctx { pyo3_path, .. } = ctx;
         let holders = &self.holders;
         let gil_refs_checkers = self.gil_refs_checkers.iter().map(|checker| match checker {
             GilRefChecker::FunctionArg(ident) => ident,
@@ -94,7 +94,7 @@ pub(crate) fn check_arg_for_gil_refs(
     gil_refs_checker: syn::Ident,
     ctx: &Ctx,
 ) -> TokenStream {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     quote! {
         #pyo3_path::impl_::deprecations::inspect_type(#tokens, &#gil_refs_checker)
     }
@@ -108,7 +108,7 @@ pub fn impl_arg_params(
     ctx: &Ctx,
 ) -> (TokenStream, Vec<TokenStream>) {
     let args_array = syn::Ident::new("output", Span::call_site());
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
 
     let from_py_with = spec
         .signature
@@ -242,7 +242,7 @@ fn impl_arg_param(
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> TokenStream {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let args_array = syn::Ident::new("output", Span::call_site());
 
     match arg {
@@ -290,7 +290,7 @@ pub(crate) fn impl_regular_arg_param(
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> TokenStream {
-    let Ctx { pyo3_path } = ctx;
+    let Ctx { pyo3_path, .. } = ctx;
     let pyo3_path = pyo3_path.to_tokens_spanned(arg.ty.span());
 
     // Use this macro inside this function, to ensure that all code generated here is associated

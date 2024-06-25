@@ -37,7 +37,7 @@ impl PyModule {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::new_bound(py, "my_module")?;
     ///
-    ///     assert_eq!(module.name()?.to_cow()?, "my_module");
+    ///     assert_eq!(module.name()?, "my_module");
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -220,7 +220,6 @@ impl PyModule {
     /// Returns the filename (the `__file__` attribute) of the module.
     ///
     /// May fail if the module does not have a `__file__` attribute.
-    #[cfg(not(PyPy))]
     pub fn filename(&self) -> PyResult<&str> {
         self.as_borrowed().filename()?.into_gil_ref().to_str()
     }
@@ -429,7 +428,6 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Returns the filename (the `__file__` attribute) of the module.
     ///
     /// May fail if the module does not have a `__file__` attribute.
-    #[cfg(not(PyPy))]
     fn filename(&self) -> PyResult<Bound<'py, PyString>>;
 
     /// Adds an attribute to the module.
@@ -644,12 +642,21 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         }
     }
 
-    #[cfg(not(PyPy))]
     fn filename(&self) -> PyResult<Bound<'py, PyString>> {
+        #[cfg(not(PyPy))]
         unsafe {
             ffi::PyModule_GetFilenameObject(self.as_ptr())
                 .assume_owned_or_err(self.py())
                 .downcast_into_unchecked()
+        }
+
+        #[cfg(PyPy)]
+        {
+            self.dict()
+                .get_item("__file__")
+                .map_err(|_| exceptions::PyAttributeError::new_err("__file__"))?
+                .downcast_into()
+                .map_err(PyErr::from)
         }
     }
 
@@ -721,7 +728,7 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{module::PyModuleMethods, string::PyStringMethods, PyModule},
+        types::{module::PyModuleMethods, PyModule},
         Python,
     };
 
@@ -729,16 +736,13 @@ mod tests {
     fn module_import_and_name() {
         Python::with_gil(|py| {
             let builtins = PyModule::import_bound(py, "builtins").unwrap();
-            assert_eq!(
-                builtins.name().unwrap().to_cow().unwrap().as_ref(),
-                "builtins"
-            );
+            assert_eq!(builtins.name().unwrap(), "builtins");
         })
     }
 
     #[test]
-    #[cfg(not(PyPy))]
     fn module_filename() {
+        use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
             let site = PyModule::import_bound(py, "site").unwrap();
             assert!(site

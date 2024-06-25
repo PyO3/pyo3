@@ -67,8 +67,8 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///  2) If the initialization function `f` provided to `get_or_init` (or `get_or_try_init`)
 ///     temporarily releases the GIL (e.g. by calling `Python::import`) then it is possible
 ///     for a second thread to also begin initializing the `GITOnceCell`. Even when this
-///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs
-///     - this is treated as a race, other threads will discard the value they compute and
+///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs -
+///     this is treated as a race, other threads will discard the value they compute and
 ///     return the result of the first complete computation.
 ///
 /// # Examples
