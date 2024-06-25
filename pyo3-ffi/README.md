@@ -117,7 +117,7 @@ pub unsafe extern "C" fn sum_as_string(
         return std::ptr::null_mut();
     }
 
-    let arg2 = PyInt_AsLong(arg2);
+    let arg2 = PyLong_AsLong(arg2);
     if !PyErr_Occurred().is_null() {
         return ptr::null_mut();
     }
