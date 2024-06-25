@@ -95,7 +95,7 @@ pub unsafe extern "C" fn sum_as_string(
     }
 
     let arg1 = *args;
-    if PyInt_Check(arg1) == 0 {
+    if PyLong_Check(arg1) == 0 {
         PyErr_SetString(
             PyExc_TypeError,
             c_str!("sum_as_string() expected an int for positional argument 1").as_ptr(),
