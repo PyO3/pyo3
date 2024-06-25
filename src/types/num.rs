@@ -7,6 +7,6 @@ use crate::{ffi, PyAny};
 /// and [`extract`](super::PyAnyMethods::extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyLong(PyAny);
+pub struct PyInt(PyAny);
 
-pyobject_native_type_core!(PyLong, pyobject_native_static_type_object!(ffi::PyLong_Type), #checkfunction=ffi::PyLong_Check);
+pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyInt_Type), #checkfunction=ffi::PyInt_Check);
