@@ -2,11 +2,11 @@ use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, IdentFragment, ToTokens};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, Result, Token};
+use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result, Token};
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
@@ -77,6 +77,7 @@ pub struct PyClassPyO3Options {
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
+    pub str: Option<StrFormatterAttribute>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
