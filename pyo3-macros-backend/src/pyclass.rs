@@ -1,16 +1,18 @@
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, Result, Token};
+use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result, Token};
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
+    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FormatIdentity,
+    FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
+    StrFormatterAttribute,
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -19,7 +21,7 @@ use crate::pyfunction::ConstructorAttribute;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__,
+    SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__, __STR__,
 };
 use crate::pyversions;
 use crate::utils::{self, apply_renaming_rule, LitCStr, PythonDoc};
@@ -75,6 +77,7 @@ pub struct PyClassPyO3Options {
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
+    pub str: Option<StrFormatterAttribute>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
@@ -97,6 +100,7 @@ pub enum PyClassPyO3Option {
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
+    Str(StrFormatterAttribute),
     Subclass(kw::subclass),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
@@ -137,6 +141,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Sequence)
         } else if lookahead.peek(attributes::kw::set_all) {
             input.parse().map(PyClassPyO3Option::SetAll)
+        } else if lookahead.peek(attributes::kw::str) {
+            input.parse().map(PyClassPyO3Option::Str)
         } else if lookahead.peek(attributes::kw::subclass) {
             input.parse().map(PyClassPyO3Option::Subclass)
         } else if lookahead.peek(attributes::kw::unsendable) {
@@ -206,6 +212,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
+            PyClassPyO3Option::Str(str) => set_option!(str),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => {
@@ -386,6 +393,18 @@ fn impl_class(
     let Ctx { pyo3_path, .. } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
 
+    if let Some(str) = &args.options.str {
+        if str.value.is_some() {
+            // check if any renaming is present
+            let renaming_conflict = field_options.iter().all(|x| x.1.name.is_none())
+                & args.options.name.is_none()
+                & args.options.rename_all.is_none();
+            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
+        }
+    }
+    let (default_str, default_str_slot) =
+        implement_pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
+
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
@@ -395,6 +414,7 @@ fn impl_class(
     let mut slots = Vec::new();
     slots.extend(default_richcmp_slot);
     slots.extend(default_hash_slot);
+    slots.extend(default_str_slot);
 
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
@@ -424,6 +444,7 @@ fn impl_class(
         impl #cls {
             #default_richcmp
             #default_hash
+            #default_str
         }
     })
 }
@@ -752,6 +773,63 @@ impl EnumVariantPyO3Options {
     }
 }
 
+// todo(remove this dead code allowance once __repr__ is implemented
+#[allow(dead_code)]
+pub enum PyFmtName {
+    Str,
+    Repr,
+}
+
+fn implement_py_formatting(
+    ty: &syn::Type,
+    ctx: &Ctx,
+    option: &StrFormatterAttribute,
+) -> (ImplItemFn, MethodAndSlotDef) {
+    let mut fmt_impl = match &option.value {
+        Some(opt) => {
+            let fmt = &opt.fmt;
+            let args = &opt
+                .args
+                .iter()
+                .map(|member| match member {
+                    FormatIdentity::Attribute(member) => quote! {self.#member},
+                    FormatIdentity::Instance(_) => quote! {self},
+                })
+                .collect::<Vec<TokenStream>>();
+            let fmt_impl: ImplItemFn = syn::parse_quote! {
+                fn __pyo3__generated____str__(&self) -> ::std::string::String {
+                    ::std::format!(#fmt, #(#args, )*)
+                }
+            };
+            fmt_impl
+        }
+        None => {
+            let fmt_impl: syn::ImplItemFn = syn::parse_quote! {
+                fn __pyo3__generated____str__(&self) -> ::std::string::String {
+                    ::std::format!("{}", &self)
+                }
+            };
+            fmt_impl
+        }
+    };
+    let fmt_slot = generate_protocol_slot(ty, &mut fmt_impl, &__STR__, "__str__", ctx).unwrap();
+    (fmt_impl, fmt_slot)
+}
+
+fn implement_pyclass_str(
+    options: &PyClassPyO3Options,
+    ty: &syn::Type,
+    ctx: &Ctx,
+) -> (Option<ImplItemFn>, Option<MethodAndSlotDef>) {
+    match &options.str {
+        Some(option) => {
+            let (default_str, default_str_slot) = implement_py_formatting(ty, ctx, option);
+            (Some(default_str), Some(default_str_slot))
+        }
+        _ => (None, None),
+    }
+}
+
 fn impl_enum(
     enum_: PyClassEnum<'_>,
     args: &PyClassArgs,
@@ -808,6 +886,17 @@ fn impl_simple_enum(
         (repr_impl, repr_slot)
     };
 
+    if let Some(str) = &args.options.str {
+        if str.value.is_some() {
+            // check if any renaming is present
+            let renaming_conflict = variants.iter().all(|x| x.options.name.is_none())
+                & args.options.name.is_none()
+                & args.options.rename_all.is_none();
+            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
+        }
+    }
+    let (default_str, default_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
+
     let repr_type = &simple_enum.repr_type;
 
     let (default_int, default_int_slot) = {
@@ -834,6 +923,7 @@ fn impl_simple_enum(
     let mut default_slots = vec![default_repr_slot, default_int_slot];
     default_slots.extend(default_richcmp_slot);
     default_slots.extend(default_hash_slot);
+    default_slots.extend(default_str_slot);
 
     let pyclass_impls = PyClassImplsBuilder::new(
         cls,
@@ -861,6 +951,7 @@ fn impl_simple_enum(
             #default_int
             #default_richcmp
             #default_hash
+            #default_str
         }
     })
 }
@@ -894,9 +985,21 @@ fn impl_complex_enum(
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
+    if let Some(str) = &args.options.str {
+        if str.value.is_some() {
+            // check if any renaming is present
+            let renaming_conflict = variants.iter().all(|x| x.get_options().name.is_none())
+                & args.options.name.is_none()
+                & args.options.rename_all.is_none();
+            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
+        }
+    }
+    let (default_str, default_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
+
     let mut default_slots = vec![];
     default_slots.extend(default_richcmp_slot);
     default_slots.extend(default_hash_slot);
+    default_slots.extend(default_str_slot);
 
     let impl_builder = PyClassImplsBuilder::new(
         cls,
@@ -1009,6 +1112,7 @@ fn impl_complex_enum(
         impl #cls {
             #default_richcmp
             #default_hash
+            #default_str
         }
 
         #(#variant_cls_zsts)*
