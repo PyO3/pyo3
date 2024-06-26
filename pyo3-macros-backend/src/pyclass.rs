@@ -1844,9 +1844,13 @@ fn pyclass_richcmp(
                 op: #pyo3_path::pyclass::CompareOp
             ) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
                 let self_val = self;
-                let other = &*#pyo3_path::types::PyAnyMethods::downcast::<Self>(other)?.borrow();
-                match op {
-                    #arms
+                if let Ok(other) = #pyo3_path::types::PyAnyMethods::downcast::<Self>(other) {
+                    let other = &*other.borrow();
+                    match op {
+                        #arms
+                    }
+                } else {
+                    ::std::result::Result::Ok(py.NotImplemented())
                 }
             }
         };
