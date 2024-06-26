@@ -9,8 +9,8 @@ use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, Result, Token};
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
+    self, kw, take_pyo3_options, CrateAttribute, ErrorCombiner, ExtendsAttribute,
+    FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
@@ -245,34 +245,52 @@ pub fn build_py_class(
             For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
     );
 
-    let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
-        syn::Fields::Named(fields) => fields
-            .named
-            .iter_mut()
-            .map(|field| {
-                FieldPyO3Options::take_pyo3_options(&mut field.attrs)
-                    .map(move |options| (&*field, options))
-            })
-            .collect::<Result<_>>()?,
-        syn::Fields::Unnamed(fields) => fields
-            .unnamed
-            .iter_mut()
-            .map(|field| {
-                FieldPyO3Options::take_pyo3_options(&mut field.attrs)
-                    .map(move |options| (&*field, options))
-            })
-            .collect::<Result<_>>()?,
-        syn::Fields::Unit => {
-            if let Some(attr) = args.options.set_all {
-                return Err(syn::Error::new_spanned(attr, UNIT_SET));
-            };
-            if let Some(attr) = args.options.get_all {
-                return Err(syn::Error::new_spanned(attr, UNIT_GET));
-            };
-            // No fields for unit struct
-            Vec::new()
-        }
-    };
+    let mut field_options_res: Vec<Result<(&syn::Field, FieldPyO3Options)>> =
+        match &mut class.fields {
+            syn::Fields::Named(fields) => fields
+                .named
+                .iter_mut()
+                .map(|field| {
+                    FieldPyO3Options::take_pyo3_options(&mut field.attrs)
+                        .map(move |options| (&*field, options))
+                })
+                .collect::<Vec<_>>(),
+            syn::Fields::Unnamed(fields) => fields
+                .unnamed
+                .iter_mut()
+                .map(|field| {
+                    FieldPyO3Options::take_pyo3_options(&mut field.attrs)
+                        .map(move |options| (&*field, options))
+                })
+                .collect::<Vec<_>>(),
+            syn::Fields::Unit => {
+                if let Some(attr) = args.options.set_all {
+                    return Err(syn::Error::new_spanned(attr, UNIT_SET));
+                };
+                if let Some(attr) = args.options.get_all {
+                    return Err(syn::Error::new_spanned(attr, UNIT_GET));
+                };
+                // No fields for unit struct
+                Vec::new()
+            }
+        };
+
+    // handle error here
+
+    let mut all_error = ErrorCombiner(None);
+
+    let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = field_options_res
+        .drain(..)
+        .filter_map(|result| match result {
+            Err(err) => {
+                all_error.combine(err);
+                None
+            }
+            Ok(options) => Some(options),
+        })
+        .collect::<Vec<_>>();
+
+    all_error.ensure_empty()?;
 
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {

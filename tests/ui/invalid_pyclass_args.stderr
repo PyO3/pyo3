@@ -82,6 +82,24 @@ error: The `ord` option requires the `eq` option.
 74 | #[pyclass(ord)]
    |           ^^^
 
+error: expected one of: `get`, `set`, `name`
+  --> tests/ui/invalid_pyclass_args.rs:81:12
+   |
+81 |     #[pyo3(foo)]
+   |            ^^^
+
+error: expected one of: `get`, `set`, `name`
+  --> tests/ui/invalid_pyclass_args.rs:82:12
+   |
+82 |     #[pyo3(blah)]
+   |            ^^^^
+
+error: expected one of: `get`, `set`, `name`
+  --> tests/ui/invalid_pyclass_args.rs:84:12
+   |
+84 |     #[pyo3(pop)]
+   |            ^^^
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:36:1
    |
