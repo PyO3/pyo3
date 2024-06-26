@@ -8,7 +8,7 @@ use crate::{
     get_doc,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
-    utils::{Ctx, LitCStr},
+    utils::{Ctx, LitCStr, PyO3CratePath},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -227,7 +227,14 @@ pub fn pymodule_module_impl(
                     !has_attribute(&item_mod.attrs, "pymodule_export"),
                     item.span() => "`#[pymodule_export]` may only be used on `use` statements"
                 );
-                if has_attribute(&item_mod.attrs, "pymodule") {
+                if has_attribute(&item_mod.attrs, "pymodule")
+                    || has_attribute_with_namespace(&item_mod.attrs, Some(pyo3_path), &["pymodule"])
+                    || has_attribute_with_namespace(
+                        &item_mod.attrs,
+                        Some(pyo3_path),
+                        &["prelude", "pymodule"],
+                    )
+                {
                     module_items.push(item_mod.ident.clone());
                     module_items_cfg_attrs.push(get_cfg_attributes(&item_mod.attrs));
                     if !has_pyo3_module_declared::<PyModulePyO3Option>(
@@ -555,8 +562,48 @@ fn find_and_remove_attribute(attrs: &mut Vec<syn::Attribute>, ident: &str) -> bo
     found
 }
 
+enum IdentOrStr<'a> {
+    Str(&'a str),
+    Ident(syn::Ident),
+}
+
+impl<'a> PartialEq<syn::Ident> for IdentOrStr<'a> {
+    fn eq(&self, other: &syn::Ident) -> bool {
+        match self {
+            IdentOrStr::Str(s) => other == s,
+            IdentOrStr::Ident(i) => other == i,
+        }
+    }
+}
 fn has_attribute(attrs: &[syn::Attribute], ident: &str) -> bool {
-    attrs.iter().any(|attr| attr.path().is_ident(ident))
+    has_attribute_with_namespace(attrs, None, &[ident])
+}
+
+fn has_attribute_with_namespace(
+    attrs: &[syn::Attribute],
+    crate_path: Option<&PyO3CratePath>,
+    idents: &[&str],
+) -> bool {
+    let mut segments = vec![];
+    if let Some(c) = crate_path {
+        match c {
+            PyO3CratePath::Given(paths) => {
+                for p in &paths.segments {
+                    segments.push(IdentOrStr::Ident(p.ident.clone()));
+                }
+            }
+            PyO3CratePath::Default => segments.push(IdentOrStr::Str("pyo3")),
+        }
+    };
+    for i in idents {
+        segments.push(IdentOrStr::Str(i));
+    }
+
+    attrs.iter().any(|attr| {
+        segments
+            .iter()
+            .eq(attr.path().segments.iter().map(|v| &v.ident))
+    })
 }
 
 fn set_module_attribute(attrs: &mut Vec<syn::Attribute>, module_name: &str) {
