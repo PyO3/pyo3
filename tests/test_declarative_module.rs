@@ -124,6 +124,9 @@ mod declarative_module {
         struct Struct;
     }
 
+    #[pyo3::prelude::pymodule]
+    mod full_path_inner {}
+
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add("double2", m.getattr("double")?)
@@ -245,5 +248,13 @@ fn test_module_names() {
             m,
             "m.inner_custom_root.Struct.__module__ == 'custom_root.inner_custom_root'"
         );
+    })
+}
+
+#[test]
+fn test_inner_module_full_path() {
+    Python::with_gil(|py| {
+        let m = declarative_module(py);
+        py_assert!(py, m, "m.full_path_inner");
     })
 }
