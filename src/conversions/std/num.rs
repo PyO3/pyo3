@@ -238,15 +238,18 @@ mod fast_128bit_int_conversion {
                         unsafe { ffi::PyNumber_Index(ob.as_ptr()).assume_owned_or_err(ob.py())? };
                     let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
                     #[cfg(not(Py_3_13))]
-                    crate::err::error_on_minusone(ob.py(), unsafe {
-                        ffi::_PyLong_AsByteArray(
-                            num.as_ptr() as *mut ffi::PyLongObject,
-                            buffer.as_mut_ptr(),
-                            buffer.len(),
-                            1,
-                            $is_signed.into(),
-                        )
-                    })?;
+                    {
+                        crate::err::error_on_minusone(ob.py(), unsafe {
+                            ffi::_PyLong_AsByteArray(
+                                num.as_ptr() as *mut ffi::PyLongObject,
+                                buffer.as_mut_ptr(),
+                                buffer.len(),
+                                1,
+                                $is_signed.into(),
+                            )
+                        })?;
+                        Ok(<$rust_type>::from_le_bytes(buffer))
+                    }
                     #[cfg(Py_3_13)]
                     {
                         let mut flags = ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN;
@@ -272,8 +275,8 @@ mod fast_128bit_int_conversion {
                                 "Python int larger than 128 bits",
                             ));
                         }
+                        Ok(<$rust_type>::from_ne_bytes(buffer))
                     }
-                    Ok(<$rust_type>::from_ne_bytes(buffer))
                 }
 
                 #[cfg(feature = "experimental-inspect")]
