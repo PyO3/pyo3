@@ -54,7 +54,7 @@ use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
     ffi,
     instance::Bound,
-    types::{any::PyAnyMethods, PyLong},
+    types::{any::PyAnyMethods, PyInt},
     FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 

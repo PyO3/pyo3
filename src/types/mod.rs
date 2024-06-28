@@ -34,8 +34,7 @@ pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-pub use self::num::PyLong;
-pub use self::num::PyLong as PyInt;
+pub use self::num::PyInt;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::{PySequence, PySequenceMethods};
