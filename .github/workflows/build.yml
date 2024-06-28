@@ -16,6 +16,9 @@ on:
       rust-target:
         required: true
         type: string
+      MSRV:
+        required: true
+        type: string
 
 jobs:
   build:
@@ -51,9 +54,9 @@ jobs:
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-      - if: inputs.rust == '1.63.0'
-        name: Prepare minimal package versions (MSRV only)
-        run: nox -s set-minimal-package-versions
+      - if: inputs.rust == inputs.MSRV
+        name: Prepare MSRV package versions
+        run: nox -s set-msrv-package-versions
 
       - if: inputs.rust != 'stable'
         name: Ignore changed error messages when using trybuild
