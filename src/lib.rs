@@ -494,6 +494,7 @@ mod macros;
 
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;
+mod pyref_map;
 
 /// Ths module only contains re-exports of pyo3 deprecation warnings and exists
 /// purely to make compiler error messages nicer.
