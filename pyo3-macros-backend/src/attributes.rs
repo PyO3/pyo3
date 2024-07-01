@@ -41,6 +41,7 @@ pub mod kw {
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
+    syn::custom_keyword!(sealedclass);
 }
 
 #[derive(Clone, Debug)]
