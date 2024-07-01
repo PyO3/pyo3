@@ -547,6 +547,12 @@ struct PyClassComplexEnum<'a> {
 
 impl<'a> PyClassComplexEnum<'a> {
     fn new(enum_: &'a mut syn::ItemEnum, args: &PyClassArgs) -> syn::Result<Self> {
+        let witness = enum_
+            .variants
+            .iter()
+            .find(|variant| !matches!(variant.fields, syn::Fields::Unit))
+            .map(|variant| variant.ident.to_owned());
+
         let extract_variant_data =
             |variant: &'a mut syn::Variant| -> syn::Result<PyClassEnumVariant<'a>> {
                 use syn::Fields;
@@ -555,15 +561,8 @@ impl<'a> PyClassComplexEnum<'a> {
 
                 let variant = match &variant.fields {
                     Fields::Unit => {
+                        let witness = witness.as_ref().expect("complex enum has a non-unit variant");
                         if args.options.sealedclass.is_none() {
-                            let witness = enum_
-                                .variants
-                                .iter()
-                                .find(|variant| !matches!(variant, syn::Fields::Unit))
-                                .expect("complex enum has a non-unit variant")
-                                .ident
-                                .to_owned();
-
                             bail_spanned!(variant.span() => format!(
                             "Unit variant `{ident}` is not yet supported in a complex enum\n\
                             = help: change to an empty tuple variant instead: `{ident}()`\n\
