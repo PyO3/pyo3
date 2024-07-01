@@ -556,11 +556,19 @@ impl<'a> PyClassComplexEnum<'a> {
                 let variant = match &variant.fields {
                     Fields::Unit => {
                         if args.options.sealedclass.is_none() {
+                            let witness = enum_
+                                .variants
+                                .iter()
+                                .find(|variant| !matches!(variant, syn::Fields::Unit))
+                                .expect("complex enum has a non-unit variant")
+                                .ident
+                                .to_owned();
+
                             bail_spanned!(variant.span() => format!(
                             "Unit variant `{ident}` is not yet supported in a complex enum\n\
                             = help: change to an empty tuple variant instead: `{ident}()`\n\
                             = note: the enum is complex because of non-unit variant `{witness}`",
-                            ident=ident, witness=variant.ident))
+                            ident=ident, witness=witness))
                         } else {
                             PyClassEnumVariant::Unit(PyClassEnumUnitVariant { ident, options })
                         }
