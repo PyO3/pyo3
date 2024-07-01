@@ -176,6 +176,7 @@ about this topic.
 - [pythonize](https://github.com/davidhewitt/pythonize) _Serde serializer for converting Rust objects to JSON-compatible Python objects_
 - [pyo3-asyncio](https://github.com/awestlake87/pyo3-asyncio) _Utilities for working with Python's Asyncio library and async functions_
 - [rustimport](https://github.com/mityax/rustimport) _Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically._
+- [pyo3-arrow](https://crates.io/crates/pyo3-arrow) _Lightweight [Apache Arrow](https://arrow.apache.org/) integration for pyo3._
 
 ## Examples
 
