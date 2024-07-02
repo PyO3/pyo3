@@ -1029,20 +1029,7 @@ fn impl_complex_enum(
             impl_complex_enum_variant_cls(cls, &variant, ctx)?;
         variant_cls_impls.push(variant_cls_impl);
 
-        let has_new_fn = !matches!(variant, PyClassEnumVariant::Unit(_)) || {
-            let field_is_tuple = variant
-                .get_options()
-                .unit_variant
-                .as_ref()
-                .map(|opt| matches!(opt.value, UnitVariantAttributeValue::TupleLike));
-            let default_is_tuple = args
-                .options
-                .unit_variants
-                .as_ref()
-                .is_some_and(|opt| matches!(opt.value, UnitVariantsAttributeValue::TupleLike));
-            field_is_tuple.unwrap_or(default_is_tuple)
-        };
-
+        let has_new_fn = !matches!(variant, PyClassEnumVariant::Unit(PyClassEnumUnitVariant { tuple_like: false, .. }));
         if has_new_fn {
             let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
             slots.push(variant_new);
