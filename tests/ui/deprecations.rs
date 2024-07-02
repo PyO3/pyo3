@@ -39,9 +39,6 @@ impl MyClass {
     #[setter]
     fn set_bar_bound(&self, _value: &Bound<'_, PyAny>) {}
 
-    #[setter]
-    fn set_option(&self, _value: Option<i32>) {}
-
     fn __eq__(&self, #[pyo3(from_py_with = "extract_gil_ref")] _other: i32) -> bool {
         true
     }

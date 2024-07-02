@@ -51,6 +51,7 @@ impl<'ctx> ToTokens for Deprecations<'ctx> {
 
 pub(crate) fn deprecate_trailing_option_default(spec: &FnSpec<'_>) -> TokenStream {
     if spec.signature.attribute.is_none()
+        && spec.tp.signature_attribute_allowed()
         && spec.signature.arguments.iter().any(|arg| {
             if let FnArg::Regular(arg) = arg {
                 arg.option_wrapped_type.is_some()
