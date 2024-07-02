@@ -93,4 +93,10 @@ enum InvalidOrderedComplexEnum2 {
     VariantB { msg: String }
 }
 
+#[pyclass(sealedclass)]
+enum AllowedUnitVariants {
+    StructVariant { field: u64 },
+    UnitVariant,
+}
+
 fn main() {}
