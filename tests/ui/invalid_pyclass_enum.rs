@@ -93,10 +93,27 @@ enum InvalidOrderedComplexEnum2 {
     VariantB { msg: String }
 }
 
-#[pyclass(sealedclass)]
-enum AllowedUnitVariants {
+#[pyclass(unit_variants="c-like")]
+enum CLikeUnitVariants {
     StructVariant { field: u64 },
-    UnitVariant,
+    UnitVariantA,
+    UnitVariantB,
+}
+
+#[pyclass(unit_variants="tuple-like")]
+enum TupleLikeUnitVariants {
+    StructVariant { field: u64 },
+    UnitVariantA,
+    UnitVariantB,
+}
+
+#[pyclass]
+enum MixedUnitVariants {
+    StructVariant { field: u64 },
+    #[pyo3(unit_variant="c-like")]
+    CLike,
+    #[pyo3(unit_variant="tuple-like")]
+    TupleLike,
 }
 
 fn main() {}

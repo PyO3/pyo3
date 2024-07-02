@@ -152,7 +152,7 @@ fn pyclass_impl(
     mut ast: syn::ItemStruct,
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
-    let args = parse_macro_input!(attrs with PyClassArgs::parse_stuct_args);
+    let args = parse_macro_input!(attrs with PyClassArgs::parse_struct_args);
     let expanded = build_py_class(&mut ast, args, methods_type).unwrap_or_compile_error();
 
     quote!(

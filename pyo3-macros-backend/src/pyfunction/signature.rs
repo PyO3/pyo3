@@ -5,7 +5,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
-    Token,
+    LitStr, Token,
 };
 
 use crate::{
@@ -195,8 +195,35 @@ impl ToTokens for SignatureItemPosargsSep {
     }
 }
 
+#[derive(Clone)]
+pub enum UnitVariantAttributeValue {
+    CLike,
+    TupleLike,
+}
+
+impl Parse for UnitVariantAttributeValue {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let lit: LitStr = input.parse()?;
+        Ok(match lit.value().as_str() {
+            "c-like" => Self::CLike,
+            "tuple-like" => Self::TupleLike,
+            _ => bail_spanned!(lit.span() => "unit_variant must be 'c-like' or 'tuple-like'"),
+        })
+    }
+}
+
+impl ToTokens for UnitVariantAttributeValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::CLike => "c-like".to_tokens(tokens),
+            Self::TupleLike => "tuple-like".to_tokens(tokens),
+        }
+    }
+}
+
 pub type SignatureAttribute = KeywordAttribute<kw::signature, Signature>;
 pub type ConstructorAttribute = KeywordAttribute<kw::constructor, Signature>;
+pub type UnitVariantAttribute = KeywordAttribute<kw::unit_variant, UnitVariantAttributeValue>;
 
 impl ConstructorAttribute {
     pub fn into_signature(self) -> SignatureAttribute {

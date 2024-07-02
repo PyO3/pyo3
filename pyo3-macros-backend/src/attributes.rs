@@ -41,7 +41,8 @@ pub mod kw {
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
-    syn::custom_keyword!(sealedclass);
+    syn::custom_keyword!(unit_variants);
+    syn::custom_keyword!(unit_variant);
 }
 
 #[derive(Clone, Debug)]
@@ -173,12 +174,39 @@ impl ToTokens for TextSignatureAttributeValue {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum UnitVariantsAttributeValue {
+    CLike,
+    TupleLike,
+}
+
+impl Parse for UnitVariantsAttributeValue {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let lit = input.parse::<LitStr>()?;
+        Ok(match lit.value().as_str() {
+            "c-like" => Self::CLike,
+            "tuple-like" => Self::TupleLike,
+            _ => bail_spanned!(lit.span() => "unit_variants must be 'c-like' or 'tuple-like'"),
+        })
+    }
+}
+
+impl ToTokens for UnitVariantsAttributeValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            UnitVariantsAttributeValue::CLike => "c-like".to_tokens(tokens),
+            UnitVariantsAttributeValue::TupleLike => "tuple-like".to_tokens(tokens),
+        }
+    }
+}
+
 pub type ExtendsAttribute = KeywordAttribute<kw::extends, Path>;
 pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
 pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
 pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
 pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitStr>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
+pub type UnitVariantsAttribute = KeywordAttribute<kw::unit_variants, UnitVariantsAttributeValue>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
