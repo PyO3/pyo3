@@ -236,6 +236,8 @@ impl FnType {
             | FnType::FnClass(_)
             | FnType::FnNewClass(_)
             | FnType::FnModule(_) => true,
+            // Setter, Getter and ClassAttribute all have fixed signatures (either take 0 or 1
+            // arguments) so cannot have a `signature = (...)` attribute.
             FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => false,
         }
     }
