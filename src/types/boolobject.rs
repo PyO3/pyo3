@@ -72,6 +72,86 @@ impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     }
 }
 
+/// Compare Bound<PyBool> with bool.
+impl PartialEq<bool> for Bound<'_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &bool) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
+/// Compare &Bound<PyBool> with bool.
+impl PartialEq<bool> for &'_ Bound<'_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &bool) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
+/// Compare Bound<PyBool> with &bool.
+impl PartialEq<&'_ bool> for Bound<'_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &&bool) -> bool {
+        self.as_borrowed() == **other
+    }
+}
+
+/// Compare bool with Bound<PyBool>
+impl PartialEq<Bound<'_, PyBool>> for bool {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBool>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compare bool with &Bound<PyBool>
+impl PartialEq<&'_ Bound<'_, PyBool>> for bool {
+    #[inline]
+    fn eq(&self, other: &&'_ Bound<'_, PyBool>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compare &bool with Bound<PyBool>
+impl PartialEq<Bound<'_, PyBool>> for &'_ bool {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBool>) -> bool {
+        **self == other.as_borrowed()
+    }
+}
+
+/// Compare Borrowed<PyBool> with bool
+impl PartialEq<bool> for Borrowed<'_, '_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &bool) -> bool {
+        self.is_true() == *other
+    }
+}
+
+/// Compare Borrowed<PyBool> with &bool
+impl PartialEq<&bool> for Borrowed<'_, '_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &&bool) -> bool {
+        self.is_true() == **other
+    }
+}
+
+/// Compare bool with Borrowed<PyBool>
+impl PartialEq<Borrowed<'_, '_, PyBool>> for bool {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
+        *self == other.is_true()
+    }
+}
+
+/// Compare &bool with Borrowed<PyBool>
+impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
+        **self == other.is_true()
+    }
+}
+
 /// Converts a Rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
     #[inline]
@@ -190,5 +270,50 @@ mod tests {
             assert!(!t.extract::<bool>().unwrap());
             assert!(false.to_object(py).is(&*PyBool::new_bound(py, false)));
         });
+    }
+
+    #[test]
+    fn test_pybool_comparisons() {
+        Python::with_gil(|py| {
+            let py_bool = PyBool::new_bound(py, true);
+            let rust_bool = true;
+
+            // Bound<'_, PyBool> == bool
+            assert_eq!(*py_bool, rust_bool);
+
+            // Bound<'_, PyBool> == &bool
+            assert_eq!(*py_bool, &rust_bool);
+
+            // &Bound<'_, PyBool> == bool
+            assert_eq!(&*py_bool, rust_bool);
+
+            // &Bound<'_, PyBool> == &bool
+            assert_eq!(&*py_bool, &rust_bool);
+
+            // bool == Bound<'_, PyBool>
+            assert_eq!(rust_bool, *py_bool);
+
+            // bool == &Bound<'_, PyBool>
+            assert_eq!(rust_bool, &*py_bool);
+
+            // &bool == Bound<'_, PyBool>
+            assert_eq!(&rust_bool, *py_bool);
+
+            // &bool == &Bound<'_, PyBool>
+            assert_eq!(&rust_bool, &*py_bool);
+
+            // Borrowed<'_, '_, PyBool> == bool
+            assert_eq!(py_bool, rust_bool);
+
+            // Borrowed<'_, '_, PyBool> == &bool
+            assert_eq!(py_bool, &rust_bool);
+
+            // bool == Borrowed<'_, '_, PyBool>
+            assert_eq!(rust_bool, py_bool);
+
+            // &bool == Borrowed<'_, '_, PyBool>
+            assert_eq!(&rust_bool, py_bool);
+            assert_eq!(py_bool, rust_bool)
+        })
     }
 }
