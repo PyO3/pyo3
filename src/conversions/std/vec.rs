@@ -8,9 +8,7 @@ where
     T: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let mut iter = self.iter().map(|e| e.to_object(py));
-        let list = new_from_iter(py, &mut iter);
-        list.into()
+        T::slice_to_object(self, py)
     }
 }
 
@@ -19,7 +17,7 @@ where
     T: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_slice().to_object(py)
+        T::slice_to_object(self, py)
     }
 }
 
