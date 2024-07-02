@@ -117,7 +117,7 @@ You can run these tests yourself with
 
 #### UI Tests
 
-PyO3 uses [`trybuild`][trybuild] to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
+PyO3 uses [`trybuild`](https://github.com/dtolnay/trybuild) to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
 
 Because there are several feature combinations for these UI tests, when updating them all (e.g. for a new Rust compiler version) it may be helpful to use the `update-ui-tests` nox session:
 
