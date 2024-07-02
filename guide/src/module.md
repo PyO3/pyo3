@@ -155,7 +155,6 @@ For nested modules, the name of the parent module is automatically added.
 In the following example, the `Unit` class will have for `module` `my_extension.submodule` because it is properly nested
 but the `Ext` class will have for `module` the default `builtins` because it not nested.
 
-You can provide the `submodule` argument to `pymodule()` for modules that are not top-level modules.
 ```rust
 # mod declarative_module_module_attr_test {
 use pyo3::prelude::*;
@@ -170,7 +169,7 @@ mod my_extension {
     #[pymodule_export]
     use super::Ext;
 
-    #[pymodule(submodule)]
+    #[pymodule]
     mod submodule {
         use super::*;
         // This is a submodule
@@ -183,3 +182,4 @@ mod my_extension {
 ```
 It is possible to customize the `module` value for a `#[pymodule]` with the `#[pyo3(module = "MY_MODULE")]` option.
 
+You can provide the `submodule` argument to `pymodule()` for modules that are not top-level modules -- it is automatically set for modules nested inside of a `#[pymodule]`.
