@@ -49,6 +49,10 @@ create_exception!(
     "Some description."
 );
 
+#[pymodule]
+#[pyo3(submodule)]
+mod external_submodule {}
+
 /// A module written using declarative syntax.
 #[pymodule]
 mod declarative_module {
@@ -69,6 +73,9 @@ mod declarative_module {
     // test for #4036
     #[pymodule_export]
     use super::some_module::SomeException;
+
+    #[pymodule_export]
+    use super::external_submodule;
 
     #[pymodule]
     mod inner {
@@ -108,7 +115,7 @@ mod declarative_module {
         }
     }
 
-    #[pymodule]
+    #[pymodule(submodule)]
     #[pyo3(module = "custom_root")]
     mod inner_custom_root {
         use super::*;
@@ -174,6 +181,7 @@ fn test_declarative_module() {
         py_assert!(py, m, "hasattr(m, 'LocatedClass')");
         py_assert!(py, m, "isinstance(m.inner.Struct(), m.inner.Struct)");
         py_assert!(py, m, "isinstance(m.inner.Enum.A, m.inner.Enum)");
+        py_assert!(py, m, "hasattr(m, 'external_submodule')")
     })
 }
 

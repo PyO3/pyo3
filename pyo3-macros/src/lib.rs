@@ -3,7 +3,7 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
     pymodule_function_impl, pymodule_module_impl, PyClassArgs, PyClassMethodsType,
@@ -35,10 +35,26 @@ use syn::{parse::Nothing, parse_macro_input, Item};
 /// [1]: https://pyo3.rs/latest/module.html
 #[proc_macro_attribute]
 pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
-    parse_macro_input!(args as Nothing);
     match parse_macro_input!(input as Item) {
-        Item::Mod(module) => pymodule_module_impl(module),
-        Item::Fn(function) => pymodule_function_impl(function),
+        Item::Mod(module) => {
+            let is_submodule = match parse_macro_input!(args as Option<syn::Ident>) {
+                Some(i) if i == "submodule" => true,
+                Some(_) => {
+                    return syn::Error::new(
+                        Span::call_site(),
+                        "#[pymodule] only accepts submodule as an argument",
+                    )
+                    .into_compile_error()
+                    .into();
+                }
+                None => false,
+            };
+            pymodule_module_impl(module, is_submodule)
+        }
+        Item::Fn(function) => {
+            parse_macro_input!(args as Nothing);
+            pymodule_function_impl(function)
+        }
         unsupported => Err(syn::Error::new_spanned(
             unsupported,
             "#[pymodule] only supports modules and functions.",
