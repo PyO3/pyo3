@@ -72,7 +72,7 @@ impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     }
 }
 
-/// Compare Bound<PyBool> with bool.
+/// Compare `Bound<PyBool>` with `bool`.
 impl PartialEq<bool> for Bound<'_, PyBool> {
     #[inline]
     fn eq(&self, other: &bool) -> bool {
@@ -80,7 +80,7 @@ impl PartialEq<bool> for Bound<'_, PyBool> {
     }
 }
 
-/// Compare &Bound<PyBool> with bool.
+/// Compare `&Bound<PyBool>` with `bool`.
 impl PartialEq<bool> for &'_ Bound<'_, PyBool> {
     #[inline]
     fn eq(&self, other: &bool) -> bool {
@@ -88,7 +88,7 @@ impl PartialEq<bool> for &'_ Bound<'_, PyBool> {
     }
 }
 
-/// Compare Bound<PyBool> with &bool.
+/// Compare `Bound<PyBool>` with `&bool`.
 impl PartialEq<&'_ bool> for Bound<'_, PyBool> {
     #[inline]
     fn eq(&self, other: &&bool) -> bool {
@@ -96,7 +96,7 @@ impl PartialEq<&'_ bool> for Bound<'_, PyBool> {
     }
 }
 
-/// Compare bool with Bound<PyBool>
+/// Compare `bool` with `Bound<PyBool>`
 impl PartialEq<Bound<'_, PyBool>> for bool {
     #[inline]
     fn eq(&self, other: &Bound<'_, PyBool>) -> bool {
@@ -104,7 +104,7 @@ impl PartialEq<Bound<'_, PyBool>> for bool {
     }
 }
 
-/// Compare bool with &Bound<PyBool>
+/// Compare `bool` with `&Bound<PyBool>`
 impl PartialEq<&'_ Bound<'_, PyBool>> for bool {
     #[inline]
     fn eq(&self, other: &&'_ Bound<'_, PyBool>) -> bool {
@@ -112,7 +112,7 @@ impl PartialEq<&'_ Bound<'_, PyBool>> for bool {
     }
 }
 
-/// Compare &bool with Bound<PyBool>
+/// Compare `&bool` with `Bound<PyBool>`
 impl PartialEq<Bound<'_, PyBool>> for &'_ bool {
     #[inline]
     fn eq(&self, other: &Bound<'_, PyBool>) -> bool {
@@ -120,7 +120,7 @@ impl PartialEq<Bound<'_, PyBool>> for &'_ bool {
     }
 }
 
-/// Compare Borrowed<PyBool> with bool
+/// Compare `Borrowed<PyBool>` with `bool`
 impl PartialEq<bool> for Borrowed<'_, '_, PyBool> {
     #[inline]
     fn eq(&self, other: &bool) -> bool {
@@ -128,7 +128,7 @@ impl PartialEq<bool> for Borrowed<'_, '_, PyBool> {
     }
 }
 
-/// Compare Borrowed<PyBool> with &bool
+/// Compare `Borrowed<PyBool>` with `&bool`
 impl PartialEq<&bool> for Borrowed<'_, '_, PyBool> {
     #[inline]
     fn eq(&self, other: &&bool) -> bool {
@@ -136,7 +136,7 @@ impl PartialEq<&bool> for Borrowed<'_, '_, PyBool> {
     }
 }
 
-/// Compare bool with Borrowed<PyBool>
+/// Compare `bool` with `Borrowed<PyBool>`
 impl PartialEq<Borrowed<'_, '_, PyBool>> for bool {
     #[inline]
     fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
@@ -144,7 +144,7 @@ impl PartialEq<Borrowed<'_, '_, PyBool>> for bool {
     }
 }
 
-/// Compare &bool with Borrowed<PyBool>
+/// Compare `&bool` with `Borrowed<PyBool>`
 impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
     #[inline]
     fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
