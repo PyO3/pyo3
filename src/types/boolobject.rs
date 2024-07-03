@@ -276,44 +276,58 @@ mod tests {
     fn test_pybool_comparisons() {
         Python::with_gil(|py| {
             let py_bool = PyBool::new_bound(py, true);
+            let py_bool_false = PyBool::new_bound(py, false);
             let rust_bool = true;
 
             // Bound<'_, PyBool> == bool
             assert_eq!(*py_bool, rust_bool);
+            assert_ne!(*py_bool_false, rust_bool);
 
             // Bound<'_, PyBool> == &bool
             assert_eq!(*py_bool, &rust_bool);
+            assert_ne!(*py_bool_false, &rust_bool);
 
             // &Bound<'_, PyBool> == bool
             assert_eq!(&*py_bool, rust_bool);
+            assert_ne!(&*py_bool_false, rust_bool);
 
             // &Bound<'_, PyBool> == &bool
             assert_eq!(&*py_bool, &rust_bool);
+            assert_ne!(&*py_bool_false, &rust_bool);
 
             // bool == Bound<'_, PyBool>
             assert_eq!(rust_bool, *py_bool);
+            assert_ne!(rust_bool, *py_bool_false);
 
             // bool == &Bound<'_, PyBool>
             assert_eq!(rust_bool, &*py_bool);
+            assert_ne!(rust_bool, &*py_bool_false);
 
             // &bool == Bound<'_, PyBool>
             assert_eq!(&rust_bool, *py_bool);
+            assert_ne!(&rust_bool, *py_bool_false);
 
             // &bool == &Bound<'_, PyBool>
             assert_eq!(&rust_bool, &*py_bool);
+            assert_ne!(&rust_bool, &*py_bool_false);
 
             // Borrowed<'_, '_, PyBool> == bool
             assert_eq!(py_bool, rust_bool);
+            assert_ne!(py_bool_false, rust_bool);
 
             // Borrowed<'_, '_, PyBool> == &bool
             assert_eq!(py_bool, &rust_bool);
+            assert_ne!(py_bool_false, &rust_bool);
 
             // bool == Borrowed<'_, '_, PyBool>
             assert_eq!(rust_bool, py_bool);
+            assert_ne!(rust_bool, py_bool_false);
 
             // &bool == Borrowed<'_, '_, PyBool>
             assert_eq!(&rust_bool, py_bool);
-            assert_eq!(py_bool, rust_bool)
+            assert_ne!(&rust_bool, py_bool_false);
+            assert_eq!(py_bool, rust_bool);
+            assert_ne!(py_bool_false, rust_bool);
         })
     }
 }
