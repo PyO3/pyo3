@@ -17,5 +17,9 @@ extern "C" {
 
     pub fn _PyEval_RequestCodeExtraIndex(func: freefunc) -> c_int;
     pub fn PyEval_SetProfile(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
+    #[cfg(Py_3_12)]
+    pub fn PyEval_SetProfileAllThreads(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
     pub fn PyEval_SetTrace(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
+    #[cfg(Py_3_12)]
+    pub fn PyEval_SetTraceAllThreads(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
 }

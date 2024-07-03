@@ -75,6 +75,9 @@ experimental-async = ["macros", "pyo3-macros/experimental-async"]
 # and IntoPy traits
 experimental-inspect = []
 
+# Enables APIs for instrumenting Python.
+instrumentation = []
+
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
 
@@ -85,6 +88,9 @@ multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
 extension-module = ["pyo3-ffi/extension-module"]
+
+# Use features not in the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
+unlimited-api = ["pyo3-build-config/unlimited-api", "pyo3-ffi/unlimited-api"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3"]
@@ -126,6 +132,7 @@ full = [
     "eyre",
     "hashbrown",
     "indexmap",
+    "instrumentation",
     "num-bigint",
     "num-complex",
     "num-rational",

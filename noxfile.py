@@ -48,11 +48,10 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-ffi")
 
     _run_cargo_test(session)
-    _run_cargo_test(session, features="abi3")
+    _run_cargo_test(session, features="unlimited-api")
     if "skip-full" not in session.posargs:
         _run_cargo_test(session, features="full")
         _run_cargo_test(session, features="full gil-refs")
-        _run_cargo_test(session, features="abi3 full")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -729,7 +728,6 @@ def update_ui_tests(session: nox.Session):
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
     _run_cargo(session, *command, "--features=full", env=env)
-    _run_cargo(session, *command, "--features=abi3,full", env=env)
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:
@@ -771,20 +769,20 @@ def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
             ("--no-default-features",),
             (
                 "--no-default-features",
-                "--features=abi3",
+                "--features=unlimited-api",
             ),
             ("--features=full gil-refs multiple-pymethods",),
-            ("--features=abi3 full gil-refs multiple-pymethods",),
+            ("--features=full gil-refs multiple-pymethods unlimited-api",),
         )
     else:
         return (
             ("--no-default-features",),
             (
                 "--no-default-features",
-                "--features=abi3",
+                "--features=unlimited-api",
             ),
             ("--features=full gil-refs",),
-            ("--features=abi3 full gil-refs",),
+            ("--features=full gil-refs unlimited-api",),
         )
 
 
