@@ -280,3 +280,39 @@ fn frozen_py_field_get() {
         py_run!(py, inst, "assert inst.value == 'value'");
     });
 }
+
+#[test]
+fn test_optional_setter() {
+    #[pyclass]
+    struct SimpleClass {
+        field: Option<u32>,
+    }
+
+    #[pymethods]
+    impl SimpleClass {
+        #[getter]
+        fn get_field(&self) -> Option<u32> {
+            self.field
+        }
+
+        #[setter]
+        fn set_field(&mut self, field: Option<u32>) {
+            self.field = field;
+        }
+    }
+
+    Python::with_gil(|py| {
+        let instance = Py::new(py, SimpleClass { field: None }).unwrap();
+        py_run!(py, instance, "assert instance.field is None");
+        py_run!(
+            py,
+            instance,
+            "instance.field = 42; assert instance.field == 42"
+        );
+        py_run!(
+            py,
+            instance,
+            "instance.field = None; assert instance.field is None"
+        );
+    })
+}

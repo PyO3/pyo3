@@ -228,6 +228,20 @@ impl FnType {
         }
     }
 
+    pub fn signature_attribute_allowed(&self) -> bool {
+        match self {
+            FnType::Fn(_)
+            | FnType::FnNew
+            | FnType::FnStatic
+            | FnType::FnClass(_)
+            | FnType::FnNewClass(_)
+            | FnType::FnModule(_) => true,
+            // Setter, Getter and ClassAttribute all have fixed signatures (either take 0 or 1
+            // arguments) so cannot have a `signature = (...)` attribute.
+            FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => false,
+        }
+    }
+
     pub fn self_arg(
         &self,
         cls: Option<&syn::Type>,
@@ -1096,15 +1110,18 @@ fn ensure_signatures_on_valid_method(
     if let Some(signature) = signature {
         match fn_type {
             FnType::Getter(_) => {
+                debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `getter`")
             }
             FnType::Setter(_) => {
+                debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `setter`")
             }
             FnType::ClassAttribute => {
+                debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `classattr`")
             }
-            _ => {}
+            _ => debug_assert!(fn_type.signature_attribute_allowed()),
         }
     }
     if let Some(text_signature) = text_signature {
