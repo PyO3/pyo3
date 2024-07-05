@@ -11,6 +11,7 @@ use quote::{format_ident, quote};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::Ident;
 
@@ -95,8 +96,9 @@ enum IntrospectionNode<'a> {
 
 impl IntrospectionNode<'_> {
     fn emit(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
-        let mut content = Vec::new();
+        let mut content = ConcatenationBuilder::default();
         self.add_to_serialization(&mut content);
+        let content = content.into_token_stream(pyo3_crate_path);
 
         let static_name = format_ident!("PYO3_INTROSPECTION_0_{}", unique_element_id());
         // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
@@ -104,71 +106,99 @@ impl IntrospectionNode<'_> {
             const _: () = {
                 #[used]
                 #[no_mangle]
-                static #static_name: &'static str = #pyo3_crate_path::impl_::concat::const_concat!(#(#content , )*);
+                static #static_name: &'static str = #content;
             };
         }
     }
 
-    fn add_to_serialization(&self, content: &mut Vec<TokenStream>) {
+    fn add_to_serialization(&self, content: &mut ConcatenationBuilder) {
         match self {
             Self::String(string) => {
-                let string = escape_json_string(string);
-                content.push(quote! { #string });
+                content.push_str_to_escape(string);
             }
             Self::IntrospectionId(ident) => {
-                content.push(quote! { "\"" });
-                content.push(if let Some(ident) = ident {
+                content.push_str("\"");
+                content.push_token(if let Some(ident) = ident {
                     quote! { #ident::_PYO3_INTROSPECTION_ID}
                 } else {
                     quote! { _PYO3_INTROSPECTION_ID }
                 });
-                content.push(quote! { "\"" });
+                content.push_str("\"");
             }
             Self::Map(map) => {
-                content.push(quote! { "{" });
+                content.push_str("{");
                 for (i, (key, value)) in map.iter().enumerate() {
                     if i > 0 {
-                        content.push(quote! { "," });
+                        content.push_str(",");
                     }
-                    let key = escape_json_string(key);
-                    content.push(quote! { #key });
-                    content.push(quote! { ":" });
+                    content.push_str_to_escape(key);
+                    content.push_str(":");
                     value.add_to_serialization(content);
                 }
-                content.push(quote! { "}" });
+                content.push_str("}");
             }
             Self::List(list) => {
-                content.push(quote! { "[" });
+                content.push_str("[");
                 for (i, value) in list.iter().enumerate() {
                     if i > 0 {
-                        content.push(quote! { "," });
+                        content.push_str(",");
                     }
                     value.add_to_serialization(content);
                 }
-                content.push(quote! { "]" });
+                content.push_str("]");
             }
         }
     }
 }
 
-fn escape_json_string(s: &str) -> String {
-    let mut buffer = String::with_capacity(s.len() + 2);
-    buffer.push('"');
-    for c in s.chars() {
-        match c {
-            '\\' => buffer.push_str("\\\\"),
-            '"' => buffer.push_str("\\\""),
-            c => {
-                if c < char::from(32) {
-                    panic!("ASCII chars below 32 are not allowed")
-                } else {
-                    buffer.push(c)
+#[derive(Default)]
+struct ConcatenationBuilder {
+    elements: Vec<TokenStream>,
+    current_string: String,
+}
+
+impl ConcatenationBuilder {
+    fn push_token(&mut self, token: TokenStream) {
+        if !self.current_string.is_empty() {
+            let str = take(&mut self.current_string);
+            self.elements.push(quote! { #str });
+        }
+        self.elements.push(token);
+    }
+
+    fn push_str(&mut self, value: &str) {
+        self.current_string.push_str(value);
+    }
+
+    fn push_str_to_escape(&mut self, value: &str) {
+        self.current_string.push('"');
+        for c in value.chars() {
+            match c {
+                '\\' => self.current_string.push_str("\\\\"),
+                '"' => self.current_string.push_str("\\\""),
+                c => {
+                    if c < char::from(32) {
+                        panic!("ASCII chars below 32 are not allowed")
+                    } else {
+                        self.current_string.push(c);
+                    }
                 }
             }
         }
+        self.current_string.push('"');
     }
-    buffer.push('"');
-    buffer
+
+    fn into_token_stream(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+        let mut elements = self.elements;
+        if !self.current_string.is_empty() {
+            let str = self.current_string;
+            elements.push(quote! { #str });
+        }
+
+        quote! {
+            #pyo3_crate_path::impl_::concat::const_concat!(#(#elements , )*)
+        }
+    }
 }
 
 fn introspection_id_const() -> TokenStream {
