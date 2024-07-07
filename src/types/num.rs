@@ -176,6 +176,38 @@ impl PartialEq<Bound<'_, PyLong>> for u64 {
     }
 }
 
+/// Implement <Bound<'_, PyLong>> == i128 comparisons
+impl PartialEq<i128> for Bound<'_, PyLong> {
+    #[inline]
+    fn eq(&self, other: &i128) -> bool {
+        self.value() == *other as c_long
+    }
+}
+
+/// Implement i128 == <Bound<'_, PyLong>> comparisons
+impl PartialEq<Bound<'_, PyLong>> for i128 {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyLong>) -> bool {
+        *self as c_long == other.value()
+    }
+}
+
+/// Implement <Bound<'_, PyLong>> == u128 comparisons
+impl PartialEq<u128> for Bound<'_, PyLong> {
+    #[inline]
+    fn eq(&self, other: &u128) -> bool {
+        self.value() == *other as c_long
+    }
+}
+
+/// Implement u128 == <Bound<'_, PyLong>> comparisons
+impl PartialEq<Bound<'_, PyLong>> for u128 {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyLong>) -> bool {
+        *self as c_long == other.value()
+    }
+}
+
 /// Implement <Bound<'_, PyLong>> == isize comparisons
 impl PartialEq<isize> for Bound<'_, PyLong> {
     #[inline]
@@ -234,6 +266,8 @@ mod tests {
             let v_u32 = 123u32;
             let v_i64 = 123i64;
             let v_u64 = 123u64;
+            let v_i128 = 123i128;
+            let v_u128 = 123u128;
             let v_isize = 123isize;
             let v_usize = 123usize;
             let obj = PyLong::new_bound_from_c_long(py, 123);
@@ -261,6 +295,12 @@ mod tests {
             assert_eq!(v_u64, obj);
             assert_eq!(obj, v_u64);
 
+            assert_eq!(v_i128, obj);
+            assert_eq!(obj, v_i128);
+
+            assert_eq!(v_u128, obj);
+            assert_eq!(obj, v_u128);
+
             assert_eq!(v_isize, obj);
             assert_eq!(obj, v_isize);
 
@@ -268,5 +308,4 @@ mod tests {
             assert_eq!(obj, v_usize);
         });
     }
-
 }
