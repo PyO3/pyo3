@@ -4,7 +4,7 @@ use std::ffi::CString;
 use crate::attributes::{NameAttribute, RenamingRule};
 use crate::deprecations::deprecate_trailing_option_default;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
-use crate::params::{check_arg_for_gil_refs, impl_regular_arg_param, Holders};
+use crate::params::{impl_regular_arg_param, Holders};
 use crate::utils::PythonDoc;
 use crate::utils::{Ctx, LitCStr};
 use crate::{
@@ -612,21 +612,18 @@ pub fn impl_py_setter_def(
         PropertyType::Function { spec, .. } => {
             let (_, args) = split_off_python_arg(&spec.signature.arguments);
             let value_arg = &args[0];
-            let (from_py_with, ident) = if let Some(from_py_with) =
-                &value_arg.from_py_with().as_ref().map(|f| &f.value)
-            {
-                let ident = syn::Ident::new("from_py_with", from_py_with.span());
-                (
-                    quote_spanned! { from_py_with.span() =>
-                        let e = #pyo3_path::impl_::deprecations::GilRefs::new();
-                        let #ident = #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &e);
-                        e.from_py_with_arg();
-                    },
-                    ident,
-                )
-            } else {
-                (quote!(), syn::Ident::new("dummy", Span::call_site()))
-            };
+            let (from_py_with, ident) =
+                if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
+                    let ident = syn::Ident::new("from_py_with", from_py_with.span());
+                    (
+                        quote_spanned! { from_py_with.span() =>
+                            let #ident = #from_py_with;
+                        },
+                        ident,
+                    )
+                } else {
+                    (quote!(), syn::Ident::new("dummy", Span::call_site()))
+                };
 
             let arg = if let FnArg::Regular(arg) = &value_arg {
                 arg
@@ -634,15 +631,13 @@ pub fn impl_py_setter_def(
                 bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
             };
 
-            let tokens = impl_regular_arg_param(
+            let extract = impl_regular_arg_param(
                 arg,
                 ident,
                 quote!(::std::option::Option::Some(_value.into())),
                 &mut holders,
                 ctx,
             );
-            let extract =
-                check_arg_for_gil_refs(tokens, holders.push_gil_refs_checker(arg.ty.span()), ctx);
 
             let deprecation = deprecate_trailing_option_default(spec);
             quote! {
@@ -660,12 +655,8 @@ pub fn impl_py_setter_def(
                 .unwrap_or_default();
 
             let holder = holders.push_holder(span);
-            let gil_refs_checker = holders.push_gil_refs_checker(span);
             quote! {
-                let _val = #pyo3_path::impl_::deprecations::inspect_type(
-                    #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?,
-                    &#gil_refs_checker
-                );
+                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
             }
         }
     };
@@ -682,7 +673,6 @@ pub fn impl_py_setter_def(
     }
 
     let init_holders = holders.init_holders(ctx);
-    let check_gil_refs = holders.check_gil_refs();
     let associated_method = quote! {
         #cfg_attrs
         unsafe fn #wrapper_ident(
@@ -698,7 +688,6 @@ pub fn impl_py_setter_def(
             #init_holders
             #extract
             let result = #setter_impl;
-            #check_gil_refs
             #pyo3_path::callback::convert(py, result)
         }
     };
@@ -824,7 +813,6 @@ pub fn impl_py_getter_def(
             };
 
             let init_holders = holders.init_holders(ctx);
-            let check_gil_refs = holders.check_gil_refs();
             let associated_method = quote! {
                 #cfg_attrs
                 unsafe fn #wrapper_ident(
@@ -833,7 +821,6 @@ pub fn impl_py_getter_def(
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
                     let result = #body;
-                    #check_gil_refs
                     result
                 }
             };
@@ -1139,35 +1126,30 @@ fn extract_object(
     ctx: &Ctx,
 ) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
-    let gil_refs_checker = holders.push_gil_refs_checker(arg.ty().span());
     let name = arg.name().unraw().to_string();
 
-    let extract = if let Some(from_py_with) =
-        arg.from_py_with().map(|from_py_with| &from_py_with.value)
-    {
-        let from_py_with_checker = holders.push_from_py_with_checker(from_py_with.span());
-        quote! {
-            #pyo3_path::impl_::extract_argument::from_py_with(
-                #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
-                #name,
-                #pyo3_path::impl_::deprecations::inspect_fn(#from_py_with, &#from_py_with_checker) as fn(_) -> _,
-            )
-        }
-    } else {
-        let holder = holders.push_holder(Span::call_site());
-        quote! {
-            #pyo3_path::impl_::extract_argument::extract_argument(
-                #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
-                &mut #holder,
-                #name
-            )
-        }
-    };
+    let extract =
+        if let Some(from_py_with) = arg.from_py_with().map(|from_py_with| &from_py_with.value) {
+            quote! {
+                #pyo3_path::impl_::extract_argument::from_py_with(
+                    #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
+                    #name,
+                    #from_py_with as fn(_) -> _,
+                )
+            }
+        } else {
+            let holder = holders.push_holder(Span::call_site());
+            quote! {
+                #pyo3_path::impl_::extract_argument::extract_argument(
+                    #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &#source_ptr).0,
+                    &mut #holder,
+                    #name
+                )
+            }
+        };
 
     let extracted = extract_error_mode.handle_error(extract, ctx);
-    quote! {
-        #pyo3_path::impl_::deprecations::inspect_type(#extracted, &#gil_refs_checker)
-    }
+    quote!(#extracted)
 }
 
 enum ReturnMode {
@@ -1177,15 +1159,13 @@ enum ReturnMode {
 }
 
 impl ReturnMode {
-    fn return_call_output(&self, call: TokenStream, ctx: &Ctx, holders: &Holders) -> TokenStream {
+    fn return_call_output(&self, call: TokenStream, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let check_gil_refs = holders.check_gil_refs();
         match self {
             ReturnMode::Conversion(conversion) => {
                 let conversion = TokenGeneratorCtx(*conversion, ctx);
                 quote! {
                     let _result: #pyo3_path::PyResult<#conversion> = #pyo3_path::callback::convert(py, #call);
-                    #check_gil_refs
                     #pyo3_path::callback::convert(py, _result)
                 }
             }
@@ -1195,14 +1175,12 @@ impl ReturnMode {
                 quote! {
                     let _result = #call;
                     use #pyo3_path::impl_::pymethods::{#traits};
-                    #check_gil_refs
                     (&_result).#tag().convert(py, _result)
                 }
             }
             ReturnMode::ReturnSelf => quote! {
                 let _result: #pyo3_path::PyResult<()> = #pyo3_path::callback::convert(py, #call);
                 _result?;
-                #check_gil_refs
                 #pyo3_path::ffi::Py_XINCREF(_raw_slf);
                 ::std::result::Result::Ok(_raw_slf)
             },
@@ -1369,12 +1347,10 @@ fn generate_method_body(
     let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
     let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
     Ok(if let Some(return_mode) = return_mode {
-        return_mode.return_call_output(call, ctx, holders)
+        return_mode.return_call_output(call, ctx)
     } else {
-        let check_gil_refs = holders.check_gil_refs();
         quote! {
             let result = #call;
-            #check_gil_refs;
             #pyo3_path::callback::convert(py, result)
         }
     })
