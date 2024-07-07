@@ -129,9 +129,7 @@ fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
 
 #[pymodule]
 fn my_async_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
-
-    Ok(())
+    m.add_function(wrap_pyfunction!(rust_sleep, m)?)
 }
 ```
 
@@ -152,8 +150,7 @@ fn rust_sleep(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>>> {
 
 #[pymodule]
 fn my_async_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
-    Ok(())
+    m.add_function(wrap_pyfunction!(rust_sleep, m)?)
 }
 ```
 
@@ -257,7 +254,7 @@ async def py_sleep():
 await_coro(py_sleep())
 ```
 
-If for you wanted to pass a callable function to the `#[pyfunction]` instead, (i.e. the last line becomes `await_coro(py_sleep))`, then the above example needs to be tweaked to first call the callable to get the coroutine:
+If you wanted to pass a callable function to the `#[pyfunction]` instead, (i.e. the last line becomes `await_coro(py_sleep))`, then the above example needs to be tweaked to first call the callable to get the coroutine:
 
 ```rust
 #[pyfunction]
