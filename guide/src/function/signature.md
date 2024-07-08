@@ -17,7 +17,7 @@ use pyo3::types::PyDict;
 #[pyfunction]
 #[pyo3(signature = (**kwds))]
 fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
-    kwds.map_or(0, |dict| dict.len().unwrap_or_default())
+    kwds.map_or(0, |dict| dict.len())
 }
 
 #[pymodule]
