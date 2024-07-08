@@ -14,8 +14,7 @@ fn double(x: usize) -> usize {
 
 #[pymodule]
 fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
-    Ok(())
+    m.add_function(wrap_pyfunction!(double, m)?)
 }
 ```
 
@@ -56,8 +55,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
     #[pymodule]
     fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add_function(wrap_pyfunction!(no_args_py, m)?)?;
-        Ok(())
+        m.add_function(wrap_pyfunction!(no_args_py, m)?)
     }
 
     # Python::with_gil(|py| {
@@ -113,8 +111,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     use pyo3::prelude::*;
 
     fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
-        let length = obj.len()?;
-        Ok(length)
+        obj.len()
     }
 
     #[pyfunction]
@@ -204,8 +201,7 @@ fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
         x * 2
     }
 
-    m.add_function(wrap_pyfunction!(double, m)?)?;
-    Ok(())
+    m.add_function(wrap_pyfunction!(double, m)?)
 }
 ```
 
