@@ -683,11 +683,10 @@ impl<'a> FnSpec<'a> {
                     }
                     _ => {
                         if let Some(self_arg) = self_arg() {
-                            let self_checker = holders.push_gil_refs_checker(self_arg.span());
                             quote! {
                                 function(
                                     // NB #self_arg includes a comma, so none inserted here
-                                    #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                                    #self_arg
                                     #(#args),*
                                 )
                             }
@@ -714,11 +713,10 @@ impl<'a> FnSpec<'a> {
                 }
                 call
             } else if let Some(self_arg) = self_arg() {
-                let self_checker = holders.push_gil_refs_checker(self_arg.span());
                 quote! {
                     function(
                         // NB #self_arg includes a comma, so none inserted here
-                        #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                        #self_arg
                         #(#args),*
                     )
                 }
@@ -762,7 +760,6 @@ impl<'a> FnSpec<'a> {
                     })
                     .collect();
                 let call = rust_call(args, &mut holders);
-                let check_gil_refs = holders.check_gil_refs();
                 let init_holders = holders.init_holders(ctx);
                 quote! {
                     unsafe fn #ident<'py>(
@@ -774,7 +771,6 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
                         let result = #call;
-                        #check_gil_refs
                         result
                     }
                 }
@@ -784,7 +780,6 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
-                let check_gil_refs = holders.check_gil_refs();
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -800,7 +795,6 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #init_holders
                         let result = #call;
-                        #check_gil_refs
                         result
                     }
                 }
@@ -810,7 +804,6 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
-                let check_gil_refs = holders.check_gil_refs();
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -825,7 +818,6 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #init_holders
                         let result = #call;
-                        #check_gil_refs
                         result
                     }
                 }
@@ -838,7 +830,6 @@ impl<'a> FnSpec<'a> {
                     .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
                 let call = quote_spanned! {*output_span=> #rust_name(#self_arg #(#args),*) };
                 let init_holders = holders.init_holders(ctx);
-                let check_gil_refs = holders.check_gil_refs();
                 quote! {
                     unsafe fn #ident(
                         py: #pyo3_path::Python<'_>,
@@ -854,7 +845,6 @@ impl<'a> FnSpec<'a> {
                         #init_holders
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
-                        #check_gil_refs
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
                     }
                 }

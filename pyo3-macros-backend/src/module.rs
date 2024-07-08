@@ -16,7 +16,7 @@ use std::ffi::CString;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
-    parse_quote, parse_quote_spanned,
+    parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
@@ -377,7 +377,6 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     let options = PyModuleOptions::from_attrs(&mut function.attrs)?;
     process_functions_in_module(&options, &mut function)?;
     let ctx = &Ctx::new(&options.krate, None);
-    let stmts = std::mem::take(&mut function.block.stmts);
     let Ctx { pyo3_path, .. } = ctx;
     let ident = &function.sig.ident;
     let name = options.name.unwrap_or_else(|| ident.unraw());
@@ -393,30 +392,6 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
     }
     module_args
         .push(quote!(::std::convert::Into::into(#pyo3_path::impl_::pymethods::BoundRef(module))));
-
-    let extractors = function
-        .sig
-        .inputs
-        .iter()
-        .filter_map(|param| {
-            if let syn::FnArg::Typed(pat_type) = param {
-                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                    let ident: &syn::Ident = &pat_ident.ident;
-                    return Some([
-                        parse_quote!{ let check_gil_refs = #pyo3_path::impl_::deprecations::GilRefs::new(); },
-                        parse_quote! { let #ident = #pyo3_path::impl_::deprecations::inspect_type(#ident, &check_gil_refs); },
-                        parse_quote_spanned! { pat_type.span() => check_gil_refs.function_arg(); },
-                    ]);
-                }
-            }
-            None
-        })
-        .flatten();
-
-    function.block.stmts = extractors.chain(stmts).collect();
-    function
-        .attrs
-        .push(parse_quote!(#[allow(clippy::used_underscore_binding)]));
 
     Ok(quote! {
         #function

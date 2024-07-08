@@ -20,7 +20,6 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
-    #[cfg(feature = "gil-refs")]
     t.compile_fail("tests/ui/deprecations.rs");
     t.compile_fail("tests/ui/invalid_closure.rs");
     t.compile_fail("tests/ui/pyclass_send.rs");
