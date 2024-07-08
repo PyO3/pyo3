@@ -1,0 +1,18 @@
+[package]
+name = "pyo3-introspection"
+version = "0.22.0-dev"
+description = "Introspect dynamic libraries built with PyO3 to get metadata about the exported Python types"
+authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
+homepage = "https://github.com/pyo3/pyo3"
+repository = "https://github.com/pyo3/pyo3"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+goblin = "0.8.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true

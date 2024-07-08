@@ -6,6 +6,8 @@
 //! APIs may may change at any time without documentation in the CHANGELOG and without
 //! breaking semver guarantees.
 
+#[cfg(feature = "experimental-inspect")]
+pub mod concat;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;
 pub mod deprecations;
