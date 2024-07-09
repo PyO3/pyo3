@@ -8,6 +8,12 @@ use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
 
 /// Represents a Python `slice`.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySlice>`][crate::Py] or [`Bound<'py, PySlice>`][Bound].
+///
+/// For APIs available on `slice` objects, see the [`PySliceMethods`] trait which is implemented for
+/// [`Bound<'py, PySlice>`][Bound].
+///
 /// Only `isize` indices supported at the moment by the `PySlice` object.
 #[repr(transparent)]
 pub struct PySlice(PyAny);

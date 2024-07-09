@@ -12,10 +12,16 @@ use std::str;
 ///
 /// This type is immutable.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyBytes>`][crate::Py] or [`Bound<'py, PyBytes>`][Bound].
+///
+/// For APIs available on `bytes` objects, see the [`PyBytesMethods`] trait which is implemented for
+/// [`Bound<'py, PyBytes>`][Bound].
+///
 /// # Equality
 ///
-/// For convenience, [`Bound<'py, PyBytes>`] implements [`PartialEq<[u8]>`] to allow comparing the
-/// data in the Python bytes to a Rust `[u8]`.
+/// For convenience, [`Bound<'py, PyBytes>`][Bound] implements [`PartialEq<[u8]>`][PartialEq] to allow comparing the
+/// data in the Python bytes to a Rust `[u8]` byte slice.
 ///
 /// This is not always the most appropriate way to compare Python bytes, as Python bytes subclasses
 /// may have different equality semantics. In situations where subclasses overriding equality might be

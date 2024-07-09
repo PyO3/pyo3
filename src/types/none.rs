@@ -5,6 +5,9 @@ use crate::{
 };
 
 /// Represents the Python `None` object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyNone>`][crate::Py] or [`Bound<'py, PyNone>`][Bound].
 #[repr(transparent)]
 pub struct PyNone(PyAny);
 

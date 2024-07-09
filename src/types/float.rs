@@ -11,9 +11,15 @@ use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyFloat>`][crate::Py] or [`Bound<'py, PyFloat>`][Bound].
+///
+/// For APIs available on `float` objects, see the [`PyFloatMethods`] trait which is implemented for
+/// [`Bound<'py, PyFloat>`][Bound].
+///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`] and [`extract`](PyAnyMethods::extract)
-/// with `f32`/`f64`.
+/// by using [`ToPyObject`] and [`extract`][PyAnyMethods::extract]
+/// with [`f32`]/[`f64`].
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
 

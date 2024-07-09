@@ -461,7 +461,6 @@ pub mod marshal;
 #[macro_use]
 pub mod sync;
 pub mod panic;
-pub mod prelude;
 pub mod pybacked;
 pub mod pycell;
 pub mod pyclass;
@@ -494,6 +493,10 @@ mod macros;
 
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;
+
+// Putting the declaration of prelude at the end seems to help encourage rustc and rustdoc to prefer using
+// other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
+pub mod prelude;
 
 /// Ths module only contains re-exports of pyo3 deprecation warnings and exists
 /// purely to make compiler error messages nicer.

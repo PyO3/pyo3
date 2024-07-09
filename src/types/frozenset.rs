@@ -56,7 +56,13 @@ impl<'py> PyFrozenSetBuilder<'py> {
     }
 }
 
-/// Represents a  Python `frozenset`
+/// Represents a  Python `frozenset`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyFrozenSet>`][crate::Py] or [`Bound<'py, PyFrozenSet>`][Bound].
+///
+/// For APIs available on `frozenset` objects, see the [`PyFrozenSetMethods`] trait which is implemented for
+/// [`Bound<'py, PyFrozenSet>`][Bound].
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
