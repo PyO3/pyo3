@@ -197,19 +197,6 @@ impl PyDict {
         }
     }
 
-    /// Deprecated version of `get_item`.
-    #[deprecated(
-        since = "0.20.0",
-        note = "this is now equivalent to `PyDict::get_item`"
-    )]
-    #[inline]
-    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
-    where
-        K: ToPyObject,
-    {
-        self.get_item(key)
-    }
-
     /// Sets an item value.
     ///
     /// This is equivalent to the Python statement `self[key] = value`.
@@ -954,31 +941,6 @@ mod tests {
                     .unwrap()
             );
             assert!(dict.get_item(8i32).unwrap().is_none());
-        });
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    #[cfg(all(not(any(PyPy, GraalPy)), feature = "gil-refs"))]
-    fn test_get_item_with_error() {
-        Python::with_gil(|py| {
-            let mut v = HashMap::new();
-            v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast::<PyDict>(py).unwrap();
-            assert_eq!(
-                32,
-                dict.get_item_with_error(7i32)
-                    .unwrap()
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
-            );
-            assert!(dict.get_item_with_error(8i32).unwrap().is_none());
-            assert!(dict
-                .get_item_with_error(dict)
-                .unwrap_err()
-                .is_instance_of::<crate::exceptions::PyTypeError>(py));
         });
     }
 

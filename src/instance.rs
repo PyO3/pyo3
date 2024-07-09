@@ -1384,14 +1384,6 @@ impl<T> Py<T> {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
-    pub fn is_ellipsis(&self) -> bool {
-        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
-    }
-
     /// Returns whether the object is considered to be true.
     ///
     /// This is equivalent to the Python expression `bool(self)`.
@@ -2171,23 +2163,6 @@ a = A()
             let instance: PyObject = instance.clone().unbind();
             assert_eq!(instance.as_ptr(), ptr);
         })
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_is_ellipsis() {
-        Python::with_gil(|py| {
-            let v = py
-                .eval_bound("...", None, None)
-                .map_err(|e| e.display(py))
-                .unwrap()
-                .to_object(py);
-
-            assert!(v.is_ellipsis());
-
-            let not_ellipsis = 5.to_object(py);
-            assert!(!not_ellipsis.is_ellipsis());
-        });
     }
 
     #[test]

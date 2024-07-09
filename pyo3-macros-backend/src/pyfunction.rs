@@ -4,7 +4,6 @@ use crate::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
         FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
-    deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
 };
@@ -252,7 +251,6 @@ pub fn impl_wrap_pyfunction(
         text_signature,
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
-        deprecations: Deprecations::new(ctx),
     };
 
     let vis = &func.vis;
