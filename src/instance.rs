@@ -1329,8 +1329,11 @@ impl<T> Py<T> {
     /// # }
     /// ```
     #[inline]
-    pub fn clone_ref(&self, py: Python<'_>) -> Py<T> {
-        unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
+    pub fn clone_ref(&self, _py: Python<'_>) -> Py<T> {
+        unsafe {
+            ffi::Py_INCREF(self.as_ptr());
+            Self::from_non_null(self.0)
+        }
     }
 
     /// Drops `self` and immediately decreases its reference count.
