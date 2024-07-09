@@ -373,7 +373,7 @@ pub fn pymodule_module_impl(
                     #module_items::_PYO3_DEF.add_to_module(module)?;
                 )*
                 #pymodule_init
-                Ok(())
+                ::std::result::Result::Ok(())
             }
         }
     ))
