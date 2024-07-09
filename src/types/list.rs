@@ -14,6 +14,12 @@ use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 
 /// Represents a Python `list`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyList>`][crate::Py] or [`Bound<'py, PyList>`][Bound].
+///
+/// For APIs available on `list` objects, see the [`PyListMethods`] trait which is implemented for
+/// [`Bound<'py, PyDict>`][Bound].
 #[repr(transparent)]
 pub struct PyList(PyAny);
 

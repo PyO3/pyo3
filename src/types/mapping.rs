@@ -11,6 +11,12 @@ use crate::{err::PyDowncastError, PyNativeType};
 use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyMapping>`][crate::Py] or [`Bound<'py, PyMapping>`][Bound].
+///
+/// For APIs available on mapping objects, see the [`PyMappingMethods`] trait which is implemented for
+/// [`Bound<'py, PyMapping>`][Bound].
 #[repr(transparent)]
 pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);

@@ -14,6 +14,12 @@ use crate::{err::PyDowncastError, PyNativeType};
 use crate::{ffi, FromPyObject, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySequence>`][crate::Py] or [`Bound<'py, PySequence>`][Bound].
+///
+/// For APIs available on sequence objects, see the [`PySequenceMethods`] trait which is implemented for
+/// [`Bound<'py, PySequence>`][Bound].
 #[repr(transparent)]
 pub struct PySequence(PyAny);
 pyobject_native_type_named!(PySequence);

@@ -2,6 +2,9 @@ use crate::ffi;
 use crate::PyAny;
 
 /// Represents a Python code object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyCode>`][crate::Py] or [`Bound<'py, PyCode>`][crate::Bound].
 #[repr(transparent)]
 pub struct PyCode(PyAny);
 

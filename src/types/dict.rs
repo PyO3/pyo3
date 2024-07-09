@@ -11,6 +11,12 @@ use crate::PyNativeType;
 use crate::{ffi, Python, ToPyObject};
 
 /// Represents a Python `dict`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDict>`][crate::Py] or [`Bound<'py, PyDict>`][Bound].
+///
+/// For APIs available on `dict` objects, see the [`PyDictMethods`] trait which is implemented for
+/// [`Bound<'py, PyDict>`][Bound].
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
