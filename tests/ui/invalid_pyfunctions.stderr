@@ -47,11 +47,11 @@ error: expected `&PyModule` or `Py<PyModule>` as first argument with `pass_modul
 32 | fn pass_module_but_no_arguments<'py>() {}
    |                                     ^^
 
-error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not satisfied
+error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not satisfied
   --> tests/ui/invalid_pyfunctions.rs:36:14
    |
 36 |     _string: &str,
-   |              ^ the trait `From<BoundRef<'_, '_, pyo3::prelude::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::prelude::PyModule>: Into<_>`
+   |              ^ the trait `From<BoundRef<'_, '_, pyo3::types::PyModule>>` is not implemented for `&str`, which is required by `BoundRef<'_, '_, pyo3::types::PyModule>: Into<_>`
    |
    = help: the following other types implement trait `From<T>`:
              <String as From<&String>>
@@ -60,4 +60,4 @@ error[E0277]: the trait bound `&str: From<BoundRef<'_, '_, pyo3::prelude::PyModu
              <String as From<Box<str>>>
              <String as From<Cow<'a, str>>>
              <String as From<char>>
-   = note: required for `BoundRef<'_, '_, pyo3::prelude::PyModule>` to implement `Into<&str>`
+   = note: required for `BoundRef<'_, '_, pyo3::types::PyModule>` to implement `Into<&str>`
