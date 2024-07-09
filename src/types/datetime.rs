@@ -191,7 +191,10 @@ pub trait PyTzInfoAccess<'py> {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>>;
 }
 
-/// Bindings around `datetime.date`
+/// Bindings around `datetime.date`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDate>`][crate::Py] or [`Bound<'py, PyDate>`][Bound].
 #[repr(transparent)]
 pub struct PyDate(PyAny);
 pyobject_native_type!(
@@ -279,7 +282,10 @@ impl PyDateAccess for Bound<'_, PyDate> {
     }
 }
 
-/// Bindings for `datetime.datetime`
+/// Bindings for `datetime.datetime`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDateTime>`][crate::Py] or [`Bound<'py, PyDateTime>`][Bound].
 #[repr(transparent)]
 pub struct PyDateTime(PyAny);
 pyobject_native_type!(
@@ -578,7 +584,10 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     }
 }
 
-/// Bindings for `datetime.time`
+/// Bindings for `datetime.time`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyTime>`][crate::Py] or [`Bound<'py, PyTime>`][Bound].
 #[repr(transparent)]
 pub struct PyTime(PyAny);
 pyobject_native_type!(
@@ -781,6 +790,9 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
 
 /// Bindings for `datetime.tzinfo`.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyTzInfo>`][crate::Py] or [`Bound<'py, PyTzInfo>`][Bound].
+///
 /// This is an abstract base class and cannot be constructed directly.
 /// For concrete time zone implementations, see [`timezone_utc_bound`] and
 /// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
@@ -834,7 +846,10 @@ pub(crate) fn timezone_from_offset<'py>(
     }
 }
 
-/// Bindings for `datetime.timedelta`
+/// Bindings for `datetime.timedelta`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDelta>`][crate::Py] or [`Bound<'py, PyDelta>`][Bound].
 #[repr(transparent)]
 pub struct PyDelta(PyAny);
 pyobject_native_type!(

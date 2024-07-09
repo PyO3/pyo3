@@ -7,6 +7,9 @@ use crate::{AsPyPointer, PyDowncastError, PyNativeType};
 
 /// A Python iterator object.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyIterator>`][crate::Py] or [`Bound<'py, PyIterator>`][Bound].
+///
 /// # Examples
 ///
 /// ```rust
