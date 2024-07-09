@@ -11,7 +11,13 @@ use crate::{
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
 
-/// Represents a Python `set`
+/// Represents a Python `set`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySet>`][crate::Py] or [`Bound<'py, PySet>`][Bound].
+///
+/// For APIs available on `set` objects, see the [`PySetMethods`] trait which is implemented for
+/// [`Bound<'py, PySet>`][Bound].
 #[repr(transparent)]
 pub struct PySet(PyAny);
 

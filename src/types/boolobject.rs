@@ -11,6 +11,12 @@ use crate::{
 use super::any::PyAnyMethods;
 
 /// Represents a Python `bool`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyBool>`][crate::Py] or [`Bound<'py, PyBool>`][Bound].
+///
+/// For APIs available on `bool` objects, see the [`PyBoolMethods`] trait which is implemented for
+/// [`Bound<'py, PyBool>`][Bound].
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 

@@ -6,7 +6,8 @@ use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
 ///
-/// This type is immutable.
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySuper>`][crate::Py] or [`Bound<'py, PySuper>`][Bound].
 #[repr(transparent)]
 pub struct PySuper(PyAny);
 

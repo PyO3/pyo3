@@ -5,6 +5,12 @@ use crate::PyNativeType;
 use crate::{ffi, Bound, PyAny};
 
 /// Represents a Python traceback.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyTraceback>`][crate::Py] or [`Bound<'py, PyTraceback>`][Bound].
+///
+/// For APIs available on traceback objects, see the [`PyTracebackMethods`] trait which is implemented for
+/// [`Bound<'py, PyTraceback>`][Bound].
 #[repr(transparent)]
 pub struct PyTraceback(PyAny);
 

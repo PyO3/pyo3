@@ -65,7 +65,19 @@ pub unsafe trait PyNativeType: Sized {
     }
 }
 
-/// A GIL-attached equivalent to `Py`.
+/// A GIL-attached equivalent to [`Py<T>`].
+///
+/// This type can be thought of as equivalent to the tuple `(Py<T>, Python<'py>)`. By having the `'py`
+/// lifetime of the [`Python<'py>`] token, this ties the lifetime of the [`Bound<'py, T>`] smart pointer
+/// to the lifetime of the GIL and allows PyO3 to call Python APIs at maximum efficiency.
+///
+/// To access the object in situations where the GIL is not held, convert it to [`Py<T>`]
+/// using [`.unbind()`][Bound::unbind]. This includes situations where the GIL is temporarily
+/// released, such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+///
+/// See
+#[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#boundpy-t)")]
+/// for more detail.
 #[repr(transparent)]
 pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
 

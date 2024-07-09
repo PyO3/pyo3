@@ -4,6 +4,9 @@ use crate::{
 };
 
 /// Represents the Python `NotImplemented` object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyNotImplemented>`][crate::Py] or [`Bound<'py, PyNotImplemented>`][Bound].
 #[repr(transparent)]
 pub struct PyNotImplemented(PyAny);
 

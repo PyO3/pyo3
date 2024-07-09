@@ -15,6 +15,12 @@ use {super::PyStringMethods, crate::PyNativeType};
 
 /// Represents a Python [`module`][1] object.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyModule>`][crate::Py] or [`Bound<'py, PyModule>`][Bound].
+///
+/// For APIs available on `module` objects, see the [`PyModuleMethods`] trait which is implemented for
+/// [`Bound<'py, PyModule>`][Bound].
+///
 /// As with all other Python objects, modules are first class citizens.
 /// This means they can be passed to or returned from functions,
 /// created dynamically, assigned to variables and so forth.

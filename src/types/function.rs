@@ -16,6 +16,9 @@ use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
 /// Represents a builtin Python function object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyCFunction>`][crate::Py] or [`Bound<'py, PyCFunction>`][Bound].
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
@@ -241,6 +244,9 @@ struct ClosureDestructor<F> {
 unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 
 /// Represents a Python function object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyFunction>`][crate::Py] or [`Bound<'py, PyFunction>`][Bound].
 #[repr(transparent)]
 #[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub struct PyFunction(PyAny);
