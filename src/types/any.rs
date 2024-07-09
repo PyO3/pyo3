@@ -615,14 +615,6 @@ impl PyAny {
         self.as_borrowed().is_none()
     }
 
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
-    pub fn is_ellipsis(&self) -> bool {
-        self.as_borrowed().is_ellipsis()
-    }
-
     /// Returns true if the sequence or mapping has a length of 0.
     ///
     /// This is equivalent to the Python expression `len(self) == 0`.
@@ -1506,6 +1498,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Returns whether the object is Ellipsis, e.g. `...`.
     ///
     /// This is equivalent to the Python expression `self is ...`.
+    #[deprecated(since = "0.23.0", note = "use `.is(py.Ellipsis())` instead")]
     fn is_ellipsis(&self) -> bool;
 
     /// Returns true if the sequence or mapping has a length of 0.
@@ -2796,6 +2789,7 @@ class SimpleClass:
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py

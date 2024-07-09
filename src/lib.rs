@@ -495,16 +495,6 @@ mod macros;
 #[cfg(feature = "experimental-inspect")]
 pub mod inspect;
 
-/// Ths module only contains re-exports of pyo3 deprecation warnings and exists
-/// purely to make compiler error messages nicer.
-///
-/// (The compiler uses this module in error messages, probably because it's a public
-/// re-export at a shorter path than `pyo3::impl_::deprecations`.)
-#[doc(hidden)]
-pub mod deprecations {
-    pub use crate::impl_::deprecations::*;
-}
-
 /// Test readme and user guide
 #[cfg(doctest)]
 pub mod doc_test {

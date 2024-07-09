@@ -12,7 +12,6 @@ use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
     ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
 };
-use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
 use crate::pyfunction::ConstructorAttribute;
@@ -384,7 +383,7 @@ fn impl_class(
     ctx: &Ctx,
 ) -> syn::Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
-    let pytypeinfo_impl = impl_pytypeinfo(cls, args, None, ctx);
+    let pytypeinfo_impl = impl_pytypeinfo(cls, args, ctx);
 
     let (default_richcmp, default_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
@@ -779,7 +778,7 @@ fn impl_simple_enum(
     let cls = simple_enum.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = simple_enum.variants;
-    let pytypeinfo = impl_pytypeinfo(cls, args, None, ctx);
+    let pytypeinfo = impl_pytypeinfo(cls, args, ctx);
 
     for variant in &variants {
         ensure_spanned!(variant.options.constructor.is_none(), variant.options.constructor.span() => "`constructor` can't be used on a simple enum variant");
@@ -889,7 +888,7 @@ fn impl_complex_enum(
     let ctx = &Ctx::new(&args.options.krate, None);
     let cls = complex_enum.ident;
     let variants = complex_enum.variants;
-    let pytypeinfo = impl_pytypeinfo(cls, &args, None, ctx);
+    let pytypeinfo = impl_pytypeinfo(cls, &args, ctx);
 
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
@@ -977,7 +976,7 @@ fn impl_complex_enum(
             },
         };
 
-        let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, None, ctx);
+        let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, ctx);
         variant_cls_pytypeinfos.push(variant_cls_pytypeinfo);
 
         let (variant_cls_impl, field_getters, mut slots) =
@@ -1057,7 +1056,6 @@ fn impl_complex_enum_variant_match_args(
         attributes: ConstAttributes {
             is_class_attr: true,
             name: None,
-            deprecations: Deprecations::new(ctx),
         },
     };
 
@@ -1318,7 +1316,6 @@ fn generate_protocol_slot(
         &mut method.sig,
         &mut Vec::new(),
         PyFunctionOptions::default(),
-        ctx,
     )
     .unwrap();
     slot.generate_type_slot(&syn::parse_quote!(#cls), &spec, name, ctx)
@@ -1334,7 +1331,6 @@ fn generate_default_protocol_slot(
         &mut method.sig,
         &mut Vec::new(),
         PyFunctionOptions::default(),
-        ctx,
     )
     .unwrap();
     let name = spec.name.to_string();
@@ -1360,7 +1356,6 @@ fn simple_enum_default_methods<'a>(
                 kw: syn::parse_quote! { name },
                 value: NameLitStr(py_ident.clone()),
             }),
-            deprecations: Deprecations::new(ctx),
         },
     };
     unit_variant_names
@@ -1383,7 +1378,6 @@ fn complex_enum_default_methods<'a>(
                 kw: syn::parse_quote! { name },
                 value: NameLitStr(py_ident.clone()),
             }),
-            deprecations: Deprecations::new(ctx),
         },
     };
     variant_names
@@ -1397,19 +1391,17 @@ fn complex_enum_default_methods<'a>(
 pub fn gen_complex_enum_variant_attr(
     cls: &syn::Ident,
     cls_type: &syn::Type,
-    spec: &ConstSpec<'_>,
+    spec: &ConstSpec,
     ctx: &Ctx,
 ) -> MethodAndMethodDef {
     let Ctx { pyo3_path, .. } = ctx;
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_variant_cls_{}__", member);
-    let deprecations = &spec.attributes.deprecations;
     let python_name = spec.null_terminated_python_name(ctx);
 
     let variant_cls = format_ident!("{}_{}", cls, member);
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-            #deprecations
             ::std::result::Result::Ok(py.get_type_bound::<#variant_cls>().into_any().unbind())
         }
     };
@@ -1497,7 +1489,6 @@ fn complex_enum_struct_variant_new<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
-        deprecations: Deprecations::new(ctx),
     };
 
     crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
@@ -1552,7 +1543,6 @@ fn complex_enum_tuple_variant_new<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
-        deprecations: Deprecations::new(ctx),
     };
 
     crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
@@ -1577,7 +1567,6 @@ fn complex_enum_variant_field_getter<'a>(
         text_signature: None,
         asyncness: None,
         unsafety: None,
-        deprecations: Deprecations::new(ctx),
     };
 
     let property_type = crate::pymethod::PropertyType::Function {
@@ -1641,12 +1630,7 @@ fn descriptors_to_items(
     Ok(items)
 }
 
-fn impl_pytypeinfo(
-    cls: &syn::Ident,
-    attr: &PyClassArgs,
-    deprecations: Option<&Deprecations<'_>>,
-    ctx: &Ctx,
-) -> TokenStream {
+fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
     let cls_name = get_class_python_name(cls, attr).to_string();
 
@@ -1677,8 +1661,6 @@ fn impl_pytypeinfo(
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
                 use #pyo3_path::prelude::PyTypeMethods;
-                #deprecations
-
                 <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object()
                     .get_or_init(py)
                     .as_type_ptr()

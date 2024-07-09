@@ -130,7 +130,7 @@ pub fn impl_methods(
             }
             syn::ImplItem::Const(konst) => {
                 let ctx = &Ctx::new(&options.krate, None);
-                let attributes = ConstAttributes::from_attrs(&mut konst.attrs, ctx)?;
+                let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
                 if attributes.is_class_attr {
                     let spec = ConstSpec {
                         rust_ident: konst.ident.clone(),
@@ -182,16 +182,14 @@ pub fn impl_methods(
     })
 }
 
-pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec<'_>, ctx: &Ctx) -> MethodAndMethodDef {
+pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMethodDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
-    let deprecations = &spec.attributes.deprecations;
     let python_name = spec.null_terminated_python_name(ctx);
     let Ctx { pyo3_path, .. } = ctx;
 
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-            #deprecations
             ::std::result::Result::Ok(#pyo3_path::IntoPy::into_py(#cls::#member, py))
         }
     };

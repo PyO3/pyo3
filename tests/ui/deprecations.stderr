@@ -1,8 +1,10 @@
-error: use of deprecated constant `pyo3::deprecations::PYMETHODS_NEW_DEPRECATED_FORM`: use `#[new]` instead of `#[__new__]`
-  --> tests/ui/deprecations.rs:11:7
+error: use of deprecated constant `__pyfunction_pyfunction_option_2::SIGNATURE`: this function has implicit defaults for the trailing `Option<T>` arguments
+       = note: these implicit defaults are being phased out
+       = help: add `#[pyo3(signature = (_i, _any=None))]` to this function to silence this warning and keep the current behavior
+  --> tests/ui/deprecations.rs:14:4
    |
-11 |     #[__new__]
-   |       ^^^^^^^
+14 | fn pyfunction_option_2(_i: u32, _any: Option<i32>) {}
+   |    ^^^^^^^^^^^^^^^^^^^
    |
 note: the lint level is defined here
   --> tests/ui/deprecations.rs:1:9
@@ -10,34 +12,58 @@ note: the lint level is defined here
 1  | #![deny(deprecated)]
    |         ^^^^^^^^^^
 
-error: use of deprecated constant `__pyfunction_pyfunction_option_2::SIGNATURE`: this function has implicit defaults for the trailing `Option<T>` arguments
-       = note: these implicit defaults are being phased out
-       = help: add `#[pyo3(signature = (_i, _any=None))]` to this function to silence this warning and keep the current behavior
-  --> tests/ui/deprecations.rs:28:4
-   |
-28 | fn pyfunction_option_2(_i: u32, _any: Option<i32>) {}
-   |    ^^^^^^^^^^^^^^^^^^^
-
 error: use of deprecated constant `__pyfunction_pyfunction_option_3::SIGNATURE`: this function has implicit defaults for the trailing `Option<T>` arguments
        = note: these implicit defaults are being phased out
        = help: add `#[pyo3(signature = (_i, _any=None, _foo=None))]` to this function to silence this warning and keep the current behavior
-  --> tests/ui/deprecations.rs:31:4
+  --> tests/ui/deprecations.rs:17:4
    |
-31 | fn pyfunction_option_3(_i: u32, _any: Option<i32>, _foo: Option<String>) {}
+17 | fn pyfunction_option_3(_i: u32, _any: Option<i32>, _foo: Option<String>) {}
    |    ^^^^^^^^^^^^^^^^^^^
 
 error: use of deprecated constant `__pyfunction_pyfunction_option_4::SIGNATURE`: this function has implicit defaults for the trailing `Option<T>` arguments
        = note: these implicit defaults are being phased out
        = help: add `#[pyo3(signature = (_i, _any=None, _foo=None))]` to this function to silence this warning and keep the current behavior
-  --> tests/ui/deprecations.rs:34:4
+  --> tests/ui/deprecations.rs:20:4
    |
-34 | fn pyfunction_option_4(
+20 | fn pyfunction_option_4(
    |    ^^^^^^^^^^^^^^^^^^^
 
 error: use of deprecated constant `SimpleEnumWithoutEq::__pyo3__generated____richcmp__::DEPRECATION`: Implicit equality for simple enums is deprecated. Use `#[pyclass(eq, eq_int)` to keep the current behavior.
-  --> tests/ui/deprecations.rs:41:1
+  --> tests/ui/deprecations.rs:27:1
    |
-41 | #[pyclass]
+27 | #[pyclass]
    | ^^^^^^^^^^
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `extract_options` is never used
+ --> tests/ui/deprecations.rs:5:4
+  |
+5 | fn extract_options(obj: &Bound<'_, PyAny>) -> PyResult<Option<i32>> {
+  |    ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: function `pyfunction_option_1` is never used
+  --> tests/ui/deprecations.rs:11:4
+   |
+11 | fn pyfunction_option_1(_i: u32, _any: Option<i32>) {}
+   |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `pyfunction_option_2` is never used
+  --> tests/ui/deprecations.rs:14:4
+   |
+14 | fn pyfunction_option_2(_i: u32, _any: Option<i32>) {}
+   |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `pyfunction_option_3` is never used
+  --> tests/ui/deprecations.rs:17:4
+   |
+17 | fn pyfunction_option_3(_i: u32, _any: Option<i32>, _foo: Option<String>) {}
+   |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `pyfunction_option_4` is never used
+  --> tests/ui/deprecations.rs:20:4
+   |
+20 | fn pyfunction_option_4(
+   |    ^^^^^^^^^^^^^^^^^^^

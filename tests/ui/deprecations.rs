@@ -1,20 +1,6 @@
 #![deny(deprecated)]
-#![allow(dead_code)]
 
 use pyo3::prelude::*;
-
-#[pyclass]
-struct MyClass;
-
-#[pymethods]
-impl MyClass {
-    #[__new__]
-    fn new() -> Self {
-        Self
-    }
-}
-
-fn main() {}
 
 fn extract_options(obj: &Bound<'_, PyAny>) -> PyResult<Option<i32>> {
     obj.extract()
@@ -43,3 +29,5 @@ pub enum SimpleEnumWithoutEq {
     VariamtA,
     VariantB,
 }
+
+fn main() {}
