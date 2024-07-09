@@ -4,8 +4,9 @@ use pyo3_build_config::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_interpreter_config,
         InterpreterConfig, PythonVersion,
     },
-    warn, PythonImplementation,
+    warn, BuildFlag, PythonImplementation,
 };
+use std::ops::Not;
 
 /// Minimum Python version PyO3 supports.
 struct SupportedVersions {
@@ -120,6 +121,23 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     Ok(())
 }
 
+fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) -> Result<()> {
+    let gil_enabled = interpreter_config
+        .build_flags
+        .0
+        .contains(&BuildFlag::Py_GIL_DISABLED)
+        .not();
+    ensure!(
+        gil_enabled || std::env::var("UNSAFE_PYO3_BUILD_FREE_THREADED").map_or(false, |os_str| os_str == "1"),
+        "the Python interpreter was built with the GIL disabled, which is not supported by PyO3\n\
+        = help: please check if an updated version of PyO3 is available. Current version: {}\n\
+        = help: set UNSAFE_PYO3_BUILD_FREE_THREADED=1 to suppress this check and build anyway for free-threaded Python",
+        std::env::var("CARGO_PKG_VERSION").unwrap()
+    );
+
+    Ok(())
+}
+
 fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
     if let Some(pointer_width) = interpreter_config.pointer_width {
         // Try to check whether the target architecture matches the python library
@@ -185,6 +203,7 @@ fn configure_pyo3() -> Result<()> {
 
     ensure_python_version(&interpreter_config)?;
     ensure_target_pointer_width(&interpreter_config)?;
+    ensure_gil_enabled(&interpreter_config)?;
 
     // Serialize the whole interpreter config into DEP_PYTHON_PYO3_CONFIG env var.
     interpreter_config.to_cargo_dep_env()?;
