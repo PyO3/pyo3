@@ -594,14 +594,6 @@ impl PyAny {
 
     /// Returns whether the object is considered to be true.
     ///
-    /// This is equivalent to the Python expression `bool(self)`.
-    #[deprecated(since = "0.21.0", note = "use `.is_truthy()` instead")]
-    pub fn is_true(&self) -> PyResult<bool> {
-        self.is_truthy()
-    }
-
-    /// Returns whether the object is considered to be true.
-    ///
     /// This applies truth value testing equivalent to the Python expression `bool(self)`.
     pub fn is_truthy(&self) -> PyResult<bool> {
         self.as_borrowed().is_truthy()

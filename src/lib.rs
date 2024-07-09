@@ -318,9 +318,6 @@
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
-#[cfg(feature = "gil-refs")]
 pub use crate::err::PyDowncastError;
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[cfg(feature = "gil-refs")]
