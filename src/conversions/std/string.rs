@@ -44,9 +44,10 @@ impl<'a> IntoPy<Py<PyString>> for &'a str {
 
 impl<'py> IntoPyObject<'py> for &str {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new_bound(py, self))
     }
 }
@@ -74,9 +75,10 @@ impl IntoPy<PyObject> for Cow<'_, str> {
 
 impl<'py> IntoPyObject<'py> for Cow<'_, str> {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
 }
@@ -110,9 +112,10 @@ impl IntoPy<PyObject> for char {
 
 impl<'py> IntoPyObject<'py> for char {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut bytes = [0u8; 4];
         Ok(PyString::new_bound(py, self.encode_utf8(&mut bytes)))
     }
@@ -131,9 +134,10 @@ impl IntoPy<PyObject> for String {
 
 impl<'py> IntoPyObject<'py> for String {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new_bound(py, &self))
     }
 }
@@ -152,9 +156,10 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 impl<'py> IntoPyObject<'py> for &String {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new_bound(py, self))
     }
 }

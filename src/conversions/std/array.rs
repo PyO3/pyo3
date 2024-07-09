@@ -43,9 +43,11 @@ where
     T: IntoPyObject<'py>,
 {
     type Target = PyList;
+    type Output = Bound<'py, Self::Target>;
     type Error = T::Error;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        use crate::conversion::AnyBound;
         unsafe {
             let len = N as ffi::Py_ssize_t;
 

@@ -112,9 +112,10 @@ impl<'py> IntoPyObject<'py> for Duration {
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDelta;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         // Total number of days
         let days = self.num_days();
         // Remainder of seconds
@@ -213,9 +214,10 @@ impl<'py> IntoPyObject<'py> for NaiveDate {
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let DateArgs { year, month, day } = (&self).into();
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -280,9 +282,10 @@ impl<'py> IntoPyObject<'py> for NaiveTime {
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyTime;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let TimeArgs {
             hour,
             min,
@@ -338,9 +341,10 @@ impl<'py> IntoPyObject<'py> for NaiveDateTime {
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let DateArgs { year, month, day } = (&self.date()).into();
         let TimeArgs {
             hour,
@@ -412,9 +416,10 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyDateTime;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let tz = self.offset().fix().into_pyobject(py)?;
         let DateArgs { year, month, day } = (&self.naive_local().date()).into();
         let TimeArgs {
@@ -507,9 +512,10 @@ impl<'py> IntoPyObject<'py> for FixedOffset {
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let seconds_offset = self.local_minus_utc();
         #[cfg(not(Py_LIMITED_API))]
         {
@@ -573,9 +579,10 @@ impl<'py> IntoPyObject<'py> for Utc {
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
     type Target = PyTzInfo;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         #[cfg(Py_LIMITED_API)]
         {
             Ok(timezone_utc_bound(py).into_any())

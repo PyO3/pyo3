@@ -1,5 +1,6 @@
 use std::convert::Infallible;
 
+use crate::conversion::AnyBound;
 use crate::{
     conversion::IntoPyObject, ffi, types::PyNone, Bound, IntoPy, PyErr, PyObject, PyResult, Python,
 };
@@ -128,6 +129,7 @@ impl IntoPyObjectTag {
         PyErr: From<T::Error>,
     {
         obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
+            .map(AnyBound::into_bound)
             .map(Bound::into_ptr)
     }
 

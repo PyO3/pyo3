@@ -140,12 +140,10 @@ macro_rules! complex_conversion {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl<'py> crate::conversion::IntoPyObject<'py> for Complex<$float> {
             type Target = PyComplex;
+            type Output = Bound<'py, Self::Target>;
             type Error = std::convert::Infallible;
 
-            fn into_pyobject(
-                self,
-                py: Python<'py>,
-            ) -> Result<Bound<'py, Self::Target>, Self::Error> {
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
                     Ok(
                         ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double)

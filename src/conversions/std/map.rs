@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{AnyBound, IntoPyObject},
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, IntoPyDict, PyDict},
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
@@ -57,12 +57,16 @@ where
     PyErr: From<K::Error> + From<V::Error>,
 {
     type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new_bound(py);
         for (k, v) in self {
-            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
         }
         Ok(dict)
     }
@@ -93,12 +97,16 @@ where
     PyErr: From<K::Error> + From<V::Error>,
 {
     type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, PyDict>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new_bound(py);
         for (k, v) in self {
-            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
         }
         Ok(dict)
     }

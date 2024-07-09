@@ -16,9 +16,10 @@ impl ToPyObject for OsStr {
 
 impl<'py> IntoPyObject<'py> for &OsStr {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         // If the string is UTF-8, take the quick and easy shortcut
         if let Some(valid_utf8_path) = self.to_str() {
             return valid_utf8_path.into_pyobject(py);
@@ -141,9 +142,10 @@ impl IntoPy<PyObject> for Cow<'_, OsStr> {
 
 impl<'py> IntoPyObject<'py> for Cow<'_, OsStr> {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
 }
@@ -163,9 +165,10 @@ impl IntoPy<PyObject> for OsString {
 
 impl<'py> IntoPyObject<'py> for OsString {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
 }
@@ -178,9 +181,10 @@ impl<'a> IntoPy<PyObject> for &'a OsString {
 
 impl<'py> IntoPyObject<'py> for &OsString {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
 }

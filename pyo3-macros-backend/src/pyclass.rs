@@ -1060,9 +1060,10 @@ fn impl_complex_enum(
         quote! {
             impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                 type Target = Self;
+                type Output = #pyo3_path::Bound<'py, Self::Target>;
                 type Error = #pyo3_path::PyErr;
 
-                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<#pyo3_path::Bound<'py, Self::Target>, Self::Error> {
+                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<Self::Output, Self::Error> {
                     match self {
                         #(#match_arms)*
                     }
@@ -2118,9 +2119,10 @@ impl<'a> PyClassImplsBuilder<'a> {
 
                 impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                     type Target = Self;
+                    type Output = #pyo3_path::Bound<'py, Self::Target>;
                     type Error = #pyo3_path::PyErr;
 
-                    fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<#pyo3_path::Bound<'py, Self::Target>, Self::Error> {
+                    fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<Self::Output, Self::Error> {
                         #pyo3_path::Bound::new(py, self)
                     }
                 }

@@ -95,9 +95,10 @@ impl<'py> IntoPyObject<'py> for Duration {
     type Target = PyDelta;
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let days = self.as_secs() / SECONDS_PER_DAY;
         let seconds = self.as_secs() % SECONDS_PER_DAY;
         let microseconds = self.subsec_micros();
@@ -158,9 +159,10 @@ impl IntoPy<PyObject> for SystemTime {
 
 impl<'py> IntoPyObject<'py> for SystemTime {
     type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let duration_since_unix_epoch =
             self.duration_since(UNIX_EPOCH).unwrap().into_pyobject(py)?;
         unix_epoch_py(py)

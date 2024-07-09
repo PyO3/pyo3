@@ -19,9 +19,10 @@ impl<T: Copy + IntoPy<PyObject>> IntoPy<PyObject> for Cell<T> {
 
 impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
     type Target = T::Target;
+    type Output = T::Output;
     type Error = T::Error;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.get().into_pyobject(py)
     }
 }

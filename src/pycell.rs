@@ -469,19 +469,21 @@ impl<T: PyClass> IntoPy<PyObject> for &'_ PyRef<'_, T> {
 
 impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
     type Target = T;
+    type Output = Bound<'py, T>;
     type Error = Infallible;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
     }
 }
 
-impl<'py, T: PyClass> IntoPyObject<'py> for &PyRef<'py, T> {
+impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     type Target = T;
+    type Output = &'a Bound<'py, T>;
     type Error = Infallible;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
-        Ok(self.inner.clone())
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(&self.inner)
     }
 }
 
@@ -656,19 +658,21 @@ impl<T: PyClass<Frozen = False>> IntoPy<PyObject> for &'_ PyRefMut<'_, T> {
 
 impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
     type Target = T;
+    type Output = Bound<'py, T>;
     type Error = Infallible;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.inner.clone())
     }
 }
 
-impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyRefMut<'py, T> {
+impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py, T> {
     type Target = T;
+    type Output = &'a Bound<'py, T>;
     type Error = Infallible;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
-        Ok(self.inner.clone())
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(&self.inner)
     }
 }
 

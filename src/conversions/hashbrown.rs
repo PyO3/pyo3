@@ -17,7 +17,7 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{AnyBound, IntoPyObject},
     types::{
         any::PyAnyMethods,
         dict::PyDictMethods,
@@ -62,12 +62,16 @@ where
     PyErr: From<K::Error> + From<V::Error>,
 {
     type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new_bound(py);
         for (k, v) in self {
-            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
         }
         Ok(dict)
     }
@@ -119,15 +123,16 @@ where
     PyErr: From<K::Error>,
 {
     type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(
             py,
             self.into_iter().map(|item| {
                 item.into_pyobject(py)
-                    .map(Bound::into_any)
-                    .map(Bound::unbind)
+                    .map(AnyBound::into_any)
+                    .map(AnyBound::unbind)
                     .map_err(Into::into)
             }),
         )

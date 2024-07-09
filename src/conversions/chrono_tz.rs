@@ -64,9 +64,10 @@ impl IntoPy<PyObject> for Tz {
 
 impl<'py> IntoPyObject<'py> for Tz {
     type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, PyAny>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
         ZONE_INFO
             .get_or_try_init_type_ref(py, "zoneinfo", "ZoneInfo")

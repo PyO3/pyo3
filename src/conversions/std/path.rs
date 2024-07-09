@@ -34,9 +34,10 @@ impl<'a> IntoPy<PyObject> for &'a Path {
 
 impl<'py> IntoPyObject<'py> for &Path {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
 }
@@ -57,9 +58,10 @@ impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
 
 impl<'py> IntoPyObject<'py> for Cow<'_, Path> {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
 }
@@ -79,9 +81,10 @@ impl IntoPy<PyObject> for PathBuf {
 
 impl<'py> IntoPyObject<'py> for PathBuf {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
 }
@@ -94,9 +97,10 @@ impl<'a> IntoPy<PyObject> for &'a PathBuf {
 
 impl<'py> IntoPyObject<'py> for &PathBuf {
     type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
 }

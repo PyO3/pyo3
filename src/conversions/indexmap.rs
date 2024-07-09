@@ -87,7 +87,7 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::conversion::IntoPyObject;
+use crate::conversion::{AnyBound, IntoPyObject};
 use crate::types::*;
 use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
@@ -125,12 +125,16 @@ where
     PyErr: From<K::Error> + From<V::Error>,
 {
     type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new_bound(py);
         for (k, v) in self {
-            dict.set_item(k.into_pyobject(py)?, v.into_pyobject(py)?)?;
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
         }
         Ok(dict)
     }

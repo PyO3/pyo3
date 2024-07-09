@@ -1,3 +1,4 @@
+use crate::conversion::AnyBound;
 use crate::{
     conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, FromPyObject,
     IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
@@ -29,12 +30,17 @@ where
     T: IntoPyObject<'py>,
 {
     type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
     type Error = T::Error;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.map_or_else(
             || Ok(py.None().into_bound(py)),
-            |val| val.into_pyobject(py).map(Bound::into_any),
+            |val| {
+                val.into_pyobject(py)
+                    .map(AnyBound::into_any)
+                    .map(AnyBound::into_bound)
+            },
         )
     }
 }

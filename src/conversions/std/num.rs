@@ -36,12 +36,10 @@ macro_rules! int_fits_larger_int {
 
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
-            fn into_pyobject(
-                self,
-                py: Python<'py>,
-            ) -> Result<Bound<'py, Self::Target>, Self::Error> {
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (self as $larger_type).into_pyobject(py)
             }
         }
@@ -107,12 +105,10 @@ macro_rules! int_convert_u64_or_i64 {
         }
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
-            fn into_pyobject(
-                self,
-                py: Python<'py>,
-            ) -> Result<Bound<'py, Self::Target>, Self::Error> {
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
                     Ok($pylong_from_ll_or_ull(self)
                         .assume_owned(py)
@@ -153,12 +149,10 @@ macro_rules! int_fits_c_long {
 
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
-            fn into_pyobject(
-                self,
-                py: Python<'py>,
-            ) -> Result<Bound<'py, Self::Target>, Self::Error> {
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
                     Ok(ffi::PyLong_FromLong(self as c_long)
                         .assume_owned(py)

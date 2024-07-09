@@ -1,4 +1,4 @@
-use crate::conversion::IntoPyObject;
+use crate::conversion::{AnyBound, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::list::{new_from_iter, try_new_from_iter};
@@ -47,13 +47,14 @@ where
     PyErr: From<T::Error>,
 {
     type Target = PyList;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut iter = self.into_iter().map(|e| {
             e.into_pyobject(py)
-                .map(Bound::into_any)
-                .map(Bound::unbind)
+                .map(AnyBound::into_any)
+                .map(AnyBound::unbind)
                 .map_err(Into::into)
         });
 

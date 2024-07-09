@@ -21,9 +21,10 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
 
 impl<'py> IntoPyObject<'py> for &[u8] {
     type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBytes::new_bound(py, self))
     }
 }
@@ -74,9 +75,10 @@ impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
 
 impl<'py> IntoPyObject<'py> for Cow<'_, [u8]> {
     type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBytes::new_bound(py, &self))
     }
 }

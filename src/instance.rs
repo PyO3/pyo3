@@ -575,7 +575,7 @@ unsafe impl<T> AsPyPointer for Bound<'_, T> {
 #[repr(transparent)]
 pub struct Borrowed<'a, 'py, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>, Python<'py>);
 
-impl<'py, T> Borrowed<'_, 'py, T> {
+impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     /// Creates a new owned [`Bound<T>`] from this borrowed reference by
     /// increasing the reference count.
     ///
@@ -602,6 +602,10 @@ impl<'py, T> Borrowed<'_, 'py, T> {
     /// # }
     pub fn to_owned(self) -> Bound<'py, T> {
         (*self).clone()
+    }
+
+    pub(crate) fn to_any(self) -> Borrowed<'a, 'py, PyAny> {
+        Borrowed(self.0, PhantomData, self.2)
     }
 }
 

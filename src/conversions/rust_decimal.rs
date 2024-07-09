@@ -104,9 +104,10 @@ impl IntoPy<PyObject> for Decimal {
 
 impl<'py> IntoPyObject<'py> for Decimal {
     type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dec_cls = get_decimal_cls(py)?;
         // now call the constructor with the Rust Decimal string-ified
         // to not be lossy

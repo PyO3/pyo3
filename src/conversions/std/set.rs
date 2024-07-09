@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{AnyBound, IntoPyObject},
     instance::Bound,
     types::{
         any::PyAnyMethods,
@@ -61,15 +61,16 @@ where
     PyErr: From<K::Error>,
 {
     type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(
             py,
             self.into_iter().map(|item| {
                 item.into_pyobject(py)
-                    .map(Bound::into_any)
-                    .map(Bound::unbind)
+                    .map(AnyBound::into_any)
+                    .map(AnyBound::unbind)
                     .map_err(Into::into)
             }),
         )
@@ -122,15 +123,16 @@ where
     PyErr: From<K::Error>,
 {
     type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Bound<'py, Self::Target>, Self::Error> {
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(
             py,
             self.into_iter().map(|item| {
                 item.into_pyobject(py)
-                    .map(Bound::into_any)
-                    .map(Bound::unbind)
+                    .map(AnyBound::into_any)
+                    .map(AnyBound::unbind)
                     .map_err(Into::into)
             }),
         )
