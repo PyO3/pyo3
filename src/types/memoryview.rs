@@ -6,6 +6,9 @@ use crate::{ffi, Bound, PyAny};
 use crate::{AsPyPointer, PyNativeType};
 
 /// Represents a Python `memoryview`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyMemoryView>`][crate::Py] or [`Bound<'py, PyMemoryView>`][Bound].
 #[repr(transparent)]
 pub struct PyMemoryView(PyAny);
 

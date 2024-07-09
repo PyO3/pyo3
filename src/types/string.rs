@@ -123,10 +123,11 @@ impl<'a> PyStringData<'a> {
 
 /// Represents a Python `string` (a Unicode string object).
 ///
-/// This type is only seen inside PyO3's smart pointers as [`Py<PyString>`], [`Bound<'py, PyString>`],
-/// and [`Borrowed<'a, 'py, PyString>`].
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyString>`][crate::Py] or [`Bound<'py, PyString>`][Bound].
 ///
-/// All functionality on this type is implemented through the [`PyStringMethods`] trait.
+/// For APIs available on `str` objects, see the [`PyStringMethods`] trait which is implemented for
+/// [`Bound<'py, PyString>`][Bound].
 ///
 /// # Equality
 ///

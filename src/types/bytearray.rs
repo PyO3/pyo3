@@ -9,6 +9,12 @@ use crate::{AsPyPointer, PyNativeType};
 use std::slice;
 
 /// Represents a Python `bytearray`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyByteArray>`][crate::Py] or [`Bound<'py, PyByteArray>`][Bound].
+///
+/// For APIs available on `bytearray` objects, see the [`PyByteArrayMethods`] trait which is implemented for
+/// [`Bound<'py, PyByteArray>`][Bound].
 #[repr(transparent)]
 pub struct PyByteArray(PyAny);
 
