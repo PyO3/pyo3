@@ -31,8 +31,7 @@ fn double(x: usize) -> usize {
     x * 2
 }
 
-#[pymodule]
-#[pyo3(name = "custom_name")]
+#[pymodule(name = "custom_name")]
 fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)
 }

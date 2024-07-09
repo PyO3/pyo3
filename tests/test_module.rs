@@ -138,8 +138,7 @@ fn test_module_with_explicit_py_arg() {
     });
 }
 
-#[pymodule]
-#[pyo3(name = "other_name")]
+#[pymodule(name = "other_name")]
 fn some_name(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("other_name", "other_name")?;
     Ok(())
