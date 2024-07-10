@@ -304,7 +304,7 @@ impl PyModule {
     /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
     /// anything that can return instances of `Foo`).
     ///
-    /// [1]: https://pyo3.rs/latest/class.html#constructor
+    #[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#constructor")]
     pub fn add_class<T>(&self) -> PyResult<()>
     where
         T: PyClass,
@@ -509,7 +509,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
     /// anything that can return instances of `Foo`).
     ///
-    /// [1]: https://pyo3.rs/latest/class.html#constructor
+    #[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#constructor")]
     fn add_class<T>(&self) -> PyResult<()>
     where
         T: PyClass;
