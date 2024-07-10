@@ -164,9 +164,8 @@ impl<'a> PyMethod<'a> {
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
-        ctx: &'a Ctx,
     ) -> Result<Self> {
-        let spec = FnSpec::parse(sig, meth_attrs, options, ctx)?;
+        let spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();
         let kind = PyMethodKind::from_name(&method_name);
@@ -195,7 +194,7 @@ pub fn gen_py_method(
 ) -> Result<GeneratedPyMethod> {
     check_generic(sig)?;
     ensure_function_options_valid(&options)?;
-    let method = PyMethod::parse(sig, meth_attrs, options, ctx)?;
+    let method = PyMethod::parse(sig, meth_attrs, options)?;
     let spec = &method.spec;
     let Ctx { pyo3_path, .. } = ctx;
 
@@ -356,7 +355,6 @@ pub fn impl_py_method_def_new(
         || quote!(::std::option::Option::None),
         |text_signature| quote!(::std::option::Option::Some(#text_signature)),
     );
-    let deprecations = &spec.deprecations;
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_new,
@@ -365,10 +363,7 @@ pub fn impl_py_method_def_new(
                     subtype: *mut #pyo3_path::ffi::PyTypeObject,
                     args: *mut #pyo3_path::ffi::PyObject,
                     kwargs: *mut #pyo3_path::ffi::PyObject,
-                ) -> *mut #pyo3_path::ffi::PyObject
-                {
-                    #deprecations
-
+                ) -> *mut #pyo3_path::ffi::PyObject {
                     use #pyo3_path::impl_::pyclass::*;
                     #[allow(unknown_lints, non_local_definitions)]
                     impl PyClassNewTextSignature<#cls> for PyClassImplCollector<#cls> {

@@ -66,4 +66,5 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/abi3_weakref.rs");
     #[cfg(all(Py_LIMITED_API, not(Py_3_9)))]
     t.compile_fail("tests/ui/abi3_dict.rs");
+    t.compile_fail("tests/ui/duplicate_pymodule_submodule.rs");
 }

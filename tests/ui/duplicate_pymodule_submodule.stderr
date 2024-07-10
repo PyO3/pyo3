@@ -1,0 +1,11 @@
+error: `submodule` may only be specified once (it is implicitly always specified for nested modules)
+ --> tests/ui/duplicate_pymodule_submodule.rs:4:2
+  |
+4 |     mod submod {}
+  |     ^^^
+
+error[E0433]: failed to resolve: use of undeclared crate or module `submod`
+ --> tests/ui/duplicate_pymodule_submodule.rs:4:6
+  |
+4 |     mod submod {}
+  |         ^^^^^^ use of undeclared crate or module `submod`

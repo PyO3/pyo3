@@ -65,7 +65,19 @@ pub unsafe trait PyNativeType: Sized {
     }
 }
 
-/// A GIL-attached equivalent to `Py`.
+/// A GIL-attached equivalent to [`Py<T>`].
+///
+/// This type can be thought of as equivalent to the tuple `(Py<T>, Python<'py>)`. By having the `'py`
+/// lifetime of the [`Python<'py>`] token, this ties the lifetime of the [`Bound<'py, T>`] smart pointer
+/// to the lifetime of the GIL and allows PyO3 to call Python APIs at maximum efficiency.
+///
+/// To access the object in situations where the GIL is not held, convert it to [`Py<T>`]
+/// using [`.unbind()`][Bound::unbind]. This includes situations where the GIL is temporarily
+/// released, such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+///
+/// See
+#[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#boundpy-t)")]
+/// for more detail.
 #[repr(transparent)]
 pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
 
@@ -1372,14 +1384,6 @@ impl<T> Py<T> {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
-    pub fn is_ellipsis(&self) -> bool {
-        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
-    }
-
     /// Returns whether the object is considered to be true.
     ///
     /// This applies truth value testing equivalent to the Python expression `bool(self)`.
@@ -2151,23 +2155,6 @@ a = A()
             let instance: PyObject = instance.clone().unbind();
             assert_eq!(instance.as_ptr(), ptr);
         })
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_is_ellipsis() {
-        Python::with_gil(|py| {
-            let v = py
-                .eval_bound("...", None, None)
-                .map_err(|e| e.display(py))
-                .unwrap()
-                .to_object(py);
-
-            assert!(v.is_ellipsis());
-
-            let not_ellipsis = 5.to_object(py);
-            assert!(!not_ellipsis.is_ellipsis());
-        });
     }
 
     #[test]

@@ -4,6 +4,9 @@ use crate::{
 };
 
 /// Represents the Python `Ellipsis` object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyEllipsis>`][crate::Py] or [`Bound<'py, PyEllipsis>`][Bound].
 #[repr(transparent)]
 pub struct PyEllipsis(PyAny);
 

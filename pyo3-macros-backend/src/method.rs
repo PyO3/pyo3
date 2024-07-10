@@ -10,7 +10,6 @@ use crate::deprecations::deprecate_trailing_option_default;
 use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
-    deprecations::{Deprecation, Deprecations},
     params::{impl_arg_params, Holders},
     pyfunction::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
@@ -411,7 +410,6 @@ pub struct FnSpec<'a> {
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
-    pub deprecations: Deprecations<'a>,
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -443,7 +441,6 @@ impl<'a> FnSpec<'a> {
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
-        ctx: &'a Ctx,
     ) -> Result<FnSpec<'a>> {
         let PyFunctionOptions {
             text_signature,
@@ -453,9 +450,8 @@ impl<'a> FnSpec<'a> {
         } = options;
 
         let mut python_name = name.map(|name| name.value.0);
-        let mut deprecations = Deprecations::new(ctx);
 
-        let fn_type = Self::parse_fn_type(sig, meth_attrs, &mut python_name, &mut deprecations)?;
+        let fn_type = Self::parse_fn_type(sig, meth_attrs, &mut python_name)?;
         ensure_signatures_on_valid_method(&fn_type, signature.as_ref(), text_signature.as_ref())?;
 
         let name = &sig.ident;
@@ -493,7 +489,6 @@ impl<'a> FnSpec<'a> {
             text_signature,
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
-            deprecations,
         })
     }
 
@@ -507,9 +502,8 @@ impl<'a> FnSpec<'a> {
         sig: &syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         python_name: &mut Option<syn::Ident>,
-        deprecations: &mut Deprecations<'_>,
     ) -> Result<FnType> {
-        let mut method_attributes = parse_method_attributes(meth_attrs, deprecations)?;
+        let mut method_attributes = parse_method_attributes(meth_attrs)?;
 
         let name = &sig.ident;
         let parse_receiver = |msg: &'static str| {
@@ -982,10 +976,7 @@ impl MethodTypeAttribute {
     /// If the attribute does not match one of the attribute names, returns `Ok(None)`.
     ///
     /// Otherwise will either return a parse error or the attribute.
-    fn parse_if_matching_attribute(
-        attr: &syn::Attribute,
-        deprecations: &mut Deprecations<'_>,
-    ) -> Result<Option<Self>> {
+    fn parse_if_matching_attribute(attr: &syn::Attribute) -> Result<Option<Self>> {
         fn ensure_no_arguments(meta: &syn::Meta, ident: &str) -> syn::Result<()> {
             match meta {
                 syn::Meta::Path(_) => Ok(()),
@@ -1029,11 +1020,6 @@ impl MethodTypeAttribute {
         if path.is_ident("new") {
             ensure_no_arguments(meta, "new")?;
             Ok(Some(MethodTypeAttribute::New(path.span())))
-        } else if path.is_ident("__new__") {
-            let span = path.span();
-            deprecations.push(Deprecation::PyMethodsNewDeprecatedForm, span);
-            ensure_no_arguments(meta, "__new__")?;
-            Ok(Some(MethodTypeAttribute::New(span)))
         } else if path.is_ident("classmethod") {
             ensure_no_arguments(meta, "classmethod")?;
             Ok(Some(MethodTypeAttribute::ClassMethod(path.span())))
@@ -1068,15 +1054,12 @@ impl Display for MethodTypeAttribute {
     }
 }
 
-fn parse_method_attributes(
-    attrs: &mut Vec<syn::Attribute>,
-    deprecations: &mut Deprecations<'_>,
-) -> Result<Vec<MethodTypeAttribute>> {
+fn parse_method_attributes(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<MethodTypeAttribute>> {
     let mut new_attrs = Vec::new();
     let mut found_attrs = Vec::new();
 
     for attr in attrs.drain(..) {
-        match MethodTypeAttribute::parse_if_matching_attribute(&attr, deprecations)? {
+        match MethodTypeAttribute::parse_if_matching_attribute(&attr)? {
             Some(attr) => found_attrs.push(attr),
             None => new_attrs.push(attr),
         }

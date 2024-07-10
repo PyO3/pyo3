@@ -80,7 +80,7 @@ impl PyModuleOptions {
     fn set_submodule(&mut self, submod: SubmoduleAttribute) -> Result<()> {
         ensure_spanned!(
             !self.is_submodule,
-            submod.span() => "`submodule` may only be specified once"
+            submod.span() => "`submodule` may only be specified once (it is implicitly always specified for nested modules)"
         );
 
         self.is_submodule = true;
@@ -116,7 +116,14 @@ pub fn pymodule_module_impl(
     } else {
         name.to_string()
     };
-    is_submodule = is_submodule || options.is_submodule;
+
+    is_submodule = match (is_submodule, options.is_submodule) {
+        (true, true) => {
+            bail_spanned!(module.span() => "`submodule` may only be specified once (it is implicitly always specified for nested modules)")
+        }
+        (false, false) => false,
+        (true, false) | (false, true) => true,
+    };
 
     let mut module_items = Vec::new();
     let mut module_items_cfg_attrs = Vec::new();
@@ -273,6 +280,7 @@ pub fn pymodule_module_impl(
                     )? {
                         set_module_attribute(&mut item_mod.attrs, &full_name);
                     }
+                    item_mod.attrs.push(parse_quote!(#[pyo3(submodule)]));
                 }
             }
             Item::ForeignMod(item) => {
@@ -365,7 +373,7 @@ pub fn pymodule_module_impl(
                     #module_items::_PYO3_DEF.add_to_module(module)?;
                 )*
                 #pymodule_init
-                Ok(())
+                ::std::result::Result::Ok(())
             }
         }
     ))

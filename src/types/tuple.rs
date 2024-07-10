@@ -52,7 +52,11 @@ fn new_from_iter<'py>(
 
 /// Represents a Python `tuple` object.
 ///
-/// This type is immutable.
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyTuple>`][crate::Py] or [`Bound<'py, PyTuple>`][Bound].
+///
+/// For APIs available on `tuple` objects, see the [`PyTupleMethods`] trait which is implemented for
+/// [`Bound<'py, PyTuple>`][Bound].
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 

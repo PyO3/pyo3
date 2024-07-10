@@ -15,6 +15,11 @@ use std::os::raw::{c_char, c_int, c_void};
 /// > in one module available to other modules, so the regular import mechanism can
 /// > be used to access C APIs defined in dynamically loaded modules.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyCapsule>`][crate::Py] or [`Bound<'py, PyCapsule>`][Bound].
+///
+/// For APIs available on capsule objects, see the [`PyCapsuleMethods`] trait which is implemented for
+/// [`Bound<'py, PyCapsule>`][Bound].
 ///
 /// # Example
 /// ```

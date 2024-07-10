@@ -19,26 +19,15 @@ use std::os::raw::c_int;
 
 /// Represents any Python object.
 ///
-/// It currently only appears as a *reference*, `&PyAny`,
-/// with a lifetime that represents the scope during which the GIL is held.
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyAny>`][crate::Py] or [`Bound<'py, PyAny>`][Bound].
 ///
-/// `PyAny` has some interesting properties, which it shares
-/// with the other [native Python types](crate::types):
+/// For APIs available on all Python objects, see the [`PyAnyMethods`] trait which is implemented for
+/// [`Bound<'py, PyAny>`][Bound].
 ///
-/// - It can only be obtained and used while the GIL is held,
-///   therefore its API does not require a [`Python<'py>`](crate::Python) token.
-/// - It can't be used in situations where the GIL is temporarily released,
-///   such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
-/// - The underlying Python object, if mutable, can be mutated through any reference.
-/// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
-///   allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
-///   *does* require a [`Python<'py>`](crate::Python) token.
-///
-/// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
-/// and FromPyObject::extract. See their documentation for more information.
-///
-/// See [the guide](https://pyo3.rs/latest/types.html) for an explanation
-/// of the different Python object types.
+/// See
+#[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#concrete-python-types)")]
+/// for an explanation of the different Python object types.
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
 
@@ -605,14 +594,6 @@ impl PyAny {
     #[inline]
     pub fn is_none(&self) -> bool {
         self.as_borrowed().is_none()
-    }
-
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
-    pub fn is_ellipsis(&self) -> bool {
-        self.as_borrowed().is_ellipsis()
     }
 
     /// Returns true if the sequence or mapping has a length of 0.
@@ -1498,6 +1479,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Returns whether the object is Ellipsis, e.g. `...`.
     ///
     /// This is equivalent to the Python expression `self is ...`.
+    #[deprecated(since = "0.23.0", note = "use `.is(py.Ellipsis())` instead")]
     fn is_ellipsis(&self) -> bool;
 
     /// Returns true if the sequence or mapping has a length of 0.
@@ -2788,6 +2770,7 @@ class SimpleClass:
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py

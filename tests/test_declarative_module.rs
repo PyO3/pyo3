@@ -115,7 +115,7 @@ mod declarative_module {
         }
     }
 
-    #[pymodule(submodule)]
+    #[pymodule]
     #[pyo3(module = "custom_root")]
     mod inner_custom_root {
         use super::*;

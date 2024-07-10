@@ -1,6 +1,3 @@
-#![no_implicit_prelude]
-#![allow(unused_variables)]
-
 #[crate::pyclass]
 #[pyo3(crate = "crate")]
 #[derive(::std::clone::Clone)]
