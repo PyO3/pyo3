@@ -49,8 +49,7 @@ create_exception!(
     "Some description."
 );
 
-#[pymodule]
-#[pyo3(submodule)]
+#[pymodule(submodule)]
 mod external_submodule {}
 
 /// A module written using declarative syntax.
@@ -144,8 +143,7 @@ mod declarative_submodule {
     use super::{double, double_value};
 }
 
-#[pymodule]
-#[pyo3(name = "declarative_module_renamed")]
+#[pymodule(name = "declarative_module_renamed")]
 mod declarative_module2 {
     #[pymodule_export]
     use super::double;

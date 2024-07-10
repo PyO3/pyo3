@@ -1,4 +1,4 @@
-error: unexpected token
+error: expected one of: `name`, `crate`, `module`, `submodule`
  --> tests/ui/invalid_pymodule_args.rs:3:12
   |
 3 | #[pymodule(some_arg)]
