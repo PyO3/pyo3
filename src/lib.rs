@@ -295,25 +295,25 @@
 //! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
 //! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
-//! [calling_rust]: https://pyo3.rs/latest/python-from-rust.html "Calling Python from Rust - PyO3 user guide"
+#![doc = concat!("[calling_rust]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/python-from-rust.html \"Calling Python from Rust - PyO3 user guide\"")]
 //! [examples subdirectory]: https://github.com/PyO3/pyo3/tree/main/examples
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
 //! [global interpreter lock]: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
 //! [hashbrown]: https://docs.rs/hashbrown
 //! [smallvec]: https://docs.rs/smallvec
 //! [indexmap]: https://docs.rs/indexmap
-//! [manual_builds]: https://pyo3.rs/latest/building-and-distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
+#![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [num-bigint]: https://docs.rs/num-bigint
 //! [num-complex]: https://docs.rs/num-complex
 //! [num-rational]: https://docs.rs/num-rational
 //! [serde]: https://docs.rs/serde
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [the guide]: https://pyo3.rs "PyO3 user guide"
-//! [types]: https://pyo3.rs/latest/types.html "GIL lifetimes, mutability and Python object types"
+#![doc = concat!("[types]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html \"GIL lifetimes, mutability and Python object types\"")]
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
 //! [Python from Rust]: https://github.com/PyO3/pyo3#using-python-from-rust
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
-//! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
@@ -483,7 +483,7 @@ pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
 ///
-/// [1]: https://pyo3.rs/latest/class.html
+#[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html")]
 #[cfg(feature = "macros")]
 pub use pyo3_macros::pyclass;
 
