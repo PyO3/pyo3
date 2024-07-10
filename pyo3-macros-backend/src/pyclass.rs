@@ -231,17 +231,19 @@ pub fn build_py_class(
 
     if let Some(lt) = class.generics.lifetimes().next() {
         bail_spanned!(
-            lt.span() =>
-            "#[pyclass] cannot have lifetime parameters. \
-            For an explanation, see https://pyo3.rs/latest/class.html#no-lifetime-parameters"
+            lt.span() => concat!(
+                "#[pyclass] cannot have lifetime parameters. For an explanation, see \
+                https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#no-lifetime-parameters"
+            )
         );
     }
 
     ensure_spanned!(
         class.generics.params.is_empty(),
-        class.generics.span() =>
-            "#[pyclass] cannot have generic parameters. \
-            For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
+        class.generics.span() => concat!(
+            "#[pyclass] cannot have generic parameters. For an explanation, see \
+            https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#no-generic-parameters"
+        )
     );
 
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
