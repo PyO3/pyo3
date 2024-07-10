@@ -648,7 +648,7 @@ def test_version_limits(session: nox.Session):
         _run_cargo(session, "check", env=env, expect_error=True)
 
         # Python build with GIL disabled should fail building
-        config_file.set("CPython", "3.13", build_flags=['Py_GIL_DISABLED'])
+        config_file.set("CPython", "3.13", build_flags=["Py_GIL_DISABLED"])
         _run_cargo(session, "check", env=env, expect_error=True)
 
         # Python build with GIL disabled should pass with env flag on
@@ -915,7 +915,9 @@ class _ConfigFile:
     def __init__(self, config_file) -> None:
         self._config_file = config_file
 
-    def set(self, implementation: str, version: str, build_flags: Iterable[str] = ()) -> None:
+    def set(
+        self, implementation: str, version: str, build_flags: Iterable[str] = ()
+    ) -> None:
         """Set the contents of this config file to the given implementation and version."""
         self._config_file.seek(0)
         self._config_file.truncate(0)
