@@ -130,6 +130,7 @@ fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) -> Result<()> {
     ensure!(
         gil_enabled || std::env::var("UNSAFE_PYO3_BUILD_FREE_THREADED").map_or(false, |os_str| os_str == "1"),
         "the Python interpreter was built with the GIL disabled, which is not yet supported by PyO3\n\
+        = help: see https://github.com/PyO3/pyo3/issues/4265 for more information\n\
         = help: please check if an updated version of PyO3 is available. Current version: {}\n\
         = help: set UNSAFE_PYO3_BUILD_FREE_THREADED=1 to suppress this check and build anyway for free-threaded Python",
         std::env::var("CARGO_PKG_VERSION").unwrap()
