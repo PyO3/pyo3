@@ -32,7 +32,7 @@ use syn::{parse::Nothing, parse_macro_input, Item};
 /// `#[pymodule]` implementation generates a hidden module with the same name containing
 /// metadata about the module, which is used by `wrap_pymodule!`).
 ///
-/// [1]: https://pyo3.rs/latest/module.html
+#[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/module.html")]
 #[proc_macro_attribute]
 pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
     match parse_macro_input!(input as Item) {
@@ -99,17 +99,17 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// multiple `#[pymethods]` blocks for a single `#[pyclass]`.
 /// This will add a transitive dependency on the [`inventory`][3] crate.
 ///
-/// [1]: https://pyo3.rs/latest/class.html#instance-methods
-/// [2]: https://pyo3.rs/latest/features.html#multiple-pymethods
+#[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#instance-methods")]
+#[doc = concat!("[2]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#multiple-pymethods")]
 /// [3]: https://docs.rs/inventory/
-/// [4]: https://pyo3.rs/latest/class.html#constructor
-/// [5]: https://pyo3.rs/latest/class.html#object-properties-using-getter-and-setter
-/// [6]: https://pyo3.rs/latest/class.html#static-methods
-/// [7]: https://pyo3.rs/latest/class.html#class-methods
-/// [8]: https://pyo3.rs/latest/class.html#callable-objects
-/// [9]: https://pyo3.rs/latest/class.html#class-attributes
-/// [10]: https://pyo3.rs/latest/class.html#method-arguments
-/// [11]: https://pyo3.rs/latest/class.html#object-properties-using-pyo3get-set
+#[doc = concat!("[4]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#constructor")]
+#[doc = concat!("[5]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#object-properties-using-getter-and-setter")]
+#[doc = concat!("[6]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#static-methods")]
+#[doc = concat!("[7]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#class-methods")]
+#[doc = concat!("[8]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#callable-objects")]
+#[doc = concat!("[9]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#class-attributes")]
+#[doc = concat!("[10]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#method-arguments")]
+#[doc = concat!("[11]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#object-properties-using-pyo3get-set")]
 #[proc_macro_attribute]
 pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
     let methods_type = if cfg!(feature = "multiple-pymethods") {
@@ -138,7 +138,7 @@ pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// `#[pyfunction]` implementation generates a hidden module with the same name containing
 /// metadata about the function, which is used by `wrap_pyfunction!`).
 ///
-/// [1]: https://pyo3.rs/latest/function.html
+#[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/function.html")]
 #[proc_macro_attribute]
 pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
