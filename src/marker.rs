@@ -126,10 +126,10 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 #[allow(deprecated)]
 #[cfg(feature = "gil-refs")]
-use crate::{gil::GILPool, FromPyPointer, PyNativeType};
+use crate::{conversion::FromPyPointer, gil::GILPool, PyNativeType};
+use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;

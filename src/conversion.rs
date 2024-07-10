@@ -8,10 +8,7 @@ use crate::types::PyTuple;
 use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
 #[cfg(feature = "gil-refs")]
 use {
-    crate::{
-        err::{self, PyDowncastError},
-        gil, PyNativeType,
-    },
+    crate::{err, gil, PyNativeType},
     std::ptr::NonNull,
 };
 

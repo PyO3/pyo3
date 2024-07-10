@@ -2356,18 +2356,5 @@ a = A()
                 }
             })
         }
-
-        #[test]
-        #[cfg(feature = "gil-refs")]
-        #[allow(deprecated)]
-        fn cell_tryfrom() {
-            use crate::{PyCell, PyTryInto};
-            // More detailed tests of the underlying semantics in pycell.rs
-            Python::with_gil(|py| {
-                let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);
-                let _: &PyCell<SomeClass> = PyTryInto::try_into(instance).unwrap();
-                let _: &PyCell<SomeClass> = PyTryInto::try_into_exact(instance).unwrap();
-            })
-        }
     }
 }

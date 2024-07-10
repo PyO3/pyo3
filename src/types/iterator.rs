@@ -3,7 +3,7 @@ use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
 #[cfg(feature = "gil-refs")]
-use crate::{AsPyPointer, PyDowncastError, PyNativeType};
+use crate::{AsPyPointer, PyNativeType};
 
 /// A Python iterator object.
 ///
@@ -127,31 +127,6 @@ impl PyTypeCheck for PyIterator {
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<'v> crate::PyTryFrom<'v> for PyIterator {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        let value = value.into();
-        unsafe {
-            if ffi::PyIter_Check(value.as_ptr()) != 0 {
-                Ok(value.downcast_unchecked())
-            } else {
-                Err(PyDowncastError::new(value, "Iterator"))
-            }
-        }
-    }
-
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        value.into().downcast()
-    }
-
-    #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyIterator {
-        let ptr = value.into() as *const _ as *const PyIterator;
-        &*ptr
     }
 }
 
@@ -295,18 +270,6 @@ def fibonacci(target):
             let err = PyIterator::from_bound_object(x.bind(py)).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn iterator_try_from() {
-        Python::with_gil(|py| {
-            let obj: crate::Py<crate::PyAny> =
-                vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-            let iter = <PyIterator as crate::PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-            assert!(obj.is(iter));
         });
     }
 
