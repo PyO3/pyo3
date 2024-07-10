@@ -10,7 +10,7 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
 #[cfg(feature = "gil-refs")]
-use crate::{err::PyDowncastError, PyNativeType};
+use crate::PyNativeType;
 use crate::{ffi, FromPyObject, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
@@ -553,33 +553,6 @@ impl PyTypeCheck for PySequence {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<'v> crate::PyTryFrom<'v> for PySequence {
-    /// Downcasting to `PySequence` requires the concrete class to be a subclass (or registered
-    /// subclass) of `collections.abc.Sequence` (from the Python standard library) - i.e.
-    /// `isinstance(<class>, collections.abc.Sequence) == True`.
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
-        let value = value.into();
-
-        if PySequence::type_check(&value.as_borrowed()) {
-            unsafe { return Ok(value.downcast_unchecked::<PySequence>()) }
-        }
-
-        Err(PyDowncastError::new(value, "Sequence"))
-    }
-
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
-        value.into().downcast()
-    }
-
-    #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PySequence {
-        let ptr = value.into() as *const _ as *const PySequence;
-        &*ptr
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
@@ -1105,18 +1078,6 @@ mod tests {
             let type_ptr = seq.as_ref();
             let seq_from = unsafe { type_ptr.downcast_unchecked::<PySequence>() };
             assert!(seq_from.to_list().is_ok());
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_try_from() {
-        use crate::PyTryFrom;
-        Python::with_gil(|py| {
-            let list = PyList::empty(py);
-            let _ = <PySequence as PyTryFrom>::try_from(list).unwrap();
-            let _ = PySequence::try_from_exact(list).unwrap();
         });
     }
 }

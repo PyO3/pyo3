@@ -7,7 +7,7 @@ use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
 #[cfg(feature = "gil-refs")]
-use crate::{err::PyDowncastError, PyNativeType};
+use crate::PyNativeType;
 use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
@@ -266,34 +266,6 @@ impl PyTypeCheck for PyMapping {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<'v> crate::PyTryFrom<'v> for PyMapping {
-    /// Downcasting to `PyMapping` requires the concrete class to be a subclass (or registered
-    /// subclass) of `collections.abc.Mapping` (from the Python standard library) - i.e.
-    /// `isinstance(<class>, collections.abc.Mapping) == True`.
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
-        let value = value.into();
-
-        if PyMapping::type_check(&value.as_borrowed()) {
-            unsafe { return Ok(value.downcast_unchecked()) }
-        }
-
-        Err(PyDowncastError::new(value, "Mapping"))
-    }
-
-    #[inline]
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
-        value.into().downcast()
-    }
-
-    #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyMapping {
-        let ptr = value.into() as *const _ as *const PyMapping;
-        &*ptr
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -443,18 +415,6 @@ mod tests {
                 values_sum += el.unwrap().extract::<i32>().unwrap();
             }
             assert_eq!(32 + 42 + 123, values_sum);
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_mapping_try_from() {
-        use crate::PyTryFrom;
-        Python::with_gil(|py| {
-            let dict = PyDict::new(py);
-            let _ = <PyMapping as PyTryFrom>::try_from(dict).unwrap();
-            let _ = PyMapping::try_from_exact(dict).unwrap();
         });
     }
 }

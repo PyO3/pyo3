@@ -1387,14 +1387,6 @@ impl<T> Py<T> {
 
     /// Returns whether the object is considered to be true.
     ///
-    /// This is equivalent to the Python expression `bool(self)`.
-    #[deprecated(since = "0.21.0", note = "use `.is_truthy()` instead")]
-    pub fn is_true(&self, py: Python<'_>) -> PyResult<bool> {
-        self.is_truthy(py)
-    }
-
-    /// Returns whether the object is considered to be true.
-    ///
     /// This applies truth value testing equivalent to the Python expression `bool(self)`.
     pub fn is_truthy(&self, py: Python<'_>) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
@@ -2363,19 +2355,6 @@ a = A()
 
                     assert_eq!(instance.bind(py).get().0, i);
                 }
-            })
-        }
-
-        #[test]
-        #[cfg(feature = "gil-refs")]
-        #[allow(deprecated)]
-        fn cell_tryfrom() {
-            use crate::{PyCell, PyTryInto};
-            // More detailed tests of the underlying semantics in pycell.rs
-            Python::with_gil(|py| {
-                let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);
-                let _: &PyCell<SomeClass> = PyTryInto::try_into(instance).unwrap();
-                let _: &PyCell<SomeClass> = PyTryInto::try_into_exact(instance).unwrap();
             })
         }
     }

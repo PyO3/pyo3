@@ -126,10 +126,10 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 #[allow(deprecated)]
 #[cfg(feature = "gil-refs")]
-use crate::{gil::GILPool, FromPyPointer, PyNativeType};
+use crate::{conversion::FromPyPointer, gil::GILPool, PyNativeType};
+use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -799,42 +799,6 @@ impl<'py> Python<'py> {
         let version_number_str = version_str.split(' ').next().unwrap_or(version_str);
 
         PythonVersionInfo::from_str(version_number_str).unwrap()
-    }
-
-    /// Registers the object in the release pool, and tries to downcast to specific type.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
-    )]
-    pub fn checked_cast_as<T>(
-        self,
-        obj: PyObject,
-    ) -> Result<&'py T, crate::err::PyDowncastError<'py>>
-    where
-        T: crate::PyTypeCheck<AsRefTarget = T>,
-    {
-        #[allow(deprecated)]
-        obj.into_ref(self).downcast()
-    }
-
-    /// Registers the object in the release pool, and does an unchecked downcast
-    /// to the specific type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
-    )]
-    pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
-    where
-        T: crate::type_object::HasPyGilRef<AsRefTarget = T>,
-    {
-        #[allow(deprecated)]
-        obj.into_ref(self).downcast_unchecked()
     }
 
     /// Registers the object pointer in the release pool,

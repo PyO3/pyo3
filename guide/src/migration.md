@@ -235,8 +235,7 @@ The `__next__` and `__anext__` magic methods can now return any type convertible
 
 Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
 
-```rust
-#![allow(deprecated)]
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::iter::IterNextOutput;
 

@@ -318,9 +318,6 @@
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 #[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::conversion::{FromPyPointer, PyTryFrom, PyTryInto};
-#[cfg(feature = "gil-refs")]
 pub use crate::err::PyDowncastError;
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[cfg(feature = "gil-refs")]
@@ -380,30 +377,6 @@ pub mod class {
     /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod basic {
         pub use crate::pyclass::CompareOp;
-    }
-
-    /// Old module which contained some implementation details of the `#[pyproto]` module.
-    ///
-    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterANextOutput` instead
-    /// of `use pyo3::class::pyasync::IterANextOutput`.
-    ///
-    /// For compatibility reasons this has not yet been removed, however will be done so
-    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
-    pub mod pyasync {
-        #[allow(deprecated)]
-        pub use crate::pyclass::{IterANextOutput, PyIterANextOutput};
-    }
-
-    /// Old module which contained some implementation details of the `#[pyproto]` module.
-    ///
-    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterNextOutput` instead
-    /// of `use pyo3::class::pyasync::IterNextOutput`.
-    ///
-    /// For compatibility reasons this has not yet been removed, however will be done so
-    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
-    pub mod iter {
-        #[allow(deprecated)]
-        pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
     }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.
