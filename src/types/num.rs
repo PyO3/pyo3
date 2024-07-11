@@ -53,7 +53,8 @@ int_compare!(usize);
 
 #[cfg(test)]
 mod tests {
-    use crate::{IntoPy, Python};
+    use crate::{types::PyAnyMethods, IntoPy, Python};
+    use super::PyLong;
 
     #[test]
     fn test_partial_eq() {
@@ -110,7 +111,7 @@ mod tests {
             let big_num = (u8::MAX as u16) + 1;
             let big_obj = big_num.into_py(py).into_bound(py).downcast_into::<PyLong>().unwrap();
             
-            for x in 0u8..+u8::MAX {
+            for x in 0u8..=u8::MAX {
                 assert_ne!(x, big_obj);
                 assert_ne!(big_obj, x);
             }
