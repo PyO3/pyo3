@@ -48,7 +48,7 @@ use crate::conversion::AnyBound;
 use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject, exceptions::PyTypeError, types::any::PyAnyMethods, Bound,
-    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use either::Either;
 
@@ -68,20 +68,29 @@ where
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-impl<'py, L, R, T, E, O> IntoPyObject<'py> for Either<L, R>
+impl<'py, L, R, E1, E2> IntoPyObject<'py> for Either<L, R>
 where
-    L: IntoPyObject<'py, Target = T, Error = E, Output = O>,
-    R: IntoPyObject<'py, Target = T, Error = E, Output = O>,
-    O: AnyBound<'py, T>,
+    L: IntoPyObject<'py, Error = E1>,
+    R: IntoPyObject<'py, Error = E2>,
+    E1: Into<PyErr>,
+    E2: Into<PyErr>,
 {
-    type Target = T;
-    type Output = O;
-    type Error = E;
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            Either::Left(l) => l.into_pyobject(py),
-            Either::Right(r) => r.into_pyobject(py),
+            Either::Left(l) => l
+                .into_pyobject(py)
+                .map(AnyBound::into_any)
+                .map(AnyBound::into_bound)
+                .map_err(Into::into),
+            Either::Right(r) => r
+                .into_pyobject(py)
+                .map(AnyBound::into_any)
+                .map(AnyBound::into_bound)
+                .map_err(Into::into),
         }
     }
 }
