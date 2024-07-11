@@ -106,6 +106,14 @@ mod tests {
 
             assert_eq!(v_usize, obj);
             assert_eq!(obj, v_usize);
+            
+            let big_num = (u8::MAX as u16) + 1;
+            let big_obj = big_num.into_py(py).into_bound(py).downcast_into::<PyLong>().unwrap();
+            
+            for x in 0u8..+u8::MAX {
+                assert_ne!(x, big_obj);
+                assert_ne!(big_obj, x);
+            }
         });
     }
 }
