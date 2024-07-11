@@ -15,17 +15,6 @@ pyobject_native_type_extract!(PyEllipsis);
 
 impl PyEllipsis {
     /// Returns the `Ellipsis` object.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyEllipsis::get` will be replaced by `PyEllipsis::get_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn get(py: Python<'_>) -> &PyEllipsis {
-        Self::get_bound(py).into_gil_ref()
-    }
-
-    /// Returns the `Ellipsis` object.
     #[inline]
     pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
         unsafe { ffi::Py_Ellipsis().assume_borrowed(py).downcast_unchecked() }

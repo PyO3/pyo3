@@ -6,8 +6,6 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
@@ -30,87 +28,6 @@ impl PyMapping {
         let ty = T::type_object_bound(py);
         get_mapping_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyMapping {
-    /// Returns the number of objects in the mapping.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    #[inline]
-    pub fn len(&self) -> PyResult<usize> {
-        self.as_borrowed().len()
-    }
-
-    /// Returns whether the mapping is empty.
-    #[inline]
-    pub fn is_empty(&self) -> PyResult<bool> {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Determines if the mapping contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().contains(key)
-    }
-
-    /// Gets the item in self with key `key`.
-    ///
-    /// Returns an `Err` if the item with specified key is not found, usually `KeyError`.
-    ///
-    /// This is equivalent to the Python expression `self[key]`.
-    #[inline]
-    pub fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().get_item(key).map(Bound::into_gil_ref)
-    }
-
-    /// Sets the item in self with key `key`.
-    ///
-    /// This is equivalent to the Python expression `self[key] = value`.
-    #[inline]
-    pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-    where
-        K: ToPyObject,
-        V: ToPyObject,
-    {
-        self.as_borrowed().set_item(key, value)
-    }
-
-    /// Deletes the item with key `key`.
-    ///
-    /// This is equivalent to the Python statement `del self[key]`.
-    #[inline]
-    pub fn del_item<K>(&self, key: K) -> PyResult<()>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().del_item(key)
-    }
-
-    /// Returns a sequence containing all keys in the mapping.
-    #[inline]
-    pub fn keys(&self) -> PyResult<&PySequence> {
-        self.as_borrowed().keys().map(Bound::into_gil_ref)
-    }
-
-    /// Returns a sequence containing all values in the mapping.
-    #[inline]
-    pub fn values(&self) -> PyResult<&PySequence> {
-        self.as_borrowed().values().map(Bound::into_gil_ref)
-    }
-
-    /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
-    #[inline]
-    pub fn items(&self) -> PyResult<&PySequence> {
-        self.as_borrowed().items().map(Bound::into_gil_ref)
     }
 }
 

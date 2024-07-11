@@ -6,8 +6,6 @@ use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::str;
@@ -207,88 +205,6 @@ impl PyString {
             .assume_owned_or_err(src.py())
             .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyString {
-    /// Deprecated form of [`PyString::new_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyString::new` will be replaced by `PyString::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'py>(py: Python<'py>, s: &str) -> &'py Self {
-        Self::new_bound(py, s).into_gil_ref()
-    }
-
-    /// Deprecated form of [`PyString::intern_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyString::intern` will be replaced by `PyString::intern_bound` in a future PyO3 version"
-    )]
-    pub fn intern<'py>(py: Python<'py>, s: &str) -> &'py Self {
-        Self::intern_bound(py, s).into_gil_ref()
-    }
-
-    /// Deprecated form of [`PyString::from_object_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyString::from_object` will be replaced by `PyString::from_object_bound` in a future PyO3 version"
-    )]
-    pub fn from_object<'py>(src: &'py PyAny, encoding: &str, errors: &str) -> PyResult<&'py Self> {
-        Self::from_object_bound(&src.as_borrowed(), encoding, errors).map(Bound::into_gil_ref)
-    }
-
-    /// Gets the Python string as a Rust UTF-8 string slice.
-    ///
-    /// Returns a `UnicodeEncodeError` if the input is not valid unicode
-    /// (containing unpaired surrogates).
-    pub fn to_str(&self) -> PyResult<&str> {
-        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-        {
-            self.as_borrowed().to_str()
-        }
-
-        #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
-        {
-            let bytes = self.as_borrowed().encode_utf8()?.into_gil_ref();
-            Ok(unsafe { std::str::from_utf8_unchecked(bytes.as_bytes()) })
-        }
-    }
-
-    /// Converts the `PyString` into a Rust string, avoiding copying when possible.
-    ///
-    /// Returns a `UnicodeEncodeError` if the input is not valid unicode
-    /// (containing unpaired surrogates).
-    pub fn to_cow(&self) -> PyResult<Cow<'_, str>> {
-        self.as_borrowed().to_cow()
-    }
-
-    /// Converts the `PyString` into a Rust string.
-    ///
-    /// Unpaired surrogates invalid UTF-8 sequences are
-    /// replaced with `U+FFFD REPLACEMENT CHARACTER`.
-    pub fn to_string_lossy(&self) -> Cow<'_, str> {
-        self.as_borrowed().to_string_lossy()
-    }
-
-    /// Obtains the raw data backing the Python string.
-    ///
-    /// If the Python string object was created through legacy APIs, its internal storage format
-    /// will be canonicalized before data is returned.
-    ///
-    /// # Safety
-    ///
-    /// This function implementation relies on manually decoding a C bitfield. In practice, this
-    /// works well on common little-endian architectures such as x86_64, where the bitfield has a
-    /// common representation (even if it is not part of the C spec). The PyO3 CI tests this API on
-    /// x86_64 platforms.
-    ///
-    /// By using this API, you accept responsibility for testing that PyStringData behaves as
-    /// expected on the targets where you plan to distribute your software.
-    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
-    pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
-        self.as_borrowed().data()
     }
 }
 

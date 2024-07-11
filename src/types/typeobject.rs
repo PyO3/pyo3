@@ -4,8 +4,6 @@ use crate::instance::Borrowed;
 use crate::pybacked::PyBackedStr;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
 
 use super::PyString;
@@ -44,70 +42,6 @@ impl PyType {
         Borrowed::from_ptr_unchecked(py, p.cast())
             .downcast_unchecked()
             .to_owned()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyType {
-    /// Deprecated form of [`PyType::new_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyType::new` will be replaced by `PyType::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
-        T::type_object_bound(py).into_gil_ref()
-    }
-
-    /// Retrieves the underlying FFI pointer associated with this Python object.
-    #[inline]
-    pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        self.as_borrowed().as_type_ptr()
-    }
-
-    /// Deprecated form of [`PyType::from_borrowed_type_ptr`].
-    ///
-    /// # Safety
-    ///
-    /// - The pointer must a valid non-null reference to a `PyTypeObject`.
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `PyType::from_borrowed_type_ptr` instead"
-    )]
-    pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
-        Self::from_borrowed_type_ptr(py, p).into_gil_ref()
-    }
-
-    /// Gets the name of the `PyType`. Equivalent to `self.__name__` in Python.
-    pub fn name(&self) -> PyResult<&PyString> {
-        self.as_borrowed().name().map(Bound::into_gil_ref)
-    }
-
-    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
-    /// Equivalent to `self.__qualname__` in Python.
-    pub fn qualname(&self) -> PyResult<&PyString> {
-        self.as_borrowed().qualname().map(Bound::into_gil_ref)
-    }
-
-    // `module` and `fully_qualified_name` intentionally omitted
-
-    /// Checks whether `self` is a subclass of `other`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, other)`.
-    pub fn is_subclass(&self, other: &PyAny) -> PyResult<bool> {
-        self.as_borrowed().is_subclass(&other.as_borrowed())
-    }
-
-    /// Checks whether `self` is a subclass of type `T`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
-    /// `T` is known at compile time.
-    pub fn is_subclass_of<T>(&self) -> PyResult<bool>
-    where
-        T: PyTypeInfo,
-    {
-        self.as_borrowed().is_subclass_of::<T>()
     }
 }
 

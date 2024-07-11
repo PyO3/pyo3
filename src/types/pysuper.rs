@@ -17,17 +17,6 @@ pyobject_native_type_core!(
 );
 
 impl PySuper {
-    /// Deprecated form of `PySuper::new_bound`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PySuper::new` will be replaced by `PySuper::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
-        use crate::PyNativeType;
-        Self::new_bound(&ty.as_borrowed(), &obj.as_borrowed()).map(Bound::into_gil_ref)
-    }
-
     /// Constructs a new super object. More read about super object: [docs](https://docs.python.org/3/library/functions.html#super)
     ///
     /// # Examples

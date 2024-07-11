@@ -650,7 +650,6 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     }
 
     #[inline]
-    #[cfg(not(feature = "gil-refs"))]
     pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
     where
         T: PyTypeCheck,
@@ -992,7 +991,7 @@ where
     ///
     /// Get access to `&PyList` from `Py<PyList>`:
     ///
-    /// ```
+    /// ```ignore
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyList;
     /// #
