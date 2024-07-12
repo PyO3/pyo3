@@ -8,9 +8,6 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[allow(deprecated)]
-#[cfg(all(not(Py_LIMITED_API), feature = "gil-refs"))]
-pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
     timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
@@ -85,12 +82,6 @@ pub mod iter {
     pub use super::list::BoundListIterator;
     pub use super::set::BoundSetIterator;
     pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator};
-
-    #[cfg(feature = "gil-refs")]
-    pub use super::{
-        dict::PyDictIterator, frozenset::PyFrozenSetIterator, list::PyListIterator,
-        set::PySetIterator, tuple::PyTupleIterator,
-    };
 }
 
 /// Python objects that have a base type.

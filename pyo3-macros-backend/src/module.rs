@@ -2,8 +2,8 @@
 
 use crate::{
     attributes::{
-        self, take_attributes, take_pyo3_options, CrateAttribute, ModuleAttribute, NameAttribute,
-        SubmoduleAttribute,
+        self, kw, take_attributes, take_pyo3_options, CrateAttribute, ModuleAttribute,
+        NameAttribute, SubmoduleAttribute,
     },
     get_doc,
     pyclass::PyClassPyO3Option,
@@ -16,7 +16,7 @@ use std::ffi::CString;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
-    parse_quote,
+    parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
@@ -26,97 +26,88 @@ use syn::{
 #[derive(Default)]
 pub struct PyModuleOptions {
     krate: Option<CrateAttribute>,
-    name: Option<syn::Ident>,
+    name: Option<NameAttribute>,
     module: Option<ModuleAttribute>,
-    is_submodule: bool,
+    submodule: Option<kw::submodule>,
 }
 
-impl PyModuleOptions {
-    pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
+impl Parse for PyModuleOptions {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut options: PyModuleOptions = Default::default();
 
-        for option in take_pyo3_options(attrs)? {
-            match option {
-                PyModulePyO3Option::Name(name) => options.set_name(name.value.0)?,
-                PyModulePyO3Option::Crate(path) => options.set_crate(path)?,
-                PyModulePyO3Option::Module(module) => options.set_module(module)?,
-                PyModulePyO3Option::Submodule(submod) => options.set_submodule(submod)?,
-            }
-        }
+        options.add_attributes(
+            Punctuated::<PyModulePyO3Option, syn::Token![,]>::parse_terminated(input)?,
+        )?;
 
         Ok(options)
     }
+}
 
-    fn set_name(&mut self, name: syn::Ident) -> Result<()> {
-        ensure_spanned!(
-            self.name.is_none(),
-            name.span() => "`name` may only be specified once"
-        );
-
-        self.name = Some(name);
-        Ok(())
+impl PyModuleOptions {
+    fn take_pyo3_options(&mut self, attrs: &mut Vec<syn::Attribute>) -> Result<()> {
+        self.add_attributes(take_pyo3_options(attrs)?)
     }
 
-    fn set_crate(&mut self, path: CrateAttribute) -> Result<()> {
-        ensure_spanned!(
-            self.krate.is_none(),
-            path.span() => "`crate` may only be specified once"
-        );
-
-        self.krate = Some(path);
-        Ok(())
-    }
-
-    fn set_module(&mut self, name: ModuleAttribute) -> Result<()> {
-        ensure_spanned!(
-            self.module.is_none(),
-            name.span() => "`module` may only be specified once"
-        );
-
-        self.module = Some(name);
-        Ok(())
-    }
-
-    fn set_submodule(&mut self, submod: SubmoduleAttribute) -> Result<()> {
-        ensure_spanned!(
-            !self.is_submodule,
-            submod.span() => "`submodule` may only be specified once"
-        );
-
-        self.is_submodule = true;
+    fn add_attributes(
+        &mut self,
+        attrs: impl IntoIterator<Item = PyModulePyO3Option>,
+    ) -> Result<()> {
+        macro_rules! set_option {
+            ($key:ident $(, $extra:literal)?) => {
+                {
+                    ensure_spanned!(
+                        self.$key.is_none(),
+                        $key.span() => concat!("`", stringify!($key), "` may only be specified once" $(, $extra)?)
+                    );
+                    self.$key = Some($key);
+                }
+            };
+        }
+        for attr in attrs {
+            match attr {
+                PyModulePyO3Option::Crate(krate) => set_option!(krate),
+                PyModulePyO3Option::Name(name) => set_option!(name),
+                PyModulePyO3Option::Module(module) => set_option!(module),
+                PyModulePyO3Option::Submodule(submodule) => set_option!(
+                    submodule,
+                    " (it is implicitly always specified for nested modules)"
+                ),
+            }
+        }
         Ok(())
     }
 }
 
 pub fn pymodule_module_impl(
-    mut module: syn::ItemMod,
-    mut is_submodule: bool,
+    module: &mut syn::ItemMod,
+    mut options: PyModuleOptions,
 ) -> Result<TokenStream> {
     let syn::ItemMod {
         attrs,
         vis,
         unsafety: _,
         ident,
-        mod_token: _,
+        mod_token,
         content,
         semi: _,
-    } = &mut module;
+    } = module;
     let items = if let Some((_, items)) = content {
         items
     } else {
-        bail_spanned!(module.span() => "`#[pymodule]` can only be used on inline modules")
+        bail_spanned!(mod_token.span() => "`#[pymodule]` can only be used on inline modules")
     };
-    let options = PyModuleOptions::from_attrs(attrs)?;
+    options.take_pyo3_options(attrs)?;
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = ctx;
     let doc = get_doc(attrs, None, ctx);
-    let name = options.name.unwrap_or_else(|| ident.unraw());
+    let name = options
+        .name
+        .map_or_else(|| ident.unraw(), |name| name.value.0);
     let full_name = if let Some(module) = &options.module {
         format!("{}.{}", module.value.value(), name)
     } else {
         name.to_string()
     };
-    is_submodule = is_submodule || options.is_submodule;
 
     let mut module_items = Vec::new();
     let mut module_items_cfg_attrs = Vec::new();
@@ -273,6 +264,9 @@ pub fn pymodule_module_impl(
                     )? {
                         set_module_attribute(&mut item_mod.attrs, &full_name);
                     }
+                    item_mod
+                        .attrs
+                        .push(parse_quote_spanned!(item_mod.mod_token.span()=> #[pyo3(submodule)]));
                 }
             }
             Item::ForeignMod(item) => {
@@ -350,10 +344,11 @@ pub fn pymodule_module_impl(
             )
         }
     }};
-    let initialization = module_initialization(&name, ctx, module_def, is_submodule);
+    let initialization = module_initialization(&name, ctx, module_def, options.submodule.is_some());
+
     Ok(quote!(
         #(#attrs)*
-        #vis mod #ident {
+        #vis #mod_token #ident {
             #(#items)*
 
             #initialization
@@ -365,7 +360,7 @@ pub fn pymodule_module_impl(
                     #module_items::_PYO3_DEF.add_to_module(module)?;
                 )*
                 #pymodule_init
-                Ok(())
+                ::std::result::Result::Ok(())
             }
         }
     ))
@@ -373,13 +368,18 @@ pub fn pymodule_module_impl(
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
-pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> {
-    let options = PyModuleOptions::from_attrs(&mut function.attrs)?;
-    process_functions_in_module(&options, &mut function)?;
+pub fn pymodule_function_impl(
+    function: &mut syn::ItemFn,
+    mut options: PyModuleOptions,
+) -> Result<TokenStream> {
+    options.take_pyo3_options(&mut function.attrs)?;
+    process_functions_in_module(&options, function)?;
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = ctx;
     let ident = &function.sig.ident;
-    let name = options.name.unwrap_or_else(|| ident.unraw());
+    let name = options
+        .name
+        .map_or_else(|| ident.unraw(), |name| name.value.0);
     let vis = &function.vis;
     let doc = get_doc(&function.attrs, None, ctx);
 
@@ -394,7 +394,6 @@ pub fn pymodule_function_impl(mut function: syn::ItemFn) -> Result<TokenStream> 
         .push(quote!(::std::convert::Into::into(#pyo3_path::impl_::pymethods::BoundRef(module))));
 
     Ok(quote! {
-        #function
         #[doc(hidden)]
         #vis mod #ident {
             #initialization

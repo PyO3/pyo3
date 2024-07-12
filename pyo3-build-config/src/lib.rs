@@ -39,7 +39,9 @@ use target_lexicon::OperatingSystem;
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
 ///
-/// For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building-and-distribution/multiple_python_versions.html).
+/// For examples of how to use these attributes,
+#[doc = concat!("[see PyO3's guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution/multiple_python_versions.html)")]
+/// .
 #[cfg(feature = "resolve-config")]
 pub fn use_pyo3_cfgs() {
     print_expected_cfgs();

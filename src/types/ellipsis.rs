@@ -4,6 +4,9 @@ use crate::{
 };
 
 /// Represents the Python `Ellipsis` object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyEllipsis>`][crate::Py] or [`Bound<'py, PyEllipsis>`][Bound].
 #[repr(transparent)]
 pub struct PyEllipsis(PyAny);
 
@@ -11,17 +14,6 @@ pyobject_native_type_named!(PyEllipsis);
 pyobject_native_type_extract!(PyEllipsis);
 
 impl PyEllipsis {
-    /// Returns the `Ellipsis` object.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyEllipsis::get` will be replaced by `PyEllipsis::get_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn get(py: Python<'_>) -> &PyEllipsis {
-        Self::get_bound(py).into_gil_ref()
-    }
-
     /// Returns the `Ellipsis` object.
     #[inline]
     pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {

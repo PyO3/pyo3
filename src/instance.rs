@@ -65,7 +65,19 @@ pub unsafe trait PyNativeType: Sized {
     }
 }
 
-/// A GIL-attached equivalent to `Py`.
+/// A GIL-attached equivalent to [`Py<T>`].
+///
+/// This type can be thought of as equivalent to the tuple `(Py<T>, Python<'py>)`. By having the `'py`
+/// lifetime of the [`Python<'py>`] token, this ties the lifetime of the [`Bound<'py, T>`] smart pointer
+/// to the lifetime of the GIL and allows PyO3 to call Python APIs at maximum efficiency.
+///
+/// To access the object in situations where the GIL is not held, convert it to [`Py<T>`]
+/// using [`.unbind()`][Bound::unbind]. This includes situations where the GIL is temporarily
+/// released, such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+///
+/// See
+#[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#boundpy-t)")]
+/// for more detail.
 #[repr(transparent)]
 pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
 
@@ -638,7 +650,6 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     }
 
     #[inline]
-    #[cfg(not(feature = "gil-refs"))]
     pub(crate) fn downcast<T>(self) -> Result<Borrowed<'a, 'py, T>, DowncastError<'a, 'py>>
     where
         T: PyTypeCheck,
@@ -732,7 +743,8 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///  - [`Py::borrow`], [`Py::try_borrow`], [`Py::borrow_mut`], or [`Py::try_borrow_mut`],
 ///
 /// to get a (mutable) reference to a contained pyclass, using a scheme similar to std's [`RefCell`].
-/// See the [guide entry](https://pyo3.rs/latest/class.html#bound-and-interior-mutability)
+/// See the
+#[doc = concat!("[guide entry](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#bound-and-interior-mutability)")]
 /// for more information.
 ///  - You can call methods directly on `Py` with [`Py::call_bound`], [`Py::call_method_bound`] and friends.
 ///
@@ -979,7 +991,7 @@ where
     ///
     /// Get access to `&PyList` from `Py<PyList>`:
     ///
-    /// ```
+    /// ```ignore
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyList;
     /// #
@@ -1370,22 +1382,6 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self is None`.
     pub fn is_none(&self, _py: Python<'_>) -> bool {
         unsafe { ffi::Py_None() == self.as_ptr() }
-    }
-
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
-    pub fn is_ellipsis(&self) -> bool {
-        unsafe { ffi::Py_Ellipsis() == self.as_ptr() }
-    }
-
-    /// Returns whether the object is considered to be true.
-    ///
-    /// This is equivalent to the Python expression `bool(self)`.
-    #[deprecated(since = "0.21.0", note = "use `.is_truthy()` instead")]
-    pub fn is_true(&self, py: Python<'_>) -> PyResult<bool> {
-        self.is_truthy(py)
     }
 
     /// Returns whether the object is considered to be true.
@@ -2162,23 +2158,6 @@ a = A()
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn test_is_ellipsis() {
-        Python::with_gil(|py| {
-            let v = py
-                .eval_bound("...", None, None)
-                .map_err(|e| e.display(py))
-                .unwrap()
-                .to_object(py);
-
-            assert!(v.is_ellipsis());
-
-            let not_ellipsis = 5.to_object(py);
-            assert!(!not_ellipsis.is_ellipsis());
-        });
-    }
-
-    #[test]
     fn test_debug_fmt() {
         Python::with_gil(|py| {
             let obj = "hello world".to_object(py).into_bound(py);
@@ -2375,19 +2354,6 @@ a = A()
 
                     assert_eq!(instance.bind(py).get().0, i);
                 }
-            })
-        }
-
-        #[test]
-        #[cfg(feature = "gil-refs")]
-        #[allow(deprecated)]
-        fn cell_tryfrom() {
-            use crate::{PyCell, PyTryInto};
-            // More detailed tests of the underlying semantics in pycell.rs
-            Python::with_gil(|py| {
-                let instance: &PyAny = Py::new(py, SomeClass(0)).unwrap().into_ref(py);
-                let _: &PyCell<SomeClass> = PyTryInto::try_into(instance).unwrap();
-                let _: &PyCell<SomeClass> = PyTryInto::try_into_exact(instance).unwrap();
             })
         }
     }

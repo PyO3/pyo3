@@ -22,7 +22,7 @@ jobs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/setup-python@v5
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook

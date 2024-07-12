@@ -9,11 +9,15 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
-#[cfg(feature = "gil-refs")]
-use crate::{err::PyDowncastError, PyNativeType};
 use crate::{ffi, FromPyObject, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySequence>`][crate::Py] or [`Bound<'py, PySequence>`][Bound].
+///
+/// For APIs available on sequence objects, see the [`PySequenceMethods`] trait which is implemented for
+/// [`Bound<'py, PySequence>`][Bound].
 #[repr(transparent)]
 pub struct PySequence(PyAny);
 pyobject_native_type_named!(PySequence);
@@ -27,167 +31,6 @@ impl PySequence {
         let ty = T::type_object_bound(py);
         get_sequence_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PySequence {
-    /// Returns the number of objects in sequence.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    #[inline]
-    pub fn len(&self) -> PyResult<usize> {
-        self.as_borrowed().len()
-    }
-
-    /// Returns whether the sequence is empty.
-    #[inline]
-    pub fn is_empty(&self) -> PyResult<bool> {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Returns the concatenation of `self` and `other`.
-    ///
-    /// This is equivalent to the Python expression `self + other`.
-    #[inline]
-    pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
-        self.as_borrowed()
-            .concat(&other.as_borrowed())
-            .map(Bound::into_gil_ref)
-    }
-
-    /// Returns the result of repeating a sequence object `count` times.
-    ///
-    /// This is equivalent to the Python expression `self * count`.
-    #[inline]
-    pub fn repeat(&self, count: usize) -> PyResult<&PySequence> {
-        self.as_borrowed().repeat(count).map(Bound::into_gil_ref)
-    }
-
-    /// Concatenates `self` and `other`, in place if possible.
-    ///
-    /// This is equivalent to the Python expression `self.__iadd__(other)`.
-    ///
-    /// The Python statement `self += other` is syntactic sugar for `self =
-    /// self.__iadd__(other)`.  `__iadd__` should modify and return `self` if
-    /// possible, but create and return a new object if not.
-    #[inline]
-    pub fn in_place_concat(&self, other: &PySequence) -> PyResult<&PySequence> {
-        self.as_borrowed()
-            .in_place_concat(&other.as_borrowed())
-            .map(Bound::into_gil_ref)
-    }
-
-    /// Repeats the sequence object `count` times and updates `self`, if possible.
-    ///
-    /// This is equivalent to the Python expression `self.__imul__(other)`.
-    ///
-    /// The Python statement `self *= other` is syntactic sugar for `self =
-    /// self.__imul__(other)`.  `__imul__` should modify and return `self` if
-    /// possible, but create and return a new object if not.
-    #[inline]
-    pub fn in_place_repeat(&self, count: usize) -> PyResult<&PySequence> {
-        self.as_borrowed()
-            .in_place_repeat(count)
-            .map(Bound::into_gil_ref)
-    }
-
-    /// Returns the `index`th element of the Sequence.
-    ///
-    /// This is equivalent to the Python expression `self[index]` without support of negative indices.
-    #[inline]
-    pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
-        self.as_borrowed().get_item(index).map(Bound::into_gil_ref)
-    }
-
-    /// Returns the slice of sequence object between `begin` and `end`.
-    ///
-    /// This is equivalent to the Python expression `self[begin:end]`.
-    #[inline]
-    pub fn get_slice(&self, begin: usize, end: usize) -> PyResult<&PySequence> {
-        self.as_borrowed()
-            .get_slice(begin, end)
-            .map(Bound::into_gil_ref)
-    }
-
-    /// Assigns object `item` to the `i`th element of self.
-    ///
-    /// This is equivalent to the Python statement `self[i] = v`.
-    #[inline]
-    pub fn set_item<I>(&self, i: usize, item: I) -> PyResult<()>
-    where
-        I: ToPyObject,
-    {
-        self.as_borrowed().set_item(i, item)
-    }
-
-    /// Deletes the `i`th element of self.
-    ///
-    /// This is equivalent to the Python statement `del self[i]`.
-    #[inline]
-    pub fn del_item(&self, i: usize) -> PyResult<()> {
-        self.as_borrowed().del_item(i)
-    }
-
-    /// Assigns the sequence `v` to the slice of `self` from `i1` to `i2`.
-    ///
-    /// This is equivalent to the Python statement `self[i1:i2] = v`.
-    #[inline]
-    pub fn set_slice(&self, i1: usize, i2: usize, v: &PyAny) -> PyResult<()> {
-        self.as_borrowed().set_slice(i1, i2, &v.as_borrowed())
-    }
-
-    /// Deletes the slice from `i1` to `i2` from `self`.
-    ///
-    /// This is equivalent to the Python statement `del self[i1:i2]`.
-    #[inline]
-    pub fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
-        self.as_borrowed().del_slice(i1, i2)
-    }
-
-    /// Returns the number of occurrences of `value` in self, that is, return the
-    /// number of keys for which `self[key] == value`.
-    #[inline]
-    #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn count<V>(&self, value: V) -> PyResult<usize>
-    where
-        V: ToPyObject,
-    {
-        self.as_borrowed().count(value)
-    }
-
-    /// Determines if self contains `value`.
-    ///
-    /// This is equivalent to the Python expression `value in self`.
-    #[inline]
-    pub fn contains<V>(&self, value: V) -> PyResult<bool>
-    where
-        V: ToPyObject,
-    {
-        self.as_borrowed().contains(value)
-    }
-
-    /// Returns the first index `i` for which `self[i] == value`.
-    ///
-    /// This is equivalent to the Python expression `self.index(value)`.
-    #[inline]
-    pub fn index<V>(&self, value: V) -> PyResult<usize>
-    where
-        V: ToPyObject,
-    {
-        self.as_borrowed().index(value)
-    }
-
-    /// Returns a fresh list based on the Sequence.
-    #[inline]
-    pub fn to_list(&self) -> PyResult<&PyList> {
-        self.as_borrowed().to_list().map(Bound::into_gil_ref)
-    }
-
-    /// Returns a fresh tuple based on the Sequence.
-    #[inline]
-    pub fn to_tuple(&self) -> PyResult<&PyTuple> {
-        self.as_borrowed().to_tuple().map(Bound::into_gil_ref)
     }
 }
 
@@ -469,22 +312,6 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     }
 }
 
-#[inline]
-#[cfg(feature = "gil-refs")]
-fn sequence_len(seq: &PySequence) -> usize {
-    seq.len().expect("failed to get sequence length")
-}
-
-#[inline]
-#[cfg(feature = "gil-refs")]
-fn sequence_slice(seq: &PySequence, start: usize, end: usize) -> &PySequence {
-    seq.get_slice(start, end)
-        .expect("sequence slice operation failed")
-}
-
-#[cfg(feature = "gil-refs")]
-index_impls!(PySequence, "sequence", sequence_len, sequence_slice);
-
 impl<'py, T> FromPyObject<'py> for Vec<T>
 where
     T: FromPyObject<'py>,
@@ -544,33 +371,6 @@ impl PyTypeCheck for PySequence {
                     err.write_unraisable_bound(object.py(), Some(&object.as_borrowed()));
                     false
                 })
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<'v> crate::PyTryFrom<'v> for PySequence {
-    /// Downcasting to `PySequence` requires the concrete class to be a subclass (or registered
-    /// subclass) of `collections.abc.Sequence` (from the Python standard library) - i.e.
-    /// `isinstance(<class>, collections.abc.Sequence) == True`.
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
-        let value = value.into();
-
-        if PySequence::type_check(&value.as_borrowed()) {
-            unsafe { return Ok(value.downcast_unchecked::<PySequence>()) }
-        }
-
-        Err(PyDowncastError::new(value, "Sequence"))
-    }
-
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
-        value.into().downcast()
-    }
-
-    #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PySequence {
-        let ptr = value.into() as *const _ as *const PySequence;
-        &*ptr
     }
 }
 
@@ -674,105 +474,6 @@ mod tests {
             assert_eq!(8, seq.get_item(5).unwrap().extract::<i32>().unwrap());
             assert!(seq.get_item(10).is_err());
         });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_index_trait() {
-        Python::with_gil(|py| {
-            let v: Vec<i32> = vec![1, 1, 2];
-            let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            assert_eq!(1, seq[0].extract::<i32>().unwrap());
-            assert_eq!(1, seq[1].extract::<i32>().unwrap());
-            assert_eq!(2, seq[2].extract::<i32>().unwrap());
-        });
-    }
-
-    #[test]
-    #[should_panic = "index 7 out of range for sequence"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_index_trait_panic() {
-        Python::with_gil(|py| {
-            let v: Vec<i32> = vec![1, 1, 2];
-            let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            let _ = &seq[7];
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_index_trait_ranges() {
-        Python::with_gil(|py| {
-            let v: Vec<i32> = vec![1, 1, 2];
-            let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            assert_eq!(vec![1, 2], seq[1..3].extract::<Vec<i32>>().unwrap());
-            assert_eq!(Vec::<i32>::new(), seq[3..3].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![1, 2], seq[1..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(Vec::<i32>::new(), seq[3..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![1, 1, 2], seq[..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![1, 2], seq[1..=2].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![1, 1], seq[..2].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![1, 1], seq[..=1].extract::<Vec<i32>>().unwrap());
-        })
-    }
-
-    #[test]
-    #[should_panic = "range start index 5 out of range for sequence of length 3"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_index_trait_range_panic_start() {
-        Python::with_gil(|py| {
-            let v: Vec<i32> = vec![1, 1, 2];
-            let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            seq[5..10].extract::<Vec<i32>>().unwrap();
-        })
-    }
-
-    #[test]
-    #[should_panic = "range end index 10 out of range for sequence of length 3"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_index_trait_range_panic_end() {
-        Python::with_gil(|py| {
-            let v: Vec<i32> = vec![1, 1, 2];
-            let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            seq[1..10].extract::<Vec<i32>>().unwrap();
-        })
-    }
-
-    #[test]
-    #[should_panic = "slice index starts at 2 but ends at 1"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_index_trait_range_panic_wrong_order() {
-        Python::with_gil(|py| {
-            let v: Vec<i32> = vec![1, 1, 2];
-            let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            #[allow(clippy::reversed_empty_ranges)]
-            seq[2..1].extract::<Vec<i32>>().unwrap();
-        })
-    }
-
-    #[test]
-    #[should_panic = "range start index 8 out of range for sequence of length 3"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_index_trait_range_from_panic() {
-        Python::with_gil(|py| {
-            let v: Vec<i32> = vec![1, 1, 2];
-            let ob = v.to_object(py);
-            let seq = ob.downcast::<PySequence>(py).unwrap();
-            seq[8..].extract::<Vec<i32>>().unwrap();
-        })
     }
 
     #[test]
@@ -1099,18 +800,6 @@ mod tests {
             let type_ptr = seq.as_ref();
             let seq_from = unsafe { type_ptr.downcast_unchecked::<PySequence>() };
             assert!(seq_from.to_list().is_ok());
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_seq_try_from() {
-        use crate::PyTryFrom;
-        Python::with_gil(|py| {
-            let list = PyList::empty(py);
-            let _ = <PySequence as PyTryFrom>::try_from(list).unwrap();
-            let _ = PySequence::try_from_exact(list).unwrap();
         });
     }
 }

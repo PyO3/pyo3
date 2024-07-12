@@ -1,7 +1,5 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
@@ -11,6 +9,12 @@ use crate::{
 use super::any::PyAnyMethods;
 
 /// Represents a Python `bool`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyBool>`][crate::Py] or [`Bound<'py, PyBool>`][Bound].
+///
+/// For APIs available on `bool` objects, see the [`PyBoolMethods`] trait which is implemented for
+/// [`Bound<'py, PyBool>`][Bound].
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
@@ -29,28 +33,6 @@ impl PyBool {
                 .assume_borrowed(py)
                 .downcast_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyBool {
-    /// Deprecated form of [`PyBool::new_bound`]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBool::new` will be replaced by `PyBool::new_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn new(py: Python<'_>, val: bool) -> &PyBool {
-        #[allow(deprecated)]
-        unsafe {
-            py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
-        }
-    }
-
-    /// Gets whether this boolean is `true`.
-    #[inline]
-    pub fn is_true(&self) -> bool {
-        self.as_borrowed().is_true()
     }
 }
 

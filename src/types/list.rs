@@ -6,14 +6,18 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
 
 use crate::types::any::PyAnyMethods;
 use crate::types::sequence::PySequenceMethods;
 
 /// Represents a Python `list`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyList>`][crate::Py] or [`Bound<'py, PyList>`][Bound].
+///
+/// For APIs available on `list` objects, see the [`PyListMethods`] trait which is implemented for
+/// [`Bound<'py, PyDict>`][Bound].
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
@@ -104,180 +108,6 @@ impl PyList {
         }
     }
 }
-
-#[cfg(feature = "gil-refs")]
-impl PyList {
-    /// Deprecated form of [`PyList::new_bound`].
-    #[inline]
-    #[track_caller]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyList::new` will be replaced by `PyList::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
-    where
-        T: ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        Self::new_bound(py, elements).into_gil_ref()
-    }
-
-    /// Deprecated form of [`PyList::empty_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyList::empty` will be replaced by `PyList::empty_bound` in a future PyO3 version"
-    )]
-    pub fn empty(py: Python<'_>) -> &PyList {
-        Self::empty_bound(py).into_gil_ref()
-    }
-
-    /// Returns the length of the list.
-    pub fn len(&self) -> usize {
-        self.as_borrowed().len()
-    }
-
-    /// Checks if the list is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Returns `self` cast as a `PySequence`.
-    pub fn as_sequence(&self) -> &PySequence {
-        unsafe { self.downcast_unchecked() }
-    }
-
-    /// Gets the list item at the specified index.
-    /// # Example
-    /// ```
-    /// use pyo3::{prelude::*, types::PyList};
-    /// Python::with_gil(|py| {
-    ///     let list = PyList::new_bound(py, [2, 3, 5, 7]);
-    ///     let obj = list.get_item(0);
-    ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 2);
-    /// });
-    /// ```
-    pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
-        self.as_borrowed().get_item(index).map(Bound::into_gil_ref)
-    }
-
-    /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
-    ///
-    /// # Safety
-    ///
-    /// Caller must verify that the index is within the bounds of the list.
-    #[cfg(not(Py_LIMITED_API))]
-    pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
-        self.as_borrowed().get_item_unchecked(index).into_gil_ref()
-    }
-
-    /// Takes the slice `self[low:high]` and returns it as a new list.
-    ///
-    /// Indices must be nonnegative, and out-of-range indices are clipped to
-    /// `self.len()`.
-    pub fn get_slice(&self, low: usize, high: usize) -> &PyList {
-        self.as_borrowed().get_slice(low, high).into_gil_ref()
-    }
-
-    /// Sets the item at the specified index.
-    ///
-    /// Raises `IndexError` if the index is out of range.
-    pub fn set_item<I>(&self, index: usize, item: I) -> PyResult<()>
-    where
-        I: ToPyObject,
-    {
-        self.as_borrowed().set_item(index, item)
-    }
-
-    /// Deletes the `index`th element of self.
-    ///
-    /// This is equivalent to the Python statement `del self[i]`.
-    #[inline]
-    pub fn del_item(&self, index: usize) -> PyResult<()> {
-        self.as_borrowed().del_item(index)
-    }
-
-    /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
-    ///
-    /// This is equivalent to the Python statement `self[low:high] = v`.
-    #[inline]
-    pub fn set_slice(&self, low: usize, high: usize, seq: &PyAny) -> PyResult<()> {
-        self.as_borrowed().set_slice(low, high, &seq.as_borrowed())
-    }
-
-    /// Deletes the slice from `low` to `high` from `self`.
-    ///
-    /// This is equivalent to the Python statement `del self[low:high]`.
-    #[inline]
-    pub fn del_slice(&self, low: usize, high: usize) -> PyResult<()> {
-        self.as_borrowed().del_slice(low, high)
-    }
-
-    /// Appends an item to the list.
-    pub fn append<I>(&self, item: I) -> PyResult<()>
-    where
-        I: ToPyObject,
-    {
-        self.as_borrowed().append(item)
-    }
-
-    /// Inserts an item at the specified index.
-    ///
-    /// If `index >= self.len()`, inserts at the end.
-    pub fn insert<I>(&self, index: usize, item: I) -> PyResult<()>
-    where
-        I: ToPyObject,
-    {
-        self.as_borrowed().insert(index, item)
-    }
-
-    /// Determines if self contains `value`.
-    ///
-    /// This is equivalent to the Python expression `value in self`.
-    #[inline]
-    pub fn contains<V>(&self, value: V) -> PyResult<bool>
-    where
-        V: ToPyObject,
-    {
-        self.as_borrowed().contains(value)
-    }
-
-    /// Returns the first index `i` for which `self[i] == value`.
-    ///
-    /// This is equivalent to the Python expression `self.index(value)`.
-    #[inline]
-    pub fn index<V>(&self, value: V) -> PyResult<usize>
-    where
-        V: ToPyObject,
-    {
-        self.as_borrowed().index(value)
-    }
-
-    /// Returns an iterator over this list's items.
-    pub fn iter(&self) -> PyListIterator<'_> {
-        PyListIterator(self.as_borrowed().iter())
-    }
-
-    /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
-    pub fn sort(&self) -> PyResult<()> {
-        self.as_borrowed().sort()
-    }
-
-    /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
-    pub fn reverse(&self) -> PyResult<()> {
-        self.as_borrowed().reverse()
-    }
-
-    /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
-    ///
-    /// This method is equivalent to `self.as_sequence().to_tuple()` and faster than `PyTuple::new(py, this_list)`.
-    pub fn to_tuple(&self) -> &PyTuple {
-        self.as_borrowed().to_tuple().into_gil_ref()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 
 /// Implementation of functionality for [`PyList`].
 ///
@@ -586,53 +416,6 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
                 .assume_owned(self.py())
                 .downcast_into_unchecked()
         }
-    }
-}
-
-/// Used by `PyList::iter()`.
-#[cfg(feature = "gil-refs")]
-pub struct PyListIterator<'a>(BoundListIterator<'a>);
-
-#[cfg(feature = "gil-refs")]
-impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyAny;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Bound::into_gil_ref)
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> DoubleEndedIterator for PyListIterator<'a> {
-    #[inline]
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back().map(Bound::into_gil_ref)
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> ExactSizeIterator for PyListIterator<'a> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl FusedIterator for PyListIterator<'_> {}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> IntoIterator for &'a PyList {
-    type Item = &'a PyAny;
-    type IntoIter = PyListIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
     }
 }
 
@@ -1060,91 +843,6 @@ mod tests {
             let obj = unsafe { list.get_item_unchecked(0) };
             assert_eq!(obj.extract::<i32>().unwrap(), 2);
         });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_list_index_trait() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [2, 3, 5]);
-            assert_eq!(2, list[0].extract::<i32>().unwrap());
-            assert_eq!(3, list[1].extract::<i32>().unwrap());
-            assert_eq!(5, list[2].extract::<i32>().unwrap());
-        });
-    }
-
-    #[test]
-    #[should_panic]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_list_index_trait_panic() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [2, 3, 5]);
-            let _ = &list[7];
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_list_index_trait_ranges() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [2, 3, 5]);
-            assert_eq!(vec![3, 5], list[1..3].extract::<Vec<i32>>().unwrap());
-            assert_eq!(Vec::<i32>::new(), list[3..3].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![3, 5], list[1..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(Vec::<i32>::new(), list[3..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![2, 3, 5], list[..].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![3, 5], list[1..=2].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![2, 3], list[..2].extract::<Vec<i32>>().unwrap());
-            assert_eq!(vec![2, 3], list[..=1].extract::<Vec<i32>>().unwrap());
-        })
-    }
-
-    #[test]
-    #[should_panic = "range start index 5 out of range for list of length 3"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_list_index_trait_range_panic_start() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [2, 3, 5]);
-            list[5..10].extract::<Vec<i32>>().unwrap();
-        })
-    }
-
-    #[test]
-    #[should_panic = "range end index 10 out of range for list of length 3"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_list_index_trait_range_panic_end() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [2, 3, 5]);
-            list[1..10].extract::<Vec<i32>>().unwrap();
-        })
-    }
-
-    #[test]
-    #[should_panic = "slice index starts at 2 but ends at 1"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_list_index_trait_range_panic_wrong_order() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [2, 3, 5]);
-            #[allow(clippy::reversed_empty_ranges)]
-            list[2..1].extract::<Vec<i32>>().unwrap();
-        })
-    }
-
-    #[test]
-    #[should_panic = "range start index 8 out of range for list of length 3"]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_list_index_trait_range_from_panic() {
-        Python::with_gil(|py| {
-            let list = PyList::new(py, [2, 3, 5]);
-            list[8..].extract::<Vec<i32>>().unwrap();
-        })
     }
 
     #[test]

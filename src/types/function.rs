@@ -1,11 +1,7 @@
-#[cfg(feature = "gil-refs")]
-use crate::derive_utils::PyFunctionArguments;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
 use crate::types::module::PyModuleMethods;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
@@ -16,33 +12,15 @@ use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
 /// Represents a builtin Python function object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyCFunction>`][crate::Py] or [`Bound<'py, PyCFunction>`][Bound].
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
 pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), #checkfunction=ffi::PyCFunction_Check);
 
 impl PyCFunction {
-    /// Deprecated form of [`PyCFunction::new_with_keywords_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyCFunction::new_with_keywords` will be replaced by `PyCFunction::new_with_keywords_bound` in a future PyO3 version"
-    )]
-    pub fn new_with_keywords<'a>(
-        fun: ffi::PyCFunctionWithKeywords,
-        name: &'static CStr,
-        doc: &'static CStr,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a Self> {
-        let (py, module) = py_or_module.into_py_and_maybe_module();
-        Self::internal_new(
-            py,
-            &PyMethodDef::cfunction_with_keywords(name, fun, doc),
-            module.map(PyNativeType::as_borrowed).as_deref(),
-        )
-        .map(Bound::into_gil_ref)
-    }
-
     /// Create a new built-in function with keywords (*args and/or **kwargs).
     ///
     /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
@@ -61,27 +39,6 @@ impl PyCFunction {
         )
     }
 
-    /// Deprecated form of [`PyCFunction::new`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyCFunction::new` will be replaced by `PyCFunction::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'a>(
-        fun: ffi::PyCFunction,
-        name: &'static CStr,
-        doc: &'static CStr,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a Self> {
-        let (py, module) = py_or_module.into_py_and_maybe_module();
-        Self::internal_new(
-            py,
-            &PyMethodDef::noargs(name, fun, doc),
-            module.map(PyNativeType::as_borrowed).as_deref(),
-        )
-        .map(Bound::into_gil_ref)
-    }
-
     /// Create a new built-in function which takes no arguments.
     ///
     /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
@@ -94,28 +51,6 @@ impl PyCFunction {
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
         Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
-    }
-
-    /// Deprecated form of [`PyCFunction::new_closure`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyCFunction::new_closure` will be replaced by `PyCFunction::new_closure_bound` in a future PyO3 version"
-    )]
-    pub fn new_closure<'a, F, R>(
-        py: Python<'a>,
-        name: Option<&'static CStr>,
-        doc: Option<&'static CStr>,
-        closure: F,
-    ) -> PyResult<&'a PyCFunction>
-    where
-        F: Fn(&PyTuple, Option<&PyDict>) -> R + Send + 'static,
-        R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
-    {
-        Self::new_closure_bound(py, name, doc, move |args, kwargs| {
-            closure(args.as_gil_ref(), kwargs.map(Bound::as_gil_ref))
-        })
-        .map(Bound::into_gil_ref)
     }
 
     /// Create a new function from a closure.
@@ -241,6 +176,9 @@ struct ClosureDestructor<F> {
 unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 
 /// Represents a Python function object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyFunction>`][crate::Py] or [`Bound<'py, PyFunction>`][Bound].
 #[repr(transparent)]
 #[cfg(all(not(Py_LIMITED_API), not(all(PyPy, not(Py_3_8)))))]
 pub struct PyFunction(PyAny);
