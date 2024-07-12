@@ -12,7 +12,6 @@ use crate::{
 pub struct PyNone(PyAny);
 
 pyobject_native_type_named!(PyNone);
-pyobject_native_type_extract!(PyNone);
 
 impl PyNone {
     /// Returns the `None` object.

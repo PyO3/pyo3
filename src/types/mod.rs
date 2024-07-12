@@ -263,24 +263,6 @@ macro_rules! pyobject_native_type_info(
     };
 );
 
-// NOTE: This macro is not included in pyobject_native_type_base!
-// because rust-numpy has a special implementation.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_extract {
-    ($name:ty $(;$generics:ident)*) => {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
-            #[inline]
-            fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {
-                ::std::clone::Clone::clone(obj).into_gil_ref().downcast().map_err(::std::convert::Into::into)
-            }
-        }
-    }
-}
-
 /// Declares all of the boilerplate for Python types.
 #[doc(hidden)]
 #[macro_export]
@@ -288,7 +270,6 @@ macro_rules! pyobject_native_type_core {
     ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
-        $crate::pyobject_native_type_extract!($name $(;$generics)*);
     };
     ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);

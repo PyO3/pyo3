@@ -2,8 +2,6 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, Bound, PyAny};
-#[cfg(feature = "gil-refs")]
-use crate::{AsPyPointer, PyNativeType};
 
 /// Represents a Python `memoryview`.
 ///
@@ -23,17 +21,6 @@ impl PyMemoryView {
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> TryFrom<&'py PyAny> for &'py PyMemoryView {
-    type Error = crate::PyErr;
-
-    /// Creates a new Python `memoryview` object from another Python object that
-    /// implements the buffer protocol.
-    fn try_from(value: &'py PyAny) -> Result<Self, Self::Error> {
-        PyMemoryView::from_bound(&value.as_borrowed()).map(Bound::into_gil_ref)
     }
 }
 

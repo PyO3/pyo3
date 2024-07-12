@@ -27,8 +27,6 @@ pyobject_native_type!(
 // When targetting alternative or multiple interpreters, it is better to not use the internal API.
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 pyobject_native_type_named!(PyWeakrefReference);
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
-pyobject_native_type_extract!(PyWeakrefReference);
 
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 impl PyTypeCheck for PyWeakrefReference {

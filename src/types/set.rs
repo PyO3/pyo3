@@ -1,6 +1,4 @@
 use crate::types::PyIterator;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -177,50 +175,6 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 
     fn iter(&self) -> BoundSetIterator<'py> {
         BoundSetIterator::new(self.clone())
-    }
-}
-
-/// PyO3 implementation of an iterator for a Python `set` object.
-#[cfg(feature = "gil-refs")]
-pub struct PySetIterator<'py>(BoundSetIterator<'py>);
-
-#[cfg(feature = "gil-refs")]
-impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
-
-    /// Advances the iterator and returns the next value.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Bound::into_gil_ref)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl ExactSizeIterator for PySetIterator<'_> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> IntoIterator for &'py PySet {
-    type Item = &'py PyAny;
-    type IntoIter = PySetIterator<'py>;
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    fn into_iter(self) -> Self::IntoIter {
-        PySetIterator(BoundSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 

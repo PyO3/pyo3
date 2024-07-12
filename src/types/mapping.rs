@@ -18,7 +18,6 @@ use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
 #[repr(transparent)]
 pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);
-pyobject_native_type_extract!(PyMapping);
 
 impl PyMapping {
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard

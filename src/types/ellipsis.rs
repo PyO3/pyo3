@@ -11,7 +11,6 @@ use crate::{
 pub struct PyEllipsis(PyAny);
 
 pyobject_native_type_named!(PyEllipsis);
-pyobject_native_type_extract!(PyEllipsis);
 
 impl PyEllipsis {
     /// Returns the `Ellipsis` object.

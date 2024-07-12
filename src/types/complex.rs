@@ -1,8 +1,5 @@
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::py_result_ext::PyResultExt;
-#[cfg(feature = "gil-refs")]
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-use crate::PyNativeType;
 use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
 use std::os::raw::c_double;
 
@@ -66,14 +63,6 @@ mod not_limited_impls {
                 }
             }
 
-            #[cfg(feature = "gil-refs")]
-            impl<'py> $trait for &'py PyComplex {
-                type Output = &'py PyComplex;
-                fn $fn(self, other: &'py PyComplex) -> &'py PyComplex {
-                    (self.as_borrowed() $op other.as_borrowed()).into_gil_ref()
-                }
-            }
-
             impl<'py> $trait for &Bound<'py, PyComplex> {
                 type Output = Bound<'py, PyComplex>;
                 fn $fn(self, other: &Bound<'py, PyComplex>) -> Bound<'py, PyComplex> {
@@ -108,14 +97,6 @@ mod not_limited_impls {
     bin_ops!(Sub, sub, -);
     bin_ops!(Mul, mul, *);
     bin_ops!(Div, div, /);
-
-    #[cfg(feature = "gil-refs")]
-    impl<'py> Neg for &'py PyComplex {
-        type Output = &'py PyComplex;
-        fn neg(self) -> &'py PyComplex {
-            (-self.as_borrowed()).into_gil_ref()
-        }
-    }
 
     impl<'py> Neg for Borrowed<'_, 'py, PyComplex> {
         type Output = Bound<'py, PyComplex>;

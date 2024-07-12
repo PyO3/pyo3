@@ -21,7 +21,6 @@ use crate::{ffi, FromPyObject, Py, PyTypeCheck, Python, ToPyObject};
 #[repr(transparent)]
 pub struct PySequence(PyAny);
 pyobject_native_type_named!(PySequence);
-pyobject_native_type_extract!(PySequence);
 
 impl PySequence {
     /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard

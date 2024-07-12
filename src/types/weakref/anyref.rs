@@ -11,7 +11,6 @@ use crate::{ffi, Borrowed, Bound};
 pub struct PyWeakref(PyAny);
 
 pyobject_native_type_named!(PyWeakref);
-pyobject_native_type_extract!(PyWeakref);
 
 // TODO: We known the layout but this cannot be implemented, due to the lack of public typeobject pointers
 // #[cfg(not(Py_LIMITED_API))]

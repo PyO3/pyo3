@@ -15,7 +15,6 @@ use super::PyWeakrefMethods;
 pub struct PyWeakrefProxy(PyAny);
 
 pyobject_native_type_named!(PyWeakrefProxy);
-pyobject_native_type_extract!(PyWeakrefProxy);
 
 // TODO: We known the layout but this cannot be implemented, due to the lack of public typeobject pointers. And it is 2 distinct types
 // #[cfg(not(Py_LIMITED_API))]
