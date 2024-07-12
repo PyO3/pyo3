@@ -298,3 +298,28 @@ fn test_new_returns_bound() {
         assert!(obj.is_exact_instance_of::<NewReturnsBound>());
     })
 }
+
+#[pyo3::pyclass]
+struct NewClassMethod {
+    #[pyo3(get)]
+    cls: pyo3::PyObject,
+}
+
+#[pyo3::pymethods]
+impl NewClassMethod {
+    #[new]
+    #[classmethod]
+    fn new(cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+        Self {
+            cls: cls.clone().into_any().unbind(),
+        }
+    }
+}
+
+#[test]
+fn test_new_class_method() {
+    pyo3::Python::with_gil(|py| {
+        let cls = py.get_type_bound::<NewClassMethod>();
+        pyo3::py_run!(py, cls, "assert cls().cls is cls");
+    });
+}
