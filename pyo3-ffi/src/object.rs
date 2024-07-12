@@ -490,11 +490,9 @@ extern "C" {
     #[cfg_attr(GraalPy, link_name = "_Py_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
 
-    #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "_PyPy_IncRef")]
+    #[cfg(all(Py_3_10, not(PyPy)))]
     pub fn _Py_IncRef(o: *mut PyObject);
-    #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "_PyPy_DecRef")]
+    #[cfg(all(Py_3_10, not(PyPy)))]
     pub fn _Py_DecRef(o: *mut PyObject);
 
     #[cfg(GraalPy)]
@@ -509,35 +507,23 @@ extern "C" {
 
 #[inline(always)]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
-    #[cfg(any(
-        GraalPy,
-        all(Py_LIMITED_API, Py_3_12),
-        all(
-            py_sys_config = "Py_REF_DEBUG",
-            Py_3_10,
-            not(all(Py_3_12, not(Py_LIMITED_API)))
-        )
-    ))]
+    // On limited API or with refcount debugging, let the interpreter do refcounting
+    #[cfg(any(Py_LIMITED_API, py_sys_config = "Py_REF_DEBUG", GraalPy))]
     {
-        _Py_IncRef(op);
+        // _Py_IncRef was added to the ABI in 3.10; skips null checks
+        #[cfg(all(Py_3_10, not(PyPy)))]
+        {
+            _Py_IncRef(op);
+        }
+
+        #[cfg(any(not(Py_3_10), PyPy))]
+        {
+            Py_IncRef(op);
+        }
     }
 
-    #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_3_10)))]
-    {
-        return Py_IncRef(op);
-    }
-
-    #[cfg(any(
-        all(Py_LIMITED_API, not(Py_3_12)),
-        all(
-            not(Py_LIMITED_API),
-            not(GraalPy),
-            any(
-                not(py_sys_config = "Py_REF_DEBUG"),
-                all(py_sys_config = "Py_REF_DEBUG", Py_3_12),
-            )
-        ),
-    ))]
+    // version-specific builds are allowed to directly manipulate the reference count
+    #[cfg(not(any(any(Py_LIMITED_API, py_sys_config = "Py_REF_DEBUG", GraalPy))))]
     {
         #[cfg(all(Py_3_12, target_pointer_width = "64"))]
         {
@@ -564,9 +550,6 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
 
         // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
         // or submit a PR supporting Py_STATS build option and pystats.h
-
-        #[cfg(all(py_sys_config = "Py_REF_DEBUG", Py_3_12))]
-        _Py_INCREF_IncRefTotal();
     }
 }
 
@@ -576,35 +559,31 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
     track_caller
 )]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
+    // On limited API or with refcount debugging, let the interpreter do refcounting
+    // On 3.12+ we implement refcount debugging to get better assertion locations on negative refcounts
     #[cfg(any(
-        GraalPy,
-        all(Py_LIMITED_API, Py_3_12),
-        all(
-            py_sys_config = "Py_REF_DEBUG",
-            Py_3_10,
-            not(all(Py_3_12, not(Py_LIMITED_API)))
-        )
+        Py_LIMITED_API,
+        all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
+        GraalPy
     ))]
     {
-        _Py_DecRef(op);
+        // _Py_DecRef was added to the ABI in 3.10; skips null checks
+        #[cfg(all(Py_3_10, not(PyPy)))]
+        {
+            _Py_DecRef(op);
+        }
+
+        #[cfg(any(not(Py_3_10), PyPy))]
+        {
+            Py_DecRef(op);
+        }
     }
 
-    #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_3_10)))]
-    {
-        return Py_DecRef(op);
-    }
-
-    #[cfg(any(
-        all(Py_LIMITED_API, not(Py_3_12)),
-        all(
-            not(Py_LIMITED_API),
-            not(GraalPy),
-            any(
-                not(py_sys_config = "Py_REF_DEBUG"),
-                all(py_sys_config = "Py_REF_DEBUG", Py_3_12),
-            )
-        ),
-    ))]
+    #[cfg(not(any(
+        Py_LIMITED_API,
+        all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
+        GraalPy
+    )))]
     {
         #[cfg(Py_3_12)]
         if _Py_IsImmortal(op) != 0 {
@@ -614,7 +593,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         // Skipped _Py_DECREF_STAT_INC - if anyone needs this, please file an issue
         // or submit a PR supporting Py_STATS build option and pystats.h
 
-        #[cfg(all(py_sys_config = "Py_REF_DEBUG", Py_3_12))]
+        #[cfg(py_sys_config = "Py_REF_DEBUG")]
         _Py_DECREF_DecRefTotal();
 
         #[cfg(Py_3_12)]
