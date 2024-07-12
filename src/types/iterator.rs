@@ -2,8 +2,6 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
-#[cfg(feature = "gil-refs")]
-use crate::{AsPyPointer, PyNativeType};
 
 /// A Python iterator object.
 ///
@@ -31,7 +29,6 @@ use crate::{AsPyPointer, PyNativeType};
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
 pyobject_native_type_named!(PyIterator);
-pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
     /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
@@ -44,28 +41,6 @@ impl PyIterator {
                 .assume_owned_or_err(obj.py())
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'p> Iterator for &'p PyIterator {
-    type Item = PyResult<&'p PyAny>;
-
-    /// Retrieves the next item from an iterator.
-    ///
-    /// Returns `None` when the iterator is exhausted.
-    /// If an exception occurs, returns `Some(Err(..))`.
-    /// Further `next()` calls after an exception occurs are likely
-    /// to repeatedly result in the same exception.
-    fn next(&mut self) -> Option<Self::Item> {
-        self.as_borrowed()
-            .next()
-            .map(|result| result.map(Bound::into_gil_ref))
-    }
-
-    #[cfg(not(Py_LIMITED_API))]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.as_borrowed().size_hint()
     }
 }
 

@@ -4,8 +4,6 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, PyAny, Python};
-#[cfg(feature = "gil-refs")]
-use crate::{AsPyPointer, PyNativeType};
 use std::slice;
 
 /// Represents a Python `bytearray`.
@@ -301,17 +299,6 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
         slice::from_raw_parts_mut(self.data(), self.len())
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> TryFrom<&'py PyAny> for &'py PyByteArray {
-    type Error = crate::PyErr;
-
-    /// Creates a new Python `bytearray` object from another Python object that
-    /// implements the buffer protocol.
-    fn try_from(value: &'py PyAny) -> Result<Self, Self::Error> {
-        PyByteArray::from_bound(&value.as_borrowed()).map(Bound::into_gil_ref)
     }
 }
 

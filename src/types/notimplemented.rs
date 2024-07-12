@@ -11,7 +11,6 @@ use crate::{
 pub struct PyNotImplemented(PyAny);
 
 pyobject_native_type_named!(PyNotImplemented);
-pyobject_native_type_extract!(PyNotImplemented);
 
 impl PyNotImplemented {
     /// Returns the `NotImplemented` object.

@@ -680,20 +680,6 @@ impl<'a, 'py, T> From<&'a Bound<'py, T>> for Borrowed<'a, 'py, T> {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl<'py, T> Borrowed<'py, 'py, T>
-where
-    T: HasPyGilRef,
-{
-    pub(crate) fn into_gil_ref(self) -> &'py T::AsRefTarget {
-        // Safety: self is a borrow over `'py`.
-        #[allow(deprecated)]
-        unsafe {
-            self.py().from_borrowed_ptr(self.0.as_ptr())
-        }
-    }
-}
-
 impl<T> std::fmt::Debug for Borrowed<'_, '_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Bound::fmt(self, f)
@@ -1898,24 +1884,6 @@ impl<T> std::fmt::Debug for Py<T> {
 pub type PyObject = Py<PyAny>;
 
 impl PyObject {
-    /// Deprecated form of [`PyObject::downcast_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyObject::downcast` will be replaced by `PyObject::downcast_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn downcast<'py, T>(
-        &'py self,
-        py: Python<'py>,
-    ) -> Result<&'py T, crate::err::PyDowncastError<'py>>
-    where
-        T: PyTypeCheck<AsRefTarget = T>,
-    {
-        self.downcast_bound::<T>(py)
-            .map(Bound::as_gil_ref)
-            .map_err(crate::err::PyDowncastError::from_downcast_err)
-    }
     /// Downcast this `PyObject` to a concrete Python type or pyclass.
     ///
     /// Note that you can often avoid downcasting yourself by just specifying

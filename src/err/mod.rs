@@ -3,8 +3,6 @@ use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -46,34 +44,6 @@ unsafe impl Sync for PyErr {}
 
 /// Represents the result of a Python call.
 pub type PyResult<T> = Result<T, PyErr>;
-
-/// Error that indicates a failure to convert a PyAny to a more specific Python type.
-#[derive(Debug)]
-#[cfg(feature = "gil-refs")]
-pub struct PyDowncastError<'a> {
-    from: &'a PyAny,
-    to: Cow<'static, str>,
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> PyDowncastError<'a> {
-    /// Create a new `PyDowncastError` representing a failure to convert the object
-    /// `from` into the type named in `to`.
-    pub fn new(from: &'a PyAny, to: impl Into<Cow<'static, str>>) -> Self {
-        PyDowncastError {
-            from,
-            to: to.into(),
-        }
-    }
-
-    /// Compatibility API to convert the Bound variant `DowncastError` into the
-    /// gil-ref variant
-    pub(crate) fn from_downcast_err(DowncastError { from, to }: DowncastError<'a, 'a>) -> Self {
-        #[allow(deprecated)]
-        let from = unsafe { from.py().from_borrowed_ptr(from.as_ptr()) };
-        Self { from, to }
-    }
-}
 
 /// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
@@ -194,19 +164,6 @@ impl PyErr {
         })))
     }
 
-    /// Deprecated form of [`PyErr::from_type_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::from_type` will be replaced by `PyErr::from_type_bound` in a future PyO3 version"
-    )]
-    pub fn from_type<A>(ty: &PyType, args: A) -> PyErr
-    where
-        A: PyErrArguments + Send + Sync + 'static,
-    {
-        PyErr::from_state(PyErrState::lazy(ty.into(), args))
-    }
-
     /// Constructs a new PyErr from the given Python type and arguments.
     ///
     /// `ty` is the exception type; usually one of the standard exceptions
@@ -222,16 +179,6 @@ impl PyErr {
         A: PyErrArguments + Send + Sync + 'static,
     {
         PyErr::from_state(PyErrState::lazy(ty.unbind().into_any(), args))
-    }
-
-    /// Deprecated form of [`PyErr::from_value_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::from_value` will be replaced by `PyErr::from_value_bound` in a future PyO3 version"
-    )]
-    pub fn from_value(obj: &PyAny) -> PyErr {
-        PyErr::from_value_bound(obj.as_borrowed().to_owned())
     }
 
     /// Creates a new PyErr.
@@ -282,16 +229,6 @@ impl PyErr {
         PyErr::from_state(state)
     }
 
-    /// Deprecated form of [`PyErr::get_type_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::get_type` will be replaced by `PyErr::get_type_bound` in a future PyO3 version"
-    )]
-    pub fn get_type<'py>(&'py self, py: Python<'py>) -> &'py PyType {
-        self.get_type_bound(py).into_gil_ref()
-    }
-
     /// Returns the type of this exception.
     ///
     /// # Examples
@@ -305,16 +242,6 @@ impl PyErr {
     /// ```
     pub fn get_type_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
         self.normalized(py).ptype(py)
-    }
-
-    /// Deprecated form of [`PyErr::value_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::value` will be replaced by `PyErr::value_bound` in a future PyO3 version"
-    )]
-    pub fn value<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
-        self.value_bound(py).as_gil_ref()
     }
 
     /// Returns the value of this exception.
@@ -347,16 +274,6 @@ impl PyErr {
             }
         }
         exc
-    }
-
-    /// Deprecated form of [`PyErr::traceback_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::traceback` will be replaced by `PyErr::traceback_bound` in a future PyO3 version"
-    )]
-    pub fn traceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
-        self.normalized(py).ptraceback(py).map(|b| b.into_gil_ref())
     }
 
     /// Returns the traceback of this exception object.
@@ -500,28 +417,6 @@ impl PyErr {
         }
     }
 
-    /// Deprecated form of [`PyErr::new_type_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::new_type` will be replaced by `PyErr::new_type_bound` in a future PyO3 version"
-    )]
-    pub fn new_type(
-        py: Python<'_>,
-        name: &str,
-        doc: Option<&str>,
-        base: Option<&PyType>,
-        dict: Option<PyObject>,
-    ) -> PyResult<Py<PyType>> {
-        Self::new_type_bound(
-            py,
-            name,
-            doc,
-            base.map(PyNativeType::as_borrowed).as_deref(),
-            dict,
-        )
-    }
-
     /// Creates a new exception type with the given name and docstring.
     ///
     /// - `base` can be an existing exception type to subclass, or a tuple of classes.
@@ -626,17 +521,6 @@ impl PyErr {
         self.is_instance_bound(py, exc.to_object(py).bind(py))
     }
 
-    /// Deprecated form of `PyErr::is_instance_bound`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::is_instance` will be replaced by `PyErr::is_instance_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
-        self.is_instance_bound(py, &ty.as_borrowed())
-    }
-
     /// Returns true if the current exception is instance of `T`.
     #[inline]
     pub fn is_instance_bound(&self, py: Python<'_>, ty: &Bound<'_, PyAny>) -> bool {
@@ -661,17 +545,6 @@ impl PyErr {
             .into_inner()
             .expect("PyErr state should never be invalid outside of normalization")
             .restore(py)
-    }
-
-    /// Deprecated form of `PyErr::write_unraisable_bound`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::write_unraisable` will be replaced by `PyErr::write_unraisable_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn write_unraisable(self, py: Python<'_>, obj: Option<&PyAny>) {
-        self.write_unraisable_bound(py, obj.map(PyAny::as_borrowed).as_deref())
     }
 
     /// Reports the error as unraisable.
@@ -706,16 +579,6 @@ impl PyErr {
     pub fn write_unraisable_bound(self, py: Python<'_>, obj: Option<&Bound<'_, PyAny>>) {
         self.restore(py);
         unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), Bound::as_ptr)) }
-    }
-
-    /// Deprecated form of [`PyErr::warn_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::warn` will be replaced by `PyErr::warn_bound` in a future PyO3 version"
-    )]
-    pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
-        Self::warn_bound(py, &category.as_borrowed(), message, stacklevel)
     }
 
     /// Issues a warning message.
@@ -753,32 +616,6 @@ impl PyErr {
                 stacklevel as ffi::Py_ssize_t,
             )
         })
-    }
-
-    /// Deprecated form of [`PyErr::warn_explicit_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyErr::warn_explicit` will be replaced by `PyErr::warn_explicit_bound` in a future PyO3 version"
-    )]
-    pub fn warn_explicit(
-        py: Python<'_>,
-        category: &PyAny,
-        message: &str,
-        filename: &str,
-        lineno: i32,
-        module: Option<&str>,
-        registry: Option<&PyAny>,
-    ) -> PyResult<()> {
-        Self::warn_explicit_bound(
-            py,
-            &category.as_borrowed(),
-            message,
-            filename,
-            lineno,
-            module,
-            registry.map(PyNativeType::as_borrowed).as_deref(),
-        )
     }
 
     /// Issues a warning message, with more control over the warning attributes.
@@ -995,29 +832,6 @@ where
     #[inline]
     fn from(err: Bound<'py, T>) -> PyErr {
         PyErr::from_value_bound(err.into_any())
-    }
-}
-
-/// Convert `PyDowncastError` to Python `TypeError`.
-#[cfg(feature = "gil-refs")]
-impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
-    fn from(err: PyDowncastError<'_>) -> PyErr {
-        let args = PyDowncastErrorArguments {
-            from: err.from.get_type().into(),
-            to: err.to,
-        };
-
-        exceptions::PyTypeError::new_err(args)
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> std::error::Error for PyDowncastError<'a> {}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> std::fmt::Display for PyDowncastError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, &self.from.as_borrowed(), &self.to)
     }
 }
 

@@ -349,17 +349,6 @@ where
     }
 }
 
-#[allow(deprecated)]
-#[cfg(feature = "gil-refs")]
-impl<'py, T> FromPyObject<'py> for &'py crate::PyCell<T>
-where
-    T: PyClass,
-{
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        obj.clone().into_gil_ref().downcast().map_err(Into::into)
-    }
-}
-
 impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,

@@ -10,9 +10,9 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, Python};
 #[cfg(feature = "gil-refs")]
-use crate::{err::PyDowncastError, type_object::HasPyGilRef, PyNativeType};
+use crate::PyNativeType;
+use crate::{err, ffi, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -53,8 +53,6 @@ pyobject_native_type_info!(
     Some("builtins"),
     #checkfunction=PyObject_Check
 );
-
-pyobject_native_type_extract!(PyAny);
 
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 
@@ -651,127 +649,6 @@ impl PyAny {
     #[inline]
     pub fn get_type_ptr(&self) -> *mut ffi::PyTypeObject {
         self.as_borrowed().get_type_ptr()
-    }
-
-    /// Downcast this `PyAny` to a concrete Python type or pyclass.
-    ///
-    /// Note that you can often avoid downcasting yourself by just specifying
-    /// the desired type in function or method signatures.
-    /// However, manual downcasting is sometimes necessary.
-    ///
-    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
-    ///
-    /// # Example: Downcasting to a specific Python object
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, PyList};
-    ///
-    /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new_bound(py);
-    ///     assert!(dict.is_instance_of::<PyAny>());
-    ///     let any = dict.as_any();
-    ///
-    ///     assert!(any.downcast::<PyDict>().is_ok());
-    ///     assert!(any.downcast::<PyList>().is_err());
-    /// });
-    /// ```
-    ///
-    /// # Example: Getting a reference to a pyclass
-    ///
-    /// This is useful if you want to mutate a `PyObject` that
-    /// might actually be a pyclass.
-    ///
-    /// ```rust
-    /// # fn main() -> Result<(), pyo3::PyErr> {
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pyclass]
-    /// struct Class {
-    ///     i: i32,
-    /// }
-    ///
-    /// Python::with_gil(|py| {
-    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
-    ///
-    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
-    ///
-    ///     class_bound.borrow_mut().i += 1;
-    ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
-    ///     assert_eq!(class_ref.i, 1);
-    ///     Ok(())
-    /// })
-    /// # }
-    /// ```
-    #[inline]
-    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError<'_>>
-    where
-        T: PyTypeCheck<AsRefTarget = T>,
-    {
-        if T::type_check(&self.as_borrowed()) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
-        } else {
-            Err(PyDowncastError::new(self, T::NAME))
-        }
-    }
-
-    /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
-    ///
-    /// It is almost always better to use [`PyAny::downcast`] because it accounts for Python
-    /// subtyping. Use this method only when you do not want to allow subtypes.
-    ///
-    /// The advantage of this method over [`PyAny::downcast`] is that it is faster. The implementation
-    /// of `downcast_exact` uses the equivalent of the Python expression `type(self) is T`, whereas
-    /// `downcast` uses `isinstance(self, T)`.
-    ///
-    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
-    ///
-    /// # Example: Downcasting to a specific Python object but not a subtype
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyBool, PyLong};
-    ///
-    /// Python::with_gil(|py| {
-    ///     let b = PyBool::new_bound(py, true);
-    ///     assert!(b.is_instance_of::<PyBool>());
-    ///     let any: &Bound<'_, PyAny> = b.as_any();
-    ///
-    ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
-    ///     // but `downcast_exact` will not.
-    ///     assert!(any.downcast::<PyLong>().is_ok());
-    ///     assert!(any.downcast_exact::<PyLong>().is_err());
-    ///
-    ///     assert!(any.downcast_exact::<PyBool>().is_ok());
-    /// });
-    /// ```
-    #[inline]
-    pub fn downcast_exact<T>(&self) -> Result<&T, PyDowncastError<'_>>
-    where
-        T: PyTypeInfo<AsRefTarget = T>,
-    {
-        if T::is_exact_type_of_bound(&self.as_borrowed()) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
-        } else {
-            Err(PyDowncastError::new(self, T::NAME))
-        }
-    }
-
-    /// Converts this `PyAny` to a concrete Python type without checking validity.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[inline]
-    pub unsafe fn downcast_unchecked<T>(&self) -> &T
-    where
-        T: HasPyGilRef<AsRefTarget = T>,
-    {
-        &*(self.as_ptr() as *const T)
     }
 
     /// Extracts some type from the Python object.

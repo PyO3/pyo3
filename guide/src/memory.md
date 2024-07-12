@@ -33,7 +33,7 @@ held. (If PyO3 could not assume this, every PyO3 API would need to take a
 `Python` GIL token to prove that the GIL is held.)  This allows us to write
 very simple and easy-to-understand programs like this:
 
-```rust
+```rust,ignore
 # #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
@@ -58,7 +58,7 @@ the `GILPool` is also dropped and the Python reference counts of the variables
 it owns are decreased, releasing them to the Python garbage collector.  Most
 of the time we don't have to think about this, but consider the following:
 
-```rust
+```rust,ignore
 # #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
@@ -99,7 +99,7 @@ PyO3 0.21 has introduced a new API known as the Bound API, which doesn't have th
 In general we don't want unbounded memory growth during loops!  One workaround
 is to acquire and release the GIL with each iteration of the loop.
 
-```rust
+```rust,ignore
 # #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
@@ -123,7 +123,7 @@ It might not be practical or performant to acquire and release the GIL so many
 times.  Another workaround is to work with the `GILPool` object directly, but
 this is unsafe.
 
-```rust
+```rust,ignore
 # #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;

@@ -22,8 +22,6 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
 };
 use crate::ffi_ptr_ext::FfiPtrExt;
-#[cfg(feature = "gil-refs")]
-use crate::instance::PyNativeType;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
@@ -233,21 +231,6 @@ impl PyDate {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyDateAccess for PyDate {
-    fn get_year(&self) -> i32 {
-        self.as_borrowed().get_year()
-    }
-
-    fn get_month(&self) -> u8 {
-        self.as_borrowed().get_month()
-    }
-
-    fn get_day(&self) -> u8 {
-        self.as_borrowed().get_day()
-    }
-}
-
 impl PyDateAccess for Bound<'_, PyDate> {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -368,21 +351,6 @@ impl PyDateTime {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyDateAccess for PyDateTime {
-    fn get_year(&self) -> i32 {
-        self.as_borrowed().get_year()
-    }
-
-    fn get_month(&self) -> u8 {
-        self.as_borrowed().get_month()
-    }
-
-    fn get_day(&self) -> u8 {
-        self.as_borrowed().get_day()
-    }
-}
-
 impl PyDateAccess for Bound<'_, PyDateTime> {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -394,29 +362,6 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
 
     fn get_day(&self) -> u8 {
         unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyTimeAccess for PyDateTime {
-    fn get_hour(&self) -> u8 {
-        self.as_borrowed().get_hour()
-    }
-
-    fn get_minute(&self) -> u8 {
-        self.as_borrowed().get_minute()
-    }
-
-    fn get_second(&self) -> u8 {
-        self.as_borrowed().get_second()
-    }
-
-    fn get_microsecond(&self) -> u32 {
-        self.as_borrowed().get_microsecond()
-    }
-
-    fn get_fold(&self) -> bool {
-        self.as_borrowed().get_fold()
     }
 }
 
@@ -439,13 +384,6 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
     fn get_fold(&self) -> bool {
         unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) > 0 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> PyTzInfoAccess<'py> for &'py PyDateTime {
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
-        self.as_borrowed().get_tzinfo_bound()
     }
 }
 
@@ -549,29 +487,6 @@ impl PyTime {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyTimeAccess for PyTime {
-    fn get_hour(&self) -> u8 {
-        self.as_borrowed().get_hour()
-    }
-
-    fn get_minute(&self) -> u8 {
-        self.as_borrowed().get_minute()
-    }
-
-    fn get_second(&self) -> u8 {
-        self.as_borrowed().get_second()
-    }
-
-    fn get_microsecond(&self) -> u32 {
-        self.as_borrowed().get_microsecond()
-    }
-
-    fn get_fold(&self) -> bool {
-        self.as_borrowed().get_fold()
-    }
-}
-
 impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_hour(&self) -> u8 {
         unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u8 }
@@ -591,13 +506,6 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
     fn get_fold(&self) -> bool {
         unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> PyTzInfoAccess<'py> for &'py PyTime {
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
-        self.as_borrowed().get_tzinfo_bound()
     }
 }
 
@@ -718,21 +626,6 @@ impl PyDelta {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyDeltaAccess for PyDelta {
-    fn get_days(&self) -> i32 {
-        self.as_borrowed().get_days()
-    }
-
-    fn get_seconds(&self) -> i32 {
-        self.as_borrowed().get_seconds()
-    }
-
-    fn get_microseconds(&self) -> i32 {
-        self.as_borrowed().get_microseconds()
     }
 }
 

@@ -7,8 +7,6 @@ use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     exceptions, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
     ToPyObject,
@@ -310,53 +308,6 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
 
     pub(crate) fn iter_borrowed(self) -> BorrowedTupleIterator<'a, 'py> {
         BorrowedTupleIterator::new(self)
-    }
-}
-
-/// Used by `PyTuple::iter()`.
-#[cfg(feature = "gil-refs")]
-pub struct PyTupleIterator<'a>(BorrowedTupleIterator<'a, 'a>);
-
-#[cfg(feature = "gil-refs")]
-impl<'a> Iterator for PyTupleIterator<'a> {
-    type Item = &'a PyAny;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Borrowed::into_gil_ref)
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> DoubleEndedIterator for PyTupleIterator<'a> {
-    #[inline]
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back().map(Borrowed::into_gil_ref)
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl FusedIterator for PyTupleIterator<'_> {}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> IntoIterator for &'a PyTuple {
-    type Item = &'a PyAny;
-    type IntoIter = PyTupleIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        PyTupleIterator(BorrowedTupleIterator::new(self.as_borrowed()))
     }
 }
 
