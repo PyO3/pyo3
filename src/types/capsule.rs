@@ -1,7 +1,5 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, PyAny};
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
@@ -145,118 +143,6 @@ impl PyCapsule {
         } else {
             Ok(&*ptr.cast::<T>())
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyCapsule {
-    /// Deprecated form of [`PyCapsule::new_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyCapsule::new` will be replaced by `PyCapsule::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T: 'static + Send + AssertNotZeroSized>(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-    ) -> PyResult<&Self> {
-        Self::new_bound(py, value, name).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PyCapsule::new_bound_with_destructor`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyCapsule::new_with_destructor` will be replaced by `PyCapsule::new_bound_with_destructor` in a future PyO3 version"
-    )]
-    pub fn new_with_destructor<
-        T: 'static + Send + AssertNotZeroSized,
-        F: FnOnce(T, *mut c_void) + Send,
-    >(
-        py: Python<'_>,
-        value: T,
-        name: Option<CString>,
-        destructor: F,
-    ) -> PyResult<&'_ Self> {
-        Self::new_bound_with_destructor(py, value, name, destructor).map(Bound::into_gil_ref)
-    }
-
-    /// Sets the context pointer in the capsule.
-    ///
-    /// Returns an error if this capsule is not valid.
-    ///
-    /// # Notes
-    ///
-    /// The context is treated much like the value of the capsule, but should likely act as
-    /// a place to store any state management when using the capsule.
-    ///
-    /// If you want to store a Rust value as the context, and drop it from the destructor, use
-    /// `Box::into_raw` to convert it into a pointer, see the example.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use std::sync::mpsc::{channel, Sender};
-    /// use libc::c_void;
-    /// use pyo3::{prelude::*, types::PyCapsule};
-    ///
-    /// let (tx, rx) = channel::<String>();
-    ///
-    /// fn destructor(val: u32, context: *mut c_void) {
-    ///     let ctx = unsafe { *Box::from_raw(context.cast::<Sender<String>>()) };
-    ///     ctx.send("Destructor called!".to_string()).unwrap();
-    /// }
-    ///
-    /// Python::with_gil(|py| {
-    ///     let capsule =
-    ///         PyCapsule::new_bound_with_destructor(py, 123, None, destructor as fn(u32, *mut c_void))
-    ///             .unwrap();
-    ///     let context = Box::new(tx);  // `Sender<String>` is our context, box it up and ship it!
-    ///     capsule.set_context(Box::into_raw(context).cast()).unwrap();
-    ///     // This scope will end, causing our destructor to be called...
-    /// });
-    ///
-    /// assert_eq!(rx.recv(), Ok("Destructor called!".to_string()));
-    /// ```
-    pub fn set_context(&self, context: *mut c_void) -> PyResult<()> {
-        self.as_borrowed().set_context(context)
-    }
-
-    /// Gets the current context stored in the capsule. If there is no context, the pointer
-    /// will be null.
-    ///
-    /// Returns an error if this capsule is not valid.
-    pub fn context(&self) -> PyResult<*mut c_void> {
-        self.as_borrowed().context()
-    }
-
-    /// Obtains a reference to the value of this capsule.
-    ///
-    /// # Safety
-    ///
-    /// It must be known that this capsule is valid and its pointer is to an item of type `T`.
-    pub unsafe fn reference<T>(&self) -> &T {
-        self.as_borrowed().reference()
-    }
-
-    /// Gets the raw `c_void` pointer to the value in this capsule.
-    ///
-    /// Returns null if this capsule is not valid.
-    pub fn pointer(&self) -> *mut c_void {
-        self.as_borrowed().pointer()
-    }
-
-    /// Checks if this is a valid capsule.
-    ///
-    /// Returns true if the stored `pointer()` is non-null.
-    pub fn is_valid(&self) -> bool {
-        self.as_borrowed().is_valid()
-    }
-
-    /// Retrieves the name of this capsule, if set.
-    ///
-    /// Returns an error if this capsule is not valid.
-    pub fn name(&self) -> PyResult<Option<&CStr>> {
-        self.as_borrowed().name()
     }
 }
 

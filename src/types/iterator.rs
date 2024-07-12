@@ -34,16 +34,6 @@ pyobject_native_type_named!(PyIterator);
 pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
-    /// Deprecated form of `PyIterator::from_bound_object`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyIterator::from_object` will be replaced by `PyIterator::from_bound_object` in a future PyO3 version"
-    )]
-    pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_bound_object(&obj.as_borrowed()).map(Bound::into_gil_ref)
-    }
-
     /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
     ///
     /// Usually it is more convenient to write [`obj.iter()`][crate::types::any::PyAnyMethods::iter],

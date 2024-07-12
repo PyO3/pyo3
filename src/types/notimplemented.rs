@@ -15,17 +15,6 @@ pyobject_native_type_extract!(PyNotImplemented);
 
 impl PyNotImplemented {
     /// Returns the `NotImplemented` object.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyNotImplemented::get` will be replaced by `PyNotImplemented::get_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn get(py: Python<'_>) -> &PyNotImplemented {
-        Self::get_bound(py).into_gil_ref()
-    }
-
-    /// Returns the `NotImplemented` object.
     #[inline]
     pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNotImplemented> {
         unsafe {

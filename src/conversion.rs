@@ -258,13 +258,9 @@ mod from_py_object_bound_sealed {
     // This generic implementation is why the seal is separate from
     // `crate::sealed::Sealed`.
     impl<'py, T> Sealed for T where T: super::FromPyObject<'py> {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for &'_ str {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for std::borrow::Cow<'_, str> {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for &'_ [u8] {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for std::borrow::Cow<'_, [u8]> {}
 }
 

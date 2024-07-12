@@ -10,20 +10,6 @@ fn basic_function(py: pyo3::Python<'_>, x: Option<pyo3::PyObject>) -> pyo3::PyOb
     x.unwrap_or_else(|| py.None())
 }
 
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-#[pyo3::pymodule]
-fn basic_module(_py: pyo3::Python<'_>, m: &pyo3::types::PyModule) -> pyo3::PyResult<()> {
-    #[pyfn(m)]
-    fn answer() -> usize {
-        42
-    }
-
-    m.add_function(pyo3::wrap_pyfunction!(basic_function, m)?)?;
-
-    Ok(())
-}
-
 #[pyo3::pymodule]
 fn basic_module_bound(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
     #[pyfn(m)]

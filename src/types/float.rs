@@ -1,8 +1,6 @@
 use super::any::PyAnyMethods;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject,
     PyResult, Python, ToPyObject,
@@ -38,24 +36,6 @@ impl PyFloat {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyFloat {
-    /// Deprecated form of [`PyFloat::new_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyFloat::new` will be replaced by `PyFloat::new_bound` in a future PyO3 version"
-    )]
-    pub fn new(py: Python<'_>, val: f64) -> &'_ Self {
-        Self::new_bound(py, val).into_gil_ref()
-    }
-
-    /// Gets the value of this float.
-    pub fn value(&self) -> c_double {
-        self.as_borrowed().value()
     }
 }
 

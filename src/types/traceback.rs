@@ -1,7 +1,5 @@
 use crate::err::{error_on_minusone, PyResult};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Bound, PyAny};
 
 /// Represents a Python traceback.
@@ -19,44 +17,6 @@ pyobject_native_type_core!(
     pyobject_native_static_type_object!(ffi::PyTraceBack_Type),
     #checkfunction=ffi::PyTraceBack_Check
 );
-
-#[cfg(feature = "gil-refs")]
-impl PyTraceback {
-    /// Formats the traceback as a string.
-    ///
-    /// This does not include the exception type and value. The exception type and value can be
-    /// formatted using the `Display` implementation for `PyErr`.
-    ///
-    /// # Example
-    ///
-    /// The following code formats a Python traceback and exception pair from Rust:
-    ///
-    /// ```rust
-    /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods};
-    /// # let result: PyResult<()> =
-    /// Python::with_gil(|py| {
-    ///     let err = py
-    ///         .run_bound("raise Exception('banana')", None, None)
-    ///         .expect_err("raise will create a Python error");
-    ///
-    ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
-    ///     assert_eq!(
-    ///         format!("{}{}", traceback.format()?, err),
-    ///         "\
-    /// Traceback (most recent call last):
-    ///   File \"<string>\", line 1, in <module>
-    /// Exception: banana\
-    /// "
-    ///     );
-    ///     Ok(())
-    /// })
-    /// # ;
-    /// # result.expect("example failed");
-    /// ```
-    pub fn format(&self) -> PyResult<String> {
-        self.as_borrowed().format()
-    }
-}
 
 /// Implementation of functionality for [`PyTraceback`].
 ///

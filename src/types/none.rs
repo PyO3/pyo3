@@ -16,18 +16,6 @@ pyobject_native_type_extract!(PyNone);
 
 impl PyNone {
     /// Returns the `None` object.
-    /// Deprecated form of [`PyNone::get_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyNone::get` will be replaced by `PyNone::get_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn get(py: Python<'_>) -> &PyNone {
-        Self::get_bound(py).into_gil_ref()
-    }
-
-    /// Returns the `None` object.
     #[inline]
     pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
         unsafe { ffi::Py_None().assume_borrowed(py).downcast_unchecked() }
