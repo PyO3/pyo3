@@ -490,11 +490,9 @@ extern "C" {
     #[cfg_attr(GraalPy, link_name = "_Py_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
 
-    #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "_PyPy_IncRef")]
+    #[cfg(all(Py_3_10, not(PyPy)))]
     pub fn _Py_IncRef(o: *mut PyObject);
-    #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "_PyPy_DecRef")]
+    #[cfg(all(Py_3_10, not(PyPy)))]
     pub fn _Py_DecRef(o: *mut PyObject);
 
     #[cfg(GraalPy)]
@@ -513,12 +511,12 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
     #[cfg(any(Py_LIMITED_API, py_sys_config = "Py_REF_DEBUG", GraalPy))]
     {
         // _Py_IncRef was added to the ABI in 3.10; skips null checks
-        #[cfg(Py_3_10)]
+        #[cfg(all(Py_3_10, not(PyPy)))]
         {
             _Py_IncRef(op);
         }
 
-        #[cfg(not(Py_3_10))]
+        #[cfg(any(not(Py_3_10), PyPy))]
         {
             Py_IncRef(op);
         }
@@ -570,12 +568,12 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
     ))]
     {
         // _Py_DecRef was added to the ABI in 3.10; skips null checks
-        #[cfg(Py_3_10)]
+        #[cfg(all(Py_3_10, not(PyPy)))]
         {
             _Py_DecRef(op);
         }
 
-        #[cfg(not(Py_3_10))]
+        #[cfg(any(not(Py_3_10), PyPy))]
         {
             Py_DecRef(op);
         }
