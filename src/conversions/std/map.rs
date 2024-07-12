@@ -3,10 +3,10 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{AnyBound, IntoPyObject},
+    conversion::IntoPyObject,
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, IntoPyDict, PyDict},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
+    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>

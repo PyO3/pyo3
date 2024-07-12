@@ -47,7 +47,7 @@ where
     type Error = T::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        use crate::conversion::AnyBound;
+        use crate::BoundObject;
         unsafe {
             let len = N as ffi::Py_ssize_t;
 

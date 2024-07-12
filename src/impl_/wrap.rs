@@ -1,8 +1,8 @@
 use std::convert::Infallible;
 
-use crate::conversion::AnyBound;
 use crate::{
-    conversion::IntoPyObject, ffi, types::PyNone, Bound, IntoPy, PyErr, PyObject, PyResult, Python,
+    conversion::IntoPyObject, ffi, types::PyNone, Bound, BoundObject, IntoPy, PyErr, PyObject,
+    PyResult, Python,
 };
 
 /// Used to wrap values in `Option<T>` for default arguments.
@@ -129,7 +129,7 @@ impl IntoPyObjectTag {
         PyErr: From<T::Error>,
     {
         obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
-            .map(AnyBound::into_bound)
+            .map(BoundObject::into_bound)
             .map(Bound::into_ptr)
     }
 

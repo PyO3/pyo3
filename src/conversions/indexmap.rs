@@ -87,9 +87,9 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::conversion::{AnyBound, IntoPyObject};
+use crate::conversion::IntoPyObject;
 use crate::types::*;
-use crate::{Bound, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
+use crate::{Bound, BoundObject, FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>

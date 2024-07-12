@@ -15,7 +15,7 @@
 //!
 //! Note that you must use compatible versions of smallvec and PyO3.
 //! The required smallvec version may vary based on the version of PyO3.
-use crate::conversion::{AnyBound, IntoPyObject};
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
@@ -24,8 +24,8 @@ use crate::types::list::{new_from_iter, try_new_from_iter};
 use crate::types::{PyList, PySequence, PyString};
 use crate::PyErr;
 use crate::{
-    err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
+    err::DowncastError, ffi, Bound, BoundObject, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
+    Python, ToPyObject,
 };
 use smallvec::{Array, SmallVec};
 
@@ -69,8 +69,8 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut iter = self.into_iter().map(|e| {
             e.into_pyobject(py)
-                .map(AnyBound::into_any)
-                .map(AnyBound::unbind)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
                 .map_err(Into::into)
         });
         try_new_from_iter(py, &mut iter)

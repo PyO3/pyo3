@@ -320,7 +320,7 @@ pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-pub use crate::instance::{Borrowed, Bound, Py, PyObject};
+pub use crate::instance::{Borrowed, Bound, BoundObject, Py, PyObject};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;

@@ -1,7 +1,6 @@
-use crate::conversion::AnyBound;
 use crate::{
-    conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, FromPyObject,
-    IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+    conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, BoundObject,
+    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// `Option::Some<T>` is converted like `T`.
@@ -38,8 +37,8 @@ where
             || Ok(py.None().into_bound(py)),
             |val| {
                 val.into_pyobject(py)
-                    .map(AnyBound::into_any)
-                    .map(AnyBound::into_bound)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::into_bound)
             },
         )
     }

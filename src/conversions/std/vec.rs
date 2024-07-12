@@ -1,9 +1,9 @@
-use crate::conversion::{AnyBound, IntoPyObject};
+use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::list::{new_from_iter, try_new_from_iter};
 use crate::types::PyList;
-use crate::{Bound, IntoPy, PyErr, PyObject, Python, ToPyObject};
+use crate::{Bound, BoundObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 
 impl<T> ToPyObject for [T]
 where
@@ -53,8 +53,8 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut iter = self.into_iter().map(|e| {
             e.into_pyobject(py)
-                .map(AnyBound::into_any)
-                .map(AnyBound::unbind)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
                 .map_err(Into::into)
         });
 

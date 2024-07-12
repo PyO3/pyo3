@@ -43,12 +43,11 @@
 //!
 //! [either](https://docs.rs/either/ "A library for easy idiomatic error handling and reporting in Rust applications")’s
 
-use crate::conversion::AnyBound;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject, exceptions::PyTypeError, types::any::PyAnyMethods, Bound,
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use either::Either;
 
@@ -83,13 +82,13 @@ where
         match self {
             Either::Left(l) => l
                 .into_pyobject(py)
-                .map(AnyBound::into_any)
-                .map(AnyBound::into_bound)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
                 .map_err(Into::into),
             Either::Right(r) => r
                 .into_pyobject(py)
-                .map(AnyBound::into_any)
-                .map(AnyBound::into_bound)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
                 .map_err(Into::into),
         }
     }

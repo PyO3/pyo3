@@ -17,7 +17,7 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
-    conversion::{AnyBound, IntoPyObject},
+    conversion::IntoPyObject,
     types::{
         any::PyAnyMethods,
         dict::PyDictMethods,
@@ -25,7 +25,7 @@ use crate::{
         set::{new_from_iter, try_new_from_iter, PySetMethods},
         IntoPyDict, PyDict, PyFrozenSet, PySet,
     },
-    Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    Bound, BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
 
@@ -131,8 +131,8 @@ where
             py,
             self.into_iter().map(|item| {
                 item.into_pyobject(py)
-                    .map(AnyBound::into_any)
-                    .map(AnyBound::unbind)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::unbind)
                     .map_err(Into::into)
             }),
         )

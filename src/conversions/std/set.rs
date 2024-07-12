@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::{AnyBound, IntoPyObject},
+    conversion::IntoPyObject,
     instance::Bound,
     types::{
         any::PyAnyMethods,
@@ -11,7 +11,7 @@ use crate::{
         set::{new_from_iter, try_new_from_iter, PySetMethods},
         PyFrozenSet, PySet,
     },
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
@@ -69,8 +69,8 @@ where
             py,
             self.into_iter().map(|item| {
                 item.into_pyobject(py)
-                    .map(AnyBound::into_any)
-                    .map(AnyBound::unbind)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::unbind)
                     .map_err(Into::into)
             }),
         )
@@ -131,8 +131,8 @@ where
             py,
             self.into_iter().map(|item| {
                 item.into_pyobject(py)
-                    .map(AnyBound::into_any)
-                    .map(AnyBound::unbind)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::unbind)
                     .map_err(Into::into)
             }),
         )

@@ -5,7 +5,9 @@ use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
+use crate::{
+    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python,
+};
 use std::convert::Infallible;
 
 /// Returns a borrowed pointer to a Python object.
@@ -172,94 +174,6 @@ pub trait IntoPy<T>: Sized {
     }
 }
 
-/// Owned or borrowed gil-bound Python smart pointer
-pub trait AnyBound<'py, T> {
-    /// Any
-    type Any: AnyBound<'py, PyAny>;
-    /// Borrow this smart pointer.
-    fn as_borrowed(&self) -> Borrowed<'_, 'py, T>;
-    /// Turns this smart pointer into an owned [`Bound<'py, T>`]
-    fn into_bound(self) -> Bound<'py, T>;
-    /// Upcast the target type of this smart pointer
-    fn into_any(self) -> Self::Any;
-    /// Turn this smart pointer into a strong reference pointer
-    fn into_ptr(self) -> *mut ffi::PyObject;
-    /// Turn this smart pointer into an owned [`Py<T>`]
-    fn unbind(self) -> Py<T>;
-}
-
-impl<'py, T> AnyBound<'py, T> for Bound<'py, T> {
-    type Any = Bound<'py, PyAny>;
-
-    fn as_borrowed(&self) -> Borrowed<'_, 'py, T> {
-        Bound::as_borrowed(self)
-    }
-
-    fn into_bound(self) -> Bound<'py, T> {
-        self
-    }
-
-    fn into_any(self) -> Self::Any {
-        self.into_any()
-    }
-
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        self.into_ptr()
-    }
-
-    fn unbind(self) -> Py<T> {
-        self.unbind()
-    }
-}
-
-impl<'a, 'py, T> AnyBound<'py, T> for &'a Bound<'py, T> {
-    type Any = &'a Bound<'py, PyAny>;
-
-    fn as_borrowed(&self) -> Borrowed<'a, 'py, T> {
-        Bound::as_borrowed(self)
-    }
-
-    fn into_bound(self) -> Bound<'py, T> {
-        self.clone()
-    }
-
-    fn into_any(self) -> Self::Any {
-        self.as_any()
-    }
-
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        self.clone().into_ptr()
-    }
-
-    fn unbind(self) -> Py<T> {
-        self.clone().unbind()
-    }
-}
-
-impl<'a, 'py, T> AnyBound<'py, T> for Borrowed<'a, 'py, T> {
-    type Any = Borrowed<'a, 'py, PyAny>;
-
-    fn as_borrowed(&self) -> Borrowed<'a, 'py, T> {
-        *self
-    }
-
-    fn into_bound(self) -> Bound<'py, T> {
-        (*self).to_owned()
-    }
-
-    fn into_any(self) -> Self::Any {
-        self.to_any()
-    }
-
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        (*self).to_owned().into_ptr()
-    }
-
-    fn unbind(self) -> Py<T> {
-        (*self).to_owned().unbind()
-    }
-}
-
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
 /// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
@@ -271,7 +185,7 @@ pub trait IntoPyObject<'py>: Sized {
     ///
     /// This will usually be [`Bound<'py, Target>`], but can special cases `&'a Bound<'py, Target>`
     /// or [`Borrowed<'a, 'py, Target>`] can be used to minimize reference counting overhead.
-    type Output: AnyBound<'py, Self::Target>;
+    type Output: BoundObject<'py, Self::Target>;
     /// The type returned in the event of a conversion error.
     type Error;
 

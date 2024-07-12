@@ -15,6 +15,30 @@ use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
+/// Owned or borrowed gil-bound Python smart pointer
+pub trait BoundObject<'py, T>: bound_object_sealed::Sealed {
+    /// Type erased version of `Self`
+    type Any: BoundObject<'py, PyAny>;
+    /// Borrow this smart pointer.
+    fn as_borrowed(&self) -> Borrowed<'_, 'py, T>;
+    /// Turns this smart pointer into an owned [`Bound<'py, T>`]
+    fn into_bound(self) -> Bound<'py, T>;
+    /// Upcast the target type of this smart pointer
+    fn into_any(self) -> Self::Any;
+    /// Turn this smart pointer into a strong reference pointer
+    fn into_ptr(self) -> *mut ffi::PyObject;
+    /// Turn this smart pointer into an owned [`Py<T>`]
+    fn unbind(self) -> Py<T>;
+}
+
+mod bound_object_sealed {
+    pub trait Sealed {}
+
+    impl<'py, T> Sealed for super::Bound<'py, T> {}
+    impl<'a, 'py, T> Sealed for &'a super::Bound<'py, T> {}
+    impl<'a, 'py, T> Sealed for super::Borrowed<'a, 'py, T> {}
+}
+
 /// A GIL-attached equivalent to [`Py<T>`].
 ///
 /// This type can be thought of as equivalent to the tuple `(Py<T>, Python<'py>)`. By having the `'py`
@@ -566,6 +590,54 @@ unsafe impl<T> AsPyPointer for Bound<'_, T> {
     }
 }
 
+impl<'py, T> BoundObject<'py, T> for Bound<'py, T> {
+    type Any = Bound<'py, PyAny>;
+
+    fn as_borrowed(&self) -> Borrowed<'_, 'py, T> {
+        Bound::as_borrowed(self)
+    }
+
+    fn into_bound(self) -> Bound<'py, T> {
+        self
+    }
+
+    fn into_any(self) -> Self::Any {
+        self.into_any()
+    }
+
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.into_ptr()
+    }
+
+    fn unbind(self) -> Py<T> {
+        self.unbind()
+    }
+}
+
+impl<'a, 'py, T> BoundObject<'py, T> for &'a Bound<'py, T> {
+    type Any = &'a Bound<'py, PyAny>;
+
+    fn as_borrowed(&self) -> Borrowed<'a, 'py, T> {
+        Bound::as_borrowed(self)
+    }
+
+    fn into_bound(self) -> Bound<'py, T> {
+        self.clone()
+    }
+
+    fn into_any(self) -> Self::Any {
+        self.as_any()
+    }
+
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.clone().into_ptr()
+    }
+
+    fn unbind(self) -> Py<T> {
+        self.clone().unbind()
+    }
+}
+
 /// A borrowed equivalent to `Bound`.
 ///
 /// The advantage of this over `&Bound` is that it avoids the need to have a pointer-to-pointer, as Bound
@@ -745,6 +817,30 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_owned().into_py(py)
+    }
+}
+
+impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
+    type Any = Borrowed<'a, 'py, PyAny>;
+
+    fn as_borrowed(&self) -> Borrowed<'a, 'py, T> {
+        *self
+    }
+
+    fn into_bound(self) -> Bound<'py, T> {
+        (*self).to_owned()
+    }
+
+    fn into_any(self) -> Self::Any {
+        self.to_any()
+    }
+
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        (*self).to_owned().into_ptr()
+    }
+
+    fn unbind(self) -> Py<T> {
+        (*self).to_owned().unbind()
     }
 }
 
