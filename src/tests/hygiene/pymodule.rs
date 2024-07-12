@@ -18,7 +18,7 @@ fn foo(
 fn my_module(m: &crate::Bound<'_, crate::types::PyModule>) -> crate::PyResult<()> {
     <crate::Bound<'_, crate::types::PyModule> as crate::types::PyModuleMethods>::add_function(
         m,
-        crate::wrap_pyfunction_bound!(do_something, m)?,
+        crate::wrap_pyfunction!(do_something, m)?,
     )?;
     <crate::Bound<'_, crate::types::PyModule> as crate::types::PyModuleMethods>::add_wrapped(
         m,

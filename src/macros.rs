@@ -124,14 +124,6 @@ macro_rules! py_run_impl {
 /// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
 /// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
 /// information.
-///
-/// During the migration from the GIL Ref API to the Bound API, the return type of this macro will
-/// be either the `&'py PyModule` GIL Ref or `Bound<'py, PyModule>` according to the second
-/// argument.
-///
-/// For backwards compatibility, if the second argument is `Python<'py>` then the return type will
-/// be `&'py PyModule` GIL Ref. To get `Bound<'py, PyModule>`, use the [`crate::wrap_pyfunction_bound!`]
-/// macro instead.
 #[macro_export]
 macro_rules! wrap_pyfunction {
     ($function:path) => {
@@ -157,24 +149,15 @@ macro_rules! wrap_pyfunction {
 /// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
 /// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
 /// information.
+#[deprecated(since = "0.23.0", note = "use `wrap_pyfunction!` instead")]
 #[macro_export]
 macro_rules! wrap_pyfunction_bound {
     ($function:path) => {
-        &|py_or_module| {
-            use $function as wrapped_pyfunction;
-            $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
-                $crate::impl_::pyfunction::OnlyBound(py_or_module),
-                &wrapped_pyfunction::_PYO3_DEF,
-            )
-        }
+        $crate::wrap_pyfunction!($function)
     };
-    ($function:path, $py_or_module:expr) => {{
-        use $function as wrapped_pyfunction;
-        $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
-            $crate::impl_::pyfunction::OnlyBound($py_or_module),
-            &wrapped_pyfunction::_PYO3_DEF,
-        )
-    }};
+    ($function:path, $py_or_module:expr) => {
+        $crate::wrap_pyfunction!($function, $py_or_module)
+    };
 }
 
 /// Returns a function that takes a [`Python`](crate::Python) instance and returns a

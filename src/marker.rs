@@ -480,7 +480,7 @@ impl<'py> Python<'py> {
     /// #
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
-    /// #         let fun = pyo3::wrap_pyfunction_bound!(sum_numbers, py)?;
+    /// #         let fun = pyo3::wrap_pyfunction!(sum_numbers, py)?;
     /// #         let res = fun.call1((vec![1_u32, 2, 3],))?;
     /// #         assert_eq!(res.extract::<u32>()?, 6_u32);
     /// #         Ok(())

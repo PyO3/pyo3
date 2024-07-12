@@ -1,7 +1,7 @@
 use pyo3::{
     pyclass, pyfunction, pymodule,
     types::{PyModule, PyModuleMethods},
-    wrap_pyfunction_bound, Bound, PyResult,
+    wrap_pyfunction, Bound, PyResult,
 };
 
 #[pymodule]
@@ -11,10 +11,10 @@ pub fn enums(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SimpleTupleEnum>()?;
     m.add_class::<TupleEnum>()?;
     m.add_class::<MixedComplexEnum>()?;
-    m.add_wrapped(wrap_pyfunction_bound!(do_simple_stuff))?;
-    m.add_wrapped(wrap_pyfunction_bound!(do_complex_stuff))?;
-    m.add_wrapped(wrap_pyfunction_bound!(do_tuple_stuff))?;
-    m.add_wrapped(wrap_pyfunction_bound!(do_mixed_complex_stuff))?;
+    m.add_wrapped(wrap_pyfunction!(do_simple_stuff))?;
+    m.add_wrapped(wrap_pyfunction!(do_complex_stuff))?;
+    m.add_wrapped(wrap_pyfunction!(do_tuple_stuff))?;
+    m.add_wrapped(wrap_pyfunction!(do_mixed_complex_stuff))?;
     Ok(())
 }
 

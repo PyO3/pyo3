@@ -134,7 +134,7 @@ impl PyWeakrefReference {
     ///     );
     ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
     ///
-    ///     let weakref2 = PyWeakrefReference::new_bound_with(&foo, wrap_pyfunction_bound!(callback, py)?)?;
+    ///     let weakref2 = PyWeakrefReference::new_bound_with(&foo, wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
     ///     assert!(weakref.eq(&weakref2)?);  // But Equal, since they point to the same object
     ///

@@ -884,9 +884,9 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 
 # fn main() {
 #     Python::with_gil(|py| {
-#         let simple = wrap_pyfunction_bound!(simple_function, py).unwrap();
+#         let simple = wrap_pyfunction!(simple_function, py).unwrap();
 #         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
-#         let defaulted = wrap_pyfunction_bound!(function_with_defaults, py).unwrap();
+#         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
 #         assert_eq!(defaulted.getattr("__text_signature__").unwrap().to_string(), "(a, b=1, c=2)");
 #     })
 # }

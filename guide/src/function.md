@@ -120,7 +120,7 @@ The `#[pyo3]` attribute can be used on individual arguments to modify properties
     }
 
     # Python::with_gil(|py| {
-    #     let f = pyo3::wrap_pyfunction_bound!(object_length)(py).unwrap();
+    #     let f = pyo3::wrap_pyfunction!(object_length)(py).unwrap();
     #     assert_eq!(f.call1((vec![1, 2, 3],)).unwrap().extract::<usize>().unwrap(), 3);
     # });
     ```

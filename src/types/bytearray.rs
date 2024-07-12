@@ -160,7 +160,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// }
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
-    /// #         let fun = wrap_pyfunction_bound!(a_valid_function, py)?;
+    /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
     /// #         let locals = pyo3::types::PyDict::new_bound(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
