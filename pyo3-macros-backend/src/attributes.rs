@@ -244,11 +244,11 @@ pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Ve
             }
         }
         Err(err) => {
-            all_error.combine(err);
+            all_errors.combine(err);
             Ok(true)
         }
     })?;
-    all_error.ensure_empty()?;
+    all_errors.ensure_empty()?;
     Ok(out)
 }
 

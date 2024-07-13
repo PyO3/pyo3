@@ -262,20 +262,20 @@ pub fn build_py_class(
 
     // handle error here
 
-    let mut all_error = ErrorCombiner(None);
+    let mut all_errors = ErrorCombiner(None);
 
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = field_options_res
         .drain(..)
         .filter_map(|result| match result {
             Err(err) => {
-                all_error.combine(err);
+                all_errors.combine(err);
                 None
             }
             Ok(options) => Some(options),
         })
         .collect::<Vec<_>>();
 
-    all_error.ensure_empty()?;
+    all_errors.ensure_empty()?;
 
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {
