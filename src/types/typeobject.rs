@@ -243,9 +243,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{
-        PyAnyMethods, PyBool, PyInt, PyLong, PyModule, PyTuple, PyType, PyTypeMethods,
-    };
+    use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
 
@@ -253,7 +251,7 @@ mod tests {
     fn test_type_is_subclass() {
         Python::with_gil(|py| {
             let bool_type = py.get_type_bound::<PyBool>();
-            let long_type = py.get_type_bound::<PyLong>();
+            let long_type = py.get_type_bound::<PyInt>();
             assert!(bool_type.is_subclass(&long_type).unwrap());
         });
     }
@@ -263,7 +261,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(py
                 .get_type_bound::<PyBool>()
-                .is_subclass_of::<PyLong>()
+                .is_subclass_of::<PyInt>()
                 .unwrap());
         });
     }

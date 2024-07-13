@@ -1495,7 +1495,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyBool, PyLong};
+    /// use pyo3::types::{PyBool, PyInt};
     ///
     /// Python::with_gil(|py| {
     ///     let b = PyBool::new_bound(py, true);
@@ -1504,8 +1504,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
     ///     // but `downcast_exact` will not.
-    ///     assert!(any.downcast::<PyLong>().is_ok());
-    ///     assert!(any.downcast_exact::<PyLong>().is_err());
+    ///     assert!(any.downcast::<PyInt>().is_ok());
+    ///     assert!(any.downcast_exact::<PyInt>().is_err());
     ///
     ///     assert!(any.downcast_exact::<PyBool>().is_ok());
     /// });
@@ -2269,7 +2269,7 @@ impl<'py> Bound<'py, PyAny> {
 mod tests {
     use crate::{
         basic::CompareOp,
-        types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyList, PyLong, PyModule, PyTypeMethods},
+        types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, PyTypeInfo, Python, ToPyObject,
     };
 
@@ -2424,7 +2424,7 @@ class SimpleClass:
     fn test_hasattr() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_bound(py);
-            assert!(x.is_instance_of::<PyLong>());
+            assert!(x.is_instance_of::<PyInt>());
 
             assert!(x.hasattr("to_bytes").unwrap());
             assert!(!x.hasattr("bbbbbbytes").unwrap());
@@ -2471,7 +2471,7 @@ class SimpleClass:
     fn test_any_is_instance_of() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_bound(py);
-            assert!(x.is_instance_of::<PyLong>());
+            assert!(x.is_instance_of::<PyInt>());
 
             let l = vec![&x, &x].to_object(py).into_bound(py);
             assert!(l.is_instance_of::<PyList>());
@@ -2490,11 +2490,11 @@ class SimpleClass:
     fn test_any_is_exact_instance_of() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_bound(py);
-            assert!(x.is_exact_instance_of::<PyLong>());
+            assert!(x.is_exact_instance_of::<PyInt>());
 
             let t = PyBool::new_bound(py, true);
-            assert!(t.is_instance_of::<PyLong>());
-            assert!(!t.is_exact_instance_of::<PyLong>());
+            assert!(t.is_instance_of::<PyInt>());
+            assert!(!t.is_exact_instance_of::<PyInt>());
             assert!(t.is_exact_instance_of::<PyBool>());
 
             let l = vec![&x, &x].to_object(py).into_bound(py);
@@ -2506,8 +2506,8 @@ class SimpleClass:
     fn test_any_is_exact_instance() {
         Python::with_gil(|py| {
             let t = PyBool::new_bound(py, true);
-            assert!(t.is_instance(&py.get_type_bound::<PyLong>()).unwrap());
-            assert!(!t.is_exact_instance(&py.get_type_bound::<PyLong>()));
+            assert!(t.is_instance(&py.get_type_bound::<PyInt>()).unwrap());
+            assert!(!t.is_exact_instance(&py.get_type_bound::<PyInt>()));
             assert!(t.is_exact_instance(&py.get_type_bound::<PyBool>()));
         });
     }
