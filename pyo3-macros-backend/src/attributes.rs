@@ -233,7 +233,7 @@ pub fn take_attributes(
 
 pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
     let mut out = Vec::new();
-    let mut all_error = ErrorCombiner(None);
+    let mut all_errors = ErrorCombiner(None);
     take_attributes(attrs, |attr| match get_pyo3_options(attr) {
         Ok(result) => {
             if let Some(options) = result {
