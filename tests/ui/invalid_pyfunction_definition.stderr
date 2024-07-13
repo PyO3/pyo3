@@ -1,0 +1,11 @@
+error: functions inside #[pymethods] do not need to be annotated with #[pyfunction]
+  --> tests/ui/invalid_pyfunction_definition.rs:13:9
+   |
+13 |         fn bug() {}
+   |         ^^
+
+error[E0601]: `main` function not found in crate `$CRATE`
+  --> tests/ui/invalid_pyfunction_definition.rs:15:2
+   |
+15 | }
+   |  ^ consider adding a `main` function to `$DIR/tests/ui/invalid_pyfunction_definition.rs`

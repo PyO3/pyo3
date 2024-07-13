@@ -10,6 +10,7 @@ use crate::{
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
 use quote::{format_ident, quote};
+use syn::ImplItemFn;
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
@@ -84,6 +85,18 @@ pub fn build_py_methods(
     }
 }
 
+fn check_pyfunction(meth: &mut ImplItemFn) -> syn::Result<()> {
+    if meth
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("pyfunction"))
+    {
+        meth.attrs.clear();
+        bail_spanned!(meth.span() => "functions inside #[pymethods] do not need to be annotated with #[pyfunction]");
+    }
+    Ok(())
+}
+
 pub fn impl_methods(
     ty: &syn::Type,
     impls: &mut [syn::ImplItem],
@@ -103,6 +116,9 @@ pub fn impl_methods(
                 let ctx = &Ctx::new(&options.krate, Some(&meth.sig));
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
+
+                check_pyfunction(meth)?;
+
                 match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options, ctx)?
                 {
                     GeneratedPyMethod::Method(MethodAndMethodDef {
