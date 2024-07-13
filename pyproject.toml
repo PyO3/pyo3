@@ -1,4 +1,4 @@
-[tool.ruff.extend-per-file-ignores]
+[tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
 
 [tool.towncrier]
