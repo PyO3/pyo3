@@ -77,7 +77,7 @@ struct InvalidOrderedStruct {
 }
 
 #[pyclass]
-struct Example {
+struct MultipleErrors {
     #[pyo3(foo)]
     #[pyo3(blah)]
     x: i32,
