@@ -361,7 +361,7 @@ where
 
     /// Upcast this `Bound<PyClass>` to its base type by reference.
     ///
-    /// If this type defined an explicit base class in its`pyclass` declaration
+    /// If this type defined an explicit base class in its `pyclass` declaration
     /// (e.g. `#[pyclass(extends = BaseType)]`), the returned type will be
     /// `&Bound<BaseType>`. If an explicit base class was _not_ declared, the
     /// return value will be `&Bound<PyAny>` (making this method equivalent
@@ -413,7 +413,7 @@ where
 
     /// Upcast this `Bound<PyClass>` to its base type by value.
     ///
-    /// If this type defined an explicit base class in its`pyclass` declaration
+    /// If this type defined an explicit base class in its `pyclass` declaration
     /// (e.g. `#[pyclass(extends = BaseType)]`), the returned type will be
     /// `Bound<BaseType>`. If an explicit base class was _not_ declared, the
     /// return value will be `Bound<PyAny>` (making this method equivalent
