@@ -2420,5 +2420,43 @@ a = A()
                 }
             })
         }
+
+        #[crate::pyclass(crate = "crate", subclass)]
+        struct BaseClass;
+
+        trait MyClassMethods<'py>: Sized {
+            fn pyrepr_by_ref(&self) -> PyResult<String>;
+            fn pyrepr_by_val(self) -> PyResult<String> {
+                self.pyrepr_by_ref()
+            }
+        }
+        impl<'py> MyClassMethods<'py> for Bound<'py, BaseClass> {
+            fn pyrepr_by_ref(&self) -> PyResult<String> {
+                self.call_method0("__repr__")?.extract()
+            }
+        }
+
+        #[crate::pyclass(crate = "crate", extends = BaseClass)]
+        struct SubClass;
+
+        #[test]
+        fn test_as_super() {
+            Python::with_gil(|py| {
+                let obj = Bound::new(py, (SubClass, BaseClass)).unwrap();
+                let _: &Bound<'_, BaseClass> = obj.as_super();
+                let _: &Bound<'_, PyAny> = obj.as_super().as_super();
+                assert!(obj.as_super().pyrepr_by_ref().is_ok());
+            })
+        }
+
+        #[test]
+        fn test_into_super() {
+            Python::with_gil(|py| {
+                let obj = Bound::new(py, (SubClass, BaseClass)).unwrap();
+                let _: Bound<'_, BaseClass> = obj.clone().into_super();
+                let _: Bound<'_, PyAny> = obj.clone().into_super().into_super();
+                assert!(obj.into_super().pyrepr_by_val().is_ok());
+            })
+        }
     }
 }
