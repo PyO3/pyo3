@@ -454,7 +454,7 @@ where
     /// # }
     /// ```
     ///
-    /// [`into_any`]: Bound::as_any
+    /// [`into_any`]: Bound::into_any
     /// [`as_super`]: Bound::as_super
     /// [`borrow`]: Bound::borrow
     #[inline]
