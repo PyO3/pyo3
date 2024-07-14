@@ -13,3 +13,7 @@ use crate::{ffi, PyAny};
 pub struct PyInt(PyAny);
 
 pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLong_Type), #checkfunction=ffi::PyLong_Check);
+
+/// Deprecated alias for [`PyInt`].
+#[deprecated(since = "0.23.0", note = "use `PyInt` instead")]
+pub type PyLong = PyInt;
