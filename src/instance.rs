@@ -422,7 +422,7 @@ where
     /// This method is particularly useful for calling methods defined in an
     /// extension trait that has been implemented for `Bound<BaseType>`.
     ///
-    /// See also the [`as_super`] method to upcast by value, and the
+    /// See also the [`as_super`] method to upcast by reference, and the
     /// [`PyRef::into_super`]/[`PyRefMut::into_super`] methods for upcasting a pyclass
     /// that has already been [`borrow`]ed.
     ///
