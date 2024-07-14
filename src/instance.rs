@@ -365,7 +365,7 @@ where
     /// (e.g. `#[pyclass(extends = BaseType)]`), the returned type will be
     /// `&Bound<BaseType>`. If an explicit base class was _not_ declared, the
     /// return value will be `&Bound<PyAny>` (making this method equivalent
-    /// to as [`as_any`]).
+    /// to [`as_any`]).
     ///
     /// This method is particularly useful for calling methods defined in an
     /// extension trait that has been implemented for `Bound<BaseType>`.
@@ -401,6 +401,10 @@ where
     /// })
     /// # }
     /// ```
+    ///
+    /// [`as_any`]: Bound::as_any
+    /// [`into_super`]: Bound::into_super
+    /// [`borrow`]: Bound::borrow
     #[inline]
     pub fn as_super(&self) -> &Bound<'py, T::BaseType> {
         // a pyclass can always be safely "downcast" to its base type
@@ -411,9 +415,9 @@ where
     ///
     /// If this type defined an explicit base class in its`pyclass` declaration
     /// (e.g. `#[pyclass(extends = BaseType)]`), the returned type will be
-    /// `&Bound<BaseType>`. If an explicit base class was _not_ declared, the
-    /// return value will be `&Bound<PyAny>` (making this method equivalent
-    /// to as [`as_any`]).
+    /// `Bound<BaseType>`. If an explicit base class was _not_ declared, the
+    /// return value will be `Bound<PyAny>` (making this method equivalent
+    /// to [`into_any`]).
     ///
     /// This method is particularly useful for calling methods defined in an
     /// extension trait that has been implemented for `Bound<BaseType>`.
@@ -449,6 +453,10 @@ where
     /// })
     /// # }
     /// ```
+    ///
+    /// [`into_any`]: Bound::as_any
+    /// [`as_super`]: Bound::as_super
+    /// [`borrow`]: Bound::borrow
     #[inline]
     pub fn into_super(self) -> Bound<'py, T::BaseType> {
         // a pyclass can always be safely "downcast" to its base type
