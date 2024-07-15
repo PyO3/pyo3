@@ -143,7 +143,7 @@ pub fn print_feature_cfgs() {
         println!("cargo:rustc-cfg=invalid_from_utf8_lint");
     }
 
-    if rustc_minor_version >= 77 {
+    if rustc_minor_version >= 79 {
         println!("cargo:rustc-cfg=c_str_lit");
     }
 
