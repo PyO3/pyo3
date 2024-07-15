@@ -6,15 +6,18 @@ use crate::sync::GILOnceCell;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PySequence, PyType};
-#[cfg(feature = "gil-refs")]
-use crate::{err::PyDowncastError, PyNativeType};
 use crate::{ffi, Py, PyTypeCheck, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyMapping>`][crate::Py] or [`Bound<'py, PyMapping>`][Bound].
+///
+/// For APIs available on mapping objects, see the [`PyMappingMethods`] trait which is implemented for
+/// [`Bound<'py, PyMapping>`][Bound].
 #[repr(transparent)]
 pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);
-pyobject_native_type_extract!(PyMapping);
 
 impl PyMapping {
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
@@ -24,87 +27,6 @@ impl PyMapping {
         let ty = T::type_object_bound(py);
         get_mapping_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyMapping {
-    /// Returns the number of objects in the mapping.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    #[inline]
-    pub fn len(&self) -> PyResult<usize> {
-        self.as_borrowed().len()
-    }
-
-    /// Returns whether the mapping is empty.
-    #[inline]
-    pub fn is_empty(&self) -> PyResult<bool> {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Determines if the mapping contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().contains(key)
-    }
-
-    /// Gets the item in self with key `key`.
-    ///
-    /// Returns an `Err` if the item with specified key is not found, usually `KeyError`.
-    ///
-    /// This is equivalent to the Python expression `self[key]`.
-    #[inline]
-    pub fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().get_item(key).map(Bound::into_gil_ref)
-    }
-
-    /// Sets the item in self with key `key`.
-    ///
-    /// This is equivalent to the Python expression `self[key] = value`.
-    #[inline]
-    pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-    where
-        K: ToPyObject,
-        V: ToPyObject,
-    {
-        self.as_borrowed().set_item(key, value)
-    }
-
-    /// Deletes the item with key `key`.
-    ///
-    /// This is equivalent to the Python statement `del self[key]`.
-    #[inline]
-    pub fn del_item<K>(&self, key: K) -> PyResult<()>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().del_item(key)
-    }
-
-    /// Returns a sequence containing all keys in the mapping.
-    #[inline]
-    pub fn keys(&self) -> PyResult<&PySequence> {
-        self.as_borrowed().keys().map(Bound::into_gil_ref)
-    }
-
-    /// Returns a sequence containing all values in the mapping.
-    #[inline]
-    pub fn values(&self) -> PyResult<&PySequence> {
-        self.as_borrowed().values().map(Bound::into_gil_ref)
-    }
-
-    /// Returns a sequence of tuples of all (key, value) pairs in the mapping.
-    #[inline]
-    pub fn items(&self) -> PyResult<&PySequence> {
-        self.as_borrowed().items().map(Bound::into_gil_ref)
     }
 }
 
@@ -260,34 +182,6 @@ impl PyTypeCheck for PyMapping {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<'v> crate::PyTryFrom<'v> for PyMapping {
-    /// Downcasting to `PyMapping` requires the concrete class to be a subclass (or registered
-    /// subclass) of `collections.abc.Mapping` (from the Python standard library) - i.e.
-    /// `isinstance(<class>, collections.abc.Mapping) == True`.
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
-        let value = value.into();
-
-        if PyMapping::type_check(&value.as_borrowed()) {
-            unsafe { return Ok(value.downcast_unchecked()) }
-        }
-
-        Err(PyDowncastError::new(value, "Mapping"))
-    }
-
-    #[inline]
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
-        value.into().downcast()
-    }
-
-    #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyMapping {
-        let ptr = value.into() as *const _ as *const PyMapping;
-        &*ptr
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -437,18 +331,6 @@ mod tests {
                 values_sum += el.unwrap().extract::<i32>().unwrap();
             }
             assert_eq!(32 + 42 + 123, values_sum);
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn test_mapping_try_from() {
-        use crate::PyTryFrom;
-        Python::with_gil(|py| {
-            let dict = PyDict::new(py);
-            let _ = <PyMapping as PyTryFrom>::try_from(dict).unwrap();
-            let _ = PyMapping::try_from_exact(dict).unwrap();
         });
     }
 }

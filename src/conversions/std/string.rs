@@ -112,21 +112,7 @@ impl<'a> IntoPy<PyObject> for &'a String {
     }
 }
 
-/// Allows extracting strings from Python objects.
-/// Accepts Python `str` objects.
-#[cfg(feature = "gil-refs")]
-impl<'py> FromPyObject<'py> for &'py str {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        ob.clone().into_gil_ref().downcast::<PyString>()?.to_str()
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        <String as crate::FromPyObject>::type_input()
-    }
-}
-
-#[cfg(all(not(feature = "gil-refs"), any(Py_3_10, not(Py_LIMITED_API))))]
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_str()
@@ -138,19 +124,6 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl<'py> FromPyObject<'py> for Cow<'py, str> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        ob.extract().map(Cow::Owned)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        <String as crate::FromPyObject>::type_input()
-    }
-}
-
-#[cfg(not(feature = "gil-refs"))]
 impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
     fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         ob.downcast::<PyString>()?.to_cow()

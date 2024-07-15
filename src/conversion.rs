@@ -8,10 +8,7 @@ use crate::types::PyTuple;
 use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
 #[cfg(feature = "gil-refs")]
 use {
-    crate::{
-        err::{self, PyDowncastError},
-        gil, PyNativeType,
-    },
+    crate::{err, gil, PyNativeType},
     std::ptr::NonNull,
 };
 
@@ -261,13 +258,9 @@ mod from_py_object_bound_sealed {
     // This generic implementation is why the seal is separate from
     // `crate::sealed::Sealed`.
     impl<'py, T> Sealed for T where T: super::FromPyObject<'py> {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for &'_ str {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for std::borrow::Cow<'_, str> {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for &'_ [u8] {}
-    #[cfg(not(feature = "gil-refs"))]
     impl Sealed for std::borrow::Cow<'_, [u8]> {}
 }
 
@@ -356,17 +349,6 @@ where
     }
 }
 
-#[allow(deprecated)]
-#[cfg(feature = "gil-refs")]
-impl<'py, T> FromPyObject<'py> for &'py crate::PyCell<T>
-where
-    T: PyClass,
-{
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        obj.clone().into_gil_ref().downcast().map_err(Into::into)
-    }
-}
-
 impl<T> FromPyObject<'_> for T
 where
     T: PyClass + Clone,
@@ -392,121 +374,6 @@ where
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         obj.downcast::<T>()?.try_borrow_mut().map_err(Into::into)
-    }
-}
-
-/// Trait implemented by Python object types that allow a checked downcast.
-/// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
-///
-/// This trait is similar to `std::convert::TryFrom`
-#[cfg(feature = "gil-refs")]
-#[deprecated(since = "0.21.0")]
-pub trait PyTryFrom<'v>: Sized + PyNativeType {
-    /// Cast from a concrete Python object type to PyObject.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast::<T>()` instead of `T::try_from(value)`"
-    )]
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>>;
-
-    /// Cast from a concrete Python object type to PyObject. With exact type check.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast_exact::<T>()` instead of `T::try_from_exact(value)`"
-    )]
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>>;
-
-    /// Cast a PyAny to a specific type of PyObject. The caller must
-    /// have already verified the reference is for this type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast_unchecked::<T>()` instead of `T::try_from_unchecked(value)`"
-    )]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
-}
-
-/// Trait implemented by Python object types that allow a checked downcast.
-/// This trait is similar to `std::convert::TryInto`
-#[cfg(feature = "gil-refs")]
-#[deprecated(since = "0.21.0")]
-pub trait PyTryInto<T>: Sized {
-    /// Cast from PyObject to a concrete Python object type.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast()` instead of `value.try_into()`"
-    )]
-    fn try_into(&self) -> Result<&T, PyDowncastError<'_>>;
-
-    /// Cast from PyObject to a concrete Python object type. With exact type check.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `value.downcast()` instead of `value.try_into_exact()`"
-    )]
-    fn try_into_exact(&self) -> Result<&T, PyDowncastError<'_>>;
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-mod implementations {
-    use super::*;
-    use crate::type_object::PyTypeInfo;
-
-    // TryFrom implies TryInto
-    impl<U> PyTryInto<U> for PyAny
-    where
-        U: for<'v> PyTryFrom<'v>,
-    {
-        fn try_into(&self) -> Result<&U, PyDowncastError<'_>> {
-            <U as PyTryFrom<'_>>::try_from(self)
-        }
-        fn try_into_exact(&self) -> Result<&U, PyDowncastError<'_>> {
-            U::try_from_exact(self)
-        }
-    }
-
-    impl<'v, T> PyTryFrom<'v> for T
-    where
-        T: PyTypeInfo<AsRefTarget = Self> + PyNativeType,
-    {
-        fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            value.into().downcast()
-        }
-
-        fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            value.into().downcast_exact()
-        }
-
-        #[inline]
-        unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
-            value.into().downcast_unchecked()
-        }
-    }
-
-    impl<'v, T> PyTryFrom<'v> for crate::PyCell<T>
-    where
-        T: 'v + PyClass,
-    {
-        fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            value.into().downcast()
-        }
-        fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>> {
-            let value = value.into();
-            unsafe {
-                if T::is_exact_type_of(value) {
-                    Ok(Self::try_from_unchecked(value))
-                } else {
-                    Err(PyDowncastError::new(value, T::NAME))
-                }
-            }
-        }
-        #[inline]
-        unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
-            value.into().downcast_unchecked()
-        }
     }
 }
 
@@ -665,51 +532,3 @@ where
 /// })
 /// ```
 mod test_no_clone {}
-
-#[cfg(test)]
-mod tests {
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    mod deprecated {
-        use super::super::PyTryFrom;
-        use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
-        use crate::{Python, ToPyObject};
-
-        #[test]
-        fn test_try_from() {
-            Python::with_gil(|py| {
-                let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-                let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
-
-                assert!(<PyList as PyTryFrom<'_>>::try_from(list).is_ok());
-                assert!(<PyDict as PyTryFrom<'_>>::try_from(dict).is_ok());
-
-                assert!(<PyAny as PyTryFrom<'_>>::try_from(list).is_ok());
-                assert!(<PyAny as PyTryFrom<'_>>::try_from(dict).is_ok());
-            });
-        }
-
-        #[test]
-        fn test_try_from_exact() {
-            Python::with_gil(|py| {
-                let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
-                let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
-
-                assert!(PyList::try_from_exact(list).is_ok());
-                assert!(PyDict::try_from_exact(dict).is_ok());
-
-                assert!(PyAny::try_from_exact(list).is_err());
-                assert!(PyAny::try_from_exact(dict).is_err());
-            });
-        }
-
-        #[test]
-        fn test_try_from_unchecked() {
-            Python::with_gil(|py| {
-                let list = PyList::new(py, [1, 2, 3]);
-                let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-                assert!(list.is(val));
-            });
-        }
-    }
-}

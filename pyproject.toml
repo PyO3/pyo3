@@ -1,9 +1,9 @@
-[tool.ruff.extend-per-file-ignores]
+[tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
-version = "0.22.0"
+version = "0.23.0-dev"
 start_string = "<!-- towncrier release notes start -->\n"
 template = ".towncrier.template.md"
 title_format = "## [{version}] - {project_date}"

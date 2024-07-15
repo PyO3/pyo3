@@ -10,7 +10,6 @@ use crate::deprecations::deprecate_trailing_option_default;
 use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
-    deprecations::{Deprecation, Deprecations},
     params::{impl_arg_params, Holders},
     pyfunction::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
@@ -228,6 +227,20 @@ impl FnType {
         }
     }
 
+    pub fn signature_attribute_allowed(&self) -> bool {
+        match self {
+            FnType::Fn(_)
+            | FnType::FnNew
+            | FnType::FnStatic
+            | FnType::FnClass(_)
+            | FnType::FnNewClass(_)
+            | FnType::FnModule(_) => true,
+            // Setter, Getter and ClassAttribute all have fixed signatures (either take 0 or 1
+            // arguments) so cannot have a `signature = (...)` attribute.
+            FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => false,
+        }
+    }
+
     pub fn self_arg(
         &self,
         cls: Option<&syn::Type>,
@@ -397,7 +410,6 @@ pub struct FnSpec<'a> {
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
-    pub deprecations: Deprecations<'a>,
 }
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
@@ -429,7 +441,6 @@ impl<'a> FnSpec<'a> {
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
-        ctx: &'a Ctx,
     ) -> Result<FnSpec<'a>> {
         let PyFunctionOptions {
             text_signature,
@@ -439,9 +450,8 @@ impl<'a> FnSpec<'a> {
         } = options;
 
         let mut python_name = name.map(|name| name.value.0);
-        let mut deprecations = Deprecations::new(ctx);
 
-        let fn_type = Self::parse_fn_type(sig, meth_attrs, &mut python_name, &mut deprecations)?;
+        let fn_type = Self::parse_fn_type(sig, meth_attrs, &mut python_name)?;
         ensure_signatures_on_valid_method(&fn_type, signature.as_ref(), text_signature.as_ref())?;
 
         let name = &sig.ident;
@@ -479,7 +489,6 @@ impl<'a> FnSpec<'a> {
             text_signature,
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
-            deprecations,
         })
     }
 
@@ -493,9 +502,8 @@ impl<'a> FnSpec<'a> {
         sig: &syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         python_name: &mut Option<syn::Ident>,
-        deprecations: &mut Deprecations<'_>,
     ) -> Result<FnType> {
-        let mut method_attributes = parse_method_attributes(meth_attrs, deprecations)?;
+        let mut method_attributes = parse_method_attributes(meth_attrs)?;
 
         let name = &sig.ident;
         let parse_receiver = |msg: &'static str| {
@@ -669,11 +677,10 @@ impl<'a> FnSpec<'a> {
                     }
                     _ => {
                         if let Some(self_arg) = self_arg() {
-                            let self_checker = holders.push_gil_refs_checker(self_arg.span());
                             quote! {
                                 function(
                                     // NB #self_arg includes a comma, so none inserted here
-                                    #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                                    #self_arg
                                     #(#args),*
                                 )
                             }
@@ -700,11 +707,10 @@ impl<'a> FnSpec<'a> {
                 }
                 call
             } else if let Some(self_arg) = self_arg() {
-                let self_checker = holders.push_gil_refs_checker(self_arg.span());
                 quote! {
                     function(
                         // NB #self_arg includes a comma, so none inserted here
-                        #pyo3_path::impl_::deprecations::inspect_type(#self_arg &#self_checker),
+                        #self_arg
                         #(#args),*
                     )
                 }
@@ -748,7 +754,6 @@ impl<'a> FnSpec<'a> {
                     })
                     .collect();
                 let call = rust_call(args, &mut holders);
-                let check_gil_refs = holders.check_gil_refs();
                 let init_holders = holders.init_holders(ctx);
                 quote! {
                     unsafe fn #ident<'py>(
@@ -760,7 +765,6 @@ impl<'a> FnSpec<'a> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #init_holders
                         let result = #call;
-                        #check_gil_refs
                         result
                     }
                 }
@@ -770,7 +774,6 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
-                let check_gil_refs = holders.check_gil_refs();
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -786,7 +789,6 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #init_holders
                         let result = #call;
-                        #check_gil_refs
                         result
                     }
                 }
@@ -796,7 +798,6 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
                 let init_holders = holders.init_holders(ctx);
-                let check_gil_refs = holders.check_gil_refs();
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -811,7 +812,6 @@ impl<'a> FnSpec<'a> {
                         #arg_convert
                         #init_holders
                         let result = #call;
-                        #check_gil_refs
                         result
                     }
                 }
@@ -824,7 +824,6 @@ impl<'a> FnSpec<'a> {
                     .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
                 let call = quote_spanned! {*output_span=> #rust_name(#self_arg #(#args),*) };
                 let init_holders = holders.init_holders(ctx);
-                let check_gil_refs = holders.check_gil_refs();
                 quote! {
                     unsafe fn #ident(
                         py: #pyo3_path::Python<'_>,
@@ -840,7 +839,6 @@ impl<'a> FnSpec<'a> {
                         #init_holders
                         let result = #call;
                         let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
-                        #check_gil_refs
                         #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
                     }
                 }
@@ -978,10 +976,7 @@ impl MethodTypeAttribute {
     /// If the attribute does not match one of the attribute names, returns `Ok(None)`.
     ///
     /// Otherwise will either return a parse error or the attribute.
-    fn parse_if_matching_attribute(
-        attr: &syn::Attribute,
-        deprecations: &mut Deprecations<'_>,
-    ) -> Result<Option<Self>> {
+    fn parse_if_matching_attribute(attr: &syn::Attribute) -> Result<Option<Self>> {
         fn ensure_no_arguments(meta: &syn::Meta, ident: &str) -> syn::Result<()> {
             match meta {
                 syn::Meta::Path(_) => Ok(()),
@@ -1025,11 +1020,6 @@ impl MethodTypeAttribute {
         if path.is_ident("new") {
             ensure_no_arguments(meta, "new")?;
             Ok(Some(MethodTypeAttribute::New(path.span())))
-        } else if path.is_ident("__new__") {
-            let span = path.span();
-            deprecations.push(Deprecation::PyMethodsNewDeprecatedForm, span);
-            ensure_no_arguments(meta, "__new__")?;
-            Ok(Some(MethodTypeAttribute::New(span)))
         } else if path.is_ident("classmethod") {
             ensure_no_arguments(meta, "classmethod")?;
             Ok(Some(MethodTypeAttribute::ClassMethod(path.span())))
@@ -1064,15 +1054,12 @@ impl Display for MethodTypeAttribute {
     }
 }
 
-fn parse_method_attributes(
-    attrs: &mut Vec<syn::Attribute>,
-    deprecations: &mut Deprecations<'_>,
-) -> Result<Vec<MethodTypeAttribute>> {
+fn parse_method_attributes(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<MethodTypeAttribute>> {
     let mut new_attrs = Vec::new();
     let mut found_attrs = Vec::new();
 
     for attr in attrs.drain(..) {
-        match MethodTypeAttribute::parse_if_matching_attribute(&attr, deprecations)? {
+        match MethodTypeAttribute::parse_if_matching_attribute(&attr)? {
             Some(attr) => found_attrs.push(attr),
             None => new_attrs.push(attr),
         }
@@ -1096,15 +1083,18 @@ fn ensure_signatures_on_valid_method(
     if let Some(signature) = signature {
         match fn_type {
             FnType::Getter(_) => {
+                debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `getter`")
             }
             FnType::Setter(_) => {
+                debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `setter`")
             }
             FnType::ClassAttribute => {
+                debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `classattr`")
             }
-            _ => {}
+            _ => debug_assert!(fn_type.signature_attribute_allowed()),
         }
     }
     if let Some(text_signature) = text_signature {

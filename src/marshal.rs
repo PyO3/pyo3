@@ -12,20 +12,6 @@ use std::os::raw::c_int;
 /// The current version of the marshal binary format.
 pub const VERSION: i32 = 4;
 
-/// Deprecated form of [`dumps_bound`]
-#[cfg(feature = "gil-refs")]
-#[deprecated(
-    since = "0.21.0",
-    note = "`dumps` will be replaced by `dumps_bound` in a future PyO3 version"
-)]
-pub fn dumps<'py>(
-    py: Python<'py>,
-    object: &impl AsPyPointer,
-    version: i32,
-) -> PyResult<&'py PyBytes> {
-    dumps_bound(py, object, version).map(Bound::into_gil_ref)
-}
-
 /// Serialize an object to bytes using the Python built-in marshal module.
 ///
 /// The built-in marshalling only supports a limited range of objects.
@@ -56,19 +42,6 @@ pub fn dumps_bound<'py>(
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
     }
-}
-
-/// Deprecated form of [`loads_bound`]
-#[cfg(feature = "gil-refs")]
-#[deprecated(
-    since = "0.21.0",
-    note = "`loads` will be replaced by `loads_bound` in a future PyO3 version"
-)]
-pub fn loads<'py, B>(py: Python<'py>, data: &B) -> PyResult<&'py PyAny>
-where
-    B: AsRef<[u8]> + ?Sized,
-{
-    loads_bound(py, data).map(Bound::into_gil_ref)
 }
 
 /// Deserialize an object from bytes using the Python built-in marshal module.

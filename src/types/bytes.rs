@@ -1,8 +1,6 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::types::any::PyAnyMethods;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Py, PyAny, PyResult, Python};
 use std::ops::Index;
 use std::slice::SliceIndex;
@@ -12,10 +10,16 @@ use std::str;
 ///
 /// This type is immutable.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyBytes>`][crate::Py] or [`Bound<'py, PyBytes>`][Bound].
+///
+/// For APIs available on `bytes` objects, see the [`PyBytesMethods`] trait which is implemented for
+/// [`Bound<'py, PyBytes>`][Bound].
+///
 /// # Equality
 ///
-/// For convenience, [`Bound<'py, PyBytes>`] implements [`PartialEq<[u8]>`] to allow comparing the
-/// data in the Python bytes to a Rust `[u8]`.
+/// For convenience, [`Bound<'py, PyBytes>`][Bound] implements [`PartialEq<[u8]>`][PartialEq] to allow comparing the
+/// data in the Python bytes to a Rust `[u8]` byte slice.
 ///
 /// This is not always the most appropriate way to compare Python bytes, as Python bytes subclasses
 /// may have different equality semantics. In situations where subclasses overriding equality might be
@@ -119,48 +123,6 @@ impl PyBytes {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyBytes {
-    /// Deprecated form of [`PyBytes::new_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::new` will be replaced by `PyBytes::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
-        Self::new_bound(py, s).into_gil_ref()
-    }
-
-    /// Deprecated form of [`PyBytes::new_bound_with`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::new_with` will be replaced by `PyBytes::new_bound_with` in a future PyO3 version"
-    )]
-    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyBytes>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PyBytes::bound_from_ptr`].
-    ///
-    /// # Safety
-    /// See [`PyBytes::bound_from_ptr`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::from_ptr` will be replaced by `PyBytes::bound_from_ptr` in a future PyO3 version"
-    )]
-    pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
-        Self::bound_from_ptr(py, ptr, len).into_gil_ref()
-    }
-
-    /// Gets the Python string as a byte slice.
-    #[inline]
-    pub fn as_bytes(&self) -> &[u8] {
-        self.as_borrowed().as_bytes()
-    }
-}
-
 /// Implementation of functionality for [`PyBytes`].
 ///
 /// These methods are defined for the `Bound<'py, PyBytes>` smart pointer, so to use method call
@@ -198,16 +160,6 @@ impl Py<PyBytes> {
     /// `self` is held, including when the GIL is released.
     pub fn as_bytes<'a>(&'a self, py: Python<'_>) -> &'a [u8] {
         self.bind_borrowed(py).as_bytes()
-    }
-}
-
-/// This is the same way [Vec] is indexed.
-#[cfg(feature = "gil-refs")]
-impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
-    type Output = I::Output;
-
-    fn index(&self, index: I) -> &Self::Output {
-        &self.as_bytes()[index]
     }
 }
 

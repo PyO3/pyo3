@@ -19,8 +19,6 @@
 
 //! `PyBuffer` implementation
 use crate::Bound;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
 use std::marker::PhantomData;
 use std::os::raw;
@@ -191,16 +189,6 @@ impl<'py, T: Element> FromPyObject<'py> for PyBuffer<T> {
 }
 
 impl<T: Element> PyBuffer<T> {
-    /// Deprecated form of [`PyBuffer::get_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBuffer::get` will be replaced by `PyBuffer::get_bound` in a future PyO3 version"
-    )]
-    pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
-        Self::get_bound(&obj.as_borrowed())
-    }
-
     /// Gets the underlying buffer from the specified python object.
     pub fn get_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
         // TODO: use nightly API Box::new_uninit() once stable

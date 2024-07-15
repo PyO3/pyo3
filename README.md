@@ -68,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22.0", features = ["extension-module"] }
+pyo3 = { version = "0.22.1", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.22.0"
+version = "0.22.1"
 features = ["auto-initialize"]
 ```
 
@@ -176,6 +176,7 @@ about this topic.
 - [pythonize](https://github.com/davidhewitt/pythonize) _Serde serializer for converting Rust objects to JSON-compatible Python objects_
 - [pyo3-asyncio](https://github.com/awestlake87/pyo3-asyncio) _Utilities for working with Python's Asyncio library and async functions_
 - [rustimport](https://github.com/mityax/rustimport) _Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically._
+- [pyo3-arrow](https://crates.io/crates/pyo3-arrow) _Lightweight [Apache Arrow](https://arrow.apache.org/) integration for pyo3._
 
 ## Examples
 
@@ -192,6 +193,7 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
+- [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
 - [greptimedb](https://github.com/GreptimeTeam/greptimedb/tree/main/src/script) _Support [Python scripting](https://docs.greptime.com/user-guide/python-scripts/overview) in the database_
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._

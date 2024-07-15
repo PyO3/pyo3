@@ -5,6 +5,15 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.21.* to 0.22
 
+### Deprecation of `gil-refs` feature continues
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Following the introduction of the "Bound" API in PyO3 0.21 and the planned removal of the "GIL Refs" API, all functionality related to GIL Refs is now gated behind the `gil-refs` feature and emits a deprecation warning on use.
+
+See <a href="#from-021-to-022">the 0.21 migration entry</a> for help upgrading.
+</details>
+
 ### Deprecation of implicit default for trailing optional arguments
 <details open>
 <summary><small>Click to expand</small></summary>
@@ -235,8 +244,7 @@ The `__next__` and `__anext__` magic methods can now return any type convertible
 
 Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
 
-```rust
-#![allow(deprecated)]
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::iter::IterNextOutput;
 
@@ -529,6 +537,7 @@ assert_eq!(&*name, "list");
 # }
 # Python::with_gil(example).unwrap();
 ```
+</details>
 
 ## from 0.19.* to 0.20
 

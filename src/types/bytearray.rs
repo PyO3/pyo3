@@ -4,11 +4,15 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, PyAny, Python};
-#[cfg(feature = "gil-refs")]
-use crate::{AsPyPointer, PyNativeType};
 use std::slice;
 
 /// Represents a Python `bytearray`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyByteArray>`][crate::Py] or [`Bound<'py, PyByteArray>`][Bound].
+///
+/// For APIs available on `bytearray` objects, see the [`PyByteArrayMethods`] trait which is implemented for
+/// [`Bound<'py, PyByteArray>`][Bound].
 #[repr(transparent)]
 pub struct PyByteArray(PyAny);
 
@@ -85,200 +89,6 @@ impl PyByteArray {
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyByteArray {
-    /// Deprecated form of [`PyByteArray::new_bound`]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyByteArray::new` will be replaced by `PyByteArray::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'py>(py: Python<'py>, src: &[u8]) -> &'py PyByteArray {
-        Self::new_bound(py, src).into_gil_ref()
-    }
-
-    /// Deprecated form of [`PyByteArray::new_bound_with`]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyByteArray::new_with` will be replaced by `PyByteArray::new_bound_with` in a future PyO3 version"
-    )]
-    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyByteArray>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PyByteArray::from_bound`]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyByteArray::from` will be replaced by `PyByteArray::from_bound` in a future PyO3 version"
-    )]
-    pub fn from(src: &PyAny) -> PyResult<&PyByteArray> {
-        PyByteArray::from_bound(&src.as_borrowed()).map(Bound::into_gil_ref)
-    }
-
-    /// Gets the length of the bytearray.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.as_borrowed().len()
-    }
-
-    /// Checks if the bytearray is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Gets the start of the buffer containing the contents of the bytearray.
-    ///
-    /// # Safety
-    ///
-    /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
-    pub fn data(&self) -> *mut u8 {
-        self.as_borrowed().data()
-    }
-
-    /// Extracts a slice of the `ByteArray`'s entire buffer.
-    ///
-    /// # Safety
-    ///
-    /// Mutation of the `bytearray` invalidates the slice. If it is used afterwards, the behavior is
-    /// undefined.
-    ///
-    /// These mutations may occur in Python code as well as from Rust:
-    /// - Calling methods like [`PyByteArray::as_bytes_mut`] and [`PyByteArray::resize`] will
-    ///   invalidate the slice.
-    /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
-    ///   handlers, which may execute arbitrary Python code. This means that if Python code has a
-    ///   reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
-    ///   using the slice.
-    ///
-    /// As a result, this slice should only be used for short-lived operations without executing any
-    /// Python code, such as copying into a Vec.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::exceptions::PyRuntimeError;
-    /// use pyo3::types::PyByteArray;
-    ///
-    /// #[pyfunction]
-    /// fn a_valid_function(bytes: &Bound<'_, PyByteArray>) -> PyResult<()> {
-    ///     let section = {
-    ///         // SAFETY: We promise to not let the interpreter regain control
-    ///         // or invoke any PyO3 APIs while using the slice.
-    ///         let slice = unsafe { bytes.as_bytes() };
-    ///
-    ///         // Copy only a section of `bytes` while avoiding
-    ///         // `to_vec` which copies the entire thing.
-    ///         let section = slice
-    ///             .get(6..11)
-    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))?;
-    ///         Vec::from(section)
-    ///     };
-    ///
-    ///     // Now we can do things with `section` and call PyO3 APIs again.
-    ///     // ...
-    ///     # assert_eq!(&section, b"world");
-    ///
-    ///     Ok(())
-    /// }
-    /// # fn main() -> PyResult<()> {
-    /// #     Python::with_gil(|py| -> PyResult<()> {
-    /// #         let fun = wrap_pyfunction_bound!(a_valid_function, py)?;
-    /// #         let locals = pyo3::types::PyDict::new_bound(py);
-    /// #         locals.set_item("a_valid_function", fun)?;
-    /// #
-    /// #         py.run_bound(
-    /// # r#"b = bytearray(b"hello world")
-    /// # a_valid_function(b)
-    /// #
-    /// # try:
-    /// #     a_valid_function(bytearray())
-    /// # except RuntimeError as e:
-    /// #     assert str(e) == 'input is not long enough'"#,
-    /// #             None,
-    /// #             Some(&locals),
-    /// #         )?;
-    /// #
-    /// #         Ok(())
-    /// #     })
-    /// # }
-    /// ```
-    ///
-    /// # Incorrect usage
-    ///
-    /// The following `bug` function is unsound ⚠️
-    ///
-    /// ```rust,no_run
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyByteArray;
-    ///
-    /// # #[allow(dead_code)]
-    /// #[pyfunction]
-    /// fn bug(py: Python<'_>, bytes: &Bound<'_, PyByteArray>) {
-    ///     let slice = unsafe { bytes.as_bytes() };
-    ///
-    ///     // This explicitly yields control back to the Python interpreter...
-    ///     // ...but it's not always this obvious. Many things do this implicitly.
-    ///     py.allow_threads(|| {
-    ///         // Python code could be mutating through its handle to `bytes`,
-    ///         // which makes reading it a data race, which is undefined behavior.
-    ///         println!("{:?}", slice[0]);
-    ///     });
-    ///
-    ///     // Python code might have mutated it, so we can not rely on the slice
-    ///     // remaining valid. As such this is also undefined behavior.
-    ///     println!("{:?}", slice[0]);
-    /// }
-    /// ```
-    pub unsafe fn as_bytes(&self) -> &[u8] {
-        self.as_borrowed().as_bytes()
-    }
-
-    /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
-    ///
-    /// # Safety
-    ///
-    /// Any other accesses of the `bytearray`'s buffer invalidate the slice. If it is used
-    /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArray::as_bytes`]
-    /// apply to this function as well.
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn as_bytes_mut(&self) -> &mut [u8] {
-        self.as_borrowed().as_bytes_mut()
-    }
-
-    /// Copies the contents of the bytearray to a Rust vector.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyByteArray;
-    /// # Python::with_gil(|py| {
-    /// let bytearray = PyByteArray::new_bound(py, b"Hello World.");
-    /// let mut copied_message = bytearray.to_vec();
-    /// assert_eq!(b"Hello World.", copied_message.as_slice());
-    ///
-    /// copied_message[11] = b'!';
-    /// assert_eq!(b"Hello World!", copied_message.as_slice());
-    ///
-    /// pyo3::py_run!(py, bytearray, "assert bytearray == b'Hello World.'");
-    /// # });
-    /// ```
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.as_borrowed().to_vec()
-    }
-
-    /// Resizes the bytearray object to the new length `len`.
-    ///
-    /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
-    /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
-    pub fn resize(&self, len: usize) -> PyResult<()> {
-        self.as_borrowed().resize(len)
     }
 }
 
@@ -489,17 +299,6 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
     #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
         slice::from_raw_parts_mut(self.data(), self.len())
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> TryFrom<&'py PyAny> for &'py PyByteArray {
-    type Error = crate::PyErr;
-
-    /// Creates a new Python `bytearray` object from another Python object that
-    /// implements the buffer protocol.
-    fn try_from(value: &'py PyAny) -> Result<Self, Self::Error> {
-        PyByteArray::from_bound(&value.as_borrowed()).map(Bound::into_gil_ref)
     }
 }
 

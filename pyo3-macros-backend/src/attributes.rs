@@ -39,6 +39,7 @@ pub mod kw {
     syn::custom_keyword!(signature);
     syn::custom_keyword!(str);
     syn::custom_keyword!(subclass);
+    syn::custom_keyword!(submodule);
     syn::custom_keyword!(text_signature);
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
@@ -312,6 +313,7 @@ pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
 pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitStr>;
 pub type StrFormatterAttribute = OptionalKeywordAttribute<kw::str, StringFormatter>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
+pub type SubmoduleAttribute = kw::submodule;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

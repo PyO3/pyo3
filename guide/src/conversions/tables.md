@@ -16,7 +16,7 @@ The table below contains the Python type and the corresponding function argument
 | `str`         | `String`, `Cow<str>`, `&str`, `char`, `OsString`, `PathBuf`, `Path` | `PyString`, `PyUnicode` |
 | `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `PyBytes`           |
 | `bool`        | `bool`                          | `PyBool`            |
-| `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyLong` |
+| `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyInt` |
 | `float`       | `f32`, `f64`                    | `PyFloat`           |
 | `complex`     | `num_complex::Complex`[^2]      | `PyComplex`         |
 | `fractions.Fraction`| `num_rational::Ratio`[^8] | -         |

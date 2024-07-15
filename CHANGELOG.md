@@ -10,6 +10,22 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.22.1] - 2024-07-06
+
+### Added
+
+- Add `#[pyo3(submodule)]` option for declarative `#[pymodule]`s. [#4301](https://github.com/PyO3/pyo3/pull/4301)
+- Implement `PartialEq<bool>` for `Bound<'py, PyBool>`. [#4305](https://github.com/PyO3/pyo3/pull/4305)
+
+### Fixed
+
+- Return `NotImplemented` instead of raising `TypeError` from generated equality method when comparing different types. [#4287](https://github.com/PyO3/pyo3/pull/4287)
+- Handle full-path `#[pyo3::prelude::pymodule]` and similar for `#[pyclass]` and `#[pyfunction]` in declarative modules.[#4288](https://github.com/PyO3/pyo3/pull/4288)
+- Fix 128-bit int regression on big-endian platforms with Python <3.13. [#4291](https://github.com/PyO3/pyo3/pull/4291)
+- Stop generating code that will never be covered with declarative modules. [#4297](https://github.com/PyO3/pyo3/pull/4297)
+- Fix invalid deprecation warning for trailing optional on `#[setter]` function. [#4304](https://github.com/PyO3/pyo3/pull/4304)
+
+
 ## [0.22.0] - 2024-06-24
 
 ### Packaging
@@ -1808,7 +1824,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.1...HEAD
+[0.22.1]: https://github.com/pyo3/pyo3/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/pyo3/pyo3/compare/v0.21.2...v0.22.0
 [0.21.2]: https://github.com/pyo3/pyo3/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/pyo3/pyo3/compare/v0.21.0...v0.21.1
