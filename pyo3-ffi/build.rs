@@ -125,7 +125,7 @@ fn ensure_gil_enabled(interpreter_config: &InterpreterConfig) -> Result<()> {
     let gil_enabled = interpreter_config
         .build_flags
         .0
-        .contains(&BuildFlag::Py_GIL_DISABLED)
+        .contains(&BuildFlag::Other("Py_GIL_DISABLED".to_string()))
         .not();
     ensure!(
         gil_enabled || std::env::var("UNSAFE_PYO3_BUILD_FREE_THREADED").map_or(false, |os_str| os_str == "1"),
