@@ -121,22 +121,22 @@ error: The optional string format shorthand argument to `str` is incompatible wi
     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
-   --> tests/ui/invalid_pyclass_args.rs:143:64
+   --> tests/ui/invalid_pyclass_args.rs:143:52
     |
-143 | #[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE", str="{:?}")]
-    |                                                                ^^^^^^
+143 | #[pyclass(rename_all = "SCREAMING_SNAKE_CASE", str="{a_a}, {b_b}, {c_d_e}")]
+    |                                                    ^^^^^^^^^^^^^^^^^^^^^^^
 
-error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
-   --> tests/ui/invalid_pyclass_args.rs:151:27
+error: No member found, you must provide a named or positionally specified member.
+   --> tests/ui/invalid_pyclass_args.rs:150:15
     |
-151 | #[pyclass(eq, eq_int, str="MyEnum.{:?}")]
-    |                           ^^^^^^^^^^^^^
+150 | #[pyclass(str="{:?}")]
+    |               ^^^^^^
 
-error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
-   --> tests/ui/invalid_pyclass_args.rs:159:29
+error: string formatter shorthand cannot be used with enums, please implement `Display` or `__str__` directly
+   --> tests/ui/invalid_pyclass_args.rs:157:19
     |
-159 | #[pyclass(name="zzz", str = "{:?}")]
-    |                             ^^^^^^
+157 | #[pyclass(eq, str="Stuff...")]
+    |                   ^^^^^^^^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1

@@ -140,27 +140,31 @@ struct StructRenamingWithStrFormatter3 {
     unsafe_variable: usize,
 }
 
-#[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE", str="{:?}")]
-#[derive(Debug, PartialEq, Eq, Clone)]
-enum RenameAllVariantsEnumWithStrFormatter {
-    VariantOne,
-    VariantTwo,
-    VariantFour,
+#[pyclass(rename_all = "SCREAMING_SNAKE_CASE", str="{a_a}, {b_b}, {c_d_e}")]
+struct RenameAllVariantsStruct {
+    a_a: u32,
+    b_b: u32,
+    c_d_e: String,
 }
 
-#[pyclass(eq, eq_int, str="MyEnum.{:?}")]
+#[pyclass(str="{:?}")]
+#[derive(Debug)]
+struct StructWithNoMember {
+    a: String,
+    b: String,
+}
+
+#[pyclass(eq, str="Stuff...")]
 #[derive(Debug, PartialEq)]
-pub enum RenamedEnumWithStrFormatter {
-    #[pyo3(name = "AwesomeVariant")]
+pub enum MyEnumInvalidStrFmt {
     Variant,
     OtherVariant,
 }
 
-#[pyclass(name="zzz", str = "{:?}")]
-#[derive(PartialEq, Debug)]
-enum RenamedComplexEnumWithStr {
-    A(u32),
-    B { msg: String },
+impl Display for MyEnumInvalidStrFmt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 fn main() {}

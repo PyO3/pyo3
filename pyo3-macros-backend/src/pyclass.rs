@@ -10,9 +10,8 @@ use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FormatIdentity,
-    FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute,
-    StrFormatterAttribute,
+    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
+    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, StrFormatterAttribute,
 };
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
@@ -383,6 +382,33 @@ fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<
         .unwrap_or_else(|| Cow::Owned(cls.unraw()))
 }
 
+// Enum used to provide handling of different types in the same validation logic in validate_renaming_mixed_with_str
+enum VariantType<'a> {
+    Fields(&'a Vec<(&'a syn::Field, FieldPyO3Options)>),
+    UnitVariant(&'a Vec<PyClassEnumUnitVariant<'a>>),
+    EnumVariant(&'a Vec<PyClassEnumVariant<'a>>),
+}
+
+fn validate_renaming_mixed_with_str(
+    args: &PyClassArgs,
+    variant: VariantType<'_>,
+) -> syn::Result<()> {
+    if let Some(str) = &args.options.str {
+        if str.value.is_some() {
+            // check if any renaming is present
+            let variant_check = match variant {
+                VariantType::Fields(v) => v.iter().all(|x| x.1.name.is_none()),
+                VariantType::UnitVariant(v) => v.iter().all(|x| x.options.name.is_none()),
+                VariantType::EnumVariant(v) => v.iter().all(|x| x.get_options().name.is_none()),
+            };
+            let renaming_conflict =
+                variant_check & args.options.name.is_none() & args.options.rename_all.is_none();
+            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
+        }
+    }
+    Ok(())
+}
+
 fn impl_class(
     cls: &syn::Ident,
     args: &PyClassArgs,
@@ -394,15 +420,8 @@ fn impl_class(
     let Ctx { pyo3_path, .. } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, ctx);
 
-    if let Some(str) = &args.options.str {
-        if str.value.is_some() {
-            // check if any renaming is present
-            let renaming_conflict = field_options.iter().all(|x| x.1.name.is_none())
-                & args.options.name.is_none()
-                & args.options.rename_all.is_none();
-            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
-        }
-    }
+    validate_renaming_mixed_with_str(args, VariantType::Fields(&field_options))?;
+
     let (default_str, default_str_slot) =
         implement_pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
 
@@ -792,10 +811,7 @@ fn implement_py_formatting(
             let args = &opt
                 .args
                 .iter()
-                .map(|member| match member {
-                    FormatIdentity::Attribute(member) => quote! {self.#member},
-                    FormatIdentity::Instance(_) => quote! {self},
-                })
+                .map(|member| quote! {self.#member})
                 .collect::<Vec<TokenStream>>();
             let fmt_impl: ImplItemFn = syn::parse_quote! {
                 fn __pyo3__generated____str__(&self) -> ::std::string::String {
@@ -838,6 +854,10 @@ fn impl_enum(
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
+    if let Some(str_fmt) = &args.options.str {
+        ensure_spanned!(str_fmt.value.is_none(), str_fmt.value.span() => "string formatter shorthand cannot be used with enums, please implement `Display` or `__str__` directly")
+    }
+
     match enum_ {
         PyClassEnum::Simple(simple_enum) => {
             impl_simple_enum(simple_enum, args, doc, methods_type, ctx)
@@ -887,15 +907,7 @@ fn impl_simple_enum(
         (repr_impl, repr_slot)
     };
 
-    if let Some(str) = &args.options.str {
-        if str.value.is_some() {
-            // check if any renaming is present
-            let renaming_conflict = variants.iter().all(|x| x.options.name.is_none())
-                & args.options.name.is_none()
-                & args.options.rename_all.is_none();
-            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
-        }
-    }
+    validate_renaming_mixed_with_str(args, VariantType::UnitVariant(&variants))?;
     let (default_str, default_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
 
     let repr_type = &simple_enum.repr_type;
@@ -986,15 +998,7 @@ fn impl_complex_enum(
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
-    if let Some(str) = &args.options.str {
-        if str.value.is_some() {
-            // check if any renaming is present
-            let renaming_conflict = variants.iter().all(|x| x.get_options().name.is_none())
-                & args.options.name.is_none()
-                & args.options.rename_all.is_none();
-            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
-        }
-    }
+    validate_renaming_mixed_with_str(&args, VariantType::EnumVariant(&variants))?;
     let (default_str, default_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
 
     let mut default_slots = vec![];

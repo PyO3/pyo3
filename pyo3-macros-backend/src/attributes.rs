@@ -1,4 +1,4 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::Parser;
 use syn::{
@@ -85,14 +85,8 @@ fn take_ident(read: &mut &str, tracker: &mut usize) -> Ident {
     Ident::parse_any.parse_str(&ident).unwrap()
 }
 
-#[derive(Clone, Debug)]
-pub enum FormatIdentity {
-    Attribute(Member),
-    Instance(Span),
-}
-
 // shorthand parsing logic inspiration taken from https://github.com/dtolnay/thiserror/blob/master/impl/src/fmt.rs
-fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
+fn parse_shorthand_format(fmt: LitStr) -> Result<(LitStr, Vec<Member>)> {
     let span = fmt.span();
     let token = fmt.token();
     let value = fmt.value();
@@ -125,7 +119,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
                     index,
                     span: subspan,
                 };
-                FormatIdentity::Attribute(Member::Unnamed(idx))
+                Member::Unnamed(idx)
             }
             'a'..='z' | 'A'..='Z' | '_' => {
                 let start = tracker;
@@ -133,7 +127,7 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
                 let end = tracker;
                 let subspan = token.subspan(start..end).unwrap_or(span);
                 ident.set_span(subspan);
-                FormatIdentity::Attribute(Member::Named(ident))
+                Member::Named(ident)
             }
             '}' | ':' => {
                 let start = tracker;
@@ -141,25 +135,25 @@ fn parse_shorthand_format(fmt: LitStr) -> (LitStr, Vec<FormatIdentity>) {
                 let end = tracker;
                 let subspan = token.subspan(start..end).unwrap_or(span);
                 // we found a closing bracket or formatting ':' without finding a member, we assume the user wants the instance formatted here
-                FormatIdentity::Instance(subspan)
+                bail_spanned!(subspan.span() => "No member found, you must provide a named or positionally specified member.")
             }
             _ => continue,
         };
         members.push(member);
     }
     out += read;
-    (LitStr::new(&out, span), members)
+    Ok((LitStr::new(&out, span), members))
 }
 
 #[derive(Clone, Debug)]
 pub struct StringFormatter {
     pub fmt: LitStr,
-    pub args: Vec<FormatIdentity>,
+    pub args: Vec<Member>,
 }
 
 impl Parse for crate::attributes::StringFormatter {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let (fmt, args) = parse_shorthand_format(input.parse()?);
+        let (fmt, args) = parse_shorthand_format(input.parse()?)?;
         Ok(Self { fmt, args })
     }
 }

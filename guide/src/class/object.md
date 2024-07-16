@@ -90,12 +90,11 @@ impl Display for Coordinate {
 }
 ```
 
-For convenience, a shorthand format string can be pass to `str` as `str="<format string>"`.  It expands and is passed into the `format!` macro in the following ways:  
+For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.  It expands and is passed into the `format!` macro in the following ways:  
 
 * `"{x}"` -> `"{}", self.x`
 * `"{0}"` -> `"{}", self.0`
 * `"{x:?}"` -> `"{:?}", self.x`
-* `"{:?}"` -> `"{:?}", self`
 
 *Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*  
 *Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*

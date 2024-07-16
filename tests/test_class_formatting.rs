@@ -7,13 +7,6 @@ use std::fmt::{Display, Formatter};
 #[path = "../src/tests/common.rs"]
 mod common;
 
-#[pyclass(eq, str = "MyEnum.{:?}")]
-#[derive(Debug, PartialEq)]
-pub enum MyEnum {
-    Variant,
-    OtherVariant,
-}
-
 #[pyclass(eq, str)]
 #[derive(Debug, PartialEq)]
 pub enum MyEnum2 {
@@ -48,11 +41,9 @@ impl Display for MyEnum3 {
 #[test]
 fn test_enum_class_fmt() {
     Python::with_gil(|py| {
-        let var1 = Py::new(py, MyEnum::Variant).unwrap();
         let var2 = Py::new(py, MyEnum2::Variant).unwrap();
         let var3 = Py::new(py, MyEnum3::Variant).unwrap();
         let var4 = Py::new(py, MyEnum3::OtherVariant).unwrap();
-        py_assert!(py, var1, "str(var1) == 'MyEnum.Variant'");
         py_assert!(py, var2, "str(var2) == 'Variant'");
         py_assert!(py, var3, "str(var3) == 'MyEnum.AwesomeVariant'");
         py_assert!(py, var4, "str(var4) == 'MyEnum.OtherVariant'");
@@ -97,11 +88,17 @@ fn test_struct_str() {
     })
 }
 
-#[pyclass(str = "{:?}")]
+#[pyclass(str)]
 #[derive(PartialEq, Debug)]
 enum ComplexEnumWithStr {
     A(u32),
     B { msg: String },
+}
+
+impl Display for ComplexEnumWithStr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[test]
@@ -138,7 +135,7 @@ fn test_str_representation_by_position() {
     })
 }
 
-#[pyclass(str = "name: {name}: {name}, idn: {idn:03} with message: {msg} full output: {:?}")]
+#[pyclass(str = "name: {name}: {name}, idn: {idn:03} with message: {msg}")]
 #[derive(PartialEq, Debug)]
 struct Point4 {
     name: String,
@@ -162,7 +159,7 @@ fn test_mixed_and_repeated_str_formats() {
             py,
             var1,
             r#"
-        assert str(var1) == 'name: aaa: aaa, idn: 001 with message: hello full output: Point4 { name: "aaa", msg: "hello", idn: 1 }'
+        assert str(var1) == 'name: aaa: aaa, idn: 001 with message: hello'
         "#
         );
     })

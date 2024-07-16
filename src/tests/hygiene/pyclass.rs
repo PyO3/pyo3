@@ -67,11 +67,12 @@ pub struct Foo4 {
     field: u32,
 }
 
-#[crate::pyclass(eq, str = "{:?}")]
+#[crate::pyclass(str = "{x}, {y}, {z}")]
 #[pyo3(crate = "crate")]
-#[derive(Debug, PartialEq)]
-pub enum EnumFmt {
-    Var0,
+pub struct PointFmt {
+    x: u32,
+    y: u32,
+    z: u32,
 }
 
 #[crate::pyclass(str)]
