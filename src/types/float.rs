@@ -145,100 +145,70 @@ macro_rules! impl_partial_eq_for_float {
         impl PartialEq<$float_type> for Bound<'_, PyFloat> {
             #[inline]
             fn eq(&self, other: &$float_type) -> bool {
-                match self.extract::<$float_type>() {
-                    Ok(val) => val == *other,
-                    Err(_) => false,
-                }
+                self.value() as $float_type == *other
             }
         }
 
         impl PartialEq<$float_type> for &Bound<'_, PyFloat> {
             #[inline]
             fn eq(&self, other: &$float_type) -> bool {
-                match self.extract::<$float_type>() {
-                    Ok(val) => val == *other,
-                    Err(_) => false,
-                }
+                self.value() as $float_type == *other
             }
         }
 
         impl PartialEq<&$float_type> for Bound<'_, PyFloat> {
             #[inline]
             fn eq(&self, other: &&$float_type) -> bool {
-                match self.extract::<$float_type>() {
-                    Ok(val) => val == **other,
-                    Err(_) => false,
-                }
+                self.value() as $float_type == **other
             }
         }
 
         impl PartialEq<Bound<'_, PyFloat>> for $float_type {
             #[inline]
             fn eq(&self, other: &Bound<'_, PyFloat>) -> bool {
-                match other.extract::<$float_type>() {
-                    Ok(val) => val == *self,
-                    Err(_) => false,
-                }
+                other.value() as $float_type == *self
             }
         }
 
         impl PartialEq<&'_ Bound<'_, PyFloat>> for $float_type {
             #[inline]
             fn eq(&self, other: &&'_ Bound<'_, PyFloat>) -> bool {
-                match other.extract::<$float_type>() {
-                    Ok(val) => val == *self,
-                    Err(_) => false,
-                }
+                other.value() as $float_type == *self
             }
         }
 
         impl PartialEq<Bound<'_, PyFloat>> for &'_ $float_type {
             #[inline]
             fn eq(&self, other: &Bound<'_, PyFloat>) -> bool {
-                match other.extract::<$float_type>() {
-                    Ok(val) => val == **self,
-                    Err(_) => false,
-                }
+                other.value() as $float_type == **self
             }
         }
 
         impl PartialEq<$float_type> for Borrowed<'_, '_, PyFloat> {
             #[inline]
             fn eq(&self, other: &$float_type) -> bool {
-                match self.extract::<$float_type>() {
-                    Ok(val) => val == *other,
-                    Err(_) => false,
-                }
+                self.value() as $float_type == *other
             }
         }
 
         impl PartialEq<&$float_type> for Borrowed<'_, '_, PyFloat> {
             #[inline]
             fn eq(&self, other: &&$float_type) -> bool {
-                match self.extract::<$float_type>() {
-                    Ok(val) => val == **other,
-                    Err(_) => false,
-                }
+                self.value() as $float_type == **other
             }
         }
 
         impl PartialEq<Borrowed<'_, '_, PyFloat>> for $float_type {
             #[inline]
             fn eq(&self, other: &Borrowed<'_, '_, PyFloat>) -> bool {
-                match other.extract::<$float_type>() {
-                    Ok(val) => val == *self,
-                    Err(_) => false,
-                }
+                other.value() as $float_type == *self
             }
         }
 
         impl PartialEq<Borrowed<'_, '_, PyFloat>> for &$float_type {
             #[inline]
             fn eq(&self, other: &Borrowed<'_, '_, PyFloat>) -> bool {
-                match other.extract::<$float_type>() {
-                    Ok(val) => val == **self,
-                    Err(_) => false,
-                }
+                other.value() as $float_type == **self
             }
         }
     };
