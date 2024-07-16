@@ -1,4 +1,6 @@
 use crate::object::*;
+#[cfg(not(Py_3_13))]
+use crate::pyerrors::PyErr_Occurred;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 use std::ptr::addr_of_mut;
@@ -58,6 +60,12 @@ extern "C" {
     pub fn PyDict_MergeFromSeq2(d: *mut PyObject, seq2: *mut PyObject, _override: c_int) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItemString")]
     pub fn PyDict_GetItemString(dp: *mut PyObject, key: *const c_char) -> *mut PyObject;
+    #[cfg(Py_3_13)]
+    pub fn PyDict_GetItemRef(
+        dp: *mut PyObject,
+        key: *mut PyObject,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_SetItemString")]
     pub fn PyDict_SetItemString(
         dp: *mut PyObject,
@@ -94,6 +102,24 @@ pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
 #[inline]
 pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
     (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int
+}
+
+#[cfg(not(Py_3_13))]
+pub unsafe fn PyDict_GetItemRef(
+    dp: *mut PyObject,
+    key: *mut PyObject,
+    result: *mut *mut PyObject,
+) -> c_int {
+    let item: *mut PyObject = PyDict_GetItemWithError(dp, key);
+    if !item.is_null() {
+        *result = _Py_NewRef(item);
+        return 1; // found
+    }
+    *result = std::ptr::null_mut();
+    if !PyErr_Occurred().is_null() {
+        return 0; // not found
+    }
+    -1
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
