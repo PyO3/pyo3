@@ -8,7 +8,7 @@ use crate::{
     get_doc,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
-    utils::{Ctx, LitCStr, PyO3CratePath},
+    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, LitCStr},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -565,11 +565,6 @@ fn find_and_remove_attribute(attrs: &mut Vec<syn::Attribute>, ident: &str) -> bo
     found
 }
 
-enum IdentOrStr<'a> {
-    Str(&'a str),
-    Ident(syn::Ident),
-}
-
 impl<'a> PartialEq<syn::Ident> for IdentOrStr<'a> {
     fn eq(&self, other: &syn::Ident) -> bool {
         match self {
@@ -577,36 +572,6 @@ impl<'a> PartialEq<syn::Ident> for IdentOrStr<'a> {
             IdentOrStr::Ident(i) => other == i,
         }
     }
-}
-fn has_attribute(attrs: &[syn::Attribute], ident: &str) -> bool {
-    has_attribute_with_namespace(attrs, None, &[ident])
-}
-
-fn has_attribute_with_namespace(
-    attrs: &[syn::Attribute],
-    crate_path: Option<&PyO3CratePath>,
-    idents: &[&str],
-) -> bool {
-    let mut segments = vec![];
-    if let Some(c) = crate_path {
-        match c {
-            PyO3CratePath::Given(paths) => {
-                for p in &paths.segments {
-                    segments.push(IdentOrStr::Ident(p.ident.clone()));
-                }
-            }
-            PyO3CratePath::Default => segments.push(IdentOrStr::Str("pyo3")),
-        }
-    };
-    for i in idents {
-        segments.push(IdentOrStr::Str(i));
-    }
-
-    attrs.iter().any(|attr| {
-        segments
-            .iter()
-            .eq(attr.path().segments.iter().map(|v| &v.ident))
-    })
 }
 
 fn set_module_attribute(attrs: &mut Vec<syn::Attribute>, module_name: &str) {

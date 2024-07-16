@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::utils::Ctx;
+use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
@@ -85,16 +85,23 @@ pub fn build_py_methods(
     }
 }
 
-fn check_pyfunction(meth: &mut ImplItemFn) -> syn::Result<()> {
-    if meth
-        .attrs
-        .iter()
-        .any(|attr| attr.path().is_ident("pyfunction"))
-    {
-        meth.attrs.clear();
-        bail_spanned!(meth.span() => "functions inside #[pymethods] do not need to be annotated with #[pyfunction]");
-    }
-    Ok(())
+fn check_pyfunction(pyo3_path: &PyO3CratePath, meth: &mut ImplItemFn) -> syn::Result<()> {
+    let mut error = None;
+
+    meth.attrs.retain(|attr| {
+        let attrs = [attr.clone()];
+
+        if has_attribute(&attrs, "pyfunction")
+            || has_attribute_with_namespace(&attrs, Some(pyo3_path),  &["pyfunction"])
+            || has_attribute_with_namespace(&attrs, Some(pyo3_path),  &["prelude", "pyfunction"]) {
+                error = Some(err_spanned!(meth.sig.span() => "functions inside #[pymethods] do not need to be annotated with #[pyfunction]"));
+                false
+        } else {
+            true
+        }
+    });
+
+    error.map_or(Ok(()), Err)
 }
 
 pub fn impl_methods(
@@ -117,7 +124,7 @@ pub fn impl_methods(
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
 
-                check_pyfunction(meth)?;
+                check_pyfunction(&ctx.pyo3_path, meth)?;
 
                 match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options, ctx)?
                 {

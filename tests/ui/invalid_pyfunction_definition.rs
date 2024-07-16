@@ -1,5 +1,3 @@
-
-
 #[pyo3::pymodule]
 mod pyo3_scratch {
     use pyo3::prelude::*;
@@ -13,3 +11,5 @@ mod pyo3_scratch {
         fn bug() {}
     }
 }
+
+fn main() {}
