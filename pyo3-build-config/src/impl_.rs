@@ -996,7 +996,6 @@ pub enum BuildFlag {
     Py_DEBUG,
     Py_REF_DEBUG,
     Py_TRACE_REFS,
-    Py_GIL_DISABLED,
     COUNT_ALLOCS,
     Other(String),
 }
@@ -1017,7 +1016,6 @@ impl FromStr for BuildFlag {
             "Py_DEBUG" => Ok(BuildFlag::Py_DEBUG),
             "Py_REF_DEBUG" => Ok(BuildFlag::Py_REF_DEBUG),
             "Py_TRACE_REFS" => Ok(BuildFlag::Py_TRACE_REFS),
-            "Py_GIL_DISABLED" => Ok(BuildFlag::Py_GIL_DISABLED),
             "COUNT_ALLOCS" => Ok(BuildFlag::COUNT_ALLOCS),
             other => Ok(BuildFlag::Other(other.to_owned())),
         }
@@ -1041,11 +1039,10 @@ impl FromStr for BuildFlag {
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
-    const ALL: [BuildFlag; 5] = [
+    const ALL: [BuildFlag; 4] = [
         BuildFlag::Py_DEBUG,
         BuildFlag::Py_REF_DEBUG,
         BuildFlag::Py_TRACE_REFS,
-        BuildFlag::Py_GIL_DISABLED,
         BuildFlag::COUNT_ALLOCS,
     ];
 
