@@ -10,6 +10,22 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.22.2] - 2024-07-17
+
+### Packaging
+
+- Require opt-in to freethreaded Python using the `UNSAFE_PYO3_BUILD_FREE_THREADED=1` environment variable (it is not yet supported by PyO3). [#4327](https://github.com/PyO3/pyo3/pull/4327)
+
+### Changed
+
+- Use FFI function calls for reference counting on all abi3 versions. [#4324](https://github.com/PyO3/pyo3/pull/4324)
+- `#[pymodule(...)]` now directly accepts all relevant `#[pyo3(...)]` options. [#4330](https://github.com/PyO3/pyo3/pull/4330)
+
+### Fixed
+
+- Fix compile failure in declarative `#[pymodule]` under presence of `#![no_implicit_prelude]`. [#4328](https://github.com/PyO3/pyo3/pull/4328)
+- Fix compile failure due to c-string literals on Rust < 1.79. [#4353](https://github.com/PyO3/pyo3/pull/4353)
+
 ## [0.22.1] - 2024-07-06
 
 ### Added
@@ -24,7 +40,6 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Fix 128-bit int regression on big-endian platforms with Python <3.13. [#4291](https://github.com/PyO3/pyo3/pull/4291)
 - Stop generating code that will never be covered with declarative modules. [#4297](https://github.com/PyO3/pyo3/pull/4297)
 - Fix invalid deprecation warning for trailing optional on `#[setter]` function. [#4304](https://github.com/PyO3/pyo3/pull/4304)
-
 
 ## [0.22.0] - 2024-06-24
 
@@ -1824,7 +1839,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.22.2...HEAD
+[0.22.2]: https://github.com/pyo3/pyo3/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/pyo3/pyo3/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/pyo3/pyo3/compare/v0.21.2...v0.22.0
 [0.21.2]: https://github.com/pyo3/pyo3/compare/v0.21.1...v0.21.2
