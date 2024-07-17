@@ -67,15 +67,6 @@ pub struct Foo4 {
     field: u32,
 }
 
-#[crate::pyclass(eq, ord)]
-#[pyo3(crate = "crate")]
-#[derive(PartialEq, PartialOrd)]
-pub struct PointEqOrd {
-    x: u32,
-    y: u32,
-    z: u32,
-}
-
 #[crate::pyclass(str = "{x}, {y}, {z}")]
 #[pyo3(crate = "crate")]
 pub struct PointFmt {
