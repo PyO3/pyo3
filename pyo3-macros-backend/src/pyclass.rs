@@ -396,10 +396,10 @@ fn impl_class(
     if let Some(str) = &args.options.str {
         if str.value.is_some() {
             // check if any renaming is present
-            let renaming_conflict = field_options.iter().all(|x| x.1.name.is_none())
+            let no_naming_conflict = field_options.iter().all(|x| x.1.name.is_none())
                 & args.options.name.is_none()
                 & args.options.rename_all.is_none();
-            ensure_spanned!(renaming_conflict, str.value.span() => "The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.");
+            ensure_spanned!(no_naming_conflict, str.value.span() => "The format string syntax is incompatible with any renaming via `name` or `rename_all`");
         }
     }
 
@@ -836,7 +836,7 @@ fn impl_enum(
     ctx: &Ctx,
 ) -> Result<TokenStream> {
     if let Some(str_fmt) = &args.options.str {
-        ensure_spanned!(str_fmt.value.is_none(), str_fmt.value.span() => "string formatter shorthand cannot be used with enums, please implement `Display` or `__str__` directly")
+        ensure_spanned!(str_fmt.value.is_none(), str_fmt.value.span() => "The format string syntax cannot be used with enums")
     }
 
     match enum_ {

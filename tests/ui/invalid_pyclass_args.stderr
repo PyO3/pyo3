@@ -102,25 +102,25 @@ error: invalid format string: expected `'}'`, found `'$'`
     |
     = note: if you intended to print `{`, you can escape it using `{{`
 
-error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
    --> tests/ui/invalid_pyclass_args.rs:126:29
     |
 126 | #[pyclass(name = "aaa", str="unsafe: {unsafe_variable}")]
     |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
    --> tests/ui/invalid_pyclass_args.rs:132:29
     |
 132 | #[pyclass(name = "aaa", str="unsafe: {unsafe_variable}")]
     |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
    --> tests/ui/invalid_pyclass_args.rs:137:15
     |
 137 | #[pyclass(str="unsafe: {unsafe_variable}")]
     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: The optional string format shorthand argument to `str` is incompatible with any renaming via `name` or `rename_all`.  You should remove the string format shorthand argument and implement the `Display` trait or implement `__str__` directly.
+error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
    --> tests/ui/invalid_pyclass_args.rs:143:52
     |
 143 | #[pyclass(rename_all = "SCREAMING_SNAKE_CASE", str="{a_a}, {b_b}, {c_d_e}")]
@@ -138,7 +138,7 @@ error: No member found, you must provide a named or positionally specified membe
 157 | #[pyclass(str="{}")]
     |               ^^^^
 
-error: string formatter shorthand cannot be used with enums, please implement `Display` or `__str__` directly
+error: The format string syntax cannot be used with enums
    --> tests/ui/invalid_pyclass_args.rs:164:19
     |
 164 | #[pyclass(eq, str="Stuff...")]
