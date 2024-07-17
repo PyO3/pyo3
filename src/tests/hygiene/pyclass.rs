@@ -66,3 +66,28 @@ pub struct Foo4 {
     #[cfg(not(any()))]
     field: u32,
 }
+
+#[crate::pyclass(eq, ord)]
+#[pyo3(crate = "crate")]
+#[derive(PartialEq, PartialOrd)]
+pub struct PointEqOrd {
+    x: u32,
+    y: u32,
+    z: u32,
+}
+
+#[crate::pyclass(eq, ord)]
+#[pyo3(crate = "crate")]
+#[derive(PartialEq, PartialOrd)]
+pub enum ComplexEnumEqOrd {
+    Variant1 { a: u32, b: u32 },
+    Variant2 { c: u32 },
+}
+
+#[crate::pyclass(eq, ord)]
+#[pyo3(crate = "crate")]
+#[derive(PartialEq, PartialOrd)]
+pub enum TupleEnumEqOrd {
+    Variant1(u32, u32),
+    Variant2(u32),
+}
