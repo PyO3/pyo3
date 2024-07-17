@@ -91,3 +91,25 @@ pub enum TupleEnumEqOrd {
     Variant1(u32, u32),
     Variant2(u32),
 }
+
+#[crate::pyclass(str = "{x}, {y}, {z}")]
+#[pyo3(crate = "crate")]
+pub struct PointFmt {
+    x: u32,
+    y: u32,
+    z: u32,
+}
+
+#[crate::pyclass(str)]
+#[pyo3(crate = "crate")]
+pub struct Point {
+    x: i32,
+    y: i32,
+    z: i32,
+}
+
+impl ::std::fmt::Display for Point {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::std::write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    }
+}

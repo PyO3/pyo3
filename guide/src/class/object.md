@@ -70,6 +70,46 @@ impl Number {
 }
 ```
 
+To automatically generate the `__str__` implementation using a `Display` trait implementation, pass the `str` argument to `pyclass`.
+
+```rust
+# use std::fmt::{Display, Formatter};
+# use pyo3::prelude::*;
+#
+# #[pyclass(str)]
+# struct Coordinate {
+    x: i32,
+    y: i32,
+    z: i32,
+}
+
+impl Display for Coordinate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    }
+}
+```
+
+For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.  It expands and is passed into the `format!` macro in the following ways:  
+
+* `"{x}"` -> `"{}", self.x`
+* `"{0}"` -> `"{}", self.0`
+* `"{x:?}"` -> `"{:?}", self.x`
+
+*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*  
+*Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
+
+```rust
+# use pyo3::prelude::*;
+#
+# #[pyclass(str="({x}, {y}, {z})")]
+# struct Coordinate {
+    x: i32,
+    y: i32,
+    z: i32,
+}
+```
+
 #### Accessing the class name
 
 In the `__repr__`, we used a hard-coded class name. This is sometimes not ideal,
