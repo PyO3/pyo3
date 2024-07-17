@@ -132,10 +132,16 @@ error: No member found, you must provide a named or positionally specified membe
 150 | #[pyclass(str="{:?}")]
     |               ^^^^^^
 
-error: string formatter shorthand cannot be used with enums, please implement `Display` or `__str__` directly
-   --> tests/ui/invalid_pyclass_args.rs:157:19
+error: No member found, you must provide a named or positionally specified member.
+   --> tests/ui/invalid_pyclass_args.rs:157:15
     |
-157 | #[pyclass(eq, str="Stuff...")]
+157 | #[pyclass(str="{}")]
+    |               ^^^^
+
+error: string formatter shorthand cannot be used with enums, please implement `Display` or `__str__` directly
+   --> tests/ui/invalid_pyclass_args.rs:164:19
+    |
+164 | #[pyclass(eq, str="Stuff...")]
     |                   ^^^^^^^^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`

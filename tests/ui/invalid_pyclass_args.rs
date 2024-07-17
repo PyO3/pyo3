@@ -154,6 +154,13 @@ struct StructWithNoMember {
     b: String,
 }
 
+#[pyclass(str="{}")]
+#[derive(Debug)]
+struct StructWithNoMember2 {
+    a: String,
+    b: String,
+}
+
 #[pyclass(eq, str="Stuff...")]
 #[derive(Debug, PartialEq)]
 pub enum MyEnumInvalidStrFmt {
