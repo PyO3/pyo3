@@ -1,0 +1,563 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Executing existing Python code - PyO3 user guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../rust-from-python.html"><strong aria-hidden="true">2.</strong> Using Rust from Python</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../module.html"><strong aria-hidden="true">2.1.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="../function.html"><strong aria-hidden="true">2.2.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../function/signature.html"><strong aria-hidden="true">2.2.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="../function/error-handling.html"><strong aria-hidden="true">2.2.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="../class.html"><strong aria-hidden="true">2.3.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/protocols.html"><strong aria-hidden="true">2.3.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../class/object.html"><strong aria-hidden="true">2.3.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="../class/numeric.html"><strong aria-hidden="true">2.3.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="../class/call.html"><strong aria-hidden="true">2.3.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../python-from-rust.html"><strong aria-hidden="true">3.</strong> Calling Python from Rust</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../types.html"><strong aria-hidden="true">3.1.</strong> Python object types</a></li><li class="chapter-item expanded "><a href="../exception.html"><strong aria-hidden="true">3.2.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="../python-from-rust/function-calls.html"><strong aria-hidden="true">3.3.</strong> Calling Python functions</a></li><li class="chapter-item expanded "><a href="../python-from-rust/calling-existing-code.html" class="active"><strong aria-hidden="true">3.4.</strong> Executing existing Python code</a></li></ol></li><li class="chapter-item expanded "><a href="../conversions.html"><strong aria-hidden="true">4.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="../conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="../async-await.html"><strong aria-hidden="true">5.</strong> Using async and await</a></li><li class="chapter-item expanded "><a href="../parallelism.html"><strong aria-hidden="true">6.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="../debugging.html"><strong aria-hidden="true">7.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">8.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="../memory.html"><strong aria-hidden="true">9.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="../performance.html"><strong aria-hidden="true">10.</strong> Performance</a></li><li class="chapter-item expanded "><a href="../advanced.html"><strong aria-hidden="true">11.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="../building-and-distribution.html"><strong aria-hidden="true">12.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../building-and-distribution/multiple-python-versions.html"><strong aria-hidden="true">12.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="../ecosystem.html"><strong aria-hidden="true">13.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../ecosystem/logging.html"><strong aria-hidden="true">13.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="../ecosystem/async-await.html"><strong aria-hidden="true">13.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html"><strong aria-hidden="true">14.</strong> FAQ and troubleshooting</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="../trait-bounds.html">Appendix B: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="../python-typing-hints.html">Appendix C: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="../changelog.html">CHANGELOG</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded affix "><a href="../contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/python-from-rust/calling-existing-code.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="executing-existing-python-code"><a class="header" href="#executing-existing-python-code">Executing existing Python code</a></h1>
+<p>If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:</p>
+<h2 id="want-to-access-python-apis-then-use-pymoduleimport_bound"><a class="header" href="#want-to-access-python-apis-then-use-pymoduleimport_bound">Want to access Python APIs? Then use <code>PyModule::import_bound</code>.</a></h2>
+<p><a href="https://docs.rs/pyo3/0.22.2/pyo3/types/struct.PyModule.html#method.import_bound"><code>PyModule::import_bound</code></a> can
+be used to get handle to a Python module from Rust. You can use this to import and use any Python
+module available in your environment.</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    Python::with_gil(|py| {
+        let builtins = PyModule::import_bound(py, "builtins")?;
+        let total: i32 = builtins
+            .getattr("sum")?
+            .call1((vec![1, 2, 3],))?
+            .extract()?;
+        assert_eq!(total, 6);
+        Ok(())
+    })
+}</code></pre>
+<h2 id="want-to-run-just-an-expression-then-use-eval_bound"><a class="header" href="#want-to-run-just-an-expression-then-use-eval_bound">Want to run just an expression? Then use <code>eval_bound</code>.</a></h2>
+<p><a href="https://docs.rs/pyo3/0.22.2/pyo3/marker/struct.Python.html#method.eval_bound"><code>Python::eval_bound</code></a> is
+a method to execute a <a href="https://docs.python.org/3.7/reference/expressions.html">Python expression</a>
+and return the evaluated value as a <code>Bound&lt;'py, PyAny&gt;</code> object.</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+<span class="boring">fn main() -&gt; Result&lt;(), ()&gt; {
+</span>Python::with_gil(|py| {
+    let result = py
+        .eval_bound("[i * 10 for i in range(5)]", None, None)
+        .map_err(|e| {
+            e.print_and_set_sys_last_vars(py);
+        })?;
+    let res: Vec&lt;i64&gt; = result.extract().unwrap();
+    assert_eq!(res, vec![0, 10, 20, 30, 40]);
+    Ok(())
+})
+<span class="boring">}</span></code></pre>
+<h2 id="want-to-run-statements-then-use-run_bound"><a class="header" href="#want-to-run-statements-then-use-run_bound">Want to run statements? Then use <code>run_bound</code>.</a></h2>
+<p>[<code>Python::run_bound</code>] is a method to execute one or more
+<a href="https://docs.python.org/3.7/reference/simple_stmts.html">Python statements</a>.
+This method returns nothing (like any Python statement), but you can get
+access to manipulated objects via the <code>locals</code> dict.</p>
+<p>You can also use the <a href="https://docs.rs/pyo3/0.22.2/pyo3/macro.py_run.html"><code>py_run!</code></a> macro, which is a shorthand for [<code>Python::run_bound</code>].
+Since <a href="https://docs.rs/pyo3/0.22.2/pyo3/macro.py_run.html"><code>py_run!</code></a> panics on exceptions, we recommend you use this macro only for
+quickly testing your Python extensions.</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+use pyo3::py_run;
+
+<span class="boring">fn main() {
+</span>#[pyclass]
+struct UserData {
+    id: u32,
+    name: String,
+}
+
+#[pymethods]
+impl UserData {
+    fn as_tuple(&amp;self) -&gt; (u32, String) {
+        (self.id, self.name.clone())
+    }
+
+    fn __repr__(&amp;self) -&gt; PyResult&lt;String&gt; {
+        Ok(format!("User {}(id: {})", self.name, self.id))
+    }
+}
+
+Python::with_gil(|py| {
+    let userdata = UserData {
+        id: 34,
+        name: "Yu".to_string(),
+    };
+    let userdata = Py::new(py, userdata).unwrap();
+    let userdata_as_tuple = (34, "Yu");
+    py_run!(py, userdata userdata_as_tuple, r#"
+assert repr(userdata) == "User Yu(id: 34)"
+assert userdata.as_tuple() == userdata_as_tuple
+    "#);
+})
+<span class="boring">}</span></code></pre>
+<h2 id="you-have-a-python-file-or-code-snippet-then-use-pymodulefrom_code_bound"><a class="header" href="#you-have-a-python-file-or-code-snippet-then-use-pymodulefrom_code_bound">You have a Python file or code snippet? Then use <code>PyModule::from_code_bound</code>.</a></h2>
+<p><a href="https://docs.rs/pyo3/0.22.2/pyo3/types/struct.PyModule.html#method.from_code_bound"><code>PyModule::from_code_bound</code></a>
+can be used to generate a Python module which can then be used just as if it was imported with
+<code>PyModule::import</code>.</p>
+<p><strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code
+to this function!</p>
+<pre><code class="language-rust">use pyo3::{prelude::*, types::IntoPyDict};
+
+<span class="boring">fn main() -&gt; PyResult&lt;()&gt; {
+</span>Python::with_gil(|py| {
+    let activators = PyModule::from_code_bound(
+        py,
+        r#"
+def relu(x):
+    """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
+    return max(0.0, x)
+
+def leaky_relu(x, slope=0.01):
+    return x if x &gt;= 0 else x * slope
+    "#,
+        "activators.py",
+        "activators",
+    )?;
+
+    let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
+    assert_eq!(relu_result, 0.0);
+
+    let kwargs = [("slope", 0.2)].into_py_dict_bound(py);
+    let lrelu_result: f64 = activators
+        .getattr("leaky_relu")?
+        .call((-1.0,), Some(&amp;kwargs))?
+        .extract()?;
+    assert_eq!(lrelu_result, -0.2);
+<span class="boring">   Ok(())
+</span>})
+<span class="boring">}</span></code></pre>
+<h2 id="want-to-embed-python-in-rust-with-additional-modules"><a class="header" href="#want-to-embed-python-in-rust-with-additional-modules">Want to embed Python in Rust with additional modules?</a></h2>
+<p>Python maintains the <code>sys.modules</code> dict as a cache of all imported modules.
+An import in Python will first attempt to lookup the module from this dict,
+and if not present will use various strategies to attempt to locate and load
+the module.</p>
+<p>The <a href="https://docs.rs/pyo3/0.22.2/pyo3/macro.append_to_inittab.html"><code>append_to_inittab</code></a>
+macro can be used to add additional <code>#[pymodule]</code> modules to an embedded
+Python interpreter. The macro <strong>must</strong> be invoked <em>before</em> initializing Python.</p>
+<p>As an example, the below adds the module <code>foo</code> to the embedded interpreter:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+#[pyfunction]
+fn add_one(x: i64) -&gt; i64 {
+    x + 1
+}
+
+#[pymodule]
+fn foo(foo_module: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+    Ok(())
+}
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    pyo3::append_to_inittab!(foo);
+    Python::with_gil(|py| Python::run_bound(py, "import foo; foo.add_one(6)", None, None))
+}</code></pre>
+<p>If <code>append_to_inittab</code> cannot be used due to constraints in the program,
+an alternative is to create a module using <a href="https://docs.rs/pyo3/0.22.2/pyo3/types/struct.PyModule.html#method.new_bound"><code>PyModule::new_bound</code></a>
+and insert it manually into <code>sys.modules</code>:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+#[pyfunction]
+pub fn add_one(x: i64) -&gt; i64 {
+    x + 1
+}
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    Python::with_gil(|py| {
+        // Create new module
+        let foo_module = PyModule::new_bound(py, "foo")?;
+        foo_module.add_function(wrap_pyfunction!(add_one, &amp;foo_module)?)?;
+
+        // Import and get sys.modules
+        let sys = PyModule::import_bound(py, "sys")?;
+        let py_modules: Bound&lt;'_, PyDict&gt; = sys.getattr("modules")?.downcast_into()?;
+
+        // Insert foo into sys.modules
+        py_modules.set_item("foo", foo_module)?;
+
+        // Now we can import + run our python code
+        Python::run_bound(py, "import foo; foo.add_one(6)", None, None)
+    })
+}</code></pre>
+<h2 id="include-multiple-python-files"><a class="header" href="#include-multiple-python-files">Include multiple Python files</a></h2>
+<p>You can include a file at compile time by using
+<a href="https://doc.rust-lang.org/std/macro.include_str.html"><code>std::include_str</code></a> macro.</p>
+<p>Or you can load a file at runtime by using
+<a href="https://doc.rust-lang.org/std/fs/fn.read_to_string.html"><code>std::fs::read_to_string</code></a> function.</p>
+<p>Many Python files can be included and loaded as modules. If one file depends on
+another you must preserve correct order while declaring <code>PyModule</code>.</p>
+<p>Example directory structure:</p>
+<pre><code class="language-text">.
+├── Cargo.lock
+├── Cargo.toml
+├── python_app
+│   ├── app.py
+│   └── utils
+│       └── foo.py
+└── src
+    └── main.rs
+</code></pre>
+<p><code>python_app/app.py</code>:</p>
+<pre><code class="language-python">from utils.foo import bar
+
+
+def run():
+    return bar()
+</code></pre>
+<p><code>python_app/utils/foo.py</code>:</p>
+<pre><code class="language-python">def bar():
+    return "baz"
+</code></pre>
+<p>The example below shows:</p>
+<ul>
+<li>how to include content of <code>app.py</code> and <code>utils/foo.py</code> into your rust binary</li>
+<li>how to call function <code>run()</code> (declared in <code>app.py</code>) that needs function
+imported from <code>utils/foo.py</code></li>
+</ul>
+<p><code>src/main.rs</code>:</p>
+<pre><code class="language-rust ignore">use pyo3::prelude::*;
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    let py_foo = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/python_app/utils/foo.py"
+    ));
+    let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
+    let from_python = Python::with_gil(|py| -&gt; PyResult&lt;Py&lt;PyAny&gt;&gt; {
+        PyModule::from_code_bound(py, py_foo, "utils.foo", "utils.foo")?;
+        let app: Py&lt;PyAny&gt; = PyModule::from_code_bound(py, py_app, "", "")?
+            .getattr("run")?
+            .into();
+        app.call0(py)
+    });
+
+    println!("py: {}", from_python?);
+    Ok(())
+}</code></pre>
+<p>The example below shows:</p>
+<ul>
+<li>how to load content of <code>app.py</code> at runtime so that it sees its dependencies
+automatically</li>
+<li>how to call function <code>run()</code> (declared in <code>app.py</code>) that needs function
+imported from <code>utils/foo.py</code></li>
+</ul>
+<p>It is recommended to use absolute paths because then your binary can be run
+from anywhere as long as your <code>app.py</code> is in the expected directory (in this example
+that directory is <code>/usr/share/python_app</code>).</p>
+<p><code>src/main.rs</code>:</p>
+<pre><code class="language-rust no_run">use pyo3::prelude::*;
+use pyo3::types::PyList;
+use std::fs;
+use std::path::Path;
+
+fn main() -&gt; PyResult&lt;()&gt; {
+    let path = Path::new("/usr/share/python_app");
+    let py_app = fs::read_to_string(path.join("app.py"))?;
+    let from_python = Python::with_gil(|py| -&gt; PyResult&lt;Py&lt;PyAny&gt;&gt; {
+        let syspath = py
+            .import_bound("sys")?
+            .getattr("path")?
+            .downcast_into::&lt;PyList&gt;()?;
+        syspath.insert(0, &amp;path)?;
+        let app: Py&lt;PyAny&gt; = PyModule::from_code_bound(py, &amp;py_app, "", "")?
+            .getattr("run")?
+            .into();
+        app.call0(py)
+    });
+
+    println!("py: {}", from_python?);
+    Ok(())
+}</code></pre>
+<h2 id="need-to-use-a-context-manager-from-rust"><a class="header" href="#need-to-use-a-context-manager-from-rust">Need to use a context manager from Rust?</a></h2>
+<p>Use context managers by directly invoking <code>__enter__</code> and <code>__exit__</code>.</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+fn main() {
+    Python::with_gil(|py| {
+        let custom_manager = PyModule::from_code_bound(
+            py,
+            r#"
+class House(object):
+    def __init__(self, address):
+        self.address = address
+    def __enter__(self):
+        print(f"Welcome to {self.address}!")
+    def __exit__(self, type, value, traceback):
+        if type:
+            print(f"Sorry you had {type} trouble at {self.address}")
+        else:
+            print(f"Thank you for visiting {self.address}, come again soon!")
+
+        "#,
+            "house.py",
+            "house",
+        )
+        .unwrap();
+
+        let house_class = custom_manager.getattr("House").unwrap();
+        let house = house_class.call1(("123 Main Street",)).unwrap();
+
+        house.call_method0("__enter__").unwrap();
+
+        let result = py.eval_bound("undefined_variable + 1", None, None);
+
+        // If the eval threw an exception we'll pass it through to the context manager.
+        // Otherwise, __exit__  is called with empty arguments (Python "None").
+        match result {
+            Ok(_) =&gt; {
+                let none = py.None();
+                house
+                    .call_method1("__exit__", (&amp;none, &amp;none, &amp;none))
+                    .unwrap();
+            }
+            Err(e) =&gt; {
+                house
+                    .call_method1(
+                        "__exit__",
+                        (
+                            e.get_type_bound(py),
+                            e.value_bound(py),
+                            e.traceback_bound(py),
+                        ),
+                    )
+                    .unwrap();
+            }
+        }
+    })
+}</code></pre>
+<h2 id="handling-system-signalsinterrupts-ctrl-c"><a class="header" href="#handling-system-signalsinterrupts-ctrl-c">Handling system signals/interrupts (Ctrl-C)</a></h2>
+<p>The best way to handle system signals when running Rust code is to periodically call <code>Python::check_signals</code> to handle any signals captured by Python's signal handler. See also <a href="../faq.html#ctrl-c-doesnt-do-anything-while-my-rust-code-is-executing">the FAQ entry</a>.</p>
+<p>Alternatively, set Python's <code>signal</code> module to take the default action for a signal:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+<span class="boring">fn main() -&gt; PyResult&lt;()&gt; {
+</span>Python::with_gil(|py| -&gt; PyResult&lt;()&gt; {
+    let signal = py.import_bound("signal")?;
+    // Set SIGINT to have the default action
+    signal
+        .getattr("signal")?
+        .call1((signal.getattr("SIGINT")?, signal.getattr("SIG_DFL")?))?;
+    Ok(())
+})
+<span class="boring">}</span></code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../python-from-rust/function-calls.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../conversions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../python-from-rust/function-calls.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../conversions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

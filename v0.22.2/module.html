@@ -1,0 +1,382 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Python modules - PyO3 user guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="PyO3 user guide">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="rust-from-python.html"><strong aria-hidden="true">2.</strong> Using Rust from Python</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="module.html" class="active"><strong aria-hidden="true">2.1.</strong> Python modules</a></li><li class="chapter-item expanded "><a href="function.html"><strong aria-hidden="true">2.2.</strong> Python functions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="function/signature.html"><strong aria-hidden="true">2.2.1.</strong> Function signatures</a></li><li class="chapter-item expanded "><a href="function/error-handling.html"><strong aria-hidden="true">2.2.2.</strong> Error handling</a></li></ol></li><li class="chapter-item expanded "><a href="class.html"><strong aria-hidden="true">2.3.</strong> Python classes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/protocols.html"><strong aria-hidden="true">2.3.1.</strong> Class customizations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="class/object.html"><strong aria-hidden="true">2.3.1.1.</strong> Basic object customization</a></li><li class="chapter-item expanded "><a href="class/numeric.html"><strong aria-hidden="true">2.3.1.2.</strong> Emulating numeric types</a></li><li class="chapter-item expanded "><a href="class/call.html"><strong aria-hidden="true">2.3.1.3.</strong> Emulating callable objects</a></li></ol></li></ol></li></ol></li><li class="chapter-item expanded "><a href="python-from-rust.html"><strong aria-hidden="true">3.</strong> Calling Python from Rust</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">3.1.</strong> Python object types</a></li><li class="chapter-item expanded "><a href="exception.html"><strong aria-hidden="true">3.2.</strong> Python exceptions</a></li><li class="chapter-item expanded "><a href="python-from-rust/function-calls.html"><strong aria-hidden="true">3.3.</strong> Calling Python functions</a></li><li class="chapter-item expanded "><a href="python-from-rust/calling-existing-code.html"><strong aria-hidden="true">3.4.</strong> Executing existing Python code</a></li></ol></li><li class="chapter-item expanded "><a href="conversions.html"><strong aria-hidden="true">4.</strong> Type conversions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="conversions/tables.html"><strong aria-hidden="true">4.1.</strong> Mapping of Rust types to Python types</a></li><li class="chapter-item expanded "><a href="conversions/traits.html"><strong aria-hidden="true">4.2.</strong> Conversion traits</a></li></ol></li><li class="chapter-item expanded "><a href="async-await.html"><strong aria-hidden="true">5.</strong> Using async and await</a></li><li class="chapter-item expanded "><a href="parallelism.html"><strong aria-hidden="true">6.</strong> Parallelism</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">7.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">8.</strong> Features reference</a></li><li class="chapter-item expanded "><a href="memory.html"><strong aria-hidden="true">9.</strong> Memory management</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">10.</strong> Performance</a></li><li class="chapter-item expanded "><a href="advanced.html"><strong aria-hidden="true">11.</strong> Advanced topics</a></li><li class="chapter-item expanded "><a href="building-and-distribution.html"><strong aria-hidden="true">12.</strong> Building and distribution</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="building-and-distribution/multiple-python-versions.html"><strong aria-hidden="true">12.1.</strong> Supporting multiple Python versions</a></li></ol></li><li class="chapter-item expanded "><a href="ecosystem.html"><strong aria-hidden="true">13.</strong> Useful crates</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ecosystem/logging.html"><strong aria-hidden="true">13.1.</strong> Logging</a></li><li class="chapter-item expanded "><a href="ecosystem/async-await.html"><strong aria-hidden="true">13.2.</strong> Using async and await</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">14.</strong> FAQ and troubleshooting</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded affix "><a href="migration.html">Appendix A: Migration guide</a></li><li class="chapter-item expanded affix "><a href="trait-bounds.html">Appendix B: Trait bounds</a></li><li class="chapter-item expanded affix "><a href="python-typing-hints.html">Appendix C: Python typing hints</a></li><li class="chapter-item expanded affix "><a href="changelog.html">CHANGELOG</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded affix "><a href="contributing.html">Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PyO3 user guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/tree/main/guide" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/PyO3/pyo3/edit/main/guide/src/module.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="python-modules"><a class="header" href="#python-modules">Python modules</a></h1>
+<p>You can create a module using <code>#[pymodule]</code>:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+#[pyfunction]
+fn double(x: usize) -&gt; usize {
+    x * 2
+}
+
+/// This module is implemented in Rust.
+#[pymodule]
+fn my_extension(m: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_pyfunction!(double, m)?)
+}</code></pre>
+<p>The <code>#[pymodule]</code> procedural macro takes care of exporting the initialization function of your
+module to Python.</p>
+<p>The module's name defaults to the name of the Rust function. You can override the module name by
+using <code>#[pyo3(name = "custom_name")]</code>:</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+#[pyfunction]
+fn double(x: usize) -&gt; usize {
+    x * 2
+}
+
+#[pymodule(name = "custom_name")]
+fn my_extension(m: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+    m.add_function(wrap_pyfunction!(double, m)?)
+}</code></pre>
+<p>The name of the module must match the name of the <code>.so</code> or <code>.pyd</code>
+file. Otherwise, you will get an import error in Python with the following message:
+<code>ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)</code></p>
+<p>To import the module, either:</p>
+<ul>
+<li>copy the shared library as described in <a href="building-and-distribution.html#manual-builds">Manual builds</a>, or</li>
+<li>use a tool, e.g. <code>maturin develop</code> with <a href="https://github.com/PyO3/maturin">maturin</a> or
+<code>python setup.py develop</code> with <a href="https://github.com/PyO3/setuptools-rust">setuptools-rust</a>.</li>
+</ul>
+<h2 id="documentation"><a class="header" href="#documentation">Documentation</a></h2>
+<p>The <a href="https://doc.rust-lang.org/stable/book/ch03-04-comments.html">Rust doc comments</a> of the module
+initialization function will be applied automatically as the Python docstring of your module.</p>
+<p>For example, building off of the above code, this will print <code>This module is implemented in Rust.</code>:</p>
+<pre><code class="language-python">import my_extension
+
+print(my_extension.__doc__)
+</code></pre>
+<h2 id="python-submodules"><a class="header" href="#python-submodules">Python submodules</a></h2>
+<p>You can create a module hierarchy within a single extension module by using
+<a href="https://docs.rs/pyo3/0.22.2/pyo3/prelude/trait.PyModuleMethods.html#tymethod.add_submodule"><code>Bound&lt;'_, PyModule&gt;::add_submodule()</code></a>.
+For example, you could define the modules <code>parent_module</code> and <code>parent_module.child_module</code>.</p>
+<pre><code class="language-rust">use pyo3::prelude::*;
+
+#[pymodule]
+fn parent_module(m: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+    register_child_module(m)?;
+    Ok(())
+}
+
+fn register_child_module(parent_module: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+    let child_module = PyModule::new_bound(parent_module.py(), "child_module")?;
+    child_module.add_function(wrap_pyfunction!(func, &amp;child_module)?)?;
+    parent_module.add_submodule(&amp;child_module)
+}
+
+#[pyfunction]
+fn func() -&gt; String {
+    "func".to_string()
+}
+
+<span class="boring">Python::with_gil(|py| {
+</span><span class="boring">   use pyo3::wrap_pymodule;
+</span><span class="boring">   use pyo3::types::IntoPyDict;
+</span><span class="boring">   let parent_module = wrap_pymodule!(parent_module)(py);
+</span><span class="boring">   let ctx = [("parent_module", parent_module)].into_py_dict_bound(py);
+</span><span class="boring">
+</span><span class="boring">   py.run_bound("assert parent_module.child_module.func() == 'func'", None, Some(&amp;ctx)).unwrap();
+</span><span class="boring">})</span></code></pre>
+<p>Note that this does not define a package, so this won’t allow Python code to directly import
+submodules by using <code>from parent_module import child_module</code>. For more information, see
+<a href="https://github.com/PyO3/pyo3/issues/759">#759</a> and
+<a href="https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021">#1517</a>.</p>
+<p>It is not necessary to add <code>#[pymodule]</code> on nested modules, which is only required on the top-level module.</p>
+<h2 id="declarative-modules"><a class="header" href="#declarative-modules">Declarative modules</a></h2>
+<p>Another syntax based on Rust inline modules is also available to declare modules.</p>
+<p>For example:</p>
+<pre><code class="language-rust"><span class="boring">mod declarative_module_test {
+</span>use pyo3::prelude::*;
+
+#[pyfunction]
+fn double(x: usize) -&gt; usize {
+    x * 2
+}
+
+#[pymodule]
+mod my_extension {
+    use super::*;
+
+    #[pymodule_export]
+    use super::double; // Exports the double function as part of the module
+
+    #[pyfunction] // This will be part of the module
+    fn triple(x: usize) -&gt; usize {
+        x * 3
+    }
+
+    #[pyclass] // This will be part of the module
+    struct Unit;
+
+    #[pymodule]
+    mod submodule {
+        // This is a submodule
+    }
+
+    #[pymodule_init]
+    fn init(m: &amp;Bound&lt;'_, PyModule&gt;) -&gt; PyResult&lt;()&gt; {
+        // Arbitrary code to run at the module initialization
+        m.add("double2", m.getattr("double")?)
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>The <code>#[pymodule]</code> macro automatically sets the <code>module</code> attribute of the <code>#[pyclass]</code> macros declared inside of it with its name.
+For nested modules, the name of the parent module is automatically added.
+In the following example, the <code>Unit</code> class will have for <code>module</code> <code>my_extension.submodule</code> because it is properly nested
+but the <code>Ext</code> class will have for <code>module</code> the default <code>builtins</code> because it not nested.</p>
+<p>You can provide the <code>submodule</code> argument to <code>pymodule()</code> for modules that are not top-level modules.</p>
+<pre><code class="language-rust"><span class="boring">mod declarative_module_module_attr_test {
+</span>use pyo3::prelude::*;
+
+#[pyclass]
+struct Ext;
+
+#[pymodule]
+mod my_extension {
+    use super::*;
+
+    #[pymodule_export]
+    use super::Ext;
+
+    #[pymodule(submodule)]
+    mod submodule {
+        use super::*;
+        // This is a submodule
+
+        #[pyclass] // This will be part of the module
+        struct Unit;
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>It is possible to customize the <code>module</code> value for a <code>#[pymodule]</code> with the <code>#[pyo3(module = "MY_MODULE")]</code> option.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="rust-from-python.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="function.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="rust-from-python.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="function.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
