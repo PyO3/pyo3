@@ -923,7 +923,7 @@ fn impl_complex_enum(
                 let variant_cls = gen_complex_enum_variant_class_ident(cls, variant.get_ident());
                 quote! {
                     #cls::#variant_ident { .. } => {
-                        let pyclass_init = #pyo3_path::PyClassInitializer::from(self).add_subclass(#variant_cls);
+                        let pyclass_init = <#pyo3_path::PyClassInitializer<Self> as ::std::convert::From<Self>>::from(self).add_subclass(#variant_cls);
                         let variant_value = #pyo3_path::Py::new(py, pyclass_init).unwrap();
                         #pyo3_path::IntoPy::into_py(variant_value, py)
                     }
@@ -1091,7 +1091,7 @@ fn impl_complex_enum_struct_variant_cls(
         let field_getter_impl = quote! {
             fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#field_type> {
                 match &*slf.into_super() {
-                    #enum_name::#variant_ident { #field_name, .. } => ::std::result::Result::Ok(#field_name.clone()),
+                    #enum_name::#variant_ident { #field_name, .. } => ::std::result::Result::Ok(::std::clone::Clone::clone(&#field_name)),
                     _ => ::core::unreachable!("Wrong complex enum variant found in variant wrapper PyClass"),
                 }
             }
@@ -1114,7 +1114,7 @@ fn impl_complex_enum_struct_variant_cls(
         impl #variant_cls {
             fn __pymethod_constructor__(py: #pyo3_path::Python<'_>, #(#fields_with_types,)*) -> #pyo3_path::PyClassInitializer<#variant_cls> {
                 let base_value = #enum_name::#variant_ident { #(#field_names,)* };
-                #pyo3_path::PyClassInitializer::from(base_value).add_subclass(#variant_cls)
+                <#pyo3_path::PyClassInitializer<#enum_name> as ::std::convert::From<#enum_name>>::from(base_value).add_subclass(#variant_cls)
             }
 
             #match_args_const_impl
@@ -1160,7 +1160,7 @@ fn impl_complex_enum_tuple_variant_field_getters(
         let field_getter_impl: syn::ImplItemFn = parse_quote! {
             fn #field_name(slf: #pyo3_path::PyRef<Self>) -> #pyo3_path::PyResult<#field_type> {
                 match &*slf.into_super() {
-                    #enum_name::#variant_ident ( #(#field_access_tokens), *) => ::std::result::Result::Ok(val.clone()),
+                    #enum_name::#variant_ident ( #(#field_access_tokens), *) => ::std::result::Result::Ok(::std::clone::Clone::clone(&val)),
                     _ => ::core::unreachable!("Wrong complex enum variant found in variant wrapper PyClass"),
                 }
             }
@@ -1286,7 +1286,7 @@ fn impl_complex_enum_tuple_variant_cls(
         impl #variant_cls {
             fn __pymethod_constructor__(py: #pyo3_path::Python<'_>, #(#field_names : #field_types,)*) -> #pyo3_path::PyClassInitializer<#variant_cls> {
                 let base_value = #enum_name::#variant_ident ( #(#field_names,)* );
-                #pyo3_path::PyClassInitializer::from(base_value).add_subclass(#variant_cls)
+                <#pyo3_path::PyClassInitializer<#enum_name> as ::std::convert::From<#enum_name>>::from(base_value).add_subclass(#variant_cls)
             }
 
             #len_method_impl
