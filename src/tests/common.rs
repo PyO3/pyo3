@@ -62,6 +62,57 @@ mod inner {
         }};
     }
 
+    #[macro_export]
+    macro_rules! py_expect_warning {
+        ($py:expr, $($val:ident)+, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
+            use pyo3::types::IntoPyDict;
+            let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
+            py_expect_warning!($py, *d, $code, [$(($warning_msg, $warning_category)),+])
+        }};
+        ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
+            let code_lines: Vec<&str> = $code.lines().collect();
+            let indented_code: String = code_lines.iter()
+                .map(|line| format!("    {}", line))  // add 4 spaces indentation
+                .collect::<Vec<String>>()
+                .join("\n");
+
+            let wrapped_code = format!(r#"
+import warnings
+with warnings.catch_warnings(record=True) as warning_record:
+{}
+"#, indented_code);
+
+            $py.run_bound(wrapped_code.as_str(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
+            let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object_bound($py))),+];
+            let warning_record: Bound<'_, pyo3::types::PyList> = $dict.get_item("warning_record").expect("Failed to capture warnings").expect("Failed to downcast to PyList").extract().unwrap();
+
+            assert_eq!(warning_record.len(), expected_warnings.len(), "Expecting {} warnings but got {}", expected_warnings.len(), warning_record.len());
+
+            for ((index, warning), (msg, category)) in warning_record.iter().enumerate().zip(expected_warnings.iter()) {
+                let actual_msg = warning.getattr("message").unwrap().str().unwrap().to_string_lossy().to_string();
+                let actual_category = warning.getattr("category").unwrap();
+
+                assert_eq!(actual_msg, msg.to_string(), "Warning message mismatch at index {}, expecting `{}` but got `{}`", index, msg, actual_msg);
+                assert!(actual_category.is(category), "Warning category mismatch at index {}, expecting {:?} but got {:?}", index, category, actual_category);
+            }
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! py_expect_warning_for_fn {
+        ($fn:ident, $($val:ident)+, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {
+            pyo3::Python::with_gil(|py| {
+                let f = wrap_pyfunction!($fn)(py).unwrap();
+                py_expect_warning!(
+                    py,
+                    f,
+                    "f()",
+                    [$(($warning_msg, $warning_category)),+]
+                );
+            });
+        };
+    }
+
     // sys.unraisablehook not available until Python 3.8
     #[cfg(all(feature = "macros", Py_3_8))]
     #[pyclass(crate = "pyo3")]

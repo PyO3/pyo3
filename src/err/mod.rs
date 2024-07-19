@@ -10,7 +10,7 @@ use crate::{
 use crate::{Borrowed, IntoPy, Py, PyAny, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 
 mod err_state;
 mod impls;
@@ -618,6 +618,39 @@ impl PyErr {
         })
     }
 
+    /// Issues a warning message with CStr
+    ///
+    /// This is a variant of `warn_bound` that accepts a `CStr` message instead of a `&str` one.
+    ///
+    /// See [PyErr::warn_bound](crate::PyErr::warn_bound) for more information.
+    ///
+    /// Example:
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let user_warning = py.get_type_bound::<pyo3::exceptions::PyUserWarning>();
+    ///     PyErr::warn_with_cstr_bound(py, &user_warning, c"I am warning you", 0)?;
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
+    #[doc(hidden)]
+    pub fn warn_with_cstr_bound<'py>(
+        py: Python<'py>,
+        category: &Bound<'py, PyAny>,
+        message: &CStr,
+        stacklevel: i32,
+    ) -> PyResult<()> {
+        error_on_minusone(py, unsafe {
+            ffi::PyErr_WarnEx(
+                category.as_ptr(),
+                message.as_ptr(),
+                stacklevel as ffi::Py_ssize_t,
+            )
+        })
+    }
+
     /// Issues a warning message, with more control over the warning attributes.
     ///
     /// May return a `PyErr` if warnings-as-errors is enabled.
@@ -1120,6 +1153,8 @@ mod tests {
 
     #[test]
     fn warnings() {
+        use std::ffi::CString;
+
         use crate::types::any::PyAnyMethods;
         // Note: although the warning filter is interpreter global, keeping the
         // GIL locked should prevent effects to be visible to other testing
@@ -1137,12 +1172,33 @@ mod tests {
                 { PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
+            // Test the same with a CStr
+            assert_warnings!(
+                py,
+                {
+                    PyErr::warn_with_cstr_bound(
+                        py,
+                        &cls,
+                        CString::new("I am warning you").unwrap().as_ref(),
+                        0,
+                    )
+                    .unwrap()
+                },
+                [(exceptions::PyUserWarning, "I am warning you")]
+            );
 
-            // Test with raising
+            // Test with raising on both &str and &CStr
             warnings
                 .call_method1("simplefilter", ("error", &cls))
                 .unwrap();
             PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap_err();
+            PyErr::warn_with_cstr_bound(
+                py,
+                &cls,
+                CString::new("I am warning you").unwrap().as_ref(),
+                0,
+            )
+            .unwrap_err();
 
             // Test with error for an explicit module
             warnings.call_method0("resetwarnings").unwrap();
@@ -1154,6 +1210,19 @@ mod tests {
             assert_warnings!(
                 py,
                 { PyErr::warn_bound(py, &cls, "I am warning you", 0).unwrap() },
+                [(exceptions::PyUserWarning, "I am warning you")]
+            );
+            assert_warnings!(
+                py,
+                {
+                    PyErr::warn_with_cstr_bound(
+                        py,
+                        &cls,
+                        CString::new("I am warning you").unwrap().as_ref(),
+                        0,
+                    )
+                    .unwrap()
+                },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 

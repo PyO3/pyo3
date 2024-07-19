@@ -1,0 +1,11 @@
+error: expected `=`
+ --> tests/ui/invalid_pyfunction_deprecated.rs:4:18
+  |
+4 | #[pyo3(deprecated)]
+  |                  ^
+
+error: unexpected end of input, expected string literal
+ --> tests/ui/invalid_pyfunction_deprecated.rs:8:21
+  |
+8 | #[pyo3(deprecated = )]
+  |                     ^

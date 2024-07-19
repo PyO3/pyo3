@@ -5,6 +5,7 @@ use crate::attributes::{NameAttribute, RenamingRule};
 use crate::deprecations::deprecate_trailing_option_default;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_regular_arg_param, Holders};
+use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
 use crate::utils::{Ctx, LitCStr};
 use crate::{
@@ -454,6 +455,11 @@ fn impl_traverse_slot(
         }
     }
 
+    ensure_spanned!(
+        spec.warnings.is_empty(),
+        spec.warnings.span() => "__traverse__ cannot be used with #[pyo3(warn)] nor #[pyo3(deprecated)]"
+    );
+
     let rust_fn_ident = spec.name;
 
     let associated_method = quote! {
@@ -487,6 +493,12 @@ fn impl_py_class_attribute(
     ensure_spanned!(
         args.is_empty(),
         args[0].ty().span() => "#[classattr] can only have one argument (of type pyo3::Python)"
+    );
+
+    ensure_spanned!(
+        spec.warnings.is_empty(),
+        spec.warnings.span()
+        => "#[classattr] cannot be used with #[pyo3(warn)] nor #[pyo3(deprecated)]"
     );
 
     let name = &spec.name;
@@ -668,6 +680,12 @@ pub fn impl_py_setter_def(
         }
     }
 
+    let deprecated_warning = if let PropertyType::Function { spec, .. } = &property_type {
+        spec.warnings.build_py_warning(ctx)
+    } else {
+        quote!()
+    };
+
     let init_holders = holders.init_holders(ctx);
     let associated_method = quote! {
         #cfg_attrs
@@ -683,6 +701,7 @@ pub fn impl_py_setter_def(
                 })?;
             #init_holders
             #extract
+            #deprecated_warning
             let result = #setter_impl;
             #pyo3_path::callback::convert(py, result)
         }
@@ -811,6 +830,8 @@ pub fn impl_py_getter_def(
             };
 
             let init_holders = holders.init_holders(ctx);
+            let deprecated_warning = spec.warnings.build_py_warning(ctx);
+
             let associated_method = quote! {
                 #cfg_attrs
                 unsafe fn #wrapper_ident(
@@ -818,6 +839,7 @@ pub fn impl_py_getter_def(
                     _slf: *mut #pyo3_path::ffi::PyObject
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
+                    #deprecated_warning
                     let result = #body;
                     result
                 }
@@ -1344,13 +1366,19 @@ fn generate_method_body(
     let rust_name = spec.name;
     let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
     let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
-    Ok(if let Some(return_mode) = return_mode {
+    let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(call, ctx)
     } else {
         quote! {
             let result = #call;
             #pyo3_path::callback::convert(py, result)
         }
+    };
+    let deprecated_warning = spec.warnings.build_py_warning(ctx);
+
+    Ok(quote! {
+        #deprecated_warning
+        #body
     })
 }
 

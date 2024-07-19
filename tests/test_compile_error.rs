@@ -62,4 +62,8 @@ fn test_compile_errors() {
     #[cfg(all(Py_LIMITED_API, not(Py_3_9)))]
     t.compile_fail("tests/ui/abi3_dict.rs");
     t.compile_fail("tests/ui/duplicate_pymodule_submodule.rs");
+    t.compile_fail("tests/ui/invalid_pyfunction_warn.rs");
+    t.compile_fail("tests/ui/invalid_pymethods_warn.rs");
+    t.compile_fail("tests/ui/invalid_pyfunction_deprecated.rs");
+    t.compile_fail("tests/ui/invalid_pymethods_deprecated.rs");
 }

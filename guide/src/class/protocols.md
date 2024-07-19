@@ -424,6 +424,8 @@ cleared, as every cycle must contain at least one mutable reference.
   - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
   - `__clear__(<self>) -> ()`
 
+> Note: `__traverse__` does not work with [`#[pyo3(warn(...))]`](../function.md#warn) nor [`#[pyo3(deprecated)]`](../function.md#deprecated) attribute.
+
 Example:
 
 ```rust

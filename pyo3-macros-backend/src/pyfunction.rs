@@ -1,4 +1,5 @@
-use crate::utils::Ctx;
+use crate::attributes::KeywordAttribute;
+use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
@@ -7,9 +8,10 @@ use crate::{
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
 };
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
-use syn::{ext::IdentExt, spanned::Spanned, Result};
+use proc_macro2::{Span, TokenStream};
+use quote::{format_ident, quote, ToTokens};
+use std::ffi::CString;
+use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
 use syn::{
     parse::{Parse, ParseStream},
     token::Comma,
@@ -83,6 +85,159 @@ impl PyFunctionArgPyO3Attributes {
     }
 }
 
+type PyFunctionWarningMessageAttribute = KeywordAttribute<attributes::kw::message, LitStr>;
+type PyFunctionWarningCategoryAttribute = KeywordAttribute<attributes::kw::category, Path>;
+type PyFunctionDeprecatedWarningAttribute = KeywordAttribute<attributes::kw::deprecated, LitStr>;
+
+pub struct PyFunctionWarningAttribute {
+    pub message: PyFunctionWarningMessageAttribute,
+    pub category: Option<PyFunctionWarningCategoryAttribute>,
+    pub span: Span,
+}
+
+pub enum PyFunctionWarningCategory {
+    Path(Path),
+    UserWarning,
+    DeprecationWarning,
+}
+
+pub struct PyFunctionWarning {
+    pub message: LitStr,
+    pub category: PyFunctionWarningCategory,
+    pub span: Span,
+}
+
+impl From<PyFunctionWarningAttribute> for PyFunctionWarning {
+    fn from(value: PyFunctionWarningAttribute) -> Self {
+        Self {
+            message: value.message.value,
+            category: value
+                .category
+                .map_or(PyFunctionWarningCategory::UserWarning, |cat| {
+                    PyFunctionWarningCategory::Path(cat.value)
+                }),
+            span: value.span,
+        }
+    }
+}
+
+impl From<PyFunctionDeprecatedWarningAttribute> for PyFunctionWarning {
+    fn from(value: PyFunctionDeprecatedWarningAttribute) -> Self {
+        Self {
+            span: value.span(),
+            message: value.value,
+            category: PyFunctionWarningCategory::DeprecationWarning,
+        }
+    }
+}
+
+pub trait WarningFactory {
+    fn build_py_warning(&self, ctx: &Ctx) -> TokenStream;
+    fn span(&self) -> Span;
+}
+
+impl WarningFactory for PyFunctionWarning {
+    fn build_py_warning(&self, ctx: &Ctx) -> TokenStream {
+        let message = &self.message.value();
+        let c_message = LitCStr::new(
+            CString::new(message.clone()).unwrap(),
+            Spanned::span(&message),
+            ctx,
+        );
+        let pyo3_path = &ctx.pyo3_path;
+        let category = match &self.category {
+            PyFunctionWarningCategory::Path(path) => quote! {#path},
+            PyFunctionWarningCategory::UserWarning => {
+                quote! {#pyo3_path::exceptions::PyUserWarning}
+            }
+            PyFunctionWarningCategory::DeprecationWarning => {
+                quote! {#pyo3_path::exceptions::PyDeprecationWarning}
+            }
+        };
+        quote! {
+            #pyo3_path::PyErr::warn_with_cstr_bound(py, &<#category as #pyo3_path::PyTypeInfo>::type_object_bound(py), #c_message, 1)?;
+        }
+    }
+
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl<T: WarningFactory> WarningFactory for Vec<T> {
+    fn build_py_warning(&self, ctx: &Ctx) -> TokenStream {
+        let warnings = self.iter().map(|warning| warning.build_py_warning(ctx));
+
+        quote! {
+            #(#warnings)*
+        }
+    }
+
+    fn span(&self) -> Span {
+        self.iter()
+            .map(|val| val.span())
+            .reduce(|acc, span| acc.join(span).unwrap_or(acc))
+            .unwrap()
+    }
+}
+
+impl Parse for PyFunctionWarningAttribute {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let mut message: Option<PyFunctionWarningMessageAttribute> = None;
+        let mut category: Option<PyFunctionWarningCategoryAttribute> = None;
+
+        let span = input.parse::<attributes::kw::warn>()?.span();
+
+        let content;
+        syn::parenthesized!(content in input);
+
+        while !content.is_empty() {
+            let lookahead = content.lookahead1();
+
+            if lookahead.peek(attributes::kw::message) {
+                message = content
+                    .parse::<PyFunctionWarningMessageAttribute>()
+                    .map(Some)?;
+            } else if lookahead.peek(attributes::kw::category) {
+                category = content
+                    .parse::<PyFunctionWarningCategoryAttribute>()
+                    .map(Some)?;
+            } else {
+                return Err(lookahead.error());
+            }
+
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(PyFunctionWarningAttribute {
+            message: message.ok_or(syn::Error::new(
+                content.span(),
+                "missing `message` in `warn` attribute",
+            ))?,
+            category,
+            span,
+        })
+    }
+}
+
+impl ToTokens for PyFunctionWarningAttribute {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let message_tokens = self.message.to_token_stream();
+        let category_tokens = self
+            .category
+            .as_ref()
+            .map_or(quote! {}, |cat| cat.to_token_stream());
+
+        let token_stream = quote! {
+            warn(#message_tokens, #category_tokens)
+        };
+
+        tokens.extend(token_stream);
+    }
+}
+
 #[derive(Default)]
 pub struct PyFunctionOptions {
     pub pass_module: Option<attributes::kw::pass_module>,
@@ -90,6 +245,7 @@ pub struct PyFunctionOptions {
     pub signature: Option<SignatureAttribute>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub krate: Option<CrateAttribute>,
+    pub warnings: Vec<PyFunctionWarning>,
 }
 
 impl Parse for PyFunctionOptions {
@@ -125,6 +281,8 @@ pub enum PyFunctionOption {
     Signature(SignatureAttribute),
     TextSignature(TextSignatureAttribute),
     Crate(CrateAttribute),
+    Warning(PyFunctionWarningAttribute),
+    Deprecated(PyFunctionDeprecatedWarningAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -140,6 +298,10 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::TextSignature)
         } else if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyFunctionOption::Crate)
+        } else if lookahead.peek(attributes::kw::warn) {
+            input.parse().map(PyFunctionOption::Warning)
+        } else if lookahead.peek(attributes::kw::deprecated) {
+            input.parse().map(PyFunctionOption::Deprecated)
         } else {
             Err(lookahead.error())
         }
@@ -175,6 +337,12 @@ impl PyFunctionOptions {
                 PyFunctionOption::Signature(signature) => set_option!(signature),
                 PyFunctionOption::TextSignature(text_signature) => set_option!(text_signature),
                 PyFunctionOption::Crate(krate) => set_option!(krate),
+                PyFunctionOption::Warning(warning) => {
+                    self.warnings.push(warning.into());
+                }
+                PyFunctionOption::Deprecated(deprecated) => {
+                    self.warnings.push(deprecated.into());
+                }
             }
         }
         Ok(())
@@ -202,6 +370,7 @@ pub fn impl_wrap_pyfunction(
         signature,
         text_signature,
         krate,
+        warnings,
     } = options;
 
     let ctx = &Ctx::new(&krate, Some(&func.sig));
@@ -251,6 +420,7 @@ pub fn impl_wrap_pyfunction(
         text_signature,
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
+        warnings,
     };
 
     let vis = &func.vis;
