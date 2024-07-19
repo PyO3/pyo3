@@ -741,7 +741,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `issubclass(self, T)`,
     /// if the type `T` is known at compile time.
     #[inline]
-    pub fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
+    pub fn is_sub_class_of<T: PyTypeInfo>(&self) -> bool {
         self.as_borrowed().is_sub_class_of::<T>()
     }
 
