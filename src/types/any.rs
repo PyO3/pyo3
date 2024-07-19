@@ -711,6 +711,14 @@ impl PyAny {
         self.as_borrowed().is_instance(&ty.as_borrowed())
     }
 
+    /// Checks whether this object is a subclass of type `ty`.
+    ///
+    /// This is equivalent to the Python expression `issubclass(self, ty)`.
+    #[inline]
+    pub fn is_sub_class(&self, ty: &PyAny) -> PyResult<bool> {
+        self.as_borrowed().is_sub_class(&ty.as_borrowed())
+    }
+
     /// Checks whether this object is an instance of exactly type `ty` (not a subclass).
     ///
     /// This is equivalent to the Python expression `type(self) is ty`.
@@ -726,6 +734,15 @@ impl PyAny {
     #[inline]
     pub fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
         self.as_borrowed().is_instance_of::<T>()
+    }
+
+    /// Checks whether this object is subclass of type `T`.
+    ///
+    /// This is equivalent to the Python expression `issubclass(self, T)`,
+    /// if the type `T` is known at compile time.
+    #[inline]
+    pub fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
+        self.as_borrowed().is_sub_class_of::<T>()
     }
 
     /// Checks whether this object is an instance of exactly type `T`.
@@ -1574,6 +1591,11 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `isinstance(self, ty)`.
     fn is_instance(&self, ty: &Bound<'py, PyAny>) -> PyResult<bool>;
 
+    /// Checks whether this object is a subclass of type `ty`.
+    ///
+    /// This is equivalent to the Python expression `issubclass(self, ty)`.
+    fn is_sub_class(&self, ty: &Bound<'py, PyAny>) -> PyResult<bool>;
+
     /// Checks whether this object is an instance of exactly type `ty` (not a subclass).
     ///
     /// This is equivalent to the Python expression `type(self) is ty`.
@@ -1584,6 +1606,12 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `isinstance(self, T)`,
     /// if the type `T` is known at compile time.
     fn is_instance_of<T: PyTypeInfo>(&self) -> bool;
+
+    /// Checks whether this object is a subclass of type `T`.
+    ///
+    /// This is equivalent to the Python expression `issubclass(self, T)`,
+    /// if the type `T` is known at compile time.
+    fn is_sub_class_of<T: PyTypeInfo>(&self) -> bool;
 
     /// Checks whether this object is an instance of exactly type `T`.
     ///
@@ -2176,6 +2204,13 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         err::error_on_minusone(self.py(), result)?;
         Ok(result == 1)
     }
+    
+    #[inline]
+    fn is_sub_class(&self, ty: &Bound<'py, PyAny>) -> PyResult<bool> {
+        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), ty.as_ptr()) };
+        err::error_on_minusone(self.py(), result)?;
+        Ok(result == 1)
+    }
 
     #[inline]
     fn is_exact_instance(&self, ty: &Bound<'py, PyAny>) -> bool {
@@ -2185,6 +2220,11 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
     fn is_instance_of<T: PyTypeInfo>(&self) -> bool {
         T::is_type_of_bound(self)
+    }
+
+    #[inline]
+    fn is_sub_class_of<T: PyTypeInfo>(&self) -> bool {
+        T::is_sub_type_of_bound(self)
     }
 
     #[inline]
@@ -2483,6 +2523,24 @@ class SimpleClass:
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_bound(py);
             assert!(l.is_instance(&py.get_type_bound::<PyList>()).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_any_is_sub_class_of() {
+        Python::with_gil(|py| {
+            let x = 5.to_object(py).into_bound(py);
+            assert!(x.is_sub_class_of::<PyAny>());
+
+            let l = vec![&x, &x].to_object(py).into_bound(py);
+            assert!(l.is_sub_class_of::<PyAny>());
+        });
+    }
+
+    #[test]
+    fn test_any_is_subclass() {
+        Python::with_gil(|py| {
+            assert!(py.get_type_bound::<PyInt>().is_sub_class(&py.get_type_bound::<PyAny>()).unwrap());
         });
     }
 

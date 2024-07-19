@@ -119,6 +119,12 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
+    /// Checks if `object` is a subclass of this type
+    #[inline]
+    fn is_sub_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+        unsafe { ffi::PyObject_SubTypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0}
+    }
+
     /// Checks if `object` is an instance of this type.
     #[inline]
     #[cfg(feature = "gil-refs")]
@@ -182,6 +188,13 @@ pub unsafe trait PyTypeInfo: Sized {
     #[inline]
     fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
+    }
+
+
+    /// Checks if `object` is a subclass of this type
+    #[inline]
+    fn is_sub_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+        unsafe { ffi::PyObject_SubTypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0}
     }
 
     /// Checks if `object` is an instance of this type.

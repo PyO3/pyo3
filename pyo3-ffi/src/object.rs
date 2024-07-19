@@ -295,6 +295,11 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
     (Py_TYPE(ob) == tp || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
+#[inline]
+pub unsafe fn PyObject_SubTypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
+    (PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
+}
+
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     /// built-in 'type'
