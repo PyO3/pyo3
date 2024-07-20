@@ -2,7 +2,9 @@ use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyModule, PySequence, PySet, PySlice, PyString, PyTraceback, PyTuple, PyType,
 };
-use crate::{ffi, Bound, PyAny, PyResult};
+use crate::{ffi, Bound, PyAny, PyMethodDef, PyResult};
+
+use crate::impl_::pymodule::{AddClassToModule, AddTypeToModule, ModuleDef};
 
 pub trait Sealed {}
 
@@ -32,3 +34,9 @@ impl Sealed for Bound<'_, PyString> {}
 impl Sealed for Bound<'_, PyTraceback> {}
 impl Sealed for Bound<'_, PyTuple> {}
 impl Sealed for Bound<'_, PyType> {}
+
+impl<T> Sealed for AddTypeToModule<T> {}
+impl<T> Sealed for AddClassToModule<T> {}
+
+impl Sealed for PyMethodDef {}
+impl Sealed for ModuleDef {}
