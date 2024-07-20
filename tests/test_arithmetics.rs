@@ -35,6 +35,10 @@ impl UnaryArithmetic {
         Self::new(self.inner.abs())
     }
 
+    fn __invert__(&self) -> Self {
+        Self::new(self.inner.recip())
+    }
+
     #[pyo3(signature=(_ndigits=None))]
     fn __round__(&self, _ndigits: Option<u32>) -> Self {
         Self::new(self.inner.round())
@@ -48,8 +52,18 @@ fn unary_arithmetic() {
         py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
         py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
         py_run!(py, c, "assert repr(abs(c)) == 'UA(2.7)'");
+        py_run!(py, c, "assert repr(~c) == 'UA(0.37037037037037035)'");
         py_run!(py, c, "assert repr(round(c)) == 'UA(3)'");
         py_run!(py, c, "assert repr(round(c, 1)) == 'UA(3)'");
+
+        let c: Bound<'_, PyAny> = c.extract(py).unwrap();
+        assert_py_eq!(c.neg().unwrap().repr().unwrap().as_any(), "UA(-2.7)");
+        assert_py_eq!(c.pos().unwrap().repr().unwrap().as_any(), "UA(2.7)");
+        assert_py_eq!(c.abs().unwrap().repr().unwrap().as_any(), "UA(2.7)");
+        assert_py_eq!(
+            c.bitnot().unwrap().repr().unwrap().as_any(),
+            "UA(0.37037037037037035)"
+        );
     });
 }
 
@@ -179,8 +193,24 @@ impl BinaryArithmetic {
         format!("BA * {:?}", rhs)
     }
 
+    fn __matmul__(&self, rhs: &Bound<'_, PyAny>) -> String {
+        format!("BA @ {:?}", rhs)
+    }
+
     fn __truediv__(&self, rhs: &Bound<'_, PyAny>) -> String {
         format!("BA / {:?}", rhs)
+    }
+
+    fn __floordiv__(&self, rhs: &Bound<'_, PyAny>) -> String {
+        format!("BA // {:?}", rhs)
+    }
+
+    fn __mod__(&self, rhs: &Bound<'_, PyAny>) -> String {
+        format!("BA % {:?}", rhs)
+    }
+
+    fn __divmod__(&self, rhs: &Bound<'_, PyAny>) -> String {
+        format!("divmod(BA, {:?})", rhs)
     }
 
     fn __lshift__(&self, rhs: &Bound<'_, PyAny>) -> String {
@@ -217,6 +247,11 @@ fn binary_arithmetic() {
         py_run!(py, c, "assert c + 1 == 'BA + 1'");
         py_run!(py, c, "assert c - 1 == 'BA - 1'");
         py_run!(py, c, "assert c * 1 == 'BA * 1'");
+        py_run!(py, c, "assert c @ 1 == 'BA @ 1'");
+        py_run!(py, c, "assert c / 1 == 'BA / 1'");
+        py_run!(py, c, "assert c // 1 == 'BA // 1'");
+        py_run!(py, c, "assert c % 1 == 'BA % 1'");
+        py_run!(py, c, "assert divmod(c, 1) == 'divmod(BA, 1)'");
         py_run!(py, c, "assert c << 1 == 'BA << 1'");
         py_run!(py, c, "assert c >> 1 == 'BA >> 1'");
         py_run!(py, c, "assert c & 1 == 'BA & 1'");
@@ -230,6 +265,11 @@ fn binary_arithmetic() {
         py_expect_exception!(py, c, "1 + c", PyTypeError);
         py_expect_exception!(py, c, "1 - c", PyTypeError);
         py_expect_exception!(py, c, "1 * c", PyTypeError);
+        py_expect_exception!(py, c, "1 @ c", PyTypeError);
+        py_expect_exception!(py, c, "1 / c", PyTypeError);
+        py_expect_exception!(py, c, "1 // c", PyTypeError);
+        py_expect_exception!(py, c, "1 % c", PyTypeError);
+        py_expect_exception!(py, c, "divmod(1, c)", PyTypeError);
         py_expect_exception!(py, c, "1 << c", PyTypeError);
         py_expect_exception!(py, c, "1 >> c", PyTypeError);
         py_expect_exception!(py, c, "1 & c", PyTypeError);
@@ -243,7 +283,11 @@ fn binary_arithmetic() {
         assert_py_eq!(c.add(&c).unwrap(), "BA + BA");
         assert_py_eq!(c.sub(&c).unwrap(), "BA - BA");
         assert_py_eq!(c.mul(&c).unwrap(), "BA * BA");
+        assert_py_eq!(c.matmul(&c).unwrap(), "BA @ BA");
         assert_py_eq!(c.div(&c).unwrap(), "BA / BA");
+        assert_py_eq!(c.floor_div(&c).unwrap(), "BA // BA");
+        assert_py_eq!(c.rem(&c).unwrap(), "BA % BA");
+        assert_py_eq!(c.divmod(&c).unwrap(), "divmod(BA, BA)");
         assert_py_eq!(c.lshift(&c).unwrap(), "BA << BA");
         assert_py_eq!(c.rshift(&c).unwrap(), "BA >> BA");
         assert_py_eq!(c.bitand(&c).unwrap(), "BA & BA");

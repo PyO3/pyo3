@@ -9,7 +9,7 @@ import tempfile
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
 import nox
 import nox.command
@@ -394,8 +394,17 @@ def check_guide(session: nox.Session):
     docs(session)
     session.posargs.extend(posargs)
 
+    if toml is None:
+        session.error("requires Python 3.11 or `toml` to be installed")
+    pyo3_version = toml.loads((PYO3_DIR / "Cargo.toml").read_text())["package"][
+        "version"
+    ]
+
     remaps = {
         f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL}}}}": f"file://{PYO3_DOCS_TARGET}",
+        f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
+        "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
+        "https://pyo3.rs/latest/": f"file://{PYO3_GUIDE_TARGET}/",
         "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
     }
     remap_args = []
@@ -416,8 +425,7 @@ def check_guide(session: nox.Session):
         session,
         "lychee",
         str(PYO3_DOCS_TARGET),
-        f"--remap=https://pyo3.rs/main/ file://{PYO3_GUIDE_TARGET}/",
-        f"--remap=https://pyo3.rs/latest/ file://{PYO3_GUIDE_TARGET}/",
+        *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
         "--exclude=http://www.adobe.com/",
         *session.posargs,
@@ -543,8 +551,8 @@ def check_changelog(session: nox.Session):
         print(fragment.name)
 
 
-@nox.session(name="set-minimal-package-versions", venv_backend="none")
-def set_minimal_package_versions(session: nox.Session):
+@nox.session(name="set-msrv-package-versions", venv_backend="none")
+def set_msrv_package_versions(session: nox.Session):
     from collections import defaultdict
 
     if toml is None:
@@ -647,6 +655,14 @@ def test_version_limits(session: nox.Session):
         config_file.set("PyPy", "3.11")
         _run_cargo(session, "check", env=env, expect_error=True)
 
+        # Python build with GIL disabled should fail building
+        config_file.set("CPython", "3.13", build_flags=["Py_GIL_DISABLED"])
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # Python build with GIL disabled should pass with env flag on
+        env["UNSAFE_PYO3_BUILD_FREE_THREADED"] = "1"
+        _run_cargo(session, "check", env=env)
+
 
 @nox.session(name="check-feature-powerset", venv_backend="none")
 def check_feature_powerset(session: nox.Session):
@@ -663,7 +679,7 @@ def check_feature_powerset(session: nox.Session):
         "default",
         "auto-initialize",
         "generate-import-lib",
-        "multiple-pymethods",  # TODO add this after MSRV 1.62
+        "multiple-pymethods",  # Because it's not supported on wasm
     }
 
     features = cargo_toml["features"]
@@ -708,10 +724,14 @@ def check_feature_powerset(session: nox.Session):
     rust_flags = env.get("RUSTFLAGS", "")
     env["RUSTFLAGS"] = f"{rust_flags} -Dwarnings"
 
+    subcommand = "hack"
+    if "minimal-versions" in session.posargs:
+        subcommand = "minimal-versions"
+
     comma_join = ",".join
     _run_cargo(
         session,
-        "hack",
+        subcommand,
         "--feature-powerset",
         '--optional-deps=""',
         f'--skip="{comma_join(features_to_skip)}"',
@@ -764,10 +784,9 @@ def _get_rust_default_target() -> str:
 @lru_cache()
 def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
     """Returns feature sets to use for clippy job"""
-    rust_version = _get_rust_version()
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
-    if rust_version[:2] >= (1, 62) and "wasm32-wasi" not in cargo_target:
-        # multiple-pymethods feature not supported before 1.62 or on WASI
+    if "wasm32-wasi" not in cargo_target:
+        # multiple-pymethods not supported on wasm
         return (
             ("--no-default-features",),
             (
@@ -908,7 +927,9 @@ class _ConfigFile:
     def __init__(self, config_file) -> None:
         self._config_file = config_file
 
-    def set(self, implementation: str, version: str) -> None:
+    def set(
+        self, implementation: str, version: str, build_flags: Iterable[str] = ()
+    ) -> None:
         """Set the contents of this config file to the given implementation and version."""
         self._config_file.seek(0)
         self._config_file.truncate(0)
@@ -916,6 +937,7 @@ class _ConfigFile:
             f"""\
 implementation={implementation}
 version={version}
+build_flags={','.join(build_flags)}
 suppress_build_script_link_lines=true
 """
         )

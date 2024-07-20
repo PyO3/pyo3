@@ -6,11 +6,15 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList};
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Python, ToPyObject};
 
 /// Represents a Python `dict`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDict>`][crate::Py] or [`Bound<'py, PyDict>`][Bound].
+///
+/// For APIs available on `dict` objects, see the [`PyDictMethods`] trait which is implemented for
+/// [`Bound<'py, PyDict>`][Bound].
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
@@ -78,208 +82,6 @@ impl PyDict {
             ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyDict {
-    /// Deprecated form of [`new_bound`][PyDict::new_bound].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDict::new` will be replaced by `PyDict::new_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn new(py: Python<'_>) -> &PyDict {
-        Self::new_bound(py).into_gil_ref()
-    }
-
-    /// Deprecated form of [`from_sequence_bound`][PyDict::from_sequence_bound].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDict::from_sequence` will be replaced by `PyDict::from_sequence_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn from_sequence(seq: &PyAny) -> PyResult<&PyDict> {
-        Self::from_sequence_bound(&seq.as_borrowed()).map(Bound::into_gil_ref)
-    }
-
-    /// Returns a new dictionary that contains the same key-value pairs as self.
-    ///
-    /// This is equivalent to the Python expression `self.copy()`.
-    pub fn copy(&self) -> PyResult<&PyDict> {
-        self.as_borrowed().copy().map(Bound::into_gil_ref)
-    }
-
-    /// Empties an existing dictionary of all key-value pairs.
-    pub fn clear(&self) {
-        self.as_borrowed().clear()
-    }
-
-    /// Return the number of items in the dictionary.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    pub fn len(&self) -> usize {
-        self.as_borrowed().len()
-    }
-
-    /// Checks if the dict is empty, i.e. `len(self) == 0`.
-    pub fn is_empty(&self) -> bool {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Determines if the dictionary contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().contains(key)
-    }
-
-    /// Gets an item from the dictionary.
-    ///
-    /// Returns `Ok(None)` if the item is not present. To get a `KeyError` for
-    /// non-existing keys, use [`PyAny::get_item`].
-    ///
-    /// Returns `Err(PyErr)` if Python magic methods `__hash__` or `__eq__` used in dictionary
-    /// lookup raise an exception, for example if the key `K` is not hashable. Usually it is
-    /// best to bubble this error up to the caller using the `?` operator.
-    ///
-    /// # Examples
-    ///
-    /// The following example calls `get_item` for the dictionary `{"a": 1}` with various
-    /// keys.
-    /// - `get_item("a")` returns `Ok(Some(...))`, with the `PyAny` being a reference to the Python
-    ///   int `1`.
-    /// - `get_item("b")` returns `Ok(None)`, because "b" is not in the dictionary.
-    /// - `get_item(dict)` returns an `Err(PyErr)`. The error will be a `TypeError` because a dict is not
-    ///   hashable.
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{IntoPyDict};
-    /// use pyo3::exceptions::{PyTypeError, PyKeyError};
-    ///
-    /// # fn main() {
-    /// # let _ =
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let dict = &[("a", 1)].into_py_dict_bound(py);
-    ///     // `a` is in the dictionary, with value 1
-    ///     assert!(dict.get_item("a")?.map_or(Ok(false), |x| x.eq(1))?);
-    ///     // `b` is not in the dictionary
-    ///     assert!(dict.get_item("b")?.is_none());
-    ///     // `dict` is not hashable, so this returns an error
-    ///     assert!(dict.get_item(dict).unwrap_err().is_instance_of::<PyTypeError>(py));
-    ///
-    ///     // `PyAny::get_item("b")` will raise a `KeyError` instead of returning `None`
-    ///     let any = dict.as_any();
-    ///     assert!(any.get_item("b").unwrap_err().is_instance_of::<PyKeyError>(py));
-    ///     Ok(())
-    /// });
-    /// # }
-    /// ```
-    pub fn get_item<K>(&self, key: K) -> PyResult<Option<&PyAny>>
-    where
-        K: ToPyObject,
-    {
-        match self.as_borrowed().get_item(key) {
-            Ok(Some(item)) => Ok(Some(item.into_gil_ref())),
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
-
-    /// Deprecated version of `get_item`.
-    #[deprecated(
-        since = "0.20.0",
-        note = "this is now equivalent to `PyDict::get_item`"
-    )]
-    #[inline]
-    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
-    where
-        K: ToPyObject,
-    {
-        self.get_item(key)
-    }
-
-    /// Sets an item value.
-    ///
-    /// This is equivalent to the Python statement `self[key] = value`.
-    pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-    where
-        K: ToPyObject,
-        V: ToPyObject,
-    {
-        self.as_borrowed().set_item(key, value)
-    }
-
-    /// Deletes an item.
-    ///
-    /// This is equivalent to the Python statement `del self[key]`.
-    pub fn del_item<K>(&self, key: K) -> PyResult<()>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().del_item(key)
-    }
-
-    /// Returns a list of dict keys.
-    ///
-    /// This is equivalent to the Python expression `list(dict.keys())`.
-    pub fn keys(&self) -> &PyList {
-        self.as_borrowed().keys().into_gil_ref()
-    }
-
-    /// Returns a list of dict values.
-    ///
-    /// This is equivalent to the Python expression `list(dict.values())`.
-    pub fn values(&self) -> &PyList {
-        self.as_borrowed().values().into_gil_ref()
-    }
-
-    /// Returns a list of dict items.
-    ///
-    /// This is equivalent to the Python expression `list(dict.items())`.
-    pub fn items(&self) -> &PyList {
-        self.as_borrowed().items().into_gil_ref()
-    }
-
-    /// Returns an iterator of `(key, value)` pairs in this dictionary.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
-    /// It is allowed to modify values as you iterate over the dictionary, but only
-    /// so long as the set of keys does not change.
-    pub fn iter(&self) -> PyDictIterator<'_> {
-        PyDictIterator(self.as_borrowed().iter())
-    }
-
-    /// Returns `self` cast as a `PyMapping`.
-    pub fn as_mapping(&self) -> &PyMapping {
-        unsafe { self.downcast_unchecked() }
-    }
-
-    /// Update this dictionary with the key/value pairs from another.
-    ///
-    /// This is equivalent to the Python expression `self.update(other)`. If `other` is a `PyDict`, you may want
-    /// to use `self.update(other.as_mapping())`, note: `PyDict::as_mapping` is a zero-cost conversion.
-    pub fn update(&self, other: &PyMapping) -> PyResult<()> {
-        self.as_borrowed().update(&other.as_borrowed())
-    }
-
-    /// Add key/value pairs from another dictionary to this one only when they do not exist in this.
-    ///
-    /// This is equivalent to the Python expression `self.update({k: v for k, v in other.items() if k not in self})`.
-    /// If `other` is a `PyDict`, you may want to use `self.update_if_missing(other.as_mapping())`,
-    /// note: `PyDict::as_mapping` is a zero-cost conversion.
-    ///
-    /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
-    /// so should have the same performance as `update`.
-    pub fn update_if_missing(&self, other: &PyMapping) -> PyResult<()> {
-        self.as_borrowed().update_if_missing(&other.as_borrowed())
     }
 }
 
@@ -553,43 +355,6 @@ fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
-#[cfg(feature = "gil-refs")]
-pub struct PyDictIterator<'py>(BoundDictIterator<'py>);
-
-#[cfg(feature = "gil-refs")]
-impl<'py> Iterator for PyDictIterator<'py> {
-    type Item = (&'py PyAny, &'py PyAny);
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        let (key, value) = self.0.next()?;
-        Some((key.into_gil_ref(), value.into_gil_ref()))
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> ExactSizeIterator for PyDictIterator<'py> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> IntoIterator for &'a PyDict {
-    type Item = (&'a PyAny, &'a PyAny);
-    type IntoIter = PyDictIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-/// PyO3 implementation of an iterator for a Python `dict` object.
 pub struct BoundDictIterator<'py> {
     dict: Bound<'py, PyDict>,
     ppos: ffi::Py_ssize_t,
@@ -851,7 +616,7 @@ mod tests {
     #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence() {
         Python::with_gil(|py| {
-            let items = PyList::new_bound(py, &vec![("a", 1), ("b", 2)]);
+            let items = PyList::new_bound(py, vec![("a", 1), ("b", 2)]);
             let dict = PyDict::from_sequence_bound(&items).unwrap();
             assert_eq!(
                 1,
@@ -882,7 +647,7 @@ mod tests {
     #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence_err() {
         Python::with_gil(|py| {
-            let items = PyList::new_bound(py, &vec!["a", "b"]);
+            let items = PyList::new_bound(py, vec!["a", "b"]);
             assert!(PyDict::from_sequence_bound(&items).is_err());
         });
     }
@@ -948,31 +713,6 @@ mod tests {
                     .unwrap()
             );
             assert!(dict.get_item(8i32).unwrap().is_none());
-        });
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    #[cfg(all(not(any(PyPy, GraalPy)), feature = "gil-refs"))]
-    fn test_get_item_with_error() {
-        Python::with_gil(|py| {
-            let mut v = HashMap::new();
-            v.insert(7, 32);
-            let ob = v.to_object(py);
-            let dict = ob.downcast::<PyDict>(py).unwrap();
-            assert_eq!(
-                32,
-                dict.get_item_with_error(7i32)
-                    .unwrap()
-                    .unwrap()
-                    .extract::<i32>()
-                    .unwrap()
-            );
-            assert!(dict.get_item_with_error(8i32).unwrap().is_none());
-            assert!(dict
-                .get_item_with_error(dict)
-                .unwrap_err()
-                .is_instance_of::<crate::exceptions::PyTypeError>(py));
         });
     }
 

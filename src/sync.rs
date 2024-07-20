@@ -59,7 +59,9 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
 /// uses the Python GIL to mediate concurrent access. This helps in cases where `once_cell` or
 /// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
-/// GIL. For an example, see [the FAQ section](https://pyo3.rs/latest/faq.html) of the guide.
+/// GIL. For an example, see
+#[doc = concat!("[the FAQ section](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/faq.html)")]
+/// of the guide.
 ///
 /// Note that:
 ///  1) `get_or_init` and `get_or_try_init` do not protect against infinite recursion
@@ -67,8 +69,8 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///  2) If the initialization function `f` provided to `get_or_init` (or `get_or_try_init`)
 ///     temporarily releases the GIL (e.g. by calling `Python::import`) then it is possible
 ///     for a second thread to also begin initializing the `GITOnceCell`. Even when this
-///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs
-///     - this is treated as a race, other threads will discard the value they compute and
+///     happens `GILOnceCell` guarantees that only **one** write to the cell ever occurs -
+///     this is treated as a race, other threads will discard the value they compute and
 ///     return the result of the first complete computation.
 ///
 /// # Examples

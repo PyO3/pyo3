@@ -11,7 +11,7 @@
 //! It also supports this pattern that many extension modules employ:
 //! - Drop the GIL, so that other Python threads can acquire it and make progress themselves
 //! - Do something independently of the Python interpreter, like IO, a long running calculation or
-//! awaiting a future
+//!   awaiting a future
 //! - Once that is done, reacquire the GIL
 //!
 //! That API is provided by [`Python::allow_threads`] and enforced via the [`Ungil`] bound on the
@@ -126,10 +126,10 @@ use crate::types::{
     PyAny, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString, PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 #[allow(deprecated)]
 #[cfg(feature = "gil-refs")]
-use crate::{gil::GILPool, FromPyPointer, PyNativeType};
+use crate::{conversion::FromPyPointer, gil::GILPool, PyNativeType};
+use crate::{ffi, Bound, IntoPy, Py, PyObject, PyTypeInfo};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -281,6 +281,7 @@ mod nightly {
 
     // All the borrowing wrappers
     #[allow(deprecated)]
+    #[cfg(feature = "gil-refs")]
     impl<T> !Ungil for crate::PyCell<T> {}
     impl<T> !Ungil for crate::PyRef<'_, T> {}
     impl<T> !Ungil for crate::PyRefMut<'_, T> {}
@@ -308,9 +309,9 @@ pub use nightly::Ungil;
 /// It serves three main purposes:
 /// - It provides a global API for the Python interpreter, such as [`Python::eval_bound`].
 /// - It can be passed to functions that require a proof of holding the GIL, such as
-/// [`Py::clone_ref`].
+///   [`Py::clone_ref`].
 /// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
-/// references that are bound to it, such as `&`[`PyAny`].
+///   references that are bound to it, such as [`Bound<'py, PyAny>`].
 ///
 /// Note that there are some caveats to using it that you might need to be aware of. See the
 /// [Deadlocks](#deadlocks) and [Releasing and freeing memory](#releasing-and-freeing-memory)
@@ -318,13 +319,16 @@ pub use nightly::Ungil;
 ///
 /// # Obtaining a Python token
 ///
-/// The following are the recommended ways to obtain a [`Python`] token, in order of preference:
+/// The following are the recommended ways to obtain a [`Python<'py>`] token, in order of preference:
+/// - If you already have something with a lifetime bound to the GIL, such as [`Bound<'py, PyAny>`], you can
+///   use its `.py()` method to get a token.
 /// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
-/// as a parameter, and PyO3 will pass in the token when Python code calls it.
-/// - If you already have something with a lifetime bound to the GIL, such as `&`[`PyAny`], you can
-/// use its `.py()` method to get a token.
+///   as a parameter, and PyO3 will pass in the token when Python code calls it.
 /// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
-/// should call [`Python::with_gil`] to do that and pass your code as a closure to it.
+///   should call [`Python::with_gil`] to do that and pass your code as a closure to it.
+///
+/// The first two options are zero-cost; [`Python::with_gil`] requires runtime checking and may need to block
+/// to acquire the GIL.
 ///
 /// # Deadlocks
 ///
@@ -352,14 +356,8 @@ pub use nightly::Ungil;
 ///
 /// # Releasing and freeing memory
 ///
-/// The [`Python`] type can be used to create references to variables owned by the Python
+/// The [`Python<'py>`] type can be used to create references to variables owned by the Python
 /// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import_bound`].
-///
-/// See the [Memory Management] chapter of the guide for more information about how PyO3 manages memory.
-///
-/// [scoping rules]: https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html#ownership-rules
-/// [`Py::clone_ref`]: crate::Py::clone_ref
-/// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[derive(Copy, Clone)]
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
@@ -652,7 +650,7 @@ impl<'py> Python<'py> {
     ) -> PyResult<Bound<'py, PyAny>> {
         let code = CString::new(code)?;
         unsafe {
-            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr().cast());
+            let mptr = ffi::PyImport_AddModule(ffi::c_str!("__main__").as_ptr());
             if mptr.is_null() {
                 return Err(PyErr::fetch(self));
             }
@@ -685,7 +683,8 @@ impl<'py> Python<'py> {
                 }
             }
 
-            let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
+            let code_obj =
+                ffi::Py_CompileString(code.as_ptr(), ffi::c_str!("<string>").as_ptr(), start);
             if code_obj.is_null() {
                 return Err(PyErr::fetch(self));
             }
@@ -800,42 +799,6 @@ impl<'py> Python<'py> {
         let version_number_str = version_str.split(' ').next().unwrap_or(version_str);
 
         PythonVersionInfo::from_str(version_number_str).unwrap()
-    }
-
-    /// Registers the object in the release pool, and tries to downcast to specific type.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.downcast_bound::<T>(py)` instead of `py.checked_cast_as::<T>(obj)`"
-    )]
-    pub fn checked_cast_as<T>(
-        self,
-        obj: PyObject,
-    ) -> Result<&'py T, crate::err::PyDowncastError<'py>>
-    where
-        T: crate::PyTypeCheck<AsRefTarget = T>,
-    {
-        #[allow(deprecated)]
-        obj.into_ref(self).downcast()
-    }
-
-    /// Registers the object in the release pool, and does an unchecked downcast
-    /// to the specific type.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that ensure that the cast is valid.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.downcast_bound_unchecked::<T>(py)` instead of `py.cast_as::<T>(obj)`"
-    )]
-    pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
-    where
-        T: crate::type_object::HasPyGilRef<AsRefTarget = T>,
-    {
-        #[allow(deprecated)]
-        obj.into_ref(self).downcast_unchecked()
     }
 
     /// Registers the object pointer in the release pool,
@@ -1157,12 +1120,12 @@ impl<'unbound> Python<'unbound> {
     /// # Safety
     ///
     /// - This token and any borrowed Python references derived from it can only be safely used
-    /// whilst the currently executing thread is actually holding the GIL.
+    ///   whilst the currently executing thread is actually holding the GIL.
     /// - This function creates a token with an *unbounded* lifetime. Safe code can assume that
-    /// holding a `Python<'py>` token means the GIL is and stays acquired for the lifetime `'py`.
-    /// If you let it or borrowed Python references escape to safe code you are
-    /// responsible for bounding the lifetime `'unbound` appropriately. For more on unbounded
-    /// lifetimes, see the [nomicon].
+    ///   holding a `Python<'py>` token means the GIL is and stays acquired for the lifetime `'py`.
+    ///   If you let it or borrowed Python references escape to safe code you are
+    ///   responsible for bounding the lifetime `'unbound` appropriately. For more on unbounded
+    ///   lifetimes, see the [nomicon].
     ///
     /// [nomicon]: https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html
     #[inline]

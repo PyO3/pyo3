@@ -1,6 +1,4 @@
 use crate::types::PyIterator;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi,
@@ -40,23 +38,19 @@ impl<'py> PyFrozenSetBuilder<'py> {
         inner(&self.py_frozen_set, key.to_object(self.py_frozen_set.py()))
     }
 
-    /// Deprecated form of [`PyFrozenSetBuilder::finalize_bound`]
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyFrozenSetBuilder::finalize` will be replaced by `PyFrozenSetBuilder::finalize_bound` in a future PyO3 version"
-    )]
-    pub fn finalize(self) -> &'py PyFrozenSet {
-        self.finalize_bound().into_gil_ref()
-    }
-
     /// Finish building the set and take ownership of its current value
     pub fn finalize_bound(self) -> Bound<'py, PyFrozenSet> {
         self.py_frozen_set
     }
 }
 
-/// Represents a  Python `frozenset`
+/// Represents a  Python `frozenset`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyFrozenSet>`][crate::Py] or [`Bound<'py, PyFrozenSet>`][Bound].
+///
+/// For APIs available on `frozenset` objects, see the [`PyFrozenSetMethods`] trait which is implemented for
+/// [`Bound<'py, PyFrozenSet>`][Bound].
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
@@ -94,57 +88,6 @@ impl PyFrozenSet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyFrozenSet {
-    /// Deprecated form of [`PyFrozenSet::new_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyFrozenSet::new` will be replaced by `PyFrozenSet::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<&'p PyFrozenSet> {
-        Self::new_bound(py, elements).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PyFrozenSet::empty_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyFrozenSet::empty` will be replaced by `PyFrozenSet::empty_bound` in a future PyO3 version"
-    )]
-    pub fn empty(py: Python<'_>) -> PyResult<&'_ PyFrozenSet> {
-        Self::empty_bound(py).map(Bound::into_gil_ref)
-    }
-
-    /// Return the number of items in the set.
-    /// This is equivalent to len(p) on a set.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.as_borrowed().len()
-    }
-
-    /// Check if set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Determine if the set contains the specified key.
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().contains(key)
-    }
-
-    /// Returns an iterator of values in this frozen set.
-    pub fn iter(&self) -> PyFrozenSetIterator<'_> {
-        PyFrozenSetIterator(BoundFrozenSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 
@@ -200,43 +143,6 @@ impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
 
     fn iter(&self) -> BoundFrozenSetIterator<'py> {
         BoundFrozenSetIterator::new(self.clone())
-    }
-}
-
-/// PyO3 implementation of an iterator for a Python `frozenset` object.
-#[cfg(feature = "gil-refs")]
-pub struct PyFrozenSetIterator<'py>(BoundFrozenSetIterator<'py>);
-
-#[cfg(feature = "gil-refs")]
-impl<'py> Iterator for PyFrozenSetIterator<'py> {
-    type Item = &'py super::PyAny;
-
-    /// Advances the iterator and returns the next value.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Bound::into_gil_ref)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl ExactSizeIterator for PyFrozenSetIterator<'_> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> IntoIterator for &'py PyFrozenSet {
-    type Item = &'py PyAny;
-    type IntoIter = PyFrozenSetIterator<'py>;
-    /// Returns an iterator of values in this set.
-    fn into_iter(self) -> Self::IntoIter {
-        PyFrozenSetIterator(BoundFrozenSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 

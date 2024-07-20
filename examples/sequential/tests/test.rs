@@ -5,11 +5,13 @@ use std::thread;
 use pyo3_ffi::*;
 use sequential::PyInit_sequential;
 
-static COMMAND: &'static str = "
+static COMMAND: &'static str = c_str!(
+    "
 from sequential import Id
 
 s = sum(int(Id()) for _ in range(12))
-\0";
+"
+);
 
 // Newtype to be able to pass it to another thread.
 struct State(*mut PyThreadState);
@@ -19,10 +21,7 @@ unsafe impl Send for State {}
 #[test]
 fn lets_go_fast() -> Result<(), String> {
     unsafe {
-        let ret = PyImport_AppendInittab(
-            "sequential\0".as_ptr().cast::<c_char>(),
-            Some(PyInit_sequential),
-        );
+        let ret = PyImport_AppendInittab(c_str!("sequential").as_ptr(), Some(PyInit_sequential));
         if ret == -1 {
             return Err("could not add module to inittab".into());
         }
@@ -122,11 +121,8 @@ unsafe fn fetch() -> String {
 
 fn run_code() -> Result<u64, String> {
     unsafe {
-        let code_obj = Py_CompileString(
-            COMMAND.as_ptr().cast::<c_char>(),
-            "program\0".as_ptr().cast::<c_char>(),
-            Py_file_input,
-        );
+        let code_obj =
+            Py_CompileString(COMMAND.as_ptr(), c_str!("program").as_ptr(), Py_file_input);
         if code_obj.is_null() {
             return Err(fetch());
         }
@@ -138,7 +134,7 @@ fn run_code() -> Result<u64, String> {
         } else {
             Py_DECREF(res_ptr);
         }
-        let sum = PyDict_GetItemString(globals, "s\0".as_ptr().cast::<c_char>()); /* borrowed reference */
+        let sum = PyDict_GetItemString(globals, c_str!("s").as_ptr()); /* borrowed reference */
         if sum.is_null() {
             Py_DECREF(globals);
             return Err("globals did not have `s`".into());

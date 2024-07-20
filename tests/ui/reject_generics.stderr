@@ -1,10 +1,10 @@
-error: #[pyclass] cannot have generic parameters. For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters
+error: #[pyclass] cannot have generic parameters. For an explanation, see https://pyo3.rs/v0.23.0-dev/class.html#no-generic-parameters
  --> tests/ui/reject_generics.rs:4:25
   |
 4 | struct ClassWithGenerics<A> {
   |                         ^
 
-error: #[pyclass] cannot have lifetime parameters. For an explanation, see https://pyo3.rs/latest/class.html#no-lifetime-parameters
+error: #[pyclass] cannot have lifetime parameters. For an explanation, see https://pyo3.rs/v0.23.0-dev/class.html#no-lifetime-parameters
  --> tests/ui/reject_generics.rs:9:27
   |
 9 | struct ClassWithLifetimes<'a> {

@@ -145,12 +145,8 @@ macro_rules! wrap_pyfunction {
     };
     ($function:path, $py_or_module:expr) => {{
         use $function as wrapped_pyfunction;
-        let check_gil_refs = $crate::impl_::deprecations::GilRefs::new();
-        let py_or_module =
-            $crate::impl_::deprecations::inspect_type($py_or_module, &check_gil_refs);
-        check_gil_refs.is_python();
         $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
-            py_or_module,
+            $py_or_module,
             &wrapped_pyfunction::_PYO3_DEF,
         )
     }};
@@ -214,7 +210,7 @@ macro_rules! append_to_inittab {
                 );
             }
             $crate::ffi::PyImport_AppendInittab(
-                $module::__PYO3_NAME.as_ptr().cast(),
+                $module::__PYO3_NAME.as_ptr(),
                 ::std::option::Option::Some($module::__pyo3_init),
             );
         }

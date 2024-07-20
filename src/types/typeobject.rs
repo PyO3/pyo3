@@ -1,14 +1,20 @@
 use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
+#[cfg(not(Py_3_13))]
+use crate::pybacked::PyBackedStr;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
-use std::borrow::Cow;
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
-use std::ffi::CStr;
-/// Represents a reference to a Python `type object`.
+
+use super::PyString;
+
+/// Represents a reference to a Python `type` object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyType>`][crate::Py] or [`Bound<'py, PyType>`][Bound].
+///
+/// For APIs available on `type` objects, see the [`PyTypeMethods`] trait which is implemented for
+/// [`Bound<'py, PyType>`][Bound].
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
@@ -39,67 +45,6 @@ impl PyType {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyType {
-    /// Deprecated form of [`PyType::new_bound`].
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyType::new` will be replaced by `PyType::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
-        T::type_object_bound(py).into_gil_ref()
-    }
-
-    /// Retrieves the underlying FFI pointer associated with this Python object.
-    #[inline]
-    pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        self.as_borrowed().as_type_ptr()
-    }
-
-    /// Deprecated form of [`PyType::from_borrowed_type_ptr`].
-    ///
-    /// # Safety
-    ///
-    /// - The pointer must a valid non-null reference to a `PyTypeObject`.
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `PyType::from_borrowed_type_ptr` instead"
-    )]
-    pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
-        Self::from_borrowed_type_ptr(py, p).into_gil_ref()
-    }
-
-    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
-    pub fn qualname(&self) -> PyResult<String> {
-        self.as_borrowed().qualname()
-    }
-
-    /// Gets the full name, which includes the module, of the `PyType`.
-    pub fn name(&self) -> PyResult<Cow<'_, str>> {
-        self.as_borrowed().name()
-    }
-
-    /// Checks whether `self` is a subclass of `other`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, other)`.
-    pub fn is_subclass(&self, other: &PyAny) -> PyResult<bool> {
-        self.as_borrowed().is_subclass(&other.as_borrowed())
-    }
-
-    /// Checks whether `self` is a subclass of type `T`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
-    /// `T` is known at compile time.
-    pub fn is_subclass_of<T>(&self) -> PyResult<bool>
-    where
-        T: PyTypeInfo,
-    {
-        self.as_borrowed().is_subclass_of::<T>()
-    }
-}
-
 /// Implementation of functionality for [`PyType`].
 ///
 /// These methods are defined for the `Bound<'py, PyType>` smart pointer, so to use method call
@@ -110,11 +55,18 @@ pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     fn as_type_ptr(&self) -> *mut ffi::PyTypeObject;
 
-    /// Gets the full name, which includes the module, of the `PyType`.
-    fn name(&self) -> PyResult<Cow<'_, str>>;
+    /// Gets the name of the `PyType`. Equivalent to `self.__name__` in Python.
+    fn name(&self) -> PyResult<Bound<'py, PyString>>;
 
     /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
-    fn qualname(&self) -> PyResult<String>;
+    /// Equivalent to `self.__qualname__` in Python.
+    fn qualname(&self) -> PyResult<Bound<'py, PyString>>;
+
+    /// Gets the name of the module defining the `PyType`.
+    fn module(&self) -> PyResult<Bound<'py, PyString>>;
+
+    /// Gets the [fully qualified name](https://peps.python.org/pep-0737/#add-pytype-getfullyqualifiedname-function) of the `PyType`.
+    fn fully_qualified_name(&self) -> PyResult<Bound<'py, PyString>>;
 
     /// Checks whether `self` is a subclass of `other`.
     ///
@@ -148,25 +100,82 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     }
 
     /// Gets the name of the `PyType`.
-    fn name(&self) -> PyResult<Cow<'_, str>> {
-        Borrowed::from(self).name()
-    }
+    fn name(&self) -> PyResult<Bound<'py, PyString>> {
+        #[cfg(not(Py_3_11))]
+        let name = self
+            .getattr(intern!(self.py(), "__name__"))?
+            .downcast_into()?;
 
-    fn qualname(&self) -> PyResult<String> {
-        #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_11)))]
-        let name = self.getattr(intern!(self.py(), "__qualname__"))?.extract();
-
-        #[cfg(not(any(Py_LIMITED_API, PyPy, not(Py_3_11))))]
-        let name = {
+        #[cfg(Py_3_11)]
+        let name = unsafe {
             use crate::ffi_ptr_ext::FfiPtrExt;
-            let obj = unsafe {
-                ffi::PyType_GetQualName(self.as_type_ptr()).assume_owned_or_err(self.py())?
-            };
-
-            obj.extract()
+            ffi::PyType_GetName(self.as_type_ptr())
+                .assume_owned_or_err(self.py())?
+                // SAFETY: setting `__name__` from Python is required to be a `str`
+                .downcast_into_unchecked()
         };
 
-        name
+        Ok(name)
+    }
+
+    /// Gets the [qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
+    fn qualname(&self) -> PyResult<Bound<'py, PyString>> {
+        #[cfg(not(Py_3_11))]
+        let name = self
+            .getattr(intern!(self.py(), "__qualname__"))?
+            .downcast_into()?;
+
+        #[cfg(Py_3_11)]
+        let name = unsafe {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+            ffi::PyType_GetQualName(self.as_type_ptr())
+                .assume_owned_or_err(self.py())?
+                // SAFETY: setting `__qualname__` from Python is required to be a `str`
+                .downcast_into_unchecked()
+        };
+
+        Ok(name)
+    }
+
+    /// Gets the name of the module defining the `PyType`.
+    fn module(&self) -> PyResult<Bound<'py, PyString>> {
+        #[cfg(not(Py_3_13))]
+        let name = self.getattr(intern!(self.py(), "__module__"))?;
+
+        #[cfg(Py_3_13)]
+        let name = unsafe {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+            ffi::PyType_GetModuleName(self.as_type_ptr()).assume_owned_or_err(self.py())?
+        };
+
+        // `__module__` is never guaranteed to be a `str`
+        name.downcast_into().map_err(Into::into)
+    }
+
+    /// Gets the [fully qualified name](https://docs.python.org/3/glossary.html#term-qualified-name) of the `PyType`.
+    fn fully_qualified_name(&self) -> PyResult<Bound<'py, PyString>> {
+        #[cfg(not(Py_3_13))]
+        let name = {
+            let module = self.getattr(intern!(self.py(), "__module__"))?;
+            let qualname = self.getattr(intern!(self.py(), "__qualname__"))?;
+
+            let module_str = module.extract::<PyBackedStr>()?;
+            if module_str == "builtins" || module_str == "__main__" {
+                qualname.downcast_into()?
+            } else {
+                PyString::new_bound(self.py(), &format!("{}.{}", module, qualname))
+            }
+        };
+
+        #[cfg(Py_3_13)]
+        let name = unsafe {
+            use crate::ffi_ptr_ext::FfiPtrExt;
+            ffi::PyType_GetFullyQualifiedName(self.as_type_ptr())
+                .assume_owned_or_err(self.py())?
+                .downcast_into_unchecked()
+        };
+
+        Ok(name)
     }
 
     /// Checks whether `self` is a subclass of `other`.
@@ -232,43 +241,9 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     }
 }
 
-impl<'a> Borrowed<'a, '_, PyType> {
-    fn name(self) -> PyResult<Cow<'a, str>> {
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-        {
-            let ptr = self.as_type_ptr();
-
-            let name = unsafe { CStr::from_ptr((*ptr).tp_name) }.to_str()?;
-
-            #[cfg(Py_3_10)]
-            if unsafe { ffi::PyType_HasFeature(ptr, ffi::Py_TPFLAGS_IMMUTABLETYPE) } != 0 {
-                return Ok(Cow::Borrowed(name));
-            }
-
-            Ok(Cow::Owned(name.to_owned()))
-        }
-
-        #[cfg(any(Py_LIMITED_API, PyPy))]
-        {
-            let module = self.getattr(intern!(self.py(), "__module__"))?;
-
-            #[cfg(not(Py_3_11))]
-            let name = self.getattr(intern!(self.py(), "__name__"))?;
-
-            #[cfg(Py_3_11)]
-            let name = {
-                use crate::ffi_ptr_ext::FfiPtrExt;
-                unsafe { ffi::PyType_GetName(self.as_type_ptr()).assume_owned_or_err(self.py())? }
-            };
-
-            Ok(Cow::Owned(format!("{}.{}", module, name)))
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyBool, PyInt, PyLong, PyTuple, PyTypeMethods};
+    use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
 
@@ -276,7 +251,7 @@ mod tests {
     fn test_type_is_subclass() {
         Python::with_gil(|py| {
             let bool_type = py.get_type_bound::<PyBool>();
-            let long_type = py.get_type_bound::<PyLong>();
+            let long_type = py.get_type_bound::<PyInt>();
             assert!(bool_type.is_subclass(&long_type).unwrap());
         });
     }
@@ -286,7 +261,7 @@ mod tests {
         Python::with_gil(|py| {
             assert!(py
                 .get_type_bound::<PyBool>()
-                .is_subclass_of::<PyLong>()
+                .is_subclass_of::<PyInt>()
                 .unwrap());
         });
     }
@@ -328,6 +303,74 @@ mod tests {
                 .bases()
                 .eq(PyTuple::empty_bound(py))
                 .unwrap());
+        });
+    }
+
+    #[test]
+    fn test_type_names_standard() {
+        Python::with_gil(|py| {
+            let module = PyModule::from_code_bound(
+                py,
+                r#"
+class MyClass:
+    pass
+"#,
+                file!(),
+                "test_module",
+            )
+            .expect("module create failed");
+
+            let my_class = module.getattr("MyClass").unwrap();
+            let my_class_type = my_class.downcast_into::<PyType>().unwrap();
+            assert_eq!(my_class_type.name().unwrap(), "MyClass");
+            assert_eq!(my_class_type.qualname().unwrap(), "MyClass");
+            assert_eq!(my_class_type.module().unwrap(), "test_module");
+            assert_eq!(
+                my_class_type.fully_qualified_name().unwrap(),
+                "test_module.MyClass"
+            );
+        });
+    }
+
+    #[test]
+    fn test_type_names_builtin() {
+        Python::with_gil(|py| {
+            let bool_type = py.get_type_bound::<PyBool>();
+            assert_eq!(bool_type.name().unwrap(), "bool");
+            assert_eq!(bool_type.qualname().unwrap(), "bool");
+            assert_eq!(bool_type.module().unwrap(), "builtins");
+            assert_eq!(bool_type.fully_qualified_name().unwrap(), "bool");
+        });
+    }
+
+    #[test]
+    fn test_type_names_nested() {
+        Python::with_gil(|py| {
+            let module = PyModule::from_code_bound(
+                py,
+                r#"
+class OuterClass:
+    class InnerClass:
+        pass
+"#,
+                file!(),
+                "test_module",
+            )
+            .expect("module create failed");
+
+            let outer_class = module.getattr("OuterClass").unwrap();
+            let inner_class = outer_class.getattr("InnerClass").unwrap();
+            let inner_class_type = inner_class.downcast_into::<PyType>().unwrap();
+            assert_eq!(inner_class_type.name().unwrap(), "InnerClass");
+            assert_eq!(
+                inner_class_type.qualname().unwrap(),
+                "OuterClass.InnerClass"
+            );
+            assert_eq!(inner_class_type.module().unwrap(), "test_module");
+            assert_eq!(
+                inner_class_type.fully_qualified_name().unwrap(),
+                "test_module.OuterClass.InnerClass"
+            );
         });
     }
 }

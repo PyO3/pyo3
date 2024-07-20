@@ -75,7 +75,7 @@ where
 }
 
 // TODO use std::array::try_from_fn, if that stabilises:
-// (https://github.com/rust-lang/rust/pull/75644)
+// (https://github.com/rust-lang/rust/issues/89379)
 fn array_try_from_fn<E, F, T, const N: usize>(mut cb: F) -> Result<[T; N], E>
 where
     F: FnMut(usize) -> Result<T, E>,

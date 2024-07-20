@@ -10,35 +10,24 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, Python};
 #[cfg(feature = "gil-refs")]
-use crate::{err::PyDowncastError, type_object::HasPyGilRef, PyNativeType};
+use crate::PyNativeType;
+use crate::{err, ffi, Py, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 
 /// Represents any Python object.
 ///
-/// It currently only appears as a *reference*, `&PyAny`,
-/// with a lifetime that represents the scope during which the GIL is held.
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyAny>`][crate::Py] or [`Bound<'py, PyAny>`][Bound].
 ///
-/// `PyAny` has some interesting properties, which it shares
-/// with the other [native Python types](crate::types):
+/// For APIs available on all Python objects, see the [`PyAnyMethods`] trait which is implemented for
+/// [`Bound<'py, PyAny>`][Bound].
 ///
-/// - It can only be obtained and used while the GIL is held,
-/// therefore its API does not require a [`Python<'py>`](crate::Python) token.
-/// - It can't be used in situations where the GIL is temporarily released,
-/// such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
-/// - The underlying Python object, if mutable, can be mutated through any reference.
-/// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
-/// allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
-/// *does* require a [`Python<'py>`](crate::Python) token.
-///
-/// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
-/// and FromPyObject::extract. See their documentation for more information.
-///
-/// See [the guide](https://pyo3.rs/latest/types.html) for an explanation
-/// of the different Python object types.
+/// See
+#[doc = concat!("[the guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/types.html#concrete-python-types)")]
+/// for an explanation of the different Python object types.
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
 
@@ -64,8 +53,6 @@ pyobject_native_type_info!(
     Some("builtins"),
     #checkfunction=PyObject_Check
 );
-
-pyobject_native_type_extract!(PyAny);
 
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 
@@ -594,14 +581,6 @@ impl PyAny {
 
     /// Returns whether the object is considered to be true.
     ///
-    /// This is equivalent to the Python expression `bool(self)`.
-    #[deprecated(since = "0.21.0", note = "use `.is_truthy()` instead")]
-    pub fn is_true(&self) -> PyResult<bool> {
-        self.is_truthy()
-    }
-
-    /// Returns whether the object is considered to be true.
-    ///
     /// This applies truth value testing equivalent to the Python expression `bool(self)`.
     pub fn is_truthy(&self) -> PyResult<bool> {
         self.as_borrowed().is_truthy()
@@ -613,14 +592,6 @@ impl PyAny {
     #[inline]
     pub fn is_none(&self) -> bool {
         self.as_borrowed().is_none()
-    }
-
-    /// Returns whether the object is Ellipsis, e.g. `...`.
-    ///
-    /// This is equivalent to the Python expression `self is ...`.
-    #[deprecated(since = "0.20.0", note = "use `.is(py.Ellipsis())` instead")]
-    pub fn is_ellipsis(&self) -> bool {
-        self.as_borrowed().is_ellipsis()
     }
 
     /// Returns true if the sequence or mapping has a length of 0.
@@ -678,127 +649,6 @@ impl PyAny {
     #[inline]
     pub fn get_type_ptr(&self) -> *mut ffi::PyTypeObject {
         self.as_borrowed().get_type_ptr()
-    }
-
-    /// Downcast this `PyAny` to a concrete Python type or pyclass.
-    ///
-    /// Note that you can often avoid downcasting yourself by just specifying
-    /// the desired type in function or method signatures.
-    /// However, manual downcasting is sometimes necessary.
-    ///
-    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
-    ///
-    /// # Example: Downcasting to a specific Python object
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, PyList};
-    ///
-    /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new_bound(py);
-    ///     assert!(dict.is_instance_of::<PyAny>());
-    ///     let any = dict.as_any();
-    ///
-    ///     assert!(any.downcast::<PyDict>().is_ok());
-    ///     assert!(any.downcast::<PyList>().is_err());
-    /// });
-    /// ```
-    ///
-    /// # Example: Getting a reference to a pyclass
-    ///
-    /// This is useful if you want to mutate a `PyObject` that
-    /// might actually be a pyclass.
-    ///
-    /// ```rust
-    /// # fn main() -> Result<(), pyo3::PyErr> {
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pyclass]
-    /// struct Class {
-    ///     i: i32,
-    /// }
-    ///
-    /// Python::with_gil(|py| {
-    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
-    ///
-    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
-    ///
-    ///     class_bound.borrow_mut().i += 1;
-    ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
-    ///     assert_eq!(class_ref.i, 1);
-    ///     Ok(())
-    /// })
-    /// # }
-    /// ```
-    #[inline]
-    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError<'_>>
-    where
-        T: PyTypeCheck<AsRefTarget = T>,
-    {
-        if T::type_check(&self.as_borrowed()) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
-        } else {
-            Err(PyDowncastError::new(self, T::NAME))
-        }
-    }
-
-    /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
-    ///
-    /// It is almost always better to use [`PyAny::downcast`] because it accounts for Python
-    /// subtyping. Use this method only when you do not want to allow subtypes.
-    ///
-    /// The advantage of this method over [`PyAny::downcast`] is that it is faster. The implementation
-    /// of `downcast_exact` uses the equivalent of the Python expression `type(self) is T`, whereas
-    /// `downcast` uses `isinstance(self, T)`.
-    ///
-    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
-    ///
-    /// # Example: Downcasting to a specific Python object but not a subtype
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyBool, PyLong};
-    ///
-    /// Python::with_gil(|py| {
-    ///     let b = PyBool::new_bound(py, true);
-    ///     assert!(b.is_instance_of::<PyBool>());
-    ///     let any: &Bound<'_, PyAny> = b.as_any();
-    ///
-    ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
-    ///     // but `downcast_exact` will not.
-    ///     assert!(any.downcast::<PyLong>().is_ok());
-    ///     assert!(any.downcast_exact::<PyLong>().is_err());
-    ///
-    ///     assert!(any.downcast_exact::<PyBool>().is_ok());
-    /// });
-    /// ```
-    #[inline]
-    pub fn downcast_exact<T>(&self) -> Result<&T, PyDowncastError<'_>>
-    where
-        T: PyTypeInfo<AsRefTarget = T>,
-    {
-        if T::is_exact_type_of_bound(&self.as_borrowed()) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.downcast_unchecked() })
-        } else {
-            Err(PyDowncastError::new(self, T::NAME))
-        }
-    }
-
-    /// Converts this `PyAny` to a concrete Python type without checking validity.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[inline]
-    pub unsafe fn downcast_unchecked<T>(&self) -> &T
-    where
-        T: HasPyGilRef<AsRefTarget = T>,
-    {
-        &*(self.as_ptr() as *const T)
     }
 
     /// Extracts some type from the Python object.
@@ -1143,6 +993,9 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Equivalent to the Python expression `abs(self)`.
     fn abs(&self) -> PyResult<Bound<'py, PyAny>>;
 
+    /// Computes `~self`.
+    fn bitnot(&self) -> PyResult<Bound<'py, PyAny>>;
+
     /// Tests whether this object is less than another.
     ///
     /// This is equivalent to the Python expression `self < other`.
@@ -1200,8 +1053,28 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     where
         O: ToPyObject;
 
+    /// Computes `self @ other`.
+    fn matmul<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
     /// Computes `self / other`.
     fn div<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self // other`.
+    fn floor_div<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `self % other`.
+    fn rem<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject;
+
+    /// Computes `divmod(self, other)`.
+    fn divmod<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
     where
         O: ToPyObject;
 
@@ -1483,6 +1356,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Returns whether the object is Ellipsis, e.g. `...`.
     ///
     /// This is equivalent to the Python expression `self is ...`.
+    #[deprecated(since = "0.23.0", note = "use `.is(py.Ellipsis())` instead")]
     fn is_ellipsis(&self) -> bool;
 
     /// Returns true if the sequence or mapping has a length of 0.
@@ -1621,7 +1495,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyBool, PyLong};
+    /// use pyo3::types::{PyBool, PyInt};
     ///
     /// Python::with_gil(|py| {
     ///     let b = PyBool::new_bound(py, true);
@@ -1630,8 +1504,8 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
     ///     // but `downcast_exact` will not.
-    ///     assert!(any.downcast::<PyLong>().is_ok());
-    ///     assert!(any.downcast_exact::<PyLong>().is_err());
+    ///     assert!(any.downcast::<PyInt>().is_ok());
+    ///     assert!(any.downcast_exact::<PyInt>().is_err());
     ///
     ///     assert!(any.downcast_exact::<PyBool>().is_ok());
     /// });
@@ -1898,6 +1772,14 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         inner(self)
     }
 
+    fn bitnot(&self) -> PyResult<Bound<'py, PyAny>> {
+        fn inner<'py>(any: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+            unsafe { ffi::PyNumber_Invert(any.as_ptr()).assume_owned_or_err(any.py()) }
+        }
+
+        inner(self)
+    }
+
     fn lt<O>(&self, other: O) -> PyResult<bool>
     where
         O: ToPyObject,
@@ -1949,12 +1831,33 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     implement_binop!(add, PyNumber_Add, "+");
     implement_binop!(sub, PyNumber_Subtract, "-");
     implement_binop!(mul, PyNumber_Multiply, "*");
+    implement_binop!(matmul, PyNumber_MatrixMultiply, "@");
     implement_binop!(div, PyNumber_TrueDivide, "/");
+    implement_binop!(floor_div, PyNumber_FloorDivide, "//");
+    implement_binop!(rem, PyNumber_Remainder, "%");
     implement_binop!(lshift, PyNumber_Lshift, "<<");
     implement_binop!(rshift, PyNumber_Rshift, ">>");
     implement_binop!(bitand, PyNumber_And, "&");
     implement_binop!(bitor, PyNumber_Or, "|");
     implement_binop!(bitxor, PyNumber_Xor, "^");
+
+    /// Computes `divmod(self, other)`.
+    fn divmod<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
+    where
+        O: ToPyObject,
+    {
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            other: Bound<'_, PyAny>,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            unsafe {
+                ffi::PyNumber_Divmod(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py())
+            }
+        }
+
+        let py = self.py();
+        inner(self, other.to_object(py).into_bound(py))
+    }
 
     /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
     /// `py.None()` may be passed for the `modulus`.
@@ -2366,7 +2269,7 @@ impl<'py> Bound<'py, PyAny> {
 mod tests {
     use crate::{
         basic::CompareOp,
-        types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyList, PyLong, PyModule, PyTypeMethods},
+        types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, PyTypeInfo, Python, ToPyObject,
     };
 
@@ -2521,7 +2424,7 @@ class SimpleClass:
     fn test_hasattr() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_bound(py);
-            assert!(x.is_instance_of::<PyLong>());
+            assert!(x.is_instance_of::<PyInt>());
 
             assert!(x.hasattr("to_bytes").unwrap());
             assert!(!x.hasattr("bbbbbbytes").unwrap());
@@ -2568,7 +2471,7 @@ class SimpleClass:
     fn test_any_is_instance_of() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_bound(py);
-            assert!(x.is_instance_of::<PyLong>());
+            assert!(x.is_instance_of::<PyInt>());
 
             let l = vec![&x, &x].to_object(py).into_bound(py);
             assert!(l.is_instance_of::<PyList>());
@@ -2587,11 +2490,11 @@ class SimpleClass:
     fn test_any_is_exact_instance_of() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_bound(py);
-            assert!(x.is_exact_instance_of::<PyLong>());
+            assert!(x.is_exact_instance_of::<PyInt>());
 
             let t = PyBool::new_bound(py, true);
-            assert!(t.is_instance_of::<PyLong>());
-            assert!(!t.is_exact_instance_of::<PyLong>());
+            assert!(t.is_instance_of::<PyInt>());
+            assert!(!t.is_exact_instance_of::<PyInt>());
             assert!(t.is_exact_instance_of::<PyBool>());
 
             let l = vec![&x, &x].to_object(py).into_bound(py);
@@ -2603,8 +2506,8 @@ class SimpleClass:
     fn test_any_is_exact_instance() {
         Python::with_gil(|py| {
             let t = PyBool::new_bound(py, true);
-            assert!(t.is_instance(&py.get_type_bound::<PyLong>()).unwrap());
-            assert!(!t.is_exact_instance(&py.get_type_bound::<PyLong>()));
+            assert!(t.is_instance(&py.get_type_bound::<PyInt>()).unwrap());
+            assert!(!t.is_exact_instance(&py.get_type_bound::<PyInt>()));
             assert!(t.is_exact_instance(&py.get_type_bound::<PyBool>()));
         });
     }
@@ -2744,6 +2647,7 @@ class SimpleClass:
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py

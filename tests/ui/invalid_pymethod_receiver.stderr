@@ -6,9 +6,9 @@ error[E0277]: the trait bound `i32: TryFrom<BoundRef<'_, '_, MyClass>>` is not s
   |
   = help: the following other types implement trait `From<T>`:
             <i32 as From<bool>>
-            <i32 as From<i8>>
             <i32 as From<i16>>
-            <i32 as From<u8>>
+            <i32 as From<i8>>
             <i32 as From<u16>>
+            <i32 as From<u8>>
   = note: required for `BoundRef<'_, '_, MyClass>` to implement `Into<i32>`
   = note: required for `i32` to implement `TryFrom<BoundRef<'_, '_, MyClass>>`

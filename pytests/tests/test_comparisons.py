@@ -1,7 +1,13 @@
 from typing import Type, Union
 
 import pytest
-from pyo3_pytests.comparisons import Eq, EqDefaultNe, Ordered, OrderedDefaultNe
+from pyo3_pytests.comparisons import (
+    Eq,
+    EqDefaultNe,
+    EqDerived,
+    Ordered,
+    OrderedDefaultNe,
+)
 from typing_extensions import Self
 
 
@@ -9,15 +15,23 @@ class PyEq:
     def __init__(self, x: int) -> None:
         self.x = x
 
-    def __eq__(self, other: Self) -> bool:
-        return self.x == other.x
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.x == other.x
+        else:
+            return NotImplemented
 
     def __ne__(self, other: Self) -> bool:
-        return self.x != other.x
+        if isinstance(other, self.__class__):
+            return self.x != other.x
+        else:
+            return NotImplemented
 
 
-@pytest.mark.parametrize("ty", (Eq, PyEq), ids=("rust", "python"))
-def test_eq(ty: Type[Union[Eq, PyEq]]):
+@pytest.mark.parametrize(
+    "ty", (Eq, EqDerived, PyEq), ids=("rust", "rust-derived", "python")
+)
+def test_eq(ty: Type[Union[Eq, EqDerived, PyEq]]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -31,6 +45,13 @@ def test_eq(ty: Type[Union[Eq, PyEq]]):
     assert not (a != b)
     assert b != c
     assert not (b == c)
+
+    assert not a == 0
+    assert a != 0
+    assert not b == 0
+    assert b != 1
+    assert not c == 1
+    assert c != 1
 
     with pytest.raises(TypeError):
         assert a <= b

@@ -1,8 +1,6 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::types::any::PyAnyMethods;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, Py, PyAny, PyResult, Python};
 use std::ops::Index;
 use std::slice::SliceIndex;
@@ -11,6 +9,41 @@ use std::str;
 /// Represents a Python `bytes` object.
 ///
 /// This type is immutable.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyBytes>`][crate::Py] or [`Bound<'py, PyBytes>`][Bound].
+///
+/// For APIs available on `bytes` objects, see the [`PyBytesMethods`] trait which is implemented for
+/// [`Bound<'py, PyBytes>`][Bound].
+///
+/// # Equality
+///
+/// For convenience, [`Bound<'py, PyBytes>`][Bound] implements [`PartialEq<[u8]>`][PartialEq] to allow comparing the
+/// data in the Python bytes to a Rust `[u8]` byte slice.
+///
+/// This is not always the most appropriate way to compare Python bytes, as Python bytes subclasses
+/// may have different equality semantics. In situations where subclasses overriding equality might be
+/// relevant, use [`PyAnyMethods::eq`], at cost of the additional overhead of a Python method call.
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+/// use pyo3::types::PyBytes;
+///
+/// # Python::with_gil(|py| {
+/// let py_bytes = PyBytes::new_bound(py, b"foo".as_slice());
+/// // via PartialEq<[u8]>
+/// assert_eq!(py_bytes, b"foo".as_slice());
+///
+/// // via Python equality
+/// let other = PyBytes::new_bound(py, b"foo".as_slice());
+/// assert!(py_bytes.as_any().eq(other).unwrap());
+///
+/// // Note that `eq` will convert it's argument to Python using `ToPyObject`,
+/// // so the following does not compare equal since the slice will convert into a
+/// // `list`, not a `bytes` object.
+/// assert!(!py_bytes.as_any().eq(b"foo".as_slice()).unwrap());
+/// # });
+/// ```
 #[repr(transparent)]
 pub struct PyBytes(PyAny);
 
@@ -90,48 +123,6 @@ impl PyBytes {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyBytes {
-    /// Deprecated form of [`PyBytes::new_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::new` will be replaced by `PyBytes::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
-        Self::new_bound(py, s).into_gil_ref()
-    }
-
-    /// Deprecated form of [`PyBytes::new_bound_with`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::new_with` will be replaced by `PyBytes::new_bound_with` in a future PyO3 version"
-    )]
-    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyBytes>
-    where
-        F: FnOnce(&mut [u8]) -> PyResult<()>,
-    {
-        Self::new_bound_with(py, len, init).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PyBytes::bound_from_ptr`].
-    ///
-    /// # Safety
-    /// See [`PyBytes::bound_from_ptr`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBytes::from_ptr` will be replaced by `PyBytes::bound_from_ptr` in a future PyO3 version"
-    )]
-    pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
-        Self::bound_from_ptr(py, ptr, len).into_gil_ref()
-    }
-
-    /// Gets the Python string as a byte slice.
-    #[inline]
-    pub fn as_bytes(&self) -> &[u8] {
-        self.as_borrowed().as_bytes()
-    }
-}
-
 /// Implementation of functionality for [`PyBytes`].
 ///
 /// These methods are defined for the `Bound<'py, PyBytes>` smart pointer, so to use method call
@@ -173,8 +164,7 @@ impl Py<PyBytes> {
 }
 
 /// This is the same way [Vec] is indexed.
-#[cfg(feature = "gil-refs")]
-impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
+impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
     type Output = I::Output;
 
     fn index(&self, index: I) -> &Self::Output {
@@ -182,12 +172,103 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     }
 }
 
-/// This is the same way [Vec] is indexed.
-impl<I: SliceIndex<[u8]>> Index<I> for Bound<'_, PyBytes> {
-    type Output = I::Output;
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<[u8]> for Bound<'_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &[u8]) -> bool {
+        self.as_borrowed() == *other
+    }
+}
 
-    fn index(&self, index: I) -> &Self::Output {
-        &self.as_bytes()[index]
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<&'_ [u8]> for Bound<'_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &&[u8]) -> bool {
+        self.as_borrowed() == **other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Bound<'_, PyBytes>> for [u8] {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBytes>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<&'_ Bound<'_, PyBytes>> for [u8] {
+    #[inline]
+    fn eq(&self, other: &&Bound<'_, PyBytes>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Bound<'_, PyBytes>> for &'_ [u8] {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBytes>) -> bool {
+        **self == other.as_borrowed()
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<[u8]> for &'_ Bound<'_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &[u8]) -> bool {
+        self.as_borrowed() == other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<[u8]> for Borrowed<'_, '_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &[u8]) -> bool {
+        self.as_bytes() == other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<&[u8]> for Borrowed<'_, '_, PyBytes> {
+    #[inline]
+    fn eq(&self, other: &&[u8]) -> bool {
+        *self == **other
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Borrowed<'_, '_, PyBytes>> for [u8] {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBytes>) -> bool {
+        other == self
+    }
+}
+
+/// Compares whether the Python bytes object is equal to the [u8].
+///
+/// In some cases Python equality might be more appropriate; see the note on [`PyBytes`].
+impl PartialEq<Borrowed<'_, '_, PyBytes>> for &'_ [u8] {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBytes>) -> bool {
+        other == self
     }
 }
 
@@ -250,5 +331,35 @@ mod tests {
                 .unwrap()
                 .is_instance_of::<PyValueError>(py));
         });
+    }
+
+    #[test]
+    fn test_comparisons() {
+        Python::with_gil(|py| {
+            let b = b"hello, world".as_slice();
+            let py_bytes = PyBytes::new_bound(py, b);
+
+            assert_eq!(py_bytes, b"hello, world".as_slice());
+
+            assert_eq!(py_bytes, b);
+            assert_eq!(&py_bytes, b);
+            assert_eq!(b, py_bytes);
+            assert_eq!(b, &py_bytes);
+
+            assert_eq!(py_bytes, *b);
+            assert_eq!(&py_bytes, *b);
+            assert_eq!(*b, py_bytes);
+            assert_eq!(*b, &py_bytes);
+
+            let py_string = py_bytes.as_borrowed();
+
+            assert_eq!(py_string, b);
+            assert_eq!(&py_string, b);
+            assert_eq!(b, py_string);
+            assert_eq!(b, &py_string);
+
+            assert_eq!(py_string, *b);
+            assert_eq!(*b, py_string);
+        })
     }
 }

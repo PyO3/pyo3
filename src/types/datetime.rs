@@ -22,8 +22,6 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
 };
 use crate::ffi_ptr_ext::FfiPtrExt;
-#[cfg(feature = "gil-refs")]
-use crate::instance::PyNativeType;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
@@ -191,7 +189,10 @@ pub trait PyTzInfoAccess<'py> {
     fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>>;
 }
 
-/// Bindings around `datetime.date`
+/// Bindings around `datetime.date`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDate>`][crate::Py] or [`Bound<'py, PyDate>`][Bound].
 #[repr(transparent)]
 pub struct PyDate(PyAny);
 pyobject_native_type!(
@@ -203,16 +204,6 @@ pyobject_native_type!(
 );
 
 impl PyDate {
-    /// Deprecated form of [`PyDate::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDate::new` will be replaced by `PyDate::new_bound` in a future PyO3 version"
-    )]
-    pub fn new(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
-        Self::new_bound(py, year, month, day).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new `datetime.date`.
     pub fn new_bound(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
         let api = ensure_datetime_api(py)?;
@@ -221,16 +212,6 @@ impl PyDate {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyDate::from_timestamp_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDate::from_timestamp` will be replaced by `PyDate::from_timestamp_bound` in a future PyO3 version"
-    )]
-    pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
-        Self::from_timestamp_bound(py, timestamp).map(Bound::into_gil_ref)
     }
 
     /// Construct a `datetime.date` from a POSIX timestamp
@@ -250,21 +231,6 @@ impl PyDate {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyDateAccess for PyDate {
-    fn get_year(&self) -> i32 {
-        self.as_borrowed().get_year()
-    }
-
-    fn get_month(&self) -> u8 {
-        self.as_borrowed().get_month()
-    }
-
-    fn get_day(&self) -> u8 {
-        self.as_borrowed().get_day()
-    }
-}
-
 impl PyDateAccess for Bound<'_, PyDate> {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -279,7 +245,10 @@ impl PyDateAccess for Bound<'_, PyDate> {
     }
 }
 
-/// Bindings for `datetime.datetime`
+/// Bindings for `datetime.datetime`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDateTime>`][crate::Py] or [`Bound<'py, PyDateTime>`][Bound].
 #[repr(transparent)]
 pub struct PyDateTime(PyAny);
 pyobject_native_type!(
@@ -291,38 +260,6 @@ pyobject_native_type!(
 );
 
 impl PyDateTime {
-    /// Deprecated form of [`PyDateTime::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDateTime::new` will be replaced by `PyDateTime::new_bound` in a future PyO3 version"
-    )]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new<'py>(
-        py: Python<'py>,
-        year: i32,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&'py PyTzInfo>,
-    ) -> PyResult<&'py PyDateTime> {
-        Self::new_bound(
-            py,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
-        )
-        .map(Bound::into_gil_ref)
-    }
-
     /// Creates a new `datetime.datetime` object.
     #[allow(clippy::too_many_arguments)]
     pub fn new_bound<'py>(
@@ -352,40 +289,6 @@ impl PyDateTime {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyDateTime::new_bound_with_fold`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDateTime::new_with_fold` will be replaced by `PyDateTime::new_bound_with_fold` in a future PyO3 version"
-    )]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_with_fold<'py>(
-        py: Python<'py>,
-        year: i32,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&'py PyTzInfo>,
-        fold: bool,
-    ) -> PyResult<&'py PyDateTime> {
-        Self::new_bound_with_fold(
-            py,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
-            fold,
-        )
-        .map(Bound::into_gil_ref)
     }
 
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
@@ -427,21 +330,6 @@ impl PyDateTime {
         }
     }
 
-    /// Deprecated form of [`PyDateTime::from_timestamp_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDateTime::from_timestamp` will be replaced by `PyDateTime::from_timestamp_bound` in a future PyO3 version"
-    )]
-    pub fn from_timestamp<'py>(
-        py: Python<'py>,
-        timestamp: f64,
-        tzinfo: Option<&'py PyTzInfo>,
-    ) -> PyResult<&'py PyDateTime> {
-        Self::from_timestamp_bound(py, timestamp, tzinfo.map(PyTzInfo::as_borrowed).as_deref())
-            .map(Bound::into_gil_ref)
-    }
-
     /// Construct a `datetime` object from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.datetime.fromtimestamp`
@@ -463,21 +351,6 @@ impl PyDateTime {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyDateAccess for PyDateTime {
-    fn get_year(&self) -> i32 {
-        self.as_borrowed().get_year()
-    }
-
-    fn get_month(&self) -> u8 {
-        self.as_borrowed().get_month()
-    }
-
-    fn get_day(&self) -> u8 {
-        self.as_borrowed().get_day()
-    }
-}
-
 impl PyDateAccess for Bound<'_, PyDateTime> {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -489,29 +362,6 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
 
     fn get_day(&self) -> u8 {
         unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyTimeAccess for PyDateTime {
-    fn get_hour(&self) -> u8 {
-        self.as_borrowed().get_hour()
-    }
-
-    fn get_minute(&self) -> u8 {
-        self.as_borrowed().get_minute()
-    }
-
-    fn get_second(&self) -> u8 {
-        self.as_borrowed().get_second()
-    }
-
-    fn get_microsecond(&self) -> u32 {
-        self.as_borrowed().get_microsecond()
-    }
-
-    fn get_fold(&self) -> bool {
-        self.as_borrowed().get_fold()
     }
 }
 
@@ -534,13 +384,6 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
     fn get_fold(&self) -> bool {
         unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) > 0 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> PyTzInfoAccess<'py> for &'py PyDateTime {
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
-        self.as_borrowed().get_tzinfo_bound()
     }
 }
 
@@ -578,7 +421,10 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     }
 }
 
-/// Bindings for `datetime.time`
+/// Bindings for `datetime.time`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyTime>`][crate::Py] or [`Bound<'py, PyTime>`][Bound].
 #[repr(transparent)]
 pub struct PyTime(PyAny);
 pyobject_native_type!(
@@ -590,31 +436,6 @@ pyobject_native_type!(
 );
 
 impl PyTime {
-    /// Deprecated form of [`PyTime::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyTime::new` will be replaced by `PyTime::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'py>(
-        py: Python<'py>,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&'py PyTzInfo>,
-    ) -> PyResult<&'py PyTime> {
-        Self::new_bound(
-            py,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
-        )
-        .map(Bound::into_gil_ref)
-    }
-
     /// Creates a new `datetime.time` object.
     pub fn new_bound<'py>(
         py: Python<'py>,
@@ -637,33 +458,6 @@ impl PyTime {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of [`PyTime::new_bound_with_fold`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyTime::new_with_fold` will be replaced by `PyTime::new_bound_with_fold` in a future PyO3 version"
-    )]
-    pub fn new_with_fold<'py>(
-        py: Python<'py>,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&'py PyTzInfo>,
-        fold: bool,
-    ) -> PyResult<&'py PyTime> {
-        Self::new_bound_with_fold(
-            py,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo.map(PyTzInfo::as_borrowed).as_deref(),
-            fold,
-        )
-        .map(Bound::into_gil_ref)
     }
 
     /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_bound_with_fold`].
@@ -693,29 +487,6 @@ impl PyTime {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyTimeAccess for PyTime {
-    fn get_hour(&self) -> u8 {
-        self.as_borrowed().get_hour()
-    }
-
-    fn get_minute(&self) -> u8 {
-        self.as_borrowed().get_minute()
-    }
-
-    fn get_second(&self) -> u8 {
-        self.as_borrowed().get_second()
-    }
-
-    fn get_microsecond(&self) -> u32 {
-        self.as_borrowed().get_microsecond()
-    }
-
-    fn get_fold(&self) -> bool {
-        self.as_borrowed().get_fold()
-    }
-}
-
 impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_hour(&self) -> u8 {
         unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u8 }
@@ -735,13 +506,6 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
     fn get_fold(&self) -> bool {
         unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> PyTzInfoAccess<'py> for &'py PyTime {
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
-        self.as_borrowed().get_tzinfo_bound()
     }
 }
 
@@ -781,6 +545,9 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
 
 /// Bindings for `datetime.tzinfo`.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyTzInfo>`][crate::Py] or [`Bound<'py, PyTzInfo>`][Bound].
+///
 /// This is an abstract base class and cannot be constructed directly.
 /// For concrete time zone implementations, see [`timezone_utc_bound`] and
 /// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
@@ -793,16 +560,6 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
-
-/// Deprecated form of [`timezone_utc_bound`].
-#[cfg(feature = "gil-refs")]
-#[deprecated(
-    since = "0.21.0",
-    note = "`timezone_utc` will be replaced by `timezone_utc_bound` in a future PyO3 version"
-)]
-pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
-    timezone_utc_bound(py).into_gil_ref()
-}
 
 /// Equivalent to `datetime.timezone.utc`
 pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
@@ -834,7 +591,10 @@ pub(crate) fn timezone_from_offset<'py>(
     }
 }
 
-/// Bindings for `datetime.timedelta`
+/// Bindings for `datetime.timedelta`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyDelta>`][crate::Py] or [`Bound<'py, PyDelta>`][Bound].
 #[repr(transparent)]
 pub struct PyDelta(PyAny);
 pyobject_native_type!(
@@ -846,22 +606,6 @@ pyobject_native_type!(
 );
 
 impl PyDelta {
-    /// Deprecated form of [`PyDelta::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyDelta::new` will be replaced by `PyDelta::new_bound` in a future PyO3 version"
-    )]
-    pub fn new(
-        py: Python<'_>,
-        days: i32,
-        seconds: i32,
-        microseconds: i32,
-        normalize: bool,
-    ) -> PyResult<&PyDelta> {
-        Self::new_bound(py, days, seconds, microseconds, normalize).map(Bound::into_gil_ref)
-    }
-
     /// Creates a new `timedelta`.
     pub fn new_bound(
         py: Python<'_>,
@@ -882,21 +626,6 @@ impl PyDelta {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PyDeltaAccess for PyDelta {
-    fn get_days(&self) -> i32 {
-        self.as_borrowed().get_days()
-    }
-
-    fn get_seconds(&self) -> i32 {
-        self.as_borrowed().get_seconds()
-    }
-
-    fn get_microseconds(&self) -> i32 {
-        self.as_borrowed().get_microseconds()
     }
 }
 

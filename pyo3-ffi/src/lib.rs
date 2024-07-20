@@ -88,10 +88,8 @@
 //!
 //! static mut MODULE_DEF: PyModuleDef = PyModuleDef {
 //!     m_base: PyModuleDef_HEAD_INIT,
-//!     m_name: "string_sum\0".as_ptr().cast::<c_char>(),
-//!     m_doc: "A Python module written in Rust.\0"
-//!         .as_ptr()
-//!         .cast::<c_char>(),
+//!     m_name: c_str!("string_sum").as_ptr(),
+//!     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
 //!     m_size: 0,
 //!     m_methods: unsafe { METHODS.as_mut_ptr().cast() },
 //!     m_slots: std::ptr::null_mut(),
@@ -102,14 +100,12 @@
 //!
 //! static mut METHODS: [PyMethodDef; 2] = [
 //!     PyMethodDef {
-//!         ml_name: "sum_as_string\0".as_ptr().cast::<c_char>(),
+//!         ml_name: c_str!("sum_as_string").as_ptr(),
 //!         ml_meth: PyMethodDefPointer {
 //!             _PyCFunctionFast: sum_as_string,
 //!         },
 //!         ml_flags: METH_FASTCALL,
-//!         ml_doc: "returns the sum of two integers as a string\0"
-//!             .as_ptr()
-//!             .cast::<c_char>(),
+//!         ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
 //!     },
 //!     // A zeroed PyMethodDef to mark the end of the array.
 //!     PyMethodDef::zeroed()
@@ -130,9 +126,7 @@
 //!     if nargs != 2 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             "sum_as_string() expected 2 positional arguments\0"
-//!                 .as_ptr()
-//!                 .cast::<c_char>(),
+//!             c_str!("sum_as_string() expected 2 positional arguments").as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
@@ -141,9 +135,7 @@
 //!     if PyLong_Check(arg1) == 0 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             "sum_as_string() expected an int for positional argument 1\0"
-//!                 .as_ptr()
-//!                 .cast::<c_char>(),
+//!             c_str!("sum_as_string() expected an int for positional argument 1").as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
@@ -157,9 +149,7 @@
 //!     if PyLong_Check(arg2) == 0 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             "sum_as_string() expected an int for positional argument 2\0"
-//!                 .as_ptr()
-//!                 .cast::<c_char>(),
+//!             c_str!("sum_as_string() expected an int for positional argument 2").as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
@@ -177,7 +167,7 @@
 //!         None => {
 //!             PyErr_SetString(
 //!                 PyExc_OverflowError,
-//!                 "arguments too large to add\0".as_ptr().cast::<c_char>(),
+//!                 c_str!("arguments too large to add").as_ptr(),
 //!             );
 //!             std::ptr::null_mut()
 //!         }
@@ -231,11 +221,10 @@
 //! [`maturin`]: https://github.com/PyO3/maturin "Build and publish crates with pyo3, rust-cpython and cffi bindings as well as rust binaries as python packages"
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
-//! [manual_builds]: https://pyo3.rs/latest/building-and-distribution.html#manual-builds "Manual builds - Building and Distribution - PyO3 user guide"
+#![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
-//! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
-
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 #![allow(
     missing_docs,
     non_camel_case_types,
@@ -255,6 +244,51 @@ macro_rules! opaque_struct {
         pub struct $name([u8; 0]);
     };
 }
+
+/// This is a helper macro to create a `&'static CStr`.
+///
+/// It can be used on all Rust versions supported by PyO3, unlike c"" literals which
+/// were stabilised in Rust 1.77.
+///
+/// Due to the nature of PyO3 making heavy use of C FFI interop with Python, it is
+/// common for PyO3 to use CStr.
+///
+/// Examples:
+///
+/// ```rust
+/// use std::ffi::CStr;
+///
+/// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
+/// static WORLD: &CStr = pyo3_ffi::c_str!("world");
+/// ```
+#[macro_export]
+macro_rules! c_str {
+    ($s:expr) => {
+        $crate::_cstr_from_utf8_with_nul_checked(concat!($s, "\0"))
+    };
+}
+
+/// Private helper for `c_str!` macro.
+#[doc(hidden)]
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
+    // TODO: Replace this implementation with `CStr::from_bytes_with_nul` when MSRV above 1.72.
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    assert!(
+        !bytes.is_empty() && bytes[bytes.len() - 1] == b'\0',
+        "string is not nul-terminated"
+    );
+    let mut i = 0;
+    let non_null_len = len - 1;
+    while i < non_null_len {
+        assert!(bytes[i] != b'\0', "string contains null bytes");
+        i += 1;
+    }
+
+    unsafe { CStr::from_bytes_with_nul_unchecked(bytes) }
+}
+
+use std::ffi::CStr;
 
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;

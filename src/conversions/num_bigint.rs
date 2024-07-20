@@ -54,7 +54,7 @@ use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
     ffi,
     instance::Bound,
-    types::{any::PyAnyMethods, PyLong},
+    types::{any::PyAnyMethods, PyInt},
     FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
@@ -120,7 +120,7 @@ macro_rules! bigint_conversion {
                 } else {
                     None
                 };
-                py.get_type_bound::<PyLong>()
+                py.get_type_bound::<PyInt>()
                     .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
@@ -144,8 +144,8 @@ impl<'py> FromPyObject<'py> for BigInt {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigInt> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyLong>;
-        let num = if let Ok(long) = ob.downcast::<PyLong>() {
+        let num_owned: Py<PyInt>;
+        let num = if let Ok(long) = ob.downcast::<PyInt>() {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
@@ -192,8 +192,8 @@ impl<'py> FromPyObject<'py> for BigUint {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigUint> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
-        let num_owned: Py<PyLong>;
-        let num = if let Ok(long) = ob.downcast::<PyLong>() {
+        let num_owned: Py<PyInt>;
+        let num = if let Ok(long) = ob.downcast::<PyInt>() {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
@@ -218,7 +218,7 @@ impl<'py> FromPyObject<'py> for BigUint {
 
 #[cfg(not(any(Py_LIMITED_API, Py_3_13)))]
 #[inline]
-fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyLong>) -> PyResult<Vec<u32>> {
+fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u32>> {
     let mut buffer = Vec::new();
     let n_bits = int_n_bits(long)?;
     if n_bits == 0 {
@@ -252,7 +252,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyLong>) -> PyResult<Vec<
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 #[inline]
-fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyLong>) -> PyResult<Vec<u32>> {
+fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u32>> {
     let mut buffer = Vec::new();
     let mut flags = ffi::Py_ASNATIVEBYTES_LITTLE_ENDIAN;
     if !SIGNED {
@@ -290,7 +290,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyLong>) -> PyResult<Vec<
 
 #[cfg(Py_LIMITED_API)]
 fn int_to_py_bytes<'py>(
-    long: &Bound<'py, PyLong>,
+    long: &Bound<'py, PyInt>,
     n_bytes: usize,
     is_signed: bool,
 ) -> PyResult<Bound<'py, PyBytes>> {
@@ -313,7 +313,7 @@ fn int_to_py_bytes<'py>(
 
 #[inline]
 #[cfg(any(not(Py_3_13), Py_LIMITED_API))]
-fn int_n_bits(long: &Bound<'_, PyLong>) -> PyResult<usize> {
+fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
     let py = long.py();
     #[cfg(not(Py_LIMITED_API))]
     {

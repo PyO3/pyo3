@@ -2,7 +2,6 @@ use crate::callback::IntoPyCallbackOutput;
 use crate::exceptions::PyStopAsyncIteration;
 use crate::gil::LockGIL;
 use crate::impl_::panic::PanicTrap;
-use crate::internal_tricks::extract_c_string;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
@@ -12,7 +11,6 @@ use crate::{
     ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject,
     PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
-use std::borrow::Cow;
 use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::{c_int, c_void};
@@ -54,6 +52,7 @@ impl IPowModulo {
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
+#[cfg_attr(test, derive(Clone))]
 pub enum PyMethodDefType {
     /// Represents class method
     Class(PyMethodDef),
@@ -67,6 +66,8 @@ pub enum PyMethodDefType {
     Getter(PyGetterDef),
     /// Represents setter descriptor, used by `#[setter]`
     Setter(PySetterDef),
+    /// Represents a struct member
+    StructMember(ffi::PyMemberDef),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -84,36 +85,30 @@ pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
 
 #[derive(Clone, Debug)]
 pub struct PyMethodDef {
-    pub(crate) ml_name: &'static str,
+    pub(crate) ml_name: &'static CStr,
     pub(crate) ml_meth: PyMethodType,
     pub(crate) ml_flags: c_int,
-    pub(crate) ml_doc: &'static str,
+    pub(crate) ml_doc: &'static CStr,
 }
 
 #[derive(Copy, Clone)]
 pub struct PyClassAttributeDef {
-    pub(crate) name: &'static str,
+    pub(crate) name: &'static CStr,
     pub(crate) meth: PyClassAttributeFactory,
-}
-
-impl PyClassAttributeDef {
-    pub(crate) fn attribute_c_string(&self) -> PyResult<Cow<'static, CStr>> {
-        extract_c_string(self.name, "class attribute name cannot contain nul bytes")
-    }
 }
 
 #[derive(Clone)]
 pub struct PyGetterDef {
-    pub(crate) name: &'static str,
+    pub(crate) name: &'static CStr,
     pub(crate) meth: Getter,
-    pub(crate) doc: &'static str,
+    pub(crate) doc: &'static CStr,
 }
 
 #[derive(Clone)]
 pub struct PySetterDef {
-    pub(crate) name: &'static str,
+    pub(crate) name: &'static CStr,
     pub(crate) meth: Setter,
-    pub(crate) doc: &'static str,
+    pub(crate) doc: &'static CStr,
 }
 
 unsafe impl Sync for PyMethodDef {}
@@ -125,44 +120,44 @@ unsafe impl Sync for PySetterDef {}
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
     pub const fn noargs(
-        name: &'static str,
+        ml_name: &'static CStr,
         cfunction: ffi::PyCFunction,
-        doc: &'static str,
+        ml_doc: &'static CStr,
     ) -> Self {
         Self {
-            ml_name: name,
+            ml_name,
             ml_meth: PyMethodType::PyCFunction(cfunction),
             ml_flags: ffi::METH_NOARGS,
-            ml_doc: doc,
+            ml_doc,
         }
     }
 
     /// Define a function that can take `*args` and `**kwargs`.
     pub const fn cfunction_with_keywords(
-        name: &'static str,
+        ml_name: &'static CStr,
         cfunction: ffi::PyCFunctionWithKeywords,
-        doc: &'static str,
+        ml_doc: &'static CStr,
     ) -> Self {
         Self {
-            ml_name: name,
+            ml_name,
             ml_meth: PyMethodType::PyCFunctionWithKeywords(cfunction),
             ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
-            ml_doc: doc,
+            ml_doc,
         }
     }
 
     /// Define a function that can take `*args` and `**kwargs`.
     #[cfg(not(Py_LIMITED_API))]
     pub const fn fastcall_cfunction_with_keywords(
-        name: &'static str,
+        ml_name: &'static CStr,
         cfunction: ffi::_PyCFunctionFastWithKeywords,
-        doc: &'static str,
+        ml_doc: &'static CStr,
     ) -> Self {
         Self {
-            ml_name: name,
+            ml_name,
             ml_meth: PyMethodType::PyCFunctionFastWithKeywords(cfunction),
             ml_flags: ffi::METH_FASTCALL | ffi::METH_KEYWORDS,
-            ml_doc: doc,
+            ml_doc,
         }
     }
 
@@ -172,7 +167,7 @@ impl PyMethodDef {
     }
 
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
-    pub(crate) fn as_method_def(&self) -> PyResult<(ffi::PyMethodDef, PyMethodDefDestructor)> {
+    pub(crate) fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer { PyCFunction: meth },
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
@@ -184,22 +179,18 @@ impl PyMethodDef {
             },
         };
 
-        let name = get_name(self.ml_name)?;
-        let doc = get_doc(self.ml_doc)?;
-        let def = ffi::PyMethodDef {
-            ml_name: name.as_ptr(),
+        ffi::PyMethodDef {
+            ml_name: self.ml_name.as_ptr(),
             ml_meth: meth,
             ml_flags: self.ml_flags,
-            ml_doc: doc.as_ptr(),
-        };
-        let destructor = PyMethodDefDestructor { name, doc };
-        Ok((def, destructor))
+            ml_doc: self.ml_doc.as_ptr(),
+        }
     }
 }
 
 impl PyClassAttributeDef {
     /// Define a class attribute.
-    pub const fn new(name: &'static str, meth: PyClassAttributeFactory) -> Self {
+    pub const fn new(name: &'static CStr, meth: PyClassAttributeFactory) -> Self {
         Self { name, meth }
     }
 }
@@ -222,7 +213,7 @@ pub(crate) type Setter =
 
 impl PyGetterDef {
     /// Define a getter.
-    pub const fn new(name: &'static str, getter: Getter, doc: &'static str) -> Self {
+    pub const fn new(name: &'static CStr, getter: Getter, doc: &'static CStr) -> Self {
         Self {
             name,
             meth: getter,
@@ -233,7 +224,7 @@ impl PyGetterDef {
 
 impl PySetterDef {
     /// Define a setter.
-    pub const fn new(name: &'static str, setter: Setter, doc: &'static str) -> Self {
+    pub const fn new(name: &'static CStr, setter: Setter, doc: &'static CStr) -> Self {
         Self {
             name,
             meth: setter,
@@ -282,22 +273,6 @@ where
     };
     trap.disarm();
     retval
-}
-
-pub(crate) struct PyMethodDefDestructor {
-    // These members are just to avoid leaking CStrings when possible
-    #[allow(dead_code)]
-    name: Cow<'static, CStr>,
-    #[allow(dead_code)]
-    doc: Cow<'static, CStr>,
-}
-
-pub(crate) fn get_name(name: &'static str) -> PyResult<Cow<'static, CStr>> {
-    extract_c_string(name, "function name cannot contain NUL byte.")
-}
-
-pub(crate) fn get_doc(doc: &'static str) -> PyResult<Cow<'static, CStr>> {
-    extract_c_string(doc, "function doc cannot contain NUL byte.")
 }
 
 // Autoref-based specialization for handling `__next__` returning `Option`

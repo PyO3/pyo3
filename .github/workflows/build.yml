@@ -16,7 +16,7 @@ on:
       rust-target:
         required: true
         type: string
-      extra-features:
+      MSRV:
         required: true
         type: string
 
@@ -54,13 +54,17 @@ jobs:
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-      - if: inputs.rust == '1.63.0'
-        name: Prepare minimal package versions (MSRV only)
-        run: nox -s set-minimal-package-versions
+      - if: inputs.rust == inputs.MSRV
+        name: Prepare MSRV package versions
+        run: nox -s set-msrv-package-versions
 
       - if: inputs.rust != 'stable'
         name: Ignore changed error messages when using trybuild
         run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
+
+      - if: inputs.rust == 'nightly'
+        name: Prepare to test on nightly rust
+        run: echo "MAYBE_NIGHTLY=nightly" >> "$GITHUB_ENV"
 
       - name: Build docs
         run: nox -s docs
@@ -88,26 +92,31 @@ jobs:
 
       - name: Build (all additive features)
         if: ${{ !startsWith(inputs.python-version, 'graalpy') }}
-        run: cargo build --lib --tests --no-default-features --features "full ${{ inputs.extra-features }}"
+        run: cargo build --lib --tests --no-default-features --features "multiple-pymethods full $MAYBE_NIGHTLY"
 
       - if: ${{ startsWith(inputs.python-version, 'pypy') }}
         name: Build PyPy (abi3-py37)
-        run: cargo build --lib --tests --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
+        run: cargo build --lib --tests --no-default-features --features "multiple-pymethods abi3-py37 full $MAYBE_NIGHTLY"
 
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test
-        run: cargo test --no-default-features --features "full ${{ inputs.extra-features }}"
+        run: cargo test --no-default-features --features "full $MAYBE_NIGHTLY"
+
+      # Repeat, with multiple-pymethods feature enabled (it's not entirely additive)
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
+        name: Test
+        run: cargo test --no-default-features --features "multiple-pymethods full $MAYBE_NIGHTLY"
 
       # Run tests again, but in abi3 mode
       - if: ${{ !startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy') }}
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3 full ${{ inputs.extra-features }}"
+        run: cargo test --no-default-features --features "multiple-pymethods abi3 full $MAYBE_NIGHTLY"
 
       # Run tests again, for abi3-py37 (the minimal Python version)
       - if: ${{ (!startsWith(inputs.python-version, 'pypy') && !startsWith(inputs.python-version, 'graalpy')) && (inputs.python-version != '3.7') }}
         name: Test (abi3-py37)
-        run: cargo test --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
+        run: cargo test --no-default-features --features "multiple-pymethods abi3-py37 full $MAYBE_NIGHTLY"
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml

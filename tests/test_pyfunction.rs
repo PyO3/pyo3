@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
+use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::PyDateTime;
@@ -344,8 +345,8 @@ fn test_pycfunction_new() {
         let py_fn = PyCFunction::new_bound(
             py,
             c_fn,
-            "py_fn",
-            "py_fn for test (this is the docstring)",
+            c_str!("py_fn"),
+            c_str!("py_fn for test (this is the docstring)"),
             None,
         )
         .unwrap();
@@ -402,8 +403,8 @@ fn test_pycfunction_new_with_keywords() {
         let py_fn = PyCFunction::new_with_keywords_bound(
             py,
             c_fn,
-            "py_fn",
-            "py_fn for test (this is the docstring)",
+            c_str!("py_fn"),
+            c_str!("py_fn for test (this is the docstring)"),
             None,
         )
         .unwrap();
@@ -443,8 +444,13 @@ fn test_closure() {
                 Ok(res)
             })
         };
-        let closure_py =
-            PyCFunction::new_closure_bound(py, Some("test_fn"), Some("test_fn doc"), f).unwrap();
+        let closure_py = PyCFunction::new_closure_bound(
+            py,
+            Some(c_str!("test_fn")),
+            Some(c_str!("test_fn doc")),
+            f,
+        )
+        .unwrap();
 
         py_assert!(py, closure_py, "closure_py(42) == [43]");
         py_assert!(py, closure_py, "closure_py.__name__ == 'test_fn'");

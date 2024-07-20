@@ -45,10 +45,10 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_>` is not 
    |                                                  ^^^^ the trait `PyClass` is not implemented for `CancelHandle`, which is required by `CancelHandle: PyFunctionArgument<'_, '_>`
    |
    = help: the following other types implement trait `PyFunctionArgument<'a, 'py>`:
-             Option<&'a pyo3::Bound<'py, T>>
+             &'a mut pyo3::coroutine::Coroutine
              &'a pyo3::Bound<'py, T>
              &'a pyo3::coroutine::Coroutine
-             &'a mut pyo3::coroutine::Coroutine
+             Option<&'a pyo3::Bound<'py, T>>
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_>`
@@ -68,10 +68,10 @@ error[E0277]: the trait bound `CancelHandle: PyFunctionArgument<'_, '_>` is not 
    |                                                  ^^^^ the trait `Clone` is not implemented for `CancelHandle`, which is required by `CancelHandle: PyFunctionArgument<'_, '_>`
    |
    = help: the following other types implement trait `PyFunctionArgument<'a, 'py>`:
-             Option<&'a pyo3::Bound<'py, T>>
+             &'a mut pyo3::coroutine::Coroutine
              &'a pyo3::Bound<'py, T>
              &'a pyo3::coroutine::Coroutine
-             &'a mut pyo3::coroutine::Coroutine
+             Option<&'a pyo3::Bound<'py, T>>
    = note: required for `CancelHandle` to implement `FromPyObject<'_>`
    = note: required for `CancelHandle` to implement `FromPyObjectBound<'_, '_>`
    = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_>`

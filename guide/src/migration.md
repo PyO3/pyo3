@@ -5,6 +5,15 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.21.* to 0.22
 
+### Deprecation of `gil-refs` feature continues
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Following the introduction of the "Bound" API in PyO3 0.21 and the planned removal of the "GIL Refs" API, all functionality related to GIL Refs is now gated behind the `gil-refs` feature and emits a deprecation warning on use.
+
+See <a href="#from-021-to-022">the 0.21 migration entry</a> for help upgrading.
+</details>
+
 ### Deprecation of implicit default for trailing optional arguments
 <details open>
 <summary><small>Click to expand</small></summary>
@@ -80,6 +89,64 @@ enum SimpleEnum {
 }
 ```
 </details>
+
+### `PyType::name` reworked to better match Python `__name__`
+<details open>
+<summary><small>Click to expand</small></summary>
+
+This function previously would try to read directly from Python type objects' C API field (`tp_name`), in which case it
+would return a `Cow::Borrowed`. However the contents of `tp_name` don't have well-defined semantics.
+
+Instead `PyType::name()` now returns the equivalent of Python `__name__` and returns `PyResult<Bound<'py, PyString>>`.
+
+The closest equivalent to PyO3 0.21's version of `PyType::name()` has been introduced as a new function `PyType::fully_qualified_name()`,
+which is equivalent to `__module__` and `__qualname__` joined as `module.qualname`.
+
+Before:
+
+```rust,ignore
+# #![allow(deprecated, dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::types::{PyBool};
+# fn main() -> PyResult<()> {
+Python::with_gil(|py| {
+    let bool_type = py.get_type_bound::<PyBool>();
+    let name = bool_type.name()?.into_owned();
+    println!("Hello, {}", name);
+
+    let mut name_upper = bool_type.name()?;
+    name_upper.to_mut().make_ascii_uppercase();
+    println!("Hello, {}", name_upper);
+
+    Ok(())
+})
+# }
+```
+
+After:
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::types::{PyBool};
+# fn main() -> PyResult<()> {
+Python::with_gil(|py| {
+    let bool_type = py.get_type_bound::<PyBool>();
+    let name = bool_type.name()?;
+    println!("Hello, {}", name);
+
+    // (if the full dotted path was desired, switch from `name()` to `fully_qualified_name()`)
+    let mut name_upper = bool_type.fully_qualified_name()?.to_string();
+    name_upper.make_ascii_uppercase();
+    println!("Hello, {}", name_upper);
+
+    Ok(())
+})
+# }
+```
+</details>
+
+
 
 ## from 0.20.* to 0.21
 <details>
@@ -177,8 +244,7 @@ The `__next__` and `__anext__` magic methods can now return any type convertible
 
 Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
 
-```rust
-#![allow(deprecated)]
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::iter::IterNextOutput;
 
@@ -471,6 +537,7 @@ assert_eq!(&*name, "list");
 # }
 # Python::with_gil(example).unwrap();
 ```
+</details>
 
 ## from 0.19.* to 0.20
 

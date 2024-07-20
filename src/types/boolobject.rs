@@ -1,7 +1,5 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
@@ -11,6 +9,12 @@ use crate::{
 use super::any::PyAnyMethods;
 
 /// Represents a Python `bool`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyBool>`][crate::Py] or [`Bound<'py, PyBool>`][Bound].
+///
+/// For APIs available on `bool` objects, see the [`PyBoolMethods`] trait which is implemented for
+/// [`Bound<'py, PyBool>`][Bound].
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
@@ -32,28 +36,6 @@ impl PyBool {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyBool {
-    /// Deprecated form of [`PyBool::new_bound`]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyBool::new` will be replaced by `PyBool::new_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn new(py: Python<'_>, val: bool) -> &PyBool {
-        #[allow(deprecated)]
-        unsafe {
-            py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
-        }
-    }
-
-    /// Gets whether this boolean is `true`.
-    #[inline]
-    pub fn is_true(&self) -> bool {
-        self.as_borrowed().is_true()
-    }
-}
-
 /// Implementation of functionality for [`PyBool`].
 ///
 /// These methods are defined for the `Bound<'py, PyBool>` smart pointer, so to use method call
@@ -69,6 +51,86 @@ impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
     fn is_true(&self) -> bool {
         self.as_ptr() == unsafe { crate::ffi::Py_True() }
+    }
+}
+
+/// Compare `Bound<PyBool>` with `bool`.
+impl PartialEq<bool> for Bound<'_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &bool) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
+/// Compare `&Bound<PyBool>` with `bool`.
+impl PartialEq<bool> for &'_ Bound<'_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &bool) -> bool {
+        self.as_borrowed() == *other
+    }
+}
+
+/// Compare `Bound<PyBool>` with `&bool`.
+impl PartialEq<&'_ bool> for Bound<'_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &&bool) -> bool {
+        self.as_borrowed() == **other
+    }
+}
+
+/// Compare `bool` with `Bound<PyBool>`
+impl PartialEq<Bound<'_, PyBool>> for bool {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBool>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compare `bool` with `&Bound<PyBool>`
+impl PartialEq<&'_ Bound<'_, PyBool>> for bool {
+    #[inline]
+    fn eq(&self, other: &&'_ Bound<'_, PyBool>) -> bool {
+        *self == other.as_borrowed()
+    }
+}
+
+/// Compare `&bool` with `Bound<PyBool>`
+impl PartialEq<Bound<'_, PyBool>> for &'_ bool {
+    #[inline]
+    fn eq(&self, other: &Bound<'_, PyBool>) -> bool {
+        **self == other.as_borrowed()
+    }
+}
+
+/// Compare `Borrowed<PyBool>` with `bool`
+impl PartialEq<bool> for Borrowed<'_, '_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &bool) -> bool {
+        self.is_true() == *other
+    }
+}
+
+/// Compare `Borrowed<PyBool>` with `&bool`
+impl PartialEq<&bool> for Borrowed<'_, '_, PyBool> {
+    #[inline]
+    fn eq(&self, other: &&bool) -> bool {
+        self.is_true() == **other
+    }
+}
+
+/// Compare `bool` with `Borrowed<PyBool>`
+impl PartialEq<Borrowed<'_, '_, PyBool>> for bool {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
+        *self == other.is_true()
+    }
+}
+
+/// Compare `&bool` with `Borrowed<PyBool>`
+impl PartialEq<Borrowed<'_, '_, PyBool>> for &'_ bool {
+    #[inline]
+    fn eq(&self, other: &Borrowed<'_, '_, PyBool>) -> bool {
+        **self == other.is_true()
     }
 }
 
@@ -111,11 +173,15 @@ impl FromPyObject<'_> for bool {
             Err(err) => err,
         };
 
-        if obj
-            .get_type()
-            .name()
-            .map_or(false, |name| name == "numpy.bool_")
-        {
+        let is_numpy_bool = {
+            let ty = obj.get_type();
+            ty.module().map_or(false, |module| module == "numpy")
+                && ty
+                    .name()
+                    .map_or(false, |name| name == "bool_" || name == "bool")
+        };
+
+        if is_numpy_bool {
             let missing_conversion = |obj: &Bound<'_, PyAny>| {
                 PyTypeError::new_err(format!(
                     "object of type '{}' does not define a '__bool__' conversion",
@@ -186,5 +252,64 @@ mod tests {
             assert!(!t.extract::<bool>().unwrap());
             assert!(false.to_object(py).is(&*PyBool::new_bound(py, false)));
         });
+    }
+
+    #[test]
+    fn test_pybool_comparisons() {
+        Python::with_gil(|py| {
+            let py_bool = PyBool::new_bound(py, true);
+            let py_bool_false = PyBool::new_bound(py, false);
+            let rust_bool = true;
+
+            // Bound<'_, PyBool> == bool
+            assert_eq!(*py_bool, rust_bool);
+            assert_ne!(*py_bool_false, rust_bool);
+
+            // Bound<'_, PyBool> == &bool
+            assert_eq!(*py_bool, &rust_bool);
+            assert_ne!(*py_bool_false, &rust_bool);
+
+            // &Bound<'_, PyBool> == bool
+            assert_eq!(&*py_bool, rust_bool);
+            assert_ne!(&*py_bool_false, rust_bool);
+
+            // &Bound<'_, PyBool> == &bool
+            assert_eq!(&*py_bool, &rust_bool);
+            assert_ne!(&*py_bool_false, &rust_bool);
+
+            // bool == Bound<'_, PyBool>
+            assert_eq!(rust_bool, *py_bool);
+            assert_ne!(rust_bool, *py_bool_false);
+
+            // bool == &Bound<'_, PyBool>
+            assert_eq!(rust_bool, &*py_bool);
+            assert_ne!(rust_bool, &*py_bool_false);
+
+            // &bool == Bound<'_, PyBool>
+            assert_eq!(&rust_bool, *py_bool);
+            assert_ne!(&rust_bool, *py_bool_false);
+
+            // &bool == &Bound<'_, PyBool>
+            assert_eq!(&rust_bool, &*py_bool);
+            assert_ne!(&rust_bool, &*py_bool_false);
+
+            // Borrowed<'_, '_, PyBool> == bool
+            assert_eq!(py_bool, rust_bool);
+            assert_ne!(py_bool_false, rust_bool);
+
+            // Borrowed<'_, '_, PyBool> == &bool
+            assert_eq!(py_bool, &rust_bool);
+            assert_ne!(py_bool_false, &rust_bool);
+
+            // bool == Borrowed<'_, '_, PyBool>
+            assert_eq!(rust_bool, py_bool);
+            assert_ne!(rust_bool, py_bool_false);
+
+            // &bool == Borrowed<'_, '_, PyBool>
+            assert_eq!(&rust_bool, py_bool);
+            assert_ne!(&rust_bool, py_bool_false);
+            assert_eq!(py_bool, rust_bool);
+            assert_ne!(py_bool_false, rust_bool);
+        })
     }
 }

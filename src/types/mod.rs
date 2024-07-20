@@ -8,9 +8,6 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[allow(deprecated)]
-#[cfg(all(not(Py_LIMITED_API), feature = "gil-refs"))]
-pub use self::datetime::timezone_utc;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
     timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
@@ -34,8 +31,8 @@ pub use self::memoryview::PyMemoryView;
 pub use self::module::{PyModule, PyModuleMethods};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
-pub use self::num::PyLong;
-pub use self::num::PyLong as PyInt;
+#[allow(deprecated)]
+pub use self::num::{PyInt, PyLong};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::{PySequence, PySequenceMethods};
@@ -85,12 +82,6 @@ pub mod iter {
     pub use super::list::BoundListIterator;
     pub use super::set::BoundSetIterator;
     pub use super::tuple::{BorrowedTupleIterator, BoundTupleIterator};
-
-    #[cfg(feature = "gil-refs")]
-    pub use super::{
-        dict::PyDictIterator, frozenset::PyFrozenSetIterator, list::PyListIterator,
-        set::PySetIterator, tuple::PyTupleIterator,
-    };
 }
 
 /// Python objects that have a base type.
@@ -272,24 +263,6 @@ macro_rules! pyobject_native_type_info(
     };
 );
 
-// NOTE: This macro is not included in pyobject_native_type_base!
-// because rust-numpy has a special implementation.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_extract {
-    ($name:ty $(;$generics:ident)*) => {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
-            #[inline]
-            fn extract_bound(obj: &$crate::Bound<'py, $crate::PyAny>) -> $crate::PyResult<Self> {
-                ::std::clone::Clone::clone(obj).into_gil_ref().downcast().map_err(::std::convert::Into::into)
-            }
-        }
-    }
-}
-
 /// Declares all of the boilerplate for Python types.
 #[doc(hidden)]
 #[macro_export]
@@ -297,7 +270,6 @@ macro_rules! pyobject_native_type_core {
     ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
-        $crate::pyobject_native_type_extract!($name $(;$generics)*);
     };
     ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);

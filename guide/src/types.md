@@ -329,7 +329,7 @@ The following sections note some historical detail about the GIL Refs API.
 For a `&PyAny` object reference `any` where the underlying object is a Python-native type such as
 a list:
 
-```rust
+```rust,ignore
 # #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
@@ -352,7 +352,7 @@ let _: Py<PyList> = obj.extract()?;
 
 For a `&PyAny` object reference `any` where the underlying object is a `#[pyclass]`:
 
-```rust
+```rust,ignore
 # #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # #[pyclass] #[derive(Clone)] struct MyClass { }
@@ -393,7 +393,7 @@ To see all Python types exposed by `PyO3` consult the [`pyo3::types`][pyo3::type
 
 **Conversions:**
 
-```rust
+```rust,ignore
 # #![allow(unused_imports)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;

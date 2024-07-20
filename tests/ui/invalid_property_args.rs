@@ -39,4 +39,10 @@ struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
 #[pyclass]
 struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
 
+#[pyclass]
+struct InvalidGetterType {
+    #[pyo3(get)]
+    value: ::std::marker::PhantomData<i32>,
+}
+
 fn main() {}
