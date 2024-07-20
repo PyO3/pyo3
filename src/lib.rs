@@ -520,3 +520,6 @@ pub mod doc_test {
         "guide/src/types.md" => guide_types_md,
     }
 }
+
+/// Represent [`intern!`] return type.
+pub type InternString<'a, 'py> = &'a Bound<'py, crate::types::PyString>;

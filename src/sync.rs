@@ -6,7 +6,7 @@
 //! [PEP 703]: https://peps.python.org/pep-703/
 use crate::{
     types::{any::PyAnyMethods, PyString, PyType},
-    Bound, Py, PyResult, PyVisit, Python,
+    Bound, InternString, Py, PyResult, PyVisit, Python,
 };
 use std::cell::UnsafeCell;
 
@@ -219,9 +219,9 @@ impl GILOnceCell<Py<PyType>> {
     }
 }
 
-/// Interns `text` as a Python string and stores a reference to it in static storage.
+/// [Interns](https://en.wikipedia.org/wiki/String_interning) `text` as a Python string.
 ///
-/// A reference to the same Python string is returned on each invocation.
+/// The same [`InternString`] is returned on each invocation.
 ///
 /// # Example: Using `intern!` to avoid needlessly recreating the same Python string
 ///
@@ -232,8 +232,8 @@ impl GILOnceCell<Py<PyType>> {
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 ///     let dict = PyDict::new_bound(py);
-///     //             👇 A new `PyString` is created
-///     //                for every call of this function.
+///
+///     // A `PyString` 👇 is created for every call of this function.
 ///     dict.set_item("foo", 42)?;
 ///     Ok(dict)
 /// }
@@ -241,8 +241,8 @@ impl GILOnceCell<Py<PyType>> {
 /// #[pyfunction]
 /// fn create_dict_faster(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 ///     let dict = PyDict::new_bound(py);
-///     //               👇 A `PyString` is created once and reused
-///     //                  for the lifetime of the program.
+///
+///     // A `PyString` 👇 is created once and reused for the lifetime of the program.
 ///     dict.set_item(intern!(py, "foo"), 42)?;
 ///     Ok(dict)
 /// }
@@ -276,7 +276,7 @@ impl Interned {
 
     /// Gets or creates the interned `str` value.
     #[inline]
-    pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
+    pub fn get<'py>(&self, py: Python<'py>) -> InternString<'_, 'py> {
         self.1
             .get_or_init(py, || PyString::intern_bound(py, self.0).into())
             .bind(py)
