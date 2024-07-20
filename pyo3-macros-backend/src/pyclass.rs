@@ -233,8 +233,8 @@ pub fn build_py_class(
     let mut all_errors = ErrorCombiner(None);
 
     let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
-        syn::Fields::Unnamed(fields) => fields
-            .unnamed
+        syn::Fields::Named(fields) => fields
+            .named
             .iter_mut()
             .filter_map(
                 |field| match FieldPyO3Options::take_pyo3_options(&mut field.attrs) {
@@ -246,8 +246,8 @@ pub fn build_py_class(
                 },
             )
             .collect::<Vec<_>>(),
-        syn::Fields::Named(fields) => fields
-            .named
+        syn::Fields::Unnamed(fields) => fields
+            .unnamed
             .iter_mut()
             .filter_map(
                 |field| match FieldPyO3Options::take_pyo3_options(&mut field.attrs) {
