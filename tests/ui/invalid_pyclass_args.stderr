@@ -82,20 +82,38 @@ error: The `ord` option requires the `eq` option.
 75 | #[pyclass(ord)]
    |           ^^^
 
+error: expected one of: `get`, `set`, `name`
+  --> tests/ui/invalid_pyclass_args.rs:82:12
+   |
+82 |     #[pyo3(foo)]
+   |            ^^^
+
+error: expected one of: `get`, `set`, `name`
+  --> tests/ui/invalid_pyclass_args.rs:83:12
+   |
+83 |     #[pyo3(blah)]
+   |            ^^^^
+
+error: expected one of: `get`, `set`, `name`
+  --> tests/ui/invalid_pyclass_args.rs:85:12
+   |
+85 |     #[pyo3(pop)]
+   |            ^^^
+
 error: invalid format string: expected `'}'` but string was terminated
-  --> tests/ui/invalid_pyclass_args.rs:98:19
-   |
-98 | #[pyclass(str = "{")]
-   |                  -^ expected `'}'` in format string
-   |                  |
-   |                  because of this opening brace
-   |
-   = note: if you intended to print `{`, you can escape it using `{{`
+   --> tests/ui/invalid_pyclass_args.rs:105:19
+    |
+105 | #[pyclass(str = "{")]
+    |                  -^ expected `'}'` in format string
+    |                  |
+    |                  because of this opening brace
+    |
+    = note: if you intended to print `{`, you can escape it using `{{`
 
 error: invalid format string: expected `'}'`, found `'$'`
-   --> tests/ui/invalid_pyclass_args.rs:102:19
+   --> tests/ui/invalid_pyclass_args.rs:109:19
     |
-102 | #[pyclass(str = "{$}")]
+109 | #[pyclass(str = "{$}")]
     |                  -^ expected `'}'` in format string
     |                  |
     |                  because of this opening brace
@@ -103,46 +121,46 @@ error: invalid format string: expected `'}'`, found `'$'`
     = note: if you intended to print `{`, you can escape it using `{{`
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:126:29
+   --> tests/ui/invalid_pyclass_args.rs:133:31
     |
-126 | #[pyclass(name = "aaa", str="unsafe: {unsafe_variable}")]
-    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+133 | #[pyclass(name = "aaa", str = "unsafe: {unsafe_variable}")]
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:132:29
+   --> tests/ui/invalid_pyclass_args.rs:139:31
     |
-132 | #[pyclass(name = "aaa", str="unsafe: {unsafe_variable}")]
-    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+139 | #[pyclass(name = "aaa", str = "unsafe: {unsafe_variable}")]
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:137:15
+   --> tests/ui/invalid_pyclass_args.rs:144:17
     |
-137 | #[pyclass(str="unsafe: {unsafe_variable}")]
-    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+144 | #[pyclass(str = "unsafe: {unsafe_variable}")]
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:143:52
+   --> tests/ui/invalid_pyclass_args.rs:150:54
     |
-143 | #[pyclass(rename_all = "SCREAMING_SNAKE_CASE", str="{a_a}, {b_b}, {c_d_e}")]
-    |                                                    ^^^^^^^^^^^^^^^^^^^^^^^
+150 | #[pyclass(rename_all = "SCREAMING_SNAKE_CASE", str = "{a_a}, {b_b}, {c_d_e}")]
+    |                                                      ^^^^^^^^^^^^^^^^^^^^^^^
 
 error: No member found, you must provide a named or positionally specified member.
-   --> tests/ui/invalid_pyclass_args.rs:150:15
+   --> tests/ui/invalid_pyclass_args.rs:157:17
     |
-150 | #[pyclass(str="{:?}")]
-    |               ^^^^^^
+157 | #[pyclass(str = "{:?}")]
+    |                 ^^^^^^
 
 error: No member found, you must provide a named or positionally specified member.
-   --> tests/ui/invalid_pyclass_args.rs:157:15
+   --> tests/ui/invalid_pyclass_args.rs:164:17
     |
-157 | #[pyclass(str="{}")]
-    |               ^^^^
+164 | #[pyclass(str = "{}")]
+    |                 ^^^^
 
 error: The format string syntax cannot be used with enums
-   --> tests/ui/invalid_pyclass_args.rs:164:19
+   --> tests/ui/invalid_pyclass_args.rs:171:21
     |
-164 | #[pyclass(eq, str="Stuff...")]
-    |                   ^^^^^^^^^^
+171 | #[pyclass(eq, str = "Stuff...")]
+    |                     ^^^^^^^^^^
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
@@ -167,12 +185,12 @@ error[E0592]: duplicate definitions with name `__pymethod___hash____`
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod___str____`
-  --> tests/ui/invalid_pyclass_args.rs:80:1
+  --> tests/ui/invalid_pyclass_args.rs:89:1
    |
-80 | #[pyclass(str)]
+89 | #[pyclass(str)]
    | ^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___str____`
 ...
-89 | #[pymethods]
+98 | #[pymethods]
    | ------------ other definition for `__pymethod___str____`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -296,61 +314,61 @@ note: candidate #2 is defined in an impl for the type `HashOptAndManualHash`
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:80:1
+  --> tests/ui/invalid_pyclass_args.rs:89:1
    |
-80 | #[pyclass(str)]
+89 | #[pyclass(str)]
    | ^^^^^^^^^^^^^^^ multiple `__pymethod___str____` found
    |
 note: candidate #1 is defined in an impl for the type `StrOptAndManualStr`
-  --> tests/ui/invalid_pyclass_args.rs:80:1
-   |
-80 | #[pyclass(str)]
-   | ^^^^^^^^^^^^^^^
-note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
   --> tests/ui/invalid_pyclass_args.rs:89:1
    |
-89 | #[pymethods]
+89 | #[pyclass(str)]
+   | ^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
+  --> tests/ui/invalid_pyclass_args.rs:98:1
+   |
+98 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:89:1
+  --> tests/ui/invalid_pyclass_args.rs:98:1
    |
-89 | #[pymethods]
+98 | #[pymethods]
    | ^^^^^^^^^^^^ multiple `__pymethod___str____` found
    |
 note: candidate #1 is defined in an impl for the type `StrOptAndManualStr`
-  --> tests/ui/invalid_pyclass_args.rs:80:1
-   |
-80 | #[pyclass(str)]
-   | ^^^^^^^^^^^^^^^
-note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
   --> tests/ui/invalid_pyclass_args.rs:89:1
    |
-89 | #[pymethods]
+89 | #[pyclass(str)]
+   | ^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
+  --> tests/ui/invalid_pyclass_args.rs:98:1
+   |
+98 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0609]: no field `aaaa` on type `&Point`
-   --> tests/ui/invalid_pyclass_args.rs:106:17
+   --> tests/ui/invalid_pyclass_args.rs:113:17
     |
-106 | #[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
+113 | #[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `x`, `y`, `z`
 
 error[E0609]: no field `zzz` on type `&Point2`
-   --> tests/ui/invalid_pyclass_args.rs:114:17
+   --> tests/ui/invalid_pyclass_args.rs:121:17
     |
-114 | #[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
+121 | #[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `x`, `y`, `z`
 
 error[E0609]: no field `162543` on type `&Coord3`
-   --> tests/ui/invalid_pyclass_args.rs:122:17
+   --> tests/ui/invalid_pyclass_args.rs:129:17
     |
-122 | #[pyclass(str = "{0}, {162543}, {2}")]
+129 | #[pyclass(str = "{0}, {162543}, {2}")]
     |                 ^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `0`, `1`, `2`
