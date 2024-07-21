@@ -10,6 +10,10 @@ use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::str;
 
+/// Deprecated alias for [`PyUnicode`].
+#[deprecated(since = "0.23.0", note = "use `PyString` instead")]
+pub type PyUnicode = PyString;
+
 /// Represents raw data backing a Python `str`.
 ///
 /// Python internally stores strings in various representations. This enumeration
