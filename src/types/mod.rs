@@ -40,7 +40,8 @@ pub use self::set::{PySet, PySetMethods};
 pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::string::PyStringData;
-pub use self::string::{PyString, PyString as PyUnicode, PyStringMethods};
+#[allow(deprecated)]
+pub use self::string::{PyString, PyStringMethods, PyUnicode};
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
 pub use self::tuple::{PyTuple, PyTupleMethods};
 pub use self::typeobject::{PyType, PyTypeMethods};
