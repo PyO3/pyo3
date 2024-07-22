@@ -10,7 +10,7 @@ use crate::{ffi, Bound, IntoPy, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::str;
 
-/// Deprecated alias for [`PyUnicode`].
+/// Deprecated alias for [`PyString`].
 #[deprecated(since = "0.23.0", note = "use `PyString` instead")]
 pub type PyUnicode = PyString;
 
