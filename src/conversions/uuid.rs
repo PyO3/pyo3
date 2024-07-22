@@ -7,52 +7,60 @@ use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::bytes::PyBytes;
 use crate::types::dict::IntoPyDict;
-use crate::types::string::PyStringMethods;
-use crate::types::PyType;
-use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::types::{PyBytesMethods, PyType};
+use crate::{
+    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+};
 
 impl FromPyObject<'_> for Uuid {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let py_bytes: PyResult<Vec<u8>> = ob.extract();
+        // Not propagating Err up here because the UUID class should be an invariant.
+        let uuid_cls = get_uuid_cls(ob.py()).expect("failed to load uuid.UUID");
+        let py_bytes: Bound<'_, PyBytes> = if ob.is_exact_instance(&uuid_cls) {
+            ob.getattr(intern!(ob.py(), "bytes"))?.downcast_into()?
+        } else {
+            ob.extract()?
+        };
 
-        match py_bytes {
-            Ok(val) => Uuid::try_parse_ascii(&val)
-                .map_err(|_| PyValueError::new_err("The given value is not a valid UUID.")),
-            Err(_) => {
-                let py_str = ob.str()?;
-                let rs_str = py_str.to_cow()?;
-
-                Uuid::try_parse(&rs_str)
-                    .map_err(|_| PyValueError::new_err("The given value is not a valid UUID."))
-            }
-        }
+        Uuid::from_slice(py_bytes.as_bytes())
+            .map_err(|_| PyValueError::new_err("The given value is not a valid UUID."))
     }
 }
 
 static UUID_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
+#[inline(always)]
 fn get_uuid_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     UUID_CLS.get_or_try_init_type_ref(py, "uuid", "UUID")
 }
 
+#[inline(always)]
+fn into_uuid_from_pybytes(py: Python<'_>, py_bytes: Bound<'_, PyBytes>) -> PyObject {
+    let uuid_cls = get_uuid_cls(py).expect("failed to load uuid.UUID");
+    let kwargs = vec![(intern!(py, "bytes"), py_bytes)].into_py_dict_bound(py);
+
+    uuid_cls
+        .call((), Some(&kwargs))
+        .expect("failed to call uuid.UUID")
+        .to_object(py)
+}
+
 impl ToPyObject for Uuid {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let uuid_cls = get_uuid_cls(py).expect("failed to load uuid.UUID");
-
         let rs_bytes = self.as_bytes();
         let py_bytes = PyBytes::new_bound(py, rs_bytes);
 
-        let kwargs = vec![("bytes", py_bytes)].into_py_dict_bound(py);
-        uuid_cls
-            .call((), Some(&kwargs))
-            .expect("failed to call uuid.UUID")
-            .to_object(py)
+        into_uuid_from_pybytes(py, py_bytes)
     }
 }
 
 impl IntoPy<PyObject> for Uuid {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        let rs_bytes = self.into_bytes();
+        let py_bytes =
+            unsafe { PyBytes::bound_from_ptr(py, &rs_bytes as *const u8, rs_bytes.len()) };
+
+        into_uuid_from_pybytes(py, py_bytes)
     }
 }
 
@@ -102,5 +110,10 @@ mod test_uuid {
         convert_max,
         Uuid::max(),
         "ffffffff-ffff-ffff-ffff-ffffffffffff"
+    );
+    convert_constants!(
+        convert_random_v4,
+        Uuid::parse_str("a4f6d1b9-1898-418f-b11d-ecc6fe1e1f00").unwrap(),
+        "a4f6d1b9-1898-418f-b11d-ecc6fe1e1f00"
     );
 }
