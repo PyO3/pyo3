@@ -247,12 +247,11 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             key: Bound<'_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
-            unsafe {
-                let mut result: *mut ffi::PyObject = std::ptr::null_mut();
-                match ffi::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result) {
-                    std::os::raw::c_int::MIN..=0 => PyErr::take(py).map(Err).transpose(),
-                    1..=std::os::raw::c_int::MAX => Ok(result.assume_owned_or_opt(py)),
-                }
+            let mut result: *mut ffi::PyObject = std::ptr::null_mut();
+            match unsafe { ffi::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result) } {
+                std::os::raw::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+                0 => Ok(None),
+                1..=std::os::raw::c_int::MAX => Ok(Some(unsafe { result.assume_owned(py) })),
             }
         }
 
