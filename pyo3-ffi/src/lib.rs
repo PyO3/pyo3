@@ -364,6 +364,7 @@ mod ceval;
 #[cfg(Py_LIMITED_API)]
 mod code;
 mod codecs;
+pub mod compat;
 mod compile;
 mod complexobject;
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
