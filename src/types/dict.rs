@@ -738,8 +738,8 @@ mod tests {
         #[crate::pymethods(crate = "crate")]
         impl HashErrors {
             #[new]
-            fn new() -> PyResult<Self> {
-                Ok(HashErrors {})
+            fn new() -> Self {
+                HashErrors {}
             }
 
             fn __hash__(&self) -> PyResult<isize> {

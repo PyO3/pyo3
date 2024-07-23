@@ -11,7 +11,7 @@
 
 #[cfg(Py_3_13)]
 mod py313_compat {
-    use crate::dictobject::PyDict_GetItemRef;
+    pub use crate::dictobject::PyDict_GetItemRef;
 }
 #[cfg(not(Py_3_13))]
 mod py313_compat {
