@@ -600,7 +600,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exceptions::PyTypeError;
     use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
@@ -731,6 +730,8 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn test_get_item_error_path() {
+        use crate::exceptions::PyTypeError;
+
         #[crate::pyclass(crate = "crate")]
         struct HashErrors;
 
