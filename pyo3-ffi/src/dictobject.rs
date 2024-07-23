@@ -58,12 +58,6 @@ extern "C" {
     pub fn PyDict_MergeFromSeq2(d: *mut PyObject, seq2: *mut PyObject, _override: c_int) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItemString")]
     pub fn PyDict_GetItemString(dp: *mut PyObject, key: *const c_char) -> *mut PyObject;
-    #[cfg(Py_3_13)]
-    pub fn PyDict_GetItemRef(
-        dp: *mut PyObject,
-        key: *mut PyObject,
-        result: *mut *mut PyObject,
-    ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_SetItemString")]
     pub fn PyDict_SetItemString(
         dp: *mut PyObject,
@@ -72,6 +66,12 @@ extern "C" {
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItemString")]
     pub fn PyDict_DelItemString(dp: *mut PyObject, key: *const c_char) -> c_int;
+    #[cfg(Py_3_13)]
+    pub fn PyDict_GetItemRef(
+        dp: *mut PyObject,
+        key: *mut PyObject,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
