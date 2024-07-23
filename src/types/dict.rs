@@ -599,6 +599,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exceptions::PyTypeError;
     use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
@@ -724,6 +725,40 @@ mod tests {
             );
             assert!(dict.get_item(8i32).unwrap().is_none());
         });
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_get_item_error_path() {
+        #[crate::pyclass(crate = "crate")]
+        struct HashErrors;
+
+        #[crate::pymethods(crate = "crate")]
+        impl HashErrors {
+            #[new]
+            fn new() -> PyResult<Self> {
+                Ok(HashErrors {})
+            }
+
+            fn __hash__(&self) -> PyResult<isize> {
+                Err(PyTypeError::new_err("Error from __hash__"))
+            }
+        }
+
+        Python::with_gil(|py| {
+            let class = py.get_type_bound::<HashErrors>();
+            let instance = class.call0().unwrap();
+            let d = PyDict::new_bound(py);
+            match d.get_item(instance) {
+                Ok(_) => {
+                    panic!("this get_item call should always error")
+                }
+                Err(err) => {
+                    assert!(err.is_instance_of::<PyTypeError>(py));
+                    assert_eq!(err.value_bound(py).to_string(), "Error from __hash__")
+                }
+            }
+        })
     }
 
     #[test]
