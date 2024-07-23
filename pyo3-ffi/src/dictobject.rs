@@ -116,7 +116,7 @@ pub unsafe fn PyDict_GetItemRef(
         return 1; // found
     }
     *result = std::ptr::null_mut();
-    if !PyErr_Occurred().is_null() {
+    if PyErr_Occurred().is_null() {
         return 0; // not found
     }
     -1
