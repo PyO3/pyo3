@@ -45,6 +45,7 @@ impl PyModule {
     /// })?;
     /// # Ok(())}
     ///  ```
+    // TODO: Use multi-phase initialization
     pub fn new_bound<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
         // Could use PyModule_NewObject, but it doesn't exist on PyPy.
         let name = CString::new(name)?;
