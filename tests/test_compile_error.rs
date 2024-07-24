@@ -11,6 +11,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyclass_enum.rs");
     t.compile_fail("tests/ui/invalid_pyclass_item.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_signatures.rs");
+    t.compile_fail("tests/ui/invalid_pyfunction_definition.rs");
     #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
     // The output is not stable across abi3 / not abi3 and features
