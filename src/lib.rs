@@ -416,10 +416,6 @@ pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;
-#[macro_use]
-#[doc(hidden)]
-#[cfg(feature = "gil-refs")]
-pub mod derive_utils;
 mod err;
 pub mod exceptions;
 pub mod ffi;

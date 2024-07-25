@@ -35,46 +35,8 @@ impl<'py> WrapPyFunctionArg<'py, Bound<'py, PyCFunction>> for &'_ Borrowed<'_, '
     }
 }
 
-// For Python<'py>, only the GIL Ref form exists to avoid causing type inference to kick in.
-// The `wrap_pyfunction_bound!` macro is needed for the Bound form.
-#[cfg(feature = "gil-refs")]
-impl<'py> WrapPyFunctionArg<'py, &'py PyCFunction> for Python<'py> {
-    fn wrap_pyfunction(self, method_def: &PyMethodDef) -> PyResult<&'py PyCFunction> {
-        PyCFunction::internal_new(self, method_def, None).map(Bound::into_gil_ref)
-    }
-}
-
-#[cfg(not(feature = "gil-refs"))]
 impl<'py> WrapPyFunctionArg<'py, Bound<'py, PyCFunction>> for Python<'py> {
     fn wrap_pyfunction(self, method_def: &PyMethodDef) -> PyResult<Bound<'py, PyCFunction>> {
         PyCFunction::internal_new(self, method_def, None)
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> WrapPyFunctionArg<'py, &'py PyCFunction> for &'py PyModule {
-    fn wrap_pyfunction(self, method_def: &PyMethodDef) -> PyResult<&'py PyCFunction> {
-        use crate::PyNativeType;
-        PyCFunction::internal_new(self.py(), method_def, Some(&self.as_borrowed()))
-            .map(Bound::into_gil_ref)
-    }
-}
-
-/// Helper for `wrap_pyfunction_bound!` to guarantee return type of `Bound<'py, PyCFunction>`.
-pub struct OnlyBound<T>(pub T);
-
-impl<'py, T> WrapPyFunctionArg<'py, Bound<'py, PyCFunction>> for OnlyBound<T>
-where
-    T: WrapPyFunctionArg<'py, Bound<'py, PyCFunction>>,
-{
-    fn wrap_pyfunction(self, method_def: &PyMethodDef) -> PyResult<Bound<'py, PyCFunction>> {
-        WrapPyFunctionArg::wrap_pyfunction(self.0, method_def)
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> WrapPyFunctionArg<'py, Bound<'py, PyCFunction>> for OnlyBound<Python<'py>> {
-    fn wrap_pyfunction(self, method_def: &PyMethodDef) -> PyResult<Bound<'py, PyCFunction>> {
-        PyCFunction::internal_new(self.0, method_def, None)
     }
 }

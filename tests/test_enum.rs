@@ -30,7 +30,7 @@ fn return_enum() -> MyEnum {
 #[test]
 fn test_return_enum() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(return_enum)(py).unwrap();
+        let f = wrap_pyfunction!(return_enum)(py).unwrap();
         let mynum = py.get_type_bound::<MyEnum>();
 
         py_run!(py, f mynum, "assert f() == mynum.Variant")
@@ -45,7 +45,7 @@ fn enum_arg(e: MyEnum) {
 #[test]
 fn test_enum_arg() {
     Python::with_gil(|py| {
-        let f = wrap_pyfunction_bound!(enum_arg)(py).unwrap();
+        let f = wrap_pyfunction!(enum_arg)(py).unwrap();
         let mynum = py.get_type_bound::<MyEnum>();
 
         py_run!(py, f mynum, "f(mynum.OtherVariant)")

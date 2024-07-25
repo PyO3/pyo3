@@ -181,7 +181,7 @@ macro_rules! import_exception_bound {
 /// }
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
-/// #         let fun = wrap_pyfunction_bound!(raise_myerror, py)?;
+/// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new_bound(py);
 /// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
@@ -332,7 +332,7 @@ fn always_throws() -> PyResult<()> {
 }
 #
 # Python::with_gil(|py| {
-#     let fun = pyo3::wrap_pyfunction_bound!(always_throws, py).unwrap();
+#     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
 #     let err = fun.call0().expect_err(\"called a function that should always return an error but the return value was Ok\");
 #     assert!(err.is_instance_of::<Py", $name, ">(py))
 # });

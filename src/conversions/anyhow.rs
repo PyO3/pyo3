@@ -47,7 +47,7 @@
 //!
 //! fn main() {
 //!     let error = Python::with_gil(|py| -> PyResult<Vec<u8>> {
-//!         let fun = wrap_pyfunction_bound!(py_open, py)?;
+//!         let fun = wrap_pyfunction!(py_open, py)?;
 //!         let text = fun.call1(("foo.txt",))?.extract::<Vec<u8>>()?;
 //!         Ok(text)
 //!     }).unwrap_err();

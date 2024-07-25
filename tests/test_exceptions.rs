@@ -22,7 +22,7 @@ fn fail_to_open_file() -> PyResult<()> {
 #[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
     Python::with_gil(|py| {
-        let fail_to_open_file = wrap_pyfunction_bound!(fail_to_open_file)(py).unwrap();
+        let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
 
         py_run!(
             py,
@@ -68,7 +68,7 @@ fn call_fail_with_custom_error() -> PyResult<()> {
 fn test_custom_error() {
     Python::with_gil(|py| {
         let call_fail_with_custom_error =
-            wrap_pyfunction_bound!(call_fail_with_custom_error)(py).unwrap();
+            wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
 
         py_run!(
             py,

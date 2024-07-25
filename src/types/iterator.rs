@@ -295,7 +295,7 @@ def fibonacci(target):
 
         // Regression test for 2913
         Python::with_gil(|py| {
-            let assert_iterator = crate::wrap_pyfunction_bound!(assert_iterator, py).unwrap();
+            let assert_iterator = crate::wrap_pyfunction!(assert_iterator, py).unwrap();
             crate::py_run!(
                 py,
                 assert_iterator,
