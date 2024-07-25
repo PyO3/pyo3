@@ -149,7 +149,7 @@ macro_rules! wrap_pyfunction {
 /// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
 /// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
 /// information.
-#[deprecated(since = "0.23.0", note = "use `wrap_pyfunction!` instead")]
+#[deprecated(since = "0.23.0", note = "renamed to `wrap_pyfunction!`")]
 #[macro_export]
 macro_rules! wrap_pyfunction_bound {
     ($function:path) => {
