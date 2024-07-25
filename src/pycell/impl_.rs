@@ -74,9 +74,6 @@ pub trait PyClassBorrowChecker {
     /// Increments immutable borrow count, if possible
     fn try_borrow(&self) -> Result<(), PyBorrowError>;
 
-    #[cfg(feature = "gil-refs")]
-    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError>;
-
     /// Decrements immutable borrow count
     fn release_borrow(&self);
     /// Increments mutable borrow count, if possible
@@ -93,12 +90,6 @@ impl PyClassBorrowChecker for EmptySlot {
 
     #[inline]
     fn try_borrow(&self) -> Result<(), PyBorrowError> {
-        Ok(())
-    }
-
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
         Ok(())
     }
 
@@ -126,16 +117,6 @@ impl PyClassBorrowChecker for BorrowChecker {
         let flag = self.0.get();
         if flag != BorrowFlag::HAS_MUTABLE_BORROW {
             self.0.set(flag.increment());
-            Ok(())
-        } else {
-            Err(PyBorrowError { _private: () })
-        }
-    }
-
-    #[cfg(feature = "gil-refs")]
-    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
-        let flag = self.0.get();
-        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
             Ok(())
         } else {
             Err(PyBorrowError { _private: () })

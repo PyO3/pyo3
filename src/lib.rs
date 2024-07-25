@@ -318,18 +318,10 @@
 pub use crate::class::*;
 pub use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, ToPyObject};
 pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::gil::GILPool;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
-#[cfg(feature = "gil-refs")]
-pub use crate::instance::PyNativeType;
 pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::pycell::PyCell;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
@@ -502,7 +494,6 @@ pub mod doc_test {
         "guide/src/function.md" => guide_function_md,
         "guide/src/function/error-handling.md" => guide_function_error_handling_md,
         "guide/src/function/signature.md" => guide_function_signature_md,
-        "guide/src/memory.md" => guide_memory_md,
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,
         "guide/src/parallelism.md" => guide_parallelism_md,

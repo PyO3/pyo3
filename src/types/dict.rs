@@ -519,17 +519,6 @@ pub(crate) use borrowed_iter::BorrowedDictIter;
 pub trait IntoPyDict: Sized {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`IntoPyDict::into_py_dict` will be replaced by `IntoPyDict::into_py_dict_bound` in a future PyO3 version"
-    )]
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
-        Self::into_py_dict_bound(self, py).into_gil_ref()
-    }
-
-    /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
-    /// depends on implementation.
     fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict>;
 }
 

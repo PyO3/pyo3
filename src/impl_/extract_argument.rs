@@ -65,7 +65,7 @@ where
     }
 }
 
-#[cfg(all(Py_LIMITED_API, not(any(feature = "gil-refs", Py_3_10))))]
+#[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a> PyFunctionArgument<'a, '_> for &'a str {
     type Holder = Option<std::borrow::Cow<'a, str>>;
 

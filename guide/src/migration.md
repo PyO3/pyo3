@@ -487,7 +487,7 @@ A key thing to note here is because extracting to these types now ties them to t
 
 Before:
 
-```rust
+```rust,ignore
 # #[cfg(feature = "gil-refs")] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};

@@ -6,11 +6,6 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
-#[cfg(feature = "gil-refs")]
-use {
-    crate::{err, gil, PyNativeType},
-    std::ptr::NonNull,
-};
 
 /// Returns a borrowed pointer to a Python object.
 ///
@@ -220,15 +215,6 @@ pub trait IntoPy<T>: Sized {
 /// infinite recursion, implementors must implement at least one of these methods. The recommendation
 /// is to implement `extract_bound` and leave `extract` as the default implementation.
 pub trait FromPyObject<'py>: Sized {
-    /// Extracts `Self` from the source GIL Ref `obj`.
-    ///
-    /// Implementors are encouraged to implement `extract_bound` and leave this method as the
-    /// default implementation, which will forward calls to `extract_bound`.
-    #[cfg(feature = "gil-refs")]
-    fn extract(ob: &'py PyAny) -> PyResult<Self> {
-        Self::extract_bound(&ob.as_borrowed())
-    }
-
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Implementors are encouraged to implement this method and leave `extract` defaulted, as
@@ -381,138 +367,6 @@ where
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty_bound(py).unbind()
-    }
-}
-
-/// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
-///
-/// # Safety
-///
-/// See safety notes on individual functions.
-#[cfg(feature = "gil-refs")]
-#[deprecated(since = "0.21.0")]
-pub unsafe trait FromPyPointer<'p>: Sized {
-    /// Convert from an arbitrary `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Implementations must ensure the object does not get freed during `'p`
-    /// and ensure that `ptr` is of the correct type.
-    /// Note that it must be safe to decrement the reference count of `ptr`.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr_or_opt(py, ptr)` or `Bound::from_owned_ptr_or_opt(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
-    /// Convert from an arbitrary `PyObject` or panic.
-    ///
-    /// # Safety
-    ///
-    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_owned_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
-    }
-    /// Convert from an arbitrary `PyObject` or panic.
-    ///
-    /// # Safety
-    ///
-    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr(py, ptr)` or `Bound::from_owned_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_owned_ptr_or_panic(py, ptr)
-    }
-    /// Convert from an arbitrary `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_owned_ptr_or_err(py, ptr)` or `Bound::from_owned_ptr_or_err(py, ptr)` instead"
-    )]
-    unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
-        #[allow(deprecated)]
-        Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
-    }
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Implementations must ensure the object does not get freed during `'p` and avoid type confusion.
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr_or_opt(py, ptr)` or `Bound::from_borrowed_ptr_or_opt(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
-        -> Option<&'p Self>;
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_borrowed_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
-    }
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr(py, ptr)` or `Bound::from_borrowed_ptr(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        #[allow(deprecated)]
-        Self::from_borrowed_ptr_or_panic(py, ptr)
-    }
-    /// Convert from an arbitrary borrowed `PyObject`.
-    ///
-    /// # Safety
-    ///
-    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `Py::from_borrowed_ptr_or_err(py, ptr)` or `Bound::from_borrowed_ptr_or_err(py, ptr)` instead"
-    )]
-    unsafe fn from_borrowed_ptr_or_err(
-        py: Python<'p>,
-        ptr: *mut ffi::PyObject,
-    ) -> PyResult<&'p Self> {
-        #[allow(deprecated)]
-        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-unsafe impl<'p, T> FromPyPointer<'p> for T
-where
-    T: 'p + crate::PyNativeType,
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
-        gil::register_owned(py, NonNull::new(ptr)?);
-        Some(&*(ptr as *mut Self))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(
-        _py: Python<'p>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<&'p Self> {
-        NonNull::new(ptr as *mut Self).map(|p| &*p.as_ptr())
     }
 }
 

@@ -103,9 +103,6 @@ generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 # Changes `Python::with_gil` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
 
-# Allows use of the deprecated "GIL Refs" APIs.
-gil-refs = ["pyo3-macros/gil-refs"]
-
 # Enables `Clone`ing references to Python objects `Py<T>` which panics if the GIL is not held.
 py-clone = []
 
