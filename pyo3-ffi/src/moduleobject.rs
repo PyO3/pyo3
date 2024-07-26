@@ -36,13 +36,11 @@ extern "C" {
     pub fn PyModule_GetFilename(arg1: *mut PyObject) -> *const c_char;
     #[cfg(not(PyPy))]
     pub fn PyModule_GetFilenameObject(arg1: *mut PyObject) -> *mut PyObject;
-    // skipped non-limited _PyModule_Clear
-    // skipped non-limited _PyModule_ClearDict
-    // skipped non-limited _PyModuleSpec_IsInitializing
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetDef")]
     pub fn PyModule_GetDef(arg1: *mut PyObject) -> *mut PyModuleDef;
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetState")]
     pub fn PyModule_GetState(arg1: *mut PyObject) -> *mut c_void;
+
     #[cfg_attr(PyPy, link_name = "PyPyModuleDef_Init")]
     pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
 }
@@ -95,8 +93,6 @@ pub const Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED: *mut c_void = 0 as *mut c_
 pub const Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED: *mut c_void = 1 as *mut c_void;
 #[cfg(Py_3_12)]
 pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
-
-// skipped non-limited _Py_mod_LAST_SLOT
 
 #[repr(C)]
 pub struct PyModuleDef {

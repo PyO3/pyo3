@@ -34,5 +34,3 @@ extern "C" {
     pub static mut Py_HasFileSystemDefaultEncoding: c_int;
     // skipped 3.12-deprecated Py_UTF8Mode
 }
-
-// skipped _PyIsSelectable_fd

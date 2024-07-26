@@ -48,7 +48,7 @@ pub struct PyDateTime_Delta {
 #[repr(C)]
 #[derive(Debug)]
 /// Structure representing a `datetime.time` without a `tzinfo` member.
-pub struct _PyDateTime_BaseTime {
+struct _PyDateTime_BaseTime {
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
@@ -93,7 +93,7 @@ pub struct PyDateTime_Date {
 #[repr(C)]
 #[derive(Debug)]
 /// Structure representing a `datetime.datetime` without a `tzinfo` member.
-pub struct _PyDateTime_BaseDateTime {
+struct _PyDateTime_BaseDateTime {
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,

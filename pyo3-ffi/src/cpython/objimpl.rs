@@ -9,11 +9,6 @@ use crate::object::*;
 // skipped _PyObject_SIZE
 // skipped _PyObject_VAR_SIZE
 
-#[cfg(not(Py_3_11))]
-extern "C" {
-    pub fn _Py_GetAllocatedBlocks() -> crate::Py_ssize_t;
-}
-
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -49,12 +44,6 @@ pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
             Some(tp_is_gc) => tp_is_gc(o) != 0,
             None => true,
         }) as c_int
-}
-
-#[cfg(not(Py_3_11))]
-extern "C" {
-    pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
-    pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
 }
 
 #[inline]

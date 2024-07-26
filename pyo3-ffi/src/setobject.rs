@@ -39,25 +39,6 @@ pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
     (*so).used
 }
 
-#[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _PySet_Dummy: *mut PyObject;
-}
-
-extern "C" {
-    #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(PyPy, link_name = "_PyPySet_NextEntry")]
-    pub fn _PySet_NextEntry(
-        set: *mut PyObject,
-        pos: *mut Py_ssize_t,
-        key: *mut *mut PyObject,
-        hash: *mut super::Py_hash_t,
-    ) -> c_int;
-
-    // skipped non-limited _PySet_Update
-}
-
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySet_Type")]

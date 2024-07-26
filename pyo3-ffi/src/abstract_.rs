@@ -1,5 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+#[cfg(any(Py_3_12, all(Py_3_9, not(Py_LIMITED_API))))]
+use libc::size_t;
 use std::os::raw::{c_char, c_int};
 
 #[inline]
@@ -47,22 +49,6 @@ extern "C" {
         ...
     ) -> *mut PyObject;
 
-    #[cfg(not(Py_3_13))]
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_CallFunction_SizeT")]
-    pub fn _PyObject_CallFunction_SizeT(
-        callable_object: *mut PyObject,
-        format: *const c_char,
-        ...
-    ) -> *mut PyObject;
-    #[cfg(not(Py_3_13))]
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_CallMethod_SizeT")]
-    pub fn _PyObject_CallMethod_SizeT(
-        o: *mut PyObject,
-        method: *const c_char,
-        format: *const c_char,
-        ...
-    ) -> *mut PyObject;
-
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunctionObjArgs")]
     pub fn PyObject_CallFunctionObjArgs(callable: *mut PyObject, ...) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallMethodObjArgs")]
@@ -71,6 +57,41 @@ extern "C" {
         method: *mut PyObject,
         ...
     ) -> *mut PyObject;
+
+    #[cfg(all(Py_3_12, Py_LIMITED_API))] // used as a function on the stable abi
+    pub fn PyVectorcall_NARGS(nargsf: libc::size_t) -> Py_ssize_t;
+
+    #[cfg(any(Py_3_12, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyVectorcall_Call")]
+    pub fn PyVectorcall_Call(
+        callable: *mut PyObject,
+        tuple: *mut PyObject,
+        dict: *mut PyObject,
+    ) -> *mut PyObject;
+}
+
+#[cfg(Py_3_12)]
+pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
+    1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
+
+extern "C" {
+    #[cfg_attr(Py_3_9, link_name = "PyPyObject_Vectorcall")]
+    #[cfg(any(Py_3_12, all(Py_3_9, not(Py_LIMITED_API))))]
+    pub fn PyObject_Vectorcall(
+        callable: *mut PyObject,
+        args: *const *mut PyObject,
+        nargsf: size_t,
+        kwnames: *mut PyObject,
+    ) -> *mut PyObject;
+
+    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy, GraalPy)))))]
+    pub fn PyObject_VectorcallMethod(
+        name: *mut PyObject,
+        args: *const *mut PyObject,
+        nargsf: size_t,
+        kwnames: *mut PyObject,
+    ) -> *mut PyObject;
+
     #[cfg_attr(PyPy, link_name = "PyPyObject_Type")]
     pub fn PyObject_Type(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Size")]

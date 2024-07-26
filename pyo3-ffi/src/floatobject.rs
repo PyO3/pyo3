@@ -36,12 +36,3 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyFloat_AsDouble")]
     pub fn PyFloat_AsDouble(arg1: *mut PyObject) -> c_double;
 }
-
-// skipped non-limited _PyFloat_Pack2
-// skipped non-limited _PyFloat_Pack4
-// skipped non-limited _PyFloat_Pack8
-// skipped non-limited _PyFloat_Unpack2
-// skipped non-limited _PyFloat_Unpack4
-// skipped non-limited _PyFloat_Unpack8
-// skipped non-limited _PyFloat_DebugMallocStats
-// skipped non-limited _PyFloat_FormatAdvancedWriter

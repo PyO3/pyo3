@@ -1,6 +1,9 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int};
+use std::{
+    ffi::CString,
+    os::raw::{c_char, c_int},
+};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
@@ -99,7 +102,15 @@ pub unsafe fn PyUnicodeDecodeError_Create(
     end: Py_ssize_t,
     reason: *const c_char,
 ) -> *mut PyObject {
-    crate::_PyObject_CallFunction_SizeT(
+    // This is an abi-only symbol since Python 3.13, so it's not declared in any headers.
+    #[link_name = "_PyPyObject_CallFunction_SizeT"]
+    pub(crate) fn _PyObject_CallFunction_SizeT(
+        callable_object: *mut PyObject,
+        format: *const c_char,
+        ...
+    ) -> *mut PyObject;
+
+    _PyObject_CallFunction_SizeT(
         PyExc_UnicodeDecodeError,
         c_str!("sy#nns").as_ptr(),
         encoding,
@@ -297,9 +308,23 @@ extern "C" {
         arg2: *mut PyObject,
         arg3: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadInternalCall")]
     pub fn PyErr_BadInternalCall();
-    pub fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
+    #[cfg(not(PyPy))]
+    fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
+}
+
+#[inline(always)]
+#[cfg(not(PyPy))]
+pub unsafe fn PyErr_BadInternalCall() {
+    let location = std::panic::Location::caller();
+    let filename = CString::new(location.file());
+    let filename = filename.as_deref().unwrap_or(c_str!("<unknown>"));
+    _PyErr_BadInternalCall(filename.as_ptr(), location.line() as c_int);
+}
+
+extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_NewException")]
     pub fn PyErr_NewException(
         name: *const c_char,

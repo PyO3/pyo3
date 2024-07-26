@@ -53,6 +53,9 @@ extern "C" {
     // skipped PyUnstable_Long_IsCompact
     // skipped PyUnstable_Long_CompactValue
 
+    #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
+    pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
+
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
     pub fn _PyLong_FromByteArray(
         bytes: *const c_uchar,
