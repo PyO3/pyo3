@@ -272,7 +272,7 @@ mod tests {
             assert!(py
                 .get_type_bound::<PyBool>()
                 .mro()
-                .eq(PyTuple::new_bound(
+                .eq(PyTuple::new(
                     py,
                     [
                         py.get_type_bound::<PyBool>(),
@@ -290,7 +290,7 @@ mod tests {
             assert!(py
                 .get_type_bound::<PyBool>()
                 .bases()
-                .eq(PyTuple::new_bound(py, [py.get_type_bound::<PyInt>()]))
+                .eq(PyTuple::new(py, [py.get_type_bound::<PyInt>()]))
                 .unwrap());
         });
     }
@@ -301,7 +301,7 @@ mod tests {
             assert!(py
                 .get_type_bound::<PyAny>()
                 .bases()
-                .eq(PyTuple::empty_bound(py))
+                .eq(PyTuple::empty(py))
                 .unwrap());
         });
     }

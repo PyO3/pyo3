@@ -95,7 +95,7 @@ impl ModuleDef {
                 .import_bound("sys")?
                 .getattr("implementation")?
                 .getattr("version")?;
-            if version.lt(crate::types::PyTuple::new_bound(py, PYPY_GOOD_VERSION))? {
+            if version.lt(crate::types::PyTuple::new(py, PYPY_GOOD_VERSION))? {
                 let warn = py.import_bound("warnings")?.getattr("warn")?;
                 warn.call1((
                     "PyPy 3.7 versions older than 7.3.8 are known to have binary \

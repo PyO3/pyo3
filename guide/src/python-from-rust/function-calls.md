@@ -49,7 +49,7 @@ fn main() -> PyResult<()> {
         fun.call1(py, args)?;
 
         // call object with Python tuple of positional arguments
-        let args = PyTuple::new_bound(py, &[arg1, arg2, arg3]);
+        let args = PyTuple::new(py, &[arg1, arg2, arg3]);
         fun.call1(py, args)?;
         Ok(())
     })
