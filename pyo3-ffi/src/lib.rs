@@ -290,6 +290,8 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
 
 use std::ffi::CStr;
 
+pub mod compat;
+
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
@@ -364,7 +366,6 @@ mod ceval;
 #[cfg(Py_LIMITED_API)]
 mod code;
 mod codecs;
-pub mod compat;
 mod compile;
 mod complexobject;
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]

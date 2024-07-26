@@ -2,30 +2,30 @@
 //!
 //! Some CPython C API functions added in recent versions of Python are
 //! inherently safer to use than older C API constructs. This module
-//! exposes versions of these safer functions for older python versions
-//! and on newer versions simply re-exports the function from the FFI
-//! bindings.
-//!
-//! This compatibility module makes it easier to use safer C API
-//! constructs without writing your own compatibility shims.
+//! exposes functions available on all Python versions that wrap the
+//! old C API on old Python versions and wrap the function directly
+//! on newer Python versions.
 
-#[cfg(Py_3_13)]
-mod py313_compat {
-    pub use crate::dictobject::PyDict_GetItemRef;
-}
-#[cfg(not(Py_3_13))]
-mod py313_compat {
-    use crate::object::{PyObject, _Py_NewRef};
-    use std::os::raw::c_int;
+use crate::object::PyObject;
+use std::os::raw::c_int;
 
-    use crate::dictobject::PyDict_GetItemWithError;
-    use crate::pyerrors::PyErr_Occurred;
+pub unsafe fn PyDict_GetItemRef(
+    dp: *mut PyObject,
+    key: *mut PyObject,
+    result: *mut *mut PyObject,
+) -> c_int {
+    #[cfg(Py_3_13)]
+    {
+        crate::PyDict_GetItemRef(dp, key, result)
+    }
 
-    pub unsafe fn PyDict_GetItemRef(
-        dp: *mut PyObject,
-        key: *mut PyObject,
-        result: *mut *mut PyObject,
-    ) -> c_int {
+    #[cfg(not(Py_3_13))]
+    {
+        use crate::dictobject::PyDict_GetItemWithError;
+        use crate::object::_Py_NewRef;
+        use crate::pyerrors::PyErr_Occurred;
+
+        // adapted from pythoncapi-compat
         let item: *mut PyObject = PyDict_GetItemWithError(dp, key);
         if !item.is_null() {
             *result = _Py_NewRef(item);
@@ -38,5 +38,3 @@ mod py313_compat {
         -1
     }
 }
-
-pub use py313_compat::PyDict_GetItemRef;
