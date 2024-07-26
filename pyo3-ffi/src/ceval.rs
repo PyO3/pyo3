@@ -70,7 +70,6 @@ extern "C" {
     pub fn Py_SetRecursionLimit(arg1: c_int);
     #[cfg_attr(PyPy, link_name = "PyPy_GetRecursionLimit")]
     pub fn Py_GetRecursionLimit() -> c_int;
-    fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
 }
 
 extern "C" {

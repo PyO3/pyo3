@@ -18,13 +18,11 @@ extern "C" {
     ) -> *mut c_char;
 }
 
-// skipped non-limited _Py_string_to_number_with_underscores
-// skipped non-limited _Py_parse_inf_or_nan
-
 /* PyOS_double_to_string's "flags" parameter can be set to 0 or more of: */
 pub const Py_DTSF_SIGN: c_int = 0x01; /* always add the sign */
 pub const Py_DTSF_ADD_DOT_0: c_int = 0x02; /* if the result is an integer add ".0" */
 pub const Py_DTSF_ALT: c_int = 0x04; /* "alternate" formatting. it's format_code specific */
+pub const Py_DTSF_NO_NEG: c_int = 0x08; /* negative zero result is coerced to 0 */
 
 /* PyOS_double_to_string's "type", if non-NULL, will be set to one of: */
 pub const Py_DTST_FINITE: c_int = 0;

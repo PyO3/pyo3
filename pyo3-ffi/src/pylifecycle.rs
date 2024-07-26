@@ -37,8 +37,6 @@ extern "C" {
     pub fn Py_GetPath() -> *mut wchar_t;
     pub fn Py_SetPath(arg1: *const wchar_t);
 
-    // skipped _Py_CheckPython3
-
     #[cfg_attr(PyPy, link_name = "PyPy_GetVersion")]
     pub fn Py_GetVersion() -> *const c_char;
     pub fn Py_GetPlatform() -> *const c_char;
@@ -47,7 +45,7 @@ extern "C" {
     pub fn Py_GetBuildInfo() -> *const c_char;
 }
 
-type PyOS_sighandler_t = unsafe extern "C" fn(arg1: c_int);
+pub type PyOS_sighandler_t = unsafe extern "C" fn(arg1: c_int);
 
 extern "C" {
     pub fn PyOS_getsig(arg1: c_int) -> PyOS_sighandler_t;
