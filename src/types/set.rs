@@ -1,6 +1,4 @@
 use crate::types::PyIterator;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
@@ -11,7 +9,13 @@ use crate::{
 use crate::{ffi, PyAny, PyObject, Python, ToPyObject};
 use std::ptr;
 
-/// Represents a Python `set`
+/// Represents a Python `set`.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PySet>`][crate::Py] or [`Bound<'py, PySet>`][Bound].
+///
+/// For APIs available on `set` objects, see the [`PySetMethods`] trait which is implemented for
+/// [`Bound<'py, PySet>`][Bound].
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
@@ -49,92 +53,6 @@ impl PySet {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl PySet {
-    /// Deprecated form of [`PySet::new_bound`].
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PySet::new` will be replaced by `PySet::new_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn new<'a, 'p, T: ToPyObject + 'a>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = &'a T>,
-    ) -> PyResult<&'p PySet> {
-        Self::new_bound(py, elements).map(Bound::into_gil_ref)
-    }
-
-    /// Deprecated form of [`PySet::empty_bound`].
-    #[deprecated(
-        since = "0.21.2",
-        note = "`PySet::empty` will be replaced by `PySet::empty_bound` in a future PyO3 version"
-    )]
-    pub fn empty(py: Python<'_>) -> PyResult<&PySet> {
-        Self::empty_bound(py).map(Bound::into_gil_ref)
-    }
-
-    /// Removes all elements from the set.
-    #[inline]
-    pub fn clear(&self) {
-        self.as_borrowed().clear()
-    }
-
-    /// Returns the number of items in the set.
-    ///
-    /// This is equivalent to the Python expression `len(self)`.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.as_borrowed().len()
-    }
-
-    /// Checks if set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_borrowed().is_empty()
-    }
-
-    /// Determines if the set contains the specified key.
-    ///
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().contains(key)
-    }
-
-    /// Removes the element from the set if it is present.
-    ///
-    /// Returns `true` if the element was present in the set.
-    pub fn discard<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().discard(key)
-    }
-
-    /// Adds an element to the set.
-    pub fn add<K>(&self, key: K) -> PyResult<()>
-    where
-        K: ToPyObject,
-    {
-        self.as_borrowed().add(key)
-    }
-
-    /// Removes and returns an arbitrary element from the set.
-    pub fn pop(&self) -> Option<PyObject> {
-        self.as_borrowed().pop().map(Bound::unbind)
-    }
-
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    pub fn iter(&self) -> PySetIterator<'_> {
-        PySetIterator(BoundSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 
@@ -257,50 +175,6 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 
     fn iter(&self) -> BoundSetIterator<'py> {
         BoundSetIterator::new(self.clone())
-    }
-}
-
-/// PyO3 implementation of an iterator for a Python `set` object.
-#[cfg(feature = "gil-refs")]
-pub struct PySetIterator<'py>(BoundSetIterator<'py>);
-
-#[cfg(feature = "gil-refs")]
-impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
-
-    /// Advances the iterator and returns the next value.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Bound::into_gil_ref)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl ExactSizeIterator for PySetIterator<'_> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'py> IntoIterator for &'py PySet {
-    type Item = &'py PyAny;
-    type IntoIter = PySetIterator<'py>;
-    /// Returns an iterator of values in this set.
-    ///
-    /// # Panics
-    ///
-    /// If PyO3 detects that the set is mutated during iteration, it will panic.
-    fn into_iter(self) -> Self::IntoIter {
-        PySetIterator(BoundSetIterator::new(self.as_borrowed().to_owned()))
     }
 }
 

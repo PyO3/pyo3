@@ -4,18 +4,21 @@ use crate::{ffi, instance::Bound, PyAny};
 
 /// Represents a Python `int` object.
 ///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyInt>`][crate::Py] or [`Bound<'py, PyInt>`][crate::Bound].
+///
 /// You can usually avoid directly working with this type
 /// by using [`ToPyObject`](crate::conversion::ToPyObject)
 /// and [`extract`](super::PyAnyMethods::extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyLong(PyAny);
+pub struct PyInt(PyAny);
 
-pyobject_native_type_core!(PyLong, pyobject_native_static_type_object!(ffi::PyLong_Type), #checkfunction=ffi::PyLong_Check);
+pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLong_Type), #checkfunction=ffi::PyLong_Check);
 
 macro_rules! int_compare {
     ($rust_type: ty) => {
-        impl PartialEq<$rust_type> for Bound<'_, PyLong> {
+        impl PartialEq<$rust_type> for Bound<'_, PyInt> {
             #[inline]
             fn eq(&self, other: &$rust_type) -> bool {
                 if let Ok(value) = self.extract::<$rust_type>() {
@@ -25,9 +28,9 @@ macro_rules! int_compare {
                 }
             }
         }
-        impl PartialEq<Bound<'_, PyLong>> for $rust_type {
+        impl PartialEq<Bound<'_, PyInt>> for $rust_type {
             #[inline]
-            fn eq(&self, other: &Bound<'_, PyLong>) -> bool {
+            fn eq(&self, other: &Bound<'_, PyInt>) -> bool {
                 if let Ok(value) = other.extract::<$rust_type>() {
                     value == *self
                 } else {
@@ -53,7 +56,7 @@ int_compare!(usize);
 
 #[cfg(test)]
 mod tests {
-    use super::PyLong;
+    use super::PyInt;
     use crate::{types::PyAnyMethods, IntoPy, Python};
 
     #[test]
@@ -112,7 +115,7 @@ mod tests {
             let big_obj = big_num
                 .into_py(py)
                 .into_bound(py)
-                .downcast_into::<PyLong>()
+                .downcast_into::<PyInt>()
                 .unwrap();
 
             for x in 0u8..=u8::MAX {
@@ -122,3 +125,7 @@ mod tests {
         });
     }
 }
+
+/// Deprecated alias for [`PyInt`].
+#[deprecated(since = "0.23.0", note = "use `PyInt` instead")]
+pub type PyLong = PyInt;

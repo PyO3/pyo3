@@ -13,10 +13,10 @@ The table below contains the Python type and the corresponding function argument
 | Python        | Rust                            | Rust (Python-native) |
 | ------------- |:-------------------------------:|:--------------------:|
 | `object`      | -                               | `PyAny`             |
-| `str`         | `String`, `Cow<str>`, `&str`, `char`, `OsString`, `PathBuf`, `Path` | `PyString`, `PyUnicode` |
+| `str`         | `String`, `Cow<str>`, `&str`, `char`, `OsString`, `PathBuf`, `Path` | `PyString` |
 | `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `PyBytes`           |
 | `bool`        | `bool`                          | `PyBool`            |
-| `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyLong` |
+| `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyInt` |
 | `float`       | `f32`, `f64`                    | `PyFloat`           |
 | `complex`     | `num_complex::Complex`[^2]      | `PyComplex`         |
 | `fractions.Fraction`| `num_rational::Ratio`[^8] | -         |
@@ -38,8 +38,8 @@ The table below contains the Python type and the corresponding function argument
 | `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::IpV4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::IpV6Addr` | - |
-| `os.PathLike ` | `PathBuf`, `Path`              | `PyString`, `PyUnicode` |
-| `pathlib.Path` | `PathBuf`, `Path`              | `PyString`, `PyUnicode` |
+| `os.PathLike ` | `PathBuf`, `Path`              | `PyString` |
+| `pathlib.Path` | `PathBuf`, `Path`              | `PyString` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `PySequence`        |
 | `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `&PyMapping` |

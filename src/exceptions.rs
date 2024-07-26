@@ -18,32 +18,7 @@ use std::ops;
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl ::std::convert::From<&$name> for $crate::PyErr {
-            #[inline]
-            fn from(err: &$name) -> $crate::PyErr {
-                #[allow(deprecated)]
-                $crate::PyErr::from_value(err)
-            }
-        }
-
         $crate::impl_exception_boilerplate_bound!($name);
-
-        #[cfg(feature = "gil-refs")]
-        impl ::std::error::Error for $name {
-            fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
-                unsafe {
-                    #[allow(deprecated)]
-                    let cause: &$crate::exceptions::PyBaseException = self
-                        .py()
-                        .from_owned_ptr_or_opt($crate::ffi::PyException_GetCause(self.as_ptr()))?;
-
-                    ::std::option::Option::Some(cause)
-                }
-            }
-        }
 
         impl $crate::ToPyErr for $name {}
     };
@@ -143,13 +118,6 @@ macro_rules! import_exception_bound {
 
         $crate::impl_exception_boilerplate_bound!($name);
 
-        // FIXME remove this: was necessary while `PyTypeInfo` requires `HasPyGilRef`,
-        // should change in 0.22.
-        #[cfg(feature = "gil-refs")]
-        unsafe impl $crate::type_object::HasPyGilRef for $name {
-            type AsRefTarget = $crate::PyAny;
-        }
-
         $crate::pyobject_native_type_info!(
             $name,
             $name::type_object_raw,
@@ -206,7 +174,7 @@ macro_rules! import_exception_bound {
 /// }
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
-/// #         let fun = wrap_pyfunction_bound!(raise_myerror, py)?;
+/// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new_bound(py);
 /// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
@@ -357,7 +325,7 @@ fn always_throws() -> PyResult<()> {
 }
 #
 # Python::with_gil(|py| {
-#     let fun = pyo3::wrap_pyfunction_bound!(always_throws, py).unwrap();
+#     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
 #     let err = fun.call0().expect_err(\"called a function that should always return an error but the return value was Ok\");
 #     assert!(err.is_instance_of::<Py", $name, ">(py))
 # });
@@ -653,22 +621,6 @@ impl_windows_native_exception!(
 );
 
 impl PyUnicodeDecodeError {
-    /// Deprecated form of [`PyUnicodeDecodeError::new_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyUnicodeDecodeError::new` will be replaced by `PyUnicodeDecodeError::new_bound` in a future PyO3 version"
-    )]
-    pub fn new<'p>(
-        py: Python<'p>,
-        encoding: &CStr,
-        input: &[u8],
-        range: ops::Range<usize>,
-        reason: &CStr,
-    ) -> PyResult<&'p PyUnicodeDecodeError> {
-        Ok(PyUnicodeDecodeError::new_bound(py, encoding, input, range, reason)?.into_gil_ref())
-    }
-
     /// Creates a Python `UnicodeDecodeError`.
     pub fn new_bound<'p>(
         py: Python<'p>,
@@ -691,20 +643,6 @@ impl PyUnicodeDecodeError {
             .assume_owned_or_err(py)
         }
         .downcast_into()
-    }
-
-    /// Deprecated form of [`PyUnicodeDecodeError::new_utf8_bound`].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyUnicodeDecodeError::new_utf8` will be replaced by `PyUnicodeDecodeError::new_utf8_bound` in a future PyO3 version"
-    )]
-    pub fn new_utf8<'p>(
-        py: Python<'p>,
-        input: &[u8],
-        err: std::str::Utf8Error,
-    ) -> PyResult<&'p PyUnicodeDecodeError> {
-        Ok(PyUnicodeDecodeError::new_utf8_bound(py, input, err)?.into_gil_ref())
     }
 
     /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
@@ -821,16 +759,6 @@ macro_rules! test_exception {
 
                 let value = err.value_bound(py).as_any().downcast::<$exc_ty>().unwrap();
 
-                #[cfg(feature = "gil-refs")]
-                {
-                    use std::error::Error;
-                    let value = value.as_gil_ref();
-                    assert!(value.source().is_none());
-
-                    err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
-                    assert!(value.source().is_some());
-                }
-
                 assert!($crate::PyErr::from(value.clone()).is_instance_of::<$exc_ty>(py));
             })
         }
@@ -885,8 +813,6 @@ mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
     use crate::PyErr;
-    #[cfg(feature = "gil-refs")]
-    use crate::PyNativeType;
 
     import_exception_bound!(socket, gaierror);
     import_exception_bound!(email.errors, MessageError);
@@ -1072,34 +998,6 @@ mod tests {
                 exc.to_string(),
                 exc.str().unwrap().extract::<String>().unwrap()
             );
-        });
-    }
-
-    #[test]
-    #[cfg(feature = "gil-refs")]
-    fn native_exception_chain() {
-        use std::error::Error;
-
-        Python::with_gil(|py| {
-            #[allow(deprecated)]
-            let exc = py
-                .run_bound(
-                    "raise Exception('banana') from TypeError('peach')",
-                    None,
-                    None,
-                )
-                .expect_err("raising should have given us an error")
-                .into_value(py)
-                .into_ref(py);
-
-            assert_eq!(format!("{:?}", exc), "Exception('banana')");
-
-            let source = exc.source().expect("cause should exist");
-
-            assert_eq!(format!("{:?}", source), "TypeError('peach')");
-
-            let source_source = source.source();
-            assert!(source_source.is_none(), "source_source should be None");
         });
     }
 

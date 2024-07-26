@@ -59,7 +59,7 @@ macro_rules! extract_int {
         // See https://github.com/PyO3/pyo3/pull/3742 for detials
         if cfg!(Py_3_10) && !$force_index_call {
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as($obj.as_ptr()) })
-        } else if let Ok(long) = $obj.downcast::<crate::types::PyLong>() {
+        } else if let Ok(long) = $obj.downcast::<crate::types::PyInt>() {
             // fast path - checking for subclass of `int` just checks a bit in the type $object
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as(long.as_ptr()) })
         } else {

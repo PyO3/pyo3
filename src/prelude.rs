@@ -9,26 +9,21 @@
 //! ```
 
 pub use crate::conversion::{FromPyObject, IntoPy, ToPyObject};
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::conversion::{PyTryFrom, PyTryInto};
 pub use crate::err::{PyErr, PyResult};
 pub use crate::instance::{Borrowed, Bound, Py, PyObject};
 pub use crate::marker::Python;
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-pub use crate::pycell::PyCell;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
-#[cfg(feature = "gil-refs")]
-pub use crate::PyNativeType;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
 
 #[cfg(feature = "macros")]
-pub use crate::{wrap_pyfunction, wrap_pyfunction_bound};
+pub use crate::wrap_pyfunction;
+#[cfg(feature = "macros")]
+#[allow(deprecated)]
+pub use crate::wrap_pyfunction_bound;
 
 pub use crate::types::any::PyAnyMethods;
 pub use crate::types::boolobject::PyBoolMethods;

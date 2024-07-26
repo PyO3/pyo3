@@ -5,6 +5,15 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.21.* to 0.22
 
+### Deprecation of `gil-refs` feature continues
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Following the introduction of the "Bound" API in PyO3 0.21 and the planned removal of the "GIL Refs" API, all functionality related to GIL Refs is now gated behind the `gil-refs` feature and emits a deprecation warning on use.
+
+See <a href="#from-021-to-022">the 0.21 migration entry</a> for help upgrading.
+</details>
+
 ### Deprecation of implicit default for trailing optional arguments
 <details open>
 <summary><small>Click to expand</small></summary>
@@ -235,8 +244,7 @@ The `__next__` and `__anext__` magic methods can now return any type convertible
 
 Starting with an implementation of a Python iterator using `IterNextOutput`, e.g.
 
-```rust
-#![allow(deprecated)]
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::iter::IterNextOutput;
 
@@ -479,7 +487,7 @@ A key thing to note here is because extracting to these types now ties them to t
 
 Before:
 
-```rust
+```rust,ignore
 # #[cfg(feature = "gil-refs")] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
@@ -529,6 +537,7 @@ assert_eq!(&*name, "list");
 # }
 # Python::with_gil(example).unwrap();
 ```
+</details>
 
 ## from 0.19.* to 0.20
 
@@ -875,9 +884,9 @@ fn function_with_defaults(a: i32, b: i32, c: i32) {}
 
 # fn main() {
 #     Python::with_gil(|py| {
-#         let simple = wrap_pyfunction_bound!(simple_function, py).unwrap();
+#         let simple = wrap_pyfunction!(simple_function, py).unwrap();
 #         assert_eq!(simple.getattr("__text_signature__").unwrap().to_string(), "(a, b, c)");
-#         let defaulted = wrap_pyfunction_bound!(function_with_defaults, py).unwrap();
+#         let defaulted = wrap_pyfunction!(function_with_defaults, py).unwrap();
 #         assert_eq!(defaulted.getattr("__text_signature__").unwrap().to_string(), "(a, b=1, c=2)");
 #     })
 # }

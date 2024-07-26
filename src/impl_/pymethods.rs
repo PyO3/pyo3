@@ -5,8 +5,6 @@ use crate::impl_::panic::PanicTrap;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
-#[cfg(feature = "gil-refs")]
-use crate::types::{PyModule, PyType};
 use crate::{
     ffi, Borrowed, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject,
     PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
@@ -464,33 +462,6 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
 
     pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
         BoundRef(self.0.downcast_unchecked::<T>())
-    }
-}
-
-// GIL Ref implementations for &'a T ran into trouble with orphan rules,
-// so explicit implementations are used instead for the two relevant types.
-#[cfg(feature = "gil-refs")]
-impl<'a> From<BoundRef<'a, 'a, PyType>> for &'a PyType {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'a, PyType>) -> Self {
-        bound.0.as_gil_ref()
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'a> From<BoundRef<'a, 'a, PyModule>> for &'a PyModule {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'a, PyModule>) -> Self {
-        bound.0.as_gil_ref()
-    }
-}
-
-#[allow(deprecated)]
-#[cfg(feature = "gil-refs")]
-impl<'a, 'py, T: PyClass> From<BoundRef<'a, 'py, T>> for &'a crate::PyCell<T> {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
-        bound.0.as_gil_ref()
     }
 }
 

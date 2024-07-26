@@ -59,7 +59,9 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 /// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
 /// uses the Python GIL to mediate concurrent access. This helps in cases where `once_cell` or
 /// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
-/// GIL. For an example, see [the FAQ section](https://pyo3.rs/latest/faq.html) of the guide.
+/// GIL. For an example, see
+#[doc = concat!("[the FAQ section](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/faq.html)")]
+/// of the guide.
 ///
 /// Note that:
 ///  1) `get_or_init` and `get_or_try_init` do not protect against infinite recursion
@@ -246,10 +248,10 @@ impl GILOnceCell<Py<PyType>> {
 /// }
 /// #
 /// # Python::with_gil(|py| {
-/// #     let fun_slow = wrap_pyfunction_bound!(create_dict, py).unwrap();
+/// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
 /// #     let dict = fun_slow.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
-/// #     let fun = wrap_pyfunction_bound!(create_dict_faster, py).unwrap();
+/// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
 /// #     let dict = fun.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
 /// # });

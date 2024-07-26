@@ -35,7 +35,6 @@ impl SubClass {
     }
 
     fn method_super_new<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
-        #[cfg_attr(not(feature = "gil-refs"), allow(deprecated))]
         let super_ = PySuper::new_bound(&self_.get_type(), self_)?;
         super_.call_method("method", (), None)
     }

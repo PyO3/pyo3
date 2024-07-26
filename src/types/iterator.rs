@@ -2,10 +2,11 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
-#[cfg(feature = "gil-refs")]
-use crate::{AsPyPointer, PyDowncastError, PyNativeType};
 
 /// A Python iterator object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyIterator>`][crate::Py] or [`Bound<'py, PyIterator>`][Bound].
 ///
 /// # Examples
 ///
@@ -28,19 +29,8 @@ use crate::{AsPyPointer, PyDowncastError, PyNativeType};
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
 pyobject_native_type_named!(PyIterator);
-pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
-    /// Deprecated form of `PyIterator::from_bound_object`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyIterator::from_object` will be replaced by `PyIterator::from_bound_object` in a future PyO3 version"
-    )]
-    pub fn from_object(obj: &PyAny) -> PyResult<&PyIterator> {
-        Self::from_bound_object(&obj.as_borrowed()).map(Bound::into_gil_ref)
-    }
-
     /// Builds an iterator for an iterable Python object; the equivalent of calling `iter(obj)` in Python.
     ///
     /// Usually it is more convenient to write [`obj.iter()`][crate::types::any::PyAnyMethods::iter],
@@ -51,28 +41,6 @@ impl PyIterator {
                 .assume_owned_or_err(obj.py())
                 .downcast_into_unchecked()
         }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-impl<'p> Iterator for &'p PyIterator {
-    type Item = PyResult<&'p PyAny>;
-
-    /// Retrieves the next item from an iterator.
-    ///
-    /// Returns `None` when the iterator is exhausted.
-    /// If an exception occurs, returns `Some(Err(..))`.
-    /// Further `next()` calls after an exception occurs are likely
-    /// to repeatedly result in the same exception.
-    fn next(&mut self) -> Option<Self::Item> {
-        self.as_borrowed()
-            .next()
-            .map(|result| result.map(Bound::into_gil_ref))
-    }
-
-    #[cfg(not(Py_LIMITED_API))]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.as_borrowed().size_hint()
     }
 }
 
@@ -124,31 +92,6 @@ impl PyTypeCheck for PyIterator {
 
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyIter_Check(object.as_ptr()) != 0 }
-    }
-}
-
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<'v> crate::PyTryFrom<'v> for PyIterator {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        let value = value.into();
-        unsafe {
-            if ffi::PyIter_Check(value.as_ptr()) != 0 {
-                Ok(value.downcast_unchecked())
-            } else {
-                Err(PyDowncastError::new(value, "Iterator"))
-            }
-        }
-    }
-
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        value.into().downcast()
-    }
-
-    #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyIterator {
-        let ptr = value.into() as *const _ as *const PyIterator;
-        &*ptr
     }
 }
 
@@ -296,18 +239,6 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(feature = "gil-refs")]
-    #[allow(deprecated)]
-    fn iterator_try_from() {
-        Python::with_gil(|py| {
-            let obj: crate::Py<crate::PyAny> =
-                vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-            let iter = <PyIterator as crate::PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-            assert!(obj.is(iter));
-        });
-    }
-
-    #[test]
     #[cfg(feature = "macros")]
     fn python_class_not_iterator() {
         use crate::PyErr;
@@ -364,7 +295,7 @@ def fibonacci(target):
 
         // Regression test for 2913
         Python::with_gil(|py| {
-            let assert_iterator = crate::wrap_pyfunction_bound!(assert_iterator, py).unwrap();
+            let assert_iterator = crate::wrap_pyfunction!(assert_iterator, py).unwrap();
             crate::py_run!(
                 py,
                 assert_iterator,

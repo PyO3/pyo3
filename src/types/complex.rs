@@ -1,11 +1,15 @@
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::py_result_ext::PyResultExt;
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{ffi, types::any::PyAnyMethods, Bound, PyAny, Python};
 use std::os::raw::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
+///
+/// Values of this type are accessed via PyO3's smart pointers, e.g. as
+/// [`Py<PyComplex>`][crate::Py] or [`Bound<'py, PyComplex>`][Bound].
+///
+/// For APIs available on `complex` objects, see the [`PyComplexMethods`] trait which is implemented for
+/// [`Bound<'py, PyComplex>`][Bound].
 ///
 /// Note that `PyComplex` supports only basic operations. For advanced operations
 /// consider using [num-complex](https://docs.rs/num-complex)'s [`Complex`] type instead.
@@ -38,45 +42,12 @@ impl PyComplex {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl PyComplex {
-    /// Deprecated form of [`PyComplex::from_doubles_bound`]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyComplex::from_doubles` will be replaced by `PyComplex::from_doubles_bound` in a future PyO3 version"
-    )]
-    pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> &PyComplex {
-        Self::from_doubles_bound(py, real, imag).into_gil_ref()
-    }
-
-    /// Returns the real part of the complex number.
-    pub fn real(&self) -> c_double {
-        self.as_borrowed().real()
-    }
-    /// Returns the imaginary part of the complex number.
-    pub fn imag(&self) -> c_double {
-        self.as_borrowed().imag()
-    }
-}
-
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 mod not_limited_impls {
     use crate::Borrowed;
 
     use super::*;
     use std::ops::{Add, Div, Mul, Neg, Sub};
-
-    #[cfg(feature = "gil-refs")]
-    impl PyComplex {
-        /// Returns `|self|`.
-        pub fn abs(&self) -> c_double {
-            self.as_borrowed().abs()
-        }
-        /// Returns `self` raised to the power of `other`.
-        pub fn pow<'py>(&'py self, other: &'py PyComplex) -> &'py PyComplex {
-            self.as_borrowed().pow(&other.as_borrowed()).into_gil_ref()
-        }
-    }
 
     macro_rules! bin_ops {
         ($trait:ident, $fn:ident, $op:tt) => {
@@ -89,14 +60,6 @@ mod not_limited_impls {
                             stringify!($fn),
                             " failed.")
                         )
-                }
-            }
-
-            #[cfg(feature = "gil-refs")]
-            impl<'py> $trait for &'py PyComplex {
-                type Output = &'py PyComplex;
-                fn $fn(self, other: &'py PyComplex) -> &'py PyComplex {
-                    (self.as_borrowed() $op other.as_borrowed()).into_gil_ref()
                 }
             }
 
@@ -134,14 +97,6 @@ mod not_limited_impls {
     bin_ops!(Sub, sub, -);
     bin_ops!(Mul, mul, *);
     bin_ops!(Div, div, /);
-
-    #[cfg(feature = "gil-refs")]
-    impl<'py> Neg for &'py PyComplex {
-        type Output = &'py PyComplex;
-        fn neg(self) -> &'py PyComplex {
-            (-self.as_borrowed()).into_gil_ref()
-        }
-    }
 
     impl<'py> Neg for Borrowed<'_, 'py, PyComplex> {
         type Output = Bound<'py, PyComplex>;

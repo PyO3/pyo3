@@ -65,7 +65,7 @@ where
     }
 }
 
-#[cfg(all(Py_LIMITED_API, not(any(feature = "gil-refs", Py_3_10))))]
+#[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a> PyFunctionArgument<'a, '_> for &'a str {
     type Holder = Option<std::borrow::Cow<'a, str>>;
 
@@ -171,9 +171,9 @@ where
 pub fn from_py_with<'a, 'py, T>(
     obj: &'a Bound<'py, PyAny>,
     arg_name: &str,
-    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
+    extractor: fn(&'a Bound<'py, PyAny>) -> PyResult<T>,
 ) -> PyResult<T> {
-    match extractor.into().call(obj) {
+    match extractor(obj) {
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
     }
@@ -184,7 +184,7 @@ pub fn from_py_with<'a, 'py, T>(
 pub fn from_py_with_with_default<'a, 'py, T>(
     obj: Option<&'a Bound<'py, PyAny>>,
     arg_name: &str,
-    extractor: impl Into<super::frompyobject::Extractor<'a, 'py, T>>,
+    extractor: fn(&'a Bound<'py, PyAny>) -> PyResult<T>,
     default: fn() -> T,
 ) -> PyResult<T> {
     match obj {
