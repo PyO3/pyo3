@@ -171,16 +171,6 @@ pub trait PyTimeAccess {
 
 /// Trait for accessing the components of a struct containing a tzinfo.
 pub trait PyTzInfoAccess<'py> {
-    /// Deprecated form of `get_tzinfo_bound`.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`get_tzinfo` will be replaced by `get_tzinfo_bound` in a future PyO3 version"
-    )]
-    fn get_tzinfo(&self) -> Option<&'py PyTzInfo> {
-        self.get_tzinfo_bound().map(Bound::into_gil_ref)
-    }
-
     /// Returns the tzinfo (which may be None).
     ///
     /// Implementations should conform to the upstream documentation:

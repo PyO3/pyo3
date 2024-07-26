@@ -1743,20 +1743,7 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
         quote! { ::core::option::Option::None }
     };
 
-    #[cfg(feature = "gil-refs")]
-    let has_py_gil_ref = quote! {
-        #[allow(deprecated)]
-        unsafe impl #pyo3_path::type_object::HasPyGilRef for #cls {
-            type AsRefTarget = #pyo3_path::PyCell<Self>;
-        }
-    };
-
-    #[cfg(not(feature = "gil-refs"))]
-    let has_py_gil_ref = TokenStream::new();
-
     quote! {
-        #has_py_gil_ref
-
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;

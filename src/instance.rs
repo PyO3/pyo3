@@ -3,8 +3,6 @@ use crate::impl_::pycell::PyClassObject;
 use crate::internal_tricks::ptr_from_ref;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
-#[cfg(feature = "gil-refs")]
-use crate::type_object::HasPyGilRef;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString, PyTuple};
 use crate::{
@@ -16,54 +14,6 @@ use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::ptr::NonNull;
-
-/// Types that are built into the Python interpreter.
-///
-/// PyO3 is designed in a way that all references to those types are bound
-/// to the GIL, which is why you can get a token from all references of those
-/// types.
-///
-/// # Safety
-///
-/// This trait must only be implemented for types which cannot be accessed without the GIL.
-#[cfg(feature = "gil-refs")]
-pub unsafe trait PyNativeType: Sized {
-    /// The form of this which is stored inside a `Py<T>` smart pointer.
-    type AsRefSource: HasPyGilRef<AsRefTarget = Self>;
-
-    /// Cast `&self` to a `Borrowed` smart pointer.
-    ///
-    /// `Borrowed<T>` implements `Deref<Target=Bound<T>>`, so can also be used in locations
-    /// where `Bound<T>` is expected.
-    ///
-    /// This is available as a migration tool to adjust code from the deprecated "GIL Refs"
-    /// API to the `Bound` smart pointer API.
-    #[inline]
-    fn as_borrowed(&self) -> Borrowed<'_, '_, Self::AsRefSource> {
-        // Safety: &'py Self is expected to be a Python pointer,
-        // so has the same layout as Borrowed<'py, 'py, T>
-        Borrowed(
-            unsafe { NonNull::new_unchecked(ptr_from_ref(self) as *mut _) },
-            PhantomData,
-            self.py(),
-        )
-    }
-
-    /// Returns a GIL marker constrained to the lifetime of this type.
-    #[inline]
-    fn py(&self) -> Python<'_> {
-        unsafe { Python::assume_gil_acquired() }
-    }
-    /// Cast `&PyAny` to `&Self` without no type checking.
-    ///
-    /// # Safety
-    ///
-    /// `obj` must have the same layout as `*const ffi::PyObject` and must be
-    /// an instance of a type corresponding to `Self`.
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
-        &*(obj.as_ptr() as *const Self)
-    }
-}
 
 /// A GIL-attached equivalent to [`Py<T>`].
 ///
@@ -607,37 +557,6 @@ impl<'py, T> Bound<'py, T> {
     pub fn as_unbound(&self) -> &Py<T> {
         &self.1
     }
-
-    /// Casts this `Bound<T>` as the corresponding "GIL Ref" type.
-    ///
-    /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    pub fn as_gil_ref(&'py self) -> &'py T::AsRefTarget
-    where
-        T: HasPyGilRef,
-    {
-        #[allow(deprecated)]
-        unsafe {
-            self.py().from_borrowed_ptr(self.as_ptr())
-        }
-    }
-
-    /// Casts this `Bound<T>` as the corresponding "GIL Ref" type, registering the pointer on the
-    /// [release pool](Python::from_owned_ptr).
-    ///
-    /// This is a helper to be used for migration from the deprecated "GIL Refs" API.
-    #[inline]
-    #[cfg(feature = "gil-refs")]
-    pub fn into_gil_ref(self) -> &'py T::AsRefTarget
-    where
-        T: HasPyGilRef,
-    {
-        #[allow(deprecated)]
-        unsafe {
-            self.py().from_owned_ptr(self.into_ptr())
-        }
-    }
 }
 
 unsafe impl<T> AsPyPointer for Bound<'_, T> {
@@ -1060,118 +979,6 @@ where
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl<T> Py<T>
-where
-    T: HasPyGilRef,
-{
-    /// Borrows a GIL-bound reference to the contained `T`.
-    ///
-    /// By binding to the GIL lifetime, this allows the GIL-bound reference to not require
-    /// [`Python<'py>`](crate::Python) for any of its methods, which makes calling methods
-    /// on it more ergonomic.
-    ///
-    /// For native types, this reference is `&T`. For pyclasses, this is `&PyCell<T>`.
-    ///
-    /// Note that the lifetime of the returned reference is the shortest of `&self` and
-    /// [`Python<'py>`](crate::Python).
-    /// Consider using [`Py::into_ref`] instead if this poses a problem.
-    ///
-    /// # Examples
-    ///
-    /// Get access to `&PyList` from `Py<PyList>`:
-    ///
-    /// ```ignore
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyList;
-    /// #
-    /// Python::with_gil(|py| {
-    ///     let list: Py<PyList> = PyList::empty_bound(py).into();
-    ///     # #[allow(deprecated)]
-    ///     let list: &PyList = list.as_ref(py);
-    ///     assert_eq!(list.len(), 0);
-    /// });
-    /// ```
-    ///
-    /// Get access to `&PyCell<MyClass>` from `Py<MyClass>`:
-    ///
-    /// ```
-    /// # use pyo3::prelude::*;
-    /// #
-    /// #[pyclass]
-    /// struct MyClass {}
-    ///
-    /// Python::with_gil(|py| {
-    ///     let my_class: Py<MyClass> = Py::new(py, MyClass {}).unwrap();
-    ///     # #[allow(deprecated)]
-    ///     let my_class_cell: &PyCell<MyClass> = my_class.as_ref(py);
-    ///     assert!(my_class_cell.try_borrow().is_ok());
-    /// });
-    /// ```
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.bind(py)` instead of `obj.as_ref(py)`"
-    )]
-    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py T::AsRefTarget {
-        let any = self.as_ptr() as *const PyAny;
-        unsafe { PyNativeType::unchecked_downcast(&*any) }
-    }
-
-    /// Borrows a GIL-bound reference to the contained `T` independently of the lifetime of `T`.
-    ///
-    /// This method is similar to [`as_ref`](#method.as_ref) but consumes `self` and registers the
-    /// Python object reference in PyO3's object storage. The reference count for the Python
-    /// object will not be decreased until the GIL lifetime ends.
-    ///
-    /// You should prefer using [`as_ref`](#method.as_ref) if you can as it'll have less overhead.
-    ///
-    /// # Examples
-    ///
-    /// [`Py::as_ref`]'s lifetime limitation forbids creating a function that references a
-    /// variable created inside the function.
-    ///
-    /// ```rust,compile_fail
-    /// # use pyo3::prelude::*;
-    /// #
-    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<Py<PyAny>>) -> &'py PyAny {
-    ///     let obj: Py<PyAny> = value.into_py(py);
-    ///
-    ///     // The lifetime of the return value of this function is the shortest
-    ///     // of `obj` and `py`. As `obj` is owned by the current function,
-    ///     // Rust won't let the return value escape this function!
-    ///     obj.as_ref(py)
-    /// }
-    /// ```
-    ///
-    /// This can be solved by using [`Py::into_ref`] instead, which does not suffer from this issue.
-    /// Note that the lifetime of the [`Python<'py>`](crate::Python) token is transferred to
-    /// the returned reference.
-    ///
-    /// ```rust
-    /// # use pyo3::prelude::*;
-    /// # #[allow(dead_code)] // This is just to show it compiles.
-    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<Py<PyAny>>) -> &'py PyAny {
-    ///     let obj: Py<PyAny> = value.into_py(py);
-    ///
-    ///     // This reference's lifetime is determined by `py`'s lifetime.
-    ///     // Because that originates from outside this function,
-    ///     // this return value is allowed.
-    ///     # #[allow(deprecated)]
-    ///     obj.into_ref(py)
-    /// }
-    /// ```
-    #[deprecated(
-        since = "0.21.0",
-        note = "use `obj.into_bound(py)` instead of `obj.into_ref(py)`"
-    )]
-    pub fn into_ref(self, py: Python<'_>) -> &T::AsRefTarget {
-        #[allow(deprecated)]
-        unsafe {
-            py.from_owned_ptr(self.into_ptr())
-        }
-    }
-}
-
 impl<T> Py<T> {
     /// Returns the raw FFI pointer represented by self.
     ///
@@ -1558,20 +1365,6 @@ impl<T> Py<T> {
             .setattr(attr_name, value.into_py(py).into_bound(py))
     }
 
-    /// Deprecated form of [`call_bound`][Py::call_bound].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`call` will be replaced by `call_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn call<A>(&self, py: Python<'_>, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-    where
-        A: IntoPy<Py<PyTuple>>,
-    {
-        self.call_bound(py, args, kwargs.map(PyDict::as_borrowed).as_deref())
-    }
-
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
@@ -1596,27 +1389,6 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self, py: Python<'_>) -> PyResult<PyObject> {
         self.bind(py).as_any().call0().map(Bound::unbind)
-    }
-
-    /// Deprecated form of [`call_method_bound`][Py::call_method_bound].
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`call_method` will be replaced by `call_method_bound` in a future PyO3 version"
-    )]
-    #[inline]
-    pub fn call_method<N, A>(
-        &self,
-        py: Python<'_>,
-        name: N,
-        args: A,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<PyObject>
-    where
-        N: IntoPy<Py<PyString>>,
-        A: IntoPy<Py<PyTuple>>,
-    {
-        self.call_method_bound(py, name, args, kwargs.map(PyDict::as_borrowed).as_deref())
     }
 
     /// Calls a method on the object.
@@ -1831,17 +1603,6 @@ unsafe impl<T> crate::AsPyPointer for Py<T> {
     }
 }
 
-#[cfg(feature = "gil-refs")]
-impl<T> std::convert::From<&'_ T> for PyObject
-where
-    T: PyNativeType,
-{
-    #[inline]
-    fn from(obj: &T) -> Self {
-        obj.as_borrowed().to_owned().into_any().unbind()
-    }
-}
-
 impl<T> std::convert::From<Py<T>> for PyObject
 where
     T: AsRef<PyAny>,
@@ -1867,18 +1628,6 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     #[inline]
     fn from(other: Bound<'_, T>) -> Self {
         other.unbind()
-    }
-}
-
-// `&PyCell<T>` can be converted to `Py<T>`
-#[cfg(feature = "gil-refs")]
-#[allow(deprecated)]
-impl<T> std::convert::From<&crate::PyCell<T>> for Py<T>
-where
-    T: PyClass,
-{
-    fn from(cell: &crate::PyCell<T>) -> Self {
-        cell.as_borrowed().to_owned().unbind()
     }
 }
 
@@ -1950,18 +1699,6 @@ where
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         ob.downcast().cloned().map_err(Into::into)
     }
-}
-
-/// `Py<T>` can be used as an error when T is an Error.
-///
-/// However for GIL lifetime reasons, cause() cannot be implemented for `Py<T>`.
-/// Use .as_ref() to get the GIL-scoped error if you need to inspect the cause.
-#[cfg(feature = "gil-refs")]
-impl<T> std::error::Error for Py<T>
-where
-    T: std::error::Error + PyTypeInfo,
-    T::AsRefTarget: std::fmt::Display,
-{
 }
 
 impl<T> std::fmt::Display for Py<T>
@@ -2047,24 +1784,6 @@ impl PyObject {
         T: PyTypeCheck,
     {
         self.bind(py).downcast()
-    }
-
-    /// Deprecated form of [`PyObject::downcast_bound_unchecked`]
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[cfg(feature = "gil-refs")]
-    #[deprecated(
-        since = "0.21.0",
-        note = "`PyObject::downcast_unchecked` will be replaced by `PyObject::downcast_bound_unchecked` in a future PyO3 version"
-    )]
-    #[inline]
-    pub unsafe fn downcast_unchecked<'py, T>(&'py self, py: Python<'py>) -> &T
-    where
-        T: HasPyGilRef<AsRefTarget = T>,
-    {
-        self.downcast_bound_unchecked::<T>(py).as_gil_ref()
     }
 
     /// Casts the PyObject to a concrete Python object type without checking validity.

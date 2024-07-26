@@ -110,63 +110,12 @@ pub trait DerefToPyAny {
     // Empty.
 }
 
-// Implementations core to all native types
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_base(
-    ($name:ty $(;$generics:ident)* ) => {
-        #[cfg(feature = "gil-refs")]
-        unsafe impl<$($generics,)*> $crate::PyNativeType for $name {
-            type AsRefSource = Self;
-        }
-
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> ::std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
-                   -> ::std::result::Result<(), ::std::fmt::Error>
-            {
-                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods}};
-                let s = self.as_borrowed().repr().or(::std::result::Result::Err(::std::fmt::Error))?;
-                f.write_str(&s.to_string_lossy())
-            }
-        }
-
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> ::std::fmt::Display for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
-                   -> ::std::result::Result<(), ::std::fmt::Error>
-            {
-                use $crate::{PyNativeType, types::{PyAnyMethods, PyStringMethods, PyTypeMethods}};
-                match self.as_borrowed().str() {
-                    ::std::result::Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
-                    ::std::result::Result::Err(err) => err.write_unraisable_bound(self.py(), ::std::option::Option::Some(&self.as_borrowed())),
-                }
-
-                match self.as_borrowed().get_type().name() {
-                    ::std::result::Result::Ok(name) => ::std::write!(f, "<unprintable {} object>", name),
-                    ::std::result::Result::Err(_err) => f.write_str("<unprintable object>"),
-                }
-            }
-        }
-
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> $crate::ToPyObject for $name
-        {
-            #[inline]
-            fn to_object(&self, py: $crate::Python<'_>) -> $crate::PyObject {
-                unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-    };
-);
-
 // Implementations core to all native types except for PyAny (because they don't
 // make sense on PyAny / have different implementations).
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_base!($name $(;$generics)*);
 
         impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
             #[inline]
@@ -189,36 +138,6 @@ macro_rules! pyobject_native_type_named (
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
                 self.0.as_ptr()
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
-            #[inline]
-            fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
-                unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
-            #[inline]
-            fn from(other: &$name) -> Self {
-                use $crate::PyNativeType;
-                unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
-            }
-        }
-
-        // FIXME https://github.com/PyO3/pyo3/issues/3903
-        #[allow(unknown_lints, non_local_definitions)]
-        #[cfg(feature = "gil-refs")]
-        impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
-            fn from(ob: &'a $name) -> Self {
-                unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
 

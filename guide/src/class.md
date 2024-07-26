@@ -1367,11 +1367,6 @@ struct MyClass {
 
 impl pyo3::types::DerefToPyAny for MyClass {}
 
-# #[allow(deprecated)]
-# #[cfg(feature = "gil-refs")]
-unsafe impl pyo3::type_object::HasPyGilRef for MyClass {
-    type AsRefTarget = pyo3::PyCell<Self>;
-}
 unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;

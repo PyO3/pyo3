@@ -51,7 +51,6 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, features="abi3")
     if "skip-full" not in session.posargs:
         _run_cargo_test(session, features="full")
-        _run_cargo_test(session, features="full gil-refs")
         _run_cargo_test(session, features="abi3 full")
 
 
@@ -673,7 +672,6 @@ def check_feature_powerset(session: nox.Session):
 
     EXCLUDED_FROM_FULL = {
         "nightly",
-        "gil-refs",
         "extension-module",
         "full",
         "default",
@@ -715,7 +713,7 @@ def check_feature_powerset(session: nox.Session):
         session.error("no experimental features exist; please simplify the noxfile")
 
     features_to_skip = [
-        *(EXCLUDED_FROM_FULL - {"gil-refs"}),
+        *(EXCLUDED_FROM_FULL),
         *abi3_version_features,
     ]
 
@@ -793,8 +791,8 @@ def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
                 "--no-default-features",
                 "--features=abi3",
             ),
-            ("--features=full gil-refs multiple-pymethods",),
-            ("--features=abi3 full gil-refs multiple-pymethods",),
+            ("--features=full multiple-pymethods",),
+            ("--features=abi3 full multiple-pymethods",),
         )
     else:
         return (
@@ -803,8 +801,8 @@ def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
                 "--no-default-features",
                 "--features=abi3",
             ),
-            ("--features=full gil-refs",),
-            ("--features=abi3 full gil-refs",),
+            ("--features=full",),
+            ("--features=abi3 full",),
         )
 
 

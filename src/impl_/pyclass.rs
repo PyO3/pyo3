@@ -1,5 +1,3 @@
-#[cfg(feature = "gil-refs")]
-use crate::PyNativeType;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
@@ -177,11 +175,6 @@ pub trait PyClassImpl: Sized + 'static {
 
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    #[cfg(feature = "gil-refs")]
-    type BaseNativeType: PyTypeInfo + PyNativeType;
-    /// The closest native ancestor. This is `PyAny` by default, and when you declare
-    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    #[cfg(not(feature = "gil-refs"))]
     type BaseNativeType: PyTypeInfo;
 
     /// This handles following two situations:

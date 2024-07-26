@@ -118,13 +118,6 @@ macro_rules! import_exception_bound {
 
         $crate::impl_exception_boilerplate_bound!($name);
 
-        // FIXME remove this: was necessary while `PyTypeInfo` requires `HasPyGilRef`,
-        // should change in 0.22.
-        #[cfg(feature = "gil-refs")]
-        unsafe impl $crate::type_object::HasPyGilRef for $name {
-            type AsRefTarget = $crate::PyAny;
-        }
-
         $crate::pyobject_native_type_info!(
             $name,
             $name::type_object_raw,

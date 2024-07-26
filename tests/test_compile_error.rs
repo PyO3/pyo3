@@ -15,7 +15,7 @@ fn test_compile_errors() {
     #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
     // The output is not stable across abi3 / not abi3 and features
-    #[cfg(all(not(Py_LIMITED_API), feature = "full", not(feature = "gil-refs")))]
+    #[cfg(all(not(Py_LIMITED_API), feature = "full"))]
     t.compile_fail("tests/ui/invalid_pymethods_duplicates.rs");
     t.compile_fail("tests/ui/invalid_pymethod_enum.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
@@ -27,26 +27,18 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_argument_attributes.rs");
     t.compile_fail("tests/ui/invalid_frompy_derive.rs");
     t.compile_fail("tests/ui/static_ref.rs");
-    #[cfg(not(feature = "gil-refs"))]
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     // output changes with async feature
     #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
-    #[cfg(not(feature = "gil-refs"))]
     t.compile_fail("tests/ui/invalid_intern_arg.rs");
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
     t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
     t.compile_fail("tests/ui/missing_intopy.rs");
     // adding extra error conversion impls changes the output
-    #[cfg(not(any(
-        windows,
-        feature = "eyre",
-        feature = "anyhow",
-        feature = "gil-refs",
-        Py_LIMITED_API
-    )))]
+    #[cfg(not(any(windows, feature = "eyre", feature = "anyhow", Py_LIMITED_API)))]
     t.compile_fail("tests/ui/invalid_result_conversion.rs");
     t.compile_fail("tests/ui/not_send.rs");
     t.compile_fail("tests/ui/not_send2.rs");
