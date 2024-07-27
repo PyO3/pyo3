@@ -22,6 +22,7 @@ make_struct_using_macro!(MyBaseClass, "MyClass");
 macro_rules! set_extends_via_macro {
     ($class_name:ident, $base_class:path) => {
         // Try and pass a variable into the extends parameter
+        #[allow(dead_code)]
         #[pyclass(extends=$base_class)]
         struct $class_name {}
     };

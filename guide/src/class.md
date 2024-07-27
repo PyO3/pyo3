@@ -549,6 +549,7 @@ For simple cases where a member variable is just read and written with no side e
 
 ```rust
 # use pyo3::prelude::*;
+# #[allow(dead_code)]
 #[pyclass]
 struct MyClass {
     #[pyo3(get, set)]
@@ -1360,6 +1361,7 @@ The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplC
 # #[cfg(not(feature = "multiple-pymethods"))] {
 # use pyo3::prelude::*;
 // Note: the implementation differs slightly with the `multiple-pymethods` feature enabled.
+# #[allow(dead_code)]
 struct MyClass {
     # #[allow(dead_code)]
     num: i32,
