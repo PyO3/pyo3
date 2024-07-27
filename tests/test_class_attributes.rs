@@ -224,7 +224,7 @@ macro_rules! test_case {
                 let struct_obj = struct_class.call0().unwrap();
                 assert!(struct_obj.setattr($renamed_field_name, 2).is_ok());
                 let attr = struct_obj.getattr($renamed_field_name).unwrap();
-                assert_eq!(2, attr.extract().unwrap());
+                assert_eq!(2, attr.extract::<u8>().unwrap());
             });
         }
     };
