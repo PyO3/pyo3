@@ -720,9 +720,10 @@ impl<'a> FnSpec<'a> {
 
             // We must assign the output_span to the return value of the call,
             // but *not* of the call itself otherwise the spans get really weird
-            let ret_expr = quote! { let ret = #call; };
-            let ret_var = quote_spanned! {*output_span=> ret };
-            let return_conversion = quotes::map_result_into_ptr(quotes::ok_wrap(ret_var, ctx), ctx);
+            let ret_ident = Ident::new("ret", *output_span);
+            let ret_expr = quote! { let #ret_ident = #call; };
+            let return_conversion =
+                quotes::map_result_into_ptr(quotes::ok_wrap(ret_ident.to_token_stream(), ctx), ctx);
             quote! {
                 {
                     #ret_expr
