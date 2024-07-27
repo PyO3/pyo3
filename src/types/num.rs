@@ -16,6 +16,10 @@ pub struct PyInt(PyAny);
 
 pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLong_Type), #checkfunction=ffi::PyLong_Check);
 
+/// Deprecated alias for [`PyInt`].
+#[deprecated(since = "0.23.0", note = "use `PyInt` instead")]
+pub type PyLong = PyInt;
+
 macro_rules! int_compare {
     ($rust_type: ty) => {
         impl PartialEq<$rust_type> for Bound<'_, PyInt> {
@@ -125,7 +129,3 @@ mod tests {
         });
     }
 }
-
-/// Deprecated alias for [`PyInt`].
-#[deprecated(since = "0.23.0", note = "use `PyInt` instead")]
-pub type PyLong = PyInt;
