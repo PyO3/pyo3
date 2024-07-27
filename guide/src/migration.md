@@ -3,7 +3,7 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
-## from 0.21.* to 0.23
+## from 0.22.* to 0.23
 
 ### `gil-refs` feature removed
 <details open>
