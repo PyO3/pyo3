@@ -35,7 +35,7 @@ impl ValueClass {
 }
 
 #[pyclass(module = "module")]
-struct LocatedClass {}
+pub struct LocatedClass {}
 
 #[pyfunction]
 fn double(x: usize) -> usize {
