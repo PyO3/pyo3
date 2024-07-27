@@ -88,6 +88,7 @@ pub trait ToPyObject {
 /// ```rust
 /// use pyo3::prelude::*;
 ///
+/// # #[allow(dead_code)]
 /// #[pyclass]
 /// struct Number {
 ///     #[pyo3(get, set)]

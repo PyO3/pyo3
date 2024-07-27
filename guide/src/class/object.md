@@ -82,6 +82,7 @@ the subclass name. This is typically done in Python code by accessing
 # use pyo3::prelude::*;
 # use pyo3::types::PyString;
 #
+# #[allow(dead_code)]
 # #[pyclass]
 # struct Number(i32);
 #
@@ -110,6 +111,7 @@ use std::hash::{Hash, Hasher};
 
 # use pyo3::prelude::*;
 #
+# #[allow(dead_code)]
 # #[pyclass]
 # struct Number(i32);
 #
@@ -130,6 +132,7 @@ method it should not define a `__hash__()` operation either"
 ```rust
 # use pyo3::prelude::*;
 #
+# #[allow(dead_code)]
 #[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]
 struct Number(i32);
@@ -173,6 +176,7 @@ use pyo3::class::basic::CompareOp;
 
 # use pyo3::prelude::*;
 #
+# #[allow(dead_code)]
 # #[pyclass]
 # struct Number(i32);
 #
@@ -199,6 +203,7 @@ use pyo3::class::basic::CompareOp;
 
 # use pyo3::prelude::*;
 #
+# #[allow(dead_code)]
 # #[pyclass]
 # struct Number(i32);
 #
@@ -245,6 +250,7 @@ To implement `__eq__` using the Rust [`PartialEq`] trait implementation, the `eq
 ```rust
 # use pyo3::prelude::*;
 #
+# #[allow(dead_code)]
 #[pyclass(eq)]
 #[derive(PartialEq)]
 struct Number(i32);
@@ -255,6 +261,7 @@ To implement `__lt__`, `__le__`, `__gt__`, & `__ge__` using the Rust `PartialOrd
 ```rust
 # use pyo3::prelude::*;
 #
+# #[allow(dead_code)]
 #[pyclass(eq, ord)]
 #[derive(PartialEq, PartialOrd)]
 struct Number(i32);
@@ -267,6 +274,7 @@ We'll consider `Number` to be `True` if it is nonzero:
 ```rust
 # use pyo3::prelude::*;
 #
+# #[allow(dead_code)]
 # #[pyclass]
 # struct Number(i32);
 #
