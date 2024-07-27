@@ -27,5 +27,6 @@ pub(crate) fn map_result_into_ptr(result: TokenStream, ctx: &Ctx) -> TokenStream
         output_span,
     } = ctx;
     let pyo3_path = pyo3_path.to_tokens_spanned(*output_span);
-    quote_spanned! {*output_span=> #pyo3_path::impl_::wrap::map_result_into_ptr(py, #result) }
+    let py = syn::Ident::new("py", proc_macro2::Span::call_site());
+    quote_spanned! {*output_span=> #pyo3_path::impl_::wrap::map_result_into_ptr(#py, #result) }
 }
