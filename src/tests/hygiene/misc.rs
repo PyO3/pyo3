@@ -37,3 +37,22 @@ fn append_to_inittab() {
 
     crate::append_to_inittab!(module_for_inittab);
 }
+
+macro_rules! macro_rules_hygiene {
+    ($name_a:ident, $name_b:ident) => {
+        #[crate::pyclass(crate = "crate")]
+        struct $name_a {}
+
+        #[crate::pymethods(crate = "crate")]
+        impl $name_a {
+            fn finalize(&mut self) -> $name_b {
+                $name_b {}
+            }
+        }
+
+        #[crate::pyclass(crate = "crate")]
+        struct $name_b {}
+    };
+}
+
+macro_rules_hygiene!(MyClass1, MyClass2);
