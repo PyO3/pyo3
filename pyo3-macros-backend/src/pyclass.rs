@@ -2081,7 +2081,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         if attr.options.extends.is_none() {
             quote! {
                 impl #pyo3_path::IntoPy<#pyo3_path::PyObject> for #cls {
-                    fn into_py(self, py: #pyo3_path::Python) -> #pyo3_path::PyObject {
+                    fn into_py(self, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyObject {
                         #pyo3_path::IntoPy::into_py(#pyo3_path::Py::new(py, self).unwrap(), py)
                     }
                 }
