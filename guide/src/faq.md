@@ -181,6 +181,7 @@ done with the `crate` attribute:
 # use pyo3::prelude::*;
 # pub extern crate pyo3;
 # mod reexported { pub use ::pyo3; }
+# #[allow(dead_code)]
 #[pyclass]
 #[pyo3(crate = "reexported::pyo3")]
 struct MyClass;
