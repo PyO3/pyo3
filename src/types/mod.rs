@@ -149,7 +149,7 @@ macro_rules! pyobject_native_type_named (
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
-        |_py| unsafe { ::std::ptr::addr_of_mut!($typeobject) }
+        |_py| ::std::ptr::addr_of_mut!($typeobject)
     };
 );
 
