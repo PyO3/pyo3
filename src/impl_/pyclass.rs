@@ -1008,7 +1008,7 @@ impl<T> PyMethods<T> for &'_ PyClassImplCollector<T> {
 }
 
 // Text signature for __new__
-pub trait PyClassNewTextSignature<T> {
+pub trait PyClassNewTextSignature<T>: crate::sealed::Sealed {
     fn new_text_signature(self) -> Option<&'static str>;
 }
 

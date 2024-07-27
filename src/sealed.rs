@@ -6,6 +6,8 @@ use crate::{ffi, Bound, PyAny, PyMethodDef, PyResult};
 
 use crate::impl_::pymodule::{AddClassToModule, AddTypeToModule, ModuleDef};
 
+use crate::impl_::pyclass::PyClassImplCollector;
+
 pub trait Sealed {}
 
 // for FfiPtrExt
@@ -37,6 +39,7 @@ impl Sealed for Bound<'_, PyType> {}
 
 impl<T> Sealed for AddTypeToModule<T> {}
 impl<T> Sealed for AddClassToModule<T> {}
+impl<T> Sealed for &'_ PyClassImplCollector<T> {}
 
 impl Sealed for PyMethodDef {}
 impl Sealed for ModuleDef {}
