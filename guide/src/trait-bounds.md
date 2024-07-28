@@ -84,7 +84,7 @@ impl Model for UserModel {
         Python::with_gil(|py| {
             self.model
                 .bind(py)
-                .call_method("set_variables", (PyList::new_bound(py, var),), None)
+                .call_method("set_variables", (PyList::new(py, var),), None)
                 .unwrap();
         })
     }
@@ -182,7 +182,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 #      println!("Rust calling Python to set the variables");
 #      Python::with_gil(|py| {
 #          self.model.bind(py)
-#              .call_method("set_variables", (PyList::new_bound(py, var),), None)
+#              .call_method("set_variables", (PyList::new(py, var),), None)
 #              .unwrap();
 #      })
 #  }
@@ -360,7 +360,7 @@ impl Model for UserModel {
 #         println!("Rust calling Python to set the variables");
 #         Python::with_gil(|py| {
 #             self.model.bind(py)
-#                 .call_method("set_variables", (PyList::new_bound(py, var),), None)
+#                 .call_method("set_variables", (PyList::new(py, var),), None)
 #                 .unwrap();
 #         })
 #     }
@@ -419,7 +419,7 @@ impl Model for UserModel {
 #         println!("Rust calling Python to set the variables");
 #         Python::with_gil(|py| {
 #             let py_model = self.model.bind(py)
-#                 .call_method("set_variables", (PyList::new_bound(py, var),), None)
+#                 .call_method("set_variables", (PyList::new(py, var),), None)
 #                 .unwrap();
 #         })
 #     }
@@ -517,7 +517,7 @@ impl Model for UserModel {
         Python::with_gil(|py| {
             self.model
                 .bind(py)
-                .call_method("set_variables", (PyList::new_bound(py, var),), None)
+                .call_method("set_variables", (PyList::new(py, var),), None)
                 .unwrap();
         })
     }

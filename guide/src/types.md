@@ -61,7 +61,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 fn example<'py>(py: Python<'py>) -> PyResult<()> {
-    let x: Bound<'py, PyList> = PyList::empty_bound(py);
+    let x: Bound<'py, PyList> = PyList::empty(py);
     x.append(1)?;
     let y: Bound<'py, PyList> = x.clone(); // y is a new reference to the same list
     drop(x); // release the original reference x
@@ -77,7 +77,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 fn example(py: Python<'_>) -> PyResult<()> {
-    let x = PyList::empty_bound(py);
+    let x = PyList::empty(py);
     x.append(1)?;
     let y = x.clone();
     drop(x);
@@ -232,7 +232,7 @@ fn get_first_item<'py>(list: &Bound<'py, PyList>) -> PyResult<Bound<'py, PyAny>>
     list.get_item(0)
 }
 # Python::with_gil(|py| {
-#     let l = PyList::new_bound(py, ["hello world"]);
+#     let l = PyList::new(py, ["hello world"]);
 #     assert!(get_first_item(&l).unwrap().eq("hello world").unwrap());
 # })
 ```
