@@ -181,6 +181,7 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
         )?,
     );
 
+    // RFC: check PYO3_CROSS_LIB_DIR, and use it instead of interpreter_config ?
     if let Some(lib_dir) = &interpreter_config.lib_dir {
         println!("cargo:rustc-link-search=native={}", lib_dir);
     }
