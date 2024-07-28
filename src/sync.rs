@@ -87,7 +87,7 @@ unsafe impl<T> Sync for GILProtected<T> where T: Send {}
 ///
 /// pub fn get_shared_list(py: Python<'_>) -> &Bound<'_, PyList> {
 ///     LIST_CELL
-///         .get_or_init(py, || PyList::empty_bound(py).unbind())
+///         .get_or_init(py, || PyList::empty(py).unbind())
 ///         .bind(py)
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));

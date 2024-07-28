@@ -149,7 +149,7 @@ mod tests {
             let count;
             let obj = py.eval_bound("object()", None, None).unwrap();
             let list = {
-                let list = PyList::empty_bound(py);
+                let list = PyList::empty(py);
                 list.append(10).unwrap();
                 list.append(&obj).unwrap();
                 count = obj.get_refcnt();

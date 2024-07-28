@@ -25,7 +25,7 @@ fn enum_from_pyobject(b: &mut Bencher<'_>) {
 
 fn list_via_downcast(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any = PyList::empty_bound(py).into_any();
+        let any = PyList::empty(py).into_any();
 
         b.iter(|| black_box(&any).downcast::<PyList>().unwrap());
     })
@@ -33,7 +33,7 @@ fn list_via_downcast(b: &mut Bencher<'_>) {
 
 fn list_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let any = PyList::empty_bound(py).into_any();
+        let any = PyList::empty(py).into_any();
 
         b.iter(|| black_box(&any).extract::<Bound<'_, PyList>>().unwrap());
     })

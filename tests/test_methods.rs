@@ -703,7 +703,7 @@ impl MethodWithLifeTime {
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());
         }
-        let list = PyList::new_bound(py, items);
+        let list = PyList::new(py, items);
         list.sort()?;
         Ok(list)
     }

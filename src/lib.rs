@@ -41,7 +41,7 @@
 //! - Types that also have the `'py` lifetime, such as the [`Bound<'py, T>`](Bound) smart pointer, are
 //!   bound to the Python GIL and rely on this to offer their functionality. These types often
 //!   have a [`.py()`](Bound::py) method to get the associated [`Python<'py>`](Python) token.
-//! - Functions which depend on the `'py` lifetime, such as [`PyList::new_bound`](types::PyList::new_bound),
+//! - Functions which depend on the `'py` lifetime, such as [`PyList::new`](types::PyList::new),
 //!   require a [`Python<'py>`](Python) token as an input. Sometimes the token is passed implicitly by
 //!   taking a [`Bound<'py, T>`](Bound) or other type which is bound to the `'py` lifetime.
 //! - Traits which depend on the `'py` lifetime, such as [`FromPyObject<'py>`](FromPyObject), usually have

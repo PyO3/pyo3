@@ -558,7 +558,7 @@ mod tests {
             let ins = w.to_object(py);
             seq.set_slice(1, 4, ins.bind(py)).unwrap();
             assert_eq!([1, 7, 4, 5, 8], seq.extract::<[i32; 5]>().unwrap());
-            seq.set_slice(3, 100, &PyList::empty_bound(py)).unwrap();
+            seq.set_slice(3, 100, &PyList::empty(py)).unwrap();
             assert_eq!([1, 7, 4], seq.extract::<[i32; 3]>().unwrap());
         });
     }
@@ -704,11 +704,7 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = v.to_object(py);
             let seq = ob.downcast_bound::<PySequence>(py).unwrap();
-            assert!(seq
-                .to_list()
-                .unwrap()
-                .eq(PyList::new_bound(py, &v))
-                .unwrap());
+            assert!(seq.to_list().unwrap().eq(PyList::new(py, &v)).unwrap());
         });
     }
 
@@ -721,7 +717,7 @@ mod tests {
             assert!(seq
                 .to_list()
                 .unwrap()
-                .eq(PyList::new_bound(py, ["f", "o", "o"]))
+                .eq(PyList::new(py, ["f", "o", "o"]))
                 .unwrap());
         });
     }

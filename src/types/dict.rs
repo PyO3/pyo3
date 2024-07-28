@@ -605,7 +605,7 @@ mod tests {
     #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence() {
         Python::with_gil(|py| {
-            let items = PyList::new_bound(py, vec![("a", 1), ("b", 2)]);
+            let items = PyList::new(py, vec![("a", 1), ("b", 2)]);
             let dict = PyDict::from_sequence_bound(&items).unwrap();
             assert_eq!(
                 1,
@@ -636,7 +636,7 @@ mod tests {
     #[cfg(not(any(PyPy, GraalPy)))]
     fn test_from_sequence_err() {
         Python::with_gil(|py| {
-            let items = PyList::new_bound(py, vec!["a", "b"]);
+            let items = PyList::new(py, vec!["a", "b"]);
             assert!(PyDict::from_sequence_bound(&items).is_err());
         });
     }

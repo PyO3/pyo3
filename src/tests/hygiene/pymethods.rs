@@ -73,7 +73,7 @@ impl Dummy {
     fn __delattr__(&mut self, name: ::std::string::String) {}
 
     fn __dir__<'py>(&self, py: crate::Python<'py>) -> crate::Bound<'py, crate::types::PyList> {
-        crate::types::PyList::new_bound(py, ::std::vec![0_u8])
+        crate::types::PyList::new(py, ::std::vec![0_u8])
     }
 
     //////////////////////
