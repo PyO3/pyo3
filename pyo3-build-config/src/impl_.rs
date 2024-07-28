@@ -1405,8 +1405,15 @@ fn cross_compile_from_sysconfigdata(
 ) -> Result<Option<InterpreterConfig>> {
     if let Some(path) = find_sysconfigdata(cross_compile_config)? {
         let data = parse_sysconfigdata(path)?;
-        let config = InterpreterConfig::from_sysconfigdata(&data)?;
         // RFC: ignore lib_dir from sysconfig and use one from CrossCompileConfig input ?
+        let config = if cross_compile_config.lib_dir.is_some() {
+            InterpreterConfig {
+                lib_dir: cross_compile_config.lib_dir.as_ref().map(|path| path.display().to_string()),
+                ..InterpreterConfig::from_sysconfigdata(&data)?
+            }
+        } else {
+            InterpreterConfig::from_sysconfigdata(&data)?
+        };
 
         Ok(Some(config))
     } else {
