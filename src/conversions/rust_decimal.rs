@@ -116,7 +116,7 @@ mod test_rust_decimal {
                 Python::with_gil(|py| {
                     let rs_orig = $rs;
                     let rs_dec = rs_orig.into_py(py);
-                    let locals = PyDict::new_bound(py);
+                    let locals = PyDict::new(py);
                     locals.set_item("rs_dec", &rs_dec).unwrap();
                     // Checks if Rust Decimal -> Python Decimal conversion is correct
                     py.run_bound(
@@ -158,7 +158,7 @@ mod test_rust_decimal {
             let num = Decimal::from_parts(lo, mid, high, negative, scale);
             Python::with_gil(|py| {
                 let rs_dec = num.into_py(py);
-                let locals = PyDict::new_bound(py);
+                let locals = PyDict::new(py);
                 locals.set_item("rs_dec", &rs_dec).unwrap();
                 py.run_bound(
                     &format!(
@@ -184,7 +184,7 @@ mod test_rust_decimal {
     #[test]
     fn test_nan() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "import decimal\npy_dec = decimal.Decimal(\"NaN\")",
                 None,
@@ -200,7 +200,7 @@ mod test_rust_decimal {
     #[test]
     fn test_scientific_notation() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "import decimal\npy_dec = decimal.Decimal(\"1e3\")",
                 None,
@@ -217,7 +217,7 @@ mod test_rust_decimal {
     #[test]
     fn test_infinity() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "import decimal\npy_dec = decimal.Decimal(\"Infinity\")",
                 None,

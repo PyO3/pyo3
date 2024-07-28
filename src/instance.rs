@@ -786,7 +786,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 ///             // `Bound<'py, PyDict>` inherits the GIL lifetime from `py` and
 ///             // so won't be able to outlive this closure.
-///             let dict: Bound<'_, PyDict> = PyDict::new_bound(py);
+///             let dict: Bound<'_, PyDict> = PyDict::new(py);
 ///
 ///             // because `Foo` contains `dict` its lifetime
 ///             // is now also tied to `py`.
@@ -815,7 +815,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///     #[new]
 ///     fn __new__() -> Foo {
 ///         Python::with_gil(|py| {
-///             let dict: Py<PyDict> = PyDict::new_bound(py).unbind();
+///             let dict: Py<PyDict> = PyDict::new(py).unbind();
 ///             Foo { inner: dict }
 ///         })
 ///     }
@@ -887,7 +887,7 @@ impl<T> IntoPy<PyObject> for Borrowed<'_, '_, T> {
 ///
 /// # fn main() {
 /// Python::with_gil(|py| {
-///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
+///     let first: Py<PyDict> = PyDict::new(py).unbind();
 ///
 ///     // All of these are valid syntax
 ///     let second = Py::clone_ref(&first, py);
@@ -1229,7 +1229,7 @@ impl<T> Py<T> {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    ///     let first: Py<PyDict> = PyDict::new_bound(py).unbind();
+    ///     let first: Py<PyDict> = PyDict::new(py).unbind();
     ///     let second = Py::clone_ref(&first, py);
     ///
     ///     // Both point to the same object
@@ -1261,7 +1261,7 @@ impl<T> Py<T> {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    ///     let object: Py<PyDict> = PyDict::new_bound(py).unbind();
+    ///     let object: Py<PyDict> = PyDict::new(py).unbind();
     ///
     ///     // some usage of object
     ///
@@ -1740,7 +1740,7 @@ impl PyObject {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let any: PyObject = PyDict::new_bound(py).into();
+    ///     let any: PyObject = PyDict::new(py).into();
     ///
     ///     assert!(any.downcast_bound::<PyDict>(py).is_ok());
     ///     assert!(any.downcast_bound::<PyList>(py).is_err());
@@ -1829,7 +1829,7 @@ mod tests {
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
-            let obj: PyObject = PyDict::new_bound(py).into();
+            let obj: PyObject = PyDict::new(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
             assert!(obj
                 .call_method_bound(py, "nonexistent_method", (1,), None)
@@ -1842,7 +1842,7 @@ mod tests {
     #[test]
     fn py_from_dict() {
         let dict: Py<PyDict> = Python::with_gil(|py| {
-            let native = PyDict::new_bound(py);
+            let native = PyDict::new(py);
             Py::from(native)
         });
 
@@ -1854,7 +1854,7 @@ mod tests {
     #[test]
     fn pyobject_from_py() {
         Python::with_gil(|py| {
-            let dict: Py<PyDict> = PyDict::new_bound(py).unbind();
+            let dict: Py<PyDict> = PyDict::new(py).unbind();
             let cnt = dict.get_refcnt(py);
             let p: PyObject = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
@@ -2074,7 +2074,7 @@ a = A()
     #[test]
     fn explicit_drop_ref() {
         Python::with_gil(|py| {
-            let object: Py<PyDict> = PyDict::new_bound(py).unbind();
+            let object: Py<PyDict> = PyDict::new(py).unbind();
             let object2 = object.clone_ref(py);
 
             assert_eq!(object.as_ptr(), object2.as_ptr());

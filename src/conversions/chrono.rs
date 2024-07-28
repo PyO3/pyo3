@@ -578,7 +578,7 @@ mod tests {
         use crate::types::dict::PyDictMethods;
 
         Python::with_gil(|py| {
-            let locals = crate::types::PyDict::new_bound(py);
+            let locals = crate::types::PyDict::new(py);
             py.run_bound(
                 "import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,

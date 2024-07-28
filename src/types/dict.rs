@@ -63,8 +63,15 @@ pyobject_native_type_core!(
 
 impl PyDict {
     /// Creates a new empty dictionary.
-    pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
+    pub fn new(py: Python<'_>) -> Bound<'_, PyDict> {
         unsafe { ffi::PyDict_New().assume_owned(py).downcast_into_unchecked() }
+    }
+
+    /// Deprecated name for [`PyDict::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDict::new`")]
+    #[inline]
+    pub fn new_bound(py: Python<'_>) -> Bound<'_, PyDict> {
+        Self::new(py)
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -75,13 +82,21 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
+    pub fn from_sequence<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let py = seq.py();
-        let dict = Self::new_bound(py);
+        let dict = Self::new(py);
         err::error_on_minusone(py, unsafe {
             ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
+    }
+
+    /// Deprecated name for [`PyDict::from_sequence`].
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[deprecated(since = "0.23.0", note = "renamed to `PyDict::from_sequence`")]
+    #[inline]
+    pub fn from_sequence_bound<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
+        Self::from_sequence(seq)
     }
 }
 
@@ -528,7 +543,7 @@ where
     I: IntoIterator<Item = T>,
 {
     fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         for item in self {
             dict.set_item(item.key(), item.value())
                 .expect("Failed to set_item on dict");
@@ -606,7 +621,7 @@ mod tests {
     fn test_from_sequence() {
         Python::with_gil(|py| {
             let items = PyList::new(py, vec![("a", 1), ("b", 2)]);
-            let dict = PyDict::from_sequence_bound(&items).unwrap();
+            let dict = PyDict::from_sequence(&items).unwrap();
             assert_eq!(
                 1,
                 dict.get_item("a")
@@ -637,7 +652,7 @@ mod tests {
     fn test_from_sequence_err() {
         Python::with_gil(|py| {
             let items = PyList::new(py, vec!["a", "b"]);
-            assert!(PyDict::from_sequence_bound(&items).is_err());
+            assert!(PyDict::from_sequence(&items).is_err());
         });
     }
 

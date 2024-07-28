@@ -231,7 +231,7 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
-///     let dict = PyDict::new_bound(py);
+///     let dict = PyDict::new(py);
 ///     //             👇 A new `PyString` is created
 ///     //                for every call of this function.
 ///     dict.set_item("foo", 42)?;
@@ -240,7 +240,7 @@ impl GILOnceCell<Py<PyType>> {
 ///
 /// #[pyfunction]
 /// fn create_dict_faster(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
-///     let dict = PyDict::new_bound(py);
+///     let dict = PyDict::new(py);
 ///     //               👇 A `PyString` is created once and reused
 ///     //                  for the lifetime of the program.
 ///     dict.set_item(intern!(py, "foo"), 42)?;
@@ -296,7 +296,7 @@ mod tests {
             let foo2 = intern!(py, "foo");
             let foo3 = intern!(py, stringify!(foo));
 
-            let dict = PyDict::new_bound(py);
+            let dict = PyDict::new(py);
             dict.set_item(foo1, 42_usize).unwrap();
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(

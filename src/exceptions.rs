@@ -175,7 +175,7 @@ macro_rules! import_exception_bound {
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
-/// #         let locals = pyo3::types::PyDict::new_bound(py);
+/// #         let locals = pyo3::types::PyDict::new(py);
 /// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
@@ -826,7 +826,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
-            let d = PyDict::new_bound(py);
+            let d = PyDict::new(py);
             d.set_item("socket", socket)
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
@@ -850,7 +850,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not import email");
 
-            let d = PyDict::new_bound(py);
+            let d = PyDict::new(py);
             d.set_item("email", email)
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");

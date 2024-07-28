@@ -114,7 +114,7 @@ macro_rules! bigint_conversion {
                 let bytes = $to_bytes(self);
                 let bytes_obj = PyBytes::new(py, &bytes);
                 let kwargs = if $is_signed {
-                    let kwargs = crate::types::PyDict::new_bound(py);
+                    let kwargs = crate::types::PyDict::new(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true).unwrap();
                     Some(kwargs)
                 } else {
@@ -297,7 +297,7 @@ fn int_to_py_bytes<'py>(
     use crate::intern;
     let py = long.py();
     let kwargs = if is_signed {
-        let kwargs = crate::types::PyDict::new_bound(py);
+        let kwargs = crate::types::PyDict::new(py);
         kwargs.set_item(intern!(py, "signed"), true)?;
         Some(kwargs)
     } else {
@@ -414,7 +414,7 @@ mod tests {
     fn convert_index_class() {
         Python::with_gil(|py| {
             let index = python_index_class(py);
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
             let ob = py.eval_bound("index.C(10)", None, Some(&locals)).unwrap();
             let _: BigInt = ob.extract().unwrap();
