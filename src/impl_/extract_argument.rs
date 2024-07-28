@@ -808,7 +808,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::empty(py);
-            let kwargs = [("foo", 0u8)].into_py_dict_bound(py);
+            let kwargs = [("foo", 0u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
@@ -839,7 +839,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let args = PyTuple::empty(py);
-            let kwargs = [(1u8, 1u8)].into_py_dict_bound(py);
+            let kwargs = [(1u8, 1u8)].into_py_dict(py);
             let err = unsafe {
                 function_description
                     .extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(

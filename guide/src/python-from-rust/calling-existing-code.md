@@ -126,7 +126,7 @@ def leaky_relu(x, slope=0.01):
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
-    let kwargs = [("slope", 0.2)].into_py_dict_bound(py);
+    let kwargs = [("slope", 0.2)].into_py_dict(py);
     let lrelu_result: f64 = activators
         .getattr("leaky_relu")?
         .call((-1.0,), Some(&kwargs))?
