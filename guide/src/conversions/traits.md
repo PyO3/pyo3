@@ -181,7 +181,7 @@ struct RustyTuple(String, String);
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new_bound(py, vec!["test", "test2"]);
+#         let tuple = PyTuple::new(py, vec!["test", "test2"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!(rustytuple.0, "test");
@@ -204,7 +204,7 @@ struct RustyTuple((String,));
 # use pyo3::types::PyTuple;
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let tuple = PyTuple::new_bound(py, vec!["test"]);
+#         let tuple = PyTuple::new(py, vec!["test"]);
 #
 #         let rustytuple: RustyTuple = tuple.extract()?;
 #         assert_eq!((rustytuple.0).0, "test");

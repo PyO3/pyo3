@@ -76,7 +76,7 @@ impl PyTuple {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
-    ///     let tuple = PyTuple::new_bound(py, elements);
+    ///     let tuple = PyTuple::new(py, elements);
     ///     assert_eq!(format!("{:?}", tuple), "(0, 1, 2, 3, 4, 5)");
     /// });
     /// # }
@@ -88,7 +88,7 @@ impl PyTuple {
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function using [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
-    pub fn new_bound<T, U>(
+    pub fn new<T, U>(
         py: Python<'_>,
         elements: impl IntoIterator<Item = T, IntoIter = U>,
     ) -> Bound<'_, PyTuple>
@@ -100,13 +100,35 @@ impl PyTuple {
         new_from_iter(py, &mut elements)
     }
 
+    /// Deprecated name for [`PyTuple::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::new`")]
+    #[track_caller]
+    #[inline]
+    pub fn new_bound<T, U>(
+        py: Python<'_>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> Bound<'_, PyTuple>
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        PyTuple::new(py, elements)
+    }
+
     /// Constructs an empty tuple (on the Python side, a singleton object).
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
+    pub fn empty(py: Python<'_>) -> Bound<'_, PyTuple> {
         unsafe {
             ffi::PyTuple_New(0)
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyTuple::empty`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::empty`")]
+    #[inline]
+    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
+        PyTuple::empty(py)
     }
 }
 
@@ -664,7 +686,7 @@ mod tests {
     #[test]
     fn test_new() {
         Python::with_gil(|py| {
-            let ob = PyTuple::new_bound(py, [1, 2, 3]);
+            let ob = PyTuple::new(py, [1, 2, 3]);
             assert_eq!(3, ob.len());
             let ob = ob.as_any();
             assert_eq!((1, 2, 3), ob.extract().unwrap());
@@ -672,7 +694,7 @@ mod tests {
             let mut map = HashSet::new();
             map.insert(1);
             map.insert(2);
-            PyTuple::new_bound(py, map);
+            PyTuple::new(py, map);
         });
     }
 
@@ -691,7 +713,7 @@ mod tests {
     #[test]
     fn test_empty() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::empty_bound(py);
+            let tuple = PyTuple::empty(py);
             assert!(tuple.is_empty());
             assert_eq!(0, tuple.len());
         });
@@ -700,7 +722,7 @@ mod tests {
     #[test]
     fn test_slice() {
         Python::with_gil(|py| {
-            let tup = PyTuple::new_bound(py, [2, 3, 5, 7]);
+            let tup = PyTuple::new(py, [2, 3, 5, 7]);
             let slice = tup.get_slice(1, 3);
             assert_eq!(2, slice.len());
             let slice = tup.get_slice(1, 7);
@@ -759,7 +781,7 @@ mod tests {
     #[test]
     fn test_bound_iter() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new_bound(py, [1, 2, 3]);
+            let tuple = PyTuple::new(py, [1, 2, 3]);
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter();
 
@@ -782,7 +804,7 @@ mod tests {
     #[test]
     fn test_bound_iter_rev() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new_bound(py, [1, 2, 3]);
+            let tuple = PyTuple::new(py, [1, 2, 3]);
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter().rev();
 
@@ -1005,7 +1027,7 @@ mod tests {
     fn too_long_iterator() {
         Python::with_gil(|py| {
             let iter = FaultyIter(0..usize::MAX, 73);
-            let _tuple = PyTuple::new_bound(py, iter);
+            let _tuple = PyTuple::new(py, iter);
         })
     }
 
@@ -1016,7 +1038,7 @@ mod tests {
     fn too_short_iterator() {
         Python::with_gil(|py| {
             let iter = FaultyIter(0..35, 73);
-            let _tuple = PyTuple::new_bound(py, iter);
+            let _tuple = PyTuple::new(py, iter);
         })
     }
 
@@ -1028,7 +1050,7 @@ mod tests {
         Python::with_gil(|py| {
             let iter = FaultyIter(0..0, usize::MAX);
 
-            let _tuple = PyTuple::new_bound(py, iter);
+            let _tuple = PyTuple::new(py, iter);
         })
     }
 
@@ -1088,7 +1110,7 @@ mod tests {
         Python::with_gil(|py| {
             std::panic::catch_unwind(|| {
                 let iter = FaultyIter(0..50, 50);
-                let _tuple = PyTuple::new_bound(py, iter);
+                let _tuple = PyTuple::new(py, iter);
             })
             .unwrap_err();
         });
@@ -1154,7 +1176,7 @@ mod tests {
     #[test]
     fn test_tuple_to_list() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
+            let tuple = PyTuple::new(py, vec![1, 2, 3]);
             let list = tuple.to_list();
             let list_expected = PyList::new_bound(py, vec![1, 2, 3]);
             assert!(list.eq(list_expected).unwrap());
@@ -1164,7 +1186,7 @@ mod tests {
     #[test]
     fn test_tuple_as_sequence() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
+            let tuple = PyTuple::new(py, vec![1, 2, 3]);
             let sequence = tuple.as_sequence();
             assert!(tuple.get_item(0).unwrap().eq(1).unwrap());
             assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
@@ -1177,7 +1199,7 @@ mod tests {
     #[test]
     fn test_tuple_into_sequence() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new_bound(py, vec![1, 2, 3]);
+            let tuple = PyTuple::new(py, vec![1, 2, 3]);
             let sequence = tuple.into_sequence();
             assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
             assert_eq!(sequence.len().unwrap(), 3);
@@ -1187,7 +1209,7 @@ mod tests {
     #[test]
     fn test_bound_tuple_get_item() {
         Python::with_gil(|py| {
-            let tuple = PyTuple::new_bound(py, vec![1, 2, 3, 4]);
+            let tuple = PyTuple::new(py, vec![1, 2, 3, 4]);
 
             assert_eq!(tuple.len(), 4);
             assert_eq!(tuple.get_item(0).unwrap().extract::<i32>().unwrap(), 1);

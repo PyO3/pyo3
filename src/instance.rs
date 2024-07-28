@@ -585,7 +585,7 @@ impl<'py, T> Borrowed<'_, 'py, T> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let tuple = PyTuple::new_bound(py, [1, 2, 3]);
+    ///     let tuple = PyTuple::new(py, [1, 2, 3]);
     ///
     ///     // borrows from `tuple`, so can only be
     ///     // used while `tuple` stays alive

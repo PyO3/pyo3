@@ -91,7 +91,7 @@ fn intopytuple_pyclass() {
 #[test]
 fn pytuple_primitive_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new_bound(py, [1u32, 2, 3].iter());
+        let tup = PyTuple::new(py, [1u32, 2, 3].iter());
         py_assert!(py, tup, "tup == (1, 2, 3)");
     });
 }
@@ -99,7 +99,7 @@ fn pytuple_primitive_iter() {
 #[test]
 fn pytuple_pyclass_iter() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new_bound(
+        let tup = PyTuple::new(
             py,
             [
                 Py::new(py, SimplePyClass {}).unwrap(),
@@ -134,7 +134,7 @@ fn test_pickle() {
         ) -> PyResult<(PyObject, Bound<'py, PyTuple>, PyObject)> {
             let cls = slf.to_object(py).getattr(py, "__class__")?;
             let dict = slf.to_object(py).getattr(py, "__dict__")?;
-            Ok((cls, PyTuple::empty_bound(py), dict))
+            Ok((cls, PyTuple::empty(py), dict))
         }
     }
 

@@ -735,7 +735,7 @@ mod tests {
             assert!(seq
                 .to_tuple()
                 .unwrap()
-                .eq(PyTuple::new_bound(py, ["foo", "bar"]))
+                .eq(PyTuple::new(py, ["foo", "bar"]))
                 .unwrap());
         });
     }
@@ -746,11 +746,7 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = v.to_object(py);
             let seq = ob.downcast_bound::<PySequence>(py).unwrap();
-            assert!(seq
-                .to_tuple()
-                .unwrap()
-                .eq(PyTuple::new_bound(py, &v))
-                .unwrap());
+            assert!(seq.to_tuple().unwrap().eq(PyTuple::new(py, &v)).unwrap());
         });
     }
 

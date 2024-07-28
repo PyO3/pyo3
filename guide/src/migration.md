@@ -3,6 +3,44 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.22.* to 0.23
+
+### `gil-refs` feature removed
+<details open>
+<summary><small>Click to expand</small></summary>
+
+PyO3 0.23 completes the removal of the "GIL Refs" API in favour of the new "Bound" API introduced in PyO3 0.21.
+
+With the removal of the old API, many "Bound" API functions which had been introduced with `_bound` suffixes no longer need the suffixes as these names has been freed up. For example, `PyTuple::new_bound` is now just `PyTuple::new` (the existing name remains but is deprecated).
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+# use pyo3::types::PyTuple;
+# fn main() {
+# Python::with_gil(|py| {
+// For example, for PyTuple. Many such APIs have been changed.
+let tup = PyTuple::new_bound(py, [1, 2, 3]);
+# })
+# }
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyTuple;
+# fn main() {
+# Python::with_gil(|py| {
+// For example, for PyTuple. Many such APIs have been changed.
+let tup = PyTuple::new(py, [1, 2, 3]);
+# })
+# }
+```
+</details>
+
 ## from 0.21.* to 0.22
 
 ### Deprecation of `gil-refs` feature continues
