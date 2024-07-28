@@ -9,7 +9,7 @@ use crate::{
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBytes::new_bound(py, self).unbind().into()
+        PyBytes::new(py, self).unbind().into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -52,7 +52,7 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
 
 impl ToPyObject for Cow<'_, [u8]> {
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new_bound(py, self.as_ref()).into()
+        PyBytes::new(py, self.as_ref()).into()
     }
 }
 

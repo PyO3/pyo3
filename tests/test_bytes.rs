@@ -21,7 +21,7 @@ fn test_pybytes_bytes_conversion() {
 
 #[pyfunction]
 fn bytes_vec_conversion(py: Python<'_>, bytes: Vec<u8>) -> Bound<'_, PyBytes> {
-    PyBytes::new_bound(py, bytes.as_slice())
+    PyBytes::new(py, bytes.as_slice())
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn test_bytearray_vec_conversion() {
 #[test]
 fn test_py_as_bytes() {
     let pyobj: pyo3::Py<pyo3::types::PyBytes> =
-        Python::with_gil(|py| pyo3::types::PyBytes::new_bound(py, b"abc").unbind());
+        Python::with_gil(|py| pyo3::types::PyBytes::new(py, b"abc").unbind());
 
     let data = Python::with_gil(|py| pyobj.as_bytes(py));
 

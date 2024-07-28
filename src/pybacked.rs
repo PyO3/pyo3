@@ -207,7 +207,7 @@ impl ToPyObject for PyBackedBytes {
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
         match &self.storage {
             PyBackedBytesStorage::Python(bytes) => bytes.to_object(py),
-            PyBackedBytesStorage::Rust(bytes) => PyBytes::new_bound(py, bytes).into_any().unbind(),
+            PyBackedBytesStorage::Rust(bytes) => PyBytes::new(py, bytes).into_any().unbind(),
         }
     }
 }
@@ -216,7 +216,7 @@ impl IntoPy<Py<PyAny>> for PyBackedBytes {
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
         match self.storage {
             PyBackedBytesStorage::Python(bytes) => bytes.into_any(),
-            PyBackedBytesStorage::Rust(bytes) => PyBytes::new_bound(py, &bytes).into_any().unbind(),
+            PyBackedBytesStorage::Rust(bytes) => PyBytes::new(py, &bytes).into_any().unbind(),
         }
     }
 }
@@ -355,7 +355,7 @@ mod test {
     #[test]
     fn py_backed_bytes_empty() {
         Python::with_gil(|py| {
-            let b = PyBytes::new_bound(py, b"");
+            let b = PyBytes::new(py, b"");
             let py_backed_bytes = b.extract::<PyBackedBytes>().unwrap();
             assert_eq!(&*py_backed_bytes, b"");
         });
@@ -364,7 +364,7 @@ mod test {
     #[test]
     fn py_backed_bytes() {
         Python::with_gil(|py| {
-            let b = PyBytes::new_bound(py, b"abcde");
+            let b = PyBytes::new(py, b"abcde");
             let py_backed_bytes = b.extract::<PyBackedBytes>().unwrap();
             assert_eq!(&*py_backed_bytes, b"abcde");
         });
@@ -373,7 +373,7 @@ mod test {
     #[test]
     fn py_backed_bytes_from_bytes() {
         Python::with_gil(|py| {
-            let b = PyBytes::new_bound(py, b"abcde");
+            let b = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(b);
             assert_eq!(&*py_backed_bytes, b"abcde");
         });
@@ -391,7 +391,7 @@ mod test {
     #[test]
     fn py_backed_bytes_into_py() {
         Python::with_gil(|py| {
-            let orig_bytes = PyBytes::new_bound(py, b"abcde");
+            let orig_bytes = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
             assert!(py_backed_bytes.to_object(py).is(&orig_bytes));
             assert!(py_backed_bytes.into_py(py).is(&orig_bytes));
@@ -495,7 +495,7 @@ mod test {
     #[test]
     fn test_backed_bytes_from_bytes_clone() {
         Python::with_gil(|py| {
-            let b1: PyBackedBytes = PyBytes::new_bound(py, b"abcde").into();
+            let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
             let b2 = b1.clone();
             assert_eq!(b1, b2);
 
@@ -520,13 +520,13 @@ mod test {
     #[test]
     fn test_backed_bytes_eq() {
         Python::with_gil(|py| {
-            let b1: PyBackedBytes = PyBytes::new_bound(py, b"abcde").into();
+            let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
             let b2: PyBackedBytes = PyByteArray::new_bound(py, b"abcde").into();
 
             assert_eq!(b1, b"abcde");
             assert_eq!(b1, b2);
 
-            let b3: PyBackedBytes = PyBytes::new_bound(py, b"hello").into();
+            let b3: PyBackedBytes = PyBytes::new(py, b"hello").into();
             assert_eq!(b"hello", b3);
             assert_ne!(b1, b3);
         });
@@ -541,7 +541,7 @@ mod test {
                 hasher.finish()
             };
 
-            let b1: PyBackedBytes = PyBytes::new_bound(py, b"abcde").into();
+            let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
             let h1 = {
                 let mut hasher = DefaultHasher::new();
                 b1.hash(&mut hasher);
@@ -566,7 +566,7 @@ mod test {
             let mut a = vec![b"a", b"c", b"d", b"b", b"f", b"g", b"e"];
             let mut b = a
                 .iter()
-                .map(|&b| PyBytes::new_bound(py, b).into())
+                .map(|&b| PyBytes::new(py, b).into())
                 .collect::<Vec<PyBackedBytes>>();
 
             a.sort();

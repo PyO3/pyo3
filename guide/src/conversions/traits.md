@@ -388,7 +388,7 @@ enum RustyEnum<'py> {
 #         }
 #
 #         {
-#             let thing = PyBytes::new_bound(py, b"text");
+#             let thing = PyBytes::new(py, b"text");
 #             let rust_thing: RustyEnum<'_> = thing.extract()?;
 #
 #             assert_eq!(
