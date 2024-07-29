@@ -55,7 +55,7 @@ use crate::{
     exceptions::PyValueError,
     sync::GILOnceCell,
     types::{PyAnyMethods, PyStringMethods, PyType},
-    Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 use bigdecimal::BigDecimal;
 
@@ -65,8 +65,8 @@ fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")
 }
 
-impl FromPyObject<'_> for BigDecimal {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for BigDecimal {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let py_str = &obj.str()?;
         let rs_str = &py_str.to_cow()?;
         BigDecimal::from_str(rs_str).map_err(|e| PyValueError::new_err(e.to_string()))

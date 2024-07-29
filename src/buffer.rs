@@ -18,8 +18,8 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! `PyBuffer` implementation
-use crate::Bound;
 use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
+use crate::{Borrowed, Bound};
 use std::marker::PhantomData;
 use std::os::raw;
 use std::pin::Pin;
@@ -182,9 +182,9 @@ pub unsafe trait Element: Copy {
     fn is_compatible_format(format: &CStr) -> bool;
 }
 
-impl<T: Element> FromPyObject<'_> for PyBuffer<T> {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<PyBuffer<T>> {
-        Self::get(obj)
+impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<PyBuffer<T>> {
+        Self::get(&obj)
     }
 }
 

@@ -97,7 +97,7 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{any::PyAnyMethods, PyComplex},
-    Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;
@@ -148,8 +148,8 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
-        impl FromPyObject<'_> for Complex<$float> {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Complex<$float>> {
+        impl FromPyObject<'_, '_> for Complex<$float> {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Complex<$float>> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
@@ -170,7 +170,7 @@ macro_rules! complex_conversion {
                         obj.lookup_special(crate::intern!(obj.py(), "__complex__"))?
                     {
                         complex = method.call0()?;
-                        &complex
+                        complex.as_borrowed()
                     } else {
                         // `obj` might still implement `__float__` or `__index__`, which will be
                         // handled by `PyComplex_{Real,Imag}AsDouble`, including propagating any

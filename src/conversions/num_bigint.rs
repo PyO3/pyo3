@@ -52,9 +52,8 @@ use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
     conversion::IntoPyObject,
     ffi,
-    instance::Bound,
     types::{any::PyAnyMethods, PyInt},
-    FromPyObject, Py, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -125,8 +124,8 @@ bigint_conversion!(BigUint, false, BigUint::to_bytes_le);
 bigint_conversion!(BigInt, true, BigInt::to_signed_bytes_le);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-impl<'py> FromPyObject<'py> for BigInt {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigInt> {
+impl<'py> FromPyObject<'_, 'py> for BigInt {
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<BigInt> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyInt>;
@@ -134,11 +133,11 @@ impl<'py> FromPyObject<'py> for BigInt {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.bind(py)
+            num_owned.bind_borrowed(py)
         };
         #[cfg(not(Py_LIMITED_API))]
         {
-            let mut buffer = int_to_u32_vec::<true>(num)?;
+            let mut buffer = int_to_u32_vec::<true>(&num)?;
             let sign = if buffer.last().copied().map_or(false, |last| last >> 31 != 0) {
                 // BigInt::new takes an unsigned array, so need to convert from two's complement
                 // flip all bits, 'subtract' 1 (by adding one to the unsigned array)
@@ -162,19 +161,19 @@ impl<'py> FromPyObject<'py> for BigInt {
         }
         #[cfg(Py_LIMITED_API)]
         {
-            let n_bits = int_n_bits(num)?;
+            let n_bits = int_n_bits(&num)?;
             if n_bits == 0 {
                 return Ok(BigInt::from(0isize));
             }
-            let bytes = int_to_py_bytes(num, (n_bits + 8) / 8, true)?;
+            let bytes = int_to_py_bytes(&num, (n_bits + 8) / 8, true)?;
             Ok(BigInt::from_signed_bytes_le(bytes.as_bytes()))
         }
     }
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
-impl<'py> FromPyObject<'py> for BigUint {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<BigUint> {
+impl<'py> FromPyObject<'_, 'py> for BigUint {
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<BigUint> {
         let py = ob.py();
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Py<PyInt>;
@@ -182,20 +181,20 @@ impl<'py> FromPyObject<'py> for BigUint {
             long
         } else {
             num_owned = unsafe { Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))? };
-            num_owned.bind(py)
+            num_owned.bind_borrowed(py)
         };
         #[cfg(not(Py_LIMITED_API))]
         {
-            let buffer = int_to_u32_vec::<false>(num)?;
+            let buffer = int_to_u32_vec::<false>(&num)?;
             Ok(BigUint::new(buffer))
         }
         #[cfg(Py_LIMITED_API)]
         {
-            let n_bits = int_n_bits(num)?;
+            let n_bits = int_n_bits(&num)?;
             if n_bits == 0 {
                 return Ok(BigUint::from(0usize));
             }
-            let bytes = int_to_py_bytes(num, (n_bits + 7) / 8, false)?;
+            let bytes = int_to_py_bytes(&num, (n_bits + 7) / 8, false)?;
             Ok(BigUint::from_bytes_le(bytes.as_bytes()))
         }
     }
@@ -280,6 +279,7 @@ fn int_to_py_bytes<'py>(
     is_signed: bool,
 ) -> PyResult<Bound<'py, PyBytes>> {
     use crate::intern;
+    use crate::types::{PyAnyMethods, PyDictMethods};
     let py = long.py();
     let kwargs = if is_signed {
         let kwargs = crate::types::PyDict::new(py);
@@ -313,6 +313,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
     #[cfg(Py_LIMITED_API)]
     {
         // slow path
+        use crate::types::PyAnyMethods;
         long.call_method0(crate::intern!(py, "bit_length"))
             .and_then(|any| any.extract())
     }
@@ -322,7 +323,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 mod tests {
     use super::*;
     use crate::tests::common::generate_unique_module_name;
-    use crate::types::{PyDict, PyModule};
+    use crate::types::{PyAnyMethods, PyDict, PyModule};
     use indoc::indoc;
     use pyo3_ffi::c_str;
 
