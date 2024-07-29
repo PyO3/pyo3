@@ -89,7 +89,7 @@
 
 use crate::conversion::IntoPyObject;
 use crate::types::*;
-use crate::{Bound, FromPyObject, PyErr, Python};
+use crate::{Borrowed, Bound, FromPyObject, PyErr, Python};
 use std::{cmp, hash};
 
 impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>
@@ -130,16 +130,16 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'py> for indexmap::IndexMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for indexmap::IndexMap<K, V, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'py>,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    V: for<'a> FromPyObject<'a, 'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
+        for (k, v) in dict.iter() {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)

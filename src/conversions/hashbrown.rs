@@ -25,7 +25,7 @@ use crate::{
         set::{try_new_from_iter, PySetMethods},
         PyDict, PyFrozenSet, PySet,
     },
-    Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 use std::{cmp, hash};
 
@@ -67,16 +67,16 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'py> for hashbrown::HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for hashbrown::HashMap<K, V, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'py>,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    V: for<'a> FromPyObject<'a, 'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
+        for (k, v) in dict.iter() {
             ret.insert(k.extract()?, v.extract()?);
         }
         Ok(ret)
@@ -111,12 +111,12 @@ where
     }
 }
 
-impl<'py, K, S> FromPyObject<'py> for hashbrown::HashSet<K, S>
+impl<'py, K, S> FromPyObject<'_, 'py> for hashbrown::HashSet<K, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         match ob.downcast::<PySet>() {
             Ok(set) => set.iter().map(|any| any.extract()).collect(),
             Err(err) => {

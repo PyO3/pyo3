@@ -53,15 +53,15 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
-use crate::types::{any::PyAnyMethods, PyFloat};
-use crate::{Bound, FromPyObject, PyAny, PyResult, Python};
+use crate::types::PyFloat;
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyResult, Python};
 use ordered_float::{NotNan, OrderedFloat};
 use std::convert::Infallible;
 
 macro_rules! float_conversions {
     ($wrapper:ident, $float_type:ty, $constructor:expr) => {
-        impl FromPyObject<'_> for $wrapper<$float_type> {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        impl FromPyObject<'_, '_> for $wrapper<$float_type> {
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
                 let val: $float_type = obj.extract()?;
                 $constructor(val)
             }
@@ -101,6 +101,7 @@ mod test_ordered_float {
     use super::*;
     use crate::ffi::c_str;
     use crate::py_run;
+    use crate::types::PyAnyMethods;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
