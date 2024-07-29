@@ -87,7 +87,7 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::types::*;
 use crate::{Borrowed, Bound, FromPyObject, PyErr, Python};
 use std::{cmp, hash};
@@ -132,8 +132,8 @@ where
 
 impl<'py, K, V, S> FromPyObject<'_, 'py> for indexmap::IndexMap<K, V, S>
 where
-    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
-    V: for<'a> FromPyObject<'a, 'py>,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {

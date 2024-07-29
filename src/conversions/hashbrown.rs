@@ -17,7 +17,7 @@
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
         any::PyAnyMethods,
         dict::PyDictMethods,
@@ -69,8 +69,8 @@ where
 
 impl<'py, K, V, S> FromPyObject<'_, 'py> for hashbrown::HashMap<K, V, S>
 where
-    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
-    V: for<'a> FromPyObject<'a, 'py>,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
@@ -113,7 +113,7 @@ where
 
 impl<'py, K, S> FromPyObject<'_, 'py> for hashbrown::HashSet<K, S>
 where
-    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
