@@ -1,3 +1,4 @@
+use crate::conversion::FromPyObjectOwned;
 use crate::err::{self, DowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -333,7 +334,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 
 impl<'py, T> FromPyObject<'_, 'py> for Vec<T>
 where
-    T: for<'a> FromPyObject<'a, 'py>,
+    T: FromPyObjectOwned<'py>,
 {
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
@@ -350,7 +351,7 @@ where
 
 fn extract_sequence<'py, T>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Vec<T>>
 where
-    T: for<'a> FromPyObject<'a, 'py>,
+    T: FromPyObjectOwned<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
