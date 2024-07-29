@@ -4,8 +4,8 @@ use crate::{
     impl_::freelist::FreeList,
     impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
     pyclass_init::PyObjectInit,
-    types::{any::PyAnyMethods, PyBool},
     sealed::Sealed,
+    types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
     ToPyObject,
 };
