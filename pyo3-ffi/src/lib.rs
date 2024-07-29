@@ -1,3 +1,4 @@
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 //! Raw FFI declarations for Python's C API.
 //!
 //! PyO3 can be used to write native Python modules or run Python code and modules from Rust.

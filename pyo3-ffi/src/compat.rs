@@ -1,5 +1,3 @@
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-
 //! C API Compatibility Shims
 //!
 //! Some CPython C API functions added in recent versions of Python are
@@ -14,11 +12,11 @@
 use crate::object::PyObject;
 use std::os::raw::c_int;
 
-#[cfg_attr(docsrs, doc(cfg()))]
+#[cfg_attr(docsrs, doc(cfg(Py_3_13)))]
 #[cfg(Py_3_13)]
 pub use crate::dictobject::PyDict_GetItemRef;
 
-#[cfg_attr(docsrs, doc(cfg()))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_3_13))))]
 #[cfg(not(Py_3_13))]
 pub unsafe fn PyDict_GetItemRef(
     dp: *mut PyObject,
