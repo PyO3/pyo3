@@ -308,6 +308,46 @@ pub trait FromPyObject<'a, 'py>: Sized {
     }
 }
 
+/// A data structure that can be extracted without borrowing any data from the input
+///
+/// This is primarily useful for trait bounds. For example a `FromPyObject` implementation of a
+/// wrapper type may be able to borrow data from the input, but a `FromPyObject` implementation of a
+/// collection type may only extract owned data.
+///
+/// ```,no_run
+/// # use pyo3::prelude::*;
+/// # #[allow(dead_code)]
+/// pub struct MyWrapper<T>(T);
+///
+/// impl<'a, 'py, T> FromPyObject<'a, 'py> for MyWrapper<T>
+/// where
+///     T: FromPyObject<'a, 'py>
+/// {
+///     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+///         obj.extract().map(MyWrapper)
+///     }
+/// }
+///
+/// # #[allow(dead_code)]
+/// pub struct MyVec<T>(Vec<T>);
+///
+/// impl<'py, T> FromPyObject<'_, 'py> for MyVec<T>
+/// where
+///     T: FromPyObjectOwned<'py> // 👈 can only extract owned values, because each `item` below
+///                               //    is a temporary short lived owned reference
+/// {
+///     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+///         let mut v = MyVec(Vec::new());
+///         for item in obj.try_iter()? {
+///             v.0.push(item?.extract::<T>()?);
+///         }
+///         Ok(v)
+///     }
+/// }
+/// ```
+pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
+impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
+
 impl<T> FromPyObject<'_, '_> for T
 where
     T: PyClass + Clone,

@@ -49,12 +49,14 @@ For simple wrapper types usually it's possible to just forward the bound.
 
 Before:
 ```rust,ignore
-impl<'py, T> FromPyObject<'py> for Cell<T>
+struct MyWrapper<T>(T);
+
+impl<'py, T> FromPyObject<'py> for MyWrapper<T>
 where 
     T: FromPyObject<'py>
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        ob.extract_bound().map(Cell::new)
+        ob.extract().map(MyWrapper)
     }
 }
 ```
@@ -62,30 +64,34 @@ where
 After: 
 ```rust
 # use pyo3::prelude::*;
-# use std::cell::Cell;
-impl<'a, 'py, T> FromPyObject<'a, 'py> for Cell<T>
-where 
+# #[allow(dead_code)]
+# pub struct MyWrapper<T>(T);
+impl<'a, 'py, T> FromPyObject<'a, 'py> for MyWrapper<T>
+where
     T: FromPyObject<'a, 'py>
 {
-    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
-        ob.extract().map(Cell::new)
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+        obj.extract().map(MyWrapper)
     }
 }
 ```
 
 Container types that need to create temporary Python references during extraction, for example
-extracing from a `PyList`, require a stronger bound:
+extracing from a `PyList`, require a stronger bound. For these the `FromPyObjectOwned` trait was
+introduced. It is automatically implemented for any type that implements `FromPyObject` and does not
+borrow from the input. It is intended to be used as a trait bound in these situations.
 
 Before:
 ```rust,ignore
+struct MyVec<T>(Vec<T>);
 impl<'py, T> FromPyObject<'py> for Vec<T>
 where
     T: FromPyObject<'py>,
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let mut v = Vec::new();
+        let mut v = MyVec(Vec::new());
         for item in obj.try_iter()? {
-            v.push(item?.extract::<T>()?);
+            v.0.push(item?.extract::<T>()?);
         }
         Ok(v)
     }
@@ -95,25 +101,24 @@ where
 After:
 ```rust
 # use pyo3::prelude::*;
-impl<'py, T> FromPyObject<'_, 'py> for Vec<T>
+# #[allow(dead_code)]
+# pub struct MyVec<T>(Vec<T>);
+impl<'py, T> FromPyObject<'_, 'py> for MyVec<T>
 where
-    T: for<'a> FromPyObject<'a, 'py>,
-    //  👆 we need a higher ranked trait bound (HRTB) to tell the compiler
-    //  that we can extract `T` for any input lifetime, not just a specific one.
-    //  This is a stronger guarantee and in practice describes types that are
-    //  independent of the input lifetime.
+    T: FromPyObjectOwned<'py> // 👈 can only extract owned values, because each `item` below
+                              //    is a temporary short lived owned reference
 {
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        let mut v = Vec::new();
-        //   this is a new owned reference, which is not tied to the input, so we can't extract
-        //   👇   anything that borrows from it, since it is dropped after the iteration
+        let mut v = MyVec(Vec::new());
         for item in obj.try_iter()? {
-            v.push(item?.extract::<T>()?);
+            v.0.push(item?.extract::<T>()?);
         }
         Ok(v)
     }
 }
 ```
+
+This is very similar to `serde`s `Deserialize` and `DeserializeOwned` traits.
 </details>
 
 ## from 0.25.* to 0.26

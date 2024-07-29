@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
         any::PyAnyMethods,
         frozenset::PyFrozenSetMethods,
@@ -54,7 +54,7 @@ where
 
 impl<'py, K, S> FromPyObject<'_, 'py> for collections::HashSet<K, S>
 where
-    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
@@ -115,7 +115,7 @@ where
 
 impl<'py, K> FromPyObject<'_, 'py> for collections::BTreeSet<K>
 where
-    K: for<'a> FromPyObject<'a, 'py> + cmp::Ord,
+    K: FromPyObjectOwned<'py> + cmp::Ord,
 {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         match ob.cast::<PySet>() {
