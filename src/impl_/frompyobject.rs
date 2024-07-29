@@ -42,13 +42,13 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
     error_msg
 }
 
-pub fn extract_struct_field<'py, T>(
-    obj: &Bound<'py, PyAny>,
+pub fn extract_struct_field<'a, 'py, T>(
+    obj: &'a Bound<'py, PyAny>,
     struct_name: &str,
     field_name: &str,
 ) -> PyResult<T>
 where
-    T: FromPyObject<'py>,
+    T: FromPyObject<'a, 'py>,
 {
     match obj.extract() {
         Ok(value) => Ok(value),
@@ -92,13 +92,13 @@ fn failed_to_extract_struct_field(
     new_err
 }
 
-pub fn extract_tuple_struct_field<'py, T>(
-    obj: &Bound<'py, PyAny>,
+pub fn extract_tuple_struct_field<'a, 'py, T>(
+    obj: &'a Bound<'py, PyAny>,
     struct_name: &str,
     index: usize,
 ) -> PyResult<T>
 where
-    T: FromPyObject<'py>,
+    T: FromPyObject<'a, 'py>,
 {
     match obj.extract() {
         Ok(value) => Ok(value),

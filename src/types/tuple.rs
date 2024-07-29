@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
+use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
@@ -583,7 +583,7 @@ impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
 #[cold]
-fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(t: Borrowed<'_, '_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
         "expected tuple of length {}, but got tuple of length {}",
         expected_length,
@@ -888,8 +888,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl<'py, $($T: FromPyObject<'py>),+> FromPyObject<'py> for ($($T,)+) {
-        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
+    impl<'a, 'py, $($T: FromPyObject<'a, 'py>),+> FromPyObject<'a, 'py> for ($($T,)+) {
+        fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>
         {
             let t = obj.cast::<PyTuple>()?;
             if t.len() == $length {

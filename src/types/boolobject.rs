@@ -177,11 +177,11 @@ impl<'py> IntoPyObject<'py> for &bool {
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl FromPyObject<'_> for bool {
+impl FromPyObject<'_, '_> for bool {
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "bool";
 
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let err = match obj.cast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
             Err(err) => err,
@@ -196,7 +196,7 @@ impl FromPyObject<'_> for bool {
         };
 
         if is_numpy_bool {
-            let missing_conversion = |obj: &Bound<'_, PyAny>| {
+            let missing_conversion = |obj: Borrowed<'_, '_, PyAny>| {
                 PyTypeError::new_err(format!(
                     "object of type '{}' does not define a '__bool__' conversion",
                     obj.get_type()
@@ -242,9 +242,7 @@ impl FromPyObject<'_> for bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::any::PyAnyMethods;
-    use crate::types::boolobject::PyBoolMethods;
-    use crate::types::PyBool;
+    use crate::types::{PyAnyMethods, PyBool, PyBoolMethods};
     use crate::IntoPyObject;
     use crate::Python;
 

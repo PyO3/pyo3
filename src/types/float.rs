@@ -1,4 +1,3 @@
-use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
@@ -18,7 +17,7 @@ use std::ffi::c_double;
 /// [`Bound<'py, PyFloat>`][Bound].
 ///
 /// You can usually avoid directly working with this type
-/// by using [`IntoPyObject`] and [`extract`][PyAnyMethods::extract]
+/// by using [`IntoPyObject`] and [`extract`][crate::types::PyAnyMethods::extract]
 /// with [`f32`]/[`f64`].
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
@@ -107,13 +106,13 @@ impl<'py> IntoPyObject<'py> for &f64 {
     }
 }
 
-impl<'py> FromPyObject<'py> for f64 {
+impl<'py> FromPyObject<'_, 'py> for f64 {
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "float";
 
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
@@ -178,11 +177,11 @@ impl<'py> IntoPyObject<'py> for &f32 {
     }
 }
 
-impl<'py> FromPyObject<'py> for f32 {
+impl<'py> FromPyObject<'_, 'py> for f32 {
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: &'static str = "float";
 
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
 

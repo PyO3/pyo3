@@ -35,8 +35,8 @@ where
     }
 }
 
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
-    fn from_py_object_bound(obj: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+impl<'a> crate::conversion::FromPyObject<'a, '_> for &'a [u8] {
+    fn extract(obj: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         Ok(obj.cast::<PyBytes>()?.as_bytes())
     }
 
@@ -51,8 +51,8 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
 /// If the source object is a `bytes` object, the `Cow` will be borrowed and
 /// pointing into the source object, and no copying or heap allocations will happen.
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
-    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+impl<'a> crate::conversion::FromPyObject<'a, '_> for Cow<'a, [u8]> {
+    fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
         if let Ok(bytes) = ob.cast::<PyBytes>() {
             return Ok(Cow::Borrowed(bytes.as_bytes()));
         }

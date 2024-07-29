@@ -1,11 +1,10 @@
 use crate::{
-    conversion::FromPyObjectBound,
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyResult, PyTypeCheck,
-    Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyResult,
+    PyTypeCheck, Python,
 };
 
 /// Helper type used to keep implementation more concise.
@@ -33,7 +32,7 @@ pub trait PyFunctionArgument<'a, 'holder, 'py, const IS_OPTION: bool>: Sized {
 
 impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for T
 where
-    T: FromPyObjectBound<'a, 'py>,
+    T: FromPyObject<'a, 'py>,
 {
     type Holder = ();
 
