@@ -22,8 +22,10 @@ use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::list::new_from_iter;
 use crate::types::{PySequence, PyString};
-use crate::PyErr;
-use crate::{err::DowncastError, ffi, Bound, FromPyObject, PyAny, PyObject, PyResult, Python};
+use crate::{
+    err::DowncastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyObject, PyResult,
+    Python,
+};
 #[allow(deprecated)]
 use crate::{IntoPy, ToPyObject};
 use smallvec::{Array, SmallVec};
@@ -97,12 +99,12 @@ where
     }
 }
 
-impl<'py, A> FromPyObject<'py> for SmallVec<A>
+impl<'py, A> FromPyObject<'_, 'py> for SmallVec<A>
 where
     A: Array,
-    A::Item: FromPyObject<'py>,
+    A::Item: for<'a> FromPyObject<'a, 'py>,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `SmallVec`"));
         }
@@ -115,10 +117,10 @@ where
     }
 }
 
-fn extract_sequence<'py, A>(obj: &Bound<'py, PyAny>) -> PyResult<SmallVec<A>>
+fn extract_sequence<'py, A>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<SmallVec<A>>
 where
     A: Array,
-    A::Item: FromPyObject<'py>,
+    A::Item: for<'a> FromPyObject<'a, 'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
@@ -126,7 +128,7 @@ where
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
             obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new_from_borrowed(obj, "Sequence").into());
         }
     };
 
