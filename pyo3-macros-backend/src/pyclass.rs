@@ -2031,6 +2031,8 @@ impl<'a> PyClassImplsBuilder<'a> {
             impl #pyo3_path::PyClass for #cls {
                 type Frozen = #frozen;
             }
+
+            impl crate::sealed::Sealed for crate::impl_::pyclass::PyClassImplCollector<#cls> {}
         }
     }
     fn impl_extractext(&self, ctx: &Ctx) -> TokenStream {

@@ -993,7 +993,7 @@ pub trait PyClassInventory: inventory::Collect {
 
 // Items from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
-pub trait PyMethods<T> {
+pub trait PyMethods<T>: crate::sealed::Sealed {
     fn py_methods(self) -> &'static PyClassItems;
 }
 
