@@ -344,11 +344,11 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     }
 }
 
-impl<'py, T> FromPyObject<'py> for Vec<T>
+impl<'py, T> FromPyObject<'_, 'py> for Vec<T>
 where
-    T: FromPyObject<'py>,
+    T: for<'a> FromPyObject<'a, 'py>,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
@@ -361,9 +361,9 @@ where
     }
 }
 
-fn extract_sequence<'py, T>(obj: &Bound<'py, PyAny>) -> PyResult<Vec<T>>
+fn extract_sequence<'py, T>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Vec<T>>
 where
-    T: FromPyObject<'py>,
+    T: for<'a> FromPyObject<'a, 'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
@@ -371,7 +371,7 @@ where
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
             obj.downcast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new(obj, "Sequence").into());
+            return Err(DowncastError::new_from_borrowed(obj, "Sequence").into());
         }
     };
 

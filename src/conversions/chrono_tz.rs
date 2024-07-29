@@ -39,7 +39,8 @@ use crate::pybacked::PyBackedStr;
 use crate::sync::GILOnceCell;
 use crate::types::{any::PyAnyMethods, PyType};
 use crate::{
-    intern, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    intern, Borrowed, Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use chrono_tz::Tz;
 use std::str::FromStr;
@@ -82,8 +83,8 @@ impl<'py> IntoPyObject<'py> for &Tz {
     }
 }
 
-impl FromPyObject<'_> for Tz {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Tz> {
+impl FromPyObject<'_, '_> for Tz {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Tz> {
         Tz::from_str(
             &ob.getattr(intern!(ob.py(), "key"))?
                 .extract::<PyBackedStr>()?,
@@ -95,6 +96,7 @@ impl FromPyObject<'_> for Tz {
 #[cfg(all(test, not(windows)))] // Troubles loading timezones on Windows
 mod tests {
     use super::*;
+    use crate::Bound;
 
     #[test]
     fn test_frompyobject() {
