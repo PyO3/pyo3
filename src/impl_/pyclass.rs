@@ -5,6 +5,7 @@ use crate::{
     impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
     pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
+    sealed::Sealed,
     Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
     ToPyObject,
 };
@@ -33,7 +34,7 @@ pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
-pub trait PyClassDict {
+pub trait PyClassDict: Sealed {
     /// Initial form of a [PyObject](crate::ffi::PyObject) `__dict__` reference.
     const INIT: Self;
     /// Empties the dictionary of its key-value pairs.
@@ -43,7 +44,7 @@ pub trait PyClassDict {
 }
 
 /// Represents the `__weakref__` field for `#[pyclass]`.
-pub trait PyClassWeakRef {
+pub trait PyClassWeakRef: Sealed {
     /// Initializes a `weakref` instance.
     const INIT: Self;
     /// Clears the weak references to the given object.
@@ -148,7 +149,7 @@ unsafe impl Sync for PyClassItems {}
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
-pub trait PyClassImpl: Sized + 'static {
+pub trait PyClassImpl: Sized + 'static + Sealed {
     /// #[pyclass(subclass)]
     const IS_BASETYPE: bool = false;
 
@@ -297,7 +298,7 @@ impl Iterator for PyClassItemsIter {
 macro_rules! slot_fragment_trait {
     ($trait_name:ident, $($default_method:tt)*) => {
         #[allow(non_camel_case_types)]
-        pub trait $trait_name<T>: Sized {
+        pub trait $trait_name<T>: Sized + Sealed {
             $($default_method)*
         }
 
@@ -896,7 +897,7 @@ use super::{pycell::PyClassObject, pymethods::BoundRef};
 ///
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
-pub trait PyClassWithFreeList: PyClass {
+pub trait PyClassWithFreeList: PyClass + Sealed {
     fn get_free_list(py: Python<'_>) -> &mut FreeList<*mut ffi::PyObject>;
 }
 
@@ -986,14 +987,14 @@ unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
 /// Allows arbitrary `#[pymethod]` blocks to submit their methods,
 /// which are eventually collected by `#[pyclass]`.
 #[cfg(feature = "multiple-pymethods")]
-pub trait PyClassInventory: inventory::Collect {
+pub trait PyClassInventory: inventory::Collect + Sealed {
     /// Returns the items for a single `#[pymethods] impl` block
     fn items(&'static self) -> &'static PyClassItems;
 }
 
 // Items from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
-pub trait PyMethods<T>: crate::sealed::Sealed {
+pub trait PyMethods<T>: Sealed {
     fn py_methods(self) -> &'static PyClassItems;
 }
 
@@ -1008,7 +1009,7 @@ impl<T> PyMethods<T> for &'_ PyClassImplCollector<T> {
 }
 
 // Text signature for __new__
-pub trait PyClassNewTextSignature<T>: crate::sealed::Sealed {
+pub trait PyClassNewTextSignature<T>: Sealed {
     fn new_text_signature(self) -> Option<&'static str>;
 }
 
@@ -1022,7 +1023,7 @@ impl<T> PyClassNewTextSignature<T> for &'_ PyClassImplCollector<T> {
 // Thread checkers
 
 #[doc(hidden)]
-pub trait PyClassThreadChecker<T>: Sized {
+pub trait PyClassThreadChecker<T>: Sized + Sealed {
     fn ensure(&self);
     fn check(&self) -> bool;
     fn can_drop(&self, py: Python<'_>) -> bool;
@@ -1275,8 +1276,8 @@ impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, Field
         note = "implement `ToPyObject` or `IntoPy<PyObject> + Clone` for `{Self}` to define the conversion",
     )
 )]
-pub trait PyO3GetField: IntoPy<Py<PyAny>> + Clone {}
-impl<T: IntoPy<Py<PyAny>> + Clone> PyO3GetField for T {}
+pub trait PyO3GetField: IntoPy<Py<PyAny>> + Clone + Sealed {}
+impl<T: IntoPy<Py<PyAny>> + Clone + Sealed> PyO3GetField for T {}
 
 /// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
 impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
@@ -1305,13 +1306,14 @@ impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
 /// The true case is defined in the zero-sized type's impl block, which is
 /// gated on some property like trait bound or only being implemented
 /// for fixed concrete types.
-pub trait Probe {
+pub trait Probe: Sealed {
     const VALUE: bool = false;
 }
 
 macro_rules! probe {
     ($name:ident) => {
         pub struct $name<T>(PhantomData<T>);
+        impl<T> Sealed for $name<T> {}
         impl<T> Probe for $name<T> {}
     };
 }

@@ -2209,6 +2209,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         Ok(quote! {
+            impl crate::sealed::Sealed for #cls{}
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
