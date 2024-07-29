@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{FromPyObjectOwned, IntoPyObject},
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     Borrowed, FromPyObject, PyAny, PyErr, PyObject, Python,
@@ -173,8 +173,8 @@ where
 
 impl<'py, K, V, S> FromPyObject<'_, 'py> for collections::HashMap<K, V, S>
 where
-    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
-    V: for<'a> FromPyObject<'a, 'py>,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
@@ -194,8 +194,8 @@ where
 
 impl<'py, K, V> FromPyObject<'_, 'py> for collections::BTreeMap<K, V>
 where
-    K: for<'a> FromPyObject<'a, 'py> + cmp::Ord,
-    V: for<'a> FromPyObject<'a, 'py>,
+    K: FromPyObjectOwned<'py> + cmp::Ord,
+    V: FromPyObjectOwned<'py>,
 {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;

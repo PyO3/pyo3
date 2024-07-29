@@ -1,4 +1,4 @@
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::{err::DowncastError, ffi, FromPyObject, Py, PyAny, PyObject, PyResult, Python};
@@ -80,7 +80,7 @@ where
 
 impl<'py, T, const N: usize> FromPyObject<'_, 'py> for [T; N]
 where
-    T: for<'a> FromPyObject<'a, 'py>,
+    T: FromPyObjectOwned<'py>,
 {
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         create_array_from_obj(obj)
@@ -89,7 +89,7 @@ where
 
 fn create_array_from_obj<'py, T, const N: usize>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<[T; N]>
 where
-    T: for<'a> FromPyObject<'a, 'py>,
+    T: FromPyObjectOwned<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
