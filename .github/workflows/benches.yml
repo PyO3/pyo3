@@ -37,7 +37,7 @@ jobs:
         run: pip install nox
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v2
+        uses: CodSpeedHQ/action@v3
         with:
           run: nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
