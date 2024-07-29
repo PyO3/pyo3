@@ -3,6 +3,119 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.26.* to 0.27
+### `FromPyObject` gains additional lifetime
+<details open>
+<summary><small>Click to expand</small></summary>
+
+With the removal of the `gil-ref` API it is now possible to fully split the Python GIL lifetime
+`'py` and the input lifetime `'a`. This allows borrowing from the input data without extending the
+GIL lifetime.
+
+`FromPyObject` now takes an additional lifetime `'a` describing the input lifetime. The argument
+type of the `extract` method changed from `&Bound<'_, PyAny>` to `Borrowed<'_, '_, PyAny>`. This was
+done to lift the implicit restriction `'py: 'a` due to the reference type. `extract_bound` with it's
+old signature is deprecated, but still available during migration.
+
+This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and
+is now extended to all types.
+
+Most implementation can just add an elided lifetime to migrate,
+
+Before:
+```rust,ignore
+impl<'py> FromPyObject<'py> for IpAddr {
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ...
+    }
+}
+```
+
+After
+```rust,ignore
+impl<'py> FromPyObject<'_, 'py> for IpAddr {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        ...
+        // since `Borrowed` derefs to `&Bound`, the body often
+        // needs no changes, or adding an occasional `&`
+    }
+}
+```
+
+but occasually more steps are neccessary. For generic types, the bounds need to be adjusted. The
+correct bound depends on how the type is used.
+
+For simple wrapper types usually it's possible to just forward the bound.
+
+Before:
+```rust,ignore
+impl<'py, T> FromPyObject<'py> for Cell<T>
+where 
+    T: FromPyObject<'py>
+{
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        ob.extract_bound().map(Cell::new)
+    }
+}
+```
+
+After: 
+```rust
+# use pyo3::prelude::*;
+# use std::cell::Cell;
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Cell<T>
+where 
+    T: FromPyObject<'a, 'py>
+{
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+        ob.extract().map(Cell::new)
+    }
+}
+```
+
+Container types that need to create temporary Python references during extraction, for example
+extracing from a `PyList`, require a stronger bound:
+
+Before:
+```rust,ignore
+impl<'py, T> FromPyObject<'py> for Vec<T>
+where
+    T: FromPyObject<'py>,
+{
+    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let mut v = Vec::new();
+        for item in obj.try_iter()? {
+            v.push(item?.extract::<T>()?);
+        }
+        Ok(v)
+    }
+}
+```
+
+After:
+```rust
+# use pyo3::prelude::*;
+impl<'py, T> FromPyObject<'_, 'py> for Vec<T>
+where
+    T: for<'a> FromPyObject<'a, 'py>,
+    //  👆 we need a higher ranked trait bound (HRTB) to tell the compiler
+    //  that we can extract `T` for any input lifetime, not just a specific one.
+    //  This is a stronger guarantee and in practice describes types that are
+    //  independent of the input lifetime.
+{
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let mut v = Vec::new();
+        //   this is a new owned reference, which is not tied to the input, so we can't extract
+        //   👇   anything that borrows from it, since it is dropped after the iteration
+        for item in obj.try_iter()? {
+            v.push(item?.extract::<T>()?);
+        }
+        Ok(v)
+    }
+}
+```
+</details>
+
 ## from 0.25.* to 0.26
 ### Rename of `Python::with_gil`, `Python::allow_threads`, and `pyo3::prepare_freethreaded_python`
 <details open>
