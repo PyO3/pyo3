@@ -9,14 +9,15 @@ use crate::types::{timezone_utc_bound, PyDateTime, PyDelta, PyDeltaAccess};
 #[cfg(Py_LIMITED_API)]
 use crate::Py;
 use crate::{
-    intern, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    intern, Borrowed, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
-impl FromPyObject<'_> for Duration {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for Duration {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
         let (days, seconds, microseconds) = {
             let delta = obj.downcast::<PyDelta>()?;
@@ -129,8 +130,8 @@ impl<'py> IntoPyObject<'py> for Duration {
 //
 // TODO: it might be nice to investigate using timestamps anyway, at least when the datetime is a safe range.
 
-impl FromPyObject<'_> for SystemTime {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for SystemTime {
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let duration_since_unix_epoch: Duration = obj
             .call_method1(intern!(obj.py(), "__sub__"), (unix_epoch_py(obj.py()),))?
             .extract()?;
@@ -212,6 +213,7 @@ fn unix_epoch_py(py: Python<'_>) -> &PyObject {
 mod tests {
     use super::*;
     use crate::types::PyDict;
+    use crate::Bound;
     use std::panic;
 
     #[test]

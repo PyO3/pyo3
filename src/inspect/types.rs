@@ -465,7 +465,7 @@ mod conversion {
 
         assert_display(&<&[u8]>::type_output(), "bytes");
         assert_display(
-            &<&[u8] as crate::conversion::FromPyObjectBound>::type_input(),
+            &<&[u8] as crate::conversion::FromPyObject>::type_input(),
             "bytes",
         );
     }
