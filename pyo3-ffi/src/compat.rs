@@ -9,7 +9,9 @@
 // Unless otherwise noted, the compatibility shims are adapted from
 // the pythoncapi-compat project: https://github.com/python/pythoncapi-compat
 
+#[cfg(not(Py_3_13))]
 use crate::object::PyObject;
+#[cfg(not(Py_3_13))]
 use std::os::raw::c_int;
 
 #[cfg_attr(docsrs, doc(cfg(Py_3_13)))]
