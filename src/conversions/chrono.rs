@@ -41,7 +41,7 @@
 //! }
 //! ```
 
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::intern;
@@ -318,7 +318,7 @@ where
 
 impl<'py, Tz> FromPyObject<'_, 'py> for DateTime<Tz>
 where
-    Tz: TimeZone + for<'a> FromPyObject<'a, 'py>,
+    Tz: TimeZone + FromPyObjectOwned<'py>,
 {
     fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<DateTime<Tz>> {
         let dt = &*dt.downcast::<PyDateTime>()?;

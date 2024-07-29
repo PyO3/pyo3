@@ -15,7 +15,7 @@
 //!
 //! Note that you must use compatible versions of smallvec and PyO3.
 //! The required smallvec version may vary based on the version of PyO3.
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
@@ -74,7 +74,7 @@ where
 impl<'py, A> FromPyObject<'_, 'py> for SmallVec<A>
 where
     A: Array,
-    A::Item: for<'a> FromPyObject<'a, 'py>,
+    A::Item: FromPyObjectOwned<'py>,
 {
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
@@ -92,7 +92,7 @@ where
 fn extract_sequence<'py, A>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<SmallVec<A>>
 where
     A: Array,
-    A::Item: for<'a> FromPyObject<'a, 'py>,
+    A::Item: FromPyObjectOwned<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
