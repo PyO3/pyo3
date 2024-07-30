@@ -14,11 +14,11 @@ use crate::object::PyObject;
 #[cfg(not(Py_3_13))]
 use std::os::raw::c_int;
 
-#[cfg_attr(docsrs, doc(cfg(Py_3_13)))]
+#[cfg_attr(docsrs, doc(cfg(all)))]
 #[cfg(Py_3_13)]
 pub use crate::dictobject::PyDict_GetItemRef;
 
-#[cfg_attr(docsrs, doc(cfg(not(Py_3_13))))]
+#[cfg_attr(docsrs, doc(cfg(all)))]
 #[cfg(not(Py_3_13))]
 pub unsafe fn PyDict_GetItemRef(
     dp: *mut PyObject,
