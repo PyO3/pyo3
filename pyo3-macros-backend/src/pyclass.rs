@@ -1744,6 +1744,7 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
     };
 
     quote! {
+        #[allow(unsafe_code)]
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;

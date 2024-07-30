@@ -772,6 +772,7 @@ pub fn impl_py_getter_def(
                     use #pyo3_path::impl_::pyclass::Probe;
 
                     struct Offset;
+                    #[allow(unsafe_code)]
                     unsafe impl #pyo3_path::impl_::pyclass::OffsetCalculator<#cls, #ty> for Offset {
                         fn offset() -> usize {
                             #pyo3_path::impl_::pyclass::class_offset::<#cls>() +
@@ -779,6 +780,7 @@ pub fn impl_py_getter_def(
                         }
                     }
 
+                    #[allow(unsafe_code)]
                     const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
                         #cls,
                         #ty,
