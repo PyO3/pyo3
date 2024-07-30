@@ -31,6 +31,7 @@ fn test_compile_errors() {
     #[cfg(not(feature = "gil-refs"))]
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
+    #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     // output changes with async feature
     #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
@@ -38,6 +39,7 @@ fn test_compile_errors() {
     #[cfg(not(feature = "gil-refs"))]
     t.compile_fail("tests/ui/invalid_intern_arg.rs");
     t.compile_fail("tests/ui/invalid_frozen_pyclass_borrow.rs");
+    #[cfg(not(any(feature = "hashbrown", feature = "indexmap")))]
     t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
     t.compile_fail("tests/ui/missing_intopy.rs");
     // adding extra error conversion impls changes the output
