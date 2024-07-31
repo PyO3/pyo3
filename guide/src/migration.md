@@ -41,6 +41,57 @@ let tup = PyTuple::new(py, [1, 2, 3]);
 ```
 </details>
 
+### Renamed `IntoPyDict::into_py_dict_bound` into `IntoPyDict::into_py_dict`.
+<details open>
+<summary><small>Click to expand</small></summary>
+
+The `IntoPyDict::into_py_dict_bound` method has been renamed to `IntoPyDict::into_py_dict`. If you implemented `IntoPyDict` for your type, you should implement `into_py_dict` instead of `into_py_dict_bound`. The old name is still available but deprecated.
+
+Before:
+
+```rust,ignore
+# use pyo3::prelude::*;
+# use pyo3::types::{PyDict, IntoPyDict};
+# use pyo3::types::dict::PyDictItem;
+impl<T, I> IntoPyDict for I
+where
+    T: PyDictItem,
+    I: IntoIterator<Item = T>,
+{
+    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
+        let dict = PyDict::new(py);
+        for item in self {
+            dict.set_item(item.key(), item.value())
+                .expect("Failed to set_item on dict");
+        }
+        dict
+    }
+}
+```
+
+After:
+
+```rust,ignore
+# use pyo3::prelude::*;
+# use pyo3::types::{PyDict, IntoPyDict};
+# use pyo3::types::dict::PyDictItem;
+impl<T, I> IntoPyDict for I
+where
+    T: PyDictItem,
+    I: IntoIterator<Item = T>,
+{
+    fn into_py_dict(self, py: Python<'_>) -> Bound<'_, PyDict> {
+        let dict = PyDict::new(py);
+        for item in self {
+            dict.set_item(item.key(), item.value())
+                .expect("Failed to set_item on dict");
+        }
+        dict
+    }
+}
+```
+</details>
+
 ## from 0.21.* to 0.22
 
 ### Deprecation of `gil-refs` feature continues
