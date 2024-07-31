@@ -2005,7 +2005,7 @@ a = A()
                 method: impl FnOnce(*mut ffi::PyObject) -> Bound<'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_bound_with_destructor(
+                let capsule = PyCapsule::new_with_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
                     None,
@@ -2044,7 +2044,7 @@ a = A()
                 method: impl FnOnce(&*mut ffi::PyObject) -> Borrowed<'_, 'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_bound_with_destructor(
+                let capsule = PyCapsule::new_with_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
                     None,
