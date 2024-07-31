@@ -202,7 +202,7 @@ jobs:
         include:
           # Test nightly Rust on PRs so that PR authors have a chance to fix nightly
           # failures, as nightly does not block merge.
-          - rust: nightly
+          - rust: nightly-2024-07-29
             python-version: "3.12"
             platform:
               {
