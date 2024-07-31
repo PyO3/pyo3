@@ -2,9 +2,9 @@
 
 If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:
 
-## Want to access Python APIs? Then use `PyModule::import_bound`.
+## Want to access Python APIs? Then use `PyModule::import`.
 
-[`PyModule::import_bound`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import_bound) can
+[`PyModule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import_bound) can
 be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
@@ -13,7 +13,7 @@ use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let builtins = PyModule::import_bound(py, "builtins")?;
+        let builtins = PyModule::import(py, "builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
             .call1((vec![1, 2, 3],))?
@@ -95,9 +95,9 @@ assert userdata.as_tuple() == userdata_as_tuple
 # }
 ```
 
-## You have a Python file or code snippet? Then use `PyModule::from_code_bound`.
+## You have a Python file or code snippet? Then use `PyModule::from_code`.
 
-[`PyModule::from_code_bound`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code_bound)
+[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code_bound)
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 
@@ -109,7 +109,7 @@ use pyo3::{prelude::*, types::IntoPyDict};
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let activators = PyModule::from_code_bound(
+    let activators = PyModule::from_code(
         py,
         r#"
 def relu(x):
@@ -171,7 +171,7 @@ fn main() -> PyResult<()> {
 ```
 
 If `append_to_inittab` cannot be used due to constraints in the program,
-an alternative is to create a module using [`PyModule::new_bound`]
+an alternative is to create a module using [`PyModule::new`]
 and insert it manually into `sys.modules`:
 
 ```rust
@@ -186,11 +186,11 @@ pub fn add_one(x: i64) -> i64 {
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // Create new module
-        let foo_module = PyModule::new_bound(py, "foo")?;
+        let foo_module = PyModule::new(py, "foo")?;
         foo_module.add_function(wrap_pyfunction!(add_one, &foo_module)?)?;
 
         // Import and get sys.modules
-        let sys = PyModule::import_bound(py, "sys")?;
+        let sys = PyModule::import(py, "sys")?;
         let py_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
 
         // Insert foo into sys.modules
@@ -257,8 +257,8 @@ fn main() -> PyResult<()> {
     ));
     let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code_bound(py, py_foo, "utils.foo", "utils.foo")?;
-        let app: Py<PyAny> = PyModule::from_code_bound(py, py_app, "", "")?
+        PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -295,7 +295,7 @@ fn main() -> PyResult<()> {
             .getattr("path")?
             .downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
-        let app: Py<PyAny> = PyModule::from_code_bound(py, &py_app, "", "")?
+        let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -319,7 +319,7 @@ use pyo3::prelude::*;
 
 fn main() {
     Python::with_gil(|py| {
-        let custom_manager = PyModule::from_code_bound(
+        let custom_manager = PyModule::from_code(
             py,
             r#"
 class House(object):
@@ -394,4 +394,4 @@ Python::with_gil(|py| -> PyResult<()> {
 ```
 
 
-[`PyModule::new_bound`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new_bound
+[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new_bound

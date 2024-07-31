@@ -183,7 +183,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///
     /// fn main() -> PyResult<()> {
     ///     Python::with_gil(|py| {
-    ///         let m = PyModule::new_bound(py, "example")?;
+    ///         let m = PyModule::new(py, "example")?;
     ///         m.add_class::<SubClass>()?;
     ///         m.add_class::<BaseClass>()?;
     ///

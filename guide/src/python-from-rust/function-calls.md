@@ -26,7 +26,7 @@ fn main() -> PyResult<()> {
     let arg3 = "arg3";
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code_bound(
+        let fun: Py<PyAny> = PyModule::from_code(
             py,
             "def example(*args, **kwargs):
                 if args != ():
@@ -72,7 +72,7 @@ fn main() -> PyResult<()> {
     let val2 = 2;
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code_bound(
+        let fun: Py<PyAny> = PyModule::from_code(
             py,
             "def example(*args, **kwargs):
                 if args != ():
