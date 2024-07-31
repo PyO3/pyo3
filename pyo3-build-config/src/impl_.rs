@@ -370,6 +370,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             Some(s) => !s.is_empty(),
             _ => false,
         };
+        // RFC: skip when cross_compiling ? replace with content of PYO3_CROSS_LIB_DIR ?
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
         let lib_name = Some(default_lib_name_unix(
             version,
@@ -1404,7 +1405,15 @@ fn cross_compile_from_sysconfigdata(
 ) -> Result<Option<InterpreterConfig>> {
     if let Some(path) = find_sysconfigdata(cross_compile_config)? {
         let data = parse_sysconfigdata(path)?;
-        let config = InterpreterConfig::from_sysconfigdata(&data)?;
+        // RFC: ignore lib_dir from sysconfig and use one from CrossCompileConfig input ?
+        let config = if cross_compile_config.lib_dir.is_some() {
+            InterpreterConfig {
+                lib_dir: cross_compile_config.lib_dir.as_ref().map(|path| path.display().to_string()),
+                ..InterpreterConfig::from_sysconfigdata(&data)?
+            }
+        } else {
+            InterpreterConfig::from_sysconfigdata(&data)?
+        };
 
         Ok(Some(config))
     } else {
