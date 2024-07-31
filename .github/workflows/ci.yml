@@ -489,6 +489,34 @@ jobs:
           echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
       - run: python3 -m nox -s test
 
+  test-free-threaded:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    env:
+      UNSAFE_PYO3_BUILD_FREE_THREADED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name != 'merge_group' }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+      # TODO: replace with setup-python when there is support
+      - uses: deadsnakes/action@v3.1.0
+        with:
+          python-version: '3.13-dev'
+          nogil: true
+      - run: python3 -m sysconfig
+      - run: python3 -m pip install --upgrade pip && pip install nox
+      - name: Run nox sessions that should pass
+        run: nox -s ffi-check clippy docs rustfmt ruff
+      - name: Run PyO3 tests with free-threaded Python (can fail)
+        # TODO fix the test crashes so we can unset this
+        continue-on-error: true
+        run: nox -s test
+
   test-version-limits:
     needs: [fmt]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
@@ -627,6 +655,7 @@ jobs:
       - coverage
       - emscripten
       - test-debug
+      - test-free-threaded
       - test-version-limits
       - check-feature-powerset
       - test-cross-compilation
