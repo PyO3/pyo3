@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 
 macro_rules! test_module {
     ($py:ident, $code:literal) => {
-        PyModule::from_code_bound($py, $code, file!(), "test_module")
+        PyModule::from_code($py, $code, file!(), "test_module")
             .expect("module creation failed")
     };
 }

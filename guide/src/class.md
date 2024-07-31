@@ -968,8 +968,8 @@ impl MyClass {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| {
-#         let inspect = PyModule::import_bound(py, "inspect")?.getattr("signature")?;
-#         let module = PyModule::new_bound(py, "my_module")?;
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let module = PyModule::new(py, "my_module")?;
 #         module.add_class::<MyClass>()?;
 #         let class = module.getattr("MyClass")?;
 #

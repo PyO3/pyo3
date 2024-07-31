@@ -158,7 +158,7 @@ fn test_module_renaming() {
 #[test]
 fn test_module_from_code_bound() {
     Python::with_gil(|py| {
-        let adder_mod = PyModule::from_code_bound(
+        let adder_mod = PyModule::from_code(
             py,
             "def add(a,b):\n\treturn a+b",
             "adder_mod.py",
@@ -279,10 +279,10 @@ fn superfunction() -> String {
 #[pymodule]
 fn supermodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
-    let module_to_add = PyModule::new_bound(module.py(), "submodule")?;
+    let module_to_add = PyModule::new(module.py(), "submodule")?;
     submodule(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
-    let module_to_add = PyModule::new_bound(module.py(), "submodule_with_init_fn")?;
+    let module_to_add = PyModule::new(module.py(), "submodule_with_init_fn")?;
     submodule_with_init_fn(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
     Ok(())
