@@ -750,7 +750,7 @@ mod tests {
         Python::with_gil(|py| {
             let class = py.get_type_bound::<HashErrors>();
             let instance = class.call0().unwrap();
-            let d = PyDict::new_bound(py);
+            let d = PyDict::new(py);
             match d.get_item(instance) {
                 Ok(_) => {
                     panic!("this get_item call should always error")
