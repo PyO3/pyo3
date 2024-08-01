@@ -382,7 +382,7 @@ mod test {
     #[test]
     fn py_backed_bytes_from_bytearray() {
         Python::with_gil(|py| {
-            let b = PyByteArray::new_bound(py, b"abcde");
+            let b = PyByteArray::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(b);
             assert_eq!(&*py_backed_bytes, b"abcde");
         });
@@ -401,7 +401,7 @@ mod test {
     #[test]
     fn rust_backed_bytes_into_py() {
         Python::with_gil(|py| {
-            let orig_bytes = PyByteArray::new_bound(py, b"abcde");
+            let orig_bytes = PyByteArray::new(py, b"abcde");
             let rust_backed_bytes = PyBackedBytes::from(orig_bytes);
             assert!(matches!(
                 rust_backed_bytes.storage,
@@ -508,7 +508,7 @@ mod test {
     #[test]
     fn test_backed_bytes_from_bytearray_clone() {
         Python::with_gil(|py| {
-            let b1: PyBackedBytes = PyByteArray::new_bound(py, b"abcde").into();
+            let b1: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
             let b2 = b1.clone();
             assert_eq!(b1, b2);
 
@@ -521,7 +521,7 @@ mod test {
     fn test_backed_bytes_eq() {
         Python::with_gil(|py| {
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
-            let b2: PyBackedBytes = PyByteArray::new_bound(py, b"abcde").into();
+            let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
 
             assert_eq!(b1, b"abcde");
             assert_eq!(b1, b2);
@@ -548,7 +548,7 @@ mod test {
                 hasher.finish()
             };
 
-            let b2: PyBackedBytes = PyByteArray::new_bound(py, b"abcde").into();
+            let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
             let h2 = {
                 let mut hasher = DefaultHasher::new();
                 b2.hash(&mut hasher);
