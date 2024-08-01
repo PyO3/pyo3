@@ -677,7 +677,7 @@ impl<'py> Python<'py> {
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn Ellipsis(self) -> PyObject {
-        PyEllipsis::get_bound(self).into_py(self)
+        PyEllipsis::get(self).into_py(self)
     }
 
     /// Gets the Python builtin value `NotImplemented`.

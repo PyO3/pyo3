@@ -291,7 +291,7 @@ impl Dummy {
         &self,
         py: crate::Python<'py>,
     ) -> crate::Bound<'py, crate::types::PyComplex> {
-        crate::types::PyComplex::from_doubles_bound(py, 0.0, 0.0)
+        crate::types::PyComplex::from_doubles(py, 0.0, 0.0)
     }
 
     fn __int__(&self) -> u32 {

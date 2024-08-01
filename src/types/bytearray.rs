@@ -22,7 +22,7 @@ impl PyByteArray {
     /// Creates a new Python bytearray object.
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
-    pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
+    pub fn new<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
         let ptr = src.as_ptr().cast();
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {
@@ -30,6 +30,13 @@ impl PyByteArray {
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyByteArray::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new`")]
+    #[inline]
+    pub fn new_bound<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
+        Self::new(py, src)
     }
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
@@ -46,7 +53,7 @@ impl PyByteArray {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let py_bytearray = PyByteArray::new_bound_with(py, 10, |bytes: &mut [u8]| {
+    ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
     ///     })?;
@@ -56,11 +63,7 @@ impl PyByteArray {
     /// })
     /// # }
     /// ```
-    pub fn new_bound_with<F>(
-        py: Python<'_>,
-        len: usize,
-        init: F,
-    ) -> PyResult<Bound<'_, PyByteArray>>
+    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<Bound<'_, PyByteArray>>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
@@ -81,14 +84,35 @@ impl PyByteArray {
         }
     }
 
+    /// Deprecated name for [`PyByteArray::new_with`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::new_with`")]
+    #[inline]
+    pub fn new_bound_with<F>(
+        py: Python<'_>,
+        len: usize,
+        init: F,
+    ) -> PyResult<Bound<'_, PyByteArray>>
+    where
+        F: FnOnce(&mut [u8]) -> PyResult<()>,
+    {
+        Self::new_with(py, len, init)
+    }
+
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
-    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
+    pub fn from<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
         unsafe {
             ffi::PyByteArray_FromObject(src.as_ptr())
                 .assume_owned_or_err(src.py())
                 .downcast_into_unchecked()
         }
+    }
+
+    ///Deprecated name for [`PyByteArray::from`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyByteArray::from`")]
+    #[inline]
+    pub fn from_bound<'py>(src: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyByteArray>> {
+        Self::from(src)
     }
 }
 
@@ -227,7 +251,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     /// # Python::with_gil(|py| {
-    /// let bytearray = PyByteArray::new_bound(py, b"Hello World.");
+    /// let bytearray = PyByteArray::new(py, b"Hello World.");
     /// let mut copied_message = bytearray.to_vec();
     /// assert_eq!(b"Hello World.", copied_message.as_slice());
     ///
@@ -308,7 +332,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
     /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
     fn try_from(value: &Bound<'py, PyAny>) -> Result<Self, Self::Error> {
-        PyByteArray::from_bound(value)
+        PyByteArray::from(value)
     }
 }
 
@@ -321,7 +345,7 @@ mod tests {
     fn test_len() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray = PyByteArray::new_bound(py, src);
+            let bytearray = PyByteArray::new(py, src);
             assert_eq!(src.len(), bytearray.len());
         });
     }
@@ -330,7 +354,7 @@ mod tests {
     fn test_as_bytes() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray = PyByteArray::new_bound(py, src);
+            let bytearray = PyByteArray::new(py, src);
 
             let slice = unsafe { bytearray.as_bytes() };
             assert_eq!(src, slice);
@@ -342,7 +366,7 @@ mod tests {
     fn test_as_bytes_mut() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray = PyByteArray::new_bound(py, src);
+            let bytearray = PyByteArray::new(py, src);
 
             let slice = unsafe { bytearray.as_bytes_mut() };
             assert_eq!(src, slice);
@@ -358,7 +382,7 @@ mod tests {
     fn test_to_vec() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray = PyByteArray::new_bound(py, src);
+            let bytearray = PyByteArray::new(py, src);
 
             let vec = bytearray.to_vec();
             assert_eq!(src, vec.as_slice());
@@ -369,10 +393,10 @@ mod tests {
     fn test_from() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray = PyByteArray::new_bound(py, src);
+            let bytearray = PyByteArray::new(py, src);
 
             let ba: PyObject = bytearray.into();
-            let bytearray = PyByteArray::from_bound(ba.bind(py)).unwrap();
+            let bytearray = PyByteArray::from(ba.bind(py)).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });
         });
@@ -381,7 +405,7 @@ mod tests {
     #[test]
     fn test_from_err() {
         Python::with_gil(|py| {
-            if let Err(err) = PyByteArray::from_bound(py.None().bind(py)) {
+            if let Err(err) = PyByteArray::from(py.None().bind(py)) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
                 panic!("error");
@@ -393,7 +417,7 @@ mod tests {
     fn test_try_from() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray: &Bound<'_, PyAny> = &PyByteArray::new_bound(py, src);
+            let bytearray: &Bound<'_, PyAny> = &PyByteArray::new(py, src);
             let bytearray: Bound<'_, PyByteArray> = TryInto::try_into(bytearray).unwrap();
 
             assert_eq!(src, unsafe { bytearray.as_bytes() });
@@ -404,7 +428,7 @@ mod tests {
     fn test_resize() {
         Python::with_gil(|py| {
             let src = b"Hello Python";
-            let bytearray = PyByteArray::new_bound(py, src);
+            let bytearray = PyByteArray::new(py, src);
 
             bytearray.resize(20).unwrap();
             assert_eq!(20, bytearray.len());
@@ -414,7 +438,7 @@ mod tests {
     #[test]
     fn test_byte_array_new_with() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
-            let py_bytearray = PyByteArray::new_bound_with(py, 10, |b: &mut [u8]| {
+            let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
                 b.copy_from_slice(b"Hello Rust");
                 Ok(())
             })?;
@@ -427,7 +451,7 @@ mod tests {
     #[test]
     fn test_byte_array_new_with_zero_initialised() -> super::PyResult<()> {
         Python::with_gil(|py| -> super::PyResult<()> {
-            let py_bytearray = PyByteArray::new_bound_with(py, 10, |_b: &mut [u8]| Ok(()))?;
+            let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
             let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
             assert_eq!(bytearray, &[0; 10]);
             Ok(())
@@ -438,7 +462,7 @@ mod tests {
     fn test_byte_array_new_with_error() {
         use crate::exceptions::PyValueError;
         Python::with_gil(|py| {
-            let py_bytearray_result = PyByteArray::new_bound_with(py, 10, |_b: &mut [u8]| {
+            let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
             assert!(py_bytearray_result.is_err());

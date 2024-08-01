@@ -30,12 +30,19 @@ pyobject_native_type!(
 
 impl PyFloat {
     /// Creates a new Python `float` object.
-    pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
+    pub fn new(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
         unsafe {
             ffi::PyFloat_FromDouble(val)
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyFloat::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyFloat::new`")]
+    #[inline]
+    pub fn new_bound(py: Python<'_>, val: c_double) -> Bound<'_, PyFloat> {
+        Self::new(py, val)
     }
 }
 
@@ -67,13 +74,13 @@ impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
 
 impl ToPyObject for f64 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new_bound(py, *self).into()
+        PyFloat::new(py, *self).into()
     }
 }
 
 impl IntoPy<PyObject> for f64 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new_bound(py, self).into()
+        PyFloat::new(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -114,13 +121,13 @@ impl<'py> FromPyObject<'py> for f64 {
 
 impl ToPyObject for f32 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new_bound(py, f64::from(*self)).into()
+        PyFloat::new(py, f64::from(*self)).into()
     }
 }
 
 impl IntoPy<PyObject> for f32 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new_bound(py, f64::from(self)).into()
+        PyFloat::new(py, f64::from(self)).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -250,7 +257,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let v = 1.23f64;
-            let obj = PyFloat::new_bound(py, 1.23);
+            let obj = PyFloat::new(py, 1.23);
             assert_approx_eq!(v, obj.value());
         });
     }
@@ -259,7 +266,7 @@ mod tests {
     fn test_pyfloat_comparisons() {
         Python::with_gil(|py| {
             let f_64 = 1.01f64;
-            let py_f64 = PyFloat::new_bound(py, 1.01);
+            let py_f64 = PyFloat::new(py, 1.01);
             let py_f64_ref = &py_f64;
             let py_f64_borrowed = py_f64.as_borrowed();
 
@@ -288,7 +295,7 @@ mod tests {
             assert_eq!(&f_64, py_f64_borrowed);
 
             let f_32 = 2.02f32;
-            let py_f32 = PyFloat::new_bound(py, 2.02);
+            let py_f32 = PyFloat::new(py, 2.02);
             let py_f32_ref = &py_f32;
             let py_f32_borrowed = py_f32.as_borrowed();
 

@@ -20,7 +20,7 @@ impl<'py> PyFrozenSetBuilder<'py> {
     /// panic when running out of memory.
     pub fn new(py: Python<'py>) -> PyResult<PyFrozenSetBuilder<'py>> {
         Ok(PyFrozenSetBuilder {
-            py_frozen_set: PyFrozenSet::empty_bound(py)?,
+            py_frozen_set: PyFrozenSet::empty(py)?,
         })
     }
 
@@ -39,8 +39,15 @@ impl<'py> PyFrozenSetBuilder<'py> {
     }
 
     /// Finish building the set and take ownership of its current value
-    pub fn finalize_bound(self) -> Bound<'py, PyFrozenSet> {
+    pub fn finalize(self) -> Bound<'py, PyFrozenSet> {
         self.py_frozen_set
+    }
+
+    /// Deprecated name for [`PyFrozenSetBuilder::finalize`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSetBuilder::finalize`")]
+    #[inline]
+    pub fn finalize_bound(self) -> Bound<'py, PyFrozenSet> {
+        self.finalize()
     }
 }
 
@@ -74,20 +81,37 @@ impl PyFrozenSet {
     ///
     /// May panic when running out of memory.
     #[inline]
-    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
+    pub fn new<'a, 'p, T: ToPyObject + 'a>(
         py: Python<'p>,
         elements: impl IntoIterator<Item = &'a T>,
     ) -> PyResult<Bound<'p, PyFrozenSet>> {
         new_from_iter(py, elements)
     }
 
+    /// Deprecated name for [`PyFrozenSet::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::new`")]
+    #[inline]
+    pub fn new_bound<'a, 'p, T: ToPyObject + 'a>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = &'a T>,
+    ) -> PyResult<Bound<'p, PyFrozenSet>> {
+        Self::new(py, elements)
+    }
+
     /// Creates a new empty frozen set
-    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
+    pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
         unsafe {
             ffi::PyFrozenSet_New(ptr::null_mut())
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyFrozenSet::empty`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyFrozenSet::empty`")]
+    #[inline]
+    pub fn empty_bound(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenSet>> {
+        Self::empty(py)
     }
 }
 
@@ -237,18 +261,18 @@ mod tests {
     #[test]
     fn test_frozenset_new_and_len() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
             assert_eq!(1, set.len());
 
             let v = vec![1];
-            assert!(PyFrozenSet::new_bound(py, &[v]).is_err());
+            assert!(PyFrozenSet::new(py, &[v]).is_err());
         });
     }
 
     #[test]
     fn test_frozenset_empty() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::empty_bound(py).unwrap();
+            let set = PyFrozenSet::empty(py).unwrap();
             assert_eq!(0, set.len());
             assert!(set.is_empty());
         });
@@ -257,7 +281,7 @@ mod tests {
     #[test]
     fn test_frozenset_contains() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
             assert!(set.contains(1).unwrap());
         });
     }
@@ -265,7 +289,7 @@ mod tests {
     #[test]
     fn test_frozenset_iter() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
 
             for el in set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
@@ -276,7 +300,7 @@ mod tests {
     #[test]
     fn test_frozenset_iter_bound() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
 
             for el in &set {
                 assert_eq!(1i32, el.extract::<i32>().unwrap());
@@ -287,7 +311,7 @@ mod tests {
     #[test]
     fn test_frozenset_iter_size_hint() {
         Python::with_gil(|py| {
-            let set = PyFrozenSet::new_bound(py, &[1]).unwrap();
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
             let mut iter = set.iter();
 
             // Exact size
@@ -312,7 +336,7 @@ mod tests {
             builder.add(2).unwrap();
 
             // finalize it
-            let set = builder.finalize_bound();
+            let set = builder.finalize();
 
             assert!(set.contains(1).unwrap());
             assert!(set.contains(2).unwrap());
