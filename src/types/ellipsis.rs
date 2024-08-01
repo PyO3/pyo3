@@ -15,8 +15,15 @@ pyobject_native_type_named!(PyEllipsis);
 impl PyEllipsis {
     /// Returns the `Ellipsis` object.
     #[inline]
-    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
+    pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
         unsafe { ffi::Py_Ellipsis().assume_borrowed(py).downcast_unchecked() }
+    }
+
+    /// Deprecated name for [`PyEllipsis::get`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyEllipsis::get`")]
+    #[inline]
+    pub fn get_bound(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
+        Self::get(py)
     }
 }
 
@@ -37,7 +44,7 @@ unsafe impl PyTypeInfo for PyEllipsis {
 
     #[inline]
     fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
-        object.is(&**Self::get_bound(object.py()))
+        object.is(&**Self::get(object.py()))
     }
 }
 
@@ -50,15 +57,15 @@ mod tests {
     #[test]
     fn test_ellipsis_is_itself() {
         Python::with_gil(|py| {
-            assert!(PyEllipsis::get_bound(py).is_instance_of::<PyEllipsis>());
-            assert!(PyEllipsis::get_bound(py).is_exact_instance_of::<PyEllipsis>());
+            assert!(PyEllipsis::get(py).is_instance_of::<PyEllipsis>());
+            assert!(PyEllipsis::get(py).is_exact_instance_of::<PyEllipsis>());
         })
     }
 
     #[test]
     fn test_ellipsis_type_object_consistent() {
         Python::with_gil(|py| {
-            assert!(PyEllipsis::get_bound(py)
+            assert!(PyEllipsis::get(py)
                 .get_type()
                 .is(&PyEllipsis::type_object_bound(py)));
         })
