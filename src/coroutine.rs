@@ -95,7 +95,7 @@ impl Coroutine {
         match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
             Ok(Poll::Ready(res)) => {
                 self.close();
-                return Err(PyStopIteration::new_err(res?));
+                return Err(PyStopIteration::new_err((res?,)));
             }
             Err(err) => {
                 self.close();

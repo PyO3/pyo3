@@ -121,6 +121,20 @@ fn sleep_coroutine() {
     })
 }
 
+#[pyfunction]
+async fn return_tuple() -> (usize, usize) {
+    (42, 43)
+}
+
+#[test]
+fn tuple_coroutine() {
+    Python::with_gil(|gil| {
+        let func = wrap_pyfunction!(return_tuple, gil).unwrap();
+        let test = r#"import asyncio; assert asyncio.run(func()) == (42, 43)"#;
+        py_run!(gil, func, &handle_windows(test));
+    })
+}
+
 #[test]
 fn cancelled_coroutine() {
     Python::with_gil(|gil| {
