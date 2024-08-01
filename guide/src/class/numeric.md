@@ -171,7 +171,7 @@ impl Number {
     }
 
     fn __complex__<'py>(&self, py: Python<'py>) -> Bound<'py, PyComplex> {
-        PyComplex::from_doubles_bound(py, self.0 as f64, 0.0)
+        PyComplex::from_doubles(py, self.0 as f64, 0.0)
     }
 }
 ```
@@ -321,7 +321,7 @@ impl Number {
     }
 
     fn __complex__<'py>(&self, py: Python<'py>) -> Bound<'py, PyComplex> {
-        PyComplex::from_doubles_bound(py, self.0 as f64, 0.0)
+        PyComplex::from_doubles(py, self.0 as f64, 0.0)
     }
 }
 

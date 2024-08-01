@@ -28,17 +28,24 @@ pyobject_native_type!(
 
 impl PyComplex {
     /// Creates a new `PyComplex` from the given real and imaginary values.
-    pub fn from_doubles_bound(
-        py: Python<'_>,
-        real: c_double,
-        imag: c_double,
-    ) -> Bound<'_, PyComplex> {
+    pub fn from_doubles(py: Python<'_>, real: c_double, imag: c_double) -> Bound<'_, PyComplex> {
         use crate::ffi_ptr_ext::FfiPtrExt;
         unsafe {
             ffi::PyComplex_FromDoubles(real, imag)
                 .assume_owned(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyComplex::from_doubles`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyComplex::from_doubles`")]
+    #[inline]
+    pub fn from_doubles_bound(
+        py: Python<'_>,
+        real: c_double,
+        imag: c_double,
+    ) -> Bound<'_, PyComplex> {
+        Self::from_doubles(py, real, imag)
     }
 }
 
@@ -130,8 +137,8 @@ mod not_limited_impls {
         #[test]
         fn test_add() {
             Python::with_gil(|py| {
-                let l = PyComplex::from_doubles_bound(py, 3.0, 1.2);
-                let r = PyComplex::from_doubles_bound(py, 1.0, 2.6);
+                let l = PyComplex::from_doubles(py, 3.0, 1.2);
+                let r = PyComplex::from_doubles(py, 1.0, 2.6);
                 let res = l + r;
                 assert_approx_eq!(res.real(), 4.0);
                 assert_approx_eq!(res.imag(), 3.8);
@@ -141,8 +148,8 @@ mod not_limited_impls {
         #[test]
         fn test_sub() {
             Python::with_gil(|py| {
-                let l = PyComplex::from_doubles_bound(py, 3.0, 1.2);
-                let r = PyComplex::from_doubles_bound(py, 1.0, 2.6);
+                let l = PyComplex::from_doubles(py, 3.0, 1.2);
+                let r = PyComplex::from_doubles(py, 1.0, 2.6);
                 let res = l - r;
                 assert_approx_eq!(res.real(), 2.0);
                 assert_approx_eq!(res.imag(), -1.4);
@@ -152,8 +159,8 @@ mod not_limited_impls {
         #[test]
         fn test_mul() {
             Python::with_gil(|py| {
-                let l = PyComplex::from_doubles_bound(py, 3.0, 1.2);
-                let r = PyComplex::from_doubles_bound(py, 1.0, 2.6);
+                let l = PyComplex::from_doubles(py, 3.0, 1.2);
+                let r = PyComplex::from_doubles(py, 1.0, 2.6);
                 let res = l * r;
                 assert_approx_eq!(res.real(), -0.12);
                 assert_approx_eq!(res.imag(), 9.0);
@@ -163,8 +170,8 @@ mod not_limited_impls {
         #[test]
         fn test_div() {
             Python::with_gil(|py| {
-                let l = PyComplex::from_doubles_bound(py, 3.0, 1.2);
-                let r = PyComplex::from_doubles_bound(py, 1.0, 2.6);
+                let l = PyComplex::from_doubles(py, 3.0, 1.2);
+                let r = PyComplex::from_doubles(py, 1.0, 2.6);
                 let res = l / r;
                 assert_approx_eq!(res.real(), 0.788_659_793_814_432_9);
                 assert_approx_eq!(res.imag(), -0.850_515_463_917_525_7);
@@ -174,7 +181,7 @@ mod not_limited_impls {
         #[test]
         fn test_neg() {
             Python::with_gil(|py| {
-                let val = PyComplex::from_doubles_bound(py, 3.0, 1.2);
+                let val = PyComplex::from_doubles(py, 3.0, 1.2);
                 let res = -val;
                 assert_approx_eq!(res.real(), -3.0);
                 assert_approx_eq!(res.imag(), -1.2);
@@ -184,7 +191,7 @@ mod not_limited_impls {
         #[test]
         fn test_abs() {
             Python::with_gil(|py| {
-                let val = PyComplex::from_doubles_bound(py, 3.0, 1.2);
+                let val = PyComplex::from_doubles(py, 3.0, 1.2);
                 assert_approx_eq!(val.abs(), 3.231_098_884_280_702_2);
             });
         }
@@ -192,8 +199,8 @@ mod not_limited_impls {
         #[test]
         fn test_pow() {
             Python::with_gil(|py| {
-                let l = PyComplex::from_doubles_bound(py, 3.0, 1.2);
-                let r = PyComplex::from_doubles_bound(py, 1.2, 2.6);
+                let l = PyComplex::from_doubles(py, 3.0, 1.2);
+                let r = PyComplex::from_doubles(py, 1.2, 2.6);
                 let val = l.pow(&r);
                 assert_approx_eq!(val.real(), -1.419_309_997_016_603_7);
                 assert_approx_eq!(val.imag(), -0.541_297_466_033_544_6);
@@ -260,7 +267,7 @@ mod tests {
         use assert_approx_eq::assert_approx_eq;
 
         Python::with_gil(|py| {
-            let complex = PyComplex::from_doubles_bound(py, 3.0, 1.2);
+            let complex = PyComplex::from_doubles(py, 3.0, 1.2);
             assert_approx_eq!(complex.real(), 3.0);
             assert_approx_eq!(complex.imag(), 1.2);
         });
