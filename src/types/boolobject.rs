@@ -27,12 +27,19 @@ impl PyBool {
     /// This returns a [`Borrowed`] reference to one of Pythons `True` or
     /// `False` singletons
     #[inline]
-    pub fn new_bound(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
+    pub fn new(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
         unsafe {
             if val { ffi::Py_True() } else { ffi::Py_False() }
                 .assume_borrowed(py)
                 .downcast_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyBool::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyBool::new`")]
+    #[inline]
+    pub fn new_bound(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
+        Self::new(py, val)
     }
 }
 
@@ -154,7 +161,7 @@ impl ToPyObject for bool {
 impl IntoPy<PyObject> for bool {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBool::new_bound(py, self).into_py(py)
+        PyBool::new(py, self).into_py(py)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -237,28 +244,28 @@ mod tests {
     #[test]
     fn test_true() {
         Python::with_gil(|py| {
-            assert!(PyBool::new_bound(py, true).is_true());
-            let t = PyBool::new_bound(py, true);
+            assert!(PyBool::new(py, true).is_true());
+            let t = PyBool::new(py, true);
             assert!(t.extract::<bool>().unwrap());
-            assert!(true.to_object(py).is(&*PyBool::new_bound(py, true)));
+            assert!(true.to_object(py).is(&*PyBool::new(py, true)));
         });
     }
 
     #[test]
     fn test_false() {
         Python::with_gil(|py| {
-            assert!(!PyBool::new_bound(py, false).is_true());
-            let t = PyBool::new_bound(py, false);
+            assert!(!PyBool::new(py, false).is_true());
+            let t = PyBool::new(py, false);
             assert!(!t.extract::<bool>().unwrap());
-            assert!(false.to_object(py).is(&*PyBool::new_bound(py, false)));
+            assert!(false.to_object(py).is(&*PyBool::new(py, false)));
         });
     }
 
     #[test]
     fn test_pybool_comparisons() {
         Python::with_gil(|py| {
-            let py_bool = PyBool::new_bound(py, true);
-            let py_bool_false = PyBool::new_bound(py, false);
+            let py_bool = PyBool::new(py, true);
+            let py_bool_false = PyBool::new(py, false);
             let rust_bool = true;
 
             // Bound<'_, PyBool> == bool

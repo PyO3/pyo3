@@ -821,7 +821,7 @@ slot_fragment_trait! {
         // By default `__ne__` will try `__eq__` and invert the result
         let slf = Borrowed::from_ptr(py, slf);
         let other = Borrowed::from_ptr(py, other);
-        slf.eq(other).map(|is_eq| PyBool::new_bound(py, !is_eq).to_owned().into_ptr())
+        slf.eq(other).map(|is_eq| PyBool::new(py, !is_eq).to_owned().into_ptr())
     }
 }
 

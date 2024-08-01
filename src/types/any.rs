@@ -761,7 +761,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::types::{PyBool, PyInt};
     ///
     /// Python::with_gil(|py| {
-    ///     let b = PyBool::new_bound(py, true);
+    ///     let b = PyBool::new(py, true);
     ///     assert!(b.is_instance_of::<PyBool>());
     ///     let any: &Bound<'_, PyAny> = b.as_any();
     ///
@@ -1755,7 +1755,7 @@ class SimpleClass:
             let x = 5.to_object(py).into_bound(py);
             assert!(x.is_exact_instance_of::<PyInt>());
 
-            let t = PyBool::new_bound(py, true);
+            let t = PyBool::new(py, true);
             assert!(t.is_instance_of::<PyInt>());
             assert!(!t.is_exact_instance_of::<PyInt>());
             assert!(t.is_exact_instance_of::<PyBool>());
@@ -1768,7 +1768,7 @@ class SimpleClass:
     #[test]
     fn test_any_is_exact_instance() {
         Python::with_gil(|py| {
-            let t = PyBool::new_bound(py, true);
+            let t = PyBool::new(py, true);
             assert!(t.is_instance(&py.get_type_bound::<PyInt>()).unwrap());
             assert!(!t.is_exact_instance(&py.get_type_bound::<PyInt>()));
             assert!(t.is_exact_instance(&py.get_type_bound::<PyBool>()));
