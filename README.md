@@ -196,6 +196,7 @@ about this topic.
 - [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
 - [greptimedb](https://github.com/GreptimeTeam/greptimedb/tree/main/src/script) _Support [Python scripting](https://docs.greptime.com/user-guide/python-scripts/overview) in the database_
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
+- [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json._
 - [inline-python](https://github.com/fusion-engineering/inline-python) _Inline Python code directly in your Rust code._
