@@ -86,7 +86,7 @@ impl PyCFunction {
             pymethods::PyMethodDef::cfunction_with_keywords(name, run_closure::<F, R>, doc);
         let def = method_def.as_method_def();
 
-        let capsule = PyCapsule::new_bound(
+        let capsule = PyCapsule::new(
             py,
             ClosureDestructor::<F> {
                 closure,

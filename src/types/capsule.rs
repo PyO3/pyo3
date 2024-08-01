@@ -33,7 +33,7 @@ use std::os::raw::{c_char, c_int, c_void};
 ///     let foo = Foo { val: 123 };
 ///     let name = CString::new("builtins.capsule").unwrap();
 ///
-///     let capsule = PyCapsule::new_bound(py, foo, Some(name.clone()))?;
+///     let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 ///
 ///     let module = PyModule::import_bound(py, "builtins")?;
 ///     module.add("capsule", capsule)?;
@@ -65,7 +65,7 @@ impl PyCapsule {
     ///
     /// Python::with_gil(|py| {
     ///     let name = CString::new("foo").unwrap();
-    ///     let capsule = PyCapsule::new_bound(py, 123_u32, Some(name)).unwrap();
+    ///     let capsule = PyCapsule::new(py, 123_u32, Some(name)).unwrap();
     ///     let val = unsafe { capsule.reference::<u32>() };
     ///     assert_eq!(*val, 123);
     /// });
@@ -78,15 +78,26 @@ impl PyCapsule {
     /// use std::ffi::CString;
     ///
     /// Python::with_gil(|py| {
-    ///     let capsule = PyCapsule::new_bound(py, (), None).unwrap();  // Oops! `()` is zero sized!
+    ///     let capsule = PyCapsule::new(py, (), None).unwrap();  // Oops! `()` is zero sized!
     /// });
     /// ```
+    pub fn new<T: 'static + Send + AssertNotZeroSized>(
+        py: Python<'_>,
+        value: T,
+        name: Option<CString>,
+    ) -> PyResult<Bound<'_, Self>> {
+        Self::new_with_destructor(py, value, name, |_, _| {})
+    }
+
+    /// Deprecated name for [`PyCapsule::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyCapsule::new`")]
+    #[inline]
     pub fn new_bound<T: 'static + Send + AssertNotZeroSized>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
     ) -> PyResult<Bound<'_, Self>> {
-        Self::new_bound_with_destructor(py, value, name, |_, _| {})
+        Self::new(py, value, name)
     }
 
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
@@ -96,7 +107,7 @@ impl PyCapsule {
     ///
     /// The `destructor` must be `Send`, because there is no guarantee which thread it will eventually
     /// be called from.
-    pub fn new_bound_with_destructor<
+    pub fn new_with_destructor<
         T: 'static + Send + AssertNotZeroSized,
         F: FnOnce(T, *mut c_void) + Send,
     >(
@@ -126,6 +137,21 @@ impl PyCapsule {
             .assume_owned_or_err(py)
             .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyCapsule::new_with_destructor`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyCapsule::new_with_destructor`")]
+    #[inline]
+    pub fn new_bound_with_destructor<
+        T: 'static + Send + AssertNotZeroSized,
+        F: FnOnce(T, *mut c_void) + Send,
+    >(
+        py: Python<'_>,
+        value: T,
+        name: Option<CString>,
+        destructor: F,
+    ) -> PyResult<Bound<'_, Self>> {
+        Self::new_with_destructor(py, value, name, destructor)
     }
 
     /// Imports an existing capsule.
@@ -181,7 +207,7 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// Python::with_gil(|py| {
     ///     let capsule =
-    ///         PyCapsule::new_bound_with_destructor(py, 123, None, destructor as fn(u32, *mut c_void))
+    ///         PyCapsule::new_with_destructor(py, 123, None, destructor as fn(u32, *mut c_void))
     ///             .unwrap();
     ///     let context = Box::new(tx);  // `Sender<String>` is our context, box it up and ship it!
     ///     capsule.set_context(Box::into_raw(context).cast()).unwrap();
@@ -357,7 +383,7 @@ mod tests {
             let foo = Foo { val: 123 };
             let name = CString::new("foo").unwrap();
 
-            let cap = PyCapsule::new_bound(py, foo, Some(name.clone()))?;
+            let cap = PyCapsule::new(py, foo, Some(name.clone()))?;
             assert!(cap.is_valid());
 
             let foo_capi = unsafe { cap.reference::<Foo>() };
@@ -376,7 +402,7 @@ mod tests {
 
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new_bound(py, foo as fn(u32) -> u32, Some(name)).unwrap();
+            let cap = PyCapsule::new(py, foo as fn(u32) -> u32, Some(name)).unwrap();
             cap.into()
         });
 
@@ -390,7 +416,7 @@ mod tests {
     fn test_pycapsule_context() -> PyResult<()> {
         Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new_bound(py, 0, Some(name))?;
+            let cap = PyCapsule::new(py, 0, Some(name))?;
 
             let c = cap.context()?;
             assert!(c.is_null());
@@ -416,7 +442,7 @@ mod tests {
             let foo = Foo { val: 123 };
             let name = CString::new("builtins.capsule").unwrap();
 
-            let capsule = PyCapsule::new_bound(py, foo, Some(name.clone()))?;
+            let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 
             let module = PyModule::import_bound(py, "builtins")?;
             module.add("capsule", capsule)?;
@@ -439,7 +465,7 @@ mod tests {
             let name = CString::new("foo").unwrap();
 
             let stuff: Vec<u8> = vec![1, 2, 3, 4];
-            let cap = PyCapsule::new_bound(py, stuff, Some(name)).unwrap();
+            let cap = PyCapsule::new(py, stuff, Some(name)).unwrap();
 
             cap.into()
         });
@@ -456,7 +482,7 @@ mod tests {
 
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new_bound(py, 0, Some(name)).unwrap();
+            let cap = PyCapsule::new(py, 0, Some(name)).unwrap();
             cap.set_context(Box::into_raw(Box::new(&context)).cast())
                 .unwrap();
 
@@ -482,7 +508,7 @@ mod tests {
 
         Python::with_gil(move |py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new_bound_with_destructor(py, 0, Some(name), destructor).unwrap();
+            let cap = PyCapsule::new_with_destructor(py, 0, Some(name), destructor).unwrap();
             cap.set_context(Box::into_raw(Box::new(tx)).cast()).unwrap();
         });
 
@@ -493,7 +519,7 @@ mod tests {
     #[test]
     fn test_pycapsule_no_name() {
         Python::with_gil(|py| {
-            let cap = PyCapsule::new_bound(py, 0usize, None).unwrap();
+            let cap = PyCapsule::new(py, 0usize, None).unwrap();
 
             assert_eq!(unsafe { cap.reference::<usize>() }, &0usize);
             assert_eq!(cap.name().unwrap(), None);
