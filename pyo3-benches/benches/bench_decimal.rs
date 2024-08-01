@@ -8,7 +8,7 @@ use pyo3::types::PyDict;
 
 fn decimal_via_extract(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
-        let locals = PyDict::new_bound(py);
+        let locals = PyDict::new(py);
         py.run_bound(
             r#"
 import decimal

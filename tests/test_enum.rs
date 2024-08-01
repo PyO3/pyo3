@@ -259,7 +259,7 @@ fn test_simple_enum_with_hash() {
             ("obj", Py::new(py, class).unwrap().into_any()),
             ("hsh", hash.into_py(py)),
         ]
-        .into_py_dict_bound(py);
+        .into_py_dict(py);
 
         py_assert!(py, *env, "hash(obj) == hsh");
     });
@@ -290,7 +290,7 @@ fn test_complex_enum_with_hash() {
             ("obj", Py::new(py, class).unwrap().into_any()),
             ("hsh", hash.into_py(py)),
         ]
-        .into_py_dict_bound(py);
+        .into_py_dict(py);
 
         py_assert!(py, *env, "hash(obj) == hsh");
     });

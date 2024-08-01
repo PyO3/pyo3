@@ -183,7 +183,7 @@ def fibonacci(target):
 "#;
 
         Python::with_gil(|py| {
-            let context = PyDict::new_bound(py);
+            let context = PyDict::new(py);
             py.run_bound(fibonacci_generator, None, Some(&context))
                 .unwrap();
 
@@ -210,7 +210,7 @@ def fibonacci(target):
 "#;
 
         Python::with_gil(|py| {
-            let context = PyDict::new_bound(py);
+            let context = PyDict::new(py);
             py.run_bound(fibonacci_generator, None, Some(&context))
                 .unwrap();
 

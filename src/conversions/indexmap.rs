@@ -98,7 +98,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        IntoPyDict::into_py_dict_bound(self, py).into()
+        IntoPyDict::into_py_dict(self, py).into()
     }
 }
 
@@ -112,7 +112,7 @@ where
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict_bound(iter, py).into()
+        IntoPyDict::into_py_dict(iter, py).into()
     }
 }
 
@@ -192,7 +192,7 @@ mod test_indexmap {
             let mut map = indexmap::IndexMap::<i32, i32>::new();
             map.insert(1, 1);
 
-            let py_map = map.into_py_dict_bound(py);
+            let py_map = map.into_py_dict(py);
 
             assert_eq!(py_map.len(), 1);
             assert_eq!(
@@ -221,7 +221,7 @@ mod test_indexmap {
                 }
             }
 
-            let py_map = map.clone().into_py_dict_bound(py);
+            let py_map = map.clone().into_py_dict(py);
 
             let trip_map = py_map.extract::<indexmap::IndexMap<i32, i32>>().unwrap();
 

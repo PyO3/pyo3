@@ -88,17 +88,17 @@ fn main() -> PyResult<()> {
         .into();
 
         // call object with PyDict
-        let kwargs = [(key1, val1)].into_py_dict_bound(py);
+        let kwargs = [(key1, val1)].into_py_dict(py);
         fun.call_bound(py, (), Some(&kwargs))?;
 
         // pass arguments as Vec
         let kwargs = vec![(key1, val1), (key2, val2)];
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
+        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py)))?;
 
         // pass arguments as HashMap
         let mut kwargs = HashMap::<&str, i32>::new();
         kwargs.insert(key1, 1);
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict_bound(py)))?;
+        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py)))?;
 
         Ok(())
     })

@@ -424,7 +424,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new_bound(py);
+    ///     let kwargs = PyDict::new(py);
     ///     kwargs.set_item("cruel", "world")?;
     ///     let result = fun.call(args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
@@ -516,7 +516,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
-    ///     let kwargs = PyDict::new_bound(py);
+    ///     let kwargs = PyDict::new(py);
     ///     kwargs.set_item("cruel", "world")?;
     ///     let result = instance.call_method("method", args, Some(&kwargs))?;
     ///     assert_eq!(result.extract::<String>()?, "called with args and kwargs");
@@ -676,7 +676,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new_bound(py);
+    ///     let dict = PyDict::new(py);
     ///     assert!(dict.is_instance_of::<PyAny>());
     ///     let any = dict.as_any();
     ///
@@ -728,7 +728,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::types::{PyDict, PyList};
     ///
     /// Python::with_gil(|py| {
-    ///     let obj: Bound<'_, PyAny> = PyDict::new_bound(py).into_any();
+    ///     let obj: Bound<'_, PyAny> = PyDict::new(py).into_any();
     ///
     ///     let obj: Bound<'_, PyAny> = match obj.downcast_into::<PyList>() {
     ///         Ok(_) => panic!("obj should not be a list"),
@@ -1623,7 +1623,7 @@ class NonHeapNonDescriptorInt:
     fn test_call_with_kwargs() {
         Python::with_gil(|py| {
             let list = vec![3, 6, 5, 4, 7].to_object(py);
-            let dict = vec![("reverse", true)].into_py_dict_bound(py);
+            let dict = vec![("reverse", true)].into_py_dict(py);
             list.call_method_bound(py, "sort", (), Some(&dict)).unwrap();
             assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
         });

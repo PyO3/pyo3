@@ -161,7 +161,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// # fn main() -> PyResult<()> {
     /// #     Python::with_gil(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
-    /// #         let locals = pyo3::types::PyDict::new_bound(py);
+    /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
     /// #         py.run_bound(

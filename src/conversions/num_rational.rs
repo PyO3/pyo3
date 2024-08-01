@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_negative_fraction() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "import fractions\npy_frac = fractions.Fraction(-0.125)",
                 None,
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn test_obj_with_incorrect_atts() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "not_fraction = \"contains_incorrect_atts\"",
                 None,
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn test_fraction_with_fraction_type() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "import fractions\npy_frac = fractions.Fraction(fractions.Fraction(10))",
                 None,
@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn test_fraction_with_decimal() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))",
                 None,
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_fraction_with_num_den() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             py.run_bound(
                 "import fractions\npy_frac = fractions.Fraction(10,5)",
                 None,
@@ -245,7 +245,7 @@ mod tests {
     #[test]
     fn test_infinity() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             let py_bound = py.run_bound(
                 "import fractions\npy_frac = fractions.Fraction(\"Infinity\")",
                 None,

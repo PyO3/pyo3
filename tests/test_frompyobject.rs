@@ -384,7 +384,7 @@ fn test_enum() {
             _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {:?}", f),
         }
 
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         dict.set_item("a", "test").expect("Failed to set item");
         let f = dict
             .extract::<Foo<'_>>()
@@ -394,7 +394,7 @@ fn test_enum() {
             _ => panic!("Expected extracting Foo::StructWithGetItem, got {:?}", f),
         }
 
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         dict.set_item("foo", "test").expect("Failed to set item");
         let f = dict
             .extract::<Foo<'_>>()
@@ -409,7 +409,7 @@ fn test_enum() {
 #[test]
 fn test_enum_error() {
     Python::with_gil(|py| {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         let err = dict.extract::<Foo<'_>>().unwrap_err();
         assert_eq!(
             err.to_string(),
@@ -453,7 +453,7 @@ enum EnumWithCatchAll<'py> {
 #[test]
 fn test_enum_catch_all() {
     Python::with_gil(|py| {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         let f = dict
             .extract::<EnumWithCatchAll<'_>>()
             .expect("Failed to extract EnumWithCatchAll from dict");
@@ -483,7 +483,7 @@ pub enum Bar {
 #[test]
 fn test_err_rename() {
     Python::with_gil(|py| {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         let f = dict.extract::<Bar>();
         assert!(f.is_err());
         assert_eq!(

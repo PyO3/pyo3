@@ -102,7 +102,7 @@ mod tests {
     #[test]
     fn test_err_from_value() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
             py.run_bound(
                 r"
@@ -124,7 +124,7 @@ except Exception as e:
     #[test]
     fn test_err_into_py() {
         Python::with_gil(|py| {
-            let locals = PyDict::new_bound(py);
+            let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
             py.run_bound(
                 r"

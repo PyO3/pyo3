@@ -62,7 +62,7 @@ macro_rules! impl_exception_boilerplate_bound {
 /// import_exception!(socket, gaierror);
 ///
 /// Python::with_gil(|py| {
-///     let ctx = [("gaierror", py.get_type_bound::<gaierror>())].into_py_dict_bound(py);
+///     let ctx = [("gaierror", py.get_type_bound::<gaierror>())].into_py_dict(py);
 ///     pyo3::py_run!(py, *ctx, "import socket; assert gaierror is socket.gaierror");
 /// });
 ///
@@ -175,7 +175,7 @@ macro_rules! import_exception_bound {
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
-/// #         let locals = pyo3::types::PyDict::new_bound(py);
+/// #         let locals = pyo3::types::PyDict::new(py);
 /// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
@@ -826,7 +826,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
-            let d = PyDict::new_bound(py);
+            let d = PyDict::new(py);
             d.set_item("socket", socket)
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
@@ -850,7 +850,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not import email");
 
-            let d = PyDict::new_bound(py);
+            let d = PyDict::new(py);
             d.set_item("email", email)
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
@@ -874,7 +874,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type_bound::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()
@@ -897,7 +897,7 @@ mod tests {
         create_exception!(mymodule.exceptions, CustomError, PyException);
         Python::with_gil(|py| {
             let error_type = py.get_type_bound::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()
@@ -916,7 +916,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type_bound::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()
@@ -949,7 +949,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let error_type = py.get_type_bound::<CustomError>();
-            let ctx = [("CustomError", error_type)].into_py_dict_bound(py);
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
                 .eval_bound("str(CustomError)", None, Some(&ctx))
                 .unwrap()

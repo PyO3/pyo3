@@ -557,7 +557,7 @@ impl<'py> Python<'py> {
     ///     types::{PyBytes, PyDict},
     /// };
     /// Python::with_gil(|py| {
-    ///     let locals = PyDict::new_bound(py);
+    ///     let locals = PyDict::new(py);
     ///     py.run_bound(
     ///         r#"
     /// import base64
@@ -815,7 +815,7 @@ mod tests {
                 .unwrap();
             assert_eq!(v, 1);
 
-            let d = [("foo", 13)].into_py_dict_bound(py);
+            let d = [("foo", 13)].into_py_dict(py);
 
             // Inject our own global namespace
             let v: i32 = py
@@ -943,7 +943,7 @@ mod tests {
         use crate::types::dict::PyDictMethods;
 
         Python::with_gil(|py| {
-            let namespace = PyDict::new_bound(py);
+            let namespace = PyDict::new(py);
             py.run_bound("class Foo: pass", Some(&namespace), Some(&namespace))
                 .unwrap();
             assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));

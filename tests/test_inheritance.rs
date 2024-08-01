@@ -20,7 +20,7 @@ struct SubclassAble {}
 #[test]
 fn subclass() {
     Python::with_gil(|py| {
-        let d = [("SubclassAble", py.get_type_bound::<SubclassAble>())].into_py_dict_bound(py);
+        let d = [("SubclassAble", py.get_type_bound::<SubclassAble>())].into_py_dict(py);
 
         py.run_bound(
             "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
@@ -97,7 +97,7 @@ fn call_base_and_sub_methods() {
 fn mutation_fails() {
     Python::with_gil(|py| {
         let obj = Py::new(py, SubClass::new()).unwrap();
-        let global = [("obj", obj)].into_py_dict_bound(py);
+        let global = [("obj", obj)].into_py_dict(py);
         let e = py
             .run_bound(
                 "obj.base_set(lambda: obj.sub_set_and_ret(1))",
@@ -275,7 +275,7 @@ mod inheriting_native_type {
     fn custom_exception() {
         Python::with_gil(|py| {
             let cls = py.get_type_bound::<CustomException>();
-            let dict = [("cls", &cls)].into_py_dict_bound(py);
+            let dict = [("cls", &cls)].into_py_dict(py);
             let res = py.run_bound(
             "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
             None,
