@@ -247,13 +247,13 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             key: Bound<'_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
+            let mut result: *mut ffi::PyObject = std::ptr::null_mut();
             match unsafe {
-                ffi::PyDict_GetItemWithError(dict.as_ptr(), key.as_ptr())
-                    .assume_borrowed_or_opt(py)
-                    .map(Borrowed::to_owned)
+                ffi::compat::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result)
             } {
-                some @ Some(_) => Ok(some),
-                None => PyErr::take(py).map(Err).transpose(),
+                std::os::raw::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+                0 => Ok(None),
+                1..=std::os::raw::c_int::MAX => Ok(Some(unsafe { result.assume_owned(py) })),
             }
         }
 
@@ -725,6 +725,42 @@ mod tests {
             );
             assert!(dict.get_item(8i32).unwrap().is_none());
         });
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_get_item_error_path() {
+        use crate::exceptions::PyTypeError;
+
+        #[crate::pyclass(crate = "crate")]
+        struct HashErrors;
+
+        #[crate::pymethods(crate = "crate")]
+        impl HashErrors {
+            #[new]
+            fn new() -> Self {
+                HashErrors {}
+            }
+
+            fn __hash__(&self) -> PyResult<isize> {
+                Err(PyTypeError::new_err("Error from __hash__"))
+            }
+        }
+
+        Python::with_gil(|py| {
+            let class = py.get_type_bound::<HashErrors>();
+            let instance = class.call0().unwrap();
+            let d = PyDict::new(py);
+            match d.get_item(instance) {
+                Ok(_) => {
+                    panic!("this get_item call should always error")
+                }
+                Err(err) => {
+                    assert!(err.is_instance_of::<PyTypeError>(py));
+                    assert_eq!(err.value_bound(py).to_string(), "Error from __hash__")
+                }
+            }
+        })
     }
 
     #[test]
