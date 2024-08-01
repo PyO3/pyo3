@@ -4,7 +4,7 @@ If you already have some existing Python code that you need to execute from Rust
 
 ## Want to access Python APIs? Then use `PyModule::import`.
 
-[`PyModule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import_bound) can
+[`PyModule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
 be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
@@ -97,7 +97,7 @@ assert userdata.as_tuple() == userdata_as_tuple
 
 ## You have a Python file or code snippet? Then use `PyModule::from_code`.
 
-[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code_bound)
+[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 
@@ -394,4 +394,4 @@ Python::with_gil(|py| -> PyResult<()> {
 ```
 
 
-[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new_bound
+[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new
