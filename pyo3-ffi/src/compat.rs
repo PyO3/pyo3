@@ -12,6 +12,8 @@
 #[cfg(not(Py_3_13))]
 use crate::object::PyObject;
 #[cfg(not(Py_3_13))]
+use crate::pyport::Py_ssize_t;
+#[cfg(not(Py_3_13))]
 use std::os::raw::c_int;
 
 #[cfg_attr(docsrs, doc(cfg(all)))]
@@ -41,4 +43,17 @@ pub unsafe fn PyDict_GetItemRef(
         }
         -1
     }
+}
+
+#[cfg_attr(docsrs, doc(cfg(all)))]
+#[cfg(Py_3_13)]
+pub use crate::PyList_GetItemRef;
+
+#[cfg(not(Py_3_13))]
+pub unsafe fn PyList_GetItemRef(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject {
+    use crate::{PyList_GetItem, Py_XINCREF};
+
+    let item: *mut PyObject = PyList_GetItem(arg1, arg2);
+    Py_XINCREF(item);
+    item
 }
