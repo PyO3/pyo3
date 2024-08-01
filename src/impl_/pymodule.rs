@@ -158,7 +158,7 @@ impl ModuleDef {
 /// Trait to add an element (class, function...) to a module.
 ///
 /// Currently only implemented for classes.
-pub trait PyAddToModule {
+pub trait PyAddToModule: crate::sealed::Sealed {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()>;
 }
 
