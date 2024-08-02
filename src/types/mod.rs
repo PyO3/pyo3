@@ -133,6 +133,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::AsPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
@@ -160,6 +161,7 @@ macro_rules! pyobject_native_static_type_object(
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        #[allow(unsafe_code)]
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
