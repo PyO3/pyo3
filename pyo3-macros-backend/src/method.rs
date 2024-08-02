@@ -7,6 +7,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::deprecations::deprecate_trailing_option_default;
+use crate::pyversions::{is_abi3, py_version_ge};
 use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -15,7 +16,7 @@ use crate::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
     quotes,
-    utils::{self, is_abi3, PythonDoc},
+    utils::{self, PythonDoc},
 };
 
 #[derive(Clone, Debug)]
@@ -389,8 +390,7 @@ impl CallingConvention {
         } else if signature.python_signature.kwargs.is_some() {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if !is_abi3() {
-            // FIXME: available in the stable ABI since 3.10
+        } else if py_version_ge(3, 10) || !is_abi3() {
             Self::Fastcall
         } else {
             Self::Varargs

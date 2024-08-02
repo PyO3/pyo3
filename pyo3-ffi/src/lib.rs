@@ -103,7 +103,7 @@
 //!     PyMethodDef {
 //!         ml_name: c_str!("sum_as_string").as_ptr(),
 //!         ml_meth: PyMethodDefPointer {
-//!             _PyCFunctionFast: sum_as_string,
+//!             PyCFunctionFast: sum_as_string,
 //!         },
 //!         ml_flags: METH_FASTCALL,
 //!         ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),

@@ -72,8 +72,8 @@ pub enum PyMethodDefType {
 pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
-    #[cfg(not(Py_LIMITED_API))]
-    PyCFunctionFastWithKeywords(ffi::_PyCFunctionFastWithKeywords),
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    PyCFunctionFastWithKeywords(ffi::PyCFunctionFastWithKeywords),
 }
 
 pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
@@ -145,10 +145,10 @@ impl PyMethodDef {
     }
 
     /// Define a function that can take `*args` and `**kwargs`.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub const fn fastcall_cfunction_with_keywords(
         ml_name: &'static CStr,
-        cfunction: ffi::_PyCFunctionFastWithKeywords,
+        cfunction: ffi::PyCFunctionFastWithKeywords,
         ml_doc: &'static CStr,
     ) -> Self {
         Self {
@@ -171,9 +171,9 @@ impl PyMethodDef {
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
                 PyCFunctionWithKeywords: meth,
             },
-            #[cfg(not(Py_LIMITED_API))]
+            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             PyMethodType::PyCFunctionFastWithKeywords(meth) => ffi::PyMethodDefPointer {
-                _PyCFunctionFastWithKeywords: meth,
+                PyCFunctionFastWithKeywords: meth,
             },
         };
 
