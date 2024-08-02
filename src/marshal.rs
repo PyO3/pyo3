@@ -29,7 +29,7 @@ pub const VERSION: i32 = 4;
 /// dict.set_item("mies", "wim").unwrap();
 /// dict.set_item("zus", "jet").unwrap();
 ///
-/// let bytes = marshal::dumps(py, &dict, marshal::VERSION);
+/// let bytes = marshal::dumps(&dict, marshal::VERSION);
 /// # });
 /// ```
 pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'py, PyBytes>> {
