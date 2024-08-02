@@ -29,13 +29,6 @@ use std::os::raw::c_int;
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
 
-unsafe impl AsPyPointer for PyAny {
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0.get()
-    }
-}
-
 #[allow(non_snake_case)]
 // Copied here as the macro does not accept deprecated functions.
 // Originally ffi::object::PyObject_Check, but this is not in the Python C API.
