@@ -45,7 +45,7 @@ impl Mapping {
         self.index
             .get(&query)
             .copied()
-            .ok_or_else(|| PyKeyError::new_err("unknown key"))
+            .ok_or_else(|| PyKeyError::new_err_arg("unknown key"))
     }
 
     fn __setitem__(&mut self, key: String, value: usize) {
@@ -54,7 +54,7 @@ impl Mapping {
 
     fn __delitem__(&mut self, key: String) -> PyResult<()> {
         if self.index.remove(&key).is_none() {
-            Err(PyKeyError::new_err("unknown key"))
+            Err(PyKeyError::new_err_arg("unknown key"))
         } else {
             Ok(())
         }

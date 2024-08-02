@@ -355,7 +355,7 @@ mod tests {
         use crate::exceptions::PyValueError;
         Python::with_gil(|py| {
             let py_bytes_result = PyBytes::new_with(py, 10, |_b: &mut [u8]| {
-                Err(PyValueError::new_err("Hello Crustaceans!"))
+                Err(PyValueError::new_err_arg("Hello Crustaceans!"))
             });
             assert!(py_bytes_result.is_err());
             assert!(py_bytes_result

@@ -36,7 +36,7 @@ use pyo3::prelude::*;
 #[pyfunction]
 fn check_positive(x: i32) -> PyResult<()> {
     if x < 0 {
-        Err(PyValueError::new_err("x is negative"))
+        Err(PyValueError::new_err_arg("x is negative"))
     } else {
         Ok(())
     }
@@ -109,7 +109,7 @@ impl fmt::Display for CustomIOError {
 
 impl std::convert::From<CustomIOError> for PyErr {
     fn from(err: CustomIOError) -> PyErr {
-        PyOSError::new_err(err.to_string())
+        PyOSError::new_err_arg(err.to_string())
     }
 }
 
@@ -205,7 +205,7 @@ struct MyOtherError(OtherError);
 
 impl From<MyOtherError> for PyErr {
     fn from(error: MyOtherError) -> Self {
-        PyValueError::new_err(error.0.message())
+        PyValueError::new_err_arg(error.0.message())
     }
 }
 

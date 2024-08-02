@@ -45,7 +45,7 @@ impl PyA {
         if key == "t" {
             Ok("bar".into())
         } else {
-            Err(PyValueError::new_err("Failed"))
+            Err(PyValueError::new_err_arg("Failed"))
         }
     }
 }

@@ -158,7 +158,7 @@ impl Nonzero {
     #[new]
     fn py_new(value: i32) -> PyResult<Self> {
         if value == 0 {
-            Err(PyValueError::new_err("cannot be zero"))
+            Err(PyValueError::new_err_arg("cannot be zero"))
         } else {
             Ok(Nonzero(value))
         }

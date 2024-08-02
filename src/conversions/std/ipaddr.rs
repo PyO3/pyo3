@@ -20,12 +20,15 @@ impl FromPyObject<'_> for IpAddr {
                 } else if let Ok(packed) = packed.extract::<[u8; 16]>() {
                     Ok(IpAddr::V6(Ipv6Addr::from(packed)))
                 } else {
-                    Err(PyValueError::new_err("invalid packed length"))
+                    Err(PyValueError::new_err_arg("invalid packed length"))
                 }
             }
             Err(_) => {
                 // We don't have a .packed attribute, so we try to construct an IP from str().
-                obj.str()?.to_cow()?.parse().map_err(PyValueError::new_err)
+                obj.str()?
+                    .to_cow()?
+                    .parse()
+                    .map_err(PyValueError::new_err_args)
             }
         }
     }

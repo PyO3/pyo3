@@ -33,7 +33,7 @@ impl DictSize {
         if seen == self.expected {
             Ok(seen)
         } else {
-            Err(PyErr::new::<PyRuntimeError, _>(format!(
+            Err(PyErr::new_arg::<PyRuntimeError, _>(format!(
                 "Expected {} iterations - performed {}",
                 self.expected, seen
             )))

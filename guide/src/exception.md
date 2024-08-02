@@ -63,7 +63,7 @@ use pyo3::{Python, PyErr};
 use pyo3::exceptions::PyTypeError;
 
 Python::with_gil(|py| {
-    PyTypeError::new_err("Error").restore(py);
+    PyTypeError::new_err_arg("Error").restore(py);
     assert!(PyErr::occurred(py));
     drop(PyErr::fetch(py));
 });
@@ -92,7 +92,7 @@ To check the type of an exception, you can similarly do:
 # use pyo3::exceptions::PyTypeError;
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
-# let err = PyTypeError::new_err(());
+# let err = PyTypeError::new_err_empty();
 err.is_instance_of::<PyTypeError>(py);
 # });
 ```
@@ -113,7 +113,7 @@ mod io {
 
 fn tell(file: &Bound<'_, PyAny>) -> PyResult<u64> {
     match file.call_method0("tell") {
-        Err(_) => Err(io::UnsupportedOperation::new_err("not supported: tell")),
+        Err(_) => Err(io::UnsupportedOperation::new_err_arg("not supported: tell")),
         Ok(x) => x.extract::<u64>(),
     }
 }

@@ -24,7 +24,7 @@ impl ExampleClass {
         if attr == "special_custom_attr" {
             Ok(self.custom_attr.into_py(py))
         } else {
-            Err(PyAttributeError::new_err(attr.to_string()))
+            Err(PyAttributeError::new_err_arg(attr.to_string()))
         }
     }
 
@@ -33,7 +33,7 @@ impl ExampleClass {
             self.custom_attr = Some(value.extract()?);
             Ok(())
         } else {
-            Err(PyAttributeError::new_err(attr.to_string()))
+            Err(PyAttributeError::new_err_arg(attr.to_string()))
         }
     }
 
@@ -42,7 +42,7 @@ impl ExampleClass {
             self.custom_attr = None;
             Ok(())
         } else {
-            Err(PyAttributeError::new_err(attr.to_string()))
+            Err(PyAttributeError::new_err_arg(attr.to_string()))
         }
     }
 
@@ -267,7 +267,7 @@ impl Sequence {
                 self.values
                     .get(uindex)
                     .map(|o| o.clone_ref(py))
-                    .ok_or_else(|| PyIndexError::new_err(index))
+                    .ok_or_else(|| PyIndexError::new_err_arg(index))
             }
             // Just to prove that slicing can be implemented
             SequenceIndex::Slice(s) => Ok(s.into()),
@@ -279,13 +279,13 @@ impl Sequence {
         self.values
             .get_mut(uindex)
             .map(|place| *place = value)
-            .ok_or_else(|| PyIndexError::new_err(index))
+            .ok_or_else(|| PyIndexError::new_err_arg(index))
     }
 
     fn __delitem__(&mut self, index: isize) -> PyResult<()> {
         let uindex = self.usize_index(index)?;
         if uindex >= self.values.len() {
-            Err(PyIndexError::new_err(index))
+            Err(PyIndexError::new_err_arg(index))
         } else {
             self.values.remove(uindex);
             Ok(())
@@ -302,7 +302,7 @@ impl Sequence {
         if index < 0 {
             let corrected_index = index + self.values.len() as isize;
             if corrected_index < 0 {
-                Err(PyIndexError::new_err(index))
+                Err(PyIndexError::new_err_arg(index))
             } else {
                 Ok(corrected_index as usize)
             }
@@ -536,7 +536,7 @@ impl GetItem {
                 return Ok("int");
             }
         }
-        Err(PyValueError::new_err("error"))
+        Err(PyValueError::new_err_arg("error"))
     }
 }
 
@@ -603,9 +603,9 @@ impl ClassWithGetAttrAndGetAttribute {
         if name == "exists" {
             Ok(42)
         } else if name == "error" {
-            Err(PyValueError::new_err("bad"))
+            Err(PyValueError::new_err_arg("bad"))
         } else {
-            Err(PyAttributeError::new_err("fallback"))
+            Err(PyAttributeError::new_err_arg("fallback"))
         }
     }
 
@@ -613,7 +613,7 @@ impl ClassWithGetAttrAndGetAttribute {
         if name == "lucky" {
             Ok(57)
         } else {
-            Err(PyAttributeError::new_err("no chance"))
+            Err(PyAttributeError::new_err_arg("no chance"))
         }
     }
 }

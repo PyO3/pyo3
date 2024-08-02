@@ -43,17 +43,21 @@ impl From<io::Error> for PyErr {
             return *err.into_inner().unwrap().downcast().unwrap();
         }
         match err.kind() {
-            io::ErrorKind::BrokenPipe => exceptions::PyBrokenPipeError::new_err(err),
-            io::ErrorKind::ConnectionRefused => exceptions::PyConnectionRefusedError::new_err(err),
-            io::ErrorKind::ConnectionAborted => exceptions::PyConnectionAbortedError::new_err(err),
-            io::ErrorKind::ConnectionReset => exceptions::PyConnectionResetError::new_err(err),
-            io::ErrorKind::Interrupted => exceptions::PyInterruptedError::new_err(err),
-            io::ErrorKind::NotFound => exceptions::PyFileNotFoundError::new_err(err),
-            io::ErrorKind::PermissionDenied => exceptions::PyPermissionError::new_err(err),
-            io::ErrorKind::AlreadyExists => exceptions::PyFileExistsError::new_err(err),
-            io::ErrorKind::WouldBlock => exceptions::PyBlockingIOError::new_err(err),
-            io::ErrorKind::TimedOut => exceptions::PyTimeoutError::new_err(err),
-            _ => exceptions::PyOSError::new_err(err),
+            io::ErrorKind::BrokenPipe => exceptions::PyBrokenPipeError::new_err_args(err),
+            io::ErrorKind::ConnectionRefused => {
+                exceptions::PyConnectionRefusedError::new_err_args(err)
+            }
+            io::ErrorKind::ConnectionAborted => {
+                exceptions::PyConnectionAbortedError::new_err_args(err)
+            }
+            io::ErrorKind::ConnectionReset => exceptions::PyConnectionResetError::new_err_args(err),
+            io::ErrorKind::Interrupted => exceptions::PyInterruptedError::new_err_args(err),
+            io::ErrorKind::NotFound => exceptions::PyFileNotFoundError::new_err_args(err),
+            io::ErrorKind::PermissionDenied => exceptions::PyPermissionError::new_err_args(err),
+            io::ErrorKind::AlreadyExists => exceptions::PyFileExistsError::new_err_args(err),
+            io::ErrorKind::WouldBlock => exceptions::PyBlockingIOError::new_err_args(err),
+            io::ErrorKind::TimedOut => exceptions::PyTimeoutError::new_err_args(err),
+            _ => exceptions::PyOSError::new_err_args(err),
         }
     }
 }
@@ -92,7 +96,7 @@ macro_rules! impl_to_pyerr {
 
         impl std::convert::From<$err> for PyErr {
             fn from(err: $err) -> PyErr {
-                <$pyexc>::new_err(err)
+                <$pyexc>::new_err_args(err)
             }
         }
     };

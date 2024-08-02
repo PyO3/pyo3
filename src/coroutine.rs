@@ -71,7 +71,7 @@ impl Coroutine {
         // raise if the coroutine has already been run to completion
         let future_rs = match self.future {
             Some(ref mut fut) => fut,
-            None => return Err(PyRuntimeError::new_err(COROUTINE_REUSED_ERROR)),
+            None => return Err(PyRuntimeError::new_err_arg(COROUTINE_REUSED_ERROR)),
         };
         // reraise thrown exception it
         match (throw, &self.throw_callback) {
@@ -95,7 +95,7 @@ impl Coroutine {
         match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
             Ok(Poll::Ready(res)) => {
                 self.close();
-                return Err(PyStopIteration::new_err((res?,)));
+                return Err(PyStopIteration::new_err_arg(res?));
             }
             Err(err) => {
                 self.close();
@@ -128,7 +128,7 @@ impl Coroutine {
     fn __name__(&self, py: Python<'_>) -> PyResult<Py<PyString>> {
         match &self.name {
             Some(name) => Ok(name.clone_ref(py)),
-            None => Err(PyAttributeError::new_err("__name__")),
+            None => Err(PyAttributeError::new_err_arg("__name__")),
         }
     }
 
@@ -139,7 +139,7 @@ impl Coroutine {
                 .as_str()
                 .into_py(py)),
             (Some(name), None) => Ok(name.clone_ref(py)),
-            (None, _) => Err(PyAttributeError::new_err("__qualname__")),
+            (None, _) => Err(PyAttributeError::new_err_arg("__qualname__")),
         }
     }
 

@@ -26,7 +26,7 @@ fn frobnicate<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     } else if let Ok(vec) = value.extract::<Vec<Bound<'_, PyAny>>>() {
         frobnicate_vec(vec)
     } else {
-        Err(PyTypeError::new_err("Cannot frobnicate that type."))
+        Err(PyTypeError::new_err_arg("Cannot frobnicate that type."))
     }
 }
 ```
@@ -48,7 +48,7 @@ fn frobnicate<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     } else if let Ok(vec) = value.extract::<Vec<Bound<'_, PyAny>>>() {
         frobnicate_vec(vec)
     } else {
-        Err(PyTypeError::new_err("Cannot frobnicate that type."))
+        Err(PyTypeError::new_err_arg("Cannot frobnicate that type."))
     }
 }
 ```

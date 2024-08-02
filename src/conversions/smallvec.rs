@@ -99,7 +99,9 @@ where
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
-            return Err(PyTypeError::new_err("Can't extract `str` to `SmallVec`"));
+            return Err(PyTypeError::new_err_arg(
+                "Can't extract `str` to `SmallVec`",
+            ));
         }
         extract_sequence(obj)
     }

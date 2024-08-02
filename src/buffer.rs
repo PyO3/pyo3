@@ -206,16 +206,16 @@ impl<T: Element> PyBuffer<T> {
         let buf = PyBuffer(Pin::from(buf), PhantomData);
 
         if buf.0.shape.is_null() {
-            Err(PyBufferError::new_err("shape is null"))
+            Err(PyBufferError::new_err_arg("shape is null"))
         } else if buf.0.strides.is_null() {
-            Err(PyBufferError::new_err("strides is null"))
+            Err(PyBufferError::new_err_arg("strides is null"))
         } else if mem::size_of::<T>() != buf.item_size() || !T::is_compatible_format(buf.format()) {
-            Err(PyBufferError::new_err(format!(
+            Err(PyBufferError::new_err_arg(format!(
                 "buffer contents are not compatible with {}",
                 std::any::type_name::<T>()
             )))
         } else if buf.0.buf.align_offset(mem::align_of::<T>()) != 0 {
-            Err(PyBufferError::new_err(format!(
+            Err(PyBufferError::new_err_arg(format!(
                 "buffer contents are insufficiently aligned for {}",
                 std::any::type_name::<T>()
             )))
@@ -476,7 +476,7 @@ impl<T: Element> PyBuffer<T> {
 
     fn _copy_to_slice(&self, py: Python<'_>, target: &mut [T], fort: u8) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
-            return Err(PyBufferError::new_err(format!(
+            return Err(PyBufferError::new_err_arg(format!(
                 "slice to copy to (of length {}) does not match buffer length of {}",
                 target.len(),
                 self.item_count()
@@ -568,9 +568,11 @@ impl<T: Element> PyBuffer<T> {
 
     fn _copy_from_slice(&self, py: Python<'_>, source: &[T], fort: u8) -> PyResult<()> {
         if self.readonly() {
-            return Err(PyBufferError::new_err("cannot write to read-only buffer"));
+            return Err(PyBufferError::new_err_arg(
+                "cannot write to read-only buffer",
+            ));
         } else if mem::size_of_val(source) != self.len_bytes() {
-            return Err(PyBufferError::new_err(format!(
+            return Err(PyBufferError::new_err_arg(format!(
                 "slice to copy from (of length {}) does not match buffer length of {}",
                 source.len(),
                 self.item_count()

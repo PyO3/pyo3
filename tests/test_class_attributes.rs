@@ -139,7 +139,9 @@ fn test_fallible_class_attribute() {
     impl BrokenClass {
         #[classattr]
         fn fails_to_init() -> PyResult<i32> {
-            Err(PyValueError::new_err("failed to create class attribute"))
+            Err(PyValueError::new_err_arg(
+                "failed to create class attribute",
+            ))
         }
     }
 

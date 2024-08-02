@@ -391,7 +391,7 @@ impl AsyncIterOptionTag {
     {
         match value {
             Some(value) => value.convert(py),
-            None => Err(PyStopAsyncIteration::new_err(())),
+            None => Err(PyStopAsyncIteration::new_err_empty()),
         }
     }
 }
@@ -420,7 +420,7 @@ impl AsyncIterResultOptionTag {
     {
         match value {
             Ok(Some(value)) => value.convert(py),
-            Ok(None) => Err(PyStopAsyncIteration::new_err(())),
+            Ok(None) => Err(PyStopAsyncIteration::new_err_empty()),
             Err(err) => Err(err.into()),
         }
     }

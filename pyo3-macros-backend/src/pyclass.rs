@@ -1351,7 +1351,7 @@ fn impl_complex_enum_tuple_variant_getitem(
             let py = slf.py();
             match idx {
                 #( #match_arms, )*
-                _ => ::std::result::Result::Err(#pyo3_path::exceptions::PyIndexError::new_err("tuple index out of range")),
+                _ => ::std::result::Result::Err(#pyo3_path::exceptions::PyIndexError::new_err_arg("tuple index out of range")),
             }
         }
     };

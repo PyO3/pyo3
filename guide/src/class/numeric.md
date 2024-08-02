@@ -95,28 +95,28 @@ impl Number {
     fn __truediv__(&self, other: &Self) -> PyResult<Self> {
         match self.0.checked_div(other.0) {
             Some(i) => Ok(Self(i)),
-            None => Err(PyZeroDivisionError::new_err("division by zero")),
+            None => Err(PyZeroDivisionError::new_err_arg("division by zero")),
         }
     }
 
     fn __floordiv__(&self, other: &Self) -> PyResult<Self> {
         match self.0.checked_div(other.0) {
             Some(i) => Ok(Self(i)),
-            None => Err(PyZeroDivisionError::new_err("division by zero")),
+            None => Err(PyZeroDivisionError::new_err_arg("division by zero")),
         }
     }
 
     fn __rshift__(&self, other: &Self) -> PyResult<Self> {
         match other.0.try_into() {
             Ok(rhs) => Ok(Self(self.0.wrapping_shr(rhs))),
-            Err(_) => Err(PyValueError::new_err("negative shift count")),
+            Err(_) => Err(PyValueError::new_err_arg("negative shift count")),
         }
     }
 
     fn __lshift__(&self, other: &Self) -> PyResult<Self> {
         match other.0.try_into() {
             Ok(rhs) => Ok(Self(self.0.wrapping_shl(rhs))),
-            Err(_) => Err(PyValueError::new_err("negative shift count")),
+            Err(_) => Err(PyValueError::new_err_arg("negative shift count")),
         }
     }
 }
@@ -275,28 +275,28 @@ impl Number {
     fn __truediv__(&self, other: &Self) -> PyResult<Self> {
         match self.0.checked_div(other.0) {
             Some(i) => Ok(Self(i)),
-            None => Err(PyZeroDivisionError::new_err("division by zero")),
+            None => Err(PyZeroDivisionError::new_err_arg("division by zero")),
         }
     }
 
     fn __floordiv__(&self, other: &Self) -> PyResult<Self> {
         match self.0.checked_div(other.0) {
             Some(i) => Ok(Self(i)),
-            None => Err(PyZeroDivisionError::new_err("division by zero")),
+            None => Err(PyZeroDivisionError::new_err_arg("division by zero")),
         }
     }
 
     fn __rshift__(&self, other: &Self) -> PyResult<Self> {
         match other.0.try_into() {
             Ok(rhs) => Ok(Self(self.0.wrapping_shr(rhs))),
-            Err(_) => Err(PyValueError::new_err("negative shift count")),
+            Err(_) => Err(PyValueError::new_err_arg("negative shift count")),
         }
     }
 
     fn __lshift__(&self, other: &Self) -> PyResult<Self> {
         match other.0.try_into() {
             Ok(rhs) => Ok(Self(self.0.wrapping_shl(rhs))),
-            Err(_) => Err(PyValueError::new_err("negative shift count")),
+            Err(_) => Err(PyValueError::new_err_arg("negative shift count")),
         }
     }
 

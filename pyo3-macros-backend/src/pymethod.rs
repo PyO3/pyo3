@@ -679,7 +679,7 @@ pub fn impl_py_setter_def(
             use ::std::convert::Into;
             let _value = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_value)
                 .ok_or_else(|| {
-                    #pyo3_path::exceptions::PyAttributeError::new_err("can't delete attribute")
+                    #pyo3_path::exceptions::PyAttributeError::new_err_arg("can't delete attribute")
                 })?;
             #init_holders
             #extract
@@ -1100,7 +1100,7 @@ impl Ty {
             Ty::CompareOp => extract_error_mode.handle_error(
                 quote! {
                     #pyo3_path::class::basic::CompareOp::from_raw(#ident)
-                        .ok_or_else(|| #pyo3_path::exceptions::PyValueError::new_err("invalid comparison operator"))
+                        .ok_or_else(|| #pyo3_path::exceptions::PyValueError::new_err_arg("invalid comparison operator"))
                 },
                 ctx
             ),
@@ -1108,7 +1108,7 @@ impl Ty {
                 let ty = arg.ty();
                 extract_error_mode.handle_error(
                     quote! {
-                            ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
+                            ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err_arg(e.to_string()))
                     },
                     ctx
                 )

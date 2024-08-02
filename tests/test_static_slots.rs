@@ -27,9 +27,11 @@ impl Count5 {
     #[staticmethod]
     fn __getitem__(idx: isize) -> PyResult<f64> {
         if idx < 0 {
-            Err(PyIndexError::new_err("Count5 cannot count backwards"))
+            Err(PyIndexError::new_err_arg("Count5 cannot count backwards"))
         } else if idx > 4 {
-            Err(PyIndexError::new_err("Count5 cannot count higher than 5"))
+            Err(PyIndexError::new_err_arg(
+                "Count5 cannot count higher than 5",
+            ))
         } else {
             Ok(idx as f64 + 1.0)
         }

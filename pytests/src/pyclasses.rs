@@ -38,7 +38,7 @@ impl PyClassIter {
             self.count += 1;
             Ok(self.count)
         } else {
-            Err(PyStopIteration::new_err("Ended"))
+            Err(PyStopIteration::new_err_arg("Ended"))
         }
     }
 }
@@ -54,7 +54,7 @@ impl AssertingBaseClass {
     #[classmethod]
     fn new(cls: &Bound<'_, PyType>, expected_type: Bound<'_, PyType>) -> PyResult<Self> {
         if !cls.is(&expected_type) {
-            return Err(PyValueError::new_err(format!(
+            return Err(PyValueError::new_err_arg(format!(
                 "{:?} != {:?}",
                 cls, expected_type
             )));

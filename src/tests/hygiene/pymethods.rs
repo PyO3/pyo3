@@ -113,7 +113,7 @@ impl Dummy {
     }
 
     fn __getitem__(&self, key: u32) -> crate::PyResult<u32> {
-        ::std::result::Result::Err(crate::exceptions::PyKeyError::new_err("boo"))
+        ::std::result::Result::Err(crate::exceptions::PyKeyError::new_err_empty())
     }
 
     fn __setitem__(&self, key: u32, value: u32) {}
@@ -156,11 +156,11 @@ impl Dummy {
     }
 
     fn __truediv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err_empty())
     }
 
     fn __floordiv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err_empty())
     }
 
     fn __mod__(&self, _other: &Self) -> u32 {
@@ -208,11 +208,11 @@ impl Dummy {
     }
 
     fn __rtruediv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err_empty())
     }
 
     fn __rfloordiv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err_empty())
     }
 
     fn __rmod__(&self, _other: &Self) -> u32 {

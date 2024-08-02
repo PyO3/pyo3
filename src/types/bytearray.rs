@@ -172,7 +172,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///         // `to_vec` which copies the entire thing.
     ///         let section = slice
     ///             .get(6..11)
-    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))?;
+    ///             .ok_or_else(|| PyRuntimeError::new_err_arg("input is not long enough"))?;
     ///         Vec::from(section)
     ///     };
     ///
@@ -463,7 +463,7 @@ mod tests {
         use crate::exceptions::PyValueError;
         Python::with_gil(|py| {
             let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
-                Err(PyValueError::new_err("Hello Crustaceans!"))
+                Err(PyValueError::new_err_arg("Hello Crustaceans!"))
             });
             assert!(py_bytearray_result.is_err());
             assert!(py_bytearray_result

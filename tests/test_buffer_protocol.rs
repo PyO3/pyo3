@@ -114,7 +114,7 @@ fn test_releasebuffer_unraisable_error() {
         }
 
         unsafe fn __releasebuffer__(&self, _view: *mut ffi::Py_buffer) -> PyResult<()> {
-            Err(PyValueError::new_err("oh dear"))
+            Err(PyValueError::new_err_arg("oh dear"))
         }
     }
 
@@ -148,11 +148,11 @@ unsafe fn fill_view_from_readonly_data(
     owner: Bound<'_, PyAny>,
 ) -> PyResult<()> {
     if view.is_null() {
-        return Err(PyBufferError::new_err("View is null"));
+        return Err(PyBufferError::new_err_arg("View is null"));
     }
 
     if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-        return Err(PyBufferError::new_err("Object is not writable"));
+        return Err(PyBufferError::new_err_arg("Object is not writable"));
     }
 
     (*view).obj = owner.into_ptr();
