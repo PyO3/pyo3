@@ -155,7 +155,7 @@ impl FromPyObject<'_> for char {
         if let (Some(ch), None) = (iter.next(), iter.next()) {
             Ok(ch)
         } else {
-            Err(crate::exceptions::PyValueError::new_err(
+            Err(crate::exceptions::PyValueError::new_err1(
                 "expected a string of length 1",
             ))
         }

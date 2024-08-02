@@ -67,7 +67,7 @@ impl FromPyObject<'_> for Tz {
             &ob.getattr(intern!(ob.py(), "key"))?
                 .extract::<PyBackedStr>()?,
         )
-        .map_err(|e| PyValueError::new_err(e.to_string()))
+        .map_err(|e| PyValueError::new_err1(e.to_string()))
     }
 }
 

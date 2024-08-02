@@ -251,7 +251,7 @@ impl FromPyObject<'_> for NaiveDateTime {
         #[cfg(Py_LIMITED_API)]
         let has_tzinfo = !dt.getattr(intern!(dt.py(), "tzinfo"))?.is_none();
         if has_tzinfo {
-            return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
+            return Err(PyTypeError::new_err1("expected a datetime without tzinfo"));
         }
 
         let dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
@@ -290,13 +290,13 @@ impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz
         let tz = if let Some(tzinfo) = tzinfo {
             tzinfo.extract()?
         } else {
-            return Err(PyTypeError::new_err(
+            return Err(PyTypeError::new_err1(
                 "expected a datetime with non-None tzinfo",
             ));
         };
         let naive_dt = NaiveDateTime::new(py_date_to_naive_date(dt)?, py_time_to_naive_time(dt)?);
         naive_dt.and_local_timezone(tz).single().ok_or_else(|| {
-            PyValueError::new_err(format!(
+            PyValueError::new_err1(format!(
                 "The datetime {:?} contains an incompatible or ambiguous timezone",
                 dt
             ))
@@ -351,7 +351,7 @@ impl FromPyObject<'_> for FixedOffset {
         // Trying to convert None to a PyDelta in the next line will then fail.
         let py_timedelta = ob.call_method1("utcoffset", ((),))?;
         if py_timedelta.is_none() {
-            return Err(PyTypeError::new_err(format!(
+            return Err(PyTypeError::new_err1(format!(
                 "{:?} is not a fixed offset timezone",
                 ob
             )));
@@ -360,7 +360,7 @@ impl FromPyObject<'_> for FixedOffset {
         // This cast is safe since the timedelta is limited to -24 hours and 24 hours.
         let total_seconds = total_seconds.num_seconds() as i32;
         FixedOffset::east_opt(total_seconds)
-            .ok_or_else(|| PyValueError::new_err("fixed offset out of bounds"))
+            .ok_or_else(|| PyValueError::new_err1("fixed offset out of bounds"))
     }
 }
 
@@ -382,7 +382,7 @@ impl FromPyObject<'_> for Utc {
         if ob.eq(py_utc)? {
             Ok(Utc)
         } else {
-            Err(PyValueError::new_err("expected datetime.timezone.utc"))
+            Err(PyValueError::new_err1("expected datetime.timezone.utc"))
         }
     }
 }
@@ -475,7 +475,7 @@ fn py_date_to_naive_date(py_date: &impl PyDateAccess) -> PyResult<NaiveDate> {
         py_date.get_month().into(),
         py_date.get_day().into(),
     )
-    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
+    .ok_or_else(|| PyValueError::new_err1("invalid or out-of-range date"))
 }
 
 #[cfg(Py_LIMITED_API)]
@@ -485,7 +485,7 @@ fn py_date_to_naive_date(py_date: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
         py_date.getattr(intern!(py_date.py(), "month"))?.extract()?,
         py_date.getattr(intern!(py_date.py(), "day"))?.extract()?,
     )
-    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
+    .ok_or_else(|| PyValueError::new_err1("invalid or out-of-range date"))
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -496,7 +496,7 @@ fn py_time_to_naive_time(py_time: &impl PyTimeAccess) -> PyResult<NaiveTime> {
         py_time.get_second().into(),
         py_time.get_microsecond(),
     )
-    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
+    .ok_or_else(|| PyValueError::new_err1("invalid or out-of-range time"))
 }
 
 #[cfg(Py_LIMITED_API)]
@@ -513,7 +513,7 @@ fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
             .getattr(intern!(py_time.py(), "microsecond"))?
             .extract()?,
     )
-    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
+    .ok_or_else(|| PyValueError::new_err1("invalid or out-of-range time"))
 }
 
 #[cfg(Py_LIMITED_API)]

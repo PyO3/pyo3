@@ -33,11 +33,11 @@ impl TestBufferErrors {
         flags: c_int,
     ) -> PyResult<()> {
         if view.is_null() {
-            return Err(PyBufferError::new_err("View is null"));
+            return Err(PyBufferError::new_err1("View is null"));
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-            return Err(PyBufferError::new_err("Object is not writable"));
+            return Err(PyBufferError::new_err1("Object is not writable"));
         }
 
         let bytes = &slf.buf;

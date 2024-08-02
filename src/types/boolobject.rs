@@ -190,7 +190,7 @@ impl FromPyObject<'_> for bool {
 
         if is_numpy_bool {
             let missing_conversion = |obj: &Bound<'_, PyAny>| {
-                PyTypeError::new_err(format!(
+                PyTypeError::new_err1(format!(
                     "object of type '{}' does not define a '__bool__' conversion",
                     obj.get_type()
                 ))

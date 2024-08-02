@@ -101,7 +101,7 @@ where
                 std::any::type_name::<L>(),
                 std::any::type_name::<R>()
             );
-            Err(PyTypeError::new_err(err_msg))
+            Err(PyTypeError::new_err1(err_msg))
         }
     }
 

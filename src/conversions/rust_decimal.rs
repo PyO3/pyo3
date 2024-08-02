@@ -67,7 +67,7 @@ impl FromPyObject<'_> for Decimal {
             let py_str = &obj.str()?;
             let rs_str = &py_str.to_cow()?;
             Decimal::from_str(rs_str).or_else(|_| {
-                Decimal::from_scientific(rs_str).map_err(|e| PyValueError::new_err(e.to_string()))
+                Decimal::from_scientific(rs_str).map_err(|e| PyValueError::new_err1(e.to_string()))
             })
         }
     }

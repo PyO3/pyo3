@@ -317,7 +317,7 @@ where
 {
     fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
         if obj.is_instance_of::<PyString>() {
-            return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
+            return Err(PyTypeError::new_err1("Can't extract `str` to `Vec`"));
         }
         extract_sequence(obj)
     }
