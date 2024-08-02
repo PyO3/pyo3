@@ -1,5 +1,6 @@
 #![no_implicit_prelude]
 #![allow(dead_code, unused_variables, clippy::unnecessary_wraps)]
+#![deny(unsafe_code)]
 
 // The modules in this test are used to check PyO3 macro expansion is hygienic. By locating the test
 // inside the crate the global `::pyo3` namespace is not available, so in combination with
