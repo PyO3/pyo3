@@ -1,37 +1,36 @@
-error[E0599]: the method `conversion_kind` exists for reference `&&&Blah`, but its trait bounds were not satisfied
+error[E0277]: `Blah` cannot be converted to a Python object
+ --> tests/ui/missing_intopy.rs:4:14
+  |
+4 | fn blah() -> Blah {
+  |              ^^^^ the trait `IntoPyObject<'_>` is not implemented for `Blah`
+  |
+  = note: `IntoPyObject` is automatically implemented by the `#[pyclass]` macro
+  = note: if you do not wish to have a corresponding Python type, implement it manually
+  = note: if you do not own `Blah` you can perform a manual conversion to one of the types in `pyo3::types::*`
+  = help: the following other types implement trait `IntoPyObject<'py>`:
+            &'a Py<T>
+            &'a PyRef<'py, T>
+            &'a PyRefMut<'py, T>
+            &'a pyo3::Bound<'py, T>
+            &OsStr
+            &OsString
+            &Path
+            &PathBuf
+          and $N others
+note: required by a bound in `UnknownReturnType::<T>::wrap`
+ --> src/impl_/wrap.rs
+  |
+  |     pub fn wrap<'py>(&self, _: T) -> T
+  |            ---- required by a bound in this associated function
+  |     where
+  |         T: IntoPyObject<'py>,
+  |            ^^^^^^^^^^^^^^^^^ required by this bound in `UnknownReturnType::<T>::wrap`
+
+error[E0599]: no method named `map_err` found for struct `Blah` in the current scope
  --> tests/ui/missing_intopy.rs:4:14
   |
 1 | struct Blah;
-  | ----------- doesn't satisfy `Blah: IntoPy<Py<PyAny>>`, `Blah: IntoPyKind` or `Blah: IntoPyObject<'_>`
+  | ----------- method `map_err` not found for this struct
 ...
-4 | fn blah() -> Blah{
-  |              ^^^^ method cannot be called on `&&&Blah` due to unsatisfied trait bounds
-  |
-  = note: the following trait bounds were not satisfied:
-          `&&Blah: IntoPy<Py<PyAny>>`
-          which is required by `&&Blah: IntoPyKind`
-          `&Blah: IntoPyObject<'_>`
-          which is required by `&&Blah: IntoPyObjectKind`
-          `&&&Blah: IntoPy<Py<PyAny>>`
-          which is required by `&&&Blah: IntoPyKind`
-          `&&Blah: IntoPyObject<'_>`
-          which is required by `&&&Blah: IntoPyObjectKind`
-          `&Blah: IntoPy<Py<PyAny>>`
-          which is required by `&Blah: IntoPyKind`
-          `Blah: IntoPyObject<'_>`
-          which is required by `&Blah: IntoPyObjectKind`
-          `Blah: IntoPy<Py<PyAny>>`
-          which is required by `Blah: IntoPyKind`
-note: the traits `IntoPy` and `IntoPyObject` must be implemented
- --> src/conversion.rs
-  |
-  | pub trait IntoPy<T>: Sized {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-...
-  | pub trait IntoPyObject<'py>: Sized {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = help: items from traits can only be used if the trait is implemented and in scope
-  = note: the following traits define an item `conversion_kind`, perhaps you need to implement one of them:
-          candidate #1: `IntoPyKind`
-          candidate #2: `IntoPyNoneKind`
-          candidate #3: `IntoPyObjectKind`
+4 | fn blah() -> Blah {
+  |              ^^^^ method not found in `Blah`

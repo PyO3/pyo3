@@ -697,12 +697,7 @@ impl<'a> FnSpec<'a> {
                         #throw_callback,
                         async move {
                             let fut = future.await;
-                            {
-                                #[allow(unused_imports)]
-                                use #pyo3_path::impl_::wrap::{IntoPyKind, IntoPyObjectKind};
-                                #[allow(clippy::needless_borrow)]
-                                (&&&fut).conversion_kind().wrap(fut)
-                            }
+                            #pyo3_path::impl_::wrap::converter(&fut).wrap(fut)
                         },
                     )
                 }};
