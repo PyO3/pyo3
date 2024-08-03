@@ -23,14 +23,14 @@ With the removal of the `gil-ref` API it is now possible to fully split the Pyth
 GIL lifetime.
 
 `FromPyObject` now takes an additional lifetime `'a` describing the input lifetime. The argument
-type of the `extract` method changed from `&Bound<'_, PyAny>` to `Borrowed<'_, '_, PyAny>`. This was
-done to lift the implicit restriction `'py: 'a` due to the reference type. `extract_bound` with it's
+type of the `extract` method changed from `&Bound<'py, PyAny>` to `Borrowed<'a, 'py, PyAny>`. This was
+done because `&'a Bound<'py, PyAny>` would have an implicit restriction `'py: 'a` due to the reference type. `extract_bound` with its
 old signature is deprecated, but still available during migration.
 
 This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and
 is now extended to all types.
 
-Most implementation can just add an elided lifetime to migrate,
+Most implementations can just add an elided lifetime to migrate.
 
 Before:
 ```rust,ignore
@@ -52,7 +52,7 @@ impl<'py> FromPyObject<'_, 'py> for IpAddr {
 }
 ```
 
-but occasually more steps are neccessary. For generic types, the bounds need to be adjusted. The
+Occasionally, more steps are necessary. For generic types, the bounds need to be adjusted. The
 correct bound depends on how the type is used.
 
 For simple wrapper types usually it's possible to just forward the bound.
