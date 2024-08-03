@@ -265,7 +265,7 @@ impl FunctionDescription {
     /// - `args` must be a pointer to a C-style array of valid `ffi::PyObject` pointers, or NULL.
     /// - `kwnames` must be a pointer to a PyTuple, or NULL.
     /// - `nargs + kwnames.len()` is the total length of the `args` array.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub unsafe fn extract_arguments_fastcall<'py, V, K>(
         &self,
         py: Python<'py>,

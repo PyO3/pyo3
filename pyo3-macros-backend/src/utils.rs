@@ -288,10 +288,6 @@ pub fn apply_renaming_rule(rule: RenamingRule, name: &str) -> String {
     }
 }
 
-pub(crate) fn is_abi3() -> bool {
-    pyo3_build_config::get().abi3
-}
-
 pub(crate) enum IdentOrStr<'a> {
     Str(&'a str),
     Ident(syn::Ident),
