@@ -503,7 +503,8 @@ fn impl_py_class_attribute(
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
-            #pyo3_path::impl_::wrap::map_result_into_py(py, #body)
+            let result = #body;
+            #pyo3_path::impl_::wrap::converter(&result).map_into_pyobject(py, result)
         }
     };
 

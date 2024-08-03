@@ -92,6 +92,17 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     }
 
     #[inline]
+    pub fn map_into_pyobject(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<PyObject>
+    where
+        T: IntoPyObject<'py>,
+        PyErr: From<T::Error>,
+    {
+        obj.and_then(|obj| obj.into_pyobject(py).map_err(Into::into))
+            .map(BoundObject::into_any)
+            .map(BoundObject::unbind)
+    }
+
+    #[inline]
     pub fn map_into_ptr(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject>
     where
         T: IntoPyObject<'py>,
@@ -114,6 +125,11 @@ impl<T: IntoPy<PyObject>, E> IntoPyConverter<Result<T, E>> {
     #[inline]
     pub fn wrap(&self, obj: Result<T, E>) -> Result<T, E> {
         obj
+    }
+
+    #[inline]
+    pub fn map_into_pyobject(&self, py: Python<'_>, obj: PyResult<T>) -> PyResult<PyObject> {
+        obj.map(|obj| obj.into_py(py))
     }
 
     #[inline]
@@ -142,30 +158,20 @@ impl<T> UnknownReturnType<T> {
     }
 
     #[inline]
+    pub fn map_into_pyobject<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<PyObject>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+
+    #[inline]
     pub fn map_into_ptr<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<*mut ffi::PyObject>
     where
         T: IntoPyObject<'py>,
     {
         unreachable!("should be handled by IntoPyObjectConverter")
     }
-}
-
-/// This is a follow-up function to `OkWrap::wrap` that converts the result into
-/// a `*mut ffi::PyObject` pointer.
-pub fn map_result_into_ptr<T: IntoPy<PyObject>>(
-    py: Python<'_>,
-    result: PyResult<T>,
-) -> PyResult<*mut ffi::PyObject> {
-    result.map(|obj| obj.into_py(py).into_ptr())
-}
-
-/// This is a follow-up function to `OkWrap::wrap` that converts the result into
-/// a safe wrapper.
-pub fn map_result_into_py<T: IntoPy<PyObject>>(
-    py: Python<'_>,
-    result: PyResult<T>,
-) -> PyResult<PyObject> {
-    result.map(|err| err.into_py(py))
 }
 
 #[cfg(test)]
