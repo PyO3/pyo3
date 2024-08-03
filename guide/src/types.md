@@ -32,7 +32,7 @@ The lack of binding to the `'py` lifetime also carries drawbacks:
  - Almost all methods on `Py<T>` require a `Python<'py>` token as the first argument
  - Other functionality, such as [`Drop`][Drop], needs to check at runtime for attachment to the Python GIL, at a small performance cost
 
-Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is the better for function arguments.
+Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs. In particular, `Bound<'py, T>` is better for function arguments.
 
 To convert a `Py<T>` into a `Bound<'py, T>`, the `Py::bind` and `Py::into_bound` methods are available. `Bound<'py, T>` can be converted back into `Py<T>` using [`Bound::unbind`].
 
