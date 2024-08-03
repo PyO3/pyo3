@@ -1,12 +1,15 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::instance::Bound;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{intern, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    intern, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+};
 
 impl FromPyObject<'_> for IpAddr {
     fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
@@ -40,6 +43,19 @@ impl ToPyObject for Ipv4Addr {
     }
 }
 
+impl<'py> IntoPyObject<'py> for Ipv4Addr {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        static IPV4_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        IPV4_ADDRESS
+            .get_or_try_init_type_ref(py, "ipaddress", "IPv4Address")?
+            .call1((u32::from_be_bytes(self.octets()),))
+    }
+}
+
 impl ToPyObject for Ipv6Addr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         static IPV6_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
@@ -49,6 +65,19 @@ impl ToPyObject for Ipv6Addr {
             .call1((u128::from_be_bytes(self.octets()),))
             .expect("failed to construct ipaddress.IPv6Address")
             .unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for Ipv6Addr {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        static IPV6_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+        IPV6_ADDRESS
+            .get_or_try_init_type_ref(py, "ipaddress", "IPv6Address")?
+            .call1((u128::from_be_bytes(self.octets()),))
     }
 }
 
@@ -64,6 +93,19 @@ impl ToPyObject for IpAddr {
 impl IntoPy<PyObject> for IpAddr {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for IpAddr {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self {
+            IpAddr::V4(ip) => ip.into_pyobject(py),
+            IpAddr::V6(ip) => ip.into_pyobject(py),
+        }
     }
 }
 

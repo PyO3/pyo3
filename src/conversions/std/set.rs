@@ -3,12 +3,15 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
+    conversion::IntoPyObject,
     instance::Bound,
-    types::any::PyAnyMethods,
-    types::frozenset::PyFrozenSetMethods,
-    types::set::{new_from_iter, PySetMethods},
-    types::{PyFrozenSet, PySet},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    types::{
+        any::PyAnyMethods,
+        frozenset::PyFrozenSetMethods,
+        set::{new_from_iter, try_new_from_iter, PySetMethods},
+        PyFrozenSet, PySet,
+    },
+    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
@@ -51,6 +54,29 @@ where
     }
 }
 
+impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
+where
+    K: IntoPyObject<'py> + Eq + hash::Hash,
+    S: hash::BuildHasher + Default,
+    PyErr: From<K::Error>,
+{
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(
+            py,
+            self.into_iter().map(|item| {
+                item.into_pyobject(py)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::unbind)
+                    .map_err(Into::into)
+            }),
+        )
+    }
+}
+
 impl<'py, K, S> FromPyObject<'py> for collections::HashSet<K, S>
 where
     K: FromPyObject<'py> + cmp::Eq + hash::Hash,
@@ -88,6 +114,28 @@ where
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::set_of(K::type_output())
+    }
+}
+
+impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
+where
+    K: IntoPyObject<'py> + Eq + hash::Hash,
+    PyErr: From<K::Error>,
+{
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(
+            py,
+            self.into_iter().map(|item| {
+                item.into_pyobject(py)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::unbind)
+                    .map_err(Into::into)
+            }),
+        )
     }
 }
 

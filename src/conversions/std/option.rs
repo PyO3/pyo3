@@ -1,6 +1,6 @@
 use crate::{
-    ffi, types::any::PyAnyMethods, AsPyPointer, Bound, FromPyObject, IntoPy, PyAny, PyObject,
-    PyResult, Python, ToPyObject,
+    conversion::IntoPyObject, ffi, types::any::PyAnyMethods, AsPyPointer, Bound, BoundObject,
+    FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// `Option::Some<T>` is converted like `T`.
@@ -21,6 +21,26 @@ where
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.map_or_else(|| py.None(), |val| val.into_py(py))
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Option<T>
+where
+    T: IntoPyObject<'py>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = T::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.map_or_else(
+            || Ok(py.None().into_bound(py)),
+            |val| {
+                val.into_pyobject(py)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::into_bound)
+            },
+        )
     }
 }
 

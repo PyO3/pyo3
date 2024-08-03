@@ -29,6 +29,15 @@ pub(crate) fn new_from_iter<'py>(
     py: Python<'py>,
     elements: &mut dyn ExactSizeIterator<Item = PyObject>,
 ) -> Bound<'py, PyList> {
+    try_new_from_iter(py, &mut elements.map(Ok)).unwrap()
+}
+
+#[inline]
+#[track_caller]
+pub(crate) fn try_new_from_iter<'py>(
+    py: Python<'py>,
+    elements: &mut dyn ExactSizeIterator<Item = PyResult<PyObject>>,
+) -> PyResult<Bound<'py, PyList>> {
     unsafe {
         // PyList_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -47,16 +56,16 @@ pub(crate) fn new_from_iter<'py>(
 
         for obj in elements.take(len as usize) {
             #[cfg(not(Py_LIMITED_API))]
-            ffi::PyList_SET_ITEM(ptr, counter, obj.into_ptr());
+            ffi::PyList_SET_ITEM(ptr, counter, obj?.into_ptr());
             #[cfg(Py_LIMITED_API)]
-            ffi::PyList_SetItem(ptr, counter, obj.into_ptr());
+            ffi::PyList_SetItem(ptr, counter, obj?.into_ptr());
             counter += 1;
         }
 
         assert!(elements.next().is_none(), "Attempted to create PyList but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
         assert_eq!(len, counter, "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
 
-        list
+        Ok(list)
     }
 }
 

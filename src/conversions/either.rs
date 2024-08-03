@@ -46,8 +46,8 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    exceptions::PyTypeError, types::any::PyAnyMethods, Bound, FromPyObject, IntoPy, PyAny,
-    PyObject, PyResult, Python, ToPyObject,
+    conversion::IntoPyObject, exceptions::PyTypeError, types::any::PyAnyMethods, Bound,
+    BoundObject, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use either::Either;
 
@@ -62,6 +62,34 @@ where
         match self {
             Either::Left(l) => l.into_py(py),
             Either::Right(r) => r.into_py(py),
+        }
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "either")))]
+impl<'py, L, R, E1, E2> IntoPyObject<'py> for Either<L, R>
+where
+    L: IntoPyObject<'py, Error = E1>,
+    R: IntoPyObject<'py, Error = E2>,
+    E1: Into<PyErr>,
+    E2: Into<PyErr>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self {
+            Either::Left(l) => l
+                .into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
+                .map_err(Into::into),
+            Either::Right(r) => r
+                .into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
+                .map_err(Into::into),
         }
     }
 }

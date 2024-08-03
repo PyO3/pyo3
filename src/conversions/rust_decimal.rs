@@ -49,12 +49,15 @@
 //! assert d + 1 == value
 //! ```
 
+use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{Bound, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::{
+    Bound, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
@@ -99,10 +102,22 @@ impl IntoPy<PyObject> for Decimal {
     }
 }
 
+impl<'py> IntoPyObject<'py> for Decimal {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dec_cls = get_decimal_cls(py)?;
+        // now call the constructor with the Rust Decimal string-ified
+        // to not be lossy
+        dec_cls.call1((self.to_string(),))
+    }
+}
+
 #[cfg(test)]
 mod test_rust_decimal {
     use super::*;
-    use crate::err::PyErr;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
 

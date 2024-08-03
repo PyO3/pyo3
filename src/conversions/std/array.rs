@@ -1,6 +1,8 @@
+use crate::conversion::IntoPyObject;
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
-use crate::types::PySequence;
+use crate::types::{PyList, PySequence};
 use crate::{
     err::DowncastError, ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
     ToPyObject,
@@ -32,6 +34,40 @@ where
             }
 
             list
+        }
+    }
+}
+
+impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
+where
+    T: IntoPyObject<'py>,
+{
+    type Target = PyList;
+    type Output = Bound<'py, Self::Target>;
+    type Error = T::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        use crate::BoundObject;
+        unsafe {
+            let len = N as ffi::Py_ssize_t;
+
+            let ptr = ffi::PyList_New(len);
+
+            // We create the `Bound` pointer here for two reasons:
+            // - panics if the ptr is null
+            // - its Drop cleans up the list if user code errors or panics.
+            let list = ptr.assume_owned(py).downcast_into_unchecked::<PyList>();
+
+            for (i, obj) in (0..len).zip(self) {
+                let obj = obj.into_pyobject(py)?.into_ptr();
+
+                #[cfg(not(Py_LIMITED_API))]
+                ffi::PyList_SET_ITEM(ptr, i, obj);
+                #[cfg(Py_LIMITED_API)]
+                ffi::PyList_SetItem(ptr, i, obj);
+            }
+
+            Ok(list)
         }
     }
 }

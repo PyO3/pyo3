@@ -1,3 +1,4 @@
+use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyOverflowError, PyValueError};
 use crate::sync::GILOnceCell;
 use crate::types::any::PyAnyMethods;
@@ -89,6 +90,39 @@ impl IntoPy<PyObject> for Duration {
     }
 }
 
+impl<'py> IntoPyObject<'py> for Duration {
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDelta;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let days = self.as_secs() / SECONDS_PER_DAY;
+        let seconds = self.as_secs() % SECONDS_PER_DAY;
+        let microseconds = self.subsec_micros();
+
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            PyDelta::new_bound(
+                py,
+                days.try_into()?,
+                seconds.try_into().unwrap(),
+                microseconds.try_into().unwrap(),
+                false,
+            )
+        }
+        #[cfg(Py_LIMITED_API)]
+        {
+            static TIMEDELTA: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+            TIMEDELTA
+                .get_or_try_init_type_ref(py, "datetime", "timedelta")?
+                .call1((days, seconds, microseconds))
+        }
+    }
+}
+
 // Conversions between SystemTime and datetime do not rely on the floating point timestamp of the
 // timestamp/fromtimestamp APIs to avoid possible precision loss but goes through the
 // timedelta/std::time::Duration types by taking for reference point the UNIX epoch.
@@ -120,6 +154,20 @@ impl ToPyObject for SystemTime {
 impl IntoPy<PyObject> for SystemTime {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for SystemTime {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let duration_since_unix_epoch =
+            self.duration_since(UNIX_EPOCH).unwrap().into_pyobject(py)?;
+        unix_epoch_py(py)
+            .bind(py)
+            .call_method1(intern!(py, "__add__"), (duration_since_unix_epoch,))
     }
 }
 

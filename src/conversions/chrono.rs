@@ -40,6 +40,7 @@
 //! }
 //! ```
 
+use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(Py_LIMITED_API)]
 use crate::sync::GILOnceCell;
@@ -106,6 +107,51 @@ impl IntoPy<PyObject> for Duration {
     }
 }
 
+impl<'py> IntoPyObject<'py> for Duration {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDelta;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        // Total number of days
+        let days = self.num_days();
+        // Remainder of seconds
+        let secs_dur = self - Duration::days(days);
+        let secs = secs_dur.num_seconds();
+        // Fractional part of the microseconds
+        let micros = (secs_dur - Duration::seconds(secs_dur.num_seconds()))
+            .num_microseconds()
+            // This should never panic since we are just getting the fractional
+            // part of the total microseconds, which should never overflow.
+            .unwrap();
+
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            // We do not need to check the days i64 to i32 cast from rust because
+            // python will panic with OverflowError.
+            // We pass true as the `normalize` parameter since we'd need to do several checks here to
+            // avoid that, and it shouldn't have a big performance impact.
+            // The seconds and microseconds cast should never overflow since it's at most the number of seconds per day
+            PyDelta::new_bound(
+                py,
+                days.try_into().unwrap_or(i32::MAX),
+                secs.try_into()?,
+                micros.try_into()?,
+                true,
+            )
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            DatetimeTypes::try_get(py)
+                .and_then(|dt| dt.timedelta.bind(py).call1((days, secs, micros)))
+        }
+    }
+}
+
 impl FromPyObject<'_> for Duration {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
         // Python size are much lower than rust size so we do not need bound checks.
@@ -163,6 +209,28 @@ impl IntoPy<PyObject> for NaiveDate {
     }
 }
 
+impl<'py> IntoPyObject<'py> for NaiveDate {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let DateArgs { year, month, day } = (&self).into();
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            PyDate::new_bound(py, year, month, day)
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            DatetimeTypes::try_get(py).and_then(|dt| dt.date.bind(py).call1((year, month, day)))
+        }
+    }
+}
+
 impl FromPyObject<'_> for NaiveDate {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
         #[cfg(not(Py_LIMITED_API))]
@@ -209,6 +277,38 @@ impl IntoPy<PyObject> for NaiveTime {
     }
 }
 
+impl<'py> IntoPyObject<'py> for NaiveTime {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let TimeArgs {
+            hour,
+            min,
+            sec,
+            micro,
+            truncated_leap_second,
+        } = (&self).into();
+
+        #[cfg(not(Py_LIMITED_API))]
+        let time = PyTime::new_bound(py, hour, min, sec, micro, None)?;
+
+        #[cfg(Py_LIMITED_API)]
+        let time = DatetimeTypes::try_get(py)
+            .and_then(|dt| dt.time.bind(py).call1((hour, min, sec, micro)))?;
+
+        if truncated_leap_second {
+            warn_truncated_leap_second(&time);
+        }
+
+        Ok(time)
+    }
+}
+
 impl FromPyObject<'_> for NaiveTime {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
         #[cfg(not(Py_LIMITED_API))]
@@ -233,6 +333,42 @@ impl ToPyObject for NaiveDateTime {
 impl IntoPy<PyObject> for NaiveDateTime {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for NaiveDateTime {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDateTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let DateArgs { year, month, day } = (&self.date()).into();
+        let TimeArgs {
+            hour,
+            min,
+            sec,
+            micro,
+            truncated_leap_second,
+        } = (&self.time()).into();
+
+        #[cfg(not(Py_LIMITED_API))]
+        let datetime = PyDateTime::new_bound(py, year, month, day, hour, min, sec, micro, None)?;
+
+        #[cfg(Py_LIMITED_API)]
+        let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
+            dt.datetime
+                .bind(py)
+                .call1((year, month, day, hour, min, sec, micro))
+        })?;
+
+        if truncated_leap_second {
+            warn_truncated_leap_second(&datetime);
+        }
+
+        Ok(datetime)
     }
 }
 
@@ -272,6 +408,44 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
 impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDateTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let tz = self.offset().fix().into_pyobject(py)?;
+        let DateArgs { year, month, day } = (&self.naive_local().date()).into();
+        let TimeArgs {
+            hour,
+            min,
+            sec,
+            micro,
+            truncated_leap_second,
+        } = (&self.naive_local().time()).into();
+
+        #[cfg(not(Py_LIMITED_API))]
+        let datetime =
+            PyDateTime::new_bound(py, year, month, day, hour, min, sec, micro, Some(&tz))?;
+
+        #[cfg(Py_LIMITED_API)]
+        let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
+            dt.datetime
+                .bind(py)
+                .call1((year, month, day, hour, min, sec, micro, tz))
+        })?;
+
+        if truncated_leap_second {
+            warn_truncated_leap_second(&datetime);
+        }
+
+        Ok(datetime)
     }
 }
 
@@ -333,6 +507,30 @@ impl IntoPy<PyObject> for FixedOffset {
     }
 }
 
+impl<'py> IntoPyObject<'py> for FixedOffset {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyTzInfo;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let seconds_offset = self.local_minus_utc();
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let td = PyDelta::new_bound(py, 0, seconds_offset, 0, true)?;
+            timezone_from_offset(&td)
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            let td = Duration::seconds(seconds_offset.into()).into_pyobject(py)?;
+            DatetimeTypes::try_get(py).and_then(|dt| dt.timezone.bind(py).call1((td,)))
+        }
+    }
+}
+
 impl FromPyObject<'_> for FixedOffset {
     /// Convert python tzinfo to rust [`FixedOffset`].
     ///
@@ -373,6 +571,26 @@ impl ToPyObject for Utc {
 impl IntoPy<PyObject> for Utc {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for Utc {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyTzInfo;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        #[cfg(Py_LIMITED_API)]
+        {
+            Ok(timezone_utc_bound(py).into_any())
+        }
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            Ok(timezone_utc_bound(py))
+        }
     }
 }
 
@@ -538,22 +756,24 @@ struct DatetimeTypes {
 #[cfg(Py_LIMITED_API)]
 impl DatetimeTypes {
     fn get(py: Python<'_>) -> &Self {
+        Self::try_get(py).expect("failed to load datetime module")
+    }
+
+    fn try_get(py: Python<'_>) -> PyResult<&Self> {
         static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
-        TYPES
-            .get_or_try_init(py, || {
-                let datetime = py.import_bound("datetime")?;
-                let timezone = datetime.getattr("timezone")?;
-                Ok::<_, PyErr>(Self {
-                    date: datetime.getattr("date")?.into(),
-                    datetime: datetime.getattr("datetime")?.into(),
-                    time: datetime.getattr("time")?.into(),
-                    timedelta: datetime.getattr("timedelta")?.into(),
-                    timezone_utc: timezone.getattr("utc")?.into(),
-                    timezone: timezone.into(),
-                    tzinfo: datetime.getattr("tzinfo")?.into(),
-                })
+        TYPES.get_or_try_init(py, || {
+            let datetime = py.import_bound("datetime")?;
+            let timezone = datetime.getattr("timezone")?;
+            Ok::<_, PyErr>(Self {
+                date: datetime.getattr("date")?.into(),
+                datetime: datetime.getattr("datetime")?.into(),
+                time: datetime.getattr("time")?.into(),
+                timedelta: datetime.getattr("timedelta")?.into(),
+                timezone_utc: timezone.getattr("utc")?.into(),
+                timezone: timezone.into(),
+                tzinfo: datetime.getattr("tzinfo")?.into(),
             })
-            .expect("failed to load datetime module")
+        })
     }
 }
 

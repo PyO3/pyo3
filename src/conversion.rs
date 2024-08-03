@@ -5,7 +5,10 @@ use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
-use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python};
+use crate::{
+    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python,
+};
+use std::convert::Infallible;
 
 /// Returns a borrowed pointer to a Python object.
 ///
@@ -168,6 +171,84 @@ pub trait IntoPy<T>: Sized {
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::Any
+    }
+}
+
+/// Defines a conversion from a Rust type to a Python object, which may fail.
+///
+/// It functions similarly to std's [`TryInto`] trait, but requires a [GIL token](Python)
+/// as an argument.
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be converted to a Python object",
+        note = "`IntoPyObject` is automatically implemented by the `#[pyclass]` macro",
+        note = "if you do not wish to have a corresponding Python type, implement it manually",
+        note = "if you do not own `{Self}` you can perform a manual conversion to one of the types in `pyo3::types::*`"
+    )
+)]
+pub trait IntoPyObject<'py>: Sized {
+    /// The Python output type
+    type Target;
+    /// The smart pointer type to use.
+    ///
+    /// This will usually be [`Bound<'py, Target>`], but can special cases `&'a Bound<'py, Target>`
+    /// or [`Borrowed<'a, 'py, Target>`] can be used to minimize reference counting overhead.
+    type Output: BoundObject<'py, Self::Target>;
+    /// The type returned in the event of a conversion error.
+    type Error;
+
+    /// Performs the conversion.
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
+}
+
+impl<'py, T> IntoPyObject<'py> for Bound<'py, T> {
+    type Target = T;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for &'a Bound<'py, T> {
+    type Target = T;
+    type Output = &'a Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for Borrowed<'a, 'py, T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for Py<T> {
+    type Target = T;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.into_bound(py))
+    }
+}
+
+impl<'a, 'py, T> IntoPyObject<'py> for &'a Py<T> {
+    type Target = T;
+    type Output = Borrowed<'a, 'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.bind_borrowed(py))
     }
 }
 
@@ -351,6 +432,16 @@ where
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty(py).unbind()
+    }
+}
+
+impl<'py> IntoPyObject<'py> for () {
+    type Target = PyTuple;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyTuple::empty(py))
     }
 }
 
