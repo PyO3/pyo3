@@ -161,9 +161,9 @@ macro_rules! bigint_conversion {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 use $crate::py_result_ext::PyResultExt;
                 let bytes = $to_bytes(&self);
-                let bytes_obj = PyBytes::new_bound(py, &bytes);
+                let bytes_obj = PyBytes::new(py, &bytes);
                 let kwargs = if $is_signed {
-                    let kwargs = crate::types::PyDict::new_bound(py);
+                    let kwargs = crate::types::PyDict::new(py);
                     kwargs.set_item(crate::intern!(py, "signed"), true)?;
                     Some(kwargs)
                 } else {

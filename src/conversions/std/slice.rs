@@ -25,7 +25,7 @@ impl<'py> IntoPyObject<'py> for &[u8] {
     type Error = Infallible;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new_bound(py, self))
+        Ok(PyBytes::new(py, self))
     }
 }
 
@@ -79,7 +79,7 @@ impl<'py> IntoPyObject<'py> for Cow<'_, [u8]> {
     type Error = Infallible;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new_bound(py, &self))
+        Ok(PyBytes::new(py, &self))
     }
 }
 

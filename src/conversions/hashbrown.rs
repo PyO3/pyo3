@@ -66,7 +66,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         for (k, v) in self {
             dict.set_item(
                 k.into_pyobject(py)?.into_bound(),
