@@ -184,7 +184,7 @@ struct EmptyClassInModule {}
 #[ignore]
 fn empty_class_in_module() {
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "test_module.nested").unwrap();
+        let module = PyModule::new(py, "test_module.nested").unwrap();
         module.add_class::<EmptyClassInModule>().unwrap();
 
         let ty = module.getattr("EmptyClassInModule").unwrap();

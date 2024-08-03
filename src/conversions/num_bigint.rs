@@ -450,7 +450,7 @@ mod tests {
                         return self.x
                 "#
         );
-        PyModule::from_code_bound(py, index_code, "index.py", "index").unwrap()
+        PyModule::from_code(py, index_code, "index.py", "index").unwrap()
     }
 
     #[test]

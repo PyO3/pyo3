@@ -75,7 +75,7 @@ fn parent_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let child_module = PyModule::new_bound(parent_module.py(), "child_module")?;
+    let child_module = PyModule::new(parent_module.py(), "child_module")?;
     child_module.add_function(wrap_pyfunction!(func, &child_module)?)?;
     parent_module.add_submodule(&child_module)
 }

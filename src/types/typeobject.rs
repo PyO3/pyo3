@@ -309,7 +309,7 @@ mod tests {
     #[test]
     fn test_type_names_standard() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
                 r#"
 class MyClass:
@@ -346,7 +346,7 @@ class MyClass:
     #[test]
     fn test_type_names_nested() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
                 r#"
 class OuterClass:

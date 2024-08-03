@@ -27,7 +27,7 @@ fn maturin_starter(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. from maturin_starter.submodule import SubmoduleClass
 
-    let sys = PyModule::import_bound(py, "sys")?;
+    let sys = PyModule::import(py, "sys")?;
     let sys_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
     sys_modules.set_item("maturin_starter.submodule", m.getattr("submodule")?)?;
 
