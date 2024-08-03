@@ -9,11 +9,8 @@ opaque_struct!(PyTypeObject);
 #[cfg(not(Py_LIMITED_API))]
 pub use crate::cpython::object::PyTypeObject;
 
-// _PyObject_HEAD_EXTRA: conditionally defined in PyObject_HEAD_INIT
-// _PyObject_EXTRA_INIT: conditionally defined in PyObject_HEAD_INIT
-
 #[cfg(Py_3_12)]
-pub const _Py_IMMORTAL_REFCNT: Py_ssize_t = {
+const _Py_IMMORTAL_REFCNT: Py_ssize_t = {
     if cfg!(target_pointer_width = "64") {
         c_uint::MAX as Py_ssize_t
     } else {
@@ -73,7 +70,7 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-// skipped _PyObject_CAST
+// skipped private _PyObject_CAST
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -83,7 +80,7 @@ pub struct PyVarObject {
     pub ob_size: Py_ssize_t,
 }
 
-// skipped _PyVarObject_CAST
+// skipped private _PyVarObject_CAST
 
 #[inline]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
@@ -135,13 +132,13 @@ pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
 
 #[inline(always)]
 #[cfg(all(Py_3_12, target_pointer_width = "64"))]
-pub unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
+unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
     (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
 }
 
 #[inline(always)]
 #[cfg(all(Py_3_12, target_pointer_width = "32"))]
-pub unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
+unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
     ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
 }
 
@@ -399,7 +396,7 @@ extern "C" {
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
 #[cfg(all(Py_3_12, not(Py_LIMITED_API)))]
-pub const _Py_TPFLAGS_STATIC_BUILTIN: c_ulong = 1 << 1;
+const _Py_TPFLAGS_STATIC_BUILTIN: c_ulong = 1 << 1;
 
 #[cfg(all(Py_3_12, not(Py_LIMITED_API)))]
 pub const Py_TPFLAGS_MANAGED_WEAKREF: c_ulong = 1 << 3;
@@ -474,14 +471,14 @@ pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
 
 extern "C" {
     #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
-    pub fn _Py_NegativeRefcount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
+    fn _Py_NegativeRefcount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
     #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
     fn _Py_INCREF_IncRefTotal();
     #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
     fn _Py_DECREF_DecRefTotal();
 
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
-    pub fn _Py_Dealloc(arg1: *mut PyObject);
+    fn _Py_Dealloc(arg1: *mut PyObject);
 
     #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
     #[cfg_attr(GraalPy, link_name = "_Py_IncRef")]
@@ -491,18 +488,18 @@ extern "C" {
     pub fn Py_DecRef(o: *mut PyObject);
 
     #[cfg(all(Py_3_10, not(PyPy)))]
-    pub fn _Py_IncRef(o: *mut PyObject);
+    fn _Py_IncRef(o: *mut PyObject);
     #[cfg(all(Py_3_10, not(PyPy)))]
-    pub fn _Py_DecRef(o: *mut PyObject);
+    fn _Py_DecRef(o: *mut PyObject);
 
     #[cfg(GraalPy)]
-    pub fn _Py_REFCNT(arg1: *const PyObject) -> Py_ssize_t;
+    fn _Py_REFCNT(arg1: *const PyObject) -> Py_ssize_t;
 
     #[cfg(GraalPy)]
-    pub fn _Py_TYPE(arg1: *const PyObject) -> *mut PyTypeObject;
+    fn _Py_TYPE(arg1: *const PyObject) -> *mut PyTypeObject;
 
     #[cfg(GraalPy)]
-    pub fn _Py_SIZE(arg1: *const PyObject) -> Py_ssize_t;
+    fn _Py_SIZE(arg1: *const PyObject) -> Py_ssize_t;
 }
 
 #[inline(always)]
@@ -657,14 +654,16 @@ extern "C" {
 // implementation works on all supported Python versions so we define these macros on all
 // versions for simplicity.
 
-#[inline]
-pub unsafe fn _Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
+#[inline(always)]
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+unsafe fn _Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
     Py_INCREF(obj);
     obj
 }
 
-#[inline]
-pub unsafe fn _Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
+#[inline(always)]
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+unsafe fn _Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
     Py_XINCREF(obj);
     obj
 }

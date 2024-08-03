@@ -11,8 +11,11 @@ pub use crate::_PyWeakReference as PyWeakReference;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg(not(PyPy))]
     pub static mut _PyWeakref_RefType: PyTypeObject;
+    #[cfg(not(PyPy))]
     pub static mut _PyWeakref_ProxyType: PyTypeObject;
+    #[cfg(not(PyPy))]
     pub static mut _PyWeakref_CallableProxyType: PyTypeObject;
 
     #[cfg(PyPy)]

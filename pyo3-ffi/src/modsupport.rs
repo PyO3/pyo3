@@ -28,30 +28,6 @@ extern "C" {
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPy_BuildValue")]
     pub fn Py_BuildValue(arg1: *const c_char, ...) -> *mut PyObject;
-    // #[cfg_attr(PyPy, link_name = "_PyPy_BuildValue_SizeT")]
-    //pub fn _Py_BuildValue_SizeT(arg1: *const c_char, ...)
-    // -> *mut PyObject;
-    // #[cfg_attr(PyPy, link_name = "PyPy_VaBuildValue")]
-
-    // skipped non-limited _PyArg_UnpackStack
-    // skipped non-limited _PyArg_NoKeywords
-    // skipped non-limited _PyArg_NoKwnames
-    // skipped non-limited _PyArg_NoPositional
-    // skipped non-limited _PyArg_BadArgument
-    // skipped non-limited _PyArg_CheckPositional
-
-    //pub fn Py_VaBuildValue(arg1: *const c_char, arg2: va_list)
-    // -> *mut PyObject;
-
-    // skipped non-limited _Py_VaBuildStack
-    // skipped non-limited _PyArg_Parser
-
-    // skipped non-limited _PyArg_ParseTupleAndKeywordsFast
-    // skipped non-limited _PyArg_ParseStack
-    // skipped non-limited _PyArg_ParseStackAndKeywords
-    // skipped non-limited _PyArg_VaParseTupleAndKeywordsFast
-    // skipped non-limited _PyArg_UnpackKeywords
-    // skipped non-limited _PyArg_Fini
 
     #[cfg(Py_3_10)]
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddObjectRef")]
@@ -158,10 +134,4 @@ pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject
             PYTHON_API_VERSION
         },
     )
-}
-
-#[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _Py_PackageContext: *const c_char;
 }

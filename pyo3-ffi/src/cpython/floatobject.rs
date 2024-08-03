@@ -11,7 +11,7 @@ pub struct PyFloatObject {
 }
 
 #[inline]
-pub unsafe fn _PyFloat_CAST(op: *mut PyObject) -> *mut PyFloatObject {
+unsafe fn _PyFloat_CAST(op: *mut PyObject) -> *mut PyFloatObject {
     debug_assert_eq!(PyFloat_Check(op), 1);
     op.cast()
 }

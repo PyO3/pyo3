@@ -5,6 +5,7 @@ pub(crate) mod bytesobject;
 pub(crate) mod ceval;
 pub(crate) mod code;
 pub(crate) mod compile;
+pub(crate) mod complexobject;
 pub(crate) mod descrobject;
 #[cfg(not(PyPy))]
 pub(crate) mod dictobject;
@@ -25,6 +26,7 @@ pub(crate) mod object;
 pub(crate) mod objimpl;
 pub(crate) mod pydebug;
 pub(crate) mod pyerrors;
+pub(crate) mod pyhash;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub(crate) mod pylifecycle;
 pub(crate) mod pymem;
@@ -43,6 +45,7 @@ pub use self::bytesobject::*;
 pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
+pub use self::complexobject::*;
 pub use self::descrobject::*;
 #[cfg(not(PyPy))]
 pub use self::dictobject::*;
@@ -63,6 +66,7 @@ pub use self::pydebug::*;
 pub use self::pyerrors::*;
 #[cfg(Py_3_11)]
 pub use self::pyframe::*;
+pub use self::pyhash::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
 pub use self::pymem::*;
