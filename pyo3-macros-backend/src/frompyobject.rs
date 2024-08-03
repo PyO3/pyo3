@@ -543,7 +543,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         let gen_ident = &param.ident;
         where_clause
             .predicates
-            .push(parse_quote!(#gen_ident: for<'_a> #pyo3_path::FromPyObject<'_a, 'py>))
+            .push(parse_quote!(#gen_ident: #pyo3_path::conversion::FromPyObjectOwned<#lt_param>))
     }
 
     let derives = match &tokens.data {
