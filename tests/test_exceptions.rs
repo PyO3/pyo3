@@ -50,7 +50,7 @@ impl fmt::Display for CustomError {
 
 impl std::convert::From<CustomError> for PyErr {
     fn from(err: CustomError) -> PyErr {
-        exceptions::PyOSError::new_err(err.to_string())
+        exceptions::PyOSError::new_err1(err.to_string())
     }
 }
 
@@ -109,14 +109,14 @@ fn test_write_unraisable() {
 
         assert!(capture.borrow(py).capture.is_none());
 
-        let err = PyRuntimeError::new_err("foo");
+        let err = PyRuntimeError::new_err1("foo");
         err.write_unraisable_bound(py, None);
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
         assert_eq!(err.to_string(), "RuntimeError: foo");
         assert!(object.is_none(py));
 
-        let err = PyRuntimeError::new_err("bar");
+        let err = PyRuntimeError::new_err1("bar");
         err.write_unraisable_bound(py, Some(&PyNotImplemented::get_bound(py)));
 
         let (err, object) = capture.borrow_mut(py).capture.take().unwrap();

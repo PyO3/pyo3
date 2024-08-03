@@ -71,7 +71,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                             Ok(obj)
                         }
                     }
-                    None => Err(crate::exceptions::PyTypeError::new_err(
+                    None => Err(crate::exceptions::PyTypeError::new_err1(
                         "base type without tp_new",
                     )),
                 }

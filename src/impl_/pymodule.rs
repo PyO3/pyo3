@@ -123,7 +123,7 @@ impl ModuleDef {
                     Ordering::SeqCst,
                 ) {
                     if initialized_interpreter != current_interpreter {
-                        return Err(PyImportError::new_err(
+                        return Err(PyImportError::new_err1(
                             "PyO3 modules do not yet support subinterpreters, see https://github.com/PyO3/pyo3/issues/576",
                         ));
                     }
@@ -134,7 +134,7 @@ impl ModuleDef {
                 // CPython before 3.9 does not have APIs to check the interpreter ID, so best that can be
                 // done to guard against subinterpreters is fail if the module is initialized twice
                 if self.module.get(py).is_some() {
-                    return Err(PyImportError::new_err(
+                    return Err(PyImportError::new_err1(
                         "PyO3 modules compiled for CPython 3.8 or older may only be initialized once per interpreter process"
                     ));
                 }

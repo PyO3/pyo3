@@ -37,7 +37,7 @@ impl FromPyObject<'_> for Duration {
 
         // We cast
         let days = u64::try_from(days).map_err(|_| {
-            PyValueError::new_err(
+            PyValueError::new_err1(
                 "It is not possible to convert a negative timedelta to a Rust Duration",
             )
         })?;
@@ -137,7 +137,7 @@ impl FromPyObject<'_> for SystemTime {
         UNIX_EPOCH
             .checked_add(duration_since_unix_epoch)
             .ok_or_else(|| {
-                PyOverflowError::new_err("Overflow error when converting the time to Rust")
+                PyOverflowError::new_err1("Overflow error when converting the time to Rust")
             })
     }
 }

@@ -119,7 +119,7 @@ impl From<eyre::Report> for PyErr {
                 Err(error) => error,
             };
         }
-        PyRuntimeError::new_err(format!("{:?}", error))
+        PyRuntimeError::new_err1(format!("{:?}", error))
     }
 }
 
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_pyo3_unwrap_simple_err() {
-        let origin_exc = PyValueError::new_err("Value Error");
+        let origin_exc = PyValueError::new_err0();
         let report: Report = origin_exc.into();
         let converted: PyErr = report.into();
         assert!(Python::with_gil(
@@ -185,7 +185,7 @@ mod tests {
     }
     #[test]
     fn test_pyo3_unwrap_complex_err() {
-        let origin_exc = PyValueError::new_err("Value Error");
+        let origin_exc = PyValueError::new_err0();
         let mut report: Report = origin_exc.into();
         report = report.wrap_err("Wrapped");
         let converted: PyErr = report.into();

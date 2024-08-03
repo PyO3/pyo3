@@ -398,7 +398,7 @@ impl PyClassIter {
             self.count += 1;
             Ok(self.count)
         } else {
-            Err(PyStopIteration::new_err("done"))
+            Err(PyStopIteration::new_err1("done"))
         }
     }
 }
@@ -811,7 +811,7 @@ When converting from `anyhow::Error` or `eyre::Report` to `PyErr`, if the inner 
 # use pyo3::exceptions::PyValueError;
 #[pyfunction]
 fn raise_err() -> anyhow::Result<()> {
-    Err(PyValueError::new_err("original error message").into())
+    Err(PyValueError::new_err1("original error message").into())
 }
 
 fn main() {
@@ -1476,7 +1476,7 @@ let result: PyResult<()> = PyErr::new::<TypeError, _>("error message").into();
 After (also using the new reworked exception types; see the following section):
 ```rust
 # use pyo3::{PyResult, exceptions::PyTypeError};
-let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
+let result: PyResult<()> = Err(PyTypeError::new_err1("error message"));
 ```
 </details>
 
@@ -1500,7 +1500,7 @@ After:
 # use pyo3::{PyErr, PyResult, Python, type_object::PyTypeObject};
 # use pyo3::exceptions::{PyBaseException, PyTypeError};
 # Python::with_gil(|py| -> PyResult<()> {
-let err: PyErr = PyTypeError::new_err("error message");
+let err: PyErr = PyTypeError::new_err1("error message");
 
 // Uses Display for PyErr, new for PyO3 0.12
 assert_eq!(err.to_string(), "TypeError: error message");

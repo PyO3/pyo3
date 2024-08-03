@@ -2,7 +2,7 @@ use crate::instance::Bound;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType};
+use crate::types::{string::PyStringMethods, typeobject::PyTypeMethods, PyTraceback, PyType, tuple::PyTuple};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -113,7 +113,32 @@ impl PyErr {
     ///
     /// If `T` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
-    /// If calling T's constructor with `args` raises an exception, that exception will be returned.
+    /// For examples, see [`new1`].
+    /// ```
+    #[inline]
+    #[deprecated(since = "0.23.0", note = "Use `PyErr::new0`, `PyErr::new1` or `PyErr::new_args` instead")]
+    pub fn new<T, A>(args: A) -> PyErr
+    where
+        T: PyTypeInfo,
+        A: PyErrArguments + Send + Sync + 'static,
+    {
+        PyErr::from_state(PyErrState::Lazy(Box::new(move |py| {
+            PyErrStateLazyFnOutput {
+                ptype: T::type_object_bound(py).into(),
+                pvalue: args.arguments(py),
+            }
+        })))
+    }
+
+    /// Creates a new PyErr of type `T`, with a single argument.
+    ///
+    /// This exception instance will be initialized lazily. This avoids the need for the Python GIL
+    /// to be held, but requires `args` to be `Send` and `Sync`. If `args` is not `Send` or `Sync`,
+    /// consider using [`PyErr::from_value_bound`] instead.
+    ///
+    /// If `T` does not inherit from `BaseException`, then a `TypeError` will be returned.
+    ///
+    /// If calling T's constructor raises an exception, that exception will be returned.
     ///
     /// # Examples
     ///
@@ -123,7 +148,7 @@ impl PyErr {
     ///
     /// #[pyfunction]
     /// fn always_throws() -> PyResult<()> {
-    ///     Err(PyErr::new::<PyTypeError, _>("Error message"))
+    ///     Err(PyErr::new1::<PyTypeError, _>("Error message"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -141,7 +166,7 @@ impl PyErr {
     ///
     /// #[pyfunction]
     /// fn always_throws() -> PyResult<()> {
-    ///     Err(PyTypeError::new_err("Error message"))
+    ///     Err(PyTypeError::new_err1("Error message"))
     /// }
     /// #
     /// # Python::with_gil(|py| {
@@ -151,7 +176,56 @@ impl PyErr {
     /// # });
     /// ```
     #[inline]
-    pub fn new<T, A>(args: A) -> PyErr
+    pub fn new1<T, A>(arg: A) -> PyErr
+    where
+        T: PyTypeInfo,
+        A: IntoPy<PyObject> + Send + Sync + 'static,
+    {
+        PyErr::from_state(PyErrState::Lazy(Box::new(move |py| {
+            PyErrStateLazyFnOutput {
+                ptype: T::type_object_bound(py).into(),
+                pvalue: PyTuple::new(py, &[arg.into_py(py)]).into(),
+            }
+        })))
+    }
+
+    /// Creates a new PyErr of type `T`, without any arguments.
+    ///
+    /// This exception instance will be initialized lazily. This avoids the need for the Python GIL
+    /// to be held, but requires `args` to be `Send` and `Sync`. If `args` is not `Send` or `Sync`,
+    /// consider using [`PyErr::from_value_bound`] instead.
+    ///
+    /// If `T` does not inherit from `BaseException`, then a `TypeError` will be returned.
+    ///
+    /// If calling T's constructor raises an exception, that exception will be returned.
+    ///
+    /// For examples, see [`new1`].
+    #[inline]
+    pub fn new0<T>() -> PyErr where T: PyTypeInfo {
+        PyErr::from_state(PyErrState::Lazy(Box::new(move |py| {
+            PyErrStateLazyFnOutput {
+                ptype: T::type_object_bound(py).into(),
+                pvalue: py.None(),
+            }
+        })))
+    }
+
+    /// Creates a new PyErr of type `T`, with multiple arguments.
+    ///
+    /// `args` can be either be a tuple or another object implementing
+    /// [`PyErrArguments`], which allows custom conversion into error arguments.
+    ///
+    /// This exception instance will be initialized lazily. This avoids the need for the Python GIL
+    /// to be held, but requires `args` to be `Send` and `Sync`. If `args` is not `Send` or `Sync`,
+    /// consider using [`PyErr::from_value_bound`] instead.
+    ///
+    /// If `T` does not inherit from `BaseException`, then a `TypeError` will be returned.
+    ///
+    /// If calling T's constructor raises an exception, that exception will be returned.
+    ///
+    /// For examples, see [`new1`].
+    #[inline]
+    pub fn new_args<T, A>(args: A) -> PyErr
     where
         T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
@@ -169,7 +243,8 @@ impl PyErr {
     /// `ty` is the exception type; usually one of the standard exceptions
     /// like `exceptions::PyRuntimeError`.
     ///
-    /// `args` is either a tuple or a single value, with the same meaning as in [`PyErr::new`].
+    /// `args` can be either be a tuple or another object implementing
+    /// [`PyErrArguments`], which allows custom conversion into error arguments.
     ///
     /// If `ty` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
@@ -178,7 +253,7 @@ impl PyErr {
     where
         A: PyErrArguments + Send + Sync + 'static,
     {
-        PyErr::from_state(PyErrState::lazy(ty.unbind().into_any(), args))
+        PyErr::from_state(PyErrState::lazy(ty.unbind().into_any(), Some(args)))
     }
 
     /// Creates a new PyErr.
@@ -198,7 +273,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
-    ///     let err = PyErr::from_value_bound(PyTypeError::new_err("some type error")
+    ///     let err = PyErr::from_value_bound(PyTypeError::new_err1("some type error")
     ///         .value_bound(py).clone().into_any());
     ///     assert_eq!(err.to_string(), "TypeError: some type error");
     ///
@@ -222,7 +297,7 @@ impl PyErr {
                 // is not the case
                 let obj = err.into_inner();
                 let py = obj.py();
-                PyErrState::lazy(obj.into_py(py), py.None())
+                PyErrState::lazy(obj.into_py(py), None::<()>)
             }
         };
 
@@ -236,7 +311,7 @@ impl PyErr {
     /// use pyo3::{prelude::*, exceptions::PyTypeError, types::PyType};
     ///
     /// Python::with_gil(|py| {
-    ///     let err: PyErr = PyTypeError::new_err(("some type error",));
+    ///     let err: PyErr = PyTypeError::new_err1("some type error");
     ///     assert!(err.get_type_bound(py).is(&PyType::new_bound::<PyTypeError>(py)));
     /// });
     /// ```
@@ -252,7 +327,7 @@ impl PyErr {
     /// use pyo3::{exceptions::PyTypeError, PyErr, Python};
     ///
     /// Python::with_gil(|py| {
-    ///     let err: PyErr = PyTypeError::new_err(("some type error",));
+    ///     let err: PyErr = PyTypeError::new_err1("some type error");
     ///     assert!(err.is_instance_of::<PyTypeError>(py));
     ///     assert_eq!(err.value_bound(py).to_string(), "some type error");
     /// });
@@ -283,7 +358,7 @@ impl PyErr {
     /// use pyo3::{exceptions::PyTypeError, Python};
     ///
     /// Python::with_gil(|py| {
-    ///     let err = PyTypeError::new_err(("some type error",));
+    ///     let err = PyTypeError::new_err1("some type error");
     ///     assert!(err.traceback_bound(py).is_none());
     /// });
     /// ```
@@ -413,7 +488,7 @@ impl PyErr {
             #[cfg(debug_assertions)]
             None => panic!("{}", FAILED_TO_FETCH),
             #[cfg(not(debug_assertions))]
-            None => exceptions::PySystemError::new_err(FAILED_TO_FETCH),
+            None => exceptions::PySystemError::new_err1(FAILED_TO_FETCH),
         }
     }
 
@@ -565,7 +640,7 @@ impl PyErr {
     /// ```rust
     /// # use pyo3::prelude::*;
     /// # use pyo3::exceptions::PyRuntimeError;
-    /// # fn failing_function() -> PyResult<()> { Err(PyRuntimeError::new_err("foo")) }
+    /// # fn failing_function() -> PyResult<()> { Err(PyRuntimeError::new_err1("foo")) }
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     match failing_function() {
@@ -664,7 +739,7 @@ impl PyErr {
     /// ```rust
     /// use pyo3::{exceptions::PyTypeError, PyErr, Python, prelude::PyAnyMethods};
     /// Python::with_gil(|py| {
-    ///     let err: PyErr = PyTypeError::new_err(("some type error",));
+    ///     let err: PyErr = PyTypeError::new_err1("some type error");
     ///     let err_clone = err.clone_ref(py);
     ///     assert!(err.get_type_bound(py).is(&err_clone.get_type_bound(py)));
     ///     assert!(err.value_bound(py).is(err_clone.value_bound(py)));
@@ -843,7 +918,7 @@ impl std::convert::From<DowncastError<'_, '_>> for PyErr {
             to: err.to,
         };
 
-        exceptions::PyTypeError::new_err(args)
+        exceptions::PyTypeError::new_err_args(args)
     }
 }
 
@@ -863,7 +938,7 @@ impl std::convert::From<DowncastIntoError<'_>> for PyErr {
             to: err.to,
         };
 
-        exceptions::PyTypeError::new_err(args)
+        exceptions::PyTypeError::new_err_args(args)
     }
 }
 
@@ -939,7 +1014,7 @@ mod tests {
     #[test]
     fn set_valueerror() {
         Python::with_gil(|py| {
-            let err: PyErr = exceptions::PyValueError::new_err("some exception message");
+            let err: PyErr = exceptions::PyValueError::new_err1("some exception message");
             assert!(err.is_instance_of::<exceptions::PyValueError>(py));
             err.restore(py);
             assert!(PyErr::occurred(py));
@@ -952,7 +1027,7 @@ mod tests {
     #[test]
     fn invalid_error_type() {
         Python::with_gil(|py| {
-            let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
+            let err: PyErr = PyErr::new0::<crate::types::PyString>();
             assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             err.restore(py);
             let err = PyErr::fetch(py);
@@ -968,7 +1043,7 @@ mod tests {
     #[test]
     fn set_typeerror() {
         Python::with_gil(|py| {
-            let err: PyErr = exceptions::PyTypeError::new_err(());
+            let err: PyErr = exceptions::PyTypeError::new_err0();
             err.restore(py);
             assert!(PyErr::occurred(py));
             drop(PyErr::fetch(py));
@@ -981,7 +1056,7 @@ mod tests {
         use crate::panic::PanicException;
 
         Python::with_gil(|py| {
-            let err: PyErr = PanicException::new_err("new panic");
+            let err: PyErr = PanicException::new_err1("new panic");
             err.restore(py);
             assert!(PyErr::occurred(py));
 
@@ -997,7 +1072,7 @@ mod tests {
         use crate::panic::PanicException;
 
         Python::with_gil(|py| {
-            let err: PyErr = PanicException::new_err("new panic");
+            let err: PyErr = PanicException::new_err1("new panic");
             // Restoring an error doesn't normalize it before Python 3.12,
             // so we have to explicitly test this case.
             let _ = err.normalized(py);
@@ -1066,7 +1141,7 @@ mod tests {
     #[test]
     fn test_pyerr_matches() {
         Python::with_gil(|py| {
-            let err = PyErr::new::<PyValueError, _>("foo");
+            let err = PyErr::new1::<PyValueError, _>("foo");
             assert!(err.matches(py, PyValueError::type_object_bound(py)));
 
             assert!(err.matches(
@@ -1081,7 +1156,7 @@ mod tests {
 
             // String is not a valid exception class, so we should get a TypeError
             let err: PyErr =
-                PyErr::from_type_bound(crate::types::PyString::type_object_bound(py), "foo");
+                PyErr::from_type_bound(crate::types::PyString::type_object_bound(py), ("foo",));
             assert!(err.matches(py, PyTypeError::type_object_bound(py)));
         })
     }
@@ -1109,7 +1184,7 @@ mod tests {
             err.set_cause(py, None);
             assert!(err.cause(py).is_none());
 
-            let new_cause = exceptions::PyValueError::new_err("orange");
+            let new_cause = exceptions::PyValueError::new_err1("orange");
             err.set_cause(py, Some(new_cause));
             let cause = err
                 .cause(py)
