@@ -234,7 +234,8 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// Extract a type from a Python object.
 ///
 ///
-/// Normal usage is through the `extract` methods on [`Bound`] and [`Py`], which forward to this trait.
+/// Normal usage is through the `extract` methods on [`Bound`], [`Borrowed`] and
+/// [`Py`], which forward to this trait.
 ///
 /// # Examples
 ///
@@ -258,21 +259,44 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// # }
 /// ```
 ///
-/// Note: depending on the implementation, the lifetime of the extracted result may
-/// depend on the lifetime of the `obj` or the `prepared` variable.
+/// Note: depending on the implementation, the extracted result may depend on
+/// the Python lifetime `'py` or the input lifetime `'a` of `obj`.
 ///
-/// For example, when extracting `&str` from a Python byte string, the resulting string slice will
-/// point to the existing string data (lifetime: `'py`).
-/// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
-/// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
-/// Since which case applies depends on the runtime type of the Python object,
-/// both the `obj` and `prepared` variables must outlive the resulting string slice.
+/// For example, when extracting a [`Cow<'a, str>`] the result may or may not
+/// borrow from the input lifetime `'a`. The behavior depends on the runtime
+/// type of the Python object. For a Python byte string, the existing string
+/// data can be borrowed (lifetime: `'a`) into a [`Cow::Borrowed`]. For a Python
+/// Unicode string, the data may have to be reencoded to UTF-8, and copied into
+/// a [`Cow::Owned`]. It does _not_ depend on the Python lifetime `'py`
+///
+/// An example of a type depending on the Python lifetime `'py` would be
+/// [`Bound<'py, PyString>`]. This type holds the invariant of beeing allowed to
+/// interact with the Python interpreter, so it inherits the Python lifetime
+/// from the input. It is however _not_ tied to the input lifetime `'a` and can
+/// be passed around independently of `obj`.
+///
+/// Special care needs to be taken for collection types, for example [`PyList`].
+/// In contrast to a Rust's [`Vec`] a Python list will not hand out references
+/// tied to its own lifetime, but "owned" references independent of it. (Similar
+/// to [`Vec<Arc<T>>`] where you clone the [`Arc<T>`] out). This makes it
+/// impossible to collect borrowed types in a collection, since they would not
+/// borrow from the original input list, but the much shorter lived element
+/// reference. This restriction is represented in PyO3 using
+/// [`FromPyObjectOwned`]. It is used by [`FromPyObject`] implementations on
+/// collection types to specify it can only collect types which do _not_ borrow
+/// from the input.
+///
+/// [`Cow<'a, str>`]: std::borrow::Cow
+/// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
+/// [`Cow::Owned`]: std::borrow::Cow::Owned
+/// [`PyList`]: crate::types::PyList
+/// [`Arc<T>`]: std::sync::Arc
 pub trait FromPyObject<'a, 'py>: Sized {
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
     /// Users are advised against calling this method directly: instead, use this via
     /// [`Bound<'_, PyAny>::extract`] or [`Py::extract`].
-    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>;
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self>;
 
     /// Deprecated name for [`FromPyObject::extract`]
     #[deprecated(since = "0.23.0", note = "replaced by `FromPyObject::extract`")]
