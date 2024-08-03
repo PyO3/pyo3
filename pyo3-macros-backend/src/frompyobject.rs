@@ -572,6 +572,10 @@ fn verify_and_get_lifetime(generics: &syn::Generics) -> Result<Option<&syn::Life
 ///   * Derivation for structs with generic fields like `struct<T> Foo(T)`
 ///     adds `T: FromPyObject` on the derived implementation.
 pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
+    let options = ContainerOptions::from_attrs(&tokens.attrs)?;
+    let ctx = &Ctx::new(&options.krate, None);
+    let Ctx { pyo3_path, .. } = &ctx;
+
     let mut trait_generics = tokens.generics.clone();
     let generics = &tokens.generics;
     let lt_param = if let Some(lt) = verify_and_get_lifetime(generics)? {
@@ -585,11 +589,8 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         let gen_ident = &param.ident;
         where_clause
             .predicates
-            .push(parse_quote!(#gen_ident: for<'_a> FromPyObject<'_a, #lt_param>))
+            .push(parse_quote!(#gen_ident: #pyo3_path::conversion::FromPyObjectOwned<#lt_param>))
     }
-    let options = ContainerOptions::from_attrs(&tokens.attrs)?;
-    let ctx = &Ctx::new(&options.krate, None);
-    let Ctx { pyo3_path, .. } = &ctx;
 
     let derives = match &tokens.data {
         syn::Data::Enum(en) => {
