@@ -11,11 +11,11 @@ error[E0277]: `Blah` cannot be converted to a Python object
             &'a Py<T>
             &'a PyRef<'py, T>
             &'a PyRefMut<'py, T>
+            &'a [T]
             &'a pyo3::Bound<'py, T>
             &OsStr
             &OsString
             &Path
-            &PathBuf
           and $N others
 note: required by a bound in `UnknownReturnType::<T>::wrap`
  --> src/impl_/wrap.rs

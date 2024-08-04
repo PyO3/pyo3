@@ -20,12 +20,12 @@ use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::list::{new_from_iter, try_new_from_iter};
-use crate::types::{PyList, PySequence, PyString};
+use crate::types::list::new_from_iter;
+use crate::types::{PySequence, PyString};
 use crate::PyErr;
 use crate::{
-    err::DowncastError, ffi, Bound, BoundObject, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    err::DowncastError, ffi, Bound, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use smallvec::{Array, SmallVec};
 
@@ -62,18 +62,16 @@ where
     A::Item: IntoPyObject<'py>,
     PyErr: From<<A::Item as IntoPyObject<'py>>::Error>,
 {
-    type Target = PyList;
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    /// Turns [`SmallVec<u8>`] into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let mut iter = self.into_iter().map(|e| {
-            e.into_pyobject(py)
-                .map(BoundObject::into_any)
-                .map(BoundObject::unbind)
-                .map_err(Into::into)
-        });
-        try_new_from_iter(py, &mut iter)
+        <A::Item>::iter_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
 
@@ -120,7 +118,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::PyDict;
+    use crate::types::{PyDict, PyList};
 
     #[test]
     fn test_smallvec_into_py() {

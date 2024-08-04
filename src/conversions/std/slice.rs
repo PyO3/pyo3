@@ -5,7 +5,7 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
@@ -19,13 +19,21 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
     }
 }
 
-impl<'py> IntoPyObject<'py> for &[u8] {
-    type Target = PyBytes;
+impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
+where
+    &'a T: IntoPyObject<'py>,
+    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = Infallible;
+    type Error = PyErr;
 
+    /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new(py, self))
+        <&T>::iter_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
 

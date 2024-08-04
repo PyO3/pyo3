@@ -1,9 +1,8 @@
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
-use crate::types::list::{new_from_iter, try_new_from_iter};
-use crate::types::PyList;
-use crate::{Bound, BoundObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
+use crate::types::list::new_from_iter;
+use crate::{Bound, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject};
 
 impl<T> ToPyObject for [T]
 where
@@ -46,18 +45,15 @@ where
     T: IntoPyObject<'py>,
     PyErr: From<T::Error>,
 {
-    type Target = PyList;
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    /// Turns [`Vec<u8>`] into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let mut iter = self.into_iter().map(|e| {
-            e.into_pyobject(py)
-                .map(BoundObject::into_any)
-                .map(BoundObject::unbind)
-                .map_err(Into::into)
-        });
-
-        try_new_from_iter(py, &mut iter)
+        T::iter_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }

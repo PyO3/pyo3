@@ -6,7 +6,7 @@ use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{
-    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyObject, PyRef, PyRefMut, Python,
+    ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyObject, PyRef, PyRefMut, Python,
 };
 use std::convert::Infallible;
 
@@ -200,6 +200,31 @@ pub trait IntoPyObject<'py>: Sized {
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
+
+    /// Converts slice of self into a Python object
+    fn iter_into_pyobject<I, E>(
+        iter: I,
+        py: Python<'py>,
+        _: private::Token,
+    ) -> Result<Bound<'py, PyAny>, PyErr>
+    where
+        I: IntoIterator<Item = Self, IntoIter = E>,
+        E: ExactSizeIterator<Item = Self>,
+        PyErr: From<Self::Error>,
+    {
+        let mut iter = iter.into_iter().map(|e| {
+            e.into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
+                .map_err(Into::into)
+        });
+        let list = crate::types::list::try_new_from_iter(py, &mut iter);
+        list.map(Bound::into_any)
+    }
+}
+
+pub(crate) mod private {
+    pub struct Token;
 }
 
 impl<'py, T> IntoPyObject<'py> for Bound<'py, T> {
