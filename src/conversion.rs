@@ -234,8 +234,8 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// Extract a type from a Python object.
 ///
 ///
-/// Normal usage is through the `extract` methods on [`Bound`], [`Borrowed`] and
-/// [`Py`], which forward to this trait.
+/// Normal usage is through the `extract` methods on [`Bound`], [`Borrowed`] and [`Py`], which
+/// forward to this trait.
 ///
 /// # Examples
 ///
@@ -259,38 +259,27 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// # }
 /// ```
 ///
-/// Note: depending on the implementation, the extracted result may depend on
-/// the Python lifetime `'py` or the input lifetime `'a` of `obj`.
+/// Note: Depending on the Python version and implementation, some [`FromPyObject`] implementations
+/// may produce a result that borrows into the Python type. This is described by the input lifetime
+/// `'a` of `obj`.
 ///
-/// For example, when extracting a [`Cow<'a, str>`] the result may or may not
-/// borrow from the input lifetime `'a`. The behavior depends on the runtime
-/// type of the Python object. For a Python byte string, the existing string
-/// data can be borrowed (lifetime: `'a`) into a [`Cow::Borrowed`]. For a Python
-/// Unicode string, the data may have to be reencoded to UTF-8, and copied into
-/// a [`Cow::Owned`]. It does _not_ depend on the Python lifetime `'py`
+/// Types that must not borrow from the input can use [`FromPyObjectOwned`] as a restriction. This
+/// is most often the case for collection types. See its documentation for more details.
 ///
-/// An example of a type depending on the Python lifetime `'py` would be
-/// [`Bound<'py, PyString>`]. This type holds the invariant of beeing allowed to
-/// interact with the Python interpreter, so it inherits the Python lifetime
-/// from the input. It is however _not_ tied to the input lifetime `'a` and can
-/// be passed around independently of `obj`.
+/// # Details
+/// [`Cow<'a, str>`] is an example of an output type that may or may not borrow from the input
+/// lifetime `'a`. Which variant will be produced depends on the runtime type of the Python object.
+/// For a Python byte string, the existing string data can be borrowed for `'a` into a
+/// [`Cow::Borrowed`]. For a Python Unicode string, the data may have to be reencoded to UTF-8, and
+/// copied into a [`Cow::Owned`]. It does _not_ depend on the Python lifetime `'py`.
 ///
-/// Special care needs to be taken for collection types, for example [`PyList`].
-/// In contrast to a Rust's [`Vec`] a Python list will not hand out references
-/// tied to its own lifetime, but "owned" references independent of it. (Similar
-/// to [`Vec<Arc<T>>`] where you clone the [`Arc<T>`] out). This makes it
-/// impossible to collect borrowed types in a collection, since they would not
-/// borrow from the original input list, but the much shorter lived element
-/// reference. This restriction is represented in PyO3 using
-/// [`FromPyObjectOwned`]. It is used by [`FromPyObject`] implementations on
-/// collection types to specify it can only collect types which do _not_ borrow
-/// from the input.
+/// The output type may also depend on the Python lifetime `'py`. This allows the output type to
+/// keep interacting with the Python interpreter. See also [`Bound<'py, T>`].
 ///
 /// [`Cow<'a, str>`]: std::borrow::Cow
 /// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
 /// [`Cow::Owned`]: std::borrow::Cow::Owned
-/// [`PyList`]: crate::types::PyList
-/// [`Arc<T>`]: std::sync::Arc
+
 pub trait FromPyObject<'a, 'py>: Sized {
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
@@ -318,11 +307,17 @@ pub trait FromPyObject<'a, 'py>: Sized {
     }
 }
 
-/// A data structure that can be extracted without borrowing any data from the input
+/// A data structure that can be extracted without borrowing any data from the input.
 ///
-/// This is primarily useful for trait bounds. For example a `FromPyObject` implementation of a
-/// wrapper type may be able to borrow data from the input, but a `FromPyObject` implementation of a
-/// collection type may only extract owned data.
+/// This is primarily useful for trait bounds. For example a [`FromPyObject`] implementation of a
+/// wrapper type may be able to borrow data from the input, but a [`FromPyObject`] implementation of
+/// a collection type may only extract owned data.
+///
+/// For example [`PyList`] will not hand out references tied to its own lifetime, but "owned"
+/// references independent of it. (Similar to [`Vec<Arc<T>>`] where you clone the [`Arc<T>`] out).
+/// This makes it impossible to collect borrowed types in a collection, since they would not borrow
+/// from the original [`PyList`], but the much shorter lived element reference. See the example
+/// below.
 ///
 /// ```
 /// # use pyo3::prelude::*;
@@ -353,6 +348,9 @@ pub trait FromPyObject<'a, 'py>: Sized {
 ///     }
 /// }
 /// ```
+///
+/// [`PyList`]: crate::types::PyList
+/// [`Arc<T>`]: std::sync::Arc
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 
