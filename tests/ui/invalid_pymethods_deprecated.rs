@@ -20,4 +20,11 @@ impl DeprecatedMethodContainer {
     }
 }
 
+#[pymethods]
+impl DeprecatedMethodContainer {
+    #[pyo3(deprecated = "first deprecatec")]
+    #[pyo3(deprecated = "second deprecated")]
+    fn function(&self) {}
+}
+
 fn main() {}

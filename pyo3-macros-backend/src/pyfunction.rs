@@ -10,6 +10,7 @@ use crate::{
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use std::cmp::PartialEq;
 use std::ffi::CString;
 use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
 use syn::{
@@ -95,6 +96,7 @@ pub struct PyFunctionWarningAttribute {
     pub span: Span,
 }
 
+#[derive(PartialEq)]
 pub enum PyFunctionWarningCategory {
     Path(Path),
     UserWarning,
@@ -341,6 +343,16 @@ impl PyFunctionOptions {
                     self.warnings.push(warning.into());
                 }
                 PyFunctionOption::Deprecated(deprecated) => {
+                    if self
+                        .warnings
+                        .iter()
+                        .filter(|w| w.category == PyFunctionWarningCategory::DeprecationWarning)
+                        .count()
+                        > 0
+                    {
+                        bail_spanned!(deprecated.span() => "only one `deprecated` warning may be specified")
+                    }
+
                     self.warnings.push(deprecated.into());
                 }
             }

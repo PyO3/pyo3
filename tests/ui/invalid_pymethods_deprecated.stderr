@@ -9,3 +9,9 @@ error: #[classattr] cannot be used with #[pyo3(warn)] nor #[pyo3(deprecated)]
    |
 17 |     #[pyo3(deprecated = "deprecated class attr")]
    |            ^^^^^^^^^^
+
+error: only one `deprecated` warning may be specified
+  --> tests/ui/invalid_pymethods_deprecated.rs:26:12
+   |
+26 |     #[pyo3(deprecated = "second deprecated")]
+   |            ^^^^^^^^^^

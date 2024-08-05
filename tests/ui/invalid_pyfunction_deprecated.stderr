@@ -9,3 +9,9 @@ error: unexpected end of input, expected string literal
   |
 8 | #[pyo3(deprecated = )]
   |                     ^
+
+error: only one `deprecated` warning may be specified
+  --> tests/ui/invalid_pyfunction_deprecated.rs:13:8
+   |
+13 | #[pyo3(deprecated = "second deprecated")]
+   |        ^^^^^^^^^^
