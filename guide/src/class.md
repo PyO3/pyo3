@@ -805,6 +805,8 @@ Python::with_gil(|py| {
 > Note: if the method has a `Result` return type and returns an `Err`, PyO3 will panic during
 class creation.
 
+> Note: `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute nor [`#[pyo3(deprecated)]`](./function.md#deprecated) attribute.
+
 If the class attribute is defined with `const` code only, one can also annotate associated
 constants:
 

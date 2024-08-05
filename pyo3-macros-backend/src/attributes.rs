@@ -44,6 +44,10 @@ pub mod kw {
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
+    syn::custom_keyword!(warn);
+    syn::custom_keyword!(message);
+    syn::custom_keyword!(category);
+    syn::custom_keyword!(deprecated);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {

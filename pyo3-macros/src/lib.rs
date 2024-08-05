@@ -130,6 +130,8 @@ pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// | `#[pyo3(name = "...")]` | Defines the name of the function in Python. |
 /// | `#[pyo3(text_signature = "...")]` | Defines the `__text_signature__` attribute of the function in Python. |
 /// | `#[pyo3(pass_module)]` | Passes the module containing the function as a `&PyModule` first argument to the function. |
+/// | `#[pyo3(warn(message = "...", category = ...))]` | Generate warning given a message and a category |
+/// | `#[pyo3(deprecated = "...")]` | Generate a deprecation warning given a message |
 ///
 /// For more on exposing functions see the [function section of the guide][1].
 ///
