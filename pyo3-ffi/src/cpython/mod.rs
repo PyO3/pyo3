@@ -56,6 +56,7 @@ pub use self::import::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::initconfig::*;
 pub use self::listobject::*;
+#[cfg(Py_3_13)]
 pub use self::lock::*;
 pub use self::longobject::*;
 #[cfg(all(Py_3_9, not(PyPy)))]

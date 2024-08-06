@@ -1,10 +1,12 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
 use crate::PyMutex;
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
+#[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::Ordering::Relaxed;
+#[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32};
 
 #[cfg(Py_LIMITED_API)]
