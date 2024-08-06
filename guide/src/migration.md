@@ -92,6 +92,46 @@ where
 ```
 </details>
 
+### Macro conversion changed for byte collections (`Vec<u8>`, `[u8; N]` and `SmallVec<[u8; N]>`).
+<details open>
+<summary><small>Click to expand</small></summary>
+
+PyO3 0.23 introduced the new fallible conversion trait `IntoPyObject`. The `#[pyfunction]` and
+`#[pymethods]` macros prefer `IntoPyObject` implementations over `IntoPy<PyObject>`.
+
+This change has an effect on functions and methods returning _byte_ collections like
+- `Vec<u8>`
+- `[u8; N]`
+- `SmallVec<[u8; N]>`
+
+In their new `IntoPyObject` implementation these will now turn into `PyBytes` rather than a
+`PyList`. All other `T`s are unaffected and still convert into a `PyList`.
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#[pyfunction]
+fn foo() -> Vec<u8> { // would previously turn into a `PyList`, now `PyBytes`
+    vec![0, 1, 2, 3]
+}
+
+#[pyfunction]
+fn bar() -> Vec<u16> { // unaffected, returns `PyList`
+    vec![0, 1, 2, 3]
+}
+```
+
+If this conversion is _not_ desired, consider building a list manually using `PyList::new`.
+
+The following types were previously _only_ implemented for `u8` and now allow other `T`s turn into
+`PyList`
+- `&[T]`
+- `Cow<[T]>`
+
+This is purely additional and should just extend the possible return types.
+
+</details>
+
 ## from 0.21.* to 0.22
 
 ### Deprecation of `gil-refs` feature continues
