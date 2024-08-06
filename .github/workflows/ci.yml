@@ -510,8 +510,9 @@ jobs:
           nogil: true
       - run: python3 -m sysconfig
       - run: python3 -m pip install --upgrade pip && pip install nox
-      - name: Run nox sessions that should pass
-        run: nox -s ffi-check clippy docs rustfmt ruff
+      - run: nox -s ffi-check
+      - name: Run default nox sessions that should pass
+        run: nox -s clippy docs rustfmt ruff
       - name: Run PyO3 tests with free-threaded Python (can fail)
         # TODO fix the test crashes so we can unset this
         continue-on-error: true
