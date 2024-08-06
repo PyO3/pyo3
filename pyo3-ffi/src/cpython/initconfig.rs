@@ -143,6 +143,8 @@ pub struct PyConfig {
     pub int_max_str_digits: c_int,
     #[cfg(Py_3_13)]
     pub cpu_count: c_int,
+    #[cfg(Py_GIL_DISABLED)]
+    pub enable_gil: c_int,
     pub pathconfig_warnings: c_int,
     #[cfg(Py_3_10)]
     pub program_name: *mut wchar_t,
