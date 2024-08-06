@@ -202,6 +202,7 @@ pub trait IntoPyObject<'py>: Sized {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
 
     /// Converts slice of self into a Python object
+    #[doc(hidden)]
     fn iter_into_pyobject<I, E>(
         iter: I,
         py: Python<'py>,
