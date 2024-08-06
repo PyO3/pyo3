@@ -101,7 +101,8 @@ mod tests {
     use std::borrow::Cow;
 
     use crate::{
-        types::{any::PyAnyMethods, PyBytes},
+        conversion::IntoPyObject,
+        types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
         Python, ToPyObject,
     };
 
@@ -137,6 +138,46 @@ mod tests {
 
             let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
             assert!(cow.bind(py).is_instance_of::<PyBytes>());
+        });
+    }
+
+    #[test]
+    fn test_slice_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: &[u8] = b"foobar";
+            let obj = bytes.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), bytes);
+
+            let nums: &[u16] = &[0, 1, 2, 3];
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
+        });
+    }
+
+    #[test]
+    fn test_cow_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
+            let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &*borrowed_bytes);
+
+            let owned_bytes = Cow::<[u8]>::Owned(b"foobar".to_vec());
+            let obj = owned_bytes.clone().into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &*owned_bytes);
+
+            let borrowed_nums = Cow::<[u16]>::Borrowed(&[0, 1, 2, 3]);
+            let obj = borrowed_nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
+
+            let owned_nums = Cow::<[u16]>::Owned(vec![0, 1, 2, 3]);
+            let obj = owned_nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
         });
     }
 }

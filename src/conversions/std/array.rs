@@ -149,7 +149,10 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering},
     };
 
-    use crate::types::any::PyAnyMethods;
+    use crate::{
+        conversion::IntoPyObject,
+        types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
+    };
     use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
 
     #[test]
@@ -237,6 +240,21 @@ mod tests {
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
             assert_eq!(pylist.get_item(3).unwrap().extract::<f32>().unwrap(), 42.0);
+        });
+    }
+
+    #[test]
+    fn test_array_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: [u8; 6] = *b"foobar";
+            let obj = bytes.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &bytes);
+
+            let nums: [u16; 4] = [0, 1, 2, 3];
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
         });
     }
 

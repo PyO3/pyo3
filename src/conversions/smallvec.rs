@@ -118,7 +118,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyDict, PyList};
+    use crate::types::{PyBytes, PyBytesMethods, PyDict, PyList};
 
     #[test]
     fn test_smallvec_into_py() {
@@ -158,6 +158,21 @@ mod tests {
             let hso: PyObject = sv.to_object(py);
             let l = PyList::new(py, [1, 2, 3, 4, 5]);
             assert!(l.eq(hso).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_smallvec_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: SmallVec<[u8; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            let obj = bytes.clone().into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &*bytes);
+
+            let nums: SmallVec<[u16; 8]> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
         });
     }
 }

@@ -57,3 +57,25 @@ where
         T::iter_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::conversion::IntoPyObject;
+    use crate::types::{PyAnyMethods, PyBytes, PyBytesMethods, PyList};
+    use crate::Python;
+
+    #[test]
+    fn test_vec_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: Vec<u8> = b"foobar".to_vec();
+            let obj = bytes.clone().into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &bytes);
+
+            let nums: Vec<u16> = vec![0, 1, 2, 3];
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
+        });
+    }
+}
