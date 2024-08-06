@@ -325,6 +325,12 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             .parse()
             .context("failed to parse calcsize_pointer")?;
 
+        let build_flags: BuildFlags = BuildFlags::from_interpreter(interpreter)?;
+
+        if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) && abi3 {
+            bail!("Cannot set Py_LIMITED_API and Py_GIL_DISABLED at the same time")
+        }
+
         Ok(InterpreterConfig {
             version,
             implementation,
@@ -334,7 +340,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             lib_dir,
             executable: map.get("executable").cloned(),
             pointer_width: Some(calcsize_pointer * 8),
-            build_flags: BuildFlags::from_interpreter(interpreter)?,
+            build_flags,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         })
@@ -488,6 +494,12 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             }
         });
 
+        let build_flags: BuildFlags = build_flags.unwrap_or_default();
+
+        if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) && abi3 {
+            bail!("Cannot set Py_LIMITED_API and Py_GIL_DISABLED at the same time")
+        }
+
         Ok(InterpreterConfig {
             implementation,
             version,
@@ -497,7 +509,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             lib_dir,
             executable,
             pointer_width,
-            build_flags: build_flags.unwrap_or_default(),
+            build_flags,
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
         })
@@ -2753,7 +2765,7 @@ mod tests {
             lib_dir: None,
             executable: None,
             pointer_width: None,
-            build_flags: build_flags,
+            build_flags,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         };
