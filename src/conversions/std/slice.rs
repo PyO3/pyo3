@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::Infallible};
+use std::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
@@ -81,13 +81,18 @@ impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for Cow<'_, [u8]> {
-    type Target = PyBytes;
+impl<'py, T> IntoPyObject<'py> for Cow<'_, [T]>
+where
+    T: Clone,
+    for<'a> &'a T: IntoPyObject<'py>,
+    PyErr: for<'a> From<<&'a T as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = Infallible;
+    type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new(py, &self))
+        <&T>::iter_into_pyobject(self.iter(), py, crate::conversion::private::Token)
     }
 }
 
