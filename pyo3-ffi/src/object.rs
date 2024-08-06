@@ -1,4 +1,6 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
+#[cfg(not(Py_LIMITED_API))]
+use crate::PyMutex;
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
@@ -39,7 +41,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(Py_GIL_DISABLED)]
     _padding: 0,
     #[cfg(Py_GIL_DISABLED)]
-    ob_mutex: 0,
+    ob_mutex: PyMutex { _bits: 0 },
     #[cfg(Py_GIL_DISABLED)]
     ob_gc_bits: 0,
     #[cfg(Py_GIL_DISABLED)]
@@ -93,7 +95,7 @@ pub struct PyObject {
     #[cfg(Py_GIL_DISABLED)]
     // TODO this should be a PyMutex not a u8
     // need to write PyMutex wrappers
-    pub ob_mutex: u8, // per-object lock
+    pub ob_mutex: PyMutex, // per-object lock
     #[cfg(Py_GIL_DISABLED)]
     pub ob_gc_bits: u8, // gc-related state
     #[cfg(Py_GIL_DISABLED)]
