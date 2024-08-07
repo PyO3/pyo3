@@ -55,6 +55,12 @@ where
     }
 }
 
+impl<T, const N: usize> crate::conversion::SliceableIntoPyObjectIterator for [T; N] {
+    fn as_bytes_slice(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.as_ptr().cast::<u8>(), self.len()) }
+    }
+}
+
 impl<T, const N: usize> ToPyObject for [T; N]
 where
     T: ToPyObject,

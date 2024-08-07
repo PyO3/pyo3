@@ -70,8 +70,19 @@ where
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <A::Item>::iter_into_pyobject(self, py, crate::conversion::private::Token)
+    }
+}
+
+impl<A> crate::conversion::SliceableIntoPyObjectIterator for SmallVec<A>
+where
+    A: Array,
+{
+    #[inline]
+    fn as_bytes_slice(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.as_ptr().cast::<u8>(), self.len()) }
     }
 }
 

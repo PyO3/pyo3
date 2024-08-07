@@ -53,8 +53,16 @@ where
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         T::iter_into_pyobject(self, py, crate::conversion::private::Token)
+    }
+}
+
+impl<T> crate::conversion::SliceableIntoPyObjectIterator for Vec<T> {
+    #[inline]
+    fn as_bytes_slice(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.as_ptr().cast::<u8>(), self.len()) }
     }
 }
 

@@ -4,7 +4,7 @@ use crate::err::PyResult;
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::types::any::PyAnyMethods;
-use crate::types::PyTuple;
+use crate::types::{PyBytes, PyTuple};
 use crate::{
     ffi, Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyObject, PyRef, PyRefMut, Python,
 };
@@ -202,15 +202,16 @@ pub trait IntoPyObject<'py>: Sized {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
 
     /// Converts slice of self into a Python object
-    fn iter_into_pyobject<I, E>(
+    fn iter_into_pyobject<I>(
         iter: I,
         py: Python<'py>,
-        _: private::Token,
+        _: crate::conversion::private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        I: IntoIterator<Item = Self, IntoIter = E>,
-        E: ExactSizeIterator<Item = Self>,
-        PyErr: From<Self::Error>,
+        I: crate::conversion::SliceableIntoPyObjectIterator<Item = Self>,
+        I::Item: IntoPyObject<'py>,
+        I::IntoIter: ExactSizeIterator,
+        PyErr: From<<I::Item as IntoPyObject<'py>>::Error>,
     {
         let mut iter = iter.into_iter().map(|e| {
             e.into_pyobject(py)
@@ -221,6 +222,10 @@ pub trait IntoPyObject<'py>: Sized {
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
         list.map(Bound::into_any)
     }
+}
+
+pub trait SliceableIntoPyObjectIterator: IntoIterator {
+    fn as_bytes_slice(&self) -> &[u8];
 }
 
 pub(crate) mod private {

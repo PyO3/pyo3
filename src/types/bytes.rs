@@ -2,6 +2,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Py, PyAny, PyResult, Python};
+use std::mem::MaybeUninit;
 use std::ops::Index;
 use std::slice::SliceIndex;
 use std::str;
@@ -107,6 +108,26 @@ impl PyBytes {
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
             std::ptr::write_bytes(buffer, 0u8, len);
+            // (Further) Initialise the bytestring in init
+            // If init returns an Err, pypybytearray will automatically deallocate the buffer
+            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
+        }
+    }
+
+    pub(crate) fn new_with_uninit<F>(
+        py: Python<'_>,
+        len: usize,
+        init: F,
+    ) -> PyResult<Bound<'_, PyBytes>>
+    where
+        F: FnOnce(&mut [MaybeUninit<u8>]) -> PyResult<()>,
+    {
+        unsafe {
+            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
+            // Check for an allocation error and return it
+            let pybytes = pyptr.assume_owned_or_err(py)?.downcast_into_unchecked();
+            let buffer: *mut MaybeUninit<u8> = ffi::PyBytes_AsString(pyptr).cast();
+            debug_assert!(!buffer.is_null());
             // (Further) Initialise the bytestring in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
             init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
