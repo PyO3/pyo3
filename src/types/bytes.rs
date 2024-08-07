@@ -2,6 +2,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Py, PyAny, PyResult, Python};
+use std::mem::MaybeUninit;
 use std::ops::Index;
 use std::slice::SliceIndex;
 use std::str;
@@ -95,6 +96,7 @@ impl PyBytes {
     /// })
     /// # }
     /// ```
+    #[inline]
     pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<Bound<'_, PyBytes>>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
@@ -111,6 +113,36 @@ impl PyBytes {
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
             init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
         }
+    }
+
+    pub(crate) fn from_iterator<I>(py: Python<'_>, iter: I) -> PyResult<Bound<'_, PyBytes>>
+    where
+        I: IntoIterator<Item = u8>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let mut iter = iter.into_iter();
+        let len = iter.len();
+
+        let pybytes = unsafe {
+            ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t)
+                .assume_owned_or_err(py)?
+                .downcast_into_unchecked()
+        };
+
+        if len > 0 {
+            let ptr: *mut u8 = unsafe { ffi::PyBytes_AsString(pybytes.as_ptr()).cast() };
+            debug_assert!(!ptr.is_null());
+
+            // Initialize the buffer from the iterator
+            for i in 0..len {
+                let byte = iter.next().expect("Attempted to create PyBytes but `iter` was smaller than reported by its `ExactSizeIterator` implementation.");
+                unsafe { ptr.add(i).write(byte) };
+            }
+        }
+        // Check that the iterator did not have more elements than it claimed
+        assert!(iter.next().is_none(), "Attempted to create PyBytes but `iter` was larger than reported by its `ExactSizeIterator` implementation.");
+
+        Ok(pybytes)
     }
 
     /// Deprecated name for [`PyBytes::new_with`].

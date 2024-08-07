@@ -53,6 +53,7 @@ where
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         T::iter_into_pyobject(self, py, crate::conversion::private::Token)
     }
