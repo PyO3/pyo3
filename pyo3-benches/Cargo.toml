@@ -48,6 +48,10 @@ name = "bench_gil"
 harness = false
 
 [[bench]]
+name = "bench_intopyobject"
+harness = false
+
+[[bench]]
 name = "bench_list"
 harness = false
 
