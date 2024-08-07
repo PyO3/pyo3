@@ -1,6 +1,6 @@
 use std::iter::FusedIterator;
 
-use crate::err::{self, PyErr, PyResult};
+use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
@@ -287,12 +287,10 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// });
     /// ```
     fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
-        let py = self.py();
-        let result = unsafe { ffi::compat::PyList_GetItemRef(self.as_ptr(), index as Py_ssize_t) };
-        if !result.is_null() {
-            return Ok(unsafe { result.assume_owned(py) });
+        unsafe {
+            ffi::compat::PyList_GetItemRef(self.as_ptr(), index as Py_ssize_t)
+                .assume_owned_or_err(self.py())
         }
-        Err(PyErr::fetch(py))
     }
 
     /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
