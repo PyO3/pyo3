@@ -45,11 +45,12 @@ pub unsafe fn PyDict_GetItemRef(
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(all)))]
+#[cfg_attr(docsrs, doc(cfg(all())))]
 #[cfg(Py_3_13)]
 pub use crate::PyList_GetItemRef;
 
 #[cfg(not(Py_3_13))]
+#[cfg_attr(docsrs, doc(cfg(all())))]
 pub unsafe fn PyList_GetItemRef(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject {
     use crate::{PyList_GetItem, Py_XINCREF};
 
