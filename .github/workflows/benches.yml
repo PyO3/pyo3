@@ -30,8 +30,9 @@ jobs:
             pyo3-benches
         continue-on-error: true
 
-      - name: Install cargo-codspeed
-        run: cargo install cargo-codspeed
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed
 
       - name: Install nox
         run: pip install nox
