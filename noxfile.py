@@ -869,6 +869,8 @@ def _run_cargo_test(
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
+        # do explicit setup so failures in setup can be seen
+        _run_cargo(session, "careful", "setup")
         command.append("careful")
     command.extend(("test", "--no-fail-fast"))
     if "release" in session.posargs:
