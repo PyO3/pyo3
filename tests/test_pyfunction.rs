@@ -363,8 +363,7 @@ fn test_pycfunction_new() {
 #[test]
 fn test_pycfunction_new_with_keywords() {
     use pyo3::ffi;
-    use std::ffi::CString;
-    use std::os::raw::{c_char, c_long};
+    use std::os::raw::c_long;
     use std::ptr;
 
     Python::with_gil(|py| {
@@ -375,27 +374,37 @@ fn test_pycfunction_new_with_keywords() {
         ) -> *mut ffi::PyObject {
             let mut foo: c_long = 0;
             let mut bar: c_long = 0;
-            let foo_ptr: *mut c_long = &mut foo;
-            let bar_ptr: *mut c_long = &mut bar;
 
-            let foo_name = CString::new("foo").unwrap();
-            let foo_name_raw: *mut c_char = foo_name.into_raw();
-            let kw_bar_name = CString::new("kw_bar").unwrap();
-            let kw_bar_name_raw: *mut c_char = kw_bar_name.into_raw();
+            #[cfg(not(Py_3_13))]
+            let foo_name = std::ffi::CString::new("foo").unwrap();
+            #[cfg(not(Py_3_13))]
+            let kw_bar_name = std::ffi::CString::new("kw_bar").unwrap();
+            #[cfg(not(Py_3_13))]
+            let mut args_names = [foo_name.into_raw(), kw_bar_name.into_raw(), ptr::null_mut()];
 
-            let mut arglist = vec![foo_name_raw, kw_bar_name_raw, ptr::null_mut()];
-            let arglist_ptr: *mut *mut c_char = arglist.as_mut_ptr();
-
-            let arg_pattern: *const c_char = CString::new("l|l").unwrap().into_raw();
+            #[cfg(Py_3_13)]
+            let args_names = [
+                c_str!("foo").as_ptr(),
+                c_str!("kw_bar").as_ptr(),
+                ptr::null_mut(),
+            ];
 
             ffi::PyArg_ParseTupleAndKeywords(
                 args,
                 kwds,
-                arg_pattern,
-                arglist_ptr,
-                foo_ptr,
-                bar_ptr,
+                c_str!("l|l").as_ptr(),
+                #[cfg(Py_3_13)]
+                args_names.as_ptr(),
+                #[cfg(not(Py_3_13))]
+                args_names.as_mut_ptr(),
+                &mut foo,
+                &mut bar,
             );
+
+            #[cfg(not(Py_3_13))]
+            drop(std::ffi::CString::from_raw(args_names[0]));
+            #[cfg(not(Py_3_13))]
+            drop(std::ffi::CString::from_raw(args_names[1]));
 
             ffi::PyLong_FromLong(foo * bar)
         }
