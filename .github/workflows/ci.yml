@@ -349,7 +349,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
-      - uses: taiki-e/install-action@cargo-careful
+      # FIXME: workaround https://github.com/RalfJung/cargo-careful/issues/36
+      # - uses: taiki-e/install-action@cargo-careful
+      - run: cargo install cargo-careful
       - run: python -m pip install --upgrade pip && pip install nox
       - run: nox -s test-rust -- careful skip-full
     env:
