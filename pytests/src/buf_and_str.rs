@@ -44,7 +44,7 @@ impl BytesExtractor {
 #[pyfunction]
 fn return_memoryview(py: Python<'_>) -> PyResult<Bound<'_, PyMemoryView>> {
     let bytes = PyBytes::new(py, b"hello world");
-    PyMemoryView::from_bound(&bytes)
+    PyMemoryView::from(&bytes)
 }
 
 #[pymodule]
