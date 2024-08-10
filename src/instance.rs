@@ -1981,7 +1981,7 @@ a = A()
             assert!(instance
                 .getattr(py, "foo")?
                 .bind(py)
-                .eq(PyString::new_bound(py, "bar"))?);
+                .eq(PyString::new(py, "bar"))?);
 
             instance.getattr(py, "foo")?;
             Ok(())
@@ -2067,7 +2067,7 @@ a = A()
     #[test]
     fn test_bound_as_any() {
         Python::with_gil(|py| {
-            let obj = PyString::new_bound(py, "hello world");
+            let obj = PyString::new(py, "hello world");
             let any = obj.as_any();
             assert_eq!(any.as_ptr(), obj.as_ptr());
         });
@@ -2076,7 +2076,7 @@ a = A()
     #[test]
     fn test_bound_into_any() {
         Python::with_gil(|py| {
-            let obj = PyString::new_bound(py, "hello world");
+            let obj = PyString::new(py, "hello world");
             let any = obj.clone().into_any();
             assert_eq!(any.as_ptr(), obj.as_ptr());
         });
@@ -2085,7 +2085,7 @@ a = A()
     #[test]
     fn test_bound_py_conversions() {
         Python::with_gil(|py| {
-            let obj: Bound<'_, PyString> = PyString::new_bound(py, "hello world");
+            let obj: Bound<'_, PyString> = PyString::new(py, "hello world");
             let obj_unbound: &Py<PyString> = obj.as_unbound();
             let _: &Bound<'_, PyString> = obj_unbound.bind(py);
 
