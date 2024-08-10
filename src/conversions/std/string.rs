@@ -14,14 +14,14 @@ use crate::{
 impl ToPyObject for str {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new_bound(py, self).into()
+        PyString::new(py, self).into()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new_bound(py, self).into()
+        PyString::new(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -33,7 +33,7 @@ impl<'a> IntoPy<PyObject> for &'a str {
 impl<'a> IntoPy<Py<PyString>> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
-        PyString::new_bound(py, self).into()
+        PyString::new(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -48,7 +48,7 @@ impl<'py> IntoPyObject<'py> for &str {
     type Error = Infallible;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyString::new_bound(py, self))
+        Ok(PyString::new(py, self))
     }
 }
 
@@ -57,7 +57,7 @@ impl<'py> IntoPyObject<'py> for &str {
 impl ToPyObject for Cow<'_, str> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new_bound(py, self).into()
+        PyString::new(py, self).into()
     }
 }
 
@@ -88,7 +88,7 @@ impl<'py> IntoPyObject<'py> for Cow<'_, str> {
 impl ToPyObject for String {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyString::new_bound(py, self).into()
+        PyString::new(py, self).into()
     }
 }
 
@@ -101,7 +101,7 @@ impl ToPyObject for char {
 impl IntoPy<PyObject> for char {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let mut bytes = [0u8; 4];
-        PyString::new_bound(py, self.encode_utf8(&mut bytes)).into()
+        PyString::new(py, self.encode_utf8(&mut bytes)).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -117,13 +117,13 @@ impl<'py> IntoPyObject<'py> for char {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut bytes = [0u8; 4];
-        Ok(PyString::new_bound(py, self.encode_utf8(&mut bytes)))
+        Ok(PyString::new(py, self.encode_utf8(&mut bytes)))
     }
 }
 
 impl IntoPy<PyObject> for String {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new_bound(py, &self).into()
+        PyString::new(py, &self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -138,14 +138,14 @@ impl<'py> IntoPyObject<'py> for String {
     type Error = Infallible;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyString::new_bound(py, &self))
+        Ok(PyString::new(py, &self))
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyString::new_bound(py, self).into()
+        PyString::new(py, self).into()
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -160,7 +160,7 @@ impl<'py> IntoPyObject<'py> for &String {
     type Error = Infallible;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyString::new_bound(py, self))
+        Ok(PyString::new(py, self))
     }
 }
 

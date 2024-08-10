@@ -278,7 +278,7 @@ impl Interned {
     #[inline]
     pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         self.1
-            .get_or_init(py, || PyString::intern_bound(py, self.0).into())
+            .get_or_init(py, || PyString::intern(py, self.0).into())
             .bind(py)
     }
 }

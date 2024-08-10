@@ -75,7 +75,7 @@ impl Iter {
                 let res = reader_ref
                     .inner
                     .get(&b)
-                    .map(|s| PyString::new_bound(py, s).into());
+                    .map(|s| PyString::new(py, s).into());
                 Ok(res)
             }
             None => Ok(None),

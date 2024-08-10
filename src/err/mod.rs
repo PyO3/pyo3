@@ -207,7 +207,7 @@ impl PyErr {
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
-    ///     let err = PyErr::from_value_bound(PyString::new_bound(py, "foo").into_any());
+    ///     let err = PyErr::from_value_bound(PyString::new(py, "foo").into_any());
     ///     assert_eq!(
     ///         err.to_string(),
     ///         "TypeError: exceptions must derive from BaseException"

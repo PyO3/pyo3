@@ -73,7 +73,7 @@
 //! use send_wrapper::SendWrapper;
 //!
 //! Python::with_gil(|py| {
-//!     let string = PyString::new_bound(py, "foo");
+//!     let string = PyString::new(py, "foo");
 //!
 //!     let wrapped = SendWrapper::new(string);
 //!
@@ -167,7 +167,7 @@ use std::os::raw::c_int;
 /// use send_wrapper::SendWrapper;
 ///
 /// Python::with_gil(|py| {
-///     let string = PyString::new_bound(py, "foo");
+///     let string = PyString::new(py, "foo");
 ///
 ///     let wrapped = SendWrapper::new(string);
 ///
