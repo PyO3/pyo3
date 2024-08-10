@@ -237,7 +237,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.get_type_bound(py).is(&PyType::new_bound::<PyTypeError>(py)));
+    ///     assert!(err.get_type_bound(py).is(&PyType::new::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {

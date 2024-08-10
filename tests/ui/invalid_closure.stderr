@@ -6,8 +6,8 @@ error[E0597]: `local_data` does not live long enough
 7  |         let ref_: &[u8] = &local_data;
    |                           ^^^^^^^^^^^ borrowed value does not live long enough
 ...
-14 |         PyCFunction::new_closure_bound(py, None, None, closure_fn)
-   |         ---------------------------------------------------------- argument requires that `local_data` is borrowed for `'static`
+14 |         PyCFunction::new_closure(py, None, None, closure_fn)
+   |         ---------------------------------------------------- argument requires that `local_data` is borrowed for `'static`
 ...
 17 |     });
    |     - `local_data` dropped here while still borrowed

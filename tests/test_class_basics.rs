@@ -288,7 +288,7 @@ impl UnsendableChild {
 
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
     let (keep_obj_here, obj) = Python::with_gil(|py| -> PyResult<_> {
-        let obj: Py<T> = PyType::new_bound::<T>(py).call1((5,))?.extract()?;
+        let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
         let caught_panic =
