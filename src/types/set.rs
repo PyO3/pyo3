@@ -217,7 +217,7 @@ pub struct BoundSetIterator<'p> {
 impl<'py> BoundSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PySet>) -> Self {
         Self {
-            it: PyIterator::from_bound_object(&set).unwrap(),
+            it: PyIterator::from_object(&set).unwrap(),
             remaining: set.len(),
         }
     }

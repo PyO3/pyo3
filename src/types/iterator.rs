@@ -35,12 +35,19 @@ impl PyIterator {
     ///
     /// Usually it is more convenient to write [`obj.iter()`][crate::types::any::PyAnyMethods::iter],
     /// which is a more concise way of calling this function.
-    pub fn from_bound_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
+    pub fn from_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
         unsafe {
             ffi::PyObject_GetIter(obj.as_ptr())
                 .assume_owned_or_err(obj.py())
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyIterator::from_object`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyIterator::from_object`")]
+    #[inline]
+    pub fn from_bound_object<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIterator>> {
+        Self::from_object(obj)
     }
 }
 
@@ -232,7 +239,7 @@ def fibonacci(target):
     fn int_not_iterable() {
         Python::with_gil(|py| {
             let x = 5.to_object(py);
-            let err = PyIterator::from_bound_object(x.bind(py)).unwrap_err();
+            let err = PyIterator::from_object(x.bind(py)).unwrap_err();
 
             assert!(err.is_instance_of::<PyTypeError>(py));
         });
