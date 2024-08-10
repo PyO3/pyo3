@@ -342,7 +342,7 @@ fn test_pycfunction_new() {
             ffi::PyLong_FromLong(4200)
         }
 
-        let py_fn = PyCFunction::new_bound(
+        let py_fn = PyCFunction::new(
             py,
             c_fn,
             c_str!("py_fn"),
@@ -400,7 +400,7 @@ fn test_pycfunction_new_with_keywords() {
             ffi::PyLong_FromLong(foo * bar)
         }
 
-        let py_fn = PyCFunction::new_with_keywords_bound(
+        let py_fn = PyCFunction::new_with_keywords(
             py,
             c_fn,
             c_str!("py_fn"),
@@ -444,13 +444,9 @@ fn test_closure() {
                 Ok(res)
             })
         };
-        let closure_py = PyCFunction::new_closure_bound(
-            py,
-            Some(c_str!("test_fn")),
-            Some(c_str!("test_fn doc")),
-            f,
-        )
-        .unwrap();
+        let closure_py =
+            PyCFunction::new_closure(py, Some(c_str!("test_fn")), Some(c_str!("test_fn doc")), f)
+                .unwrap();
 
         py_assert!(py, closure_py, "closure_py(42) == [43]");
         py_assert!(py, closure_py, "closure_py.__name__ == 'test_fn'");
@@ -474,7 +470,7 @@ fn test_closure_counter() {
             *counter += 1;
             Ok(*counter)
         };
-        let counter_py = PyCFunction::new_closure_bound(py, None, None, counter_fn).unwrap();
+        let counter_py = PyCFunction::new_closure(py, None, None, counter_fn).unwrap();
 
         py_assert!(py, counter_py, "counter_py() == 1");
         py_assert!(py, counter_py, "counter_py() == 2");
