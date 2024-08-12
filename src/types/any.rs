@@ -1738,7 +1738,7 @@ class SimpleClass:
     fn test_any_is_instance() {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_bound(py);
-            assert!(l.is_instance(&py.get_type_bound::<PyList>()).unwrap());
+            assert!(l.is_instance(&py.get_type::<PyList>()).unwrap());
         });
     }
 
@@ -1762,9 +1762,9 @@ class SimpleClass:
     fn test_any_is_exact_instance() {
         Python::with_gil(|py| {
             let t = PyBool::new(py, true);
-            assert!(t.is_instance(&py.get_type_bound::<PyInt>()).unwrap());
-            assert!(!t.is_exact_instance(&py.get_type_bound::<PyInt>()));
-            assert!(t.is_exact_instance(&py.get_type_bound::<PyBool>()));
+            assert!(t.is_instance(&py.get_type::<PyInt>()).unwrap());
+            assert!(!t.is_exact_instance(&py.get_type::<PyInt>()));
+            assert!(t.is_exact_instance(&py.get_type::<PyBool>()));
         });
     }
 

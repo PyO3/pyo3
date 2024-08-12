@@ -651,11 +651,22 @@ impl<'py> Python<'py> {
 
     /// Gets the Python type object for type `T`.
     #[inline]
-    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
+    pub fn get_type<T>(self) -> Bound<'py, PyType>
     where
         T: PyTypeInfo,
     {
         T::type_object_bound(self)
+    }
+
+    /// Deprecated name for [`Python::get_type`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::get_type`")]
+    #[track_caller]
+    #[inline]
+    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
+    where
+        T: PyTypeInfo,
+    {
+        self.get_type::<T>()
     }
 
     /// Imports the Python module with the specified name.

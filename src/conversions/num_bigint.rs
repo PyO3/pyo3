@@ -121,7 +121,7 @@ macro_rules! bigint_conversion {
                 } else {
                     None
                 };
-                py.get_type_bound::<PyInt>()
+                py.get_type::<PyInt>()
                     .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
@@ -170,7 +170,7 @@ macro_rules! bigint_conversion {
                     None
                 };
                 unsafe {
-                    py.get_type_bound::<PyInt>()
+                    py.get_type::<PyInt>()
                         .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                         .downcast_into_unchecked()
                 }

@@ -678,7 +678,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
     if let Err(e) = PyErr::warn_bound(
         py,
-        &py.get_type_bound::<PyUserWarning>(),
+        &py.get_type::<PyUserWarning>(),
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {

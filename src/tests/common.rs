@@ -42,7 +42,7 @@ mod inner {
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
             let res = $py.run_bound($code, None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
-            if !err.matches($py, $py.get_type_bound::<pyo3::exceptions::$err>()) {
+            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
             }
             err

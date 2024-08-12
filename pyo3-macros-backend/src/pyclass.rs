@@ -1535,7 +1535,7 @@ pub fn gen_complex_enum_variant_attr(
     let variant_cls = format_ident!("{}_{}", cls, member);
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::PyObject> {
-            ::std::result::Result::Ok(py.get_type_bound::<#variant_cls>().into_any().unbind())
+            ::std::result::Result::Ok(py.get_type::<#variant_cls>().into_any().unbind())
         }
     };
 
