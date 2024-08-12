@@ -1699,7 +1699,7 @@ class NonHeapNonDescriptorInt:
         Python::with_gil(|py| {
             let list = vec![3, 6, 5, 4, 7].to_object(py);
             let dict = vec![("reverse", true)].into_py_dict(py);
-            list.call_method_bound(py, "sort", (), Some(&dict)).unwrap();
+            list.call_method(py, "sort", (), Some(&dict)).unwrap();
             assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
         });
     }

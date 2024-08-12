@@ -91,26 +91,18 @@ fn main() -> PyResult<()> {
 
         // call object with PyDict
         let kwargs = [(key1, val1)].into_py_dict(py);
-        fun.call_bound(py, (), Some(&kwargs))?;
+        fun.call(py, (), Some(&kwargs))?;
 
         // pass arguments as Vec
         let kwargs = vec![(key1, val1), (key2, val2)];
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py)))?;
+        fun.call(py, (), Some(&kwargs.into_py_dict(py)))?;
 
         // pass arguments as HashMap
         let mut kwargs = HashMap::<&str, i32>::new();
         kwargs.insert(key1, 1);
-        fun.call_bound(py, (), Some(&kwargs.into_py_dict(py)))?;
+        fun.call(py, (), Some(&kwargs.into_py_dict(py)))?;
 
         Ok(())
     })
 }
 ```
-
-<div class="warning">
-
-During PyO3's [migration from "GIL Refs" to the `Bound<T>` smart pointer](../migration.md#migrating-from-the-gil-refs-api-to-boundt), `Py<T>::call` is temporarily named [`Py<T>::call_bound`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html#method.call_bound) (and `call_method` is temporarily `call_method_bound`).
-
-(This temporary naming is only the case for the `Py<T>` smart pointer. The methods on the `&PyAny` GIL Ref such as `call` have not been given replacements, and the methods on the `Bound<PyAny>` smart pointer such as [`Bound<PyAny>::call`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.PyAnyMethods.html#tymethod.call) already use follow the newest API conventions.)
-
-</div>

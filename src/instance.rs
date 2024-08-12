@@ -1449,16 +1449,28 @@ impl<T> Py<T> {
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
-    pub fn call_bound<'py, N>(
+    pub fn call<'py, A>(
         &self,
         py: Python<'py>,
-        args: N,
+        args: A,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<PyObject>
     where
-        N: IntoPy<Py<PyTuple>>,
+        A: IntoPy<Py<PyTuple>>,
     {
         self.bind(py).as_any().call(args, kwargs).map(Bound::unbind)
+    }
+
+    /// Deprecated name for [`Py::call`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Py::call`")]
+    #[inline]
+    pub fn call_bound(
+        &self,
+        py: Python<'_>,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
+        self.call(py, args, kwargs)
     }
 
     /// Calls the object with only positional arguments.
@@ -1484,7 +1496,7 @@ impl<T> Py<T> {
     ///
     /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
     /// macro can be used to intern `name`.
-    pub fn call_method_bound<'py, N, A>(
+    pub fn call_method<'py, N, A>(
         &self,
         py: Python<'py>,
         name: N,
@@ -1499,6 +1511,23 @@ impl<T> Py<T> {
             .as_any()
             .call_method(name, args, kwargs)
             .map(Bound::unbind)
+    }
+
+    /// Deprecated name for [`Py::call_method`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Py::call_method`")]
+    #[inline]
+    pub fn call_method_bound<N, A>(
+        &self,
+        py: Python<'_>,
+        name: N,
+        args: A,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyString>>,
+        A: IntoPy<Py<PyTuple>>,
+    {
+        self.call_method(py, name.into_py(py), args, kwargs)
     }
 
     /// Calls a method on the object with only positional arguments.
@@ -1904,11 +1933,11 @@ mod tests {
 
             assert_repr(obj.call0(py).unwrap().bind(py), "{}");
             assert_repr(obj.call1(py, ()).unwrap().bind(py), "{}");
-            assert_repr(obj.call_bound(py, (), None).unwrap().bind(py), "{}");
+            assert_repr(obj.call(py, (), None).unwrap().bind(py), "{}");
 
             assert_repr(obj.call1(py, ((('x', 1),),)).unwrap().bind(py), "{'x': 1}");
             assert_repr(
-                obj.call_bound(py, (), Some(&[('x', 1)].into_py_dict(py)))
+                obj.call(py, (), Some(&[('x', 1)].into_py_dict(py)))
                     .unwrap()
                     .bind(py),
                 "{'x': 1}",
@@ -1922,7 +1951,7 @@ mod tests {
             let obj: PyObject = PyDict::new(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
             assert!(obj
-                .call_method_bound(py, "nonexistent_method", (1,), None)
+                .call_method(py, "nonexistent_method", (1,), None)
                 .is_err());
             assert!(obj.call_method0(py, "nonexistent_method").is_err());
             assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
