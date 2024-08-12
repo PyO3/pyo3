@@ -83,7 +83,7 @@ mod inner {
     #[cfg(all(feature = "macros", Py_3_8))]
     impl UnraisableCapture {
         pub fn install(py: Python<'_>) -> Py<Self> {
-            let sys = py.import_bound("sys").unwrap();
+            let sys = py.import("sys").unwrap();
             let old_hook = sys.getattr("unraisablehook").unwrap().into();
 
             let capture = Py::new(
@@ -104,7 +104,7 @@ mod inner {
         pub fn uninstall(&mut self, py: Python<'_>) {
             let old_hook = self.old_hook.take().unwrap();
 
-            let sys = py.import_bound("sys").unwrap();
+            let sys = py.import("sys").unwrap();
             sys.setattr("unraisablehook", old_hook).unwrap();
         }
     }
@@ -118,7 +118,7 @@ mod inner {
             py: Python<'py>,
             f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
         ) -> PyResult<R> {
-            let warnings = py.import_bound("warnings")?;
+            let warnings = py.import("warnings")?;
             let kwargs = [("record", true)].into_py_dict(py);
             let catch_warnings = warnings
                 .getattr("catch_warnings")?

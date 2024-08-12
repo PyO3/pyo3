@@ -1128,7 +1128,7 @@ mod tests {
             let cls = py.get_type_bound::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
-            let warnings = py.import_bound("warnings").unwrap();
+            let warnings = py.import("warnings").unwrap();
             warnings.call_method0("resetwarnings").unwrap();
 
             // First, test the warning is emitted

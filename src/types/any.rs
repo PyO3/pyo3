@@ -75,7 +75,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    let sys = py.import("sys").unwrap();
     /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
@@ -101,7 +101,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    let sys = py.import("sys").unwrap();
     /// #    version(&sys).unwrap();
     /// # });
     /// ```

@@ -148,7 +148,7 @@ fn cancelled_coroutine() {
             await task
         asyncio.run(main())
         "#;
-        let globals = gil.import_bound("__main__").unwrap().dict();
+        let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep", sleep).unwrap();
         let err = gil
             .run_bound(
@@ -187,7 +187,7 @@ fn coroutine_cancel_handle() {
             return await task
         assert asyncio.run(main()) == 0
         "#;
-        let globals = gil.import_bound("__main__").unwrap().dict();
+        let globals = gil.import("__main__").unwrap().dict();
         globals
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
@@ -219,7 +219,7 @@ fn coroutine_is_cancelled() {
             await task
         asyncio.run(main())
         "#;
-        let globals = gil.import_bound("__main__").unwrap().dict();
+        let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep_loop", sleep_loop).unwrap();
         gil.run_bound(
             &pyo3::unindent::unindent(&handle_windows(test)),

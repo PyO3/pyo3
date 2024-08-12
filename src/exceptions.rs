@@ -822,7 +822,7 @@ mod tests {
         Python::with_gil(|py| {
             let err: PyErr = gaierror::new_err(());
             let socket = py
-                .import_bound("socket")
+                .import("socket")
                 .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
@@ -846,7 +846,7 @@ mod tests {
         Python::with_gil(|py| {
             let err: PyErr = MessageError::new_err(());
             let email = py
-                .import_bound("email")
+                .import("email")
                 .map_err(|e| e.display(py))
                 .expect("could not import email");
 

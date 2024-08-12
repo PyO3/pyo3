@@ -128,9 +128,6 @@ mod tests {
     }
 
     fn zoneinfo_class(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import_bound("zoneinfo")
-            .unwrap()
-            .getattr("ZoneInfo")
-            .unwrap()
+        py.import("zoneinfo").unwrap().getattr("ZoneInfo").unwrap()
     }
 }

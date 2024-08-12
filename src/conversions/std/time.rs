@@ -194,7 +194,7 @@ fn unix_epoch_py(py: Python<'_>) -> &PyObject {
             }
             #[cfg(Py_LIMITED_API)]
             {
-                let datetime = py.import_bound("datetime")?;
+                let datetime = py.import("datetime")?;
                 let utc = datetime.getattr("timezone")?.getattr("utc")?;
                 Ok::<_, PyErr>(
                     datetime
@@ -412,7 +412,7 @@ mod tests {
     }
 
     fn tz_utc(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import_bound("datetime")
+        py.import("datetime")
             .unwrap()
             .getattr("timezone")
             .unwrap()
@@ -432,16 +432,10 @@ mod tests {
     }
 
     fn datetime_class(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import_bound("datetime")
-            .unwrap()
-            .getattr("datetime")
-            .unwrap()
+        py.import("datetime").unwrap().getattr("datetime").unwrap()
     }
 
     fn timedelta_class(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import_bound("datetime")
-            .unwrap()
-            .getattr("timedelta")
-            .unwrap()
+        py.import("datetime").unwrap().getattr("timedelta").unwrap()
     }
 }

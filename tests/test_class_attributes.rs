@@ -107,9 +107,9 @@ fn test_fallible_class_attribute() {
 
     impl<'py> CaptureStdErr<'py> {
         fn new(py: Python<'py>) -> PyResult<Self> {
-            let sys = py.import_bound("sys")?;
+            let sys = py.import("sys")?;
             let oldstderr = sys.getattr("stderr")?;
-            let string_io = py.import_bound("io")?.getattr("StringIO")?.call0()?;
+            let string_io = py.import("io")?.getattr("StringIO")?.call0()?;
             sys.setattr("stderr", &string_io)?;
             Ok(Self {
                 oldstderr,
@@ -126,7 +126,7 @@ fn test_fallible_class_attribute() {
                 .downcast::<PyString>()?
                 .to_cow()?
                 .into_owned();
-            let sys = py.import_bound("sys")?;
+            let sys = py.import("sys")?;
             sys.setattr("stderr", self.oldstderr)?;
             Ok(payload)
         }

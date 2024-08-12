@@ -880,7 +880,7 @@ mod tests {
     fn test_array_buffer() {
         Python::with_gil(|py| {
             let array = py
-                .import_bound("array")
+                .import("array")
                 .unwrap()
                 .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
                 .unwrap();

@@ -659,11 +659,22 @@ impl<'py> Python<'py> {
     }
 
     /// Imports the Python module with the specified name.
-    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    pub fn import<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
     where
         N: IntoPy<Py<PyString>>,
     {
         PyModule::import_bound(self, name)
+    }
+
+    /// Deprecated name for [`Python::import`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::import`")]
+    #[track_caller]
+    #[inline]
+    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        self.import(name)
     }
 
     /// Gets the Python builtin value `None`.

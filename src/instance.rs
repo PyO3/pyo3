@@ -1422,7 +1422,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap().unbind();
+    /// #    let sys = py.import("sys").unwrap().unbind();
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
