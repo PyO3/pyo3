@@ -126,6 +126,7 @@ impl<T> GILOnceCell<T> {
             return value;
         }
 
+        // .unwrap() will never panic because the result is always Ok
         self.init(py, || Ok::<T, std::convert::Infallible>(f()))
             .unwrap()
     }
