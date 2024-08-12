@@ -126,10 +126,9 @@ impl<T> GILOnceCell<T> {
             return value;
         }
 
-        match self.init(py, || Ok::<T, std::convert::Infallible>(f())) {
-            Ok(value) => value,
-            Err(void) => match void {},
-        }
+        // .unwrap() will never panic because the result is always Ok
+        self.init(py, || Ok::<T, std::convert::Infallible>(f()))
+            .unwrap()
     }
 
     /// Like `get_or_init`, but accepts a fallible initialization function. If it fails, the cell
