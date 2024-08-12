@@ -18,8 +18,8 @@ fn _get_subclasses<'py>(
 
     let make_sub_subclass_py = "class SubSubklass(Subklass):\n    pass";
 
-    py.run_bound(&make_subclass_py, None, Some(&locals))?;
-    py.run_bound(make_sub_subclass_py, None, Some(&locals))?;
+    py.run(&make_subclass_py, None, Some(&locals))?;
+    py.run(make_sub_subclass_py, None, Some(&locals))?;
 
     // Construct an instance of the base class
     let obj = py.eval(&format!("{}({})", py_type, args), None, Some(&locals))?;

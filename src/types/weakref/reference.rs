@@ -115,12 +115,12 @@ impl PyWeakrefReference {
     /// fn callback(wref: Bound<'_, PyWeakrefReference>) -> PyResult<()> {
     ///         let py = wref.py();
     ///         assert!(wref.upgrade_as::<Foo>()?.is_none());
-    ///         py.run_bound("counter = 1", None, None)
+    ///         py.run("counter = 1", None, None)
     /// }
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     py.run_bound("counter = 0", None, None)?;
+    ///     py.run("counter = 0", None, None)?;
     ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
@@ -232,7 +232,7 @@ mod tests {
         use crate::{py_result_ext::PyResultExt, types::PyType};
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-            py.run_bound("class A:\n    pass\n", None, None)?;
+            py.run("class A:\n    pass\n", None, None)?;
             py.eval("A", None, None).downcast_into::<PyType>()
         }
 

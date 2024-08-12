@@ -799,7 +799,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let locals = crate::types::PyDict::new(py);
-            py.run_bound(
+            py.run(
                 "import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,
                 Some(&locals),

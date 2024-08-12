@@ -1020,7 +1020,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
             let debug_str = format!("{:?}", err);
@@ -1045,7 +1045,7 @@ mod tests {
     fn err_display() {
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
             assert_eq!(err.to_string(), "Exception: banana");
         });
@@ -1090,12 +1090,12 @@ mod tests {
     fn test_pyerr_cause() {
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
             assert!(err.cause(py).is_none());
 
             let err = py
-                .run_bound(
+                .run(
                     "raise Exception('banana') from Exception('apple')",
                     None,
                     None,

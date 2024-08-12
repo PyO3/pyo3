@@ -685,7 +685,7 @@ asyncio.run(main())
 "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -742,7 +742,7 @@ asyncio.run(main())
         globals
             .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });
@@ -811,7 +811,7 @@ assert c.counter.count == 1
         );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });

@@ -55,7 +55,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// # fn main() -> PyResult<()> {
 /// pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| py.run_bound("print('Hello World')", None, None))
+/// Python::with_gil(|py| py.run("print('Hello World')", None, None))
 /// # }
 /// ```
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -98,7 +98,7 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run_bound("print('Hello World')", None, None) {
+///         if let Err(e) = py.run("print('Hello World')", None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }

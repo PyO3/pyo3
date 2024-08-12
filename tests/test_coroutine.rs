@@ -151,7 +151,7 @@ fn cancelled_coroutine() {
         let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep", sleep).unwrap();
         let err = gil
-            .run_bound(
+            .run(
                 &pyo3::unindent::unindent(&handle_windows(test)),
                 Some(&globals),
                 None,
@@ -191,7 +191,7 @@ fn coroutine_cancel_handle() {
         globals
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
-        gil.run_bound(
+        gil.run(
             &pyo3::unindent::unindent(&handle_windows(test)),
             Some(&globals),
             None,
@@ -221,7 +221,7 @@ fn coroutine_is_cancelled() {
         "#;
         let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep_loop", sleep_loop).unwrap();
-        gil.run_bound(
+        gil.run(
             &pyo3::unindent::unindent(&handle_windows(test)),
             Some(&globals),
             None,

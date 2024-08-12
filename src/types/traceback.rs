@@ -39,7 +39,7 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
-    ///         .run_bound("raise Exception('banana')", None, None)
+    ///         .run("raise Exception('banana')", None, None)
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
@@ -89,7 +89,7 @@ mod tests {
     fn format_traceback() {
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
             assert_eq!(
@@ -104,7 +104,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
-            py.run_bound(
+            py.run(
                 r"
 try:
     raise ValueError('raised exception')
@@ -126,7 +126,7 @@ except Exception as e:
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
-            py.run_bound(
+            py.run(
                 r"
 def f():
     raise ValueError('raised exception')

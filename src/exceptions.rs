@@ -179,7 +179,7 @@ macro_rules! import_exception_bound {
 /// #         locals.set_item("MyError", py.get_type::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
-/// #         py.run_bound(
+/// #         py.run(
 /// # "try:
 /// #     raise_myerror()
 /// # except MyError as e:
@@ -348,7 +348,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::Py", $name, ";
 
 Python::with_gil(|py| {
-    let result: PyResult<()> = py.run_bound(\"raise ", $name, "\", None, None);
+    let result: PyResult<()> = py.run(\"raise ", $name, "\", None, None);
 
     let error_type = match result {
         Ok(_) => \"Not an error\",
@@ -835,7 +835,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run_bound("assert isinstance(exc, socket.gaierror)", None, Some(&d))
+            py.run("assert isinstance(exc, socket.gaierror)", None, Some(&d))
                 .map_err(|e| e.display(py))
                 .expect("assertion failed");
         });
@@ -858,7 +858,7 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run_bound(
+            py.run(
                 "assert isinstance(exc, email.errors.MessageError)",
                 None,
                 Some(&d),
@@ -881,13 +881,13 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
+            py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound("assert CustomError.__doc__ is None", None, Some(&ctx))
+            py.run("assert CustomError.__doc__ is None", None, Some(&ctx))
                 .unwrap();
         });
     }
@@ -923,13 +923,13 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
+            py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound(
+            py.run(
                 "assert CustomError.__doc__ == 'Some docs'",
                 None,
                 Some(&ctx),
@@ -956,13 +956,13 @@ mod tests {
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
+            py.run(
                 "assert CustomError('oops').args == ('oops',)",
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound(
+            py.run(
                 "assert CustomError.__doc__ == 'Some more docs'",
                 None,
                 Some(&ctx),
@@ -975,7 +975,7 @@ mod tests {
     fn native_exception_debug() {
         Python::with_gil(|py| {
             let exc = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_bound(py);
@@ -990,7 +990,7 @@ mod tests {
     fn native_exception_display() {
         Python::with_gil(|py| {
             let exc = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_bound(py);

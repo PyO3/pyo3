@@ -40,7 +40,7 @@ fn test_anyhow_py_function_err_result() {
         let locals = PyDict::new(py);
         locals.set_item("func", func).unwrap();
 
-        py.run_bound(
+        py.run(
             r#"
             func()
             "#,

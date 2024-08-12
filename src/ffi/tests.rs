@@ -22,7 +22,7 @@ fn test_datetime_fromtimestamp() {
         };
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
-        py.run_bound(
+        py.run(
             "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
             None,
             Some(&locals),
@@ -43,7 +43,7 @@ fn test_date_fromtimestamp() {
         };
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
-        py.run_bound(
+        py.run(
             "import datetime; assert dt == datetime.date.fromtimestamp(100)",
             None,
             Some(&locals),
@@ -63,7 +63,7 @@ fn test_utc_timezone() {
         };
         let locals = PyDict::new(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
-        py.run_bound(
+        py.run(
             "import datetime; assert utc_timezone is datetime.timezone.utc",
             None,
             Some(&locals),

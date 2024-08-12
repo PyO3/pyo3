@@ -571,7 +571,7 @@ impl<'py> Python<'py> {
     /// };
     /// Python::with_gil(|py| {
     ///     let locals = PyDict::new(py);
-    ///     py.run_bound(
+    ///     py.run(
     ///         r#"
     /// import base64
     /// s = 'Hello Rust!'
@@ -589,7 +589,7 @@ impl<'py> Python<'py> {
     ///
     /// You can use [`py_run!`](macro.py_run.html) for a handy alternative of `run`
     /// if you don't need `globals` and unwrapping is OK.
-    pub fn run_bound(
+    pub fn run(
         self,
         code: &str,
         globals: Option<&Bound<'py, PyDict>>,
@@ -599,6 +599,19 @@ impl<'py> Python<'py> {
         res.map(|obj| {
             debug_assert!(obj.is_none());
         })
+    }
+
+    /// Deprecated name for [`Python::run`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::run`")]
+    #[track_caller]
+    #[inline]
+    pub fn run_bound(
+        self,
+        code: &str,
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<()> {
+        self.run(code, globals, locals)
     }
 
     /// Runs code in the given context.
@@ -979,7 +992,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let namespace = PyDict::new(py);
-            py.run_bound("class Foo: pass", Some(&namespace), Some(&namespace))
+            py.run("class Foo: pass", Some(&namespace), Some(&namespace))
                 .unwrap();
             assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));

@@ -188,7 +188,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
-    /// #         py.run_bound(
+    /// #         py.run(
     /// # r#"b = bytearray(b"hello world")
     /// # a_valid_function(b)
     /// #

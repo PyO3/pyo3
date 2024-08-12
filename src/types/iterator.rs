@@ -191,8 +191,7 @@ def fibonacci(target):
 
         Python::with_gil(|py| {
             let context = PyDict::new(py);
-            py.run_bound(fibonacci_generator, None, Some(&context))
-                .unwrap();
+            py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
             let generator = py.eval("fibonacci(5)", None, Some(&context)).unwrap();
             for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
@@ -218,8 +217,7 @@ def fibonacci(target):
 
         Python::with_gil(|py| {
             let context = PyDict::new(py);
-            py.run_bound(fibonacci_generator, None, Some(&context))
-                .unwrap();
+            py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
             let generator: Bound<'_, PyIterator> = py
                 .eval("fibonacci(5)", None, Some(&context))

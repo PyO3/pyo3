@@ -790,7 +790,7 @@ mod tests {
         use crate::{py_result_ext::PyResultExt, types::PyType};
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-            py.run_bound("class A:\n    pass\n", None, None)?;
+            py.run("class A:\n    pass\n", None, None)?;
             py.eval("A", None, None).downcast_into::<PyType>()
         }
 

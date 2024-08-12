@@ -171,7 +171,7 @@ assert c.from_rust is False
         );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });

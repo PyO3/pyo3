@@ -91,7 +91,7 @@ fn func() -> String {
 #    let parent_module = wrap_pymodule!(parent_module)(py);
 #    let ctx = [("parent_module", parent_module)].into_py_dict(py);
 #
-#    py.run_bound("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
+#    py.run("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
 # })
 ```
 
