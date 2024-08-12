@@ -20,7 +20,7 @@ struct SubclassAble {}
 #[test]
 fn subclass() {
     Python::with_gil(|py| {
-        let d = [("SubclassAble", py.get_type_bound::<SubclassAble>())].into_py_dict(py);
+        let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
 
         py.run_bound(
             "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
@@ -72,7 +72,7 @@ impl SubClass {
 #[test]
 fn inheritance_with_new_methods() {
     Python::with_gil(|py| {
-        let typeobj = py.get_type_bound::<SubClass>();
+        let typeobj = py.get_type::<SubClass>();
         let inst = typeobj.call((), None).unwrap();
         py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
     });
@@ -112,8 +112,8 @@ fn mutation_fails() {
 #[test]
 fn is_subclass_and_is_instance() {
     Python::with_gil(|py| {
-        let sub_ty = py.get_type_bound::<SubClass>();
-        let base_ty = py.get_type_bound::<BaseClass>();
+        let sub_ty = py.get_type::<SubClass>();
+        let base_ty = py.get_type::<BaseClass>();
         assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
         assert!(sub_ty.is_subclass(&base_ty).unwrap());
 
@@ -155,7 +155,7 @@ impl SubClass2 {
 #[test]
 fn handle_result_in_new() {
     Python::with_gil(|py| {
-        let subclass = py.get_type_bound::<SubClass2>();
+        let subclass = py.get_type::<SubClass2>();
         py_run!(
             py,
             subclass,
@@ -274,7 +274,7 @@ mod inheriting_native_type {
     #[test]
     fn custom_exception() {
         Python::with_gil(|py| {
-            let cls = py.get_type_bound::<CustomException>();
+            let cls = py.get_type::<CustomException>();
             let dict = [("cls", &cls)].into_py_dict(py);
             let res = py.run_bound(
             "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
@@ -315,7 +315,7 @@ fn test_subclass_ref_counts() {
     // regression test for issue #1363
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
-        let SimpleClass = py.get_type_bound::<SimpleClass>();
+        let SimpleClass = py.get_type::<SimpleClass>();
         py_run!(
             py,
             SimpleClass,

@@ -210,7 +210,7 @@ impl GILOnceCell<Py<PyType>> {
     ) -> PyResult<&Bound<'py, PyType>> {
         self.get_or_try_init(py, || {
             let type_object = py
-                .import_bound(module_name)?
+                .import(module_name)?
                 .getattr(attr_name)?
                 .downcast_into()?;
             Ok(type_object.unbind())

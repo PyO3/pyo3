@@ -1422,7 +1422,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap().unbind();
+    /// #    let sys = py.import("sys").unwrap().unbind();
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
@@ -1906,7 +1906,7 @@ mod tests {
     #[test]
     fn test_call() {
         Python::with_gil(|py| {
-            let obj = py.get_type_bound::<PyDict>().to_object(py);
+            let obj = py.get_type::<PyDict>().to_object(py);
 
             let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
                 assert_eq!(obj.repr().unwrap(), expected);

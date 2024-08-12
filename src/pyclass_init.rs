@@ -121,7 +121,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///     }
 /// }
 /// Python::with_gil(|py| {
-///     let typeobj = py.get_type_bound::<SubSubClass>();
+///     let typeobj = py.get_type::<SubSubClass>();
 ///     let sub_sub_class = typeobj.call((), None).unwrap();
 ///     py_run!(
 ///         py,

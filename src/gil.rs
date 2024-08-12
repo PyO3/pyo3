@@ -123,7 +123,7 @@ where
         let py = guard.python();
         // Import the threading module - this ensures that it will associate this thread as the "main"
         // thread, which is important to avoid an `AssertionError` at finalization.
-        py.import_bound("threading").unwrap();
+        py.import("threading").unwrap();
 
         // Execute the closure.
         f(py)

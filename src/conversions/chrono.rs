@@ -678,7 +678,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     let py = obj.py();
     if let Err(e) = PyErr::warn_bound(
         py,
-        &py.get_type_bound::<PyUserWarning>(),
+        &py.get_type::<PyUserWarning>(),
         "ignored leap-second, `datetime` does not support leap-seconds",
         0,
     ) {
@@ -762,7 +762,7 @@ impl DatetimeTypes {
     fn try_get(py: Python<'_>) -> PyResult<&Self> {
         static TYPES: GILOnceCell<DatetimeTypes> = GILOnceCell::new();
         TYPES.get_or_try_init(py, || {
-            let datetime = py.import_bound("datetime")?;
+            let datetime = py.import("datetime")?;
             let timezone = datetime.getattr("timezone")?;
             Ok::<_, PyErr>(Self {
                 date: datetime.getattr("date")?.into(),
@@ -1297,7 +1297,7 @@ mod tests {
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
     ) -> Bound<'py, PyAny> {
-        py.import_bound("datetime")
+        py.import("datetime")
             .unwrap()
             .getattr(name)
             .unwrap()
@@ -1306,7 +1306,7 @@ mod tests {
     }
 
     fn python_utc(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import_bound("datetime")
+        py.import("datetime")
             .unwrap()
             .getattr("timezone")
             .unwrap()
@@ -1328,7 +1328,7 @@ mod tests {
             fn test_pyo3_offset_fixed_frompyobject_created_in_python(timestamp in 0..(i32::MAX as i64), timedelta in -86399i32..=86399i32) {
                 Python::with_gil(|py| {
 
-                    let globals = [("datetime", py.import_bound("datetime").unwrap())].into_py_dict(py);
+                    let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py);
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
                     let t = py.eval_bound(&code, Some(&globals), None).unwrap();
 

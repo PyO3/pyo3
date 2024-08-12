@@ -63,7 +63,7 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
     fn format(&self) -> PyResult<String> {
         let py = self.py();
         let string_io = py
-            .import_bound(intern!(py, "io"))?
+            .import(intern!(py, "io"))?
             .getattr(intern!(py, "StringIO"))?
             .call0()?;
         let result = unsafe { ffi::PyTraceBack_Print(self.as_ptr(), string_io.as_ptr()) };

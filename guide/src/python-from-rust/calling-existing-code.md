@@ -291,7 +291,7 @@ fn main() -> PyResult<()> {
     let py_app = fs::read_to_string(path.join("app.py"))?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         let syspath = py
-            .import_bound("sys")?
+            .import("sys")?
             .getattr("path")?
             .downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
@@ -383,7 +383,7 @@ use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let signal = py.import_bound("signal")?;
+    let signal = py.import("signal")?;
     // Set SIGINT to have the default action
     signal
         .getattr("signal")?

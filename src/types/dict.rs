@@ -748,7 +748,7 @@ mod tests {
         }
 
         Python::with_gil(|py| {
-            let class = py.get_type_bound::<HashErrors>();
+            let class = py.get_type::<HashErrors>();
             let instance = class.call0().unwrap();
             let d = PyDict::new(py);
             match d.get_item(instance) {
@@ -1188,7 +1188,7 @@ mod tests {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
             assert!(keys
-                .is_instance(&py.get_type_bound::<PyDictKeys>().as_borrowed())
+                .is_instance(&py.get_type::<PyDictKeys>().as_borrowed())
                 .unwrap());
         })
     }
@@ -1200,7 +1200,7 @@ mod tests {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
             assert!(values
-                .is_instance(&py.get_type_bound::<PyDictValues>().as_borrowed())
+                .is_instance(&py.get_type::<PyDictValues>().as_borrowed())
                 .unwrap());
         })
     }
@@ -1212,7 +1212,7 @@ mod tests {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
             assert!(items
-                .is_instance(&py.get_type_bound::<PyDictItems>().as_borrowed())
+                .is_instance(&py.get_type::<PyDictItems>().as_borrowed())
                 .unwrap());
         })
     }

@@ -668,7 +668,7 @@ impl OnceFuture {
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_await() {
     Python::with_gil(|py| {
-        let once = py.get_type_bound::<OnceFuture>();
+        let once = py.get_type::<OnceFuture>();
         let source = r#"
 import asyncio
 import sys
@@ -718,7 +718,7 @@ impl AsyncIterator {
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_anext_aiter() {
     Python::with_gil(|py| {
-        let once = py.get_type_bound::<OnceFuture>();
+        let once = py.get_type::<OnceFuture>();
         let source = r#"
 import asyncio
 import sys
@@ -740,7 +740,7 @@ asyncio.run(main())
         let globals = PyModule::import_bound(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         globals
-            .set_item("AsyncIterator", py.get_type_bound::<AsyncIterator>())
+            .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
         py.run_bound(source, Some(&globals), None)
             .map_err(|e| e.display(py))
@@ -783,7 +783,7 @@ impl DescrCounter {
 #[test]
 fn descr_getset() {
     Python::with_gil(|py| {
-        let counter = py.get_type_bound::<DescrCounter>();
+        let counter = py.get_type::<DescrCounter>();
         let source = pyo3::indoc::indoc!(
             r#"
 class Class:

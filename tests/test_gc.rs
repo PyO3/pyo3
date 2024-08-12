@@ -211,8 +211,8 @@ fn inheritance_with_new_methods_with_drop() {
     let drop_called2 = Arc::new(AtomicBool::new(false));
 
     Python::with_gil(|py| {
-        let _typebase = py.get_type_bound::<BaseClassWithDrop>();
-        let typeobj = py.get_type_bound::<SubClassWithDrop>();
+        let _typebase = py.get_type::<BaseClassWithDrop>();
+        let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call((), None).unwrap();
 
         let obj = inst.downcast::<SubClassWithDrop>().unwrap();
@@ -255,7 +255,7 @@ fn gc_during_borrow() {
     Python::with_gil(|py| {
         unsafe {
             // get the traverse function
-            let ty = py.get_type_bound::<TraversableClass>();
+            let ty = py.get_type::<TraversableClass>();
             let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
             // create an object and check that traversing it works normally
@@ -303,7 +303,7 @@ impl PartialTraverse {
 fn traverse_partial() {
     Python::with_gil(|py| unsafe {
         // get the traverse function
-        let ty = py.get_type_bound::<PartialTraverse>();
+        let ty = py.get_type::<PartialTraverse>();
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
         // confirm that traversing errors
@@ -338,7 +338,7 @@ impl PanickyTraverse {
 fn traverse_panic() {
     Python::with_gil(|py| unsafe {
         // get the traverse function
-        let ty = py.get_type_bound::<PanickyTraverse>();
+        let ty = py.get_type::<PanickyTraverse>();
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
         // confirm that traversing errors
@@ -361,7 +361,7 @@ impl TriesGILInTraverse {
 fn tries_gil_in_traverse() {
     Python::with_gil(|py| unsafe {
         // get the traverse function
-        let ty = py.get_type_bound::<TriesGILInTraverse>();
+        let ty = py.get_type::<TriesGILInTraverse>();
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
         // confirm that traversing panicks
@@ -414,7 +414,7 @@ impl<'a> Traversable for PyRef<'a, HijackedTraverse> {
 fn traverse_cannot_be_hijacked() {
     Python::with_gil(|py| unsafe {
         // get the traverse function
-        let ty = py.get_type_bound::<HijackedTraverse>();
+        let ty = py.get_type::<HijackedTraverse>();
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
         let cell = Bound::new(py, HijackedTraverse::new()).unwrap();
@@ -536,7 +536,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
     unsafe impl Send for SendablePtr {}
 
     Python::with_gil(|py| unsafe {
-        let ty = py.get_type_bound::<UnsendableTraversal>();
+        let ty = py.get_type::<UnsendableTraversal>();
         let traverse = get_type_traverse(ty.as_type_ptr()).unwrap();
 
         let obj = Py::new(

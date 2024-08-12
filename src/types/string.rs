@@ -695,7 +695,7 @@ mod tests {
             let err = data.to_string(py).unwrap_err();
             assert!(err
                 .get_type_bound(py)
-                .is(&py.get_type_bound::<PyUnicodeDecodeError>()));
+                .is(&py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
@@ -739,7 +739,7 @@ mod tests {
             let err = data.to_string(py).unwrap_err();
             assert!(err
                 .get_type_bound(py)
-                .is(&py.get_type_bound::<PyUnicodeDecodeError>()));
+                .is(&py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-16' codec can't decode bytes in position 0-3"));
@@ -780,7 +780,7 @@ mod tests {
             let err = data.to_string(py).unwrap_err();
             assert!(err
                 .get_type_bound(py)
-                .is(&py.get_type_bound::<PyUnicodeDecodeError>()));
+                .is(&py.get_type::<PyUnicodeDecodeError>()));
             assert!(err
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));

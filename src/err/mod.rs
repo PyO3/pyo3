@@ -596,7 +596,7 @@ impl PyErr {
     /// # use pyo3::prelude::*;
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let user_warning = py.get_type_bound::<pyo3::exceptions::PyUserWarning>();
+    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn_bound(py, &user_warning, "I am warning you", 0)?;
     ///     Ok(())
     /// })
@@ -1125,10 +1125,10 @@ mod tests {
         // GIL locked should prevent effects to be visible to other testing
         // threads.
         Python::with_gil(|py| {
-            let cls = py.get_type_bound::<exceptions::PyUserWarning>();
+            let cls = py.get_type::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
-            let warnings = py.import_bound("warnings").unwrap();
+            let warnings = py.import("warnings").unwrap();
             warnings.call_method0("resetwarnings").unwrap();
 
             // First, test the warning is emitted

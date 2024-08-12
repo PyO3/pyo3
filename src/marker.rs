@@ -651,19 +651,41 @@ impl<'py> Python<'py> {
 
     /// Gets the Python type object for type `T`.
     #[inline]
-    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
+    pub fn get_type<T>(self) -> Bound<'py, PyType>
     where
         T: PyTypeInfo,
     {
         T::type_object_bound(self)
     }
 
+    /// Deprecated name for [`Python::get_type`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::get_type`")]
+    #[track_caller]
+    #[inline]
+    pub fn get_type_bound<T>(self) -> Bound<'py, PyType>
+    where
+        T: PyTypeInfo,
+    {
+        self.get_type::<T>()
+    }
+
     /// Imports the Python module with the specified name.
-    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    pub fn import<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
     where
         N: IntoPy<Py<PyString>>,
     {
         PyModule::import_bound(self, name)
+    }
+
+    /// Deprecated name for [`Python::import`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::import`")]
+    #[track_caller]
+    #[inline]
+    pub fn import_bound<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        self.import(name)
     }
 
     /// Gets the Python builtin value `None`.
