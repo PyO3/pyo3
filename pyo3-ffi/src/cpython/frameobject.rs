@@ -21,7 +21,6 @@ pub struct PyTryBlock {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 pub struct PyFrameObject {
     pub ob_base: PyVarObject,

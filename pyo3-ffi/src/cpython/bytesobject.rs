@@ -6,7 +6,6 @@ use std::os::raw::c_int;
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyBytesObject {
     pub ob_base: PyVarObject,
     pub ob_shash: crate::Py_hash_t,
