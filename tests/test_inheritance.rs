@@ -244,7 +244,7 @@ mod inheriting_native_type {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
-            let item = &py.eval_bound("object()", None, None).unwrap();
+            let item = &py.eval("object()", None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
             dict_sub.bind(py).set_item("foo", item).unwrap();

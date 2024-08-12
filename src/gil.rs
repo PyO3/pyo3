@@ -433,7 +433,7 @@ mod tests {
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
-        py.eval_bound("object()", None, None).unwrap().unbind()
+        py.eval("object()", None, None).unwrap().unbind()
     }
 
     #[cfg(not(pyo3_disable_reference_pool))]
@@ -571,7 +571,7 @@ mod tests {
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
         Python::with_gil(|py| {
-            let obj = Python::with_gil(|_| py.eval_bound("object()", None, None).unwrap());
+            let obj = Python::with_gil(|_| py.eval("object()", None, None).unwrap());
 
             // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);

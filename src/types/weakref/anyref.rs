@@ -791,7 +791,7 @@ mod tests {
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run_bound("class A:\n    pass\n", None, None)?;
-            py.eval_bound("A", None, None).downcast_into::<PyType>()
+            py.eval("A", None, None).downcast_into::<PyType>()
         }
 
         #[test]

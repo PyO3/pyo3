@@ -36,7 +36,7 @@ use pyo3::prelude::*;
 # fn main() -> Result<(), ()> {
 Python::with_gil(|py| {
     let result = py
-        .eval_bound("[i * 10 for i in range(5)]", None, None)
+        .eval("[i * 10 for i in range(5)]", None, None)
         .map_err(|e| {
             e.print_and_set_sys_last_vars(py);
         })?;
@@ -349,7 +349,7 @@ class House(object):
 
         house.call_method0("__enter__").unwrap();
 
-        let result = py.eval_bound("undefined_variable + 1", None, None);
+        let result = py.eval("undefined_variable + 1", None, None);
 
         // If the eval threw an exception we'll pass it through to the context manager.
         // Otherwise, __exit__  is called with empty arguments (Python "None").

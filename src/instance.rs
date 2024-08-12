@@ -2020,7 +2020,7 @@ a = A()
     #[test]
     fn invalid_attr() -> PyResult<()> {
         Python::with_gil(|py| {
-            let instance: Py<PyAny> = py.eval_bound("object()", None, None)?.into();
+            let instance: Py<PyAny> = py.eval("object()", None, None)?.into();
 
             instance.getattr(py, "foo").unwrap_err();
 
@@ -2033,7 +2033,7 @@ a = A()
     #[test]
     fn test_py2_from_py_object() {
         Python::with_gil(|py| {
-            let instance = py.eval_bound("object()", None, None).unwrap();
+            let instance = py.eval("object()", None, None).unwrap();
             let ptr = instance.as_ptr();
             let instance: Bound<'_, PyAny> = instance.extract().unwrap();
             assert_eq!(instance.as_ptr(), ptr);
@@ -2044,7 +2044,7 @@ a = A()
     fn test_py2_into_py_object() {
         Python::with_gil(|py| {
             let instance = py
-                .eval_bound("object()", None, None)
+                .eval("object()", None, None)
                 .unwrap()
                 .as_borrowed()
                 .to_owned();

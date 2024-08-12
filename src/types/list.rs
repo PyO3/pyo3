@@ -603,7 +603,7 @@ mod tests {
     #[test]
     fn test_set_item_refcnt() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval("object()", None, None).unwrap();
             let cnt;
             {
                 let v = vec![2];
@@ -638,7 +638,7 @@ mod tests {
     fn test_insert_refcnt() {
         Python::with_gil(|py| {
             let cnt;
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval("object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();
@@ -663,7 +663,7 @@ mod tests {
     fn test_append_refcnt() {
         Python::with_gil(|py| {
             let cnt;
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval("object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();

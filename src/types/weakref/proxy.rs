@@ -114,7 +114,7 @@ impl PyWeakrefProxy {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
     ///     py.run_bound("counter = 0", None, None)?;
-    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
+    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
     ///     // This is fine.
@@ -125,7 +125,7 @@ impl PyWeakrefProxy {
     ///         weakref.upgrade()
     ///             .map_or(false, |obj| obj.is(&foo))
     ///     );
-    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
+    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 0);
     ///
     ///     let weakref2 = PyWeakrefProxy::new_bound_with(&foo, wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
@@ -134,7 +134,7 @@ impl PyWeakrefProxy {
     ///     drop(foo);
     ///
     ///     assert!(weakref.upgrade_as::<Foo>()?.is_none());
-    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 1);
+    ///     assert_eq!(py.eval("counter", None, None)?.extract::<u32>()?, 1);
     ///     Ok(())
     /// })
     /// # }
@@ -240,7 +240,7 @@ mod tests {
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
                 py.run_bound("class A:\n    pass\n", None, None)?;
-                py.eval_bound("A", None, None).downcast_into::<PyType>()
+                py.eval("A", None, None).downcast_into::<PyType>()
             }
 
             #[test]
@@ -786,7 +786,7 @@ mod tests {
                     None,
                     None,
                 )?;
-                py.eval_bound("A", None, None).downcast_into::<PyType>()
+                py.eval("A", None, None).downcast_into::<PyType>()
             }
 
             #[test]

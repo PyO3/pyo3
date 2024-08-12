@@ -876,7 +876,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -899,7 +899,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -918,7 +918,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -951,7 +951,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval("str(CustomError)", None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -1070,7 +1070,7 @@ mod tests {
         )
     });
     test_exception!(PyUnicodeEncodeError, |py| py
-        .eval_bound("chr(40960).encode('ascii')", None, None)
+        .eval("chr(40960).encode('ascii')", None, None)
         .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
         PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))

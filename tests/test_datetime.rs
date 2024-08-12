@@ -22,13 +22,13 @@ fn _get_subclasses<'py>(
     py.run_bound(make_sub_subclass_py, None, Some(&locals))?;
 
     // Construct an instance of the base class
-    let obj = py.eval_bound(&format!("{}({})", py_type, args), None, Some(&locals))?;
+    let obj = py.eval(&format!("{}({})", py_type, args), None, Some(&locals))?;
 
     // Construct an instance of the subclass
-    let sub_obj = py.eval_bound(&format!("Subklass({})", args), None, Some(&locals))?;
+    let sub_obj = py.eval(&format!("Subklass({})", args), None, Some(&locals))?;
 
     // Construct an instance of the sub-subclass
-    let sub_sub_obj = py.eval_bound(&format!("SubSubklass({})", args), None, Some(&locals))?;
+    let sub_sub_obj = py.eval(&format!("SubSubklass({})", args), None, Some(&locals))?;
 
     Ok((obj, sub_obj, sub_sub_obj))
 }
@@ -125,7 +125,7 @@ fn test_datetime_utc() {
         let locals = [("dt", dt)].into_py_dict(py);
 
         let offset: f32 = py
-            .eval_bound("dt.utcoffset().total_seconds()", None, Some(&locals))
+            .eval("dt.utcoffset().total_seconds()", None, Some(&locals))
             .unwrap()
             .extract()
             .unwrap();

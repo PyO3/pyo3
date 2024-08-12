@@ -1330,7 +1330,7 @@ mod tests {
 
                     let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py);
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
-                    let t = py.eval_bound(&code, Some(&globals), None).unwrap();
+                    let t = py.eval(&code, Some(&globals), None).unwrap();
 
                     // Get ISO 8601 string from python
                     let py_iso_str = t.call_method0("isoformat").unwrap();

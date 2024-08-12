@@ -387,7 +387,7 @@ impl Python<'_> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval_bound("5", None, None)?.extract()?;
+    ///     let x: i32 = py.eval("5", None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -528,18 +528,31 @@ impl<'py> Python<'py> {
     /// ```
     /// # use pyo3::prelude::*;
     /// # Python::with_gil(|py| {
-    /// let result = py.eval_bound("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
     /// ```
-    pub fn eval_bound(
+    pub fn eval(
         self,
         code: &str,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
+    }
+
+    /// Deprecated name for [`Python::eval`].
+    #[deprecated(since = "0.23.0", note = "renamed to `Python::eval`")]
+    #[track_caller]
+    #[inline]
+    pub fn eval_bound(
+        self,
+        code: &str,
+        globals: Option<&Bound<'py, PyDict>>,
+        locals: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.eval(code, globals, locals)
     }
 
     /// Executes one or more Python statements in the given context.
@@ -830,7 +843,7 @@ mod tests {
         Python::with_gil(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
-                .eval_bound("min(1, 2)", None, None)
+                .eval("min(1, 2)", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
@@ -841,7 +854,7 @@ mod tests {
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval_bound("foo + 29", Some(&d), None)
+                .eval("foo + 29", Some(&d), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -849,7 +862,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval_bound("foo + 29", None, Some(&d))
+                .eval("foo + 29", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -857,7 +870,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval_bound("min(foo, 2)", None, Some(&d))
+                .eval("min(foo, 2)", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -952,7 +965,7 @@ mod tests {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
-                .eval_bound("...", None, None)
+                .eval("...", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 

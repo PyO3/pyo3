@@ -15,7 +15,7 @@ use crate::{ffi, Bound, PyAny, PyErr, PyResult, PyTypeCheck};
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
-///     let list = py.eval_bound("iter([1, 2, 3, 4])", None, None)?;
+///     let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .iter()?
 ///         .map(|i| i.and_then(|i|i.extract::<usize>()))
@@ -154,7 +154,7 @@ mod tests {
     fn iter_item_refcnt() {
         Python::with_gil(|py| {
             let count;
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval("object()", None, None).unwrap();
             let list = {
                 let list = PyList::empty(py);
                 list.append(10).unwrap();
@@ -194,7 +194,7 @@ def fibonacci(target):
             py.run_bound(fibonacci_generator, None, Some(&context))
                 .unwrap();
 
-            let generator = py.eval_bound("fibonacci(5)", None, Some(&context)).unwrap();
+            let generator = py.eval("fibonacci(5)", None, Some(&context)).unwrap();
             for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
@@ -222,7 +222,7 @@ def fibonacci(target):
                 .unwrap();
 
             let generator: Bound<'_, PyIterator> = py
-                .eval_bound("fibonacci(5)", None, Some(&context))
+                .eval("fibonacci(5)", None, Some(&context))
                 .unwrap()
                 .downcast_into()
                 .unwrap();
@@ -321,7 +321,7 @@ def fibonacci(target):
     #[cfg(not(Py_LIMITED_API))]
     fn length_hint_becomes_size_hint_lower_bound() {
         Python::with_gil(|py| {
-            let list = py.eval_bound("[1, 2, 3]", None, None).unwrap();
+            let list = py.eval("[1, 2, 3]", None, None).unwrap();
             let iter = list.iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));

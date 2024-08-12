@@ -154,7 +154,7 @@ fn main() -> PyResult<()> {
 
         let locals = [("os", py.import("os")?)].into_py_dict(py);
         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-        let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
+        let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 
         println!("Hello {}, I'm Python {}", user, version);
         Ok(())

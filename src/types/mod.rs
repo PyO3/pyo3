@@ -61,7 +61,7 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict = py.eval_bound("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
+///     let dict = py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast_into::<PyDict>()?;
 ///
 ///     for (key, value) in &dict {
 ///         println!("key: {}, value: {}", key, value);

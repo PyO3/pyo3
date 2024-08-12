@@ -460,7 +460,7 @@ mod tests {
             let index = python_index_class(py);
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
-            let ob = py.eval_bound("index.C(10)", None, Some(&locals)).unwrap();
+            let ob = py.eval("index.C(10)", None, Some(&locals)).unwrap();
             let _: BigInt = ob.extract().unwrap();
         });
     }

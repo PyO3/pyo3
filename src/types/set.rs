@@ -367,7 +367,7 @@ mod tests {
             let val2 = set.pop();
             assert!(val2.is_none());
             assert!(py
-                .eval_bound("print('Exception state should not be set.')", None, None)
+                .eval("print('Exception state should not be set.')", None, None)
                 .is_ok());
         });
     }

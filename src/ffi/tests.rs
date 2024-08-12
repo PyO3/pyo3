@@ -287,7 +287,7 @@ fn test_get_tzinfo() {
 #[test]
 fn test_inc_dec_ref() {
     Python::with_gil(|py| {
-        let obj = py.eval_bound("object()", None, None).unwrap();
+        let obj = py.eval("object()", None, None).unwrap();
 
         let ref_count = obj.get_refcnt();
         let ptr = obj.as_ptr();
