@@ -52,7 +52,6 @@ extern "C" {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
     pub m_init: Option<extern "C" fn() -> *mut PyObject>,
@@ -98,7 +97,6 @@ pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
 // skipped non-limited _Py_mod_LAST_SLOT
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyModuleDef {
     pub m_base: PyModuleDef_Base,
     pub m_name: *const c_char,

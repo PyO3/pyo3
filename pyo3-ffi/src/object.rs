@@ -61,7 +61,7 @@ impl std::fmt::Debug for PyObjectObRefcnt {
 pub type PyObjectObRefcnt = Py_ssize_t;
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
@@ -76,7 +76,7 @@ pub struct PyObject {
 // skipped _PyObject_CAST
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct PyVarObject {
     pub ob_base: PyObject,
     #[cfg(not(GraalPy))]

@@ -26,7 +26,6 @@ extern "C" {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
 // non-limited
 pub struct PyComplexObject {
     pub ob_base: PyObject,
