@@ -5,9 +5,7 @@ use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::Ordering::Relaxed;
-#[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::{AtomicIsize, AtomicU32};
+use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering::Relaxed};
 
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(PyTypeObject);
@@ -95,8 +93,6 @@ pub struct PyObject {
     #[cfg(Py_GIL_DISABLED)]
     pub _padding: u16,
     #[cfg(Py_GIL_DISABLED)]
-    // TODO this should be a PyMutex not a u8
-    // need to write PyMutex wrappers
     pub ob_mutex: PyMutex, // per-object lock
     #[cfg(Py_GIL_DISABLED)]
     pub ob_gc_bits: u8, // gc-related state
