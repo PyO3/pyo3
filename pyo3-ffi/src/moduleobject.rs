@@ -21,6 +21,7 @@ pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
