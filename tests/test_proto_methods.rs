@@ -669,7 +669,8 @@ impl OnceFuture {
 fn test_await() {
     Python::with_gil(|py| {
         let once = py.get_type::<OnceFuture>();
-        let source = r#"
+        let source = pyo3_ffi::c_str!(
+            r#"
 import asyncio
 import sys
 
@@ -682,7 +683,8 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 asyncio.run(main())
-"#;
+"#
+        );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         py.run(source, Some(&globals), None)
@@ -719,7 +721,8 @@ impl AsyncIterator {
 fn test_anext_aiter() {
     Python::with_gil(|py| {
         let once = py.get_type::<OnceFuture>();
-        let source = r#"
+        let source = pyo3_ffi::c_str!(
+            r#"
 import asyncio
 import sys
 
@@ -736,7 +739,8 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 asyncio.run(main())
-"#;
+"#
+        );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         globals
@@ -784,7 +788,7 @@ impl DescrCounter {
 fn descr_getset() {
     Python::with_gil(|py| {
         let counter = py.get_type::<DescrCounter>();
-        let source = pyo3::indoc::indoc!(
+        let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
             r#"
 class Class:
     counter = Counter()
@@ -808,7 +812,7 @@ assert c.counter.count == 4
 del c.counter
 assert c.counter.count == 1
 "#
-        );
+        ));
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
         py.run(source, Some(&globals), None)

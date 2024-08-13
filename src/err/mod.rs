@@ -929,7 +929,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::{PyErr, PyTypeInfo, Python};
+    use crate::{ffi, PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -1020,7 +1020,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let err = py
-                .run("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
 
             let debug_str = format!("{:?}", err);
@@ -1045,7 +1045,7 @@ mod tests {
     fn err_display() {
         Python::with_gil(|py| {
             let err = py
-                .run("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
             assert_eq!(err.to_string(), "Exception: banana");
         });
@@ -1090,13 +1090,13 @@ mod tests {
     fn test_pyerr_cause() {
         Python::with_gil(|py| {
             let err = py
-                .run("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
             assert!(err.cause(py).is_none());
 
             let err = py
                 .run(
-                    "raise Exception('banana') from Exception('apple')",
+                    ffi::c_str!("raise Exception('banana') from Exception('apple')"),
                     None,
                     None,
                 )

@@ -376,12 +376,12 @@ impl PyTypeCheck for PySequence {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{PyObject, Python, ToPyObject};
+    use crate::{ffi, PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
         Python::with_gil(|py| {
-            let obj = py.eval("object()", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
 
             obj.to_object(py)
         })
@@ -749,7 +749,11 @@ mod tests {
     #[test]
     fn test_extract_tuple_to_vec() {
         Python::with_gil(|py| {
-            let v: Vec<i32> = py.eval("(1, 2)", None, None).unwrap().extract().unwrap();
+            let v: Vec<i32> = py
+                .eval(ffi::c_str!("(1, 2)"), None, None)
+                .unwrap()
+                .extract()
+                .unwrap();
             assert!(v == [1, 2]);
         });
     }
@@ -758,7 +762,7 @@ mod tests {
     fn test_extract_range_to_vec() {
         Python::with_gil(|py| {
             let v: Vec<i32> = py
-                .eval("range(1, 5)", None, None)
+                .eval(ffi::c_str!("range(1, 5)"), None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -770,7 +774,7 @@ mod tests {
     fn test_extract_bytearray_to_vec() {
         Python::with_gil(|py| {
             let v: Vec<u8> = py
-                .eval("bytearray(b'abc')", None, None)
+                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
                 .unwrap()
                 .extract()
                 .unwrap();

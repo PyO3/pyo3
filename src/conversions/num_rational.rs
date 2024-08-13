@@ -117,7 +117,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             py.run(
-                "import fractions\npy_frac = fractions.Fraction(-0.125)",
+                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(-0.125)"),
                 None,
                 Some(&locals),
             )
@@ -133,7 +133,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             py.run(
-                "not_fraction = \"contains_incorrect_atts\"",
+                ffi::c_str!("not_fraction = \"contains_incorrect_atts\""),
                 None,
                 Some(&locals),
             )
@@ -148,7 +148,9 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             py.run(
-                "import fractions\npy_frac = fractions.Fraction(fractions.Fraction(10))",
+                ffi::c_str!(
+                    "import fractions\npy_frac = fractions.Fraction(fractions.Fraction(10))"
+                ),
                 None,
                 Some(&locals),
             )
@@ -165,7 +167,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             py.run(
-                "import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))",
+                ffi::c_str!("import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))"),
                 None,
                 Some(&locals),
             )
@@ -182,7 +184,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             py.run(
-                "import fractions\npy_frac = fractions.Fraction(10,5)",
+                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(10,5)"),
                 None,
                 Some(&locals),
             )
@@ -247,7 +249,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             let py_bound = py.run(
-                "import fractions\npy_frac = fractions.Fraction(\"Infinity\")",
+                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(\"Infinity\")"),
                 None,
                 Some(&locals),
             );

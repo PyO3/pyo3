@@ -592,7 +592,7 @@ mod tests {
     fn test_to_cow_surrogate() {
         Python::with_gil(|py| {
             let py_string = py
-                .eval(r"'\ud800'", None, None)
+                .eval(ffi::c_str!(r"'\ud800'"), None, None)
                 .unwrap()
                 .downcast_into::<PyString>()
                 .unwrap();
@@ -621,7 +621,10 @@ mod tests {
     #[test]
     fn test_encode_utf8_surrogate() {
         Python::with_gil(|py| {
-            let obj: PyObject = py.eval(r"'\ud800'", None, None).unwrap().into();
+            let obj: PyObject = py
+                .eval(ffi::c_str!(r"'\ud800'"), None, None)
+                .unwrap()
+                .into();
             assert!(obj
                 .bind(py)
                 .downcast::<PyString>()
@@ -635,7 +638,7 @@ mod tests {
     fn test_to_string_lossy() {
         Python::with_gil(|py| {
             let py_string = py
-                .eval(r"'🐈 Hello \ud800World'", None, None)
+                .eval(ffi::c_str!(r"'🐈 Hello \ud800World'"), None, None)
                 .unwrap()
                 .downcast_into::<PyString>()
                 .unwrap();
@@ -707,7 +710,7 @@ mod tests {
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     fn test_string_data_ucs2() {
         Python::with_gil(|py| {
-            let s = py.eval("'foo\\ud800'", None, None).unwrap();
+            let s = py.eval(ffi::c_str!("'foo\\ud800'"), None, None).unwrap();
             let py_string = s.downcast::<PyString>().unwrap();
             let data = unsafe { py_string.data().unwrap() };
 
@@ -822,8 +825,11 @@ mod tests {
     #[test]
     fn test_py_to_str_surrogate() {
         Python::with_gil(|py| {
-            let py_string: Py<PyString> =
-                py.eval(r"'\ud800'", None, None).unwrap().extract().unwrap();
+            let py_string: Py<PyString> = py
+                .eval(ffi::c_str!(r"'\ud800'"), None, None)
+                .unwrap()
+                .extract()
+                .unwrap();
 
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             assert!(py_string.to_str(py).is_err());
@@ -836,7 +842,7 @@ mod tests {
     fn test_py_to_string_lossy() {
         Python::with_gil(|py| {
             let py_string: Py<PyString> = py
-                .eval(r"'🐈 Hello \ud800World'", None, None)
+                .eval(ffi::c_str!(r"'🐈 Hello \ud800World'"), None, None)
                 .unwrap()
                 .extract()
                 .unwrap();

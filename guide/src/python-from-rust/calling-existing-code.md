@@ -32,11 +32,12 @@ and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::ffi::c_str;
 
 # fn main() -> Result<(), ()> {
 Python::with_gil(|py| {
     let result = py
-        .eval("[i * 10 for i in range(5)]", None, None)
+        .eval(c_str!("[i * 10 for i in range(5)]"), None, None)
         .map_err(|e| {
             e.print_and_set_sys_last_vars(py);
         })?;
@@ -153,6 +154,7 @@ As an example, the below adds the module `foo` to the embedded interpreter:
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::ffi::c_str;
 
 #[pyfunction]
 fn add_one(x: i64) -> i64 {
@@ -167,7 +169,7 @@ fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
-    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
+    Python::with_gil(|py| Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None))
 }
 ```
 
@@ -178,6 +180,7 @@ and insert it manually into `sys.modules`:
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::ffi::c_str;
 
 #[pyfunction]
 pub fn add_one(x: i64) -> i64 {
@@ -198,7 +201,7 @@ fn main() -> PyResult<()> {
         py_modules.set_item("foo", foo_module)?;
 
         // Now we can import + run our python code
-        Python::run(py, "import foo; foo.add_one(6)", None, None)
+        Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None)
     })
 }
 ```
@@ -320,7 +323,7 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3_ffi::c_str;
+use pyo3::ffi::c_str;
 
 fn main() {
     Python::with_gil(|py| {
@@ -349,7 +352,7 @@ class House(object):
 
         house.call_method0("__enter__").unwrap();
 
-        let result = py.eval("undefined_variable + 1", None, None);
+        let result = py.eval(c_str!("undefined_variable + 1"), None, None);
 
         // If the eval threw an exception we'll pass it through to the context manager.
         // Otherwise, __exit__  is called with empty arguments (Python "None").

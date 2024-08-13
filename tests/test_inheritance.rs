@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 
+use pyo3::ffi;
 use pyo3::types::IntoPyDict;
 
 #[path = "../src/tests/common.rs"]
@@ -23,7 +24,7 @@ fn subclass() {
         let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
 
         py.run(
-            "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
+            ffi::c_str!("class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)"),
             None,
             Some(&d),
         )
@@ -100,7 +101,7 @@ fn mutation_fails() {
         let global = [("obj", obj)].into_py_dict(py);
         let e = py
             .run(
-                "obj.base_set(lambda: obj.sub_set_and_ret(1))",
+                ffi::c_str!("obj.base_set(lambda: obj.sub_set_and_ret(1))"),
                 Some(&global),
                 None,
             )
@@ -244,7 +245,7 @@ mod inheriting_native_type {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
-            let item = &py.eval("object()", None, None).unwrap();
+            let item = &py.eval(ffi::c_str!("object()"), None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
             dict_sub.bind(py).set_item("foo", item).unwrap();
@@ -277,7 +278,7 @@ mod inheriting_native_type {
             let cls = py.get_type::<CustomException>();
             let dict = [("cls", &cls)].into_py_dict(py);
             let res = py.run(
-            "e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
+            ffi::c_str!("e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e"),
             None,
             Some(&dict)
             );

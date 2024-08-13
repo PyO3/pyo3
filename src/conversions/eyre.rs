@@ -126,8 +126,8 @@ impl From<eyre::Report> for PyErr {
 #[cfg(test)]
 mod tests {
     use crate::exceptions::{PyRuntimeError, PyValueError};
-    use crate::prelude::*;
     use crate::types::IntoPyDict;
+    use crate::{ffi, prelude::*};
 
     use eyre::{bail, eyre, Report, Result, WrapErr};
 
@@ -152,7 +152,9 @@ mod tests {
 
         Python::with_gil(|py| {
             let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run("raise err", None, Some(&locals)).unwrap_err();
+            let pyerr = py
+                .run(ffi::c_str!("raise err"), None, Some(&locals))
+                .unwrap_err();
             assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
         })
     }
@@ -169,7 +171,9 @@ mod tests {
 
         Python::with_gil(|py| {
             let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run("raise err", None, Some(&locals)).unwrap_err();
+            let pyerr = py
+                .run(ffi::c_str!("raise err"), None, Some(&locals))
+                .unwrap_err();
             assert_eq!(pyerr.value_bound(py).to_string(), expected_contents);
         })
     }

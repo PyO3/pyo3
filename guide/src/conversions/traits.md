@@ -157,7 +157,7 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let py_dict = py.eval("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}", None, None)?;
+#         let py_dict = py.eval(pyo3::ffi::c_str!("{'foo': 'foo', 'bar': 'bar', 'foobar': 'foobar'}"), None, None)?;
 #         let rustystruct: RustyStruct = py_dict.extract()?;
 # 		  assert_eq!(rustystruct.foo, "foo");
 #         assert_eq!(rustystruct.bar, "bar");

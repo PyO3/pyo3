@@ -384,10 +384,11 @@ impl Python<'_> {
     ///
     /// ```
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval("5", None, None)?.extract()?;
+    ///     let x: i32 = py.eval(c_str!("5"), None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -527,15 +528,16 @@ impl<'py> Python<'py> {
     ///
     /// ```
     /// # use pyo3::prelude::*;
+    /// # use pyo3::ffi::c_str;
     /// # Python::with_gil(|py| {
-    /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let result = py.eval(c_str!("[i * 10 for i in range(5)]"), None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
     /// ```
     pub fn eval(
         self,
-        code: &str,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -552,7 +554,8 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.eval(code, globals, locals)
+        let code = CString::new(code)?;
+        self.eval(&code, globals, locals)
     }
 
     /// Executes one or more Python statements in the given context.
@@ -568,15 +571,16 @@ impl<'py> Python<'py> {
     /// use pyo3::{
     ///     prelude::*,
     ///     types::{PyBytes, PyDict},
+    ///     ffi::c_str,
     /// };
     /// Python::with_gil(|py| {
     ///     let locals = PyDict::new(py);
-    ///     py.run(
+    ///     py.run(c_str!(
     ///         r#"
     /// import base64
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
-    /// "#,
+    /// "#),
     ///         None,
     ///         Some(&locals),
     ///     )
@@ -591,7 +595,7 @@ impl<'py> Python<'py> {
     /// if you don't need `globals` and unwrapping is OK.
     pub fn run(
         self,
-        code: &str,
+        code: &CStr,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
@@ -611,7 +615,8 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        self.run(code, globals, locals)
+        let code = CString::new(code)?;
+        self.run(&code, globals, locals)
     }
 
     /// Runs code in the given context.
@@ -623,12 +628,11 @@ impl<'py> Python<'py> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(
         self,
-        code: &str,
+        code: &CStr,
         start: c_int,
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code = CString::new(code)?;
         unsafe {
             let mptr = ffi::PyImport_AddModule(ffi::c_str!("__main__").as_ptr());
             if mptr.is_null() {
@@ -856,7 +860,7 @@ mod tests {
         Python::with_gil(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
-                .eval("min(1, 2)", None, None)
+                .eval(ffi::c_str!("min(1, 2)"), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
@@ -867,7 +871,7 @@ mod tests {
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval("foo + 29", Some(&d), None)
+                .eval(ffi::c_str!("foo + 29"), Some(&d), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -875,7 +879,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval("foo + 29", None, Some(&d))
+                .eval(ffi::c_str!("foo + 29"), None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -883,7 +887,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval("min(foo, 2)", None, Some(&d))
+                .eval(ffi::c_str!("min(foo, 2)"), None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -978,7 +982,7 @@ mod tests {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
-                .eval("...", None, None)
+                .eval(ffi::c_str!("..."), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 
@@ -992,8 +996,12 @@ mod tests {
 
         Python::with_gil(|py| {
             let namespace = PyDict::new(py);
-            py.run("class Foo: pass", Some(&namespace), Some(&namespace))
-                .unwrap();
+            py.run(
+                ffi::c_str!("class Foo: pass"),
+                Some(&namespace),
+                Some(&namespace),
+            )
+            .unwrap();
             assert!(matches!(namespace.get_item("Foo"), Ok(Some(..))));
             assert!(matches!(namespace.get_item("__builtins__"), Ok(Some(..))));
         })

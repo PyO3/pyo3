@@ -511,7 +511,7 @@ fn test_from_py_with() {
     Python::with_gil(|py| {
         let py_zap = py
             .eval(
-                r#"{"name": "whatever", "my_object": [1, 2, 3]}"#,
+                pyo3_ffi::c_str!(r#"{"name": "whatever", "my_object": [1, 2, 3]}"#),
                 None,
                 None,
             )
@@ -534,7 +534,7 @@ pub struct ZapTuple(
 fn test_from_py_with_tuple_struct() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval(pyo3_ffi::c_str!(r#"("whatever", [1, 2, 3])"#), None, None)
             .expect("failed to create tuple");
 
         let zap = py_zap.extract::<ZapTuple>().unwrap();
@@ -548,7 +548,11 @@ fn test_from_py_with_tuple_struct() {
 fn test_from_py_with_tuple_struct_error() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3], "third")"#, None, None)
+            .eval(
+                pyo3_ffi::c_str!(r#"("whatever", [1, 2, 3], "third")"#),
+                None,
+                None,
+            )
             .expect("failed to create tuple");
 
         let f = py_zap.extract::<ZapTuple>();
@@ -574,7 +578,7 @@ pub enum ZapEnum {
 fn test_from_py_with_enum() {
     Python::with_gil(|py| {
         let py_zap = py
-            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .eval(pyo3_ffi::c_str!(r#"("whatever", [1, 2, 3])"#), None, None)
             .expect("failed to create tuple");
 
         let zap = py_zap.extract::<ZapEnum>().unwrap();

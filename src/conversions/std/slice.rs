@@ -88,6 +88,7 @@ mod tests {
     use std::borrow::Cow;
 
     use crate::{
+        ffi,
         types::{any::PyAnyMethods, PyBytes},
         Python, ToPyObject,
     };
@@ -95,7 +96,7 @@ mod tests {
     #[test]
     fn test_extract_bytes() {
         Python::with_gil(|py| {
-            let py_bytes = py.eval("b'Hello Python'", None, None).unwrap();
+            let py_bytes = py.eval(ffi::c_str!("b'Hello Python'"), None, None).unwrap();
             let bytes: &[u8] = py_bytes.extract().unwrap();
             assert_eq!(bytes, b"Hello Python");
         });
@@ -104,15 +105,17 @@ mod tests {
     #[test]
     fn test_cow_impl() {
         Python::with_gil(|py| {
-            let bytes = py.eval(r#"b"foobar""#, None, None).unwrap();
+            let bytes = py.eval(ffi::c_str!(r#"b"foobar""#), None, None).unwrap();
             let cow = bytes.extract::<Cow<'_, [u8]>>().unwrap();
             assert_eq!(cow, Cow::<[u8]>::Borrowed(b"foobar"));
 
-            let byte_array = py.eval(r#"bytearray(b"foobar")"#, None, None).unwrap();
+            let byte_array = py
+                .eval(ffi::c_str!(r#"bytearray(b"foobar")"#), None, None)
+                .unwrap();
             let cow = byte_array.extract::<Cow<'_, [u8]>>().unwrap();
             assert_eq!(cow, Cow::<[u8]>::Owned(b"foobar".to_vec()));
 
-            let something_else_entirely = py.eval("42", None, None).unwrap();
+            let something_else_entirely = py.eval(ffi::c_str!("42"), None, None).unwrap();
             something_else_entirely
                 .extract::<Cow<'_, [u8]>>()
                 .unwrap_err();

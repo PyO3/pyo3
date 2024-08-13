@@ -83,13 +83,13 @@ macro_rules! py_run {
         $crate::py_run_impl!($py, $($val)+, $crate::indoc::indoc!($code))
     }};
     ($py:expr, $($val:ident)+, $code:expr) => {{
-        $crate::py_run_impl!($py, $($val)+, &$crate::unindent::unindent($code))
+        $crate::py_run_impl!($py, $($val)+, $crate::unindent::unindent($code))
     }};
     ($py:expr, *$dict:expr, $code:literal) => {{
         $crate::py_run_impl!($py, *$dict, $crate::indoc::indoc!($code))
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
-        $crate::py_run_impl!($py, *$dict, &$crate::unindent::unindent($code))
+        $crate::py_run_impl!($py, *$dict, $crate::unindent::unindent($code))
     }};
 }
 
@@ -105,12 +105,12 @@ macro_rules! py_run_impl {
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
         #[allow(unused_imports)]
-        if let ::std::result::Result::Err(e) = $py.run($code, None, Some(&$dict)) {
+        if let ::std::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
-            $py.run("import sys; sys.stderr.flush()", None, None)
+            $py.run($crate::ffi::c_str!("import sys; sys.stderr.flush()"), None, None)
                 .unwrap();
             ::std::panic!("{}", $code)
         }

@@ -40,7 +40,7 @@ mod inner {
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
-            let res = $py.run($code, None, Some(&$dict.as_borrowed()));
+            let res = $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
             if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
