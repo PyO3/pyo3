@@ -41,13 +41,13 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(Py_GIL_DISABLED)]
     _padding: 0,
     #[cfg(Py_GIL_DISABLED)]
-    ob_mutex: PyMutex { _bits: 0 },
+    ob_mutex: unsafe { mem::zeroed::<PyMutex>() },
     #[cfg(Py_GIL_DISABLED)]
     ob_gc_bits: 0,
     #[cfg(Py_GIL_DISABLED)]
-    ob_ref_local: 0,
+    ob_ref_local: AtomicU32::new(0),
     #[cfg(Py_GIL_DISABLED)]
-    ob_ref_shared: 0,
+    ob_ref_shared: AtomicIsize::new(0),
     #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
     ob_refcnt: PyObjectObRefcnt { ob_refcnt: 1 },
     #[cfg(not(Py_3_12))]
@@ -97,9 +97,9 @@ pub struct PyObject {
     #[cfg(Py_GIL_DISABLED)]
     pub ob_gc_bits: u8, // gc-related state
     #[cfg(Py_GIL_DISABLED)]
-    pub ob_ref_local: u32, // local reference count
+    pub ob_ref_local: AtomicU32, // local reference count
     #[cfg(Py_GIL_DISABLED)]
-    pub ob_ref_shared: Py_ssize_t, // shared reference count
+    pub ob_ref_shared: AtomicIsize, // shared reference count
     #[cfg(not(Py_GIL_DISABLED))]
     pub ob_refcnt: PyObjectObRefcnt,
     #[cfg(PyPy)]
@@ -127,11 +127,11 @@ pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(Py_GIL_DISABLED)]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
-    let local = (AtomicU32::from((*ob).ob_ref_local)).load(Relaxed);
+    let local = (*ob).ob_ref_local.load(Relaxed);
     if local == _Py_IMMORTAL_REFCNT_LOCAL {
         return _Py_IMMORTAL_REFCNT;
     }
-    let shared = (AtomicIsize::from((*ob).ob_ref_shared)).load(Relaxed);
+    let shared = (*ob).ob_ref_shared.load(Relaxed);
     local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
 }
 
