@@ -350,7 +350,7 @@ pub use nightly::Ungil;
 /// # Releasing and freeing memory
 ///
 /// The [`Python<'py>`] type can be used to create references to variables owned by the Python
-/// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import_bound`].
+/// interpreter, using functions such as [`Python::eval_bound`] and [`PyModule::import`].
 #[derive(Copy, Clone)]
 pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
@@ -674,7 +674,7 @@ impl<'py> Python<'py> {
     where
         N: IntoPy<Py<PyString>>,
     {
-        PyModule::import_bound(self, name)
+        PyModule::import(self, name)
     }
 
     /// Deprecated name for [`Python::import`].

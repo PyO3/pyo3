@@ -923,7 +923,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| {
-/// #         let m = pyo3::types::PyModule::new_bound(py, "test")?;
+/// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
@@ -960,7 +960,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| {
-/// #         let m = pyo3::types::PyModule::new_bound(py, "test")?;
+/// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
@@ -1451,7 +1451,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new_bound(py, "empty").unwrap().into_py(py);
+    /// #    let ob = PyModule::new(py, "empty").unwrap().into_py(py);
     /// #    set_answer(ob, py).unwrap();
     /// # });
     /// ```
@@ -1902,6 +1902,8 @@ mod tests {
     use super::{Bound, Py, PyObject};
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python, ToPyObject};
+    use pyo3_ffi::c_str;
+    use std::ffi::CStr;
 
     #[test]
     fn test_call() {
@@ -1966,12 +1968,14 @@ mod tests {
         use crate::types::PyModule;
 
         Python::with_gil(|py| {
-            const CODE: &str = r#"
+            const CODE: &CStr = c_str!(
+                r#"
 class A:
     pass
 a = A()
-   "#;
-            let module = PyModule::from_code_bound(py, CODE, "", "")?;
+   "#
+            );
+            let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             instance.getattr(py, "foo").unwrap_err();
@@ -1993,12 +1997,14 @@ a = A()
         use crate::types::PyModule;
 
         Python::with_gil(|py| {
-            const CODE: &str = r#"
+            const CODE: &CStr = c_str!(
+                r#"
 class A:
     pass
 a = A()
-   "#;
-            let module = PyModule::from_code_bound(py, CODE, "", "")?;
+   "#
+            );
+            let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             let foo = crate::intern!(py, "foo");

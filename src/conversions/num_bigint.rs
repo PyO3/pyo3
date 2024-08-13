@@ -381,6 +381,7 @@ mod tests {
     use super::*;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
+    use pyo3_ffi::c_str;
 
     fn rust_fib<T>() -> impl Iterator<Item = T>
     where
@@ -441,7 +442,7 @@ mod tests {
     }
 
     fn python_index_class(py: Python<'_>) -> Bound<'_, PyModule> {
-        let index_code = indoc!(
+        let index_code = c_str!(indoc!(
             r#"
                 class C:
                     def __init__(self, x):
@@ -449,8 +450,8 @@ mod tests {
                     def __index__(self):
                         return self.x
                 "#
-        );
-        PyModule::from_code_bound(py, index_code, "index.py", "index").unwrap()
+        ));
+        PyModule::from_code(py, index_code, c_str!("index.py"), c_str!("index")).unwrap()
     }
 
     #[test]

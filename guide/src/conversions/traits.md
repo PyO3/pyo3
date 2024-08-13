@@ -46,6 +46,7 @@ the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the 
 
 ```rust
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 struct RustyStruct {
@@ -54,13 +55,13 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code_bound(
+#         let module = PyModule::from_code(
 #             py,
-#             "class Foo:
+#             c_str!("class Foo:
 #             def __init__(self):
-#                 self.my_string = 'test'",
-#             "",
-#             "",
+#                 self.my_string = 'test'"),
+#             c_str!(""),
+#             c_str!(""),
 #         )?;
 #
 #         let class = module.getattr("Foo")?;
@@ -100,6 +101,7 @@ The argument passed to `getattr` and `get_item` can also be configured:
 
 ```rust
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 struct RustyStruct {
@@ -111,14 +113,14 @@ struct RustyStruct {
 #
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
-#         let module = PyModule::from_code_bound(
+#         let module = PyModule::from_code(
 #             py,
-#             "class Foo(dict):
+#             c_str!("class Foo(dict):
 #             def __init__(self):
 #                 self.name = 'test'
-#                 self['key'] = 'test2'",
-#             "",
-#             "",
+#                 self['key'] = 'test2'"),
+#             c_str!(""),
+#             c_str!(""),
 #         )?;
 #
 #         let class = module.getattr("Foo")?;
@@ -262,6 +264,7 @@ attribute can be applied to single-field-variants.
 
 ```rust
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 #[derive(FromPyObject)]
 # #[derive(Debug)]
@@ -339,15 +342,15 @@ enum RustyEnum<'py> {
 #             );
 #         }
 #         {
-#             let module = PyModule::from_code_bound(
+#             let module = PyModule::from_code(
 #                 py,
-#                 "class Foo(dict):
+#                 c_str!("class Foo(dict):
 #             def __init__(self):
 #                 self.x = 0
 #                 self.y = 1
-#                 self.z = 2",
-#                 "",
-#                 "",
+#                 self.z = 2"),
+#                 c_str!(""),
+#                 c_str!(""),
 #             )?;
 #
 #             let class = module.getattr("Foo")?;
@@ -364,14 +367,14 @@ enum RustyEnum<'py> {
 #         }
 #
 #         {
-#             let module = PyModule::from_code_bound(
+#             let module = PyModule::from_code(
 #                 py,
-#                 "class Foo(dict):
+#                 c_str!("class Foo(dict):
 #             def __init__(self):
 #                 self.x = 3
-#                 self.y = 4",
-#                 "",
-#                 "",
+#                 self.y = 4"),
+#                 c_str!(""),
+#                 c_str!(""),
 #             )?;
 #
 #             let class = module.getattr("Foo")?;

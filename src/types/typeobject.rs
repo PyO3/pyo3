@@ -253,6 +253,7 @@ mod tests {
     use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
+    use pyo3_ffi::c_str;
 
     #[test]
     fn test_type_is_subclass() {
@@ -313,14 +314,16 @@ mod tests {
     #[test]
     fn test_type_names_standard() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class MyClass:
     pass
-"#,
-                file!(),
-                "test_module",
+"#
+                ),
+                c_str!(file!()),
+                c_str!("test_module"),
             )
             .expect("module create failed");
 
@@ -350,15 +353,17 @@ class MyClass:
     #[test]
     fn test_type_names_nested() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class OuterClass:
     class InnerClass:
         pass
-"#,
-                file!(),
-                "test_module",
+"#
+                ),
+                c_str!(file!()),
+                c_str!("test_module"),
             )
             .expect("module create failed");
 
