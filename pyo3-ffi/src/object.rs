@@ -1,5 +1,5 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 use crate::PyMutex;
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
