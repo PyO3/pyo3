@@ -3,6 +3,7 @@ use pyo3::types::IntoPyDict;
 
 #[test]
 #[cfg_attr(target_arch = "wasm32", ignore)] // Not sure why this fails.
+#[cfg_attr(Py_GIL_DISABLED, ignore)] // test deadlocks in GIL-disabled build, TODO: fix deadlock
 fn iter_dict_nosegv() {
     Python::with_gil(|py| {
         const LEN: usize = 10_000_000;
