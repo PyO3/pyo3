@@ -3,10 +3,11 @@ use std::hint::black_box;
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
+use pyo3::ffi::c_str;
 
 macro_rules! test_module {
     ($py:ident, $code:literal) => {
-        PyModule::from_code($py, $code, file!(), "test_module")
+        PyModule::from_code($py, c_str!($code), c_str!(file!()), c_str!("test_module"))
             .expect("module creation failed")
     };
 }

@@ -7,7 +7,7 @@ use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
 use crate::{exceptions, ffi, Bound, IntoPy, Py, PyObject, Python};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::str;
 
 /// Represents a Python [`module`][1] object.
@@ -46,8 +46,9 @@ impl PyModule {
     /// # Ok(())}
     ///  ```
     pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
+        let name = PyString::new(py, name);
         unsafe {
-            ffi::PyModule_NewObject(name.into_py(py))
+            ffi::PyModule_NewObject(name.as_ptr())
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
@@ -123,13 +124,14 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved relative to this file.
-    /// let code = include_str!("../../assets/script.py");
+    /// let code = c_str!(include_str!("../../assets/script.py"));
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, code, "example.py", "example")?;
+    ///     PyModule::from_code(py, code, c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
     /// # Ok(())
@@ -140,6 +142,8 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
+    /// use std::ffi::CString;
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved by however the platform resolves paths,
@@ -148,7 +152,7 @@ impl PyModule {
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code(py, &code, "example.py", "example")?;
+    ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
     /// Ok(())
@@ -156,19 +160,15 @@ impl PyModule {
     /// ```
     pub fn from_code<'py>(
         py: Python<'py>,
-        code: &str,
-        file_name: &str,
-        module_name: &str,
+        code: &CStr,
+        file_name: &CStr,
+        module_name: &CStr,
     ) -> PyResult<Bound<'py, PyModule>> {
-        let data = CString::new(code)?;
-        let filename = CString::new(file_name)?;
-        let module = CString::new(module_name)?;
-
         unsafe {
-            let code = ffi::Py_CompileString(data.as_ptr(), filename.as_ptr(), ffi::Py_file_input)
+            let code = ffi::Py_CompileString(code.as_ptr(), file_name.as_ptr(), ffi::Py_file_input)
                 .assume_owned_or_err(py)?;
 
-            ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), code.as_ptr(), filename.as_ptr())
+            ffi::PyImport_ExecCodeModuleEx(module_name.as_ptr(), code.as_ptr(), file_name.as_ptr())
                 .assume_owned_or_err(py)
                 .downcast_into()
         }
@@ -183,7 +183,11 @@ impl PyModule {
         file_name: &str,
         module_name: &str,
     ) -> PyResult<Bound<'py, PyModule>> {
-        Self::from_code(py, code, file_name, module_name)
+        let data = CString::new(code)?;
+        let filename = CString::new(file_name)?;
+        let module = CString::new(module_name)?;
+
+        Self::from_code(py, data.as_c_str(), filename.as_c_str(), module.as_c_str())
     }
 }
 

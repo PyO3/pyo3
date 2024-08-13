@@ -205,6 +205,7 @@ complex_conversion!(f64);
 mod tests {
     use super::*;
     use crate::types::{complex::PyComplexMethods, PyModule};
+    use pyo3_ffi::c_str;
 
     #[test]
     fn from_complex() {
@@ -235,16 +236,18 @@ mod tests {
         Python::with_gil(|py| {
             let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class A:
     def __complex__(self): return 3.0+1.2j
 class B:
     def __float__(self): return 3.0
 class C:
     def __index__(self): return 3
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let from_complex = module.getattr("A").unwrap().call0().unwrap();
@@ -273,7 +276,8 @@ class C:
         Python::with_gil(|py| {
             let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class First: pass
 class ComplexMixin:
     def __complex__(self): return 3.0+1.2j
@@ -284,9 +288,10 @@ class IndexMixin:
 class A(First, ComplexMixin): pass
 class B(First, FloatMixin): pass
 class C(First, IndexMixin): pass
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let from_complex = module.getattr("A").unwrap().call0().unwrap();
@@ -317,14 +322,16 @@ class C(First, IndexMixin): pass
         Python::with_gil(|py| {
             let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class A:
     @property
     def __complex__(self):
         return lambda: 3.0+1.2j
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let obj = module.getattr("A").unwrap().call0().unwrap();
@@ -340,14 +347,16 @@ class A:
         Python::with_gil(|py| {
             let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class MyComplex:
     def __call__(self): return 3.0+1.2j
 class A:
     __complex__ = MyComplex()
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
             let obj = module.getattr("A").unwrap().call0().unwrap();

@@ -106,21 +106,22 @@ to this function!
 
 ```rust
 use pyo3::{prelude::*, types::IntoPyDict};
+use pyo3_ffi::c_str;
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
     let activators = PyModule::from_code(
         py,
-        r#"
+        c_str!(r#"
 def relu(x):
     """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
-    "#,
-        "activators.py",
-        "activators",
+    "#),
+        c_str!("activators.py"),
+        c_str!("activators"),
     )?;
 
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
@@ -249,16 +250,17 @@ The example below shows:
 `src/main.rs`:
 ```rust,ignore
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 fn main() -> PyResult<()> {
-    let py_foo = include_str!(concat!(
+    let py_foo = c_str!(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/python_app/utils/foo.py"
-    ));
-    let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
+    )));
+    let py_app = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py")));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
-        let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
+        PyModule::from_code(py, py_foo, c_str!("utils.foo"), c_str!("utils.foo"))?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!(""), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -283,19 +285,21 @@ that directory is `/usr/share/python_app`).
 ```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::PyList;
+use pyo3_ffi::c_str;
 use std::fs;
 use std::path::Path;
+use std::ffi::CString;
 
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
-    let py_app = fs::read_to_string(path.join("app.py"))?;
+    let py_app = CString::new(fs::read_to_string(path.join("app.py"))?)?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         let syspath = py
             .import("sys")?
             .getattr("path")?
             .downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
-        let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
+        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!(""), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -316,12 +320,13 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 fn main() {
     Python::with_gil(|py| {
         let custom_manager = PyModule::from_code(
             py,
-            r#"
+            c_str!(r#"
 class House(object):
     def __init__(self, address):
         self.address = address
@@ -333,9 +338,9 @@ class House(object):
         else:
             print(f"Thank you for visiting {self.address}, come again soon!")
 
-        "#,
-            "house.py",
-            "house",
+        "#),
+            c_str!("house.py"),
+            c_str!("house"),
         )
         .unwrap();
 
