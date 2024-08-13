@@ -5,7 +5,6 @@ import re
 import shutil
 import subprocess
 import sys
-import sysconfig
 import tempfile
 from functools import lru_cache
 from glob import glob
@@ -33,7 +32,6 @@ PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13")
 PYPY_VERSIONS = ("3.7", "3.8", "3.9", "3.10")
-IS_FREE_THREADED = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
 @nox.session(venv_backend="none")
@@ -785,12 +783,6 @@ def _get_rust_default_target() -> str:
 def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
     """Returns feature sets to use for clippy job"""
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
-    if IS_FREE_THREADED:
-        # abi3 and free-threaded builds are incompatible
-        return (
-            ("--no-default-features",),
-            ("--features=full multiple-pymethods",),
-        )
     if "wasm32-wasi" not in cargo_target:
         # multiple-pymethods not supported on wasm
         return (

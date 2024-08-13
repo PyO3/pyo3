@@ -177,7 +177,8 @@ impl InterpreterConfig {
             PythonImplementation::GraalPy => out.push("cargo:rustc-cfg=GraalPy".to_owned()),
         }
 
-        if self.abi3 {
+        // If Py_GIL_DISABLED is set, do not build with limited API support
+        if self.abi3 && !self.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
@@ -326,10 +327,6 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             .context("failed to parse calcsize_pointer")?;
 
         let build_flags: BuildFlags = BuildFlags::from_interpreter(interpreter)?;
-
-        if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) && abi3 {
-            bail!("Cannot set Py_LIMITED_API and Py_GIL_DISABLED at the same time")
-        }
 
         Ok(InterpreterConfig {
             version,
@@ -495,10 +492,6 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
         });
 
         let build_flags: BuildFlags = build_flags.unwrap_or_default();
-
-        if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) && abi3 {
-            bail!("Cannot set Py_LIMITED_API and Py_GIL_DISABLED at the same time")
-        }
 
         Ok(InterpreterConfig {
             implementation,
