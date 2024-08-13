@@ -46,10 +46,8 @@ impl PyModule {
     /// # Ok(())}
     ///  ```
     pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
-        // Could use PyModule_NewObject, but it doesn't exist on PyPy.
-        let name = CString::new(name)?;
         unsafe {
-            ffi::PyModule_New(name.as_ptr())
+            ffi::PyModule_NewObject(name.into_py(py))
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
