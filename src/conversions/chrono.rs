@@ -49,8 +49,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::datetime::timezone_from_offset;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{
-    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
-    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
+    PyTzInfo, PyTzInfoAccess,
 };
 #[cfg(Py_LIMITED_API)]
 use crate::{intern, DowncastError};
@@ -102,7 +102,7 @@ impl<'py> IntoPyObject<'py> for Duration {
             // We pass true as the `normalize` parameter since we'd need to do several checks here to
             // avoid that, and it shouldn't have a big performance impact.
             // The seconds and microseconds cast should never overflow since it's at most the number of seconds per day
-            PyDelta::new_bound(
+            PyDelta::new(
                 py,
                 days.try_into().unwrap_or(i32::MAX),
                 secs.try_into()?,
@@ -191,7 +191,7 @@ impl<'py> IntoPyObject<'py> for NaiveDate {
         let DateArgs { year, month, day } = (&self).into();
         #[cfg(not(Py_LIMITED_API))]
         {
-            PyDate::new_bound(py, year, month, day)
+            PyDate::new(py, year, month, day)
         }
 
         #[cfg(Py_LIMITED_API)]
@@ -262,7 +262,7 @@ impl<'py> IntoPyObject<'py> for NaiveTime {
         } = (&self).into();
 
         #[cfg(not(Py_LIMITED_API))]
-        let time = PyTime::new_bound(py, hour, min, sec, micro, None)?;
+        let time = PyTime::new(py, hour, min, sec, micro, None)?;
 
         #[cfg(Py_LIMITED_API)]
         let time = DatetimeTypes::try_get(py)
@@ -338,7 +338,7 @@ impl<'py> IntoPyObject<'py> for NaiveDateTime {
         } = (&self.time()).into();
 
         #[cfg(not(Py_LIMITED_API))]
-        let datetime = PyDateTime::new_bound(py, year, month, day, hour, min, sec, micro, None)?;
+        let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, None)?;
 
         #[cfg(Py_LIMITED_API)]
         let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
@@ -380,7 +380,7 @@ impl FromPyObject<'_> for NaiveDateTime {
         // we return a hard error. We could silently remove tzinfo, or assume local timezone
         // and do a conversion, but better leave this decision to the user of the library.
         #[cfg(not(Py_LIMITED_API))]
-        let has_tzinfo = dt.get_tzinfo_bound().is_some();
+        let has_tzinfo = dt.get_tzinfo().is_some();
         #[cfg(Py_LIMITED_API)]
         let has_tzinfo = !dt.getattr(intern!(dt.py(), "tzinfo"))?.is_none();
         if has_tzinfo {
@@ -442,8 +442,7 @@ impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
         } = (&self.naive_local().time()).into();
 
         #[cfg(not(Py_LIMITED_API))]
-        let datetime =
-            PyDateTime::new_bound(py, year, month, day, hour, min, sec, micro, Some(&tz))?;
+        let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, Some(&tz))?;
 
         #[cfg(Py_LIMITED_API)]
         let datetime = DatetimeTypes::try_get(py).and_then(|dt| {
@@ -468,7 +467,7 @@ impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz
         check_type(dt, &DatetimeTypes::get(dt.py()).datetime, "PyDateTime")?;
 
         #[cfg(not(Py_LIMITED_API))]
-        let tzinfo = dt.get_tzinfo_bound();
+        let tzinfo = dt.get_tzinfo();
         #[cfg(Py_LIMITED_API)]
         let tzinfo: Option<Bound<'_, PyAny>> = dt.getattr(intern!(dt.py(), "tzinfo"))?.extract()?;
 
@@ -515,7 +514,7 @@ impl<'py> IntoPyObject<'py> for FixedOffset {
         let seconds_offset = self.local_minus_utc();
         #[cfg(not(Py_LIMITED_API))]
         {
-            let td = PyDelta::new_bound(py, 0, seconds_offset, 0, true)?;
+            let td = PyDelta::new(py, 0, seconds_offset, 0, true)?;
             timezone_from_offset(&td)
         }
 
@@ -597,11 +596,11 @@ impl<'py> IntoPyObject<'py> for Utc {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         #[cfg(Py_LIMITED_API)]
         {
-            Ok(timezone_utc_bound(py).into_any())
+            Ok(timezone_utc(py).into_any())
         }
         #[cfg(not(Py_LIMITED_API))]
         {
-            Ok(timezone_utc_bound(py))
+            Ok(timezone_utc(py))
         }
     }
 }
@@ -622,7 +621,7 @@ impl<'py> IntoPyObject<'py> for &Utc {
 
 impl FromPyObject<'_> for Utc {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Utc> {
-        let py_utc = timezone_utc_bound(ob.py());
+        let py_utc = timezone_utc(ob.py());
         if ob.eq(py_utc)? {
             Ok(Utc)
         } else {
@@ -686,7 +685,7 @@ fn naive_datetime_to_py_datetime(
         truncated_leap_second,
     } = (&naive_datetime.time()).into();
     #[cfg(not(Py_LIMITED_API))]
-    let datetime = PyDateTime::new_bound(py, year, month, day, hour, min, sec, micro, tzinfo)
+    let datetime = PyDateTime::new(py, year, month, day, hour, min, sec, micro, tzinfo)
         .expect("failed to construct datetime");
     #[cfg(Py_LIMITED_API)]
     let datetime = DatetimeTypes::get(py)
@@ -804,7 +803,7 @@ impl DatetimeTypes {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyAny> {
+fn timezone_utc(py: Python<'_>) -> Bound<'_, PyAny> {
     DatetimeTypes::get(py).timezone_utc.bind(py).clone()
 }
 
@@ -1160,7 +1159,7 @@ mod tests {
             let minute = 8;
             let second = 9;
             let micro = 999_999;
-            let tz_utc = timezone_utc_bound(py);
+            let tz_utc = timezone_utc(py);
             let py_datetime = new_py_datetime_ob(
                 py,
                 "datetime",

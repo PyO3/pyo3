@@ -9,9 +9,10 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 pub use self::code::PyCode;
 pub use self::complex::{PyComplex, PyComplexMethods};
 #[cfg(not(Py_LIMITED_API))]
+#[allow(deprecated)]
 pub use self::datetime::{
-    timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime,
-    PyTimeAccess, PyTzInfo, PyTzInfoAccess,
+    timezone_utc, timezone_utc_bound, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess,
+    PyTime, PyTimeAccess, PyTzInfo, PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy)))]
