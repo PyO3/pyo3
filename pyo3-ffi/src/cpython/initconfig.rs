@@ -179,6 +179,8 @@ pub struct PyConfig {
     pub _is_python_build: c_int,
     #[cfg(all(Py_3_9, not(Py_3_10)))]
     pub _orig_argv: PyWideStringList,
+    #[cfg(all(Py_3_13, py_sys_config = "Py_DEBUG"))]
+    pub run_presite: *mut wchar_t,
 }
 
 extern "C" {
