@@ -187,7 +187,9 @@ impl InterpreterConfig {
         }
 
         for flag in &self.build_flags.0 {
-            out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag));
+            if flag != &BuildFlag::Py_GIL_DISABLED {
+                out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag));
+            }
         }
 
         out
@@ -2775,7 +2777,6 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_12".to_owned(),
                 "cargo:rustc-cfg=Py_3_13".to_owned(),
                 "cargo:rustc-cfg=Py_GIL_DISABLED".to_owned(),
-                "cargo:rustc-cfg=py_sys_config=\"Py_GIL_DISABLED\"".to_owned(),
             ]
         );
     }
