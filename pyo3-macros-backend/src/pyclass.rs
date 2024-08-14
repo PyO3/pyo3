@@ -22,7 +22,7 @@ use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
     SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__, __RICHCMP__, __STR__,
 };
-use crate::pyversions::{is_abi3, py_version_ge};
+use crate::pyversions::is_abi3_before;
 use crate::utils::{self, apply_renaming_rule, Ctx, LitCStr, PythonDoc};
 use crate::PyFunctionOptions;
 
@@ -189,7 +189,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
             PyClassPyO3Option::Dict(dict) => {
                 ensure_spanned!(
-                    py_version_ge(3, 9) || !is_abi3(),
+                    !is_abi3_before(3, 9),
                     dict.span() => "`dict` requires Python >= 3.9 when using the `abi3` feature"
                 );
                 set_option!(dict);
@@ -213,7 +213,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => {
                 ensure_spanned!(
-                    py_version_ge(3, 9) || !is_abi3(),
+                    !is_abi3_before(3, 9),
                     weakref.span() => "`weakref` requires Python >= 3.9 when using the `abi3` feature"
                 );
                 set_option!(weakref);
