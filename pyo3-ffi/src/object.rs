@@ -31,6 +31,7 @@ pub const _Py_IMMORTAL_REFCNT_LOCAL: u32 = u32::MAX;
 #[cfg(Py_GIL_DISABLED)]
 pub const _Py_REF_SHARED_SHIFT: isize = 2;
 
+#[allow(clippy::declare_interior_mutable_const)]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_next: std::ptr::null_mut(),

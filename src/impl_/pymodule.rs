@@ -54,6 +54,7 @@ impl ModuleDef {
         doc: &'static CStr,
         initializer: ModuleInitializer,
     ) -> Self {
+        #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
             m_name: std::ptr::null(),
