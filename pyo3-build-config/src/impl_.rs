@@ -328,8 +328,6 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             .parse()
             .context("failed to parse calcsize_pointer")?;
 
-        let build_flags: BuildFlags = BuildFlags::from_interpreter(interpreter)?;
-
         Ok(InterpreterConfig {
             version,
             implementation,
@@ -339,7 +337,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             lib_dir,
             executable: map.get("executable").cloned(),
             pointer_width: Some(calcsize_pointer * 8),
-            build_flags,
+            build_flags: BuildFlags::from_interpreter(interpreter)?,
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         })
@@ -493,8 +491,6 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             }
         });
 
-        let build_flags: BuildFlags = build_flags.unwrap_or_default();
-
         Ok(InterpreterConfig {
             implementation,
             version,
@@ -504,7 +500,7 @@ print("ext_suffix", get_config_var("EXT_SUFFIX"))
             lib_dir,
             executable,
             pointer_width,
-            build_flags,
+            build_flags: build_flags.unwrap_or_default(),
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
         })
