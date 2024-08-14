@@ -46,7 +46,7 @@ pub const fn PyObject_HEAD_INIT() -> PyObject {
         #[cfg(Py_GIL_DISABLED)]
         ob_gc_bits: 0,
         #[cfg(Py_GIL_DISABLED)]
-        ob_ref_local: AtomicU32::new(0),
+        ob_ref_local: AtomicU32::new(_Py_IMMORTAL_REFCNT_LOCAL),
         #[cfg(Py_GIL_DISABLED)]
         ob_ref_shared: AtomicIsize::new(0),
         #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
