@@ -59,12 +59,14 @@ pub struct PyModuleDef_Base {
     pub m_copy: *mut PyObject,
 }
 
-pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
-    ob_base: PyObject_HEAD_INIT,
-    m_init: None,
-    m_index: 0,
-    m_copy: std::ptr::null_mut(),
-};
+pub const fn PyModuleDef_HEAD_INIT() -> PyModuleDef_Base {
+    PyModuleDef_Base {
+        ob_base: PyObject_HEAD_INIT(),
+        m_init: None,
+        m_index: 0,
+        m_copy: std::ptr::null_mut(),
+    }
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq)]

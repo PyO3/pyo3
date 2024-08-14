@@ -88,7 +88,7 @@
 //! use pyo3_ffi::*;
 //!
 //! static mut MODULE_DEF: PyModuleDef = PyModuleDef {
-//!     m_base: PyModuleDef_HEAD_INIT,
+//!     m_base: PyModuleDef_HEAD_INIT(),
 //!     m_name: c_str!("string_sum").as_ptr(),
 //!     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
 //!     m_size: 0,

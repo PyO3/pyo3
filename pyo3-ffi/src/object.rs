@@ -1,5 +1,5 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+#[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
@@ -31,31 +31,33 @@ pub const _Py_IMMORTAL_REFCNT_LOCAL: u32 = u32::MAX;
 #[cfg(Py_GIL_DISABLED)]
 pub const _Py_REF_SHARED_SHIFT: isize = 2;
 
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_next: std::ptr::null_mut(),
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_prev: std::ptr::null_mut(),
-    #[cfg(Py_GIL_DISABLED)]
-    ob_tid: 0,
-    #[cfg(Py_GIL_DISABLED)]
-    _padding: 0,
-    #[cfg(Py_GIL_DISABLED)]
-    ob_mutex: unsafe { mem::zeroed::<PyMutex>() },
-    #[cfg(Py_GIL_DISABLED)]
-    ob_gc_bits: 0,
-    #[cfg(Py_GIL_DISABLED)]
-    ob_ref_local: AtomicU32::new(0),
-    #[cfg(Py_GIL_DISABLED)]
-    ob_ref_shared: AtomicIsize::new(0),
-    #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
-    ob_refcnt: PyObjectObRefcnt { ob_refcnt: 1 },
-    #[cfg(not(Py_3_12))]
-    ob_refcnt: 1,
-    #[cfg(PyPy)]
-    ob_pypy_link: 0,
-    ob_type: std::ptr::null_mut(),
-};
+pub const fn PyObject_HEAD_INIT() -> PyObject {
+    PyObject {
+        #[cfg(py_sys_config = "Py_TRACE_REFS")]
+        _ob_next: std::ptr::null_mut(),
+        #[cfg(py_sys_config = "Py_TRACE_REFS")]
+        _ob_prev: std::ptr::null_mut(),
+        #[cfg(Py_GIL_DISABLED)]
+        ob_tid: 0,
+        #[cfg(Py_GIL_DISABLED)]
+        _padding: 0,
+        #[cfg(Py_GIL_DISABLED)]
+        ob_mutex: unsafe { mem::zeroed::<PyMutex>() },
+        #[cfg(Py_GIL_DISABLED)]
+        ob_gc_bits: 0,
+        #[cfg(Py_GIL_DISABLED)]
+        ob_ref_local: AtomicU32::new(0),
+        #[cfg(Py_GIL_DISABLED)]
+        ob_ref_shared: AtomicIsize::new(0),
+        #[cfg(all(not(Py_GIL_DISABLED), Py_3_12))]
+        ob_refcnt: PyObjectObRefcnt { ob_refcnt: 1 },
+        #[cfg(not(Py_3_12))]
+        ob_refcnt: 1,
+        #[cfg(PyPy)]
+        ob_pypy_link: 0,
+        ob_type: std::ptr::null_mut(),
+    }
+}
 
 // skipped PyObject_VAR_HEAD
 // skipped Py_INVALID_SIZE

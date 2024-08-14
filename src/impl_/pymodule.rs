@@ -55,7 +55,7 @@ impl ModuleDef {
         initializer: ModuleInitializer,
     ) -> Self {
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
-            m_base: ffi::PyModuleDef_HEAD_INIT,
+            m_base: ffi::PyModuleDef_HEAD_INIT(),
             m_name: std::ptr::null(),
             m_doc: std::ptr::null(),
             m_size: 0,

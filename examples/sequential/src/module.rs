@@ -3,7 +3,7 @@ use pyo3_ffi::*;
 use std::os::raw::{c_int, c_void};
 
 pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
-    m_base: PyModuleDef_HEAD_INIT,
+    m_base: PyModuleDef_HEAD_INIT(),
     m_name: c_str!("sequential").as_ptr(),
     m_doc: c_str!("A library for generating sequential ids, written in Rust.").as_ptr(),
     m_size: mem::size_of::<sequential_state>() as Py_ssize_t,
