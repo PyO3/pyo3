@@ -219,8 +219,8 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
 
     let method_def = quote! {
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::ClassAttribute({
-                #pyo3_path::class::PyClassAttributeDef::new(
+            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
                     #python_name,
                     #cls::#wrapper_ident
                 )

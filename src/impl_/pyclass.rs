@@ -1,12 +1,14 @@
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
-    impl_::freelist::FreeList,
-    impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+    impl_::{
+        freelist::FreeList,
+        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+        pymethods::{PyGetterDef, PyMethodDefType},
+    },
     pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyMethodDefType, PyResult, PyTypeInfo, Python,
-    ToPyObject,
+    Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyResult, PyTypeInfo, Python, ToPyObject,
 };
 use std::{
     borrow::Cow,
@@ -1249,7 +1251,7 @@ impl<
                 doc: doc.as_ptr(),
             })
         } else {
-            PyMethodDefType::Getter(crate::PyGetterDef {
+            PyMethodDefType::Getter(PyGetterDef {
                 name,
                 meth: pyo3_get_value_topyobject::<ClassT, Py<U>, Offset>,
                 doc,
@@ -1263,7 +1265,7 @@ impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, Field
     PyClassGetterGenerator<ClassT, FieldT, Offset, false, true>
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
-        PyMethodDefType::Getter(crate::PyGetterDef {
+        PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value_topyobject::<ClassT, FieldT, Offset>,
             doc,
@@ -1292,7 +1294,7 @@ impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
     where
         FieldT: PyO3GetField,
     {
-        PyMethodDefType::Getter(crate::PyGetterDef {
+        PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value::<ClassT, FieldT, Offset>,
             doc,

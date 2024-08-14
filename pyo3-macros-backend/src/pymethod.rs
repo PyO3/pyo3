@@ -330,7 +330,7 @@ pub fn impl_py_method_def(
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident }, doc, ctx);
     let method_def = quote! {
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+            #pyo3_path::impl_::pymethods::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
         )
     };
     Ok(MethodAndMethodDef {
@@ -510,8 +510,8 @@ fn impl_py_class_attribute(
 
     let method_def = quote! {
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::ClassAttribute({
-                #pyo3_path::class::PyClassAttributeDef::new(
+            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
                     #python_name,
                     #cls::#wrapper_ident
                 )
@@ -691,8 +691,8 @@ pub fn impl_py_setter_def(
     let method_def = quote! {
         #cfg_attrs
         #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::class::PyMethodDefType::Setter(
-                #pyo3_path::class::PySetterDef::new(
+            #pyo3_path::impl_::pymethods::PyMethodDefType::Setter(
+                #pyo3_path::impl_::pymethods::PySetterDef::new(
                     #python_name,
                     #cls::#wrapper_ident,
                     #doc
@@ -826,8 +826,8 @@ pub fn impl_py_getter_def(
             let method_def = quote! {
                 #cfg_attrs
                 #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-                    #pyo3_path::class::PyMethodDefType::Getter(
-                        #pyo3_path::class::PyGetterDef::new(
+                    #pyo3_path::impl_::pymethods::PyMethodDefType::Getter(
+                        #pyo3_path::impl_::pymethods::PyGetterDef::new(
                             #python_name,
                             #cls::#wrapper_ident,
                             #doc
