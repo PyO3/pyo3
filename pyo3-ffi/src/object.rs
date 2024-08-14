@@ -556,6 +556,7 @@ extern "C" {
 #[inline(always)]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
     // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
+    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
     #[cfg(any(
         Py_GIL_DISABLED,
         Py_LIMITED_API,
@@ -619,6 +620,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
     // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
     // On 3.12+ we implement refcount debugging to get better assertion locations on negative refcounts
+    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
     #[cfg(any(
         Py_GIL_DISABLED,
         Py_LIMITED_API,
