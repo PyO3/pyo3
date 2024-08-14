@@ -27,6 +27,7 @@ const _PyDateTime_TIME_DATASIZE: usize = 6;
 const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 
 #[repr(C)]
+#[derive(Debug)]
 /// Structure representing a `datetime.timedelta`.
 pub struct PyDateTime_Delta {
     pub ob_base: PyObject,
@@ -45,6 +46,7 @@ pub struct PyDateTime_Delta {
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
+#[derive(Debug)]
 /// Structure representing a `datetime.time` without a `tzinfo` member.
 pub struct _PyDateTime_BaseTime {
     pub ob_base: PyObject,
@@ -54,6 +56,7 @@ pub struct _PyDateTime_BaseTime {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 /// Structure representing a `datetime.time`.
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
@@ -74,6 +77,7 @@ pub struct PyDateTime_Time {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 /// Structure representing a `datetime.date`
 pub struct PyDateTime_Date {
     pub ob_base: PyObject,
@@ -87,6 +91,7 @@ pub struct PyDateTime_Date {
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
+#[derive(Debug)]
 /// Structure representing a `datetime.datetime` without a `tzinfo` member.
 pub struct _PyDateTime_BaseDateTime {
     pub ob_base: PyObject,
@@ -96,6 +101,7 @@ pub struct _PyDateTime_BaseDateTime {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 /// Structure representing a `datetime.datetime`.
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,

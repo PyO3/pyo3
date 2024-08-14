@@ -205,6 +205,7 @@ pub type printfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct PyTypeObject {
     #[cfg(all(PyPy, not(Py_3_9)))]
     pub ob_refcnt: Py_ssize_t,
