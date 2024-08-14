@@ -54,8 +54,8 @@ impl ModuleDef {
         doc: &'static CStr,
         initializer: ModuleInitializer,
     ) -> Self {
-        let init = ffi::PyModuleDef {
-            m_base: ffi::PyModuleDef_HEAD_INIT(),
+        const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
+            m_base: ffi::PyModuleDef_HEAD_INIT,
             m_name: std::ptr::null(),
             m_doc: std::ptr::null(),
             m_size: 0,
@@ -69,7 +69,7 @@ impl ModuleDef {
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
-            ..init
+            ..INIT
         });
 
         ModuleDef {
