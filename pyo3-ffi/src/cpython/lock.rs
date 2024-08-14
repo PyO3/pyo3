@@ -3,7 +3,7 @@ use std::sync::atomic::AtomicU8;
 
 #[repr(C)]
 pub struct PyMutex {
-    _bits: AtomicU8,
+    pub(crate) _bits: AtomicU8,
 }
 
 impl fmt::Debug for PyMutex {
