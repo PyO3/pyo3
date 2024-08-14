@@ -213,14 +213,14 @@ impl<'py> IntoPyObject<'py> for u8 {
         }
     }
 
-    fn iter_into_pyobject<I, E>(
+    fn iter_into_pyobject<I>(
         iter: I,
         py: Python<'py>,
         _: crate::conversion::private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        I: IntoIterator<Item = Self, IntoIter = E>,
-        E: ExactSizeIterator<Item = Self>,
+        I: IntoIterator<Item = Self>,
+        I::IntoIter: ExactSizeIterator<Item = Self>,
     {
         let mut iter = iter.into_iter();
         let len = iter.len();
@@ -250,14 +250,14 @@ impl<'py> IntoPyObject<'py> for &u8 {
         (*self).into_pyobject(py)
     }
 
-    fn iter_into_pyobject<I, E>(
+    fn iter_into_pyobject<I>(
         iter: I,
         py: Python<'py>,
         _: crate::conversion::private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        I: IntoIterator<Item = Self, IntoIter = E>,
-        E: ExactSizeIterator<Item = Self>,
+        I: IntoIterator<Item = Self>,
+        I::IntoIter: ExactSizeIterator<Item = Self>,
         PyErr: From<Self::Error>,
     {
         u8::iter_into_pyobject(

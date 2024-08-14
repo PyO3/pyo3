@@ -203,14 +203,14 @@ pub trait IntoPyObject<'py>: Sized {
 
     /// Converts slice of self into a Python object
     #[doc(hidden)]
-    fn iter_into_pyobject<I, E>(
+    fn iter_into_pyobject<I>(
         iter: I,
         py: Python<'py>,
         _: private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        I: IntoIterator<Item = Self, IntoIter = E>,
-        E: ExactSizeIterator<Item = Self>,
+        I: IntoIterator<Item = Self>,
+        I::IntoIter: ExactSizeIterator<Item = Self>,
         PyErr: From<Self::Error>,
     {
         let mut iter = iter.into_iter().map(|e| {
