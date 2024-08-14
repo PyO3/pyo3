@@ -213,58 +213,16 @@ impl<'py> IntoPyObject<'py> for u8 {
         }
     }
 
-    fn iter_into_pyobject<I>(
+    #[inline]
+    fn sequence_into_pyobject<I>(
         iter: I,
         py: Python<'py>,
         _: crate::conversion::private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        I: IntoIterator<Item = Self>,
-        I::IntoIter: ExactSizeIterator<Item = Self>,
+        I: AsRef<[Self]>,
     {
-        let mut iter = iter.into_iter();
-        let len = iter.len();
-
-        PyBytes::new_with(py, len, |buf| {
-            let mut counter = 0;
-            for (slot, byte) in buf.iter_mut().zip(&mut iter) {
-                *slot = byte;
-                counter += 1;
-            }
-
-            assert!(iter.next().is_none(), "Attempted to create PyBytes but `iter` was larger than reported by its `ExactSizeIterator` implementation.");
-            assert_eq!(len, counter, "Attempted to create PyBytes but `iter` was smaller than reported by its `ExactSizeIterator` implementation.");
-
-            Ok(())
-        })
-        .map(Bound::into_any)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for &u8 {
-    type Target = PyInt;
-    type Output = Bound<'py, Self::Target>;
-    type Error = Infallible;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        (*self).into_pyobject(py)
-    }
-
-    fn iter_into_pyobject<I>(
-        iter: I,
-        py: Python<'py>,
-        _: crate::conversion::private::Token,
-    ) -> Result<Bound<'py, PyAny>, PyErr>
-    where
-        I: IntoIterator<Item = Self>,
-        I::IntoIter: ExactSizeIterator<Item = Self>,
-        PyErr: From<Self::Error>,
-    {
-        u8::iter_into_pyobject(
-            iter.into_iter().copied(),
-            py,
-            crate::conversion::private::Token,
-        )
+        Ok(PyBytes::new(py, iter.as_ref()).into_any())
     }
 }
 

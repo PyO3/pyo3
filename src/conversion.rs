@@ -201,15 +201,16 @@ pub trait IntoPyObject<'py>: Sized {
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
 
-    /// Converts slice of self into a Python object
+    /// Converts sequence of Self into a Python object. Used to specialize `Vec<u8>`, `[u8; N]`
+    /// and `SmallVec<[u8; N]>` as a sequence of bytes into a `bytes` object.
     #[doc(hidden)]
-    fn iter_into_pyobject<I>(
+    fn sequence_into_pyobject<I>(
         iter: I,
         py: Python<'py>,
         _: private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        I: IntoIterator<Item = Self>,
+        I: IntoIterator<Item = Self> + AsRef<[Self]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
         PyErr: From<Self::Error>,
     {

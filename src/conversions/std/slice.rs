@@ -4,8 +4,8 @@ use std::borrow::Cow;
 use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
-    types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    types::{PyByteArray, PyByteArrayMethods, PyBytes, PyList},
+    Bound, BoundObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
@@ -24,7 +24,7 @@ where
     &'a T: IntoPyObject<'py>,
     PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
-    type Target = PyAny;
+    type Target = PyList;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -32,8 +32,27 @@ where
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        <&T>::iter_into_pyobject(self, py, crate::conversion::private::Token)
+        let mut iter = self.into_iter().map(|e| {
+            e.into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
+                .map_err(Into::into)
+        });
+        crate::types::list::try_new_from_iter(py, &mut iter)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &'_ [u8] {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    /// Turns [`&[u8]`](std::slice) into [`PyBytes`]
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyBytes::new(py, self))
     }
 }
 
@@ -85,14 +104,36 @@ impl<'py, T> IntoPyObject<'py> for Cow<'_, [T]>
 where
     T: Clone,
     for<'a> &'a T: IntoPyObject<'py>,
-    PyErr: for<'a> From<<&'a T as IntoPyObject<'py>>::Error>,
+    for<'a> PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
 {
-    type Target = PyAny;
+    type Target = PyList;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        <&T>::iter_into_pyobject(self.iter(), py, crate::conversion::private::Token)
+        let mut iter = self.iter().map(|e| {
+            e.into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::unbind)
+                .map_err(Into::into)
+        });
+        crate::types::list::try_new_from_iter(py, &mut iter)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for Cow<'_, [u8]> {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyBytes::new(py, &self))
     }
 }
 
@@ -147,7 +188,6 @@ mod tests {
             let bytes: &[u8] = b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), bytes);
 
             let nums: &[u16] = &[0, 1, 2, 3];
@@ -162,13 +202,11 @@ mod tests {
             let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
             let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &*borrowed_bytes);
 
             let owned_bytes = Cow::<[u8]>::Owned(b"foobar".to_vec());
             let obj = owned_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &*owned_bytes);
 
             let borrowed_nums = Cow::<[u16]>::Borrowed(&[0, 1, 2, 3]);
