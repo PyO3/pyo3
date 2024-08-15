@@ -387,12 +387,11 @@ impl CallingConvention {
     pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
         if signature.python_signature.has_no_args() {
             Self::Noargs
-        } else if {
-            // for functions that accept **kwargs, always prefer varargs
-            signature.python_signature.kwargs.is_none()
+        } else if signature.python_signature.kwargs.is_none() && !is_abi3_before(3, 10) {
+            // For functions that accept **kwargs, always prefer varargs for now based on
+            // historical performance testing.
+            //
             // FASTCALL not compatible with `abi3` before 3.10
-            && !is_abi3_before(3, 10)
-        } {
             Self::Fastcall
         } else {
             Self::Varargs

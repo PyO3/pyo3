@@ -519,3 +519,40 @@ pub unsafe fn tp_new_impl<T: PyClass>(
         .create_class_object_of_type(py, target_type)
         .map(Bound::into_ptr)
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn test_fastcall_function_with_keywords() {
+        use super::PyMethodDef;
+        use crate::types::{PyAnyMethods, PyCFunction};
+        use crate::{ffi, Python};
+
+        Python::with_gil(|py| {
+            unsafe extern "C" fn accepts_no_arguments(
+                _slf: *mut ffi::PyObject,
+                _args: *const *mut ffi::PyObject,
+                nargs: ffi::Py_ssize_t,
+                kwargs: *mut ffi::PyObject,
+            ) -> *mut ffi::PyObject {
+                assert_eq!(nargs, 0);
+                assert!(kwargs.is_null());
+                unsafe { ffi::Py_NewRef(ffi::Py_None()) }
+            }
+
+            let f = PyCFunction::internal_new(
+                py,
+                &PyMethodDef::fastcall_cfunction_with_keywords(
+                    ffi::c_str!("test"),
+                    accepts_no_arguments,
+                    ffi::c_str!("doc"),
+                ),
+                None,
+            )
+            .unwrap();
+
+            f.call0().unwrap();
+        });
+    }
+}
