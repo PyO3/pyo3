@@ -794,13 +794,14 @@ mod tests {
     // tzdata there to make this work.
     #[cfg(all(Py_3_9, not(target_os = "windows")))]
     fn test_zoneinfo_is_not_fixed_offset() {
+        use crate::ffi;
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
 
         Python::with_gil(|py| {
             let locals = crate::types::PyDict::new(py);
-            py.run_bound(
-                "import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
+            py.run(
+                ffi::c_str!("import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')"),
                 None,
                 Some(&locals),
             )
@@ -1320,6 +1321,7 @@ mod tests {
         use crate::tests::common::CatchWarnings;
         use crate::types::IntoPyDict;
         use proptest::prelude::*;
+        use std::ffi::CString;
 
         proptest! {
 
@@ -1330,7 +1332,7 @@ mod tests {
 
                     let globals = [("datetime", py.import("datetime").unwrap())].into_py_dict(py);
                     let code = format!("datetime.datetime.fromtimestamp({}).replace(tzinfo=datetime.timezone(datetime.timedelta(seconds={})))", timestamp, timedelta);
-                    let t = py.eval_bound(&code, Some(&globals), None).unwrap();
+                    let t = py.eval(&CString::new(code).unwrap(), Some(&globals), None).unwrap();
 
                     // Get ISO 8601 string from python
                     let py_iso_str = t.call_method0("isoformat").unwrap();

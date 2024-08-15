@@ -2,6 +2,7 @@
 
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
+use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use std::cell::Cell;
@@ -117,7 +118,8 @@ fn gc_integration() {
     });
 
     Python::with_gil(|py| {
-        py.run_bound("import gc; gc.collect()", None, None).unwrap();
+        py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
+            .unwrap();
         assert!(drop_called.load(Ordering::Relaxed));
     });
 }
@@ -156,7 +158,8 @@ fn gc_null_traversal() {
         obj.borrow_mut(py).cycle = Some(obj.clone_ref(py));
 
         // the object doesn't have to be cleaned up, it just needs to be traversed.
-        py.run_bound("import gc; gc.collect()", None, None).unwrap();
+        py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
+            .unwrap();
     });
 }
 
@@ -471,7 +474,8 @@ fn drop_during_traversal_with_gil() {
     // (but not too many) collections to get `inst` actually dropped.
     for _ in 0..10 {
         Python::with_gil(|py| {
-            py.run_bound("import gc; gc.collect()", None, None).unwrap();
+            py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
+                .unwrap();
         });
     }
     assert!(drop_called.load(Ordering::Relaxed));
@@ -505,7 +509,8 @@ fn drop_during_traversal_without_gil() {
     // (but not too many) collections to get `inst` actually dropped.
     for _ in 0..10 {
         Python::with_gil(|py| {
-            py.run_bound("import gc; gc.collect()", None, None).unwrap();
+            py.run(ffi::c_str!("import gc; gc.collect()"), None, None)
+                .unwrap();
         });
     }
     assert!(drop_called.load(Ordering::Relaxed));

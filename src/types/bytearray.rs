@@ -188,14 +188,14 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
-    /// #         py.run_bound(
+    /// #         py.run(pyo3::ffi::c_str!(
     /// # r#"b = bytearray(b"hello world")
     /// # a_valid_function(b)
     /// #
     /// # try:
     /// #     a_valid_function(bytearray())
     /// # except RuntimeError as e:
-    /// #     assert str(e) == 'input is not long enough'"#,
+    /// #     assert str(e) == 'input is not long enough'"#),
     /// #             None,
     /// #             Some(&locals),
     /// #         )?;

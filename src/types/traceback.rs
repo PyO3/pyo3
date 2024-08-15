@@ -35,11 +35,11 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// The following code formats a Python traceback and exception pair from Rust:
     ///
     /// ```rust
-    /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods};
+    /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods, ffi::c_str};
     /// # let result: PyResult<()> =
     /// Python::with_gil(|py| {
     ///     let err = py
-    ///         .run_bound("raise Exception('banana')", None, None)
+    ///         .run(c_str!("raise Exception('banana')"), None, None)
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback_bound(py).expect("raised exception will have a traceback");
@@ -81,6 +81,7 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        ffi,
         types::{any::PyAnyMethods, dict::PyDictMethods, traceback::PyTracebackMethods, PyDict},
         IntoPy, PyErr, Python,
     };
@@ -89,7 +90,7 @@ mod tests {
     fn format_traceback() {
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
 
             assert_eq!(
@@ -104,13 +105,15 @@ mod tests {
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
-            py.run_bound(
-                r"
+            py.run(
+                ffi::c_str!(
+                    r"
 try:
     raise ValueError('raised exception')
 except Exception as e:
     err = e
-",
+"
+                ),
                 None,
                 Some(&locals),
             )
@@ -126,11 +129,13 @@ except Exception as e:
         Python::with_gil(|py| {
             let locals = PyDict::new(py);
             // Produce an error from python so that it has a traceback
-            py.run_bound(
-                r"
+            py.run(
+                ffi::c_str!(
+                    r"
 def f():
     raise ValueError('raised exception')
-",
+"
+                ),
                 None,
                 Some(&locals),
             )

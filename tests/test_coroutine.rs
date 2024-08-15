@@ -1,6 +1,6 @@
 #![cfg(feature = "experimental-async")]
 #![cfg(not(target_arch = "wasm32"))]
-use std::{task::Poll, thread, time::Duration};
+use std::{ffi::CString, task::Poll, thread, time::Duration};
 
 use futures::{channel::oneshot, future::poll_fn, FutureExt};
 #[cfg(not(target_has_atomic = "64"))]
@@ -151,8 +151,8 @@ fn cancelled_coroutine() {
         let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep", sleep).unwrap();
         let err = gil
-            .run_bound(
-                &pyo3::unindent::unindent(&handle_windows(test)),
+            .run(
+                &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
                 Some(&globals),
                 None,
             )
@@ -191,8 +191,8 @@ fn coroutine_cancel_handle() {
         globals
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
-        gil.run_bound(
-            &pyo3::unindent::unindent(&handle_windows(test)),
+        gil.run(
+            &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
             Some(&globals),
             None,
         )
@@ -221,8 +221,8 @@ fn coroutine_is_cancelled() {
         "#;
         let globals = gil.import("__main__").unwrap().dict();
         globals.set_item("sleep_loop", sleep_loop).unwrap();
-        gil.run_bound(
-            &pyo3::unindent::unindent(&handle_windows(test)),
+        gil.run(
+            &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
             Some(&globals),
             None,
         )

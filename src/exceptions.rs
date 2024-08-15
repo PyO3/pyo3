@@ -179,12 +179,12 @@ macro_rules! import_exception_bound {
 /// #         locals.set_item("MyError", py.get_type::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
-/// #         py.run_bound(
+/// #         py.run(pyo3::ffi::c_str!(
 /// # "try:
 /// #     raise_myerror()
 /// # except MyError as e:
 /// #     assert e.__doc__ == 'Some description.'
-/// #     assert str(e) == 'Some error happened.'",
+/// #     assert str(e) == 'Some error happened.'"),
 /// #             None,
 /// #             Some(&locals),
 /// #         )?;
@@ -346,9 +346,10 @@ except ", $name, " as e:
 ```
 use pyo3::prelude::*;
 use pyo3::exceptions::Py", $name, ";
+use pyo3::ffi::c_str;
 
 Python::with_gil(|py| {
-    let result: PyResult<()> = py.run_bound(\"raise ", $name, "\", None, None);
+    let result: PyResult<()> = py.run(c_str!(\"raise ", $name, "\"), None, None);
 
     let error_type = match result {
         Ok(_) => \"Not an error\",
@@ -835,9 +836,13 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run_bound("assert isinstance(exc, socket.gaierror)", None, Some(&d))
-                .map_err(|e| e.display(py))
-                .expect("assertion failed");
+            py.run(
+                ffi::c_str!("assert isinstance(exc, socket.gaierror)"),
+                None,
+                Some(&d),
+            )
+            .map_err(|e| e.display(py))
+            .expect("assertion failed");
         });
     }
 
@@ -858,8 +863,8 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run_bound(
-                "assert isinstance(exc, email.errors.MessageError)",
+            py.run(
+                ffi::c_str!("assert isinstance(exc, email.errors.MessageError)"),
                 None,
                 Some(&d),
             )
@@ -876,19 +881,23 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
-                "assert CustomError('oops').args == ('oops',)",
+            py.run(
+                ffi::c_str!("assert CustomError('oops').args == ('oops',)"),
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound("assert CustomError.__doc__ is None", None, Some(&ctx))
-                .unwrap();
+            py.run(
+                ffi::c_str!("assert CustomError.__doc__ is None"),
+                None,
+                Some(&ctx),
+            )
+            .unwrap();
         });
     }
 
@@ -899,7 +908,7 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -918,19 +927,19 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
-                "assert CustomError('oops').args == ('oops',)",
+            py.run(
+                ffi::c_str!("assert CustomError('oops').args == ('oops',)"),
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound(
-                "assert CustomError.__doc__ == 'Some docs'",
+            py.run(
+                ffi::c_str!("assert CustomError.__doc__ == 'Some docs'"),
                 None,
                 Some(&ctx),
             )
@@ -951,19 +960,19 @@ mod tests {
             let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
-                "assert CustomError('oops').args == ('oops',)",
+            py.run(
+                ffi::c_str!("assert CustomError('oops').args == ('oops',)"),
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound(
-                "assert CustomError.__doc__ == 'Some more docs'",
+            py.run(
+                ffi::c_str!("assert CustomError.__doc__ == 'Some more docs'"),
                 None,
                 Some(&ctx),
             )
@@ -975,7 +984,7 @@ mod tests {
     fn native_exception_debug() {
         Python::with_gil(|py| {
             let exc = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_bound(py);
@@ -990,7 +999,7 @@ mod tests {
     fn native_exception_display() {
         Python::with_gil(|py| {
             let exc = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_bound(py);
@@ -1070,7 +1079,7 @@ mod tests {
         )
     });
     test_exception!(PyUnicodeEncodeError, |py| py
-        .eval_bound("chr(40960).encode('ascii')", None, None)
+        .eval(ffi::c_str!("chr(40960).encode('ascii')"), None, None)
         .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
         PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))

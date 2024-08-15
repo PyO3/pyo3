@@ -685,7 +685,7 @@ mod tests {
     #[test]
     fn test_debug() {
         Python::with_gil(|py| {
-            let bytes = py.eval_bound("b'abcde'", None, None).unwrap();
+            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer: PyBuffer<u8> = PyBuffer::get_bound(&bytes).unwrap();
             let expected = format!(
                 concat!(
@@ -847,7 +847,7 @@ mod tests {
     #[test]
     fn test_bytes_buffer() {
         Python::with_gil(|py| {
-            let bytes = py.eval_bound("b'abcde'", None, None).unwrap();
+            let bytes = py.eval(ffi::c_str!("b'abcde'"), None, None).unwrap();
             let buffer = PyBuffer::get_bound(&bytes).unwrap();
             assert_eq!(buffer.dimensions(), 1);
             assert_eq!(buffer.item_count(), 5);

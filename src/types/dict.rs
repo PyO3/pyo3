@@ -795,7 +795,7 @@ mod tests {
     fn test_set_item_refcnt() {
         Python::with_gil(|py| {
             let cnt;
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             {
                 cnt = obj.get_refcnt();
                 let _dict = [(10, &obj)].into_py_dict(py);

@@ -156,7 +156,7 @@ impl SuperClass {
 fn subclass_new() {
     Python::with_gil(|py| {
         let super_cls = py.get_type::<SuperClass>();
-        let source = pyo3::indoc::indoc!(
+        let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
             r#"
 class Class(SuperClass):
     def __new__(cls):
@@ -168,10 +168,10 @@ class Class(SuperClass):
 c = Class()
 assert c.from_rust is False
 "#
-        );
+        ));
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
-        py.run_bound(source, Some(&globals), None)
+        py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
     });

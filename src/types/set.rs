@@ -277,6 +277,7 @@ pub(crate) fn try_new_from_iter(
 mod tests {
     use super::PySet;
     use crate::{
+        ffi,
         types::{PyAnyMethods, PySetMethods},
         Python, ToPyObject,
     };
@@ -367,7 +368,11 @@ mod tests {
             let val2 = set.pop();
             assert!(val2.is_none());
             assert!(py
-                .eval_bound("print('Exception state should not be set.')", None, None)
+                .eval(
+                    ffi::c_str!("print('Exception state should not be set.')"),
+                    None,
+                    None
+                )
                 .is_ok());
         });
     }

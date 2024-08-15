@@ -471,6 +471,9 @@ mod test_128bit_integers {
     use proptest::prelude::*;
 
     #[cfg(not(target_arch = "wasm32"))]
+    use std::ffi::CString;
+
+    #[cfg(not(target_arch = "wasm32"))]
     proptest! {
         #[test]
         fn test_i128_roundtrip(x: i128) {
@@ -478,7 +481,7 @@ mod test_128bit_integers {
                 let x_py = x.into_py(py);
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: i128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -494,7 +497,7 @@ mod test_128bit_integers {
                 let x_py = x.into_py(py);
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroI128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -509,7 +512,7 @@ mod test_128bit_integers {
                 let x_py = x.into_py(py);
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: u128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -525,7 +528,7 @@ mod test_128bit_integers {
                 let x_py = x.into_py(py);
                 let locals = PyDict::new(py);
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
-                py.run_bound(&format!("assert x_py == {}", x), None, Some(&locals)).unwrap();
+                py.run(&CString::new(format!("assert x_py == {}", x)).unwrap(), None, Some(&locals)).unwrap();
                 let roundtripped: NonZeroU128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -567,7 +570,7 @@ mod test_128bit_integers {
     #[test]
     fn test_i128_overflow() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("(1 << 130) * -1", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
             let err = obj.extract::<i128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -576,7 +579,7 @@ mod test_128bit_integers {
     #[test]
     fn test_u128_overflow() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("1 << 130", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -620,7 +623,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_overflow() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("(1 << 130) * -1", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("(1 << 130) * -1"), None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -629,7 +632,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_u128_overflow() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("1 << 130", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("1 << 130"), None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
@@ -638,7 +641,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_i128_zero_value() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("0", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })
@@ -647,7 +650,7 @@ mod test_128bit_integers {
     #[test]
     fn test_nonzero_u128_zero_value() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("0", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("0"), None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })

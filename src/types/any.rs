@@ -1535,6 +1535,7 @@ impl<'py> Bound<'py, PyAny> {
 mod tests {
     use crate::{
         basic::CompareOp,
+        ffi,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, PyTypeInfo, Python, ToPyObject,
     };
@@ -1617,7 +1618,7 @@ class NonHeapNonDescriptorInt:
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
-            let a = py.eval_bound("42", None, None).unwrap();
+            let a = py.eval(ffi::c_str!("42"), None, None).unwrap();
             a.call_method0("__str__").unwrap(); // ok
             assert!(a.call_method("nonexistent_method", (1,), None).is_err());
             assert!(a.call_method0("nonexistent_method").is_err());
@@ -1667,7 +1668,7 @@ class SimpleClass:
     #[test]
     fn test_type() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("42", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("42"), None, None).unwrap();
             assert_eq!(obj.get_type().as_type_ptr(), obj.get_type_ptr());
         });
     }
@@ -1675,9 +1676,9 @@ class SimpleClass:
     #[test]
     fn test_dir() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("42", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("42"), None, None).unwrap();
             let dir = py
-                .eval_bound("dir(42)", None, None)
+                .eval(ffi::c_str!("dir(42)"), None, None)
                 .unwrap()
                 .downcast_into::<PyList>()
                 .unwrap();
@@ -1733,7 +1734,7 @@ class SimpleClass:
     #[test]
     fn test_nan_eq() {
         Python::with_gil(|py| {
-            let nan = py.eval_bound("float('nan')", None, None).unwrap();
+            let nan = py.eval(ffi::c_str!("float('nan')"), None, None).unwrap();
             assert!(nan.compare(&nan).is_err());
         });
     }
@@ -1922,7 +1923,7 @@ class SimpleClass:
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py
-                .eval_bound("...", None, None)
+                .eval(ffi::c_str!("..."), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 
