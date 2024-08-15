@@ -1,6 +1,8 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
+#[cfg(Py_GIL_DISABLED)]
+use std::marker::PhantomPinned;
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
@@ -44,6 +46,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(Py_GIL_DISABLED)]
     ob_mutex: PyMutex {
         _bits: AtomicU8::new(0),
+        _pin: PhantomPinned,
     },
     #[cfg(Py_GIL_DISABLED)]
     ob_gc_bits: 0,
