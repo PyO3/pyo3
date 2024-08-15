@@ -1,9 +1,10 @@
+use crate::conversion::private::Reference;
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::PyInt;
+use crate::types::{PyBytes, PyInt};
 use crate::{
     exceptions, ffi, Bound, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
     ToPyObject,
@@ -161,6 +162,16 @@ macro_rules! int_fits_c_long {
             }
         }
 
+        impl<'py> IntoPyObject<'py> for &$rust_type {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (*self).into_pyobject(py)
+            }
+        }
+
         impl<'py> FromPyObject<'py> for $rust_type {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -176,8 +187,82 @@ macro_rules! int_fits_c_long {
     };
 }
 
+impl ToPyObject for u8 {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
+    }
+}
+impl IntoPy<PyObject> for u8 {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
+    }
+    #[cfg(feature = "experimental-inspect")]
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("int")
+    }
+}
+impl<'py> IntoPyObject<'py> for u8 {
+    type Target = PyInt;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        unsafe {
+            Ok(ffi::PyLong_FromLong(self as c_long)
+                .assume_owned(py)
+                .downcast_into_unchecked())
+        }
+    }
+
+    #[inline]
+    fn owned_sequence_into_pyobject<I>(
+        iter: I,
+        py: Python<'py>,
+        _: crate::conversion::private::Token,
+    ) -> Result<Bound<'py, PyAny>, PyErr>
+    where
+        I: AsRef<[u8]>,
+    {
+        Ok(PyBytes::new(py, iter.as_ref()).into_any())
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &'_ u8 {
+    type Target = PyInt;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        u8::into_pyobject(*self, py)
+    }
+
+    #[inline]
+    fn borrowed_sequence_into_pyobject<I>(
+        iter: I,
+        py: Python<'py>,
+        _: crate::conversion::private::Token,
+    ) -> Result<Bound<'py, PyAny>, PyErr>
+    where
+        // I: AsRef<[u8]>, but the compiler needs it expressed via the trait for some reason
+        I: AsRef<[<Self as Reference>::BaseType]>,
+    {
+        Ok(PyBytes::new(py, iter.as_ref()).into_any())
+    }
+}
+
+impl<'py> FromPyObject<'py> for u8 {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
+        u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn type_input() -> TypeInfo {
+        Self::type_output()
+    }
+}
+
 int_fits_c_long!(i8);
-int_fits_c_long!(u8);
 int_fits_c_long!(i16);
 int_fits_c_long!(u16);
 int_fits_c_long!(i32);

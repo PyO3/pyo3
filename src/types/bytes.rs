@@ -95,6 +95,7 @@ impl PyBytes {
     /// })
     /// # }
     /// ```
+    #[inline]
     pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<Bound<'_, PyBytes>>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,

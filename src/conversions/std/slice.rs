@@ -1,11 +1,11 @@
-use std::{borrow::Cow, convert::Infallible};
+use std::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, IntoPy, Py, PyAny, PyObject, PyResult, Python, ToPyObject,
+    Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
@@ -19,13 +19,22 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
     }
 }
 
-impl<'py> IntoPyObject<'py> for &[u8] {
-    type Target = PyBytes;
+impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
+where
+    &'a T: IntoPyObject<'py>,
+    PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = Infallible;
+    type Error = PyErr;
 
+    /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new(py, self))
+        <&T>::borrowed_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
 
@@ -73,13 +82,23 @@ impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for Cow<'_, [u8]> {
-    type Target = PyBytes;
+impl<'py, T> IntoPyObject<'py> for Cow<'_, [T]>
+where
+    T: Clone,
+    for<'a> &'a T: IntoPyObject<'py>,
+    for<'a> PyErr: From<<&'a T as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = Infallible;
+    type Error = PyErr;
 
+    /// Turns `Cow<[u8]>` into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new(py, &self))
+        <&T>::borrowed_sequence_into_pyobject(self.as_ref(), py, crate::conversion::private::Token)
     }
 }
 
@@ -88,8 +107,9 @@ mod tests {
     use std::borrow::Cow;
 
     use crate::{
+        conversion::IntoPyObject,
         ffi,
-        types::{any::PyAnyMethods, PyBytes},
+        types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
         Python, ToPyObject,
     };
 
@@ -125,6 +145,46 @@ mod tests {
 
             let cow = Cow::<[u8]>::Owned(b"foobar".to_vec()).to_object(py);
             assert!(cow.bind(py).is_instance_of::<PyBytes>());
+        });
+    }
+
+    #[test]
+    fn test_slice_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: &[u8] = b"foobar";
+            let obj = bytes.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), bytes);
+
+            let nums: &[u16] = &[0, 1, 2, 3];
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
+        });
+    }
+
+    #[test]
+    fn test_cow_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
+            let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &*borrowed_bytes);
+
+            let owned_bytes = Cow::<[u8]>::Owned(b"foobar".to_vec());
+            let obj = owned_bytes.clone().into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &*owned_bytes);
+
+            let borrowed_nums = Cow::<[u16]>::Borrowed(&[0, 1, 2, 3]);
+            let obj = borrowed_nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
+
+            let owned_nums = Cow::<[u16]>::Owned(vec![0, 1, 2, 3]);
+            let obj = owned_nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
         });
     }
 }

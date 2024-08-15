@@ -1,8 +1,7 @@
 use crate::conversion::IntoPyObject;
-use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyList, PySequence};
+use crate::types::PySequence;
 use crate::{
     err::DowncastError, ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, Python,
     ToPyObject,
@@ -41,34 +40,19 @@ where
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
     T: IntoPyObject<'py>,
+    PyErr: From<T::Error>,
 {
-    type Target = PyList;
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = T::Error;
+    type Error = PyErr;
 
+    /// Turns [`[u8; N]`](std::array) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    ///
+    /// [`PyBytes`]: crate::types::PyBytes
+    /// [`PyList`]: crate::types::PyList
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        use crate::BoundObject;
-        unsafe {
-            let len = N as ffi::Py_ssize_t;
-
-            let ptr = ffi::PyList_New(len);
-
-            // We create the `Bound` pointer here for two reasons:
-            // - panics if the ptr is null
-            // - its Drop cleans up the list if user code errors or panics.
-            let list = ptr.assume_owned(py).downcast_into_unchecked::<PyList>();
-
-            for (i, obj) in (0..len).zip(self) {
-                let obj = obj.into_pyobject(py)?.into_ptr();
-
-                #[cfg(not(Py_LIMITED_API))]
-                ffi::PyList_SET_ITEM(ptr, i, obj);
-                #[cfg(Py_LIMITED_API)]
-                ffi::PyList_SetItem(ptr, i, obj);
-            }
-
-            Ok(list)
-        }
+        T::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
 
@@ -166,7 +150,11 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering},
     };
 
-    use crate::{ffi, types::any::PyAnyMethods};
+    use crate::{
+        conversion::IntoPyObject,
+        ffi,
+        types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
+    };
     use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
 
     #[test]
@@ -254,6 +242,21 @@ mod tests {
             assert_eq!(pylist.get_item(1).unwrap().extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist.get_item(2).unwrap().extract::<f32>().unwrap(), 16.0);
             assert_eq!(pylist.get_item(3).unwrap().extract::<f32>().unwrap(), 42.0);
+        });
+    }
+
+    #[test]
+    fn test_array_intopyobject_impl() {
+        Python::with_gil(|py| {
+            let bytes: [u8; 6] = *b"foobar";
+            let obj = bytes.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyBytes>());
+            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            assert_eq!(obj.as_bytes(), &bytes);
+
+            let nums: [u16; 4] = [0, 1, 2, 3];
+            let obj = nums.into_pyobject(py).unwrap();
+            assert!(obj.is_instance_of::<PyList>());
         });
     }
 
