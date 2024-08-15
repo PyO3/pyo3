@@ -21,9 +21,10 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use crate::exceptions::PyImportError;
 use crate::{
     ffi,
+    impl_::pymethods::PyMethodDef,
     sync::GILOnceCell,
     types::{PyCFunction, PyModule, PyModuleMethods},
-    Bound, Py, PyClass, PyMethodDef, PyResult, PyTypeInfo, Python,
+    Bound, Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
