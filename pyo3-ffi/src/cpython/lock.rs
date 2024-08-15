@@ -1,15 +1,9 @@
-use std::fmt;
 use std::sync::atomic::AtomicU8;
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct PyMutex {
     pub(crate) _bits: AtomicU8,
-}
-
-impl fmt::Debug for PyMutex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PyMutex").finish()
-    }
 }
 
 extern "C" {
