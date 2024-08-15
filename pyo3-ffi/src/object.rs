@@ -95,7 +95,7 @@ pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
     #[cfg(Py_GIL_DISABLED)]
-    pub ob_tid: usize,
+    pub ob_tid: libc::uintptr_t,
     #[cfg(Py_GIL_DISABLED)]
     pub _padding: u16,
     #[cfg(Py_GIL_DISABLED)]
