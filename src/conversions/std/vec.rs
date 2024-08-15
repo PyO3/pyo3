@@ -55,7 +55,7 @@ where
     /// [`PyList`]: crate::types::PyList
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        T::sequence_into_pyobject(self, py, crate::conversion::private::Token)
+        T::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
 
@@ -73,19 +73,6 @@ where
         // NB: we could actually not cast to `PyAny`, which would be nice for
         // `&Vec<u8>`, but that'd be inconsistent with the `IntoPyObject` impl
         // above which always returns a `PyAny` for `Vec<T>`.
-        self.as_slice().into_pyobject(py).map(Bound::into_any)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for &'_ Vec<u8> {
-    type Target = PyAny;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    #[inline]
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        // Same as above, we cast to PyAny here to be consistent with the
-        // `IntoPyObject` impl for `Vec<T>` above.
         self.as_slice().into_pyobject(py).map(Bound::into_any)
     }
 }

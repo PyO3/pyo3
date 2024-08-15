@@ -1,3 +1,4 @@
+use crate::conversion::private::Reference;
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -214,13 +215,36 @@ impl<'py> IntoPyObject<'py> for u8 {
     }
 
     #[inline]
-    fn sequence_into_pyobject<I>(
+    fn owned_sequence_into_pyobject<I>(
         iter: I,
         py: Python<'py>,
         _: crate::conversion::private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        I: AsRef<[Self]>,
+        I: AsRef<[u8]>,
+    {
+        Ok(PyBytes::new(py, iter.as_ref()).into_any())
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &'_ u8 {
+    type Target = PyInt;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        u8::into_pyobject(*self, py)
+    }
+
+    #[inline]
+    fn borrowed_sequence_into_pyobject<I>(
+        iter: I,
+        py: Python<'py>,
+        _: crate::conversion::private::Token,
+    ) -> Result<Bound<'py, PyAny>, PyErr>
+    where
+        // I: AsRef<[u8]>, but the compiler needs it expressed via the trait for some reason
+        I: AsRef<[<Self as Reference>::BaseType]>,
     {
         Ok(PyBytes::new(py, iter.as_ref()).into_any())
     }

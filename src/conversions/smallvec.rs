@@ -72,7 +72,7 @@ where
     /// [`PyList`]: crate::types::PyList
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        <A::Item>::sequence_into_pyobject(self, py, crate::conversion::private::Token)
+        <A::Item>::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
 }
 
