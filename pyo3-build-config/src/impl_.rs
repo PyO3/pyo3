@@ -182,14 +182,12 @@ impl InterpreterConfig {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
-        if self.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
-            out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned());
-        }
-
         for flag in &self.build_flags.0 {
             match flag {
-                BuildFlag::Py_GIL_DISABLED => out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned());
-                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag));
+                BuildFlag::Py_GIL_DISABLED => {
+                    out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned())
+                }
+                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)),
             }
         }
 
