@@ -75,7 +75,7 @@ fn parent_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let child_module = PyModule::new_bound(parent_module.py(), "child_module")?;
+    let child_module = PyModule::new(parent_module.py(), "child_module")?;
     child_module.add_function(wrap_pyfunction!(func, &child_module)?)?;
     parent_module.add_submodule(&child_module)
 }
@@ -88,10 +88,11 @@ fn func() -> String {
 # Python::with_gil(|py| {
 #    use pyo3::wrap_pymodule;
 #    use pyo3::types::IntoPyDict;
+#    use pyo3::ffi::c_str;
 #    let parent_module = wrap_pymodule!(parent_module)(py);
 #    let ctx = [("parent_module", parent_module)].into_py_dict(py);
 #
-#    py.run_bound("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
+#    py.run(c_str!("assert parent_module.child_module.func() == 'func'"), None, Some(&ctx)).unwrap();
 # })
 ```
 

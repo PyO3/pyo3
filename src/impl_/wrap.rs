@@ -74,7 +74,7 @@ impl<T> Deref for UnknownReturnResultType<T> {
 impl EmptyTupleConverter<PyResult<()>> {
     #[inline]
     pub fn map_into_ptr(&self, py: Python<'_>, obj: PyResult<()>) -> PyResult<*mut ffi::PyObject> {
-        obj.map(|_| PyNone::get_bound(py).to_owned().into_ptr())
+        obj.map(|_| PyNone::get(py).to_owned().into_ptr())
     }
 }
 

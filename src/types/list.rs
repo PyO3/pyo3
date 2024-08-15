@@ -3,7 +3,6 @@ use std::iter::FusedIterator;
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PySequence, PyTuple};
 use crate::{Bound, PyAny, PyObject, Python, ToPyObject};
@@ -289,10 +288,8 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// ```
     fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
         unsafe {
-            // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
-            ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed_or_err(self.py())
-                .map(Borrowed::to_owned)
+            ffi::compat::PyList_GetItemRef(self.as_ptr(), index as Py_ssize_t)
+                .assume_owned_or_err(self.py())
         }
     }
 
@@ -546,7 +543,7 @@ mod tests {
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
-    use crate::Python;
+    use crate::{ffi, Python};
     use crate::{IntoPy, PyObject, ToPyObject};
 
     #[test]
@@ -606,7 +603,7 @@ mod tests {
     #[test]
     fn test_set_item_refcnt() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             let cnt;
             {
                 let v = vec![2];
@@ -641,7 +638,7 @@ mod tests {
     fn test_insert_refcnt() {
         Python::with_gil(|py| {
             let cnt;
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();
@@ -666,7 +663,7 @@ mod tests {
     fn test_append_refcnt() {
         Python::with_gil(|py| {
             let cnt;
-            let obj = py.eval_bound("object()", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();

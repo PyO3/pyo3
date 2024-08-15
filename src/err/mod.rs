@@ -207,7 +207,7 @@ impl PyErr {
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
-    ///     let err = PyErr::from_value_bound(PyString::new_bound(py, "foo").into_any());
+    ///     let err = PyErr::from_value_bound(PyString::new(py, "foo").into_any());
     ///     assert_eq!(
     ///         err.to_string(),
     ///         "TypeError: exceptions must derive from BaseException"
@@ -237,7 +237,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.get_type_bound(py).is(&PyType::new_bound::<PyTypeError>(py)));
+    ///     assert!(err.get_type_bound(py).is(&PyType::new::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type_bound<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
@@ -596,7 +596,7 @@ impl PyErr {
     /// # use pyo3::prelude::*;
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let user_warning = py.get_type_bound::<pyo3::exceptions::PyUserWarning>();
+    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn_bound(py, &user_warning, "I am warning you", 0)?;
     ///     Ok(())
     /// })
@@ -929,7 +929,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::{PyErr, PyTypeInfo, Python};
+    use crate::{ffi, PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -1020,7 +1020,7 @@ mod tests {
 
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
 
             let debug_str = format!("{:?}", err);
@@ -1045,7 +1045,7 @@ mod tests {
     fn err_display() {
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
             assert_eq!(err.to_string(), "Exception: banana");
         });
@@ -1090,13 +1090,13 @@ mod tests {
     fn test_pyerr_cause() {
         Python::with_gil(|py| {
             let err = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error");
             assert!(err.cause(py).is_none());
 
             let err = py
-                .run_bound(
-                    "raise Exception('banana') from Exception('apple')",
+                .run(
+                    ffi::c_str!("raise Exception('banana') from Exception('apple')"),
                     None,
                     None,
                 )
@@ -1125,10 +1125,10 @@ mod tests {
         // GIL locked should prevent effects to be visible to other testing
         // threads.
         Python::with_gil(|py| {
-            let cls = py.get_type_bound::<exceptions::PyUserWarning>();
+            let cls = py.get_type::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
-            let warnings = py.import_bound("warnings").unwrap();
+            let warnings = py.import("warnings").unwrap();
             warnings.call_method0("resetwarnings").unwrap();
 
             // First, test the warning is emitted

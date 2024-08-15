@@ -7,7 +7,7 @@ use crate::types::{
     any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
 };
 use crate::{exceptions, ffi, Bound, IntoPy, Py, PyObject, Python};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::str;
 
 /// Represents a Python [`module`][1] object.
@@ -38,21 +38,27 @@ impl PyModule {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let module = PyModule::new_bound(py, "my_module")?;
+    ///     let module = PyModule::new(py, "my_module")?;
     ///
     ///     assert_eq!(module.name()?, "my_module");
     ///     Ok(())
     /// })?;
     /// # Ok(())}
     ///  ```
-    pub fn new_bound<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
-        // Could use PyModule_NewObject, but it doesn't exist on PyPy.
-        let name = CString::new(name)?;
+    pub fn new<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
+        let name = PyString::new(py, name);
         unsafe {
-            ffi::PyModule_New(name.as_ptr())
+            ffi::PyModule_NewObject(name.as_ptr())
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyModule::new`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::new`")]
+    #[inline]
+    pub fn new_bound<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyModule>> {
+        Self::new(py, name)
     }
 
     /// Imports the Python module with the specified name.
@@ -64,7 +70,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::import_bound(py, "antigravity").expect("No flying for you.");
+    ///     let module = PyModule::import(py, "antigravity").expect("No flying for you.");
     /// });
     /// # }
     ///  ```
@@ -73,7 +79,7 @@ impl PyModule {
     /// ```python
     /// import antigravity
     /// ```
-    pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
+    pub fn import<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
     where
         N: IntoPy<Py<PyString>>,
     {
@@ -83,6 +89,16 @@ impl PyModule {
                 .assume_owned_or_err(py)
                 .downcast_into_unchecked()
         }
+    }
+
+    /// Deprecated name for [`PyModule::import`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::import`")]
+    #[inline]
+    pub fn import_bound<N>(py: Python<'_>, name: N) -> PyResult<Bound<'_, PyModule>>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        Self::import(py, name)
     }
 
     /// Creates and loads a module named `module_name`,
@@ -108,13 +124,14 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved relative to this file.
-    /// let code = include_str!("../../assets/script.py");
+    /// let code = c_str!(include_str!("../../assets/script.py"));
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code_bound(py, code, "example.py", "example")?;
+    ///     PyModule::from_code(py, code, c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
     /// # Ok(())
@@ -125,6 +142,8 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::ffi::c_str;
+    /// use std::ffi::CString;
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved by however the platform resolves paths,
@@ -133,12 +152,31 @@ impl PyModule {
     /// let code = std::fs::read_to_string("assets/script.py")?;
     ///
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     PyModule::from_code_bound(py, &code, "example.py", "example")?;
+    ///     PyModule::from_code(py, CString::new(code)?.as_c_str(), c_str!("example.py"), c_str!("example"))?;
     ///     Ok(())
     /// })?;
     /// Ok(())
     /// # }
     /// ```
+    pub fn from_code<'py>(
+        py: Python<'py>,
+        code: &CStr,
+        file_name: &CStr,
+        module_name: &CStr,
+    ) -> PyResult<Bound<'py, PyModule>> {
+        unsafe {
+            let code = ffi::Py_CompileString(code.as_ptr(), file_name.as_ptr(), ffi::Py_file_input)
+                .assume_owned_or_err(py)?;
+
+            ffi::PyImport_ExecCodeModuleEx(module_name.as_ptr(), code.as_ptr(), file_name.as_ptr())
+                .assume_owned_or_err(py)
+                .downcast_into()
+        }
+    }
+
+    /// Deprecated name for [`PyModule::from_code`].
+    #[deprecated(since = "0.23.0", note = "renamed to `PyModule::from_code`")]
+    #[inline]
     pub fn from_code_bound<'py>(
         py: Python<'py>,
         code: &str,
@@ -149,14 +187,7 @@ impl PyModule {
         let filename = CString::new(file_name)?;
         let module = CString::new(module_name)?;
 
-        unsafe {
-            let code = ffi::Py_CompileString(data.as_ptr(), filename.as_ptr(), ffi::Py_file_input)
-                .assume_owned_or_err(py)?;
-
-            ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), code.as_ptr(), filename.as_ptr())
-                .assume_owned_or_err(py)
-                .downcast_into()
-        }
+        Self::from_code(py, data.as_c_str(), filename.as_c_str(), module.as_c_str())
     }
 }
 
@@ -288,7 +319,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// #[pymodule]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
-    ///     let submodule = PyModule::new_bound(py, "submodule")?;
+    ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.add("super_useful_constant", "important")?;
     ///
     ///     module.add_submodule(&submodule)?;
@@ -491,7 +522,7 @@ mod tests {
     #[test]
     fn module_import_and_name() {
         Python::with_gil(|py| {
-            let builtins = PyModule::import_bound(py, "builtins").unwrap();
+            let builtins = PyModule::import(py, "builtins").unwrap();
             assert_eq!(builtins.name().unwrap(), "builtins");
         })
     }
@@ -500,7 +531,7 @@ mod tests {
     fn module_filename() {
         use crate::types::string::PyStringMethods;
         Python::with_gil(|py| {
-            let site = PyModule::import_bound(py, "site").unwrap();
+            let site = PyModule::import(py, "site").unwrap();
             assert!(site
                 .filename()
                 .unwrap()

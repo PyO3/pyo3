@@ -112,7 +112,7 @@ fn add<'py>(
     left.add(right)
 }
 # Python::with_gil(|py| {
-#     let s = pyo3::types::PyString::new_bound(py, "s");
+#     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().eq("ss").unwrap());
 # })
 ```
@@ -126,7 +126,7 @@ fn add(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<PyObject> 
     Ok(output.unbind())
 }
 # Python::with_gil(|py| {
-#     let s = pyo3::types::PyString::new_bound(py, "s");
+#     let s = pyo3::types::PyString::new(py, "s");
 #     assert!(add(&s, &s).unwrap().bind(py).eq("ss").unwrap());
 # })
 ```

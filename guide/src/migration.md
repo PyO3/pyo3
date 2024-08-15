@@ -254,7 +254,7 @@ Python::with_gil(|py| {
 
 After:
 
-```rust
+```rust,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use pyo3::types::{PyBool};
@@ -633,7 +633,7 @@ assert_eq!(name, "list");
 
 After:
 
-```rust
+```rust,ignore
 # #[cfg(any(not(Py_LIMITED_API), Py_3_10))] {
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
@@ -654,7 +654,7 @@ To avoid needing to worry about lifetimes at all, it is also possible to use the
 
 The following example uses the same snippet as those just above, but this time the final extracted type is `PyBackedStr`:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::types::{PyList, PyType};
 # fn example<'py>(py: Python<'py>) -> PyResult<()> {

@@ -92,7 +92,7 @@ impl ToPyObject for PyBackedStr {
     }
     #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
     fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyString::new_bound(py, self).into_any().unbind()
+        PyString::new(py, self).into_any().unbind()
     }
 }
 
@@ -103,7 +103,7 @@ impl IntoPy<Py<PyAny>> for PyBackedStr {
     }
     #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
     fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        PyString::new_bound(py, &self).into_any().unbind()
+        PyString::new(py, &self).into_any().unbind()
     }
 }
 
@@ -304,7 +304,7 @@ mod test {
     #[test]
     fn py_backed_str_empty() {
         Python::with_gil(|py| {
-            let s = PyString::new_bound(py, "");
+            let s = PyString::new(py, "");
             let py_backed_str = s.extract::<PyBackedStr>().unwrap();
             assert_eq!(&*py_backed_str, "");
         });
@@ -313,7 +313,7 @@ mod test {
     #[test]
     fn py_backed_str() {
         Python::with_gil(|py| {
-            let s = PyString::new_bound(py, "hello");
+            let s = PyString::new(py, "hello");
             let py_backed_str = s.extract::<PyBackedStr>().unwrap();
             assert_eq!(&*py_backed_str, "hello");
         });
@@ -322,7 +322,7 @@ mod test {
     #[test]
     fn py_backed_str_try_from() {
         Python::with_gil(|py| {
-            let s = PyString::new_bound(py, "hello");
+            let s = PyString::new(py, "hello");
             let py_backed_str = PyBackedStr::try_from(s).unwrap();
             assert_eq!(&*py_backed_str, "hello");
         });
@@ -331,7 +331,7 @@ mod test {
     #[test]
     fn py_backed_str_to_object() {
         Python::with_gil(|py| {
-            let orig_str = PyString::new_bound(py, "hello");
+            let orig_str = PyString::new(py, "hello");
             let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
             let new_str = py_backed_str.to_object(py);
             assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
@@ -343,7 +343,7 @@ mod test {
     #[test]
     fn py_backed_str_into_py() {
         Python::with_gil(|py| {
-            let orig_str = PyString::new_bound(py, "hello");
+            let orig_str = PyString::new(py, "hello");
             let py_backed_str = orig_str.extract::<PyBackedStr>().unwrap();
             let new_str = py_backed_str.into_py(py);
             assert_eq!(new_str.extract::<PyBackedStr>(py).unwrap(), "hello");
@@ -432,7 +432,7 @@ mod test {
     #[test]
     fn test_backed_str_clone() {
         Python::with_gil(|py| {
-            let s1: PyBackedStr = PyString::new_bound(py, "hello").try_into().unwrap();
+            let s1: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
             let s2 = s1.clone();
             assert_eq!(s1, s2);
 
@@ -444,12 +444,12 @@ mod test {
     #[test]
     fn test_backed_str_eq() {
         Python::with_gil(|py| {
-            let s1: PyBackedStr = PyString::new_bound(py, "hello").try_into().unwrap();
-            let s2: PyBackedStr = PyString::new_bound(py, "hello").try_into().unwrap();
+            let s1: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
+            let s2: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
             assert_eq!(s1, "hello");
             assert_eq!(s1, s2);
 
-            let s3: PyBackedStr = PyString::new_bound(py, "abcde").try_into().unwrap();
+            let s3: PyBackedStr = PyString::new(py, "abcde").try_into().unwrap();
             assert_eq!("abcde", s3);
             assert_ne!(s1, s3);
         });
@@ -464,7 +464,7 @@ mod test {
                 hasher.finish()
             };
 
-            let s1: PyBackedStr = PyString::new_bound(py, "abcde").try_into().unwrap();
+            let s1: PyBackedStr = PyString::new(py, "abcde").try_into().unwrap();
             let h1 = {
                 let mut hasher = DefaultHasher::new();
                 s1.hash(&mut hasher);
@@ -481,7 +481,7 @@ mod test {
             let mut a = vec!["a", "c", "d", "b", "f", "g", "e"];
             let mut b = a
                 .iter()
-                .map(|s| PyString::new_bound(py, s).try_into().unwrap())
+                .map(|s| PyString::new(py, s).try_into().unwrap())
                 .collect::<Vec<PyBackedStr>>();
 
             a.sort();

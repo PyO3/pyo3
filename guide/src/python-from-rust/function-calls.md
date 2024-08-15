@@ -19,6 +19,7 @@ The example below calls a Python function behind a `PyObject` (aka `Py<PyAny>`) 
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
+use pyo3_ffi::c_str;
 
 fn main() -> PyResult<()> {
     let arg1 = "arg1";
@@ -26,17 +27,17 @@ fn main() -> PyResult<()> {
     let arg3 = "arg3";
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code_bound(
+        let fun: Py<PyAny> = PyModule::from_code(
             py,
-            "def example(*args, **kwargs):
+            c_str!("def example(*args, **kwargs):
                 if args != ():
                     print('called with args', args)
                 if kwargs != {}:
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
-                    print('called with no arguments')",
-            "",
-            "",
+                    print('called with no arguments')"),
+            c_str!(""),
+            c_str!(""),
         )?
         .getattr("example")?
         .into();
@@ -64,6 +65,7 @@ For the `call` and `call_method` APIs, `kwargs` are `Option<&Bound<'py, PyDict>>
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use std::collections::HashMap;
+use pyo3_ffi::c_str;
 
 fn main() -> PyResult<()> {
     let key1 = "key1";
@@ -72,17 +74,17 @@ fn main() -> PyResult<()> {
     let val2 = 2;
 
     Python::with_gil(|py| {
-        let fun: Py<PyAny> = PyModule::from_code_bound(
+        let fun: Py<PyAny> = PyModule::from_code(
             py,
-            "def example(*args, **kwargs):
+            c_str!("def example(*args, **kwargs):
                 if args != ():
                     print('called with args', args)
                 if kwargs != {}:
                     print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
-                    print('called with no arguments')",
-            "",
-            "",
+                    print('called with no arguments')"),
+            c_str!(""),
+            c_str!(""),
         )?
         .getattr("example")?
         .into();

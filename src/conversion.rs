@@ -325,7 +325,7 @@ impl<'a, 'py, T> IntoPyObject<'py> for &'a Py<T> {
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
 ///     // Calling `.extract()` on a `Bound` smart pointer
-///     let obj: Bound<'_, PyString> = PyString::new_bound(py, "blah");
+///     let obj: Bound<'_, PyString> = PyString::new(py, "blah");
 ///     let s: String = obj.extract()?;
 /// #   assert_eq!(s, "blah");
 ///

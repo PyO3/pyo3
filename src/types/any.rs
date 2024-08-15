@@ -75,7 +75,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    let sys = py.import("sys").unwrap();
     /// #    has_version(&sys).unwrap();
     /// # });
     /// ```
@@ -101,7 +101,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap();
+    /// #    let sys = py.import("sys").unwrap();
     /// #    version(&sys).unwrap();
     /// # });
     /// ```
@@ -127,7 +127,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new_bound(py, "empty").unwrap();
+    /// #    let ob = PyModule::new(py, "empty").unwrap();
     /// #    set_answer(&ob).unwrap();
     /// # });
     /// ```
@@ -186,7 +186,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let a = PyFloat::new(py, 0_f64);
-    ///     let b = PyString::new_bound(py, "zero");
+    ///     let b = PyString::new(py, "zero");
     ///     assert!(a.compare(b).is_err());
     ///     Ok(())
     /// })?;
@@ -377,7 +377,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let builtins = PyModule::import_bound(py, "builtins")?;
+    ///     let builtins = PyModule::import(py, "builtins")?;
     ///     let print = builtins.getattr("print")?;
     ///     assert!(print.is_callable());
     ///     Ok(())
@@ -404,17 +404,19 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
+    /// use pyo3_ffi::c_str;
+    /// use std::ffi::CStr;
     ///
-    /// const CODE: &str = r#"
+    /// const CODE: &CStr = c_str!(r#"
     /// def function(*args, **kwargs):
     ///     assert args == ("hello",)
     ///     assert kwargs == {"cruel": "world"}
     ///     return "called with args and kwargs"
-    /// "#;
+    /// "#);
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
@@ -442,7 +444,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let module = PyModule::import_bound(py, "builtins")?;
+    ///     let module = PyModule::import(py, "builtins")?;
     ///     let help = module.getattr("help")?;
     ///     help.call0()?;
     ///     Ok(())
@@ -461,17 +463,19 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3_ffi::c_str;
+    /// use std::ffi::CStr;
     ///
-    /// const CODE: &str = r#"
+    /// const CODE: &CStr = c_str!(r#"
     /// def function(*args, **kwargs):
     ///     assert args == ("hello",)
     ///     assert kwargs == {}
     ///     return "called with args"
-    /// "#;
+    /// "#);
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
     ///     let fun = module.getattr("function")?;
     ///     let args = ("hello",);
     ///     let result = fun.call1(args)?;
@@ -494,19 +498,21 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
+    /// use pyo3_ffi::c_str;
+    /// use std::ffi::CStr;
     ///
-    /// const CODE: &str = r#"
+    /// const CODE: &CStr = c_str!(r#"
     /// class A:
     ///     def method(self, *args, **kwargs):
     ///         assert args == ("hello",)
     ///         assert kwargs == {"cruel": "world"}
     ///         return "called with args and kwargs"
     /// a = A()
-    /// "#;
+    /// "#);
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let kwargs = PyDict::new(py);
@@ -538,19 +544,21 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3_ffi::c_str;
+    /// use std::ffi::CStr;
     ///
-    /// const CODE: &str = r#"
+    /// const CODE: &CStr = c_str!(r#"
     /// class A:
     ///     def method(self, *args, **kwargs):
     ///         assert args == ()
     ///         assert kwargs == {}
     ///         return "called with no arguments"
     /// a = A()
-    /// "#;
+    /// "#);
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let result = instance.call_method0("method")?;
     ///     assert_eq!(result.extract::<String>()?, "called with no arguments");
@@ -573,19 +581,21 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3_ffi::c_str;
+    /// use std::ffi::CStr;
     ///
-    /// const CODE: &str = r#"
+    /// const CODE: &CStr = c_str!(r#"
     /// class A:
     ///     def method(self, *args, **kwargs):
     ///         assert args == ("hello",)
     ///         assert kwargs == {}
     ///         return "called with args"
     /// a = A()
-    /// "#;
+    /// "#);
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let module = PyModule::from_code_bound(py, CODE, "", "")?;
+    ///     let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
     ///     let instance = module.getattr("a")?;
     ///     let args = ("hello",);
     ///     let result = instance.call_method1("method", args)?;
@@ -1305,7 +1315,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn iter(&self) -> PyResult<Bound<'py, PyIterator>> {
-        PyIterator::from_bound_object(self)
+        PyIterator::from_object(self)
     }
 
     fn get_type(&self) -> Bound<'py, PyType> {
@@ -1466,7 +1476,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     #[cfg(not(any(PyPy, GraalPy)))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
-        PySuper::new_bound(&self.get_type(), self)
+        PySuper::new(&self.get_type(), self)
     }
 }
 
@@ -1525,16 +1535,19 @@ impl<'py> Bound<'py, PyAny> {
 mod tests {
     use crate::{
         basic::CompareOp,
+        ffi,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, PyTypeInfo, Python, ToPyObject,
     };
+    use pyo3_ffi::c_str;
 
     #[test]
     fn test_lookup_special() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class CustomCallable:
     def __call__(self):
         return 1
@@ -1564,9 +1577,10 @@ class ErrorInDescriptorInt:
 class NonHeapNonDescriptorInt:
     # A static-typed callable that doesn't implement `__get__`.  These are pretty hard to come by.
     __int__ = int
-                "#,
-                "test.py",
-                "test",
+                "#
+                ),
+                c_str!("test.py"),
+                c_str!("test"),
             )
             .unwrap();
 
@@ -1604,7 +1618,7 @@ class NonHeapNonDescriptorInt:
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
-            let a = py.eval_bound("42", None, None).unwrap();
+            let a = py.eval(ffi::c_str!("42"), None, None).unwrap();
             a.call_method0("__str__").unwrap(); // ok
             assert!(a.call_method("nonexistent_method", (1,), None).is_err());
             assert!(a.call_method0("nonexistent_method").is_err());
@@ -1625,15 +1639,17 @@ class NonHeapNonDescriptorInt:
     #[test]
     fn test_call_method0() {
         Python::with_gil(|py| {
-            let module = PyModule::from_code_bound(
+            let module = PyModule::from_code(
                 py,
-                r#"
+                c_str!(
+                    r#"
 class SimpleClass:
     def foo(self):
         return 42
-"#,
-                file!(),
-                "test_module",
+"#
+                ),
+                c_str!(file!()),
+                c_str!("test_module"),
             )
             .expect("module creation failed");
 
@@ -1652,7 +1668,7 @@ class SimpleClass:
     #[test]
     fn test_type() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("42", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("42"), None, None).unwrap();
             assert_eq!(obj.get_type().as_type_ptr(), obj.get_type_ptr());
         });
     }
@@ -1660,9 +1676,9 @@ class SimpleClass:
     #[test]
     fn test_dir() {
         Python::with_gil(|py| {
-            let obj = py.eval_bound("42", None, None).unwrap();
+            let obj = py.eval(ffi::c_str!("42"), None, None).unwrap();
             let dir = py
-                .eval_bound("dir(42)", None, None)
+                .eval(ffi::c_str!("dir(42)"), None, None)
                 .unwrap()
                 .downcast_into::<PyList>()
                 .unwrap();
@@ -1718,7 +1734,7 @@ class SimpleClass:
     #[test]
     fn test_nan_eq() {
         Python::with_gil(|py| {
-            let nan = py.eval_bound("float('nan')", None, None).unwrap();
+            let nan = py.eval(ffi::c_str!("float('nan')"), None, None).unwrap();
             assert!(nan.compare(&nan).is_err());
         });
     }
@@ -1738,7 +1754,7 @@ class SimpleClass:
     fn test_any_is_instance() {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_bound(py);
-            assert!(l.is_instance(&py.get_type_bound::<PyList>()).unwrap());
+            assert!(l.is_instance(&py.get_type::<PyList>()).unwrap());
         });
     }
 
@@ -1762,9 +1778,9 @@ class SimpleClass:
     fn test_any_is_exact_instance() {
         Python::with_gil(|py| {
             let t = PyBool::new(py, true);
-            assert!(t.is_instance(&py.get_type_bound::<PyInt>()).unwrap());
-            assert!(!t.is_exact_instance(&py.get_type_bound::<PyInt>()));
-            assert!(t.is_exact_instance(&py.get_type_bound::<PyBool>()));
+            assert!(t.is_instance(&py.get_type::<PyInt>()).unwrap());
+            assert!(!t.is_exact_instance(&py.get_type::<PyInt>()));
+            assert!(t.is_exact_instance(&py.get_type::<PyBool>()));
         });
     }
 
@@ -1907,7 +1923,7 @@ class SimpleClass:
     fn test_is_ellipsis() {
         Python::with_gil(|py| {
             let v = py
-                .eval_bound("...", None, None)
+                .eval(ffi::c_str!("..."), None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 

@@ -62,7 +62,7 @@ macro_rules! impl_exception_boilerplate_bound {
 /// import_exception!(socket, gaierror);
 ///
 /// Python::with_gil(|py| {
-///     let ctx = [("gaierror", py.get_type_bound::<gaierror>())].into_py_dict(py);
+///     let ctx = [("gaierror", py.get_type::<gaierror>())].into_py_dict(py);
 ///     pyo3::py_run!(py, *ctx, "import socket; assert gaierror is socket.gaierror");
 /// });
 ///
@@ -168,7 +168,7 @@ macro_rules! import_exception_bound {
 ///
 /// #[pymodule]
 /// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-///     m.add("MyError", m.py().get_type_bound::<MyError>())?;
+///     m.add("MyError", m.py().get_type::<MyError>())?;
 ///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;
 ///     Ok(())
 /// }
@@ -176,15 +176,15 @@ macro_rules! import_exception_bound {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
 /// #         let locals = pyo3::types::PyDict::new(py);
-/// #         locals.set_item("MyError", py.get_type_bound::<MyError>())?;
+/// #         locals.set_item("MyError", py.get_type::<MyError>())?;
 /// #         locals.set_item("raise_myerror", fun)?;
 /// #
-/// #         py.run_bound(
+/// #         py.run(pyo3::ffi::c_str!(
 /// # "try:
 /// #     raise_myerror()
 /// # except MyError as e:
 /// #     assert e.__doc__ == 'Some description.'
-/// #     assert str(e) == 'Some error happened.'",
+/// #     assert str(e) == 'Some error happened.'"),
 /// #             None,
 /// #             Some(&locals),
 /// #         )?;
@@ -258,7 +258,7 @@ macro_rules! create_exception_type_object {
                             py,
                             concat!(stringify!($module), ".", stringify!($name)),
                             $doc,
-                            ::std::option::Option::Some(&py.get_type_bound::<$base>()),
+                            ::std::option::Option::Some(&py.get_type::<$base>()),
                             ::std::option::Option::None,
                         ).expect("Failed to initialize new exception type.")
                 ).as_ptr() as *mut $crate::ffi::PyTypeObject
@@ -346,9 +346,10 @@ except ", $name, " as e:
 ```
 use pyo3::prelude::*;
 use pyo3::exceptions::Py", $name, ";
+use pyo3::ffi::c_str;
 
 Python::with_gil(|py| {
-    let result: PyResult<()> = py.run_bound(\"raise ", $name, "\", None, None);
+    let result: PyResult<()> = py.run(c_str!(\"raise ", $name, "\"), None, None);
 
     let error_type = match result {
         Ok(_) => \"Not an error\",
@@ -822,7 +823,7 @@ mod tests {
         Python::with_gil(|py| {
             let err: PyErr = gaierror::new_err(());
             let socket = py
-                .import_bound("socket")
+                .import("socket")
                 .map_err(|e| e.display(py))
                 .expect("could not import socket");
 
@@ -835,9 +836,13 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run_bound("assert isinstance(exc, socket.gaierror)", None, Some(&d))
-                .map_err(|e| e.display(py))
-                .expect("assertion failed");
+            py.run(
+                ffi::c_str!("assert isinstance(exc, socket.gaierror)"),
+                None,
+                Some(&d),
+            )
+            .map_err(|e| e.display(py))
+            .expect("assertion failed");
         });
     }
 
@@ -846,7 +851,7 @@ mod tests {
         Python::with_gil(|py| {
             let err: PyErr = MessageError::new_err(());
             let email = py
-                .import_bound("email")
+                .import("email")
                 .map_err(|e| e.display(py))
                 .expect("could not import email");
 
@@ -858,8 +863,8 @@ mod tests {
                 .map_err(|e| e.display(py))
                 .expect("could not setitem");
 
-            py.run_bound(
-                "assert isinstance(exc, email.errors.MessageError)",
+            py.run(
+                ffi::c_str!("assert isinstance(exc, email.errors.MessageError)"),
                 None,
                 Some(&d),
             )
@@ -873,22 +878,26 @@ mod tests {
         create_exception!(mymodule, CustomError, PyException);
 
         Python::with_gil(|py| {
-            let error_type = py.get_type_bound::<CustomError>();
+            let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
-                "assert CustomError('oops').args == ('oops',)",
+            py.run(
+                ffi::c_str!("assert CustomError('oops').args == ('oops',)"),
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound("assert CustomError.__doc__ is None", None, Some(&ctx))
-                .unwrap();
+            py.run(
+                ffi::c_str!("assert CustomError.__doc__ is None"),
+                None,
+                Some(&ctx),
+            )
+            .unwrap();
         });
     }
 
@@ -896,10 +905,10 @@ mod tests {
     fn custom_exception_dotted_module() {
         create_exception!(mymodule.exceptions, CustomError, PyException);
         Python::with_gil(|py| {
-            let error_type = py.get_type_bound::<CustomError>();
+            let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -915,22 +924,22 @@ mod tests {
         create_exception!(mymodule, CustomError, PyException, "Some docs");
 
         Python::with_gil(|py| {
-            let error_type = py.get_type_bound::<CustomError>();
+            let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
-                "assert CustomError('oops').args == ('oops',)",
+            py.run(
+                ffi::c_str!("assert CustomError('oops').args == ('oops',)"),
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound(
-                "assert CustomError.__doc__ == 'Some docs'",
+            py.run(
+                ffi::c_str!("assert CustomError.__doc__ == 'Some docs'"),
                 None,
                 Some(&ctx),
             )
@@ -948,22 +957,22 @@ mod tests {
         );
 
         Python::with_gil(|py| {
-            let error_type = py.get_type_bound::<CustomError>();
+            let error_type = py.get_type::<CustomError>();
             let ctx = [("CustomError", error_type)].into_py_dict(py);
             let type_description: String = py
-                .eval_bound("str(CustomError)", None, Some(&ctx))
+                .eval(ffi::c_str!("str(CustomError)"), None, Some(&ctx))
                 .unwrap()
                 .extract()
                 .unwrap();
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-            py.run_bound(
-                "assert CustomError('oops').args == ('oops',)",
+            py.run(
+                ffi::c_str!("assert CustomError('oops').args == ('oops',)"),
                 None,
                 Some(&ctx),
             )
             .unwrap();
-            py.run_bound(
-                "assert CustomError.__doc__ == 'Some more docs'",
+            py.run(
+                ffi::c_str!("assert CustomError.__doc__ == 'Some more docs'"),
                 None,
                 Some(&ctx),
             )
@@ -975,7 +984,7 @@ mod tests {
     fn native_exception_debug() {
         Python::with_gil(|py| {
             let exc = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_bound(py);
@@ -990,7 +999,7 @@ mod tests {
     fn native_exception_display() {
         Python::with_gil(|py| {
             let exc = py
-                .run_bound("raise Exception('banana')", None, None)
+                .run(ffi::c_str!("raise Exception('banana')"), None, None)
                 .expect_err("raising should have given us an error")
                 .into_value(py)
                 .into_bound(py);
@@ -1070,7 +1079,7 @@ mod tests {
         )
     });
     test_exception!(PyUnicodeEncodeError, |py| py
-        .eval_bound("chr(40960).encode('ascii')", None, None)
+        .eval(ffi::c_str!("chr(40960).encode('ascii')"), None, None)
         .unwrap_err());
     test_exception!(PyUnicodeTranslateError, |_| {
         PyUnicodeTranslateError::new_err(("\u{3042}", 0, 1, "ouch"))

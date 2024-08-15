@@ -787,11 +787,13 @@ mod tests {
 
     mod python_class {
         use super::*;
+        use crate::ffi;
         use crate::{py_result_ext::PyResultExt, types::PyType};
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-            py.run_bound("class A:\n    pass\n", None, None)?;
-            py.eval_bound("A", None, None).downcast_into::<PyType>()
+            py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
+            py.eval(ffi::c_str!("A"), None, None)
+                .downcast_into::<PyType>()
         }
 
         #[test]

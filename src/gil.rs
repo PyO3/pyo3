@@ -55,7 +55,7 @@ fn gil_is_acquired() -> bool {
 ///
 /// # fn main() -> PyResult<()> {
 /// pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| py.run_bound("print('Hello World')", None, None))
+/// Python::with_gil(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
 /// # }
 /// ```
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -98,7 +98,7 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run_bound("print('Hello World')", None, None) {
+///         if let Err(e) = py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }
@@ -123,7 +123,7 @@ where
         let py = guard.python();
         // Import the threading module - this ensures that it will associate this thread as the "main"
         // thread, which is important to avoid an `AssertionError` at finalization.
-        py.import_bound("threading").unwrap();
+        py.import("threading").unwrap();
 
         // Execute the closure.
         f(py)
@@ -428,12 +428,14 @@ mod tests {
     use super::GIL_COUNT;
     #[cfg(not(pyo3_disable_reference_pool))]
     use super::{gil_is_acquired, POOL};
+    use crate::{ffi, PyObject, Python};
     use crate::{gil::GILGuard, types::any::PyAnyMethods};
-    use crate::{PyObject, Python};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
-        py.eval_bound("object()", None, None).unwrap().unbind()
+        py.eval(ffi::c_str!("object()"), None, None)
+            .unwrap()
+            .unbind()
     }
 
     #[cfg(not(pyo3_disable_reference_pool))]
@@ -571,7 +573,7 @@ mod tests {
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
         Python::with_gil(|py| {
-            let obj = Python::with_gil(|_| py.eval_bound("object()", None, None).unwrap());
+            let obj = Python::with_gil(|_| py.eval(ffi::c_str!("object()"), None, None).unwrap());
 
             // After gil2 drops, obj should still have a reference count of one
             assert_eq!(obj.get_refcnt(), 1);

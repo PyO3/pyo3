@@ -232,15 +232,16 @@
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
+//! use pyo3::ffi::c_str;
 //!
 //! fn main() -> PyResult<()> {
 //!     Python::with_gil(|py| {
-//!         let sys = py.import_bound("sys")?;
+//!         let sys = py.import("sys")?;
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
-//!         let locals = [("os", py.import_bound("os")?)].into_py_dict(py);
-//!         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-//!         let user: String = py.eval_bound(code, None, Some(&locals))?.extract()?;
+//!         let locals = [("os", py.import("os")?)].into_py_dict(py);
+//!         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+//!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
 //!         println!("Hello {}, I'm Python {}", user, version);
 //!         Ok(())
@@ -343,19 +344,24 @@ pub(crate) mod sealed;
 pub mod class {
     pub use self::gc::{PyTraverseError, PyVisit};
 
-    #[doc(hidden)]
-    pub use self::methods::{
-        PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
-    };
+    pub use self::methods::*;
 
     #[doc(hidden)]
     pub mod methods {
-        // frozen with the contents of the `impl_::pymethods` module in 0.20,
-        // this should probably all be replaced with deprecated type aliases and removed.
-        pub use crate::impl_::pymethods::{
-            IPowModulo, PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType,
-            PyMethodType, PySetterDef,
-        };
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type IPowModulo = crate::impl_::pymethods::IPowModulo;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyClassAttributeDef = crate::impl_::pymethods::PyClassAttributeDef;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyGetterDef = crate::impl_::pymethods::PyGetterDef;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyMethodDef = crate::impl_::pymethods::PyMethodDef;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyMethodDefType = crate::impl_::pymethods::PyMethodDefType;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PyMethodType = crate::impl_::pymethods::PyMethodType;
+        #[deprecated(since = "0.23.0", note = "PyO3 implementation detail")]
+        pub type PySetterDef = crate::impl_::pymethods::PySetterDef;
     }
 
     /// Old module which contained some implementation details of the `#[pyproto]` module.

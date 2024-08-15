@@ -100,6 +100,7 @@ impl PyWeakrefProxy {
     )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefProxy;
+    /// use pyo3::ffi::c_str;
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
@@ -108,13 +109,13 @@ impl PyWeakrefProxy {
     /// fn callback(wref: Bound<'_, PyWeakrefProxy>) -> PyResult<()> {
     ///         let py = wref.py();
     ///         assert!(wref.upgrade_as::<Foo>()?.is_none());
-    ///         py.run_bound("counter = 1", None, None)
+    ///         py.run(c_str!("counter = 1"), None, None)
     /// }
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     py.run_bound("counter = 0", None, None)?;
-    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
+    ///     py.run(c_str!("counter = 0"), None, None)?;
+    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
     ///     let foo = Bound::new(py, Foo{})?;
     ///
     ///     // This is fine.
@@ -125,7 +126,7 @@ impl PyWeakrefProxy {
     ///         weakref.upgrade()
     ///             .map_or(false, |obj| obj.is(&foo))
     ///     );
-    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 0);
+    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 0);
     ///
     ///     let weakref2 = PyWeakrefProxy::new_bound_with(&foo, wrap_pyfunction!(callback, py)?)?;
     ///     assert!(!weakref.is(&weakref2)); // Not the same weakref
@@ -134,7 +135,7 @@ impl PyWeakrefProxy {
     ///     drop(foo);
     ///
     ///     assert!(weakref.upgrade_as::<Foo>()?.is_none());
-    ///     assert_eq!(py.eval_bound("counter", None, None)?.extract::<u32>()?, 1);
+    ///     assert_eq!(py.eval(c_str!("counter"), None, None)?.extract::<u32>()?, 1);
     ///     Ok(())
     /// })
     /// # }
@@ -236,11 +237,13 @@ mod tests {
 
         mod python_class {
             use super::*;
+            use crate::ffi;
             use crate::{py_result_ext::PyResultExt, types::PyType};
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-                py.run_bound("class A:\n    pass\n", None, None)?;
-                py.eval_bound("A", None, None).downcast_into::<PyType>()
+                py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
+                py.eval(ffi::c_str!("A"), None, None)
+                    .downcast_into::<PyType>()
             }
 
             #[test]
@@ -778,15 +781,17 @@ mod tests {
 
         mod python_class {
             use super::*;
+            use crate::ffi;
             use crate::{py_result_ext::PyResultExt, types::PyType};
 
             fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-                py.run_bound(
-                    "class A:\n    def __call__(self):\n        return 'This class is callable!'\n",
+                py.run(
+                    ffi::c_str!("class A:\n    def __call__(self):\n        return 'This class is callable!'\n"),
                     None,
                     None,
                 )?;
-                py.eval_bound("A", None, None).downcast_into::<PyType>()
+                py.eval(ffi::c_str!("A"), None, None)
+                    .downcast_into::<PyType>()
             }
 
             #[test]

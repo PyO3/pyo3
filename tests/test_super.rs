@@ -35,7 +35,7 @@ impl SubClass {
     }
 
     fn method_super_new<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
-        let super_ = PySuper::new_bound(&self_.get_type(), self_)?;
+        let super_ = PySuper::new(&self_.get_type(), self_)?;
         super_.call_method("method", (), None)
     }
 }
@@ -43,7 +43,7 @@ impl SubClass {
 #[test]
 fn test_call_super_method() {
     Python::with_gil(|py| {
-        let cls = py.get_type_bound::<SubClass>();
+        let cls = py.get_type::<SubClass>();
         pyo3::py_run!(
             py,
             cls,

@@ -200,7 +200,7 @@ pub struct BoundFrozenSetIterator<'p> {
 impl<'py> BoundFrozenSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PyFrozenSet>) -> Self {
         Self {
-            it: PyIterator::from_bound_object(&set).unwrap(),
+            it: PyIterator::from_object(&set).unwrap(),
             remaining: set.len(),
         }
     }

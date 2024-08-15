@@ -40,9 +40,9 @@ mod inner {
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
-            let res = $py.run_bound($code, None, Some(&$dict.as_borrowed()));
+            let res = $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
-            if !err.matches($py, $py.get_type_bound::<pyo3::exceptions::$err>()) {
+            if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
             }
             err
@@ -83,7 +83,7 @@ mod inner {
     #[cfg(all(feature = "macros", Py_3_8))]
     impl UnraisableCapture {
         pub fn install(py: Python<'_>) -> Py<Self> {
-            let sys = py.import_bound("sys").unwrap();
+            let sys = py.import("sys").unwrap();
             let old_hook = sys.getattr("unraisablehook").unwrap().into();
 
             let capture = Py::new(
@@ -104,7 +104,7 @@ mod inner {
         pub fn uninstall(&mut self, py: Python<'_>) {
             let old_hook = self.old_hook.take().unwrap();
 
-            let sys = py.import_bound("sys").unwrap();
+            let sys = py.import("sys").unwrap();
             sys.setattr("unraisablehook", old_hook).unwrap();
         }
     }
@@ -118,7 +118,7 @@ mod inner {
             py: Python<'py>,
             f: impl FnOnce(&Bound<'py, PyList>) -> PyResult<R>,
         ) -> PyResult<R> {
-            let warnings = py.import_bound("warnings")?;
+            let warnings = py.import("warnings")?;
             let kwargs = [("record", true)].into_py_dict(py);
             let catch_warnings = warnings
                 .getattr("catch_warnings")?

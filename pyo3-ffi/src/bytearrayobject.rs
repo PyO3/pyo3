@@ -5,7 +5,6 @@ use std::ptr::addr_of_mut;
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct PyByteArrayObject {
     pub ob_base: PyVarObject,
     pub ob_alloc: Py_ssize_t,

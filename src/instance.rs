@@ -923,7 +923,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| {
-/// #         let m = pyo3::types::PyModule::new_bound(py, "test")?;
+/// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
@@ -960,7 +960,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| {
-/// #         let m = pyo3::types::PyModule::new_bound(py, "test")?;
+/// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.downcast_into()?;
@@ -1422,7 +1422,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let sys = py.import_bound("sys").unwrap().unbind();
+    /// #    let sys = py.import("sys").unwrap().unbind();
     /// #    version(sys, py).unwrap();
     /// # });
     /// ```
@@ -1451,7 +1451,7 @@ impl<T> Py<T> {
     /// }
     /// #
     /// # Python::with_gil(|py| {
-    /// #    let ob = PyModule::new_bound(py, "empty").unwrap().into_py(py);
+    /// #    let ob = PyModule::new(py, "empty").unwrap().into_py(py);
     /// #    set_answer(ob, py).unwrap();
     /// # });
     /// ```
@@ -1902,11 +1902,13 @@ mod tests {
     use super::{Bound, Py, PyObject};
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, PyAny, PyResult, Python, ToPyObject};
+    use pyo3_ffi::c_str;
+    use std::ffi::CStr;
 
     #[test]
     fn test_call() {
         Python::with_gil(|py| {
-            let obj = py.get_type_bound::<PyDict>().to_object(py);
+            let obj = py.get_type::<PyDict>().to_object(py);
 
             let assert_repr = |obj: &Bound<'_, PyAny>, expected: &str| {
                 assert_eq!(obj.repr().unwrap(), expected);
@@ -1966,12 +1968,14 @@ mod tests {
         use crate::types::PyModule;
 
         Python::with_gil(|py| {
-            const CODE: &str = r#"
+            const CODE: &CStr = c_str!(
+                r#"
 class A:
     pass
 a = A()
-   "#;
-            let module = PyModule::from_code_bound(py, CODE, "", "")?;
+   "#
+            );
+            let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             instance.getattr(py, "foo").unwrap_err();
@@ -1981,7 +1985,7 @@ a = A()
             assert!(instance
                 .getattr(py, "foo")?
                 .bind(py)
-                .eq(PyString::new_bound(py, "bar"))?);
+                .eq(PyString::new(py, "bar"))?);
 
             instance.getattr(py, "foo")?;
             Ok(())
@@ -1993,12 +1997,14 @@ a = A()
         use crate::types::PyModule;
 
         Python::with_gil(|py| {
-            const CODE: &str = r#"
+            const CODE: &CStr = c_str!(
+                r#"
 class A:
     pass
 a = A()
-   "#;
-            let module = PyModule::from_code_bound(py, CODE, "", "")?;
+   "#
+            );
+            let module = PyModule::from_code(py, CODE, c_str!(""), c_str!(""))?;
             let instance: Py<PyAny> = module.getattr("a")?.into();
 
             let foo = crate::intern!(py, "foo");
@@ -2014,7 +2020,7 @@ a = A()
     #[test]
     fn invalid_attr() -> PyResult<()> {
         Python::with_gil(|py| {
-            let instance: Py<PyAny> = py.eval_bound("object()", None, None)?.into();
+            let instance: Py<PyAny> = py.eval(ffi::c_str!("object()"), None, None)?.into();
 
             instance.getattr(py, "foo").unwrap_err();
 
@@ -2027,7 +2033,7 @@ a = A()
     #[test]
     fn test_py2_from_py_object() {
         Python::with_gil(|py| {
-            let instance = py.eval_bound("object()", None, None).unwrap();
+            let instance = py.eval(ffi::c_str!("object()"), None, None).unwrap();
             let ptr = instance.as_ptr();
             let instance: Bound<'_, PyAny> = instance.extract().unwrap();
             assert_eq!(instance.as_ptr(), ptr);
@@ -2038,7 +2044,7 @@ a = A()
     fn test_py2_into_py_object() {
         Python::with_gil(|py| {
             let instance = py
-                .eval_bound("object()", None, None)
+                .eval(ffi::c_str!("object()"), None, None)
                 .unwrap()
                 .as_borrowed()
                 .to_owned();
@@ -2067,7 +2073,7 @@ a = A()
     #[test]
     fn test_bound_as_any() {
         Python::with_gil(|py| {
-            let obj = PyString::new_bound(py, "hello world");
+            let obj = PyString::new(py, "hello world");
             let any = obj.as_any();
             assert_eq!(any.as_ptr(), obj.as_ptr());
         });
@@ -2076,7 +2082,7 @@ a = A()
     #[test]
     fn test_bound_into_any() {
         Python::with_gil(|py| {
-            let obj = PyString::new_bound(py, "hello world");
+            let obj = PyString::new(py, "hello world");
             let any = obj.clone().into_any();
             assert_eq!(any.as_ptr(), obj.as_ptr());
         });
@@ -2085,7 +2091,7 @@ a = A()
     #[test]
     fn test_bound_py_conversions() {
         Python::with_gil(|py| {
-            let obj: Bound<'_, PyString> = PyString::new_bound(py, "hello world");
+            let obj: Bound<'_, PyString> = PyString::new(py, "hello world");
             let obj_unbound: &Py<PyString> = obj.as_unbound();
             let _: &Bound<'_, PyString> = obj_unbound.bind(py);
 

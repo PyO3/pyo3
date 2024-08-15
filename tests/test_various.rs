@@ -139,7 +139,7 @@ fn test_pickle() {
     }
 
     fn add_module(module: Bound<'_, PyModule>) -> PyResult<()> {
-        PyModule::import_bound(module.py(), "sys")?
+        PyModule::import(module.py(), "sys")?
             .dict()
             .get_item("modules")
             .unwrap()
@@ -149,7 +149,7 @@ fn test_pickle() {
     }
 
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "test_module").unwrap();
+        let module = PyModule::new(py, "test_module").unwrap();
         module.add_class::<PickleSupport>().unwrap();
         add_module(module).unwrap();
         let inst = Py::new(py, PickleSupport {}).unwrap();

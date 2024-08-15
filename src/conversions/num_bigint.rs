@@ -121,7 +121,7 @@ macro_rules! bigint_conversion {
                 } else {
                     None
                 };
-                py.get_type_bound::<PyInt>()
+                py.get_type::<PyInt>()
                     .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                     .expect("int.from_bytes() failed during to_object()") // FIXME: #1813 or similar
                     .into()
@@ -170,7 +170,7 @@ macro_rules! bigint_conversion {
                     None
                 };
                 unsafe {
-                    py.get_type_bound::<PyInt>()
+                    py.get_type::<PyInt>()
                         .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
                         .downcast_into_unchecked()
                 }
@@ -381,6 +381,7 @@ mod tests {
     use super::*;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
+    use pyo3_ffi::c_str;
 
     fn rust_fib<T>() -> impl Iterator<Item = T>
     where
@@ -441,7 +442,7 @@ mod tests {
     }
 
     fn python_index_class(py: Python<'_>) -> Bound<'_, PyModule> {
-        let index_code = indoc!(
+        let index_code = c_str!(indoc!(
             r#"
                 class C:
                     def __init__(self, x):
@@ -449,8 +450,8 @@ mod tests {
                     def __index__(self):
                         return self.x
                 "#
-        );
-        PyModule::from_code_bound(py, index_code, "index.py", "index").unwrap()
+        ));
+        PyModule::from_code(py, index_code, c_str!("index.py"), c_str!("index")).unwrap()
     }
 
     #[test]
@@ -459,7 +460,9 @@ mod tests {
             let index = python_index_class(py);
             let locals = PyDict::new(py);
             locals.set_item("index", index).unwrap();
-            let ob = py.eval_bound("index.C(10)", None, Some(&locals)).unwrap();
+            let ob = py
+                .eval(ffi::c_str!("index.C(10)"), None, Some(&locals))
+                .unwrap();
             let _: BigInt = ob.extract().unwrap();
         });
     }

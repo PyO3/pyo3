@@ -2,9 +2,9 @@
 
 If you already have some existing Python code that you need to execute from Rust, the following FAQs can help you select the right PyO3 functionality for your situation:
 
-## Want to access Python APIs? Then use `PyModule::import_bound`.
+## Want to access Python APIs? Then use `PyModule::import`.
 
-[`PyModule::import_bound`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import_bound) can
+[`PyModule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
 be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
@@ -13,7 +13,7 @@ use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        let builtins = PyModule::import_bound(py, "builtins")?;
+        let builtins = PyModule::import(py, "builtins")?;
         let total: i32 = builtins
             .getattr("sum")?
             .call1((vec![1, 2, 3],))?
@@ -32,11 +32,12 @@ and return the evaluated value as a `Bound<'py, PyAny>` object.
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::ffi::c_str;
 
 # fn main() -> Result<(), ()> {
 Python::with_gil(|py| {
     let result = py
-        .eval_bound("[i * 10 for i in range(5)]", None, None)
+        .eval(c_str!("[i * 10 for i in range(5)]"), None, None)
         .map_err(|e| {
             e.print_and_set_sys_last_vars(py);
         })?;
@@ -95,9 +96,9 @@ assert userdata.as_tuple() == userdata_as_tuple
 # }
 ```
 
-## You have a Python file or code snippet? Then use `PyModule::from_code_bound`.
+## You have a Python file or code snippet? Then use `PyModule::from_code`.
 
-[`PyModule::from_code_bound`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code_bound)
+[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 
@@ -106,21 +107,22 @@ to this function!
 
 ```rust
 use pyo3::{prelude::*, types::IntoPyDict};
+use pyo3_ffi::c_str;
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| {
-    let activators = PyModule::from_code_bound(
+    let activators = PyModule::from_code(
         py,
-        r#"
+        c_str!(r#"
 def relu(x):
     """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
-    "#,
-        "activators.py",
-        "activators",
+    "#),
+        c_str!("activators.py"),
+        c_str!("activators"),
     )?;
 
     let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
@@ -152,6 +154,7 @@ As an example, the below adds the module `foo` to the embedded interpreter:
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::ffi::c_str;
 
 #[pyfunction]
 fn add_one(x: i64) -> i64 {
@@ -166,17 +169,18 @@ fn foo(foo_module: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
-    Python::with_gil(|py| Python::run_bound(py, "import foo; foo.add_one(6)", None, None))
+    Python::with_gil(|py| Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None))
 }
 ```
 
 If `append_to_inittab` cannot be used due to constraints in the program,
-an alternative is to create a module using [`PyModule::new_bound`]
+an alternative is to create a module using [`PyModule::new`]
 and insert it manually into `sys.modules`:
 
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::ffi::c_str;
 
 #[pyfunction]
 pub fn add_one(x: i64) -> i64 {
@@ -186,18 +190,18 @@ pub fn add_one(x: i64) -> i64 {
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // Create new module
-        let foo_module = PyModule::new_bound(py, "foo")?;
+        let foo_module = PyModule::new(py, "foo")?;
         foo_module.add_function(wrap_pyfunction!(add_one, &foo_module)?)?;
 
         // Import and get sys.modules
-        let sys = PyModule::import_bound(py, "sys")?;
+        let sys = PyModule::import(py, "sys")?;
         let py_modules: Bound<'_, PyDict> = sys.getattr("modules")?.downcast_into()?;
 
         // Insert foo into sys.modules
         py_modules.set_item("foo", foo_module)?;
 
         // Now we can import + run our python code
-        Python::run_bound(py, "import foo; foo.add_one(6)", None, None)
+        Python::run(py, c_str!("import foo; foo.add_one(6)"), None, None)
     })
 }
 ```
@@ -249,16 +253,17 @@ The example below shows:
 `src/main.rs`:
 ```rust,ignore
 use pyo3::prelude::*;
+use pyo3_ffi::c_str;
 
 fn main() -> PyResult<()> {
-    let py_foo = include_str!(concat!(
+    let py_foo = c_str!(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/python_app/utils/foo.py"
-    ));
-    let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
+    )));
+    let py_app = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py")));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code_bound(py, py_foo, "utils.foo", "utils.foo")?;
-        let app: Py<PyAny> = PyModule::from_code_bound(py, py_app, "", "")?
+        PyModule::from_code(py, py_foo, c_str!("utils.foo"), c_str!("utils.foo"))?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app, c_str!(""), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -283,19 +288,21 @@ that directory is `/usr/share/python_app`).
 ```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::PyList;
+use pyo3_ffi::c_str;
 use std::fs;
 use std::path::Path;
+use std::ffi::CString;
 
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
-    let py_app = fs::read_to_string(path.join("app.py"))?;
+    let py_app = CString::new(fs::read_to_string(path.join("app.py"))?)?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         let syspath = py
-            .import_bound("sys")?
+            .import("sys")?
             .getattr("path")?
             .downcast_into::<PyList>()?;
         syspath.insert(0, &path)?;
-        let app: Py<PyAny> = PyModule::from_code_bound(py, &py_app, "", "")?
+        let app: Py<PyAny> = PyModule::from_code(py, py_app.as_c_str(), c_str!(""), c_str!(""))?
             .getattr("run")?
             .into();
         app.call0(py)
@@ -316,12 +323,13 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::ffi::c_str;
 
 fn main() {
     Python::with_gil(|py| {
-        let custom_manager = PyModule::from_code_bound(
+        let custom_manager = PyModule::from_code(
             py,
-            r#"
+            c_str!(r#"
 class House(object):
     def __init__(self, address):
         self.address = address
@@ -333,9 +341,9 @@ class House(object):
         else:
             print(f"Thank you for visiting {self.address}, come again soon!")
 
-        "#,
-            "house.py",
-            "house",
+        "#),
+            c_str!("house.py"),
+            c_str!("house"),
         )
         .unwrap();
 
@@ -344,7 +352,7 @@ class House(object):
 
         house.call_method0("__enter__").unwrap();
 
-        let result = py.eval_bound("undefined_variable + 1", None, None);
+        let result = py.eval(c_str!("undefined_variable + 1"), None, None);
 
         // If the eval threw an exception we'll pass it through to the context manager.
         // Otherwise, __exit__  is called with empty arguments (Python "None").
@@ -383,7 +391,7 @@ use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let signal = py.import_bound("signal")?;
+    let signal = py.import("signal")?;
     // Set SIGINT to have the default action
     signal
         .getattr("signal")?
@@ -394,4 +402,4 @@ Python::with_gil(|py| -> PyResult<()> {
 ```
 
 
-[`PyModule::new_bound`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new_bound
+[`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new
