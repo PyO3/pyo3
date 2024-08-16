@@ -155,6 +155,18 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
+        impl<'py> crate::conversion::IntoPyObject<'py> for &Complex<$float> {
+            type Target = PyComplex;
+            type Output = Bound<'py, Self::Target>;
+            type Error = std::convert::Infallible;
+
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (*self).into_pyobject(py)
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl FromPyObject<'_> for Complex<$float> {
             fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Complex<$float>> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
