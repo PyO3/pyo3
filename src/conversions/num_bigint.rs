@@ -141,6 +141,18 @@ macro_rules! bigint_conversion {
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
 
+            #[inline]
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                (&self).into_pyobject(py)
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
+        impl<'py> IntoPyObject<'py> for &$rust_ty {
+            type Target = PyInt;
+            type Output = Bound<'py, Self::Target>;
+            type Error = PyErr;
+
             #[cfg(not(Py_LIMITED_API))]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 use crate::ffi_ptr_ext::FfiPtrExt;
