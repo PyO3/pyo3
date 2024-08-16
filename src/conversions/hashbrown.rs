@@ -118,9 +118,32 @@ where
 
 impl<'py, K, H> IntoPyObject<'py> for hashbrown::HashSet<K, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     H: hash::BuildHasher,
     PyErr: From<K::Error>,
+{
+    type Target = PySet;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        try_new_from_iter(
+            py,
+            self.into_iter().map(|item| {
+                item.into_pyobject(py)
+                    .map(BoundObject::into_any)
+                    .map(BoundObject::unbind)
+                    .map_err(Into::into)
+            }),
+        )
+    }
+}
+
+impl<'a, 'py, K, H> IntoPyObject<'py> for &'a hashbrown::HashSet<K, H>
+where
+    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a H: hash::BuildHasher,
+    PyErr: From<<&'a K as IntoPyObject<'py>>::Error>,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
