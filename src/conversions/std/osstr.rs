@@ -145,8 +145,20 @@ impl<'py> IntoPyObject<'py> for Cow<'_, OsStr> {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&**self).into_pyobject(py)
     }
 }
 
@@ -168,6 +180,7 @@ impl<'py> IntoPyObject<'py> for OsString {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
@@ -184,6 +197,7 @@ impl<'py> IntoPyObject<'py> for &OsString {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
     }
