@@ -115,6 +115,17 @@ impl<'py> IntoPyObject<'py> for Decimal {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &Decimal {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 #[cfg(test)]
 mod test_rust_decimal {
     use super::*;
