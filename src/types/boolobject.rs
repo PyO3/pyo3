@@ -7,6 +7,8 @@ use crate::{
 };
 
 use super::any::PyAnyMethods;
+use crate::conversion::IntoPyObject;
+use std::convert::Infallible;
 
 /// Represents a Python `bool`.
 ///
@@ -167,6 +169,28 @@ impl IntoPy<PyObject> for bool {
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("bool")
+    }
+}
+
+impl<'py> IntoPyObject<'py> for bool {
+    type Target = PyBool;
+    type Output = Borrowed<'py, 'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyBool::new(py, self))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &bool {
+    type Target = PyBool;
+    type Output = Borrowed<'py, 'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
