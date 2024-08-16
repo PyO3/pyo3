@@ -8,14 +8,14 @@ error[E0277]: `Blah` cannot be converted to a Python object
   = note: if you do not wish to have a corresponding Python type, implement it manually
   = note: if you do not own `Blah` you can perform a manual conversion to one of the types in `pyo3::types::*`
   = help: the following other types implement trait `IntoPyObject<'py>`:
+            &&str
+            &'a BTreeMap<K, V>
+            &'a BTreeSet<K>
+            &'a Cell<T>
+            &'a HashMap<K, V, H>
+            &'a HashSet<K, H>
+            &'a Option<T>
             &'a Py<T>
-            &'a PyRef<'py, T>
-            &'a PyRefMut<'py, T>
-            &'a Vec<T>
-            &'a [T]
-            &'a pyo3::Bound<'py, T>
-            &OsStr
-            &OsString
           and $N others
 note: required by a bound in `UnknownReturnType::<T>::wrap`
  --> src/impl_/wrap.rs
