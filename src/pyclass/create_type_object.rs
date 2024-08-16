@@ -250,7 +250,7 @@ impl PyTypeBuilder {
                             if (*dict_ptr).is_null() {
                                 std::ptr::write(dict_ptr, ffi::PyDict_New());
                             }
-                            Ok(ffi::_Py_XNewRef(*dict_ptr))
+                            Ok(ffi::compat::Py_XNewRef(*dict_ptr))
                         })
                     }
                 }
