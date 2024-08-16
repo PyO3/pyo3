@@ -8,6 +8,8 @@ pub struct _PyWeakReference {
     pub wr_next: *mut crate::PyWeakReference,
     #[cfg(Py_3_11)]
     pub vectorcall: Option<crate::vectorcallfunc>,
+    #[cfg(all(Py_3_13, Py_GIL_DISABLED))]
+    pub weakrefs_lock: *mut crate::PyMutex,
 }
 
 // skipped _PyWeakref_GetWeakrefCount

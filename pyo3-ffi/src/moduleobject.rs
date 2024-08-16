@@ -60,6 +60,7 @@ pub struct PyModuleDef_Base {
     pub m_copy: *mut PyObject,
 }
 
+#[allow(clippy::declare_interior_mutable_const)]
 pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
     ob_base: PyObject_HEAD_INIT,
     m_init: None,
