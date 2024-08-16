@@ -67,12 +67,40 @@ where
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "either")))]
-impl<'py, L, R, E1, E2> IntoPyObject<'py> for Either<L, R>
+impl<'py, L, R> IntoPyObject<'py> for Either<L, R>
 where
-    L: IntoPyObject<'py, Error = E1>,
-    R: IntoPyObject<'py, Error = E2>,
-    E1: Into<PyErr>,
-    E2: Into<PyErr>,
+    L: IntoPyObject<'py>,
+    R: IntoPyObject<'py>,
+    L::Error: Into<PyErr>,
+    R::Error: Into<PyErr>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self {
+            Either::Left(l) => l
+                .into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
+                .map_err(Into::into),
+            Either::Right(r) => r
+                .into_pyobject(py)
+                .map(BoundObject::into_any)
+                .map(BoundObject::into_bound)
+                .map_err(Into::into),
+        }
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "either")))]
+impl<'a, 'py, L, R> IntoPyObject<'py> for &'a Either<L, R>
+where
+    &'a L: IntoPyObject<'py>,
+    &'a R: IntoPyObject<'py>,
+    <&'a L as IntoPyObject<'py>>::Error: Into<PyErr>,
+    <&'a R as IntoPyObject<'py>>::Error: Into<PyErr>,
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
