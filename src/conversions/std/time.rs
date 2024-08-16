@@ -123,6 +123,20 @@ impl<'py> IntoPyObject<'py> for Duration {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &Duration {
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDelta;
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 // Conversions between SystemTime and datetime do not rely on the floating point timestamp of the
 // timestamp/fromtimestamp APIs to avoid possible precision loss but goes through the
 // timedelta/std::time::Duration types by taking for reference point the UNIX epoch.
@@ -168,6 +182,17 @@ impl<'py> IntoPyObject<'py> for SystemTime {
         unix_epoch_py(py)
             .bind(py)
             .call_method1(intern!(py, "__add__"), (duration_since_unix_epoch,))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &SystemTime {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
