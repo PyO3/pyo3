@@ -29,6 +29,24 @@ macro_rules! compat_function {
 
         #[cfg(all($cfg, not(docsrs)))]
         pub use $crate::$name;
+
+        #[cfg(test)]
+        paste::paste! {
+            // Test that the compat function does not overlap with the original function. If the
+            // cfgs line up, then the the two glob imports will resolve to the same item via the
+            // re-export. If the cfgs mismatch, then the use of $name will be ambiguous in cases
+            // where the function is defined twice, and the test will fail to compile.
+            #[allow(unused_imports)]
+            mod [<test_ $name _export>] {
+                use $crate::*;
+                use $crate::compat::*;
+
+                #[test]
+                fn test_export() {
+                    let _ = $name;
+                }
+            }
+        }
     };
 }
 
