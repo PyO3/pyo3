@@ -51,10 +51,33 @@ where
 
 impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPyObject<'py>,
+    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     V: IntoPyObject<'py>,
     H: hash::BuildHasher,
     PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
+        }
+        Ok(dict)
+    }
+}
+
+impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
+where
+    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a V: IntoPyObject<'py>,
+    &'a H: hash::BuildHasher,
+    PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
@@ -92,9 +115,31 @@ where
 
 impl<'py, K, V> IntoPyObject<'py> for collections::BTreeMap<K, V>
 where
-    K: cmp::Eq + IntoPyObject<'py>,
+    K: IntoPyObject<'py> + cmp::Eq,
     V: IntoPyObject<'py>,
     PyErr: From<K::Error> + From<V::Error>,
+{
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        for (k, v) in self {
+            dict.set_item(
+                k.into_pyobject(py)?.into_bound(),
+                v.into_pyobject(py)?.into_bound(),
+            )?;
+        }
+        Ok(dict)
+    }
+}
+
+impl<'a, 'py, K, V> IntoPyObject<'py> for &'a collections::BTreeMap<K, V>
+where
+    &'a K: IntoPyObject<'py> + cmp::Eq,
+    &'a V: IntoPyObject<'py>,
+    PyErr: From<<&'a K as IntoPyObject<'py>>::Error> + From<<&'a V as IntoPyObject<'py>>::Error>,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
