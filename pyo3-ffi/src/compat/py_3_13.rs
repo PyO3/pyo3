@@ -6,7 +6,7 @@ compat_function!(
         dp: *mut crate::PyObject,
         key: *mut crate::PyObject,
         result: *mut *mut crate::PyObject,
-    ) -> std::ffi::c_int {
+    ) -> std::os::raw::c_int {
         use crate::{compat::Py_NewRef, PyDict_GetItemWithError, PyErr_Occurred};
 
         let item = PyDict_GetItemWithError(dp, key);
