@@ -152,6 +152,20 @@ impl<'py> IntoPyObject<'py> for Duration {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &Duration {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDelta;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl FromPyObject<'_> for Duration {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Duration> {
         // Python size are much lower than rust size so we do not need bound checks.
@@ -228,6 +242,20 @@ impl<'py> IntoPyObject<'py> for NaiveDate {
         {
             DatetimeTypes::try_get(py).and_then(|dt| dt.date.bind(py).call1((year, month, day)))
         }
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &NaiveDate {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
@@ -309,6 +337,20 @@ impl<'py> IntoPyObject<'py> for NaiveTime {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &NaiveTime {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl FromPyObject<'_> for NaiveTime {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
         #[cfg(not(Py_LIMITED_API))]
@@ -372,6 +414,20 @@ impl<'py> IntoPyObject<'py> for NaiveDateTime {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &NaiveDateTime {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDateTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl FromPyObject<'_> for NaiveDateTime {
     fn extract_bound(dt: &Bound<'_, PyAny>) -> PyResult<NaiveDateTime> {
         #[cfg(not(Py_LIMITED_API))]
@@ -412,6 +468,20 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
 }
 
 impl<'py, Tz: TimeZone> IntoPyObject<'py> for DateTime<Tz> {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyDateTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (&self).into_pyobject(py)
+    }
+}
+
+impl<'py, Tz: TimeZone> IntoPyObject<'py> for &DateTime<Tz> {
     #[cfg(Py_LIMITED_API)]
     type Target = PyAny;
     #[cfg(not(Py_LIMITED_API))]
@@ -531,6 +601,20 @@ impl<'py> IntoPyObject<'py> for FixedOffset {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &FixedOffset {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyTzInfo;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl FromPyObject<'_> for FixedOffset {
     /// Convert python tzinfo to rust [`FixedOffset`].
     ///
@@ -591,6 +675,20 @@ impl<'py> IntoPyObject<'py> for Utc {
         {
             Ok(timezone_utc_bound(py))
         }
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Utc {
+    #[cfg(Py_LIMITED_API)]
+    type Target = PyAny;
+    #[cfg(not(Py_LIMITED_API))]
+    type Target = PyTzInfo;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 

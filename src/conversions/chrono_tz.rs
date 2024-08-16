@@ -75,6 +75,17 @@ impl<'py> IntoPyObject<'py> for Tz {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &Tz {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl FromPyObject<'_> for Tz {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Tz> {
         Tz::from_str(
