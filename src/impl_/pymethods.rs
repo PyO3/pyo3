@@ -538,7 +538,7 @@ mod tests {
             ) -> *mut ffi::PyObject {
                 assert_eq!(nargs, 0);
                 assert!(kwargs.is_null());
-                unsafe { ffi::Py_NewRef(ffi::Py_None()) }
+                Python::assume_gil_acquired().None().into_ptr()
             }
 
             let f = PyCFunction::internal_new(
