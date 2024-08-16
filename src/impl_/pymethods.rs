@@ -72,8 +72,8 @@ pub enum PyMethodDefType {
 pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
-    #[cfg(not(Py_LIMITED_API))]
-    PyCFunctionFastWithKeywords(ffi::_PyCFunctionFastWithKeywords),
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    PyCFunctionFastWithKeywords(ffi::PyCFunctionFastWithKeywords),
 }
 
 pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
@@ -145,10 +145,10 @@ impl PyMethodDef {
     }
 
     /// Define a function that can take `*args` and `**kwargs`.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub const fn fastcall_cfunction_with_keywords(
         ml_name: &'static CStr,
-        cfunction: ffi::_PyCFunctionFastWithKeywords,
+        cfunction: ffi::PyCFunctionFastWithKeywords,
         ml_doc: &'static CStr,
     ) -> Self {
         Self {
@@ -171,9 +171,9 @@ impl PyMethodDef {
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
                 PyCFunctionWithKeywords: meth,
             },
-            #[cfg(not(Py_LIMITED_API))]
+            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             PyMethodType::PyCFunctionFastWithKeywords(meth) => ffi::PyMethodDefPointer {
-                _PyCFunctionFastWithKeywords: meth,
+                PyCFunctionFastWithKeywords: meth,
             },
         };
 
@@ -518,4 +518,41 @@ pub unsafe fn tp_new_impl<T: PyClass>(
     initializer
         .create_class_object_of_type(py, target_type)
         .map(Bound::into_ptr)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn test_fastcall_function_with_keywords() {
+        use super::PyMethodDef;
+        use crate::types::{PyAnyMethods, PyCFunction};
+        use crate::{ffi, Python};
+
+        Python::with_gil(|py| {
+            unsafe extern "C" fn accepts_no_arguments(
+                _slf: *mut ffi::PyObject,
+                _args: *const *mut ffi::PyObject,
+                nargs: ffi::Py_ssize_t,
+                kwargs: *mut ffi::PyObject,
+            ) -> *mut ffi::PyObject {
+                assert_eq!(nargs, 0);
+                assert!(kwargs.is_null());
+                Python::assume_gil_acquired().None().into_ptr()
+            }
+
+            let f = PyCFunction::internal_new(
+                py,
+                &PyMethodDef::fastcall_cfunction_with_keywords(
+                    ffi::c_str!("test"),
+                    accepts_no_arguments,
+                    ffi::c_str!("doc"),
+                ),
+                None,
+            )
+            .unwrap();
+
+            f.call0().unwrap();
+        });
+    }
 }

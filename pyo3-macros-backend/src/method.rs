@@ -7,6 +7,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::deprecations::deprecate_trailing_option_default;
+use crate::pyversions::is_abi3_before;
 use crate::utils::{Ctx, LitCStr};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -15,7 +16,7 @@ use crate::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
     quotes,
-    utils::{self, is_abi3, PythonDoc},
+    utils::{self, PythonDoc},
 };
 
 #[derive(Clone, Debug)]
@@ -374,7 +375,7 @@ impl SelfType {
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
-    Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature)
+    Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature before 3.10)
     TpNew,    // special convention for tp_new
 }
 
@@ -386,11 +387,11 @@ impl CallingConvention {
     pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
         if signature.python_signature.has_no_args() {
             Self::Noargs
-        } else if signature.python_signature.kwargs.is_some() {
-            // for functions that accept **kwargs, always prefer varargs
-            Self::Varargs
-        } else if !is_abi3() {
-            // FIXME: available in the stable ABI since 3.10
+        } else if signature.python_signature.kwargs.is_none() && !is_abi3_before(3, 10) {
+            // For functions that accept **kwargs, always prefer varargs for now based on
+            // historical performance testing.
+            //
+            // FASTCALL not compatible with `abi3` before 3.10
             Self::Fastcall
         } else {
             Self::Varargs
