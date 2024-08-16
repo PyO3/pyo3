@@ -76,6 +76,22 @@ where
     }
 }
 
+impl<'a, 'py, A> IntoPyObject<'py> for &'a SmallVec<A>
+where
+    A: Array,
+    &'a A::Item: IntoPyObject<'py>,
+    PyErr: From<<&'a A::Item as IntoPyObject<'py>>::Error>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.as_slice().into_pyobject(py)
+    }
+}
+
 impl<'py, A> FromPyObject<'py> for SmallVec<A>
 where
     A: Array,
