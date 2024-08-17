@@ -1213,6 +1213,7 @@ pub struct PyClassGetterGenerator<
     // at compile time
     const IS_PY_T: bool,
     const IMPLEMENTS_TOPYOBJECT: bool,
+    const IMPLEMENTS_INTOPY: bool,
     const IMPLEMENTS_INTOPYOBJECT_REF: bool,
     const IMPLEMENTS_INTOPYOBJECT: bool,
 >(PhantomData<(ClassT, FieldT, Offset)>);
@@ -1223,6 +1224,7 @@ impl<
         Offset: OffsetCalculator<ClassT, FieldT>,
         const IS_PY_T: bool,
         const IMPLEMENTS_TOPYOBJECT: bool,
+        const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
     >
@@ -1232,6 +1234,7 @@ impl<
         Offset,
         IS_PY_T,
         IMPLEMENTS_TOPYOBJECT,
+        IMPLEMENTS_INTOPY,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
     >
@@ -1248,6 +1251,7 @@ impl<
         U,
         Offset: OffsetCalculator<ClassT, Py<U>>,
         const IMPLEMENTS_TOPYOBJECT: bool,
+        const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
     >
@@ -1257,6 +1261,7 @@ impl<
         Offset,
         true,
         IMPLEMENTS_TOPYOBJECT,
+        IMPLEMENTS_INTOPY,
         IMPLEMENTS_INTOPYOBJECT_REF,
         IMPLEMENTS_INTOPYOBJECT,
     >
@@ -1286,9 +1291,14 @@ impl<
     }
 }
 
-/// Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive clones of containers like `Vec`
-impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, FieldT>>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, false, false>
+/// Fallback case; Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive
+/// clones of containers like `Vec`
+impl<
+        ClassT: PyClass,
+        FieldT: ToPyObject,
+        Offset: OffsetCalculator<ClassT, FieldT>,
+        const IMPLEMENTS_INTOPY: bool,
+    > PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, IMPLEMENTS_INTOPY, false, false>
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
@@ -1299,12 +1309,14 @@ impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, Field
     }
 }
 
-/// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` to avoid potentially expensive clones of containers like `Vec`
+/// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` (prefered over `ToPyObject`) to avoid
+/// potentially expensive clones of containers like `Vec`
 impl<
         ClassT,
         FieldT,
         Offset,
         const IMPLEMENTS_TOPYOBJECT: bool,
+        const IMPLEMENTS_INTOPY: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
     >
     PyClassGetterGenerator<
@@ -1313,6 +1325,7 @@ impl<
         Offset,
         false,
         IMPLEMENTS_TOPYOBJECT,
+        IMPLEMENTS_INTOPY,
         true,
         IMPLEMENTS_INTOPYOBJECT,
     >
@@ -1347,17 +1360,25 @@ where
 {
 }
 
-/// Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive clones of containers like `Vec`
-impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, IMPLEMENTS_TOPYOBJECT, false, true>
+/// Temporary case to prefer `IntoPyObject + Clone` over `IntoPy + Clone`, while still showing the
+/// `IntoPyObject` suggestion if neither is implemented;
+impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool, const IMPLEMENTS_INTOPY: bool>
+    PyClassGetterGenerator<
+        ClassT,
+        FieldT,
+        Offset,
+        false,
+        IMPLEMENTS_TOPYOBJECT,
+        IMPLEMENTS_INTOPY,
+        false,
+        true,
+    >
 where
     ClassT: PyClass,
     Offset: OffsetCalculator<ClassT, FieldT>,
+    FieldT: PyO3GetFieldIntoPyObject,
 {
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
-    where
-        FieldT: PyO3GetFieldIntoPyObject,
-    {
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
@@ -1377,19 +1398,36 @@ where
 pub trait PyO3GetField: IntoPy<Py<PyAny>> + Clone {}
 impl<T: IntoPy<Py<PyAny>> + Clone> PyO3GetField for T {}
 
-/// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
+/// IntoPy + Clone fallback case, which was the only behaviour before PyO3 0.22.
+impl<ClassT, FieldT, Offset>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, true, false, false>
+where
+    ClassT: PyClass,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+    FieldT: PyO3GetField,
+{
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+        PyMethodDefType::Getter(PyGetterDef {
+            name,
+            meth: pyo3_get_value::<ClassT, FieldT, Offset>,
+            doc,
+        })
+    }
+}
+
+/// Base case attempts to use IntoPyObject + Clone
 impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false, false>
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
     // if no specialization is used instead
     where
-        FieldT: PyO3GetField,
+        FieldT: PyO3GetFieldIntoPyObject,
     {
         PyMethodDefType::Getter(PyGetterDef {
             name,
-            meth: pyo3_get_value::<ClassT, FieldT, Offset>,
+            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
             doc,
         })
     }
@@ -1424,6 +1462,12 @@ impl<T> IsPyT<Py<T>> {
 probe!(IsToPyObject);
 
 impl<T: ToPyObject> IsToPyObject<T> {
+    pub const VALUE: bool = true;
+}
+
+probe!(IsIntoPy);
+
+impl<T: IntoPy<crate::PyObject>> IsIntoPy<T> {
     pub const VALUE: bool = true;
 }
 

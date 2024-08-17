@@ -788,6 +788,7 @@ pub fn impl_py_getter_def(
                         Offset,
                         { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsToPyObject::<#ty>::VALUE },
+                        { #pyo3_path::impl_::pyclass::IsIntoPy::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#ty>::VALUE },
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
