@@ -9,6 +9,7 @@ use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
 
 impl ToPyObject for OsStr {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.into_pyobject(py).unwrap().into_any().unbind()
     }
@@ -122,21 +123,21 @@ impl FromPyObject<'_> for OsString {
 impl IntoPy<PyObject> for &'_ OsStr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl ToPyObject for Cow<'_, OsStr> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        (self as &OsStr).to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for Cow<'_, OsStr> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -165,13 +166,14 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
 impl ToPyObject for OsString {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        (self as &OsStr).to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for OsString {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -187,8 +189,9 @@ impl<'py> IntoPyObject<'py> for OsString {
 }
 
 impl<'a> IntoPy<PyObject> for &'a OsString {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

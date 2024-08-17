@@ -10,8 +10,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 impl ToPyObject for Path {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -28,7 +29,7 @@ impl FromPyObject<'_> for PathBuf {
 impl<'a> IntoPy<PyObject> for &'a Path {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -46,14 +47,14 @@ impl<'py> IntoPyObject<'py> for &Path {
 impl<'a> ToPyObject for Cow<'a, Path> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -82,13 +83,14 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
 impl ToPyObject for PathBuf {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for PathBuf {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_os_string().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -104,8 +106,9 @@ impl<'py> IntoPyObject<'py> for PathBuf {
 }
 
 impl<'a> IntoPy<PyObject> for &'a PathBuf {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_os_str().to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

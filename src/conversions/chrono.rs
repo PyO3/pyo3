@@ -61,49 +61,16 @@ use chrono::{
 };
 
 impl ToPyObject for Duration {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        // Total number of days
-        let days = self.num_days();
-        // Remainder of seconds
-        let secs_dur = *self - Duration::days(days);
-        let secs = secs_dur.num_seconds();
-        // Fractional part of the microseconds
-        let micros = (secs_dur - Duration::seconds(secs_dur.num_seconds()))
-            .num_microseconds()
-            // This should never panic since we are just getting the fractional
-            // part of the total microseconds, which should never overflow.
-            .unwrap();
-
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            // We do not need to check the days i64 to i32 cast from rust because
-            // python will panic with OverflowError.
-            // We pass true as the `normalize` parameter since we'd need to do several checks here to
-            // avoid that, and it shouldn't have a big performance impact.
-            // The seconds and microseconds cast should never overflow since it's at most the number of seconds per day
-            PyDelta::new_bound(
-                py,
-                days.try_into().unwrap_or(i32::MAX),
-                secs.try_into().unwrap(),
-                micros.try_into().unwrap(),
-                true,
-            )
-            .expect("failed to construct delta")
-            .into()
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            DatetimeTypes::get(py)
-                .timedelta
-                .call1(py, (days, secs, micros))
-                .expect("failed to construct datetime.timedelta")
-        }
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for Duration {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -199,27 +166,16 @@ impl FromPyObject<'_> for Duration {
 }
 
 impl ToPyObject for NaiveDate {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let DateArgs { year, month, day } = self.into();
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            PyDate::new_bound(py, year, month, day)
-                .expect("failed to construct date")
-                .into()
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            DatetimeTypes::get(py)
-                .date
-                .call1(py, (year, month, day))
-                .expect("failed to construct datetime.date")
-        }
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for NaiveDate {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -275,33 +231,16 @@ impl FromPyObject<'_> for NaiveDate {
 }
 
 impl ToPyObject for NaiveTime {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let TimeArgs {
-            hour,
-            min,
-            sec,
-            micro,
-            truncated_leap_second,
-        } = self.into();
-        #[cfg(not(Py_LIMITED_API))]
-        let time =
-            PyTime::new_bound(py, hour, min, sec, micro, None).expect("Failed to construct time");
-        #[cfg(Py_LIMITED_API)]
-        let time = DatetimeTypes::get(py)
-            .time
-            .bind(py)
-            .call1((hour, min, sec, micro))
-            .expect("failed to construct datetime.time");
-        if truncated_leap_second {
-            warn_truncated_leap_second(&time);
-        }
-        time.into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for NaiveTime {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -367,14 +306,16 @@ impl FromPyObject<'_> for NaiveTime {
 }
 
 impl ToPyObject for NaiveDateTime {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        naive_datetime_to_py_datetime(py, self, None)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for NaiveDateTime {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -549,31 +490,16 @@ impl<Tz: TimeZone + for<'py> FromPyObject<'py>> FromPyObject<'_> for DateTime<Tz
 }
 
 impl ToPyObject for FixedOffset {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let seconds_offset = self.local_minus_utc();
-
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            let td = PyDelta::new_bound(py, 0, seconds_offset, 0, true)
-                .expect("failed to construct timedelta");
-            timezone_from_offset(&td)
-                .expect("Failed to construct PyTimezone")
-                .into()
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            let td = Duration::seconds(seconds_offset.into()).into_py(py);
-            DatetimeTypes::get(py)
-                .timezone
-                .call1(py, (td,))
-                .expect("failed to construct datetime.timezone")
-        }
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for FixedOffset {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -647,14 +573,16 @@ impl FromPyObject<'_> for FixedOffset {
 }
 
 impl ToPyObject for Utc {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        timezone_utc_bound(py).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for Utc {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

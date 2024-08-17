@@ -1,10 +1,12 @@
 use super::any::PyAnyMethods;
+use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, IntoPy, PyAny, PyErr,
     PyObject, PyResult, Python, ToPyObject,
 };
+use std::convert::Infallible;
 use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
@@ -73,19 +75,43 @@ impl<'py> PyFloatMethods<'py> for Bound<'py, PyFloat> {
 }
 
 impl ToPyObject for f64 {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, *self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for f64 {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, self).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("float")
+    }
+}
+
+impl<'py> IntoPyObject<'py> for f64 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyFloat::new(py, self))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &f64 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
@@ -120,19 +146,43 @@ impl<'py> FromPyObject<'py> for f64 {
 }
 
 impl ToPyObject for f32 {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, f64::from(*self)).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl IntoPy<PyObject> for f32 {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyFloat::new(py, f64::from(self)).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::builtin("float")
+    }
+}
+
+impl<'py> IntoPyObject<'py> for f32 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyFloat::new(py, self.into()))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &f32 {
+    type Target = PyFloat;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 

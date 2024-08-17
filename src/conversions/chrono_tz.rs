@@ -45,20 +45,16 @@ use chrono_tz::Tz;
 use std::str::FromStr;
 
 impl ToPyObject for Tz {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        static ZONE_INFO: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-        ZONE_INFO
-            .get_or_try_init_type_ref(py, "zoneinfo", "ZoneInfo")
-            .unwrap()
-            .call1((self.name(),))
-            .unwrap()
-            .unbind()
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
 impl IntoPy<PyObject> for Tz {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 

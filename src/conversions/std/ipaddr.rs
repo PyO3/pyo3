@@ -32,14 +32,9 @@ impl FromPyObject<'_> for IpAddr {
 }
 
 impl ToPyObject for Ipv4Addr {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        static IPV4_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-        IPV4_ADDRESS
-            .get_or_try_init_type_ref(py, "ipaddress", "IPv4Address")
-            .expect("failed to load ipaddress.IPv4Address")
-            .call1((u32::from_be_bytes(self.octets()),))
-            .expect("failed to construct ipaddress.IPv4Address")
-            .unbind()
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
@@ -68,14 +63,9 @@ impl<'py> IntoPyObject<'py> for &Ipv4Addr {
 }
 
 impl ToPyObject for Ipv6Addr {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        static IPV6_ADDRESS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-        IPV6_ADDRESS
-            .get_or_try_init_type_ref(py, "ipaddress", "IPv6Address")
-            .expect("failed to load ipaddress.IPv6Address")
-            .call1((u128::from_be_bytes(self.octets()),))
-            .expect("failed to construct ipaddress.IPv6Address")
-            .unbind()
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
@@ -104,17 +94,16 @@ impl<'py> IntoPyObject<'py> for &Ipv6Addr {
 }
 
 impl ToPyObject for IpAddr {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        match self {
-            IpAddr::V4(ip) => ip.to_object(py),
-            IpAddr::V6(ip) => ip.to_object(py),
-        }
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 
 impl IntoPy<PyObject> for IpAddr {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+        self.into_pyobject(py).unwrap().unbind()
     }
 }
 

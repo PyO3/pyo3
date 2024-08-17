@@ -785,20 +785,23 @@ impl std::fmt::Display for PyErr {
 impl std::error::Error for PyErr {}
 
 impl IntoPy<PyObject> for PyErr {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_value(py).into()
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl ToPyObject for PyErr {
+    #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PyErr {
+    #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
+        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 

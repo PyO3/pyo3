@@ -85,17 +85,15 @@ macro_rules! rational_conversion {
         }
 
         impl ToPyObject for Ratio<$int> {
+            #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                let fraction_cls = get_fraction_cls(py).expect("failed to load fractions.Fraction");
-                let ret = fraction_cls
-                    .call1((self.numer().clone(), self.denom().clone()))
-                    .expect("failed to call fractions.Fraction(value)");
-                ret.to_object(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
         impl IntoPy<PyObject> for Ratio<$int> {
+            #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
-                self.to_object(py)
+                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
 
