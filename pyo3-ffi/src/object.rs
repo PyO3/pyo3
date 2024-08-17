@@ -201,14 +201,14 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
 }
 
 #[inline(always)]
-#[cfg(not(Py_GIL_DISABLED))]
+#[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
-    #[cfg(all(Py_3_12, target_pointer_width = "64"))]
+    #[cfg(target_pointer_width = "64")]
     {
         (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
     }
 
-    #[cfg(all(Py_3_12, target_pointer_width = "32"))]
+    #[cfg(target_pointer_width = "32")]
     {
         ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
     }
