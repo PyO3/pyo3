@@ -97,7 +97,8 @@ where
 <summary><small>Click to expand</small></summary>
 
 PyO3 0.23 introduced the new fallible conversion trait `IntoPyObject`. The `#[pyfunction]` and
-`#[pymethods]` macros prefer `IntoPyObject` implementations over `IntoPy<PyObject>`.
+`#[pymethods]` macros prefer `IntoPyObject` implementations over `IntoPy<PyObject>`. This also
+applies to `#[pyo3(get)]`.
 
 This change has an effect on functions and methods returning _byte_ collections like
 - `Vec<u8>`
