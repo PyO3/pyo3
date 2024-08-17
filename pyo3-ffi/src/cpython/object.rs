@@ -240,7 +240,10 @@ pub struct PyTypeObject {
     pub tp_getattro: Option<object::getattrofunc>,
     pub tp_setattro: Option<object::setattrofunc>,
     pub tp_as_buffer: *mut PyBufferProcs,
+    #[cfg(not(Py_GIL_DISABLED))]
     pub tp_flags: c_ulong,
+    #[cfg(Py_GIL_DISABLED)]
+    pub tp_flags: crate::impl_::AtomicCULong,
     pub tp_doc: *const c_char,
     pub tp_traverse: Option<object::traverseproc>,
     pub tp_clear: Option<object::inquiry>,
