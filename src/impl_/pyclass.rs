@@ -1,4 +1,5 @@
 use crate::{
+    conversion::IntoPyObject,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError, PyValueError},
     ffi,
     impl_::{
@@ -8,7 +9,8 @@ use crate::{
     },
     pyclass_init::PyObjectInit,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, IntoPy, Py, PyAny, PyClass, PyErr, PyResult, PyTypeInfo, Python, ToPyObject,
+    Borrowed, BoundObject, IntoPy, Py, PyAny, PyClass, PyErr, PyResult, PyTypeInfo, Python,
+    ToPyObject,
 };
 use std::{
     borrow::Cow,
@@ -1211,6 +1213,8 @@ pub struct PyClassGetterGenerator<
     // at compile time
     const IS_PY_T: bool,
     const IMPLEMENTS_TOPYOBJECT: bool,
+    const IMPLEMENTS_INTOPYOBJECT_REF: bool,
+    const IMPLEMENTS_INTOPYOBJECT: bool,
 >(PhantomData<(ClassT, FieldT, Offset)>);
 
 impl<
@@ -1219,7 +1223,18 @@ impl<
         Offset: OffsetCalculator<ClassT, FieldT>,
         const IS_PY_T: bool,
         const IMPLEMENTS_TOPYOBJECT: bool,
-    > PyClassGetterGenerator<ClassT, FieldT, Offset, IS_PY_T, IMPLEMENTS_TOPYOBJECT>
+        const IMPLEMENTS_INTOPYOBJECT_REF: bool,
+        const IMPLEMENTS_INTOPYOBJECT: bool,
+    >
+    PyClassGetterGenerator<
+        ClassT,
+        FieldT,
+        Offset,
+        IS_PY_T,
+        IMPLEMENTS_TOPYOBJECT,
+        IMPLEMENTS_INTOPYOBJECT_REF,
+        IMPLEMENTS_INTOPYOBJECT,
+    >
 {
     /// Safety: constructing this type requires that there exists a value of type FieldT
     /// at the calculated offset within the type ClassT.
@@ -1233,7 +1248,18 @@ impl<
         U,
         Offset: OffsetCalculator<ClassT, Py<U>>,
         const IMPLEMENTS_TOPYOBJECT: bool,
-    > PyClassGetterGenerator<ClassT, Py<U>, Offset, true, IMPLEMENTS_TOPYOBJECT>
+        const IMPLEMENTS_INTOPYOBJECT_REF: bool,
+        const IMPLEMENTS_INTOPYOBJECT: bool,
+    >
+    PyClassGetterGenerator<
+        ClassT,
+        Py<U>,
+        Offset,
+        true,
+        IMPLEMENTS_TOPYOBJECT,
+        IMPLEMENTS_INTOPYOBJECT_REF,
+        IMPLEMENTS_INTOPYOBJECT,
+    >
 {
     /// `Py<T>` fields have a potential optimization to use Python's "struct members" to read
     /// the field directly from the struct, rather than using a getter function.
@@ -1262,12 +1288,79 @@ impl<
 
 /// Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive clones of containers like `Vec`
 impl<ClassT: PyClass, FieldT: ToPyObject, Offset: OffsetCalculator<ClassT, FieldT>>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, true>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, true, false, false>
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value_topyobject::<ClassT, FieldT, Offset>,
+            doc,
+        })
+    }
+}
+
+/// Field is not `Py<T>`; try to use `IntoPyObject` for `&T` to avoid potentially expensive clones of containers like `Vec`
+impl<
+        ClassT,
+        FieldT,
+        Offset,
+        const IMPLEMENTS_TOPYOBJECT: bool,
+        const IMPLEMENTS_INTOPYOBJECT: bool,
+    >
+    PyClassGetterGenerator<
+        ClassT,
+        FieldT,
+        Offset,
+        false,
+        IMPLEMENTS_TOPYOBJECT,
+        true,
+        IMPLEMENTS_INTOPYOBJECT,
+    >
+where
+    ClassT: PyClass,
+    for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+    for<'a, 'py> PyErr: From<<&'a FieldT as IntoPyObject<'py>>::Error>,
+{
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+        PyMethodDefType::Getter(PyGetterDef {
+            name,
+            meth: pyo3_get_value_into_pyobject_ref::<ClassT, FieldT, Offset>,
+            doc,
+        })
+    }
+}
+
+#[cfg_attr(
+    diagnostic_namespace,
+    diagnostic::on_unimplemented(
+        message = "`{Self}` cannot be converted to a Python object",
+        label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
+        note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion",
+    )
+)]
+pub trait PyO3GetFieldIntoPyObject: for<'py> IntoPyObject<'py, Error: Into<PyErr>> + Clone {}
+impl<T> PyO3GetFieldIntoPyObject for T
+where
+    for<'py> T: IntoPyObject<'py> + Clone,
+    for<'py> PyErr: std::convert::From<<T as IntoPyObject<'py>>::Error>,
+{
+}
+
+/// Field is not `Py<T>`; try to use `ToPyObject` to avoid potentially expensive clones of containers like `Vec`
+impl<ClassT, FieldT, Offset, const IMPLEMENTS_TOPYOBJECT: bool>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, IMPLEMENTS_TOPYOBJECT, false, true>
+where
+    ClassT: PyClass,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+{
+    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
+    where
+        FieldT: PyO3GetFieldIntoPyObject,
+    {
+        PyMethodDefType::Getter(PyGetterDef {
+            name,
+            meth: pyo3_get_value_into_pyobject::<ClassT, FieldT, Offset>,
             doc,
         })
     }
@@ -1286,7 +1379,7 @@ impl<T: IntoPy<Py<PyAny>> + Clone> PyO3GetField for T {}
 
 /// Base case attempts to use IntoPy + Clone, which was the only behaviour before PyO3 0.22.
 impl<ClassT: PyClass, FieldT, Offset: OffsetCalculator<ClassT, FieldT>>
-    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false>
+    PyClassGetterGenerator<ClassT, FieldT, Offset, false, false, false, false>
 {
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
@@ -1334,6 +1427,24 @@ impl<T: ToPyObject> IsToPyObject<T> {
     pub const VALUE: bool = true;
 }
 
+probe!(IsIntoPyObjectRef);
+
+impl<'a, 'py, T: 'a> IsIntoPyObjectRef<T>
+where
+    &'a T: IntoPyObject<'py>,
+{
+    pub const VALUE: bool = true;
+}
+
+probe!(IsIntoPyObject);
+
+impl<'py, T> IsIntoPyObject<T>
+where
+    T: IntoPyObject<'py>,
+{
+    pub const VALUE: bool = true;
+}
+
 fn pyo3_get_value_topyobject<
     ClassT: PyClass,
     FieldT: ToPyObject,
@@ -1354,6 +1465,58 @@ fn pyo3_get_value_topyobject<
     // SAFETY: Offset is known to describe the location of the value, and
     // _holder is preventing mutable aliasing
     Ok((unsafe { &*value }).to_object(py).into_ptr())
+}
+
+fn pyo3_get_value_into_pyobject_ref<ClassT, FieldT, Offset>(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) -> PyResult<*mut ffi::PyObject>
+where
+    ClassT: PyClass,
+    for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+    for<'a, 'py> PyErr: From<<&'a FieldT as IntoPyObject<'py>>::Error>,
+{
+    // Check for mutable aliasing
+    let _holder = unsafe {
+        BoundRef::ref_from_ptr(py, &obj)
+            .downcast_unchecked::<ClassT>()
+            .try_borrow()?
+    };
+
+    let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
+
+    // SAFETY: Offset is known to describe the location of the value, and
+    // _holder is preventing mutable aliasing
+    Ok((unsafe { &*value }).into_pyobject(py)?.into_ptr())
+}
+
+fn pyo3_get_value_into_pyobject<ClassT, FieldT, Offset>(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) -> PyResult<*mut ffi::PyObject>
+where
+    ClassT: PyClass,
+    for<'py> FieldT: IntoPyObject<'py> + Clone,
+    Offset: OffsetCalculator<ClassT, FieldT>,
+    for<'py> <FieldT as IntoPyObject<'py>>::Error: Into<PyErr>,
+{
+    // Check for mutable aliasing
+    let _holder = unsafe {
+        BoundRef::ref_from_ptr(py, &obj)
+            .downcast_unchecked::<ClassT>()
+            .try_borrow()?
+    };
+
+    let value = unsafe { obj.cast::<u8>().add(Offset::offset()).cast::<FieldT>() };
+
+    // SAFETY: Offset is known to describe the location of the value, and
+    // _holder is preventing mutable aliasing
+    Ok((unsafe { &*value })
+        .clone()
+        .into_pyobject(py)
+        .map_err(Into::into)?
+        .into_ptr())
 }
 
 fn pyo3_get_value<

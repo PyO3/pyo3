@@ -55,11 +55,11 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
    = help: the trait `IntoPy<Py<PyAny>>` is not implemented for `PhantomData<i32>`, which is required by `PhantomData<i32>: PyO3GetField`
    = note: implement `ToPyObject` or `IntoPy<PyObject> + Clone` for `PhantomData<i32>` to define the conversion
    = note: required for `PhantomData<i32>` to implement `PyO3GetField`
-note: required by a bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false>::generate`
+note: required by a bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, false, false>::generate`
   --> src/impl_/pyclass.rs
    |
    |     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
    |                  -------- required by a bound in this associated function
 ...
    |         FieldT: PyO3GetField,
-   |                 ^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false>::generate`
+   |                 ^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, Offset, false, false, false, false>::generate`
